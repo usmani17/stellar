@@ -1,10 +1,8 @@
 import React, { useState } from "react";
 import { Checkbox } from "../../../../components/ui/Checkbox";
-import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Button } from "../../../../components/ui";
-import { Loader } from "../../../../components/ui/Loader";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
 import type { GoogleAd } from "./GoogleTypes";
 
@@ -51,9 +49,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
   filters,
   onApplyFilters,
   syncing,
-  onSync,
   syncingAnalytics,
-  onSyncAnalytics,
   syncMessage,
   onRefresh,
   getSortIcon,
@@ -61,12 +57,6 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
 }) => {
   const [editingAdId, setEditingAdId] = useState<number | null>(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
-  const [pendingChange, setPendingChange] = useState<{
-    id: number;
-    newValue: string;
-    oldValue: string;
-  } | null>(null);
-  const [updatingAdId, setUpdatingAdId] = useState<number | null>(null);
   // Modal state for status changes - matches Amazon pattern
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
   const [inlineEditAd, setInlineEditAd] = useState<GoogleAd | null>(null);
@@ -143,26 +133,6 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
     setInlineEditNewValue("");
   };
 
-  const confirmChange = async () => {
-    if (!pendingChange || !onUpdateAdStatus) return;
-
-    setUpdatingAdId(pendingChange.id);
-    try {
-      await onUpdateAdStatus(pendingChange.id, pendingChange.newValue);
-      setPendingChange(null);
-    } catch (error) {
-      console.error("Failed to update ad status:", error);
-      alert("Failed to update ad status. Please try again.");
-    } finally {
-      setUpdatingAdId(null);
-    }
-  };
-
-  const cancelChange = () => {
-    setPendingChange(null);
-    setEditingAdId(null);
-    setEditingStatus("");
-  };
   return (
     <>
       {/* Sync Message */}
@@ -347,12 +317,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                         </span>
                       </td>
                       <td className="table-cell hidden md:table-cell">
-                        {updatingAdId === ad.id ? (
-                          <div className="flex items-center gap-2">
-                            <StatusBadge status={ad.status || "ENABLED"} />
-                            <Loader size="sm" showMessage={false} />
-                          </div>
-                        ) : editingAdId === ad.id && onUpdateAdStatus ? (
+                        {editingAdId === ad.id && onUpdateAdStatus ? (
                           <Dropdown
                             options={[
                               { value: "ENABLED", label: "Enabled" },
@@ -364,16 +329,47 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                             defaultOpen={false}
                             closeOnSelect={true}
                             showCheckmark={false}
-                            buttonClassName="text-[13.3px] px-2 py-1"
+                            buttonClassName="w-full text-[13.3px] px-2 py-1"
                             width="w-32"
+                            className="w-full"
+                            menuClassName="z-[100000]"
                           />
                         ) : (
-                          <div
-                            className={onUpdateAdStatus ? "cursor-pointer hover:underline" : ""}
+                          <button
+                            type="button"
+                            className={
+                              onUpdateAdStatus
+                                ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
+                                : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
+                            }
                             onClick={() => onUpdateAdStatus && handleStatusClick(ad)}
+                            disabled={!onUpdateAdStatus}
                           >
-                            {ad.status && <StatusBadge status={ad.status} />}
-                          </div>
+                            <span className="truncate flex-1 min-w-0 text-left">
+                              {ad.status === "ENABLED" || ad.status === "Enabled" || ad.status === "ENABLE"
+                                ? "Enabled"
+                                : ad.status === "PAUSED" || ad.status === "Paused" || ad.status === "PAUSE"
+                                ? "Paused"
+                                : ad.status === "REMOVED" || ad.status === "Removed" || ad.status === "REMOVE"
+                                ? "Removed"
+                                : ad.status || "Enabled"}
+                            </span>
+                            {onUpdateAdStatus && (
+                              <svg
+                                className="w-4 h-4 text-[#072929] flex-shrink-0"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 9l-7 7-7-7"
+                                />
+                              </svg>
+                            )}
+                          </button>
                         )}
                       </td>
                       <td className="table-cell hidden lg:table-cell">

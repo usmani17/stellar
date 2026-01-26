@@ -101,6 +101,17 @@ export const GoogleCampaigns: React.FC = () => {
     title?: string;
     isSuccess?: boolean;
     genericErrors?: string[];
+    errorDetails?: Array<{
+      entity?: string;
+      type?: string;
+      policy_name?: string;
+      policy_description?: string;
+      violating_text?: string;
+      error_code?: string;
+      message?: string;
+      is_exemptible?: boolean;
+      user_message?: string;
+    }>;
     actionButton?: {
       text: string;
       onClick: () => void;
@@ -497,11 +508,60 @@ export const GoogleCampaigns: React.FC = () => {
   }, [accountId, currentPage, filters, startDate, endDate, sorting, apiSearchQuery]);
 
   const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
-    if (!accountId) return;
+    console.log("handleCreateGoogleCampaign called", { 
+      accountId, 
+      campaignFormMode, 
+      campaignId, 
+      data: { ...data, keywords: data.keywords ? "..." : undefined } // Don't log full keywords array
+    });
+    
+    if (!accountId) {
+      const errorMessage = "Account ID is missing";
+      console.error(errorMessage);
+      setCreateCampaignError(errorMessage);
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+      });
+      throw new Error(errorMessage);
+    }
 
     // If in edit mode, call update handler instead
     if (campaignFormMode === "edit" && campaignId) {
-      return handleUpdateGoogleCampaign(data);
+      console.log("Edit mode detected, calling handleUpdateGoogleCampaign");
+      try {
+        await handleUpdateGoogleCampaign(data);
+        console.log("handleUpdateGoogleCampaign completed successfully");
+      } catch (error: any) {
+        console.error("Error in handleUpdateGoogleCampaign:", error);
+        // Error is already handled in handleUpdateGoogleCampaign
+        // But ensure it's displayed
+        const errorMessage =
+          error.response?.data?.error ||
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to update campaign. Please try again.";
+        
+        console.error("Update error:", errorMessage);
+        
+        // Show error in modal as well (if not already shown)
+        if (!errorModal.isOpen) {
+          setErrorModal({
+            isOpen: true,
+            title: "Update Failed",
+            message: errorMessage,
+            isSuccess: false,
+          });
+        }
+        
+        // Also set form error
+        setCreateCampaignError(errorMessage);
+        
+        throw error; // Re-throw so form knows there was an error
+      }
+      return;
     }
 
     setCreateCampaignLoading(true);
@@ -693,6 +753,8 @@ export const GoogleCampaigns: React.FC = () => {
 
   // Handle campaign updates in edit mode
   const handleUpdateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
+    console.log("handleUpdateGoogleCampaign called", { accountId, campaignId, data });
+    
     if (!accountId || !campaignId) {
       console.error("Cannot update campaign: missing accountId or campaignId", {
         accountId,
@@ -700,12 +762,26 @@ export const GoogleCampaigns: React.FC = () => {
       });
       const errorMessage = "Missing account or campaign ID";
       setCreateCampaignError(errorMessage);
+      setErrorModal({
+        isOpen: true,
+        title: "Update Failed",
+        message: errorMessage,
+        isSuccess: false,
+      });
       throw new Error(errorMessage);
     }
 
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) {
-      throw new Error("Invalid account ID");
+      const errorMessage = "Invalid account ID";
+      setCreateCampaignError(errorMessage);
+      setErrorModal({
+        isOpen: true,
+        title: "Update Failed",
+        message: errorMessage,
+        isSuccess: false,
+      });
+      throw new Error(errorMessage);
     }
 
     setCreateCampaignLoading(true);
@@ -715,8 +791,33 @@ export const GoogleCampaigns: React.FC = () => {
       // Get original data to compare changes
       const original = initialCampaignData;
       if (!original) {
-        throw new Error("Original campaign data not available");
+        const errorMessage = "Original campaign data not available. Please close and reopen the edit panel.";
+        console.error(errorMessage);
+        setCreateCampaignError(errorMessage);
+        setErrorModal({
+          isOpen: true,
+          title: "Update Failed",
+          message: errorMessage,
+          isSuccess: false,
+        });
+        setCreateCampaignLoading(false);
+        throw new Error(errorMessage);
       }
+      
+      console.log("Comparing original vs new data", { 
+        original: {
+          bidding_strategy_type: original.bidding_strategy_type,
+          target_impression_share_location: original.target_impression_share_location,
+          target_impression_share_location_fraction_micros: original.target_impression_share_location_fraction_micros,
+          target_impression_share_cpc_bid_ceiling_micros: original.target_impression_share_cpc_bid_ceiling_micros,
+        },
+        newData: {
+          bidding_strategy_type: data.bidding_strategy_type,
+          target_impression_share_location: data.target_impression_share_location,
+          target_impression_share_location_fraction_micros: data.target_impression_share_location_fraction_micros,
+          target_impression_share_cpc_bid_ceiling_micros: data.target_impression_share_cpc_bid_ceiling_micros,
+        }
+      });
 
       console.log("Updating campaign:", {
         campaignId,
@@ -818,7 +919,201 @@ export const GoogleCampaigns: React.FC = () => {
         }
       }
 
-      // 7. Check if PMax Asset fields changed (only for PERFORMANCE_MAX campaigns)
+      // 7. Check if bidding strategy changed
+      const originalBiddingStrategy = original.bidding_strategy_type || "";
+      const newBiddingStrategy = data.bidding_strategy_type || "";
+      if (newBiddingStrategy !== originalBiddingStrategy && newBiddingStrategy) {
+        console.log("Bidding strategy changed:", {
+          originalBiddingStrategy,
+          newBiddingStrategy,
+        });
+        updatePayload.action = "bidding_strategy";
+        updatePayload.bidding_strategy_type = newBiddingStrategy;
+
+        // Include target values if they exist
+        if (data.target_cpa_micros !== undefined) {
+          updatePayload.target_cpa_micros = data.target_cpa_micros;
+        }
+        if (data.target_roas !== undefined) {
+          updatePayload.target_roas = data.target_roas;
+        }
+        
+        // For TARGET_IMPRESSION_SHARE, location and fraction_micros are required together
+        if (newBiddingStrategy === "TARGET_IMPRESSION_SHARE") {
+          // Always include location (use form value or original)
+          updatePayload.target_impression_share_location =
+            data.target_impression_share_location || original.target_impression_share_location || "TOP_OF_PAGE";
+          
+          // Always include fraction_micros (required field)
+          // Priority: form data > original data > default (100%)
+          const fractionMicros = data.target_impression_share_location_fraction_micros !== undefined && data.target_impression_share_location_fraction_micros !== null
+            ? data.target_impression_share_location_fraction_micros
+            : (original.target_impression_share_location_fraction_micros !== undefined && original.target_impression_share_location_fraction_micros !== null
+                ? original.target_impression_share_location_fraction_micros
+                : 1000000); // Default to 100% if not provided
+          updatePayload.target_impression_share_location_fraction_micros = fractionMicros;
+          
+          // Include CPC bid ceiling (use form value or original value)
+          const cpcCeiling = data.target_impression_share_cpc_bid_ceiling_micros !== undefined && data.target_impression_share_cpc_bid_ceiling_micros !== null
+            ? data.target_impression_share_cpc_bid_ceiling_micros
+            : original.target_impression_share_cpc_bid_ceiling_micros;
+          if (cpcCeiling !== undefined && cpcCeiling !== null) {
+            updatePayload.target_impression_share_cpc_bid_ceiling_micros = cpcCeiling;
+          }
+        }
+      } else if (newBiddingStrategy === originalBiddingStrategy && newBiddingStrategy) {
+        // Bidding strategy type didn't change, but target values might have
+        let hasBiddingStrategyUpdate = false;
+        
+        if (
+          data.target_cpa_micros !== undefined &&
+          data.target_cpa_micros !== original.target_cpa_micros
+        ) {
+          updatePayload.action = "bidding_strategy";
+          updatePayload.bidding_strategy_type = newBiddingStrategy;
+          updatePayload.target_cpa_micros = data.target_cpa_micros;
+          hasBiddingStrategyUpdate = true;
+        }
+        if (
+          data.target_roas !== undefined &&
+          data.target_roas !== original.target_roas
+        ) {
+          updatePayload.action = "bidding_strategy";
+          updatePayload.bidding_strategy_type = newBiddingStrategy;
+          updatePayload.target_roas = data.target_roas;
+          hasBiddingStrategyUpdate = true;
+        }
+        
+        // For TARGET_IMPRESSION_SHARE, handle location and required fields together
+        if (newBiddingStrategy === "TARGET_IMPRESSION_SHARE") {
+          const locationChanged = data.target_impression_share_location &&
+            data.target_impression_share_location !== original.target_impression_share_location;
+          const fractionChanged = data.target_impression_share_location_fraction_micros !== undefined &&
+            data.target_impression_share_location_fraction_micros !== original.target_impression_share_location_fraction_micros;
+          const cpcCeilingChanged = data.target_impression_share_cpc_bid_ceiling_micros !== undefined &&
+            data.target_impression_share_cpc_bid_ceiling_micros !== original.target_impression_share_cpc_bid_ceiling_micros;
+          
+          if (locationChanged || fractionChanged || cpcCeilingChanged) {
+            updatePayload.action = "bidding_strategy";
+            updatePayload.bidding_strategy_type = newBiddingStrategy;
+            hasBiddingStrategyUpdate = true;
+            
+            // Always include location (use form value or keep original)
+            updatePayload.target_impression_share_location =
+              data.target_impression_share_location || original.target_impression_share_location || "TOP_OF_PAGE";
+            
+            // Always include fraction_micros (required for TARGET_IMPRESSION_SHARE)
+            // Priority: form data > original data > default (100%)
+            const fractionMicros = data.target_impression_share_location_fraction_micros !== undefined && data.target_impression_share_location_fraction_micros !== null
+              ? data.target_impression_share_location_fraction_micros
+              : (original.target_impression_share_location_fraction_micros !== undefined && original.target_impression_share_location_fraction_micros !== null
+                  ? original.target_impression_share_location_fraction_micros
+                  : 1000000); // Default to 100%
+            updatePayload.target_impression_share_location_fraction_micros = fractionMicros;
+            
+            // Include CPC bid ceiling (use form value or keep original)
+            const cpcCeiling = data.target_impression_share_cpc_bid_ceiling_micros !== undefined && data.target_impression_share_cpc_bid_ceiling_micros !== null
+              ? data.target_impression_share_cpc_bid_ceiling_micros
+              : original.target_impression_share_cpc_bid_ceiling_micros;
+            if (cpcCeiling !== undefined && cpcCeiling !== null) {
+              updatePayload.target_impression_share_cpc_bid_ceiling_micros = cpcCeiling;
+            }
+          }
+        }
+      }
+
+      // 8. Check if URL tracking fields changed
+      // Note: These fields are not yet supported by the bulk update endpoint
+      // They will be added in a future update
+      const originalTrackingUrl = original.tracking_url_template || "";
+      const newTrackingUrl = data.tracking_url_template || "";
+      if (newTrackingUrl !== originalTrackingUrl) {
+        console.log("Tracking URL template changed (not yet supported in bulk update):", {
+          originalTrackingUrl,
+          newTrackingUrl,
+        });
+        // TODO: Add backend support for tracking_url_template in bulk update
+      }
+
+      const originalFinalUrlSuffix = original.final_url_suffix || "";
+      const newFinalUrlSuffix = data.final_url_suffix || "";
+      if (newFinalUrlSuffix !== originalFinalUrlSuffix) {
+        console.log("Final URL suffix changed (not yet supported in bulk update):", {
+          originalFinalUrlSuffix,
+          newFinalUrlSuffix,
+        });
+        // TODO: Add backend support for final_url_suffix in bulk update
+      }
+
+      const originalUrlParams = original.url_custom_parameters || [];
+      const newUrlParams = data.url_custom_parameters || [];
+      if (
+        JSON.stringify(originalUrlParams.sort()) !==
+        JSON.stringify(newUrlParams.sort())
+      ) {
+        console.log("URL custom parameters changed (not yet supported in bulk update)");
+        // TODO: Add backend support for url_custom_parameters in bulk update
+      }
+
+      // 9. Check if targeting fields changed
+      // Note: These fields are not yet supported by the bulk update endpoint
+      // They will be added in a future update
+      const originalLocationIds = original.location_ids || [];
+      const newLocationIds = data.location_ids || [];
+      if (
+        JSON.stringify([...originalLocationIds].sort()) !==
+        JSON.stringify([...newLocationIds].sort())
+      ) {
+        console.log("Location IDs changed (not yet supported in bulk update)");
+        // TODO: Add backend support for location_ids in bulk update
+      }
+
+      const originalExcludedLocationIds = original.excluded_location_ids || [];
+      const newExcludedLocationIds = data.excluded_location_ids || [];
+      if (
+        JSON.stringify([...originalExcludedLocationIds].sort()) !==
+        JSON.stringify([...newExcludedLocationIds].sort())
+      ) {
+        console.log("Excluded location IDs changed (not yet supported in bulk update)");
+        // TODO: Add backend support for excluded_location_ids in bulk update
+      }
+
+      const originalLanguageIds = original.language_ids || [];
+      const newLanguageIds = data.language_ids || [];
+      if (
+        JSON.stringify([...originalLanguageIds].sort()) !==
+        JSON.stringify([...newLanguageIds].sort())
+      ) {
+        console.log("Language IDs changed (not yet supported in bulk update)");
+        // TODO: Add backend support for language_ids in bulk update
+      }
+
+      const originalDeviceIds = original.device_ids || [];
+      const newDeviceIds = data.device_ids || [];
+      if (
+        JSON.stringify([...originalDeviceIds].sort()) !==
+        JSON.stringify([...newDeviceIds].sort())
+      ) {
+        console.log("Device IDs changed (not yet supported in bulk update)");
+        // TODO: Add backend support for device_ids in bulk update
+      }
+
+      // 10. Check if network settings changed (for SEARCH campaigns)
+      // Note: This field is not yet supported by the bulk update endpoint
+      // It will be added in a future update
+      if (data.campaign_type === "SEARCH") {
+        const originalNetworkSettings = original.network_settings || {};
+        const newNetworkSettings = data.network_settings || {};
+        if (
+          JSON.stringify(originalNetworkSettings) !==
+          JSON.stringify(newNetworkSettings)
+        ) {
+          console.log("Network settings changed (not yet supported in bulk update)");
+          // TODO: Add backend support for network_settings in bulk update
+        }
+      }
+
+      // 11. Check if PMax Asset fields changed (only for PERFORMANCE_MAX campaigns)
       if (data.campaign_type === "PERFORMANCE_MAX") {
         const originalExtraData = (original as any).extra_data || {};
 
@@ -933,8 +1228,17 @@ export const GoogleCampaigns: React.FC = () => {
         // No changes detected, show message and don't close the panel
         console.log("No changes detected");
         const errorMessage =
-          "No changes detected. Please modify at least one field (name, status, budget, start date, end date, Shopping Settings, or Performance Max assets).";
+          "No changes detected. Please modify at least one field (name, status, budget, start date, end date, bidding strategy, targeting, network settings, URL tracking, Shopping Settings, or Performance Max assets).";
         setCreateCampaignError(errorMessage);
+        
+        // Also show in modal for better visibility
+        setErrorModal({
+          isOpen: true,
+          title: "No Changes",
+          message: errorMessage,
+          isSuccess: false,
+        });
+        
         setCreateCampaignLoading(false);
         throw new Error(errorMessage);
       }
@@ -947,6 +1251,21 @@ export const GoogleCampaigns: React.FC = () => {
           campaignUpdatePayload
         );
         console.log("Campaign update completed successfully", result);
+        
+        // Check for errors in the response
+        if (result.errors && result.errors.length > 0) {
+          const errorMessage = result.errors[0] || "Failed to update campaign";
+          setCreateCampaignError(errorMessage);
+          setErrorModal({
+            isOpen: true,
+            title: "Update Failed",
+            message: errorMessage,
+            isSuccess: false,
+            errorDetails: result.errors.map((err: string) => ({ message: err })),
+          });
+          setCreateCampaignLoading(false);
+          throw new Error(errorMessage);
+        }
       }
 
       // Update asset group if PMax assets changed
@@ -968,42 +1287,110 @@ export const GoogleCampaigns: React.FC = () => {
 
       console.log("Update completed successfully");
 
-      // Show success message
-      const updatedFields = [];
-      if (campaignUpdatePayload.name) updatedFields.push("name");
-      if (campaignUpdatePayload.status) updatedFields.push("status");
-      if (campaignUpdatePayload.value !== undefined)
-        updatedFields.push("budget");
-      if (campaignUpdatePayload.start_date) updatedFields.push("start date");
-      if (campaignUpdatePayload.end_date) updatedFields.push("end date");
-      if (campaignUpdatePayload.merchant_id) updatedFields.push("merchant ID");
-      if (campaignUpdatePayload.sales_country)
-        updatedFields.push("sales country");
-      if (campaignUpdatePayload.campaign_priority !== undefined)
-        updatedFields.push("campaign priority");
-      if (campaignUpdatePayload.enable_local !== undefined)
-        updatedFields.push("enable local");
-      // Add PMax asset fields
-      if (pmaxAssets?.headlines) updatedFields.push("headlines");
-      if (pmaxAssets?.descriptions) updatedFields.push("descriptions");
-      if (pmaxAssets?.final_url) updatedFields.push("final URL");
-      if (pmaxAssets?.business_name) updatedFields.push("business name");
-      if (pmaxAssets?.logo_url) updatedFields.push("logo URL");
-      if (pmaxAssets?.marketing_image_url)
-        updatedFields.push("marketing image");
-      if (pmaxAssets?.square_marketing_image_url)
-        updatedFields.push("square marketing image");
-      if (pmaxAssets?.long_headline) updatedFields.push("long headline");
-      if (pmaxAssets?.asset_group_name) updatedFields.push("asset group name");
+      // Show success message with detailed list of updated fields
+      const updatedFields: Array<{ field: string; value: any }> = [];
+      
+      // Campaign-level fields
+      if (campaignUpdatePayload.name) {
+        updatedFields.push({ field: "Campaign Name", value: campaignUpdatePayload.name });
+      }
+      if (campaignUpdatePayload.status) {
+        updatedFields.push({ field: "Status", value: campaignUpdatePayload.status });
+      }
+      if (campaignUpdatePayload.value !== undefined) {
+        updatedFields.push({ field: "Budget", value: `$${campaignUpdatePayload.value.toFixed(2)}` });
+      }
+      if (campaignUpdatePayload.start_date) {
+        updatedFields.push({ field: "Start Date", value: campaignUpdatePayload.start_date });
+      }
+      if (campaignUpdatePayload.end_date) {
+        updatedFields.push({ field: "End Date", value: campaignUpdatePayload.end_date });
+      }
+      if (campaignUpdatePayload.bidding_strategy_type) {
+        const biddingInfo: string[] = [campaignUpdatePayload.bidding_strategy_type];
+        if (campaignUpdatePayload.target_cpa_micros) {
+          biddingInfo.push(`Target CPA: $${(campaignUpdatePayload.target_cpa_micros / 1000000).toFixed(2)}`);
+        }
+        if (campaignUpdatePayload.target_roas) {
+          biddingInfo.push(`Target ROAS: ${campaignUpdatePayload.target_roas}x`);
+        }
+        if (campaignUpdatePayload.target_impression_share_location) {
+          biddingInfo.push(`Location: ${campaignUpdatePayload.target_impression_share_location}`);
+          if (campaignUpdatePayload.target_impression_share_location_fraction_micros) {
+            const percent = (campaignUpdatePayload.target_impression_share_location_fraction_micros / 10000).toFixed(1);
+            biddingInfo.push(`Target: ${percent}%`);
+          }
+          if (campaignUpdatePayload.target_impression_share_cpc_bid_ceiling_micros) {
+            biddingInfo.push(`Max CPC: $${(campaignUpdatePayload.target_impression_share_cpc_bid_ceiling_micros / 1000000).toFixed(2)}`);
+          }
+        }
+        updatedFields.push({ field: "Bidding Strategy", value: biddingInfo.join(", ") });
+      }
+      
+      // Shopping-specific fields
+      if (campaignUpdatePayload.merchant_id) {
+        updatedFields.push({ field: "Merchant ID", value: campaignUpdatePayload.merchant_id });
+      }
+      if (campaignUpdatePayload.sales_country) {
+        updatedFields.push({ field: "Sales Country", value: campaignUpdatePayload.sales_country });
+      }
+      if (campaignUpdatePayload.campaign_priority !== undefined) {
+        updatedFields.push({ field: "Campaign Priority", value: campaignUpdatePayload.campaign_priority.toString() });
+      }
+      if (campaignUpdatePayload.enable_local !== undefined) {
+        updatedFields.push({ field: "Enable Local", value: campaignUpdatePayload.enable_local ? "Yes" : "No" });
+      }
+      
+      // PMax asset fields
+      if (pmaxAssets?.headlines) {
+        updatedFields.push({ field: "Headlines", value: `${pmaxAssets.headlines.length} headline(s)` });
+      }
+      if (pmaxAssets?.descriptions) {
+        updatedFields.push({ field: "Descriptions", value: `${pmaxAssets.descriptions.length} description(s)` });
+      }
+      if (pmaxAssets?.final_url) {
+        updatedFields.push({ field: "Final URL", value: pmaxAssets.final_url });
+      }
+      if (pmaxAssets?.business_name) {
+        updatedFields.push({ field: "Business Name", value: pmaxAssets.business_name });
+      }
+      if (pmaxAssets?.logo_url) {
+        updatedFields.push({ field: "Logo URL", value: pmaxAssets.logo_url });
+      }
+      if (pmaxAssets?.marketing_image_url) {
+        updatedFields.push({ field: "Marketing Image", value: pmaxAssets.marketing_image_url });
+      }
+      if (pmaxAssets?.square_marketing_image_url) {
+        updatedFields.push({ field: "Square Marketing Image", value: pmaxAssets.square_marketing_image_url });
+      }
+      if (pmaxAssets?.long_headline) {
+        updatedFields.push({ field: "Long Headline", value: pmaxAssets.long_headline });
+      }
+      if (pmaxAssets?.asset_group_name) {
+        updatedFields.push({ field: "Asset Group Name", value: pmaxAssets.asset_group_name });
+      }
 
-      const fieldsText =
-        updatedFields.length > 0 ? updatedFields.join(", ") : "campaign";
+      // Format updated fields as errorDetails for table display
+      const updatedFieldsTable = updatedFields.map(item => ({
+        entity: item.field,
+        policy_name: undefined,
+        message: String(item.value),
+        error_code: undefined,
+        policy_description: undefined,
+        violating_text: undefined,
+        type: undefined,
+        is_exemptible: undefined,
+        user_message: undefined,
+      }));
 
       setErrorModal({
         isOpen: true,
         title: "Success",
-        message: `Campaign updated successfully! Updated fields: ${fieldsText}.`,
+        message: updatedFields.length > 0 
+          ? "Campaign updated successfully! The following fields were updated:"
+          : "Campaign updated successfully!",
         isSuccess: true,
+        errorDetails: updatedFieldsTable.length > 0 ? updatedFieldsTable : undefined,
       });
 
       // Reload campaigns
@@ -1022,9 +1409,34 @@ export const GoogleCampaigns: React.FC = () => {
       console.error("Failed to update campaign:", error);
       const errorMessage =
         error.response?.data?.error ||
+        error.response?.data?.message ||
         error.message ||
         "Failed to update campaign. Please try again.";
+      
+      // Extract detailed error information
+      let errorDetails: any = null;
+      if (error.response?.data?.details) {
+        errorDetails = error.response.data.details;
+      } else if (error.response?.data?.google_ads_errors) {
+        errorDetails = error.response.data.google_ads_errors;
+      } else if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        errorDetails = error.response.data.errors.map((err: string) => ({
+          message: err,
+        }));
+      }
+      
+      // Set error in form
       setCreateCampaignError(errorMessage);
+      
+      // Also show error in modal for better visibility
+      setErrorModal({
+        isOpen: true,
+        title: "Update Failed",
+        message: errorMessage,
+        isSuccess: false,
+        errorDetails: errorDetails,
+      });
+      
       setCreateCampaignLoading(false);
       throw error;
     }
@@ -2577,6 +2989,7 @@ export const GoogleCampaigns: React.FC = () => {
         message={errorModal.message}
         isSuccess={errorModal.isSuccess}
         genericErrors={errorModal.genericErrors}
+        errorDetails={errorModal.errorDetails}
         actionButton={errorModal.actionButton}
       />
 
@@ -2764,7 +3177,7 @@ export const GoogleCampaigns: React.FC = () => {
               {isCreateCampaignPanelOpen && (
                 <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[12px] cursor-not-allowed" />
               )}
-              {loading && (
+              {loading && !isChartCollapsed && (
                 <div className="loading-overlay">
                   <div className="loading-overlay-content">
                     <Loader size="md" message="Loading chart data..." />

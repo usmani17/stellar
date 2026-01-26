@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
+import { GoogleTrackingTemplateForm } from "./campaigns/GoogleTrackingTemplateForm";
 
 export interface AdGroupInput {
   adgroup: {
     name: string;
     cpc_bid?: number;
+    tracking_url_template?: string;
+    final_url_suffix?: string;
+    url_custom_parameters?: Array<{ key: string; value: string }>;
   };
 }
 
@@ -44,6 +48,9 @@ export const CreateGoogleAdGroupPanel: React.FC<
 
     const [adgroupName, setAdgroupName] = useState(generateDefaultAdGroupName());
     const [adgroupBid, setAdgroupBid] = useState<number | undefined>(undefined);
+    const [trackingUrlTemplate, setTrackingUrlTemplate] = useState<string>("");
+    const [finalUrlSuffix, setFinalUrlSuffix] = useState<string>("");
+    const [urlCustomParameters, setUrlCustomParameters] = useState<Array<{ key: string; value: string }>>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     // Reset form when panel closes
@@ -51,6 +58,9 @@ export const CreateGoogleAdGroupPanel: React.FC<
       if (!isOpen) {
         setAdgroupName(generateDefaultAdGroupName());
         setAdgroupBid(undefined);
+        setTrackingUrlTemplate("");
+        setFinalUrlSuffix("");
+        setUrlCustomParameters([]);
         setErrors({});
       }
     }, [isOpen, generateDefaultAdGroupName]);
@@ -62,6 +72,9 @@ export const CreateGoogleAdGroupPanel: React.FC<
         // Successful submission - reset form
         setAdgroupName(generateDefaultAdGroupName());
         setAdgroupBid(undefined);
+        setTrackingUrlTemplate("");
+        setFinalUrlSuffix("");
+        setUrlCustomParameters([]);
         setErrors({});
       }
       prevLoadingRef.current = loading;
@@ -88,6 +101,11 @@ export const CreateGoogleAdGroupPanel: React.FC<
         adgroup: {
           name: adgroupName.trim(),
           ...(adgroupBid !== undefined && adgroupBid > 0 && { cpc_bid: adgroupBid }),
+          ...(trackingUrlTemplate.trim() && { tracking_url_template: trackingUrlTemplate.trim() }),
+          ...(finalUrlSuffix.trim() && { final_url_suffix: finalUrlSuffix.trim() }),
+          ...(urlCustomParameters.length > 0 && urlCustomParameters.some(p => p.key.trim() && p.value.trim()) && {
+            url_custom_parameters: urlCustomParameters.filter(p => p.key.trim() && p.value.trim())
+          }),
         },
       };
 
@@ -97,8 +115,31 @@ export const CreateGoogleAdGroupPanel: React.FC<
     const handleCancel = () => {
       setAdgroupName(generateDefaultAdGroupName());
       setAdgroupBid(undefined);
+      setTrackingUrlTemplate("");
+      setFinalUrlSuffix("");
+      setUrlCustomParameters([]);
       setErrors({});
       onClose();
+    };
+
+    const handleFillDummyValues = () => {
+      // Fill ad group name using the same format
+      setAdgroupName(generateDefaultAdGroupName());
+      // Fill tracking URL template
+      setTrackingUrlTemplate("{lpurl}?utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_content={creative}");
+      // Fill final URL suffix
+      setFinalUrlSuffix("utm_source=google&utm_medium=cpc&utm_campaign={campaignid}");
+      // Fill custom parameters
+      setUrlCustomParameters([
+        { key: "campaign", value: "test_campaign" },
+        { key: "source", value: "google_ads" }
+      ]);
+      // Clear any errors
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.adgroupName;
+        return newErrors;
+      });
     };
 
     if (!isOpen) return null;
@@ -113,9 +154,19 @@ export const CreateGoogleAdGroupPanel: React.FC<
 
           {/* Ad Group Section */}
           <div className="mb-6">
-            <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
-              Ad Group
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[14px] font-semibold text-[#072929]">
+                Ad Group
+              </h3>
+              <button
+                type="button"
+                onClick={handleFillDummyValues}
+                className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] hover:underline px-2 py-1"
+                title="Fill with dummy values for testing"
+              >
+                Fill Dummy Values
+              </button>
+            </div>
             <div className="flex flex-wrap items-end gap-3">
               <div className="flex-1 min-w-[200px]">
                 <label className="form-label-small">
@@ -164,6 +215,17 @@ export const CreateGoogleAdGroupPanel: React.FC<
               </div>
             </div>
           </div>
+
+          {/* URL Options - UTM Settings */}
+          <GoogleTrackingTemplateForm
+            trackingUrlTemplate={trackingUrlTemplate}
+            finalUrlSuffix={finalUrlSuffix}
+            urlCustomParameters={urlCustomParameters}
+            onTrackingUrlTemplateChange={setTrackingUrlTemplate}
+            onFinalUrlSuffixChange={setFinalUrlSuffix}
+            onCustomParametersChange={(params) => setUrlCustomParameters(params || [])}
+            title="Ad Group URL options"
+          />
 
         </div>
 

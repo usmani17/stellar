@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { Button } from "../ui";
 import type { GoogleAdGroup } from "../../pages/google/components/tabs/GoogleTypes";
@@ -41,7 +41,7 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
   onSubmit,
   campaignId: _campaignId,
   accountId: _accountId,
-  campaignType: _campaignType,
+  campaignType,
   adgroups = [],
   loading = false,
   submitError = null,
@@ -59,6 +59,17 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
     match_type: "BROAD" as "EXACT" | "PHRASE" | "BROAD",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Check if this is a Performance Max campaign
+  const isPerformanceMax = campaignType?.toUpperCase() === "PERFORMANCE_MAX";
+
+  // Ensure level is always "campaign" for Performance Max campaigns
+  useEffect(() => {
+    if (isPerformanceMax) {
+      setLevel("campaign");
+      setSelectedAdGroupId(""); // Clear ad group selection
+    }
+  }, [isPerformanceMax, isOpen]);
 
   // Create ad group options for dropdown
   const adGroupOptions = useMemo(() => {
@@ -156,18 +167,20 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
           </div>
         )}
 
-        {/* Level Selection */}
-        <div className="mb-6">
-          <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
-            Level
-          </h3>
-          <Dropdown
-            options={LEVEL_OPTIONS}
-            value={level}
-            onChange={(val) => setLevel(val as "campaign" | "adgroup")}
-            buttonClassName="w-full"
-          />
-        </div>
+        {/* Level Selection - Hidden for Performance Max campaigns */}
+        {!isPerformanceMax && (
+          <div className="mb-6">
+            <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
+              Level
+            </h3>
+            <Dropdown
+              options={LEVEL_OPTIONS}
+              value={level}
+              onChange={(val) => setLevel(val as "campaign" | "adgroup")}
+              buttonClassName="w-full"
+            />
+          </div>
+        )}
 
         {/* Ad Group Selection (only for ad group level) */}
         {level === "adgroup" && (

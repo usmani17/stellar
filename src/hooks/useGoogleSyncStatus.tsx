@@ -31,9 +31,6 @@ export const useGoogleSyncStatus = ({
   // Get status for this specific entity type
   const syncStatus = contextSyncStatus[entityType];
   
-  // Debug logging
-  console.log(`[${entityType}] Hook - contextSyncStatus:`, contextSyncStatus, `syncStatus for ${entityType}:`, syncStatus);
-  
   const [showRefreshButton, setShowRefreshButton] = useState(false);
   const [showCompletedBanner, setShowCompletedBanner] = useState(false); // Only show if transitioned from syncing
   const previousStatusRef = useRef<string | null>(null); // Use ref to track previous status
@@ -64,7 +61,6 @@ export const useGoogleSyncStatus = ({
 
     // Show completed banner if we transitioned from syncing to completed (not on initial load)
     if (previousStatus === "syncing" && currentStatus === "completed" && !isInitialLoadRef.current) {
-      console.log(`[${entityType}] Transition from syncing to completed - showing success banner`);
       setShowCompletedBanner(true);
     } else if (currentStatus !== "completed") {
       // Hide banner if status changes away from completed
@@ -96,15 +92,10 @@ export const useGoogleSyncStatus = ({
     isInitialLoadRef.current = false;
   }, [syncStatus, entityType, currentData.length, accountId]);
 
-  // Sync Status Banner Component
-  const SyncStatusBanner: React.FC = () => {
-    // Debug: log sync status
-    console.log(`[${entityType}] SyncStatusBanner render - syncStatus:`, syncStatus, `contextSyncStatus:`, contextSyncStatus);
-    
+  // Sync Status Banner Component - Memoized with useCallback to prevent unnecessary re-renders
+  const SyncStatusBanner = useCallback<React.FC>(() => {
     // If syncStatus is null, it means the context hasn't loaded yet or there's no status
-    // We should still try to show something if we know the context is loading
     if (!syncStatus) {
-      console.log(`[${entityType}] SyncStatusBanner - no syncStatus yet, returning null`);
       return null;
     }
 
@@ -179,7 +170,7 @@ export const useGoogleSyncStatus = ({
     }
 
     return null;
-  };
+  }, [syncStatus, entityType, showCompletedBanner, showRefreshButton, accountId]);
 
   return {
     syncStatus,

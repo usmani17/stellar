@@ -433,24 +433,49 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                               onChange={(val) => {
                                 handleStatusChange(assetGroup.id, val as string);
                               }}
-                              defaultOpen={true}
+                              defaultOpen={false}
                               closeOnSelect={true}
-                              buttonClassName="text-[13.3px] px-2 py-1"
+                              buttonClassName="w-full text-[13.3px] px-2 py-1"
                               width="w-32"
+                              className="w-full"
+                              menuClassName="z-[100000]"
                             />
                           ) : (
-                            <div
+                            <button
+                              type="button"
                               className={
                                 onUpdateAssetGroupStatus
-                                  ? "cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
-                                  : ""
+                                  ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
+                                  : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
                               }
                               onClick={() =>
                                 onUpdateAssetGroupStatus && handleStatusClick(assetGroup)
                               }
+                              disabled={!onUpdateAssetGroupStatus}
                             >
-                              <StatusBadge status={assetGroup.status} />
-                            </div>
+                              <span className="truncate flex-1 min-w-0 text-left">
+                                {assetGroup.status === "ENABLED" || assetGroup.status === "Enabled" || assetGroup.status === "ENABLE"
+                                  ? "Enabled"
+                                  : assetGroup.status === "PAUSED" || assetGroup.status === "Paused" || assetGroup.status === "PAUSE"
+                                  ? "Paused"
+                                  : assetGroup.status || "Enabled"}
+                              </span>
+                              {onUpdateAssetGroupStatus && (
+                                <svg
+                                  className="w-4 h-4 text-[#072929] flex-shrink-0"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 9l-7 7-7-7"
+                                  />
+                                </svg>
+                              )}
+                            </button>
                           )}
                         </div>
                       </td>
