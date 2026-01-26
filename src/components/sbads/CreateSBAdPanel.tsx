@@ -1456,10 +1456,19 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
             <div className="mb-4">
               <label className="form-label-small">
                 Creative Properties to Optimize (Optional)
+                {currentAd.creative?.creativePropertiesToOptimize &&
+                  currentAd.creative.creativePropertiesToOptimize.length > 0 && (
+                    <span className="ml-2 text-[10px] text-[#556179] font-normal">
+                      ({currentAd.creative.creativePropertiesToOptimize.length} selected)
+                    </span>
+                  )}
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 {CREATIVE_PROPERTIES_OPTIONS.map((option) => (
-                  <label key={option.value} className="flex items-center gap-2">
+                  <label
+                    key={option.value}
+                    className="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                  >
                     <input
                       type="checkbox"
                       checked={
@@ -1471,11 +1480,15 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         const current =
                           currentAd.creative?.creativePropertiesToOptimize || [];
                         if (e.target.checked) {
-                          handleChange("creative.creativePropertiesToOptimize", [
-                            ...current,
-                            option.value,
-                          ]);
+                          // Add to array if not already present
+                          if (!current.includes(option.value)) {
+                            handleChange("creative.creativePropertiesToOptimize", [
+                              ...current,
+                              option.value,
+                            ]);
+                          }
                         } else {
+                          // Remove from array
                           handleChange(
                             "creative.creativePropertiesToOptimize",
                             current.filter((v) => v !== option.value)
@@ -1490,6 +1503,40 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                   </label>
                 ))}
               </div>
+              {/* Display selected properties as tags */}
+              {currentAd.creative?.creativePropertiesToOptimize &&
+                currentAd.creative.creativePropertiesToOptimize.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-[10px] text-[#556179] mb-1">Selected properties:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {currentAd.creative.creativePropertiesToOptimize.map(
+                        (property, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-[#136D6D] text-white text-[10px] rounded"
+                          >
+                            {property}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const current =
+                                  currentAd.creative?.creativePropertiesToOptimize || [];
+                                handleChange(
+                                  "creative.creativePropertiesToOptimize",
+                                  current.filter((v) => v !== property)
+                                );
+                              }}
+                              className="hover:text-red-200 ml-1"
+                              title="Remove"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
             </div>
           )}
 

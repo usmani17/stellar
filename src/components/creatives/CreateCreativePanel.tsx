@@ -817,10 +817,11 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
-        <div className="sticky top-0 bg-white border-b border-[#EBEBEB] px-6 py-4 flex items-center justify-between z-10">
-          <h2 className="text-[18px] font-semibold text-[#072929]">
+    <div className="create-panel mb-4">
+      {/* Form */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[16px] font-semibold text-[#072929]">
             {editCreative ? "Edit Creative" : "Create Creatives"}
           </h2>
           <div className="flex items-center gap-3">
@@ -828,17 +829,18 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
               <button
                 type="button"
                 onClick={handleTestData}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-[13.44px] font-medium"
+                className="px-4 py-2 bg-gray-500 text-white text-[11.2px] rounded-lg hover:bg-gray-600 transition-colors"
               >
                 Test
               </button>
             )}
             <button
               onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              title="Close"
             >
               <svg
-                className="w-6 h-6"
+                className="w-5 h-5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -854,7 +856,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
           </div>
         </div>
 
-        <div className="p-6">
+        <div>
           {/* Ad Group and Creative Type - Inline */}
           <div className="mb-6 flex gap-4">
             {/* Ad Group Selection */}
@@ -2817,7 +2819,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
             <button
               type="button"
               onClick={handleClose}
-              className="flex-1 py-2 border border-[#EBEBEB] text-[#222124] rounded-lg hover:bg-gray-50 text-[13.44px] font-medium"
+              className="cancel-button"
             >
               Cancel
             </button>
@@ -2827,7 +2829,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
               disabled={
                 loading || (editCreative ? false : addedCreatives.length === 0)
               }
-              className="flex-1 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0f5555] disabled:opacity-50 disabled:cursor-not-allowed text-[13.44px] font-medium"
+              className="apply-button"
             >
               {loading
                 ? editCreative
