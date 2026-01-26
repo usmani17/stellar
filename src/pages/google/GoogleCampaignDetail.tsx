@@ -217,7 +217,7 @@ export const GoogleCampaignDetail: React.FC = () => {
       campaignDetail.campaign.advertising_channel_type.toUpperCase();
 
     if (channelType === "PERFORMANCE_MAX") {
-      return ["Overview", "Asset Groups", "Logs"];
+      return ["Overview", "Asset Groups", "Negative Keywords", "Logs"];
     } else if (channelType === "SHOPPING") {
       return ["Overview", "Ad Groups", "Product Groups", "Logs"];
     } else {
@@ -1458,6 +1458,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onUpdateNegativeKeywordStatus={handleUpdateNegativeKeywordStatus}
                     onUpdateNegativeKeywordMatchType={handleUpdateNegativeKeywordMatchType}
                     onUpdateNegativeKeywordText={handleUpdateNegativeKeywordText}
+                    campaignType={campaignDetail?.campaign?.advertising_channel_type}
                   />
                 </>
               )}

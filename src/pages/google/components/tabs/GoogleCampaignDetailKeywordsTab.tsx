@@ -46,11 +46,6 @@ interface GoogleCampaignDetailKeywordsTabProps {
   ) => Promise<void>;
   onUpdateKeywordBid?: (keywordId: number, bid: number) => Promise<void>;
   onStartKeywordTextEdit?: (keyword: GoogleKeyword) => void;
-  onStartBidConfirmation?: (
-    keyword: GoogleKeyword,
-    oldBid: number,
-    newBid: number
-  ) => void;
   onStartFinalUrlEdit?: (keyword: GoogleKeyword) => void;
 }
 
@@ -84,7 +79,6 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
   onUpdateKeywordMatchType,
   onUpdateKeywordBid,
   onStartKeywordTextEdit,
-  onStartBidConfirmation,
   onStartFinalUrlEdit,
 }) => {
     const [editingKeywordId, setEditingKeywordId] = useState<number | null>(null);
@@ -110,6 +104,12 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
     const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
     const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
     const [inlineEditLoading, setInlineEditLoading] = useState(false);
+    const [showBidConfirmationModal, setShowBidConfirmationModal] = useState(false);
+    const [bidConfirmationData, setBidConfirmationData] = useState<{
+      keyword: GoogleKeyword;
+      oldBid: number;
+      newBid: number;
+    } | null>(null);
 
     const handleStatusClick = (keyword: GoogleKeyword) => {
       if (onUpdateKeywordStatus) {
@@ -123,12 +123,13 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
       if (onUpdateKeywordBid) {
         setEditingKeywordId(keyword.id);
         setEditingField("bid");
-        setEditingBid((keyword.cpc_bid_dollars || 0).toString());
+        const bidValue = (keyword.cpc_bid_dollars || 0).toString().replace(/\$/g, "");
+        setEditingBid(bidValue);
       }
     };
 
     const handleBidBlur = (keyword: GoogleKeyword) => {
-      if (!onUpdateKeywordBid || !onStartBidConfirmation) return;
+      if (!onUpdateKeywordBid) return;
 
       const bidValue = parseFloat(editingBid);
       const oldBid = keyword.cpc_bid_dollars || 0;
@@ -143,7 +144,8 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
 
       if (bidValue !== oldBid) {
         // Show confirmation modal
-        onStartBidConfirmation(keyword, oldBid, bidValue);
+        setBidConfirmationData({ keyword, oldBid, newBid: bidValue });
+        setShowBidConfirmationModal(true);
         setEditingKeywordId(null);
         setEditingField(null);
         setEditingBid("");
@@ -588,22 +590,50 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                               defaultOpen={false}
                               closeOnSelect={true}
                               showCheckmark={false}
-                              buttonClassName="text-[13.3px] px-2 py-1"
+                              buttonClassName="inline-edit-dropdown w-full text-[13.3px] min-w-0"
                               width="w-40"
+                              className="w-full"
+                              menuClassName="z-[100000]"
                             />
                           ) : (
-                            <span
-                              className={`table-text leading-[1.26] ${onUpdateKeywordMatchType
-                                  ? "cursor-pointer hover:underline"
-                                  : ""
-                                }`}
+                            <button
+                              type="button"
+                              className={
+                                onUpdateKeywordMatchType
+                                  ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
+                                  : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
+                              }
                               onClick={() =>
                                 onUpdateKeywordMatchType &&
                                 handleMatchTypeClick(keyword)
                               }
+                              disabled={!onUpdateKeywordMatchType}
                             >
-                              {keyword.match_type || "—"}
-                            </span>
+                              <span className="truncate flex-1 min-w-0 text-left">
+                                {keyword.match_type === "EXACT" || keyword.match_type === "Exact"
+                                  ? "Exact"
+                                  : keyword.match_type === "PHRASE" || keyword.match_type === "Phrase"
+                                  ? "Phrase"
+                                  : keyword.match_type === "BROAD" || keyword.match_type === "Broad"
+                                  ? "Broad"
+                                  : keyword.match_type || "—"}
+                              </span>
+                              {onUpdateKeywordMatchType && (
+                                <svg
+                                  className="w-4 h-4 text-[#072929] flex-shrink-0"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 9l-7 7-7-7"
+                                  />
+                                </svg>
+                              )}
+                            </button>
                           )}
                         </td>
                         <td className="table-cell hidden lg:table-cell">
@@ -679,25 +709,50 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                               defaultOpen={false}
                               closeOnSelect={true}
                               showCheckmark={false}
-                              buttonClassName="text-[13.3px] px-2 py-1"
+                              buttonClassName="inline-edit-dropdown w-full text-[13.3px] min-w-0"
                               width="w-32"
+                              className="w-full"
+                              menuClassName="z-[100000]"
                             />
                           ) : (
-                            <div
+                            <button
+                              type="button"
                               className={
                                 onUpdateKeywordStatus
-                                  ? "cursor-pointer hover:underline"
-                                  : ""
+                                  ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
+                                  : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
                               }
                               onClick={() =>
                                 onUpdateKeywordStatus &&
                                 handleStatusClick(keyword)
                               }
+                              disabled={!onUpdateKeywordStatus}
                             >
-                              {keyword.status && (
-                                <StatusBadge status={keyword.status} />
+                              <span className="truncate flex-1 min-w-0 text-left">
+                                {keyword.status === "ENABLED" || keyword.status === "Enabled" || keyword.status === "ENABLE"
+                                  ? "Enabled"
+                                  : keyword.status === "PAUSED" || keyword.status === "Paused" || keyword.status === "PAUSE"
+                                  ? "Paused"
+                                  : keyword.status === "REMOVED" || keyword.status === "Removed" || keyword.status === "REMOVE"
+                                  ? "Removed"
+                                  : keyword.status || "Enabled"}
+                              </span>
+                              {onUpdateKeywordStatus && (
+                                <svg
+                                  className="w-4 h-4 text-[#072929] flex-shrink-0"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 9l-7 7-7-7"
+                                  />
+                                </svg>
                               )}
-                            </div>
+                            </button>
                           )}
                         </td>
                         <td className="table-cell hidden md:table-cell">
@@ -712,16 +767,16 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                           ) : editingKeywordId === keyword.id &&
                             editingField === "bid" &&
                             onUpdateKeywordBid ? (
-                            <div className="flex items-center">
-                              <span className="table-text mr-1">
-                                $
-                              </span>
+                            <div className="relative" style={{ width: "96px" }}>
                               <input
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                value={editingBid}
-                                onChange={(e) => setEditingBid(e.target.value)}
+                                value={editingBid.replace(/\$/g, "")}
+                                onChange={(e) => {
+                                  const value = e.target.value.replace(/\$/g, "");
+                                  setEditingBid(value);
+                                }}
                                 onBlur={() => handleBidBlur(keyword)}
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
@@ -733,21 +788,33 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                                   }
                                 }}
                                 autoFocus
-                                className="inline-edit-input w-24"
+                                className="inline-edit-input"
+                                style={{ 
+                                  width: "96px", 
+                                  minWidth: "96px", 
+                                  maxWidth: "96px",
+                                  boxSizing: "border-box"
+                                }}
                               />
                             </div>
                           ) : (
-                            <span
-                              onClick={() =>
-                                onUpdateKeywordBid && handleBidClick(keyword)
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onUpdateKeywordBid) {
+                                  handleBidClick(keyword);
+                                }
+                              }}
+                              disabled={!onUpdateKeywordBid}
+                              className={
+                                onUpdateKeywordBid
+                                  ? "inline-edit-input w-24 cursor-pointer text-left disabled:cursor-default"
+                                  : "inline-edit-input w-24 cursor-default text-left"
                               }
-                              className={`table-text leading-[1.26] ${onUpdateKeywordBid
-                                  ? "cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
-                                  : ""
-                                }`}
                             >
                               ${keyword.cpc_bid_dollars?.toFixed(2) || "0.00"}
-                            </span>
+                            </button>
                           )}
                         </td>
                         <td className="py-[10px] px-[10px] hidden lg:table-cell">
@@ -983,6 +1050,90 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                   className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {inlineEditLoading ? "Updating..." : "Confirm"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bid Change Confirmation Modal */}
+        {showBidConfirmationModal && bidConfirmationData && (
+          <div
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && updatingKeywordId !== bidConfirmationData.keyword.id) {
+                setShowBidConfirmationModal(false);
+                setBidConfirmationData(null);
+              }
+            }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+                Confirm Bid Change
+              </h3>
+              <div className="mb-4">
+                <p className="text-[12.8px] text-[#556179] mb-2">
+                  Keyword:{" "}
+                  <span className="font-semibold text-[#072929]">
+                    {bidConfirmationData.keyword.keyword_text}
+                  </span>
+                </p>
+                <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[12.8px] text-[#556179]">Max. CPC:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12.8px] text-[#556179]">
+                        ${bidConfirmationData.oldBid.toFixed(2)}
+                      </span>
+                      <span className="text-[12.8px] text-[#556179]">→</span>
+                      <span className="text-[12.8px] font-semibold text-[#072929]">
+                        ${bidConfirmationData.newBid.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBidConfirmationModal(false);
+                    setBidConfirmationData(null);
+                  }}
+                  disabled={updatingKeywordId === bidConfirmationData.keyword.id}
+                  className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!onUpdateKeywordBid || !bidConfirmationData) return;
+                    
+                    setUpdatingKeywordId(bidConfirmationData.keyword.id);
+                    try {
+                      await onUpdateKeywordBid(
+                        bidConfirmationData.keyword.id,
+                        bidConfirmationData.newBid
+                      );
+                      setShowBidConfirmationModal(false);
+                      setBidConfirmationData(null);
+                    } catch (error) {
+                      console.error("Failed to update bid:", error);
+                    } finally {
+                      setUpdatingKeywordId(null);
+                    }
+                  }}
+                  disabled={updatingKeywordId === bidConfirmationData.keyword.id}
+                  className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {updatingKeywordId === bidConfirmationData.keyword.id
+                    ? "Updating..."
+                    : "Confirm"}
                 </button>
               </div>
             </div>

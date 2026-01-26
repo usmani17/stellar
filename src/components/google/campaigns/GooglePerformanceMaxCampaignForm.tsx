@@ -58,6 +58,212 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
 
         <div className="bg-gray-50 rounded-lg border border-gray-200 p-5 space-y-5">
 
+      {/* Business Name and Logo - Campaign Settings */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="form-label">
+            Business Name *
+          </label>
+          <input
+            type="text"
+            value={formData.business_name || ""}
+            onChange={(e) => onChange("business_name", e.target.value)}
+            className={`campaign-input w-full ${
+              errors.business_name ? "border-red-300" : "border-gray-200"
+            }`}
+            placeholder="Required business name"
+          />
+          {errors.business_name && (
+            <p className="text-[10px] text-red-500 mt-1">
+              {errors.business_name}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="form-label">
+            Logo (URL or Upload) *
+          </label>
+          <div className="space-y-2">
+            <input
+              type="url"
+              value={formData.logo_url || ""}
+              onChange={(e) => {
+                onChange("logo_url", e.target.value);
+                const urlValue = e.target.value.trim();
+                if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
+                  setLogoPreview(urlValue);
+                } else {
+                  setLogoPreview(null);
+                }
+              }}
+              className={`campaign-input w-full ${
+                errors.logo_url ? "border-red-500" : ""
+              }`}
+              placeholder="https://example.com/logo.png"
+            />
+            {errors.logo_url && (
+              <p className="text-[10px] text-red-500 mt-1">
+                {errors.logo_url}
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    // Validate file size (max 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                      setErrors({ ...errors, logo_url: "File size must be less than 5MB" });
+                      setLogoPreview(null);
+                      return;
+                    }
+                    // Validate file type
+                    if (!file.type.startsWith("image/")) {
+                      setErrors({ ...errors, logo_url: "File must be an image" });
+                      setLogoPreview(null);
+                      return;
+                    }
+                    
+                    // Validate image dimensions (must be square, minimum 128x128)
+                    try {
+                      const img = new Image();
+                      const objectUrl = URL.createObjectURL(file);
+                      
+                      await new Promise((resolve, reject) => {
+                        img.onload = () => {
+                          URL.revokeObjectURL(objectUrl);
+                          const width = img.width;
+                          const height = img.height;
+                          
+                          // Check if square (1:1 aspect ratio)
+                          if (width !== height) {
+                            setErrors({ 
+                              ...errors, 
+                              logo_url: `Logo must be square (1:1 aspect ratio). Current dimensions: ${width}x${height}px. Please use a square image.` 
+                            });
+                            setLogoPreview(null);
+                            reject(new Error("Not square"));
+                            return;
+                          }
+                          
+                          // Check minimum size
+                          if (width < 128 || height < 128) {
+                            setErrors({ 
+                              ...errors, 
+                              logo_url: `Logo must be at least 128x128 pixels. Current dimensions: ${width}x${height}px. Recommended: 128x128px or larger.` 
+                            });
+                            setLogoPreview(null);
+                            reject(new Error("Too small"));
+                            return;
+                          }
+                          
+                          // Create preview using FileReader
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setLogoPreview(reader.result as string);
+                          };
+                          reader.onerror = () => {
+                            setLogoPreview(null);
+                          };
+                          reader.readAsDataURL(file);
+                          
+                          resolve(null);
+                        };
+                        
+                        img.onerror = () => {
+                          URL.revokeObjectURL(objectUrl);
+                          setErrors({ ...errors, logo_url: "Failed to load image. Please try a different file." });
+                          setLogoPreview(null);
+                          reject(new Error("Image load failed"));
+                        };
+                        
+                        img.src = objectUrl;
+                      });
+                      
+                      // If dimension validation passed, proceed with upload
+                      try {
+                        // Upload file
+                        const formData = new FormData();
+                        formData.append("file", file);
+                        
+                        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api"}/accounts/upload/logo/`, {
+                          method: "POST",
+                          headers: {
+                            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+                          },
+                          body: formData,
+                        });
+                        
+                        const responseData = await response.json();
+                        
+                        if (!response.ok) {
+                          const errorMessage = responseData.error || responseData.message || "Upload failed";
+                          setErrors({ ...errors, logo_url: errorMessage });
+                          setLogoPreview(null);
+                          return;
+                        }
+                        
+                        if (responseData.url) {
+                          onChange("logo_url", responseData.url);
+                          setErrors({ ...errors, logo_url: undefined });
+                          // Preview will be updated by handleChange
+                        } else {
+                          setErrors({ ...errors, logo_url: "Upload succeeded but no URL returned" });
+                          setLogoPreview(null);
+                        }
+                      } catch (error: any) {
+                        setErrors({ ...errors, logo_url: error.message || "Failed to upload logo. Please try again or use a URL." });
+                        setLogoPreview(null);
+                      }
+                    } catch (error: any) {
+                      // Dimension validation error already set
+                      if (!error.message || (error.message !== "Not square" && error.message !== "Too small" && error.message !== "Image load failed")) {
+                        setErrors({ ...errors, logo_url: "Failed to validate image dimensions. Please try a different file." });
+                        setLogoPreview(null);
+                      }
+                    }
+                  }
+                }}
+                className="hidden"
+                id="logo-upload"
+              />
+              <label
+                htmlFor="logo-upload"
+                className="edit-button"
+              >
+                Upload Logo
+              </label>
+            </div>
+            {/* Logo Preview */}
+            {logoPreview && (
+              <div className="mt-2">
+                <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
+                <div className="inline-block border border-gray-200 rounded p-1 bg-white">
+                  <img
+                    src={logoPreview}
+                    alt="Logo preview"
+                    className="w-32 h-32 object-contain rounded"
+                    onError={(e) => {
+                      const img = e.currentTarget;
+                      img.style.display = "none";
+                      setTimeout(() => {
+                        setLogoPreview(null);
+                      }, 500);
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+            <p className="text-[10px] text-[#556179] mt-1">
+              Logo must be square (1:1 aspect ratio) and at least 128x128 pixels. Recommended: 128x128px or larger.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Asset Group Name and Final URL */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -283,225 +489,24 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
       </div>
 
       {/* Optional Performance Max Fields */}
+      {/* Long Headline - Full Width */}
+      <div>
+        <label className="form-label">
+          Long Headline
+        </label>
+        <input
+          type="text"
+          value={formData.long_headline || ""}
+          onChange={(e) => onChange("long_headline", e.target.value)}
+          className={`campaign-input w-full ${
+            errors.long_headline ? "border-red-500" : ""
+          }`}
+          placeholder="Optional long headline"
+        />
+      </div>
+
+      {/* Marketing Image URLs - Side by Side */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="form-label">
-            Business Name *
-          </label>
-          <input
-            type="text"
-            value={formData.business_name || ""}
-            onChange={(e) => onChange("business_name", e.target.value)}
-            className={`campaign-input w-full ${
-              errors.business_name ? "border-red-300" : "border-gray-200"
-            }`}
-            placeholder="Required business name"
-          />
-          {errors.business_name && (
-            <p className="text-[10px] text-red-500 mt-1">
-              {errors.business_name}
-            </p>
-          )}
-        </div>
-
-        <div>
-          <label className="form-label">
-            Long Headline
-          </label>
-          <input
-            type="text"
-            value={formData.long_headline || ""}
-            onChange={(e) => onChange("long_headline", e.target.value)}
-            className={`campaign-input w-full ${
-              errors.long_headline ? "border-red-500" : ""
-            }`}
-            placeholder="Optional long headline"
-          />
-        </div>
-
-        <div>
-          <label className="form-label">
-            Logo (URL or Upload) *
-          </label>
-          <div className="space-y-2">
-            <input
-              type="url"
-              value={formData.logo_url || ""}
-              onChange={(e) => {
-                onChange("logo_url", e.target.value);
-                const urlValue = e.target.value.trim();
-                if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
-                  setLogoPreview(urlValue);
-                } else {
-                  setLogoPreview(null);
-                }
-              }}
-              className={`campaign-input w-full ${
-                errors.logo_url ? "border-red-500" : ""
-              }`}
-              placeholder="https://example.com/logo.png"
-            />
-            {errors.logo_url && (
-              <p className="text-[10px] text-red-500 mt-1">
-                {errors.logo_url}
-              </p>
-            )}
-            <div className="flex items-center gap-2">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    // Validate file size (max 5MB)
-                    if (file.size > 5 * 1024 * 1024) {
-                      setErrors({ ...errors, logo_url: "File size must be less than 5MB" });
-                      setLogoPreview(null);
-                      return;
-                    }
-                    // Validate file type
-                    if (!file.type.startsWith("image/")) {
-                      setErrors({ ...errors, logo_url: "File must be an image" });
-                      setLogoPreview(null);
-                      return;
-                    }
-                    
-                    // Validate image dimensions (must be square, minimum 128x128)
-                    try {
-                      const img = new Image();
-                      const objectUrl = URL.createObjectURL(file);
-                      
-                      await new Promise((resolve, reject) => {
-                        img.onload = () => {
-                          URL.revokeObjectURL(objectUrl);
-                          const width = img.width;
-                          const height = img.height;
-                          
-                          // Check if square (1:1 aspect ratio)
-                          if (width !== height) {
-                            setErrors({ 
-                              ...errors, 
-                              logo_url: `Logo must be square (1:1 aspect ratio). Current dimensions: ${width}x${height}px. Please use a square image.` 
-                            });
-                            setLogoPreview(null);
-                            reject(new Error("Not square"));
-                            return;
-                          }
-                          
-                          // Check minimum size
-                          if (width < 128 || height < 128) {
-                            setErrors({ 
-                              ...errors, 
-                              logo_url: `Logo must be at least 128x128 pixels. Current dimensions: ${width}x${height}px. Recommended: 128x128px or larger.` 
-                            });
-                            setLogoPreview(null);
-                            reject(new Error("Too small"));
-                            return;
-                          }
-                          
-                          // Create preview using FileReader
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setLogoPreview(reader.result as string);
-                          };
-                          reader.onerror = () => {
-                            setLogoPreview(null);
-                          };
-                          reader.readAsDataURL(file);
-                          
-                          resolve(null);
-                        };
-                        
-                        img.onerror = () => {
-                          URL.revokeObjectURL(objectUrl);
-                          setErrors({ ...errors, logo_url: "Failed to load image. Please try a different file." });
-                          setLogoPreview(null);
-                          reject(new Error("Image load failed"));
-                        };
-                        
-                        img.src = objectUrl;
-                      });
-                      
-                      // If dimension validation passed, proceed with upload
-                      try {
-                        // Upload file
-                        const formData = new FormData();
-                        formData.append("file", file);
-                        
-                        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api"}/accounts/upload/logo/`, {
-                          method: "POST",
-                          headers: {
-                            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-                          },
-                          body: formData,
-                        });
-                        
-                        const responseData = await response.json();
-                        
-                        if (!response.ok) {
-                          const errorMessage = responseData.error || responseData.message || "Upload failed";
-                          setErrors({ ...errors, logo_url: errorMessage });
-                          setLogoPreview(null);
-                          return;
-                        }
-                        
-                        if (responseData.url) {
-                          onChange("logo_url", responseData.url);
-                          setErrors({ ...errors, logo_url: undefined });
-                          // Preview will be updated by handleChange
-                        } else {
-                          setErrors({ ...errors, logo_url: "Upload succeeded but no URL returned" });
-                          setLogoPreview(null);
-                        }
-                      } catch (error: any) {
-                        setErrors({ ...errors, logo_url: error.message || "Failed to upload logo. Please try again or use a URL." });
-                        setLogoPreview(null);
-                      }
-                    } catch (error: any) {
-                      // Dimension validation error already set
-                      if (!error.message || (error.message !== "Not square" && error.message !== "Too small" && error.message !== "Image load failed")) {
-                        setErrors({ ...errors, logo_url: "Failed to validate image dimensions. Please try a different file." });
-                        setLogoPreview(null);
-                      }
-                    }
-                  }
-                }}
-                className="hidden"
-                id="logo-upload"
-              />
-              <label
-                htmlFor="logo-upload"
-                className="edit-button"
-              >
-                Upload Logo
-              </label>
-            </div>
-            {/* Logo Preview */}
-            {logoPreview && (
-              <div className="mt-2">
-                <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
-                <div className="inline-block border border-gray-200 rounded p-1 bg-white">
-                  <img
-                    src={logoPreview}
-                    alt="Logo preview"
-                    className="w-32 h-32 object-contain rounded"
-                    onError={(e) => {
-                      const img = e.currentTarget;
-                      img.style.display = "none";
-                      setTimeout(() => {
-                        setLogoPreview(null);
-                      }, 500);
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-            <p className="text-[10px] text-[#556179] mt-1">
-              Logo must be square (1:1 aspect ratio) and at least 128x128 pixels. Recommended: 128x128px or larger.
-            </p>
-          </div>
-        </div>
-
         <div>
           <label className="form-label">
             Marketing Image URL *

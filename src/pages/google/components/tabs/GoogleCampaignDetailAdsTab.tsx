@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Checkbox } from "../../../../components/ui/Checkbox";
-import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Button } from "../../../../components/ui";
@@ -330,16 +329,47 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                             defaultOpen={false}
                             closeOnSelect={true}
                             showCheckmark={false}
-                            buttonClassName="text-[13.3px] px-2 py-1"
+                            buttonClassName="w-full text-[13.3px] px-2 py-1"
                             width="w-32"
+                            className="w-full"
+                            menuClassName="z-[100000]"
                           />
                         ) : (
-                          <div
-                            className={onUpdateAdStatus ? "cursor-pointer hover:underline" : ""}
+                          <button
+                            type="button"
+                            className={
+                              onUpdateAdStatus
+                                ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
+                                : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
+                            }
                             onClick={() => onUpdateAdStatus && handleStatusClick(ad)}
+                            disabled={!onUpdateAdStatus}
                           >
-                            {ad.status && <StatusBadge status={ad.status} />}
-                          </div>
+                            <span className="truncate flex-1 min-w-0 text-left">
+                              {ad.status === "ENABLED" || ad.status === "Enabled" || ad.status === "ENABLE"
+                                ? "Enabled"
+                                : ad.status === "PAUSED" || ad.status === "Paused" || ad.status === "PAUSE"
+                                ? "Paused"
+                                : ad.status === "REMOVED" || ad.status === "Removed" || ad.status === "REMOVE"
+                                ? "Removed"
+                                : ad.status || "Enabled"}
+                            </span>
+                            {onUpdateAdStatus && (
+                              <svg
+                                className="w-4 h-4 text-[#072929] flex-shrink-0"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 9l-7 7-7-7"
+                                />
+                              </svg>
+                            )}
+                          </button>
                         )}
                       </td>
                       <td className="table-cell hidden lg:table-cell">
