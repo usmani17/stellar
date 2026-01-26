@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { accountsService } from "../../services/accounts";
 
@@ -67,8 +67,6 @@ const VIDEO_SUBTYPE_OPTIONS = [
   { value: "BACKGROUND_VIDEO", label: "Background Video" },
 ];
 
-const PROGRAM_OPTIONS = [{ value: "A_PLUS", label: "A+ Content" }];
-
 export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
   isOpen,
   onClose,
@@ -98,7 +96,8 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
   const [tags, setTags] = useState<string[]>([]);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [enableVersioning, setEnableVersioning] = useState(false);
-  const [showProgramAssociation, setShowProgramAssociation] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch brand entities when panel opens
   useEffect(() => {
@@ -119,7 +118,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
       // Pass profileId to filter brand entities by the campaign's profile
       const entities = await accountsService.getBrandEntities(
         accountIdNum,
-        profileId
+        profileId,
       );
       // Transform to match BrandEntity interface
       const transformedEntities = entities.map((entity) => ({
@@ -217,7 +216,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
 
   const handleVersionInfoChange = (
     field: "linkedAssetId" | "versionNotes",
-    value: string
+    value: string,
   ) => {
     setAssetData((prev) => ({
       ...prev,
@@ -235,40 +234,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     }
   };
 
-  const handleProgramChange = (programName: string) => {
-    setAssetData((prev) => ({
-      ...prev,
-      registrationContext: {
-        associatedPrograms: [
-          {
-            programName,
-            metadata: {},
-          },
-        ],
-      },
-    }));
-  };
-
-  const handleDspAdvertiserIdChange = (dspAdvertiserId: string) => {
-    setAssetData((prev) => ({
-      ...prev,
-      registrationContext: {
-        associatedPrograms: [
-          {
-            programName:
-              prev.registrationContext?.associatedPrograms?.[0]?.programName ||
-              "A_PLUS",
-            metadata: {
-              dspAdvertiserId,
-            },
-          },
-        ],
-      },
-    }));
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const processFile = (file: File) => {
     if (!file) return;
 
     // Validate file
@@ -387,6 +353,42 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  const handleDragAreaClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Trigger file dialog when clicking the drag area
+    // Stop propagation is handled on child elements (preview, buttons) to prevent triggering
+    fileInputRef.current?.click();
+  };
+
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -420,20 +422,20 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
 
     if (assetData.assetType === "IMAGE") {
       const invalidSubtypes = assetData.assetSubTypeList.filter(
-        (st) => !validImageSubtypes.includes(st)
+        (st) => !validImageSubtypes.includes(st),
       );
       if (invalidSubtypes.length > 0) {
         newErrors.assetSubTypeList = `For IMAGE type, valid sub-types are: ${validImageSubtypes.join(
-          ", "
+          ", ",
         )}`;
       }
     } else if (assetData.assetType === "VIDEO") {
       const invalidSubtypes = assetData.assetSubTypeList.filter(
-        (st) => !validVideoSubtypes.includes(st)
+        (st) => !validVideoSubtypes.includes(st),
       );
       if (invalidSubtypes.length > 0) {
         newErrors.assetSubTypeList = `For VIDEO type, valid sub-types are: ${validVideoSubtypes.join(
-          ", "
+          ", ",
         )}`;
       }
     }
@@ -443,7 +445,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     }
 
     if (!assetData.file && !assetData.url) {
-      newErrors.file = "Either file or URL is required";
+      newErrors.file = "Either file upload or URL is required";
     }
 
     // Validate optional fields if provided
@@ -488,9 +490,6 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
       asinList: asinList.length > 0 ? asinList : undefined,
       tags: tags.length > 0 ? tags : undefined,
       versionInfo: enableVersioning ? assetData.versionInfo : undefined,
-      registrationContext: showProgramAssociation
-        ? assetData.registrationContext
-        : undefined,
     };
 
     await onSubmit(finalAssetData);
@@ -511,7 +510,6 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     setTagInput("");
     setShowAdvancedOptions(false);
     setEnableVersioning(false);
-    setShowProgramAssociation(false);
     setErrors({});
     setFilePreview(null);
     onClose();
@@ -526,52 +524,86 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
           Upload Asset
         </h2>
 
-        <div className="space-y-4 grid grid-cols-4 gap-6">
-          {/* Asset Name - Required */}
-          <div>
-            <label className="form-label-small">
-              Asset Name *
-            </label>
-            <input
-              type="text"
-              value={assetData.assetName}
-              onChange={(e) => handleChange("assetName", e.target.value)}
-              placeholder="Enter asset display name"
-              className={`w-full campaign-input px-4 py-2.5   ${
-                errors.assetName ? "border-red-500" : "border-gray-200"
-              }`}
-            />
-            {errors.assetName && (
-              <p className="text-[10px] text-red-500 mt-1">
-                {errors.assetName}
-              </p>
-            )}
-            {fieldErrors.assetName && (
-              <p className="text-[10px] text-red-500 mt-1">
-                {fieldErrors.assetName}
-              </p>
-            )}
-          </div>
+        <div className="space-y-6">
+          {/* Row 1: Asset Name, Asset Type, Brand Entity (inline) */}
+          <div className="grid grid-cols-3 gap-6">
+            {/* Asset Name - Required */}
+            <div>
+              <label className="form-label-small">Asset Name *</label>
+              <input
+                type="text"
+                value={assetData.assetName}
+                onChange={(e) => handleChange("assetName", e.target.value)}
+                placeholder="Enter asset display name"
+                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  errors.assetName ? "border-red-500" : "border-gray-200"
+                }`}
+              />
+              {errors.assetName && (
+                <p className="text-[10px] text-red-500 mt-1">
+                  {errors.assetName}
+                </p>
+              )}
+              {fieldErrors.assetName && (
+                <p className="text-[10px] text-red-500 mt-1">
+                  {fieldErrors.assetName}
+                </p>
+              )}
+            </div>
 
-          {/* Asset Type - Required */}
-          <div>
-            <label className="form-label-small">
-              Asset Type *
-            </label>
-            <Dropdown<string>
-              options={ASSET_TYPE_OPTIONS}
-              value={assetData.assetType}
-              onChange={(value) =>
-                handleChange("assetType", value as "IMAGE" | "VIDEO")
-              }
-              placeholder="Select asset type"
-              buttonClassName="edit-button w-full"
-            />
-            {errors.assetType && (
-              <p className="text-[10px] text-red-500 mt-1">
-                {errors.assetType}
-              </p>
-            )}
+            {/* Asset Type - Required */}
+            <div>
+              <label className="form-label-small">Asset Type *</label>
+              <Dropdown<string>
+                options={ASSET_TYPE_OPTIONS}
+                value={assetData.assetType}
+                onChange={(value) =>
+                  handleChange("assetType", value as "IMAGE" | "VIDEO")
+                }
+                placeholder="Select asset type"
+                buttonClassName="edit-button w-full"
+              />
+              {errors.assetType && (
+                <p className="text-[10px] text-red-500 mt-1">
+                  {errors.assetType}
+                </p>
+              )}
+            </div>
+
+            {/* Brand Entity - Required for Sellers */}
+            <div>
+              <label className="form-label-small">
+                Brand Entity * (Required for Sellers)
+              </label>
+              {loadingBrandEntities ? (
+                <div className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-gray-500">
+                  Loading brand entities...
+                </div>
+              ) : (
+                <>
+                  <Dropdown<string>
+                    options={brandEntities.map((entity) => ({
+                      value: entity.brandEntityId,
+                      label: entity.name,
+                    }))}
+                    value={assetData.brandEntityId}
+                    onChange={(value) => handleChange("brandEntityId", value)}
+                    placeholder="Select brand entity"
+                    buttonClassName="edit-button w-full"
+                  />
+                  {errors.brandEntityId && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.brandEntityId}
+                    </p>
+                  )}
+                  {fieldErrors.brandEntityId && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {fieldErrors.brandEntityId}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
           {/* Asset Sub Type - Required, Dynamic */}
@@ -579,7 +611,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
             <label className="form-label-small">
               Asset Sub Type * (1-10 items)
             </label>
-            <div className="space-y-2">
+            <div className="flex flex-wrap gap-3">
               {(assetData.assetType === "IMAGE"
                 ? IMAGE_SUBTYPE_OPTIONS
                 : VIDEO_SUBTYPE_OPTIONS
@@ -604,8 +636,8 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                         if (assetData.assetSubTypeList.length > 1) {
                           handleAssetSubTypeChange(
                             assetData.assetSubTypeList.filter(
-                              (v) => v !== option.value
-                            )
+                              (v) => v !== option.value,
+                            ),
                           );
                         }
                       }
@@ -636,221 +668,272 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
             )}
           </div>
 
-          {/* Brand Entity - Required for Sellers */}
-          <div>
-            <label className="form-label-small">
-              Brand Entity * (Required for Sellers)
-            </label>
-            {loadingBrandEntities ? (
-              <div className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-gray-500">
-                Loading brand entities...
-              </div>
-            ) : (
-              <>
-                <Dropdown<string>
-                  options={brandEntities.map((entity) => ({
-                    value: entity.brandEntityId,
-                    label: entity.name,
-                  }))}
-                  value={assetData.brandEntityId}
-                  onChange={(value) => handleChange("brandEntityId", value)}
-                  placeholder="Select brand entity"
-                  buttonClassName="edit-button w-full"
-                />
-                {errors.brandEntityId && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.brandEntityId}
-                  </p>
-                )}
-                {fieldErrors.brandEntityId && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {fieldErrors.brandEntityId}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-</div>
-<div className="grid grid-cols-4 gap-6">
-          {/* ASIN List - Optional */}
-          <div>
-            <label className="form-label-small">
-              ASIN List (Optional, Max 100)
-            </label>
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={asinInput}
-                  onChange={(e) => setAsinInput(e.target.value.toUpperCase())}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddAsin();
-                    }
-                  }}
-                  placeholder="Enter ASIN (uppercase alphanumeric)"
-                  className="flex-1 w-full campaign-input px-4 py-2.5   "
-                />
-                <button
-                  type="button"
-                  onClick={handleAddAsin}
-                  disabled={asinList.length >= 100}
-                  className="create-entity-button text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Add
-                </button>
-              </div>
-              {asinList.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {asinList.map((asin) => (
-                    <span
-                      key={asin}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-[10px] text-[#0b0f16]"
-                    >
-                      {asin}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveAsin(asin)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              <p className="text-[10px] text-gray-500">
-                Used for asset discoverability and Sponsored Brand search. Max
-                100 ASINs.
-              </p>
-              {errors.asinList && (
-                <p className="text-[10px] text-red-500">{errors.asinList}</p>
-              )}
-            </div>
-          </div>
-      </div>
-<div className="grid grid-cols-4 gap-6">
-          {/* Tags - Optional */}
-          <div>
-            <label className="form-label-small">
-              Tags (Optional)
-            </label>
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddTag();
-                    }
-                  }}
-                  placeholder="Enter tag"
-                  className="flex-1 w-full campaign-input px-4 py-2.5   "
-                />
-                <button
-                  type="button"
-                  onClick={handleAddTag}
-                  className="create-entity-button text-[11.2px]"
-                >
-                  Add
-                </button>
-              </div>
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-[10px] text-[#0b0f16]"
-                    >
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTag(tag)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-</div>
-    <div className="grid grid-cols-4 gap-6">
-          {/* File Upload - Required (unless URL provided) */}
-          <div>
-            <label className="form-label-small">
-              {assetData.assetType === "IMAGE" ? "Image" : "Video"} File *
-            </label>
-            <div className="space-y-2">
-              <input
-                type="file"
-                accept={
-                  assetData.assetType === "IMAGE"
-                    ? "image/png,image/jpeg,image/jpg,image/gif"
-                    : "video/mp4,video/quicktime,video/x-msvideo"
-                }
-                onChange={handleFileChange}
-                className={`w-full campaign-input px-4 py-2.5   ${
-                  errors.file ? "border-red-500" : "border-gray-200"
+          {/* File Upload Section - 70% width, centered */}
+          <div className="flex justify-center">
+            <div className="w-[40%]">
+              <label className="form-label-small">
+                {assetData.assetType === "IMAGE" ? "Image" : "Video"} File *
+              </label>
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={handleDragAreaClick}
+                className={`relative border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer ${
+                  isDragging
+                    ? "border-[#136D6D] bg-[#136D6D]/5"
+                    : errors.file
+                      ? "border-red-500 bg-red-50"
+                      : "border-gray-300 bg-gray-50 hover:border-gray-400"
                 }`}
-              />
-              <p className="text-[10px] text-gray-500">
-                {assetData.assetType === "IMAGE"
-                  ? "Requirements: PNG, JPEG, or GIF • Max 2MB • Min 400x400 pixels"
-                  : "Requirements: MP4, MOV, or AVI • Max 10MB"}
-              </p>
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={
+                    assetData.assetType === "IMAGE"
+                      ? "image/png,image/jpeg,image/jpg,image/gif"
+                      : "video/mp4,video/quicktime,video/x-msvideo"
+                  }
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                {filePreview ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        {assetData.assetType === "IMAGE" ? (
+                          <img
+                            src={filePreview}
+                            alt="Preview"
+                            className="max-w-full max-h-48 mx-auto rounded-lg pointer-events-none"
+                          />
+                        ) : (
+                          <video
+                            src={filePreview}
+                            controls
+                            className="max-w-full max-h-48 mx-auto rounded-lg"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
+                      </div>
+                    </div>
+                    {assetData.file && (
+                      <div className="text-center">
+                        <p className="text-[11.2px] font-medium text-[#072929]">
+                          {assetData.file.name}
+                        </p>
+                        <p className="text-[10px] text-gray-500 mt-1">
+                          {(assetData.file.size / 1024).toFixed(2)} KB
+                        </p>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleChange("file", null);
+                            setFilePreview(null);
+                            setErrors((prev) => {
+                              const newErrors = { ...prev };
+                              delete newErrors.file;
+                              return newErrors;
+                            });
+                          }}
+                          className="mt-2 text-[10px] text-red-500 hover:text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <svg
+                        className="w-12 h-12 text-gray-400 mb-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                        />
+                      </svg>
+                      <p className="text-[11.2px] font-medium text-[#072929] mb-1">
+                        Drag and drop your{" "}
+                        {assetData.assetType === "IMAGE" ? "image" : "video"}{" "}
+                        here
+                      </p>
+                      <p className="text-[10px] text-gray-500 mb-3">or</p>
+                      <span className="create-entity-button text-[11.2px] inline-block">
+                        Browse Files
+                      </span>
+                      <p className="text-[10px] text-gray-500 mt-3">
+                        {assetData.assetType === "IMAGE"
+                          ? "PNG, JPEG, or GIF • Max 2MB"
+                          : "MP4, MOV, or AVI • Max 10MB"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
               {errors.file && (
-                <p className="text-[10px] text-red-500">{errors.file}</p>
+                <p className="text-[10px] text-red-500 mt-2">{errors.file}</p>
               )}
               {fieldErrors.file && (
-                <p className="text-[10px] text-red-500">{fieldErrors.file}</p>
+                <p className="text-[10px] text-red-500 mt-2">
+                  {fieldErrors.file}
+                </p>
               )}
             </div>
+          </div>
 
-            {/* File Preview */}
-            {filePreview && (
-              <div className="mt-4">
-                <p className="text-[11.2px] font-semibold text-[#556179] mb-2">
-                  Preview:
-                </p>
-                <div className="border border-gray-200 rounded-lg p-4 bg-white">
-                  {assetData.assetType === "IMAGE" ? (
-                    <img
-                      src={filePreview}
-                      alt="Preview"
-                      className="max-w-full max-h-64 mx-auto"
+          {/* Optional Fields Section */}
+          <div className="space-y-4 pt-4 border-t border-gray-200">
+            {/* Tags and ASINs on one line */}
+            <div className="grid grid-cols-2 gap-6">
+              {/* ASIN List - Optional */}
+              <div>
+                <label className="form-label-small">
+                  ASIN List (Optional, Max 100)
+                </label>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={asinInput}
+                      onChange={(e) =>
+                        setAsinInput(e.target.value.toUpperCase())
+                      }
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddAsin();
+                        }
+                      }}
+                      placeholder="Enter ASIN (uppercase alphanumeric)"
+                      className="flex-1 w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] border-gray-200"
                     />
-                  ) : (
-                    <video
-                      src={filePreview}
-                      controls
-                      className="max-w-full max-h-64 mx-auto"
-                    />
+                    <button
+                      type="button"
+                      onClick={handleAddAsin}
+                      disabled={asinList.length >= 100}
+                      className="create-entity-button text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {asinList.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {asinList.map((asin) => (
+                        <span
+                          key={asin}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-[10px] text-[#0b0f16]"
+                        >
+                          {asin}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAsin(asin)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                   )}
-                  {assetData.file && (
-                    <p className="text-[10px] text-gray-500 mt-2 text-center">
-                      {assetData.file.name} (
-                      {(assetData.file.size / 1024).toFixed(2)} KB)
+                  <p className="text-[10px] text-gray-500">
+                    Used for asset discoverability and Sponsored Brand search.
+                    Max 100 ASINs.
+                  </p>
+                  {errors.asinList && (
+                    <p className="text-[10px] text-red-500">
+                      {errors.asinList}
                     </p>
                   )}
                 </div>
               </div>
-            )}
+
+              {/* Tags - Optional */}
+              <div>
+                <label className="form-label-small">Tags (Optional)</label>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddTag();
+                        }
+                      }}
+                      placeholder="Enter tag"
+                      className="flex-1 w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddTag}
+                      className="create-entity-button text-[11.2px]"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-[10px] text-[#0b0f16]"
+                        >
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTag(tag)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* URL - Optional */}
+            <div>
+              <label className="form-label-small">URL (Optional)</label>
+              <input
+                type="text"
+                value={assetData.url || ""}
+                onChange={(e) => handleChange("url", e.target.value)}
+                placeholder="Enter asset URL"
+                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  errors.url ? "border-red-500" : "border-gray-200"
+                }`}
+              />
+              {errors.url && (
+                <p className="text-[10px] text-red-500 mt-1">{errors.url}</p>
+              )}
+              {fieldErrors.url && (
+                <p className="text-[10px] text-red-500 mt-1">
+                  {fieldErrors.url}
+                </p>
+              )}
+            </div>
           </div>
-</div>
-        <div className="grid grid-cols-4 gap-6">
+
           {/* Advanced Options - Expandable */}
-          <div>
+          <div className="pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-              className="flex items-center justify-between w-full text-[11.2px] font-semibold text-[#556179] uppercase"
+              className="flex items-center justify-between w-full text-[11.2px] font-semibold text-[#556179] uppercase mb-4"
             >
               <span>Advanced Options</span>
               <svg
@@ -871,7 +954,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
             </button>
 
             {showAdvancedOptions && (
-              <div className="mt-4 space-y-4 pl-4 border-l-2 border-gray-200">
+              <div className="space-y-4 pl-4 border-l-2 border-gray-200">
                 {/* Skip Asset Sub-Type Detection */}
                 <div className="flex items-center space-x-2">
                   <input
@@ -880,7 +963,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                     onChange={(e) =>
                       handleChange(
                         "skipAssetSubTypesDetection",
-                        e.target.checked
+                        e.target.checked,
                       )
                     }
                     className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
@@ -924,7 +1007,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                           onChange={(e) =>
                             handleVersionInfoChange(
                               "linkedAssetId",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           placeholder="Enter linked asset ID"
@@ -949,7 +1032,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                           onChange={(e) =>
                             handleVersionInfoChange(
                               "versionNotes",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           placeholder="Enter version notes"
@@ -970,74 +1053,6 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                             {errors["versionInfo.versionNotes"]}
                           </p>
                         )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Program Association */}
-                <div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <input
-                      type="checkbox"
-                      checked={showProgramAssociation}
-                      onChange={(e) => {
-                        setShowProgramAssociation(e.target.checked);
-                        if (
-                          e.target.checked &&
-                          !assetData.registrationContext
-                        ) {
-                          handleChange("registrationContext", {
-                            associatedPrograms: [
-                              {
-                                programName: "A_PLUS",
-                                metadata: {},
-                              },
-                            ],
-                          });
-                        }
-                      }}
-                      className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
-                    />
-                    <label className="text-[11.2px] font-semibold text-[#556179] uppercase">
-                      Program Association (A+ Content)
-                    </label>
-                  </div>
-
-                  {showProgramAssociation && (
-                    <div className="ml-6 space-y-3">
-                      <div>
-                        <label className="block text-[10px] text-[#556179] mb-1">
-                          Program Name
-                        </label>
-                        <Dropdown<string>
-                          options={PROGRAM_OPTIONS}
-                          value={
-                            assetData.registrationContext
-                              ?.associatedPrograms?.[0]?.programName || "A_PLUS"
-                          }
-                          onChange={(value) => handleProgramChange(value)}
-                          placeholder="Select program"
-                          buttonClassName="edit-button w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-[#556179] mb-1">
-                          DSP Advertiser ID (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={
-                            assetData.registrationContext
-                              ?.associatedPrograms?.[0]?.metadata
-                              ?.dspAdvertiserId || ""
-                          }
-                          onChange={(e) =>
-                            handleDspAdvertiserIdChange(e.target.value)
-                          }
-                          placeholder="Enter DSP advertiser ID"
-                          className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                        />
                       </div>
                     </div>
                   )}
