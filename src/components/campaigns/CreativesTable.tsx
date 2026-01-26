@@ -127,70 +127,100 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
   return (
     <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-max">
-          <thead className="sticky top-0 bg-[#fefefb] z-10">
-            <tr className="border-b border-[#e8e8e3]">
-              <th className="table-header w-[35px]">
-                {onSelectAll && (
-                  <Checkbox
-                    checked={allSelected}
-                    indeterminate={someSelected && !allSelected}
-                    onChange={onSelectAll}
+        {creatives.length === 0 && !loading ? (
+          <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
+            <div className="flex flex-col items-center justify-center max-w-md">
+              {/* Icon */}
+              <div className="mb-6 w-20 h-20 rounded-full bg-[#F5F5F0] flex items-center justify-center">
+                <svg
+                  className="w-10 h-10 text-[#556179]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
-                )}
-              </th>
-              <th
-                className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                  }`}
-                onClick={() => handleSort("creativeId")}
-              >
-                <div className="flex items-center">
-                  Creative ID
-                  {getSortIcon("creativeId")}
-                </div>
-              </th>
-              <th
-                className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                  }`}
-                onClick={() => handleSort("adGroupId")}
-              >
-                <div className="flex items-center">
-                  Ad Group ID
-                  {getSortIcon("adGroupId")}
-                </div>
-              </th>
-              <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                }`}>
-                CreativeType
-              </th>
-              <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                }`}>
-                Properties (JSON)
-              </th>
-              <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                }`}>
-                Moderation Status
-              </th>
-              <th
-                className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                  }`}
-                onClick={() => handleSort("last_updated")}
-              >
-                <div className="flex items-center">
-                  Last Updated
-                  {getSortIcon("last_updated")}
-                </div>
-              </th>
-              {onEdit && (
+                </svg>
+              </div>
+              {/* Title */}
+              <h3 className="text-lg font-medium text-teal-950 mb-2">
+                No Creatives Found
+              </h3>
+              {/* Description */}
+              <p className="text-sm text-[#556179] text-center leading-relaxed">
+                There are no creatives for this campaign yet. Creatives will appear here when they are created.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <table className="w-full min-w-max">
+            <thead className="sticky top-0 bg-[#fefefb] z-10">
+              <tr className="border-b border-[#e8e8e3]">
+                <th className="table-header w-[35px]">
+                  {onSelectAll && (
+                    <Checkbox
+                      checked={allSelected}
+                      indeterminate={someSelected && !allSelected}
+                      onChange={onSelectAll}
+                    />
+                  )}
+                </th>
+                <th
+                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
+                  onClick={() => handleSort("creativeId")}
+                >
+                  <div className="flex items-center">
+                    Creative ID
+                    {getSortIcon("creativeId")}
+                  </div>
+                </th>
+                <th
+                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
+                  onClick={() => handleSort("adGroupId")}
+                >
+                  <div className="flex items-center">
+                    Ad Group ID
+                    {getSortIcon("adGroupId")}
+                  </div>
+                </th>
                 <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
                   }`}>
-                  Actions
+                  CreativeType
                 </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {creatives.map((creative) => (
+                <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}>
+                  Properties (JSON)
+                </th>
+                <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}>
+                  Moderation Status
+                </th>
+                <th
+                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
+                  onClick={() => handleSort("last_updated")}
+                >
+                  <div className="flex items-center">
+                    Last Updated
+                    {getSortIcon("last_updated")}
+                  </div>
+                </th>
+                {onEdit && (
+                  <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}>
+                    Actions
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {creatives.map((creative) => (
               <tr
                 key={creative.creativeId}
                 className="table-row group"
@@ -262,6 +292,7 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
             ))}
           </tbody>
         </table>
+        )}
       </div>
       {/* Loading overlay for table */}
       {loading && (

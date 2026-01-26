@@ -10,6 +10,7 @@ interface CampaignInformationProps {
   onEditValueChange: (value: string) => void;
   onEditEnd: (value?: string, field?: "budget" | "status") => void;
   onEditCancel: () => void;
+  loading?: boolean;
 }
 
 export const CampaignInformation: React.FC<CampaignInformationProps> = ({
@@ -20,7 +21,26 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
   onEditValueChange,
   onEditEnd,
   onEditCancel,
+  loading = false,
 }) => {
+  if (loading) {
+    return (
+      <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6">
+        <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%] mb-4">
+          Campaign Information
+        </h2>
+        <div className="flex items-center justify-center py-8">
+          <div className="flex flex-col items-center gap-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#136D6D] border-t-transparent"></div>
+            <p className="text-[14px] text-[#556179]">
+              Loading campaign information...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!campaignDetail) return null;
 
   return (
@@ -129,7 +149,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
               if (editingField !== "budget") {
                 onEditField("budget");
                 onEditValueChange(
-                  (campaignDetail.campaign.budget || 0).toString()
+                  (campaignDetail.campaign.budget || 0).toString(),
                 );
               }
             }}
@@ -148,7 +168,10 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
                 onEditCancel();
               }
             }}
-            className="inline-edit-input w-full"
+            className="inline-edit-input w-32"
+            style={{
+              width: "150px",
+            }}
           />
         </div>
 
@@ -159,9 +182,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
               Start Date
             </label>
             <div className="table-text leading-[1.26]">
-              {new Date(
-                campaignDetail.campaign.startDate
-              ).toLocaleDateString()}
+              {new Date(campaignDetail.campaign.startDate).toLocaleDateString()}
             </div>
           </div>
         )}
@@ -207,5 +228,3 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
     </div>
   );
 };
-
-
