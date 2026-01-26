@@ -6,6 +6,7 @@ import { ConfirmationModal } from "../../../components/ui/ConfirmationModal";
 import type { IGoogleCampaignsTableProps, IGoogleCampaign } from "../../../types/google/campaign";
 import type { IColumnDefinition } from "../../../types/google";
 import { TrashIcon } from "lucide-react";
+import { getStatusWithDefault } from "../utils/googleAdsUtils";
 
 
 export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
@@ -162,7 +163,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
         { value: "PAUSED", label: "Paused" },
         { value: "REMOVED", label: "Removed" },
       ],
-      getValue: (row: IGoogleCampaign) => row.status || "ENABLED",
+      getValue: (row: IGoogleCampaign) => getStatusWithDefault(row.status),
     },
     {
       key: "budget",
@@ -368,19 +369,13 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       return;
     }
 
-    // For budget, date, status, and bidding_strategy_type, use direct confirmation
-    // This calls confirmInlineEditDirect which makes the API call immediately
-    if (onConfirmInlineEditDirect && (
-      fieldToUse === "budget" ||
-      fieldToUse === "start_date" ||
-      fieldToUse === "end_date" ||
-      fieldToUse === "status" ||
-      fieldToUse === "bidding_strategy_type"
-    )) {
+    // All fields now use modal confirmation (onConfirmInlineEdit)
+    if (onConfirmInlineEdit) {
+      // For budget, dates, status, bidding_strategy_type, and other fields, use modal confirmation
+      onConfirmInlineEdit(value, fieldToUse, campaignIdToUse);
+    } else if (onConfirmInlineEditDirect) {
+      // Fallback to direct if modal handler not available
       onConfirmInlineEditDirect(value, campaignIdToUse, fieldToUse);
-    } else if (onConfirmInlineEdit) {
-      // Fall back to regular confirmation for other fields (with modal)
-      onConfirmInlineEdit(value);
     }
   };
 

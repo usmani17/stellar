@@ -1,6 +1,15 @@
 import { parseDateToYYYYMMDD } from "../../utils/dateHelpers";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { formatCurrency, formatPercentage } from "../../utils/formatters";
+import {
+  getStatusWithDefault,
+  formatStatusForDisplay,
+  convertStatusToApi,
+  formatBiddingStrategy,
+  formatDateForDisplay as formatDateForDisplayUtil,
+  validateDateNotInPast,
+  validateEndDateAfterStart,
+} from "./utils/googleAdsUtils";
 import { getStatusBadgeLabel, getChannelTypeLabel } from "../../utils/statusLabels";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -30,7 +39,7 @@ import { ErrorModal } from "../../components/ui/ErrorModal";
 import { Loader } from "../../components/ui/Loader";
 // import { CustomizeColumns } from "../../components/ui/CustomizeColumns";
 import type { IGoogleCampaign, IGoogleCampaignsSummary } from "../../types/google/campaign";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { columnPreferencesService } from "../../services/columnPreferences";
 import { queryKeys } from "../../hooks/queries/queryKeys";
 
@@ -56,9 +65,7 @@ export const GoogleCampaigns: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(true);
   const [sorting, setSorting] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const [syncingAnalytics, setSyncingAnalytics] = useState(false);
   const [analyticsSyncMessage, setAnalyticsSyncMessage] = useState<
     string | null
   >(null);
@@ -170,7 +177,7 @@ export const GoogleCampaigns: React.FC = () => {
       | "bidding_strategy_type";
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
-  const [isCancelling, setIsCancelling] = useState(false);
+  const isCancellingRef = useRef(false);
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
   const [updatingField, setUpdatingField] = useState<{
@@ -198,6 +205,7 @@ export const GoogleCampaigns: React.FC = () => {
   // Bidding strategy parameters for inline edit
   const [inlineEditTargetCpa, setInlineEditTargetCpa] = useState<string>("");
   const [inlineEditTargetRoas, setInlineEditTargetRoas] = useState<string>("");
+  const [inlineEditTargetSpend, setInlineEditTargetSpend] = useState<string>("");
   const [
     inlineEditImpressionShareLocation,
     setInlineEditImpressionShareLocation,
@@ -210,6 +218,10 @@ export const GoogleCampaigns: React.FC = () => {
     inlineEditImpressionShareCpcCeiling,
     setInlineEditImpressionShareCpcCeiling,
   ] = useState<string>("");
+  const [impressionShareValidationErrors, setImpressionShareValidationErrors] = useState<{
+    percent?: string;
+    cpcCeiling?: string;
+  }>({});
   const [exportLoading, setExportLoading] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
@@ -218,7 +230,6 @@ export const GoogleCampaigns: React.FC = () => {
   // const [showCustomizeColumns, setShowCustomizeColumns] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set());
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
-  const queryClient = useQueryClient();
   const [inlineEditSuccess, setInlineEditSuccess] = useState<{
     campaignId: string | number;
     field: string;
@@ -327,23 +338,6 @@ export const GoogleCampaigns: React.FC = () => {
     retry: false, // Don't retry on 404 (no preferences saved yet)
   });
 
-  // Save column preferences mutation
-  const savePreferencesMutation = useMutation({
-    mutationFn: (preference: { visible_columns: string[]; column_order: string[] }) =>
-      columnPreferencesService.save({
-        marketplace: 'google',
-        entity_type: 'campaigns',
-        visible_columns: preference.visible_columns,
-        column_order: preference.column_order,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.columnPreferences.detail('google', 'campaigns'),
-      });
-      // Close modal after successful save
-      // setShowCustomizeColumns(false);
-    },
-  });
 
   // Initialize columns from preferences or defaults
   useEffect(() => {
@@ -468,7 +462,7 @@ export const GoogleCampaigns: React.FC = () => {
   }, [campaigns, searchQuery, apiSearchQuery, accountId]);
 
   // Sync status hook (after loadCampaigns is defined)
-  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+  const { SyncStatusBanner } = useGoogleSyncStatus({
     accountId,
     entityType: "campaigns",
     currentData: campaigns,
@@ -963,8 +957,6 @@ export const GoogleCampaigns: React.FC = () => {
         }
       } else if (newBiddingStrategy === originalBiddingStrategy && newBiddingStrategy) {
         // Bidding strategy type didn't change, but target values might have
-        let hasBiddingStrategyUpdate = false;
-        
         if (
           data.target_cpa_micros !== undefined &&
           data.target_cpa_micros !== original.target_cpa_micros
@@ -972,7 +964,6 @@ export const GoogleCampaigns: React.FC = () => {
           updatePayload.action = "bidding_strategy";
           updatePayload.bidding_strategy_type = newBiddingStrategy;
           updatePayload.target_cpa_micros = data.target_cpa_micros;
-          hasBiddingStrategyUpdate = true;
         }
         if (
           data.target_roas !== undefined &&
@@ -981,7 +972,6 @@ export const GoogleCampaigns: React.FC = () => {
           updatePayload.action = "bidding_strategy";
           updatePayload.bidding_strategy_type = newBiddingStrategy;
           updatePayload.target_roas = data.target_roas;
-          hasBiddingStrategyUpdate = true;
         }
         
         // For TARGET_IMPRESSION_SHARE, handle location and required fields together
@@ -996,7 +986,6 @@ export const GoogleCampaigns: React.FC = () => {
           if (locationChanged || fractionChanged || cpcCeilingChanged) {
             updatePayload.action = "bidding_strategy";
             updatePayload.bidding_strategy_type = newBiddingStrategy;
-            hasBiddingStrategyUpdate = true;
             
             // Always include location (use form value or keep original)
             updatePayload.target_impression_share_location =
@@ -1628,119 +1617,6 @@ export const GoogleCampaigns: React.FC = () => {
     }
   };
 
-  const handleSync = async () => {
-    if (!accountId) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setSyncing(true);
-      setSyncMessage(null);
-      const result = await googleAdwordsCampaignsService.syncGoogleCampaigns(accountIdNum);
-      let message =
-        result.message || `Successfully synced ${result.synced} campaigns`;
-
-      if (result.errors && result.errors.length > 0) {
-        const errorDetails = (result as any).error_details || result.errors;
-        const errorText = errorDetails.slice(0, 3).join("; ");
-        message += ` Errors: ${errorText}`;
-        if (result.errors.length > 3) {
-          message += ` (and ${result.errors.length - 3} more)`;
-        }
-      }
-
-      setSyncMessage(message);
-
-      // Check sync status immediately after triggering sync
-      await checkSyncStatus();
-
-      // Reset to first page and reload campaigns after sync
-      if (result.synced > 0) {
-        setCurrentPage(1);
-        // Small delay to ensure database is updated
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-      await loadCampaigns(accountIdNum);
-
-      if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage(null), 5000);
-      } else if (result.errors) {
-        setTimeout(() => setSyncMessage(null), 15000);
-      }
-    } catch (error: any) {
-      console.error("Failed to sync campaigns:", error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.message ||
-        "Failed to sync campaigns from Google Ads";
-      setSyncMessage(errorMessage);
-      setTimeout(() => setSyncMessage(null), 8000);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleSyncAnalytics = async () => {
-    if (!accountId) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setSyncingAnalytics(true);
-      setAnalyticsSyncMessage(null);
-
-      // Always use 1 year date range for analytics sync (365 days)
-      const today = new Date();
-      const oneYearAgo = new Date();
-      oneYearAgo.setDate(oneYearAgo.getDate() - 365);
-
-      const result = await googleAdwordsCampaignsService.syncGoogleCampaignAnalytics(
-        accountIdNum,
-        oneYearAgo.toISOString().split("T")[0],
-        today.toISOString().split("T")[0]
-      );
-
-      let message =
-        result.message ||
-        `Successfully synced analytics: ${
-          result.rows_inserted || 0
-        } inserted, ${result.rows_updated || 0} updated`;
-
-      if (result.errors && result.errors.length > 0) {
-        const errorDetails = (result as any).error_details || result.errors;
-        const errorText = errorDetails.slice(0, 3).join("; ");
-        message += ` Errors: ${errorText}`;
-        if (result.errors.length > 3) {
-          message += ` (and ${result.errors.length - 3} more)`;
-        }
-      }
-
-      setAnalyticsSyncMessage(message);
-
-      // Reload campaigns to show updated analytics
-      if ((result.rows_inserted || 0) > 0 || (result.rows_updated || 0) > 0) {
-        setCurrentPage(1);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        await loadCampaigns(accountIdNum);
-      }
-
-      if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        setTimeout(() => setAnalyticsSyncMessage(null), 5000);
-      } else if (result.errors) {
-        setTimeout(() => setAnalyticsSyncMessage(null), 15000);
-      }
-    } catch (error: any) {
-      console.error("Failed to sync analytics:", error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.message ||
-        "Failed to sync campaign analytics from Google Ads";
-      setAnalyticsSyncMessage(errorMessage);
-      setTimeout(() => setAnalyticsSyncMessage(null), 8000);
-    } finally {
-      setSyncingAnalytics(false);
-    }
-  };
 
   const handleSort = async (column: string) => {
     if (sorting) return; // Prevent multiple simultaneous sorts
@@ -1911,7 +1787,7 @@ export const GoogleCampaigns: React.FC = () => {
     if (field === "budget") {
       setEditedValue((campaign.daily_budget || 0).toString());
     } else if (field === "status") {
-      setEditedValue(campaign.status || "ENABLED");
+      setEditedValue(getStatusWithDefault(campaign.status));
     } else if (field === "start_date") {
       // Format date as YYYY-MM-DD for input using utility function to avoid timezone issues
       setEditedValue(parseDateToYYYYMMDD(campaign.start_date));
@@ -1924,13 +1800,11 @@ export const GoogleCampaigns: React.FC = () => {
   };
 
   const cancelInlineEdit = () => {
-    setIsCancelling(true);
+    isCancellingRef.current = true;
     setEditingCell(null);
     setEditedValue("");
-    // Reset cancel flag after a short delay to allow onBlur to check it
-    setTimeout(() => {
-      setIsCancelling(false);
-    }, 100);
+    // Reset immediately after state updates
+    isCancellingRef.current = false;
   };
 
   const handleInlineEditChange = (value: string) => {
@@ -1939,12 +1813,17 @@ export const GoogleCampaigns: React.FC = () => {
 
   const confirmInlineEdit = (
     newValueOverride?: string,
-    skipModal: boolean = false
+    fieldOverride?: string,
+    campaignIdOverride?: string | number
   ) => {
-    if (!editingCell || !accountId || isCancelling) return;
+    // Use override parameters if provided, otherwise fall back to editingCell state
+    const campaignIdToUse = campaignIdOverride || editingCell?.campaignId;
+    const fieldToUse = fieldOverride || editingCell?.field;
+    
+    if (!campaignIdToUse || !fieldToUse || !accountId || isCancellingRef.current) return;
 
     const campaign = campaigns.find(
-      (c) => c.campaign_id === editingCell.campaignId
+      (c) => String(c.campaign_id) === String(campaignIdToUse)
     );
     if (!campaign) return;
 
@@ -1953,7 +1832,7 @@ export const GoogleCampaigns: React.FC = () => {
     let hasChanged = false;
     let validationError = "";
 
-    if (editingCell.field === "budget") {
+    if (fieldToUse === "budget") {
       const newBudgetStr = valueToCheck.trim();
       const newBudget = newBudgetStr === "" ? 0 : parseFloat(newBudgetStr);
       const oldBudget = campaign.daily_budget || 0;
@@ -1962,18 +1841,18 @@ export const GoogleCampaigns: React.FC = () => {
         return;
       }
       hasChanged = Math.abs(newBudget - oldBudget) > 0.01;
-    } else if (editingCell.field === "status") {
-      const oldValue = (campaign.status || "ENABLED").trim();
+    } else if (fieldToUse === "status") {
+      const oldValue = getStatusWithDefault(campaign.status).trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
-    } else if (editingCell.field === "start_date") {
+    } else if (fieldToUse === "start_date") {
       // Normalize dates to YYYY-MM-DD format for comparison using utility function
       const oldValue = parseDateToYYYYMMDD(campaign.start_date);
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
 
       console.log("[start_date] Date comparison:", {
-        campaignId: editingCell.campaignId,
+        campaignId: campaignIdToUse,
         oldValue,
         newValue,
         hasChanged,
@@ -1981,27 +1860,23 @@ export const GoogleCampaigns: React.FC = () => {
       });
 
       // Validate: start date cannot be in the past
-      // Compare YYYY-MM-DD strings directly to avoid timezone issues
       if (newValue) {
-        const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(
-          today.getMonth() + 1
-        ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-        if (newValue < todayStr) {
-          validationError = "Start date cannot be in the past";
+        const validation = validateDateNotInPast(newValue);
+        if (!validation.valid) {
+          validationError = validation.error || "Start date cannot be in the past";
           alert(validationError);
           cancelInlineEdit();
           return;
         }
       }
-    } else if (editingCell.field === "end_date") {
+    } else if (fieldToUse === "end_date") {
       // Normalize dates to YYYY-MM-DD format for comparison using utility function
       const oldValue = parseDateToYYYYMMDD(campaign.end_date);
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
 
       console.log("[end_date] Date comparison:", {
-        campaignId: editingCell.campaignId,
+        campaignId: campaignIdToUse,
         oldValue,
         newValue,
         hasChanged,
@@ -2010,12 +1885,9 @@ export const GoogleCampaigns: React.FC = () => {
 
       // Validate: end date cannot be in the past
       if (newValue) {
-        const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(
-          today.getMonth() + 1
-        ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-        if (newValue < todayStr) {
-          validationError = "End date cannot be in the past";
+        const validation = validateDateNotInPast(newValue);
+        if (!validation.valid) {
+          validationError = validation.error || "End date cannot be in the past";
           alert(validationError);
           cancelInlineEdit();
           return;
@@ -2023,17 +1895,17 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       // Validate: end date cannot be before start date
-      // Compare YYYY-MM-DD strings directly to avoid timezone issues
       if (newValue) {
         const startDateStr = parseDateToYYYYMMDD(campaign.start_date);
-        if (startDateStr && newValue < startDateStr) {
-          validationError = "End date cannot be before start date";
+        const validation = validateEndDateAfterStart(newValue, startDateStr);
+        if (!validation.valid) {
+          validationError = validation.error || "End date cannot be before start date";
           alert(validationError);
           cancelInlineEdit();
           return;
         }
       }
-    } else if (editingCell.field === "bidding_strategy_type") {
+    } else if (fieldToUse === "bidding_strategy_type") {
       const oldValue = (campaign.bidding_strategy_type || "").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
@@ -2044,31 +1916,17 @@ export const GoogleCampaigns: React.FC = () => {
       return;
     }
 
-    // If skipModal is true (e.g., when canceling), just cancel without showing modal
-    if (skipModal) {
-      cancelInlineEdit();
-      return;
-    }
-
     // For status changes, show modal
-    if (editingCell.field === "status") {
-      const oldStatusRaw = campaign.status || "ENABLED";
+    if (fieldToUse === "status") {
+      const oldStatusRaw = getStatusWithDefault(campaign.status);
       const newStatusRaw = valueToCheck.trim();
 
-      // Format status values for display (convert ENABLED -> Enabled, PAUSED -> Paused, REMOVED -> Removed)
-      const statusDisplayMap: Record<string, string> = {
-        ENABLED: "Enabled",
-        PAUSED: "Paused",
-        REMOVED: "Removed",
-        Enabled: "Enabled",
-        Paused: "Paused",
-        Removed: "Removed",
-      };
-      const oldValue = statusDisplayMap[oldStatusRaw] || oldStatusRaw;
-      const newValue = statusDisplayMap[newStatusRaw] || newStatusRaw;
+      // Format status values for display
+      const oldValue = formatStatusForDisplay(oldStatusRaw);
+      const newValue = formatStatusForDisplay(newStatusRaw);
 
       setInlineEditCampaign(campaign);
-      setInlineEditField(editingCell.field);
+      setInlineEditField(fieldToUse);
       setInlineEditOldValue(oldValue);
       setInlineEditNewValue(newValue);
       setShowInlineEditModal(true);
@@ -2077,12 +1935,12 @@ export const GoogleCampaigns: React.FC = () => {
     }
 
     // For budget, show modal
-    if (editingCell.field === "budget") {
+    if (fieldToUse === "budget") {
       const newBudget = parseFloat(valueToCheck) || 0;
       const oldBudget = campaign.daily_budget || 0;
 
       setInlineEditCampaign(campaign);
-      setInlineEditField(editingCell.field);
+      setInlineEditField(fieldToUse);
       setInlineEditOldValue(formatCurrency(oldBudget));
       setInlineEditNewValue(formatCurrency(newBudget));
       setShowInlineEditModal(true);
@@ -2091,27 +1949,20 @@ export const GoogleCampaigns: React.FC = () => {
     }
 
     // For bidding_strategy_type, show modal
-    if (editingCell.field === "bidding_strategy_type") {
+    if (fieldToUse === "bidding_strategy_type") {
       const oldValue = campaign.bidding_strategy_type || "—";
       const newValue = valueToCheck.trim();
-
-      // Format bidding strategy for display
-      const formatBiddingStrategy = (strategy: string) => {
-        if (!strategy) return "—";
-        return strategy
-          .replace(/_/g, " ")
-          .replace(/\b\w/g, (l: string) => l.toUpperCase());
-      };
 
       // Reset bidding strategy parameters
       setInlineEditTargetCpa("");
       setInlineEditTargetRoas("");
+      setInlineEditTargetSpend("");
       setInlineEditImpressionShareLocation("TOP_OF_PAGE");
       setInlineEditImpressionSharePercent("");
       setInlineEditImpressionShareCpcCeiling("");
 
       setInlineEditCampaign(campaign);
-      setInlineEditField(editingCell.field);
+      setInlineEditField(fieldToUse);
       setInlineEditOldValue(formatBiddingStrategy(oldValue));
       setInlineEditNewValue(formatBiddingStrategy(newValue));
       setShowInlineEditModal(true);
@@ -2121,33 +1972,18 @@ export const GoogleCampaigns: React.FC = () => {
 
     // For start_date and end_date, show modal
     if (
-      editingCell.field === "start_date" ||
-      editingCell.field === "end_date"
+      fieldToUse === "start_date" ||
+      fieldToUse === "end_date"
     ) {
       // Format dates for display
-      const oldDateStr = parseDateToYYYYMMDD(campaign[editingCell.field]);
+      const oldDateStr = parseDateToYYYYMMDD(campaign[fieldToUse]);
       const newDateStr = valueToCheck.trim();
 
-      // Format dates for display (MM/DD/YYYY format)
-      const formatDateForDisplay = (dateStr: string) => {
-        if (!dateStr) return "—";
-        try {
-          const parts = dateStr.split("-");
-          if (parts.length !== 3) {
-            return dateStr;
-          }
-          const [year, month, day] = parts;
-          return `${month}/${day}/${year}`;
-        } catch {
-          return dateStr;
-        }
-      };
-
       // Store formatted values for display in modal
-      const oldValue = oldDateStr ? formatDateForDisplay(oldDateStr) : "—";
+      const oldValue = formatDateForDisplayUtil(oldDateStr);
 
       setInlineEditCampaign(campaign);
-      setInlineEditField(editingCell.field);
+      setInlineEditField(fieldToUse);
       setInlineEditOldValue(oldValue);
       // Store the raw YYYY-MM-DD value for API call (we'll format it for display in modal)
       setInlineEditNewValue(newDateStr);
@@ -2161,7 +1997,7 @@ export const GoogleCampaigns: React.FC = () => {
     const newValue = valueToCheck;
 
     setInlineEditCampaign(campaign);
-    setInlineEditField(editingCell.field);
+    setInlineEditField(fieldToUse as "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type");
     setInlineEditOldValue(oldValue);
     setInlineEditNewValue(newValue);
     setShowInlineEditModal(true);
@@ -2170,8 +2006,8 @@ export const GoogleCampaigns: React.FC = () => {
 
   // Direct confirmation for budget and date fields (skips modal)
   const confirmInlineEditDirect = (newValue: string, campaignIdParam?: string | number, fieldParam?: string) => {
-    console.log("confirmInlineEditDirect called with:", { newValue, campaignIdParam, fieldParam, accountId, isCancelling, editingCell });
-    if (!accountId || isCancelling) {
+    console.log("confirmInlineEditDirect called with:", { newValue, campaignIdParam, fieldParam, accountId, isCancelling: isCancellingRef.current, editingCell });
+    if (!accountId || isCancellingRef.current) {
       console.log("confirmInlineEditDirect early return: missing accountId or cancelling");
       return;
     }
@@ -2206,7 +2042,7 @@ export const GoogleCampaigns: React.FC = () => {
       fieldToUse !== "bidding_strategy_type"
     ) {
       // Fall back to regular confirmation for other fields
-      confirmInlineEdit(newValue, false);
+      confirmInlineEdit(newValue, fieldToUse, campaignIdToUse);
       return;
     }
 
@@ -2251,20 +2087,8 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       if (field === "status") {
-        // Map status values: Google API uses "ENABLED" | "PAUSED" | "REMOVED" (uppercase)
-        // Handle both formatted display values (from modal) and raw values
-        const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
-          ENABLED: "ENABLED",
-          PAUSED: "PAUSED",
-          REMOVED: "REMOVED",
-          Enabled: "ENABLED",
-          Paused: "PAUSED",
-          Removed: "REMOVED",
-          enable: "ENABLED",
-          pause: "PAUSED",
-          removed: "REMOVED",
-        };
-        const statusValue = statusMap[newValue] || "ENABLED";
+        // Convert display status to API format
+        const statusValue = convertStatusToApi(newValue);
 
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
@@ -2378,7 +2202,59 @@ export const GoogleCampaigns: React.FC = () => {
           }
         }
 
+        if (strategyValue === "TARGET_SPEND") {
+          // Validate required field
+          if (!inlineEditTargetSpend || inlineEditTargetSpend.trim() === "") {
+            alert("Target Spend ($) is required");
+            setInlineEditLoading(false);
+            return;
+          }
+          const targetSpendValue = parseFloat(inlineEditTargetSpend);
+          if (isNaN(targetSpendValue) || targetSpendValue <= 0) {
+            alert("Target Spend must be greater than 0");
+            setInlineEditLoading(false);
+            return;
+          }
+          payload.target_spend_micros = Math.round(targetSpendValue * 1000000); // Convert dollars to micros
+        }
+
         if (strategyValue === "TARGET_IMPRESSION_SHARE") {
+          // Validate required fields
+          const validationErrors: { percent?: string; cpcCeiling?: string } = {};
+          
+          if (!inlineEditImpressionShareLocation) {
+            validationErrors.percent = "Location is required";
+          }
+          
+          if (!inlineEditImpressionSharePercent || inlineEditImpressionSharePercent.trim() === "") {
+            validationErrors.percent = "Percent (%) impression share is required";
+          } else {
+            const percentValue = parseFloat(inlineEditImpressionSharePercent);
+            if (isNaN(percentValue) || percentValue < 0 || percentValue > 100) {
+              validationErrors.percent = "Percent must be between 0 and 100";
+            }
+          }
+          
+          if (!inlineEditImpressionShareCpcCeiling || inlineEditImpressionShareCpcCeiling.trim() === "") {
+            validationErrors.cpcCeiling = "Maximum CPC bid limit is required";
+          } else {
+            const cpcValue = parseFloat(inlineEditImpressionShareCpcCeiling);
+            if (isNaN(cpcValue) || cpcValue <= 0) {
+              validationErrors.cpcCeiling = "Maximum CPC bid limit must be greater than 0";
+            }
+          }
+          
+          // If there are validation errors, show them and stop
+          if (Object.keys(validationErrors).length > 0) {
+            setImpressionShareValidationErrors(validationErrors);
+            setInlineEditLoading(false);
+            return;
+          }
+          
+          // Clear validation errors if all fields are valid
+          setImpressionShareValidationErrors({});
+          
+          // Set the payload values
           if (inlineEditImpressionShareLocation) {
             payload.target_impression_share_location =
               inlineEditImpressionShareLocation;
@@ -2425,10 +2301,6 @@ export const GoogleCampaigns: React.FC = () => {
         campaignId: campaign.campaign_id,
         field: field,
       });
-      // Clear success feedback after 3 seconds
-      setTimeout(() => {
-        setInlineEditSuccess(null);
-      }, 3000);
       
       setShowInlineEditModal(false);
       setInlineEditCampaign(null);
@@ -2437,6 +2309,7 @@ export const GoogleCampaigns: React.FC = () => {
       setInlineEditNewValue("");
       setInlineEditTargetCpa("");
       setInlineEditTargetRoas("");
+      setInlineEditTargetSpend("");
       setInlineEditImpressionShareLocation("TOP_OF_PAGE");
       setInlineEditImpressionSharePercent("");
       setInlineEditImpressionShareCpcCeiling("");
@@ -2470,11 +2343,6 @@ export const GoogleCampaigns: React.FC = () => {
           field: field,
           message: errorMessage,
         });
-
-        // Auto-dismiss error after 5 seconds
-        setTimeout(() => {
-          setInlineEditError(null);
-        }, 5000);
       } else {
         // For other fields, show modal (existing behavior)
         // Close the confirmation modal when there's an error
@@ -2485,6 +2353,7 @@ export const GoogleCampaigns: React.FC = () => {
       // But clear the strategy parameters
       setInlineEditTargetCpa("");
       setInlineEditTargetRoas("");
+      setInlineEditTargetSpend("");
       setInlineEditImpressionShareLocation("TOP_OF_PAGE");
       setInlineEditImpressionSharePercent("");
       setInlineEditImpressionShareCpcCeiling("");
@@ -2548,15 +2417,7 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       if (inlineEditField === "status") {
-        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-          ENABLED: "ENABLED",
-          PAUSED: "PAUSED",
-          Enabled: "ENABLED",
-          Paused: "PAUSED",
-          enable: "ENABLED",
-          pause: "PAUSED",
-        };
-        const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
+        const statusValue = convertStatusToApi(inlineEditNewValue);
 
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
@@ -2607,7 +2468,59 @@ export const GoogleCampaigns: React.FC = () => {
           }
         }
 
+        if (strategyValue === "TARGET_SPEND") {
+          // Validate required field
+          if (!inlineEditTargetSpend || inlineEditTargetSpend.trim() === "") {
+            alert("Target Spend ($) is required");
+            setInlineEditLoading(false);
+            return;
+          }
+          const targetSpendValue = parseFloat(inlineEditTargetSpend);
+          if (isNaN(targetSpendValue) || targetSpendValue <= 0) {
+            alert("Target Spend must be greater than 0");
+            setInlineEditLoading(false);
+            return;
+          }
+          payload.target_spend_micros = Math.round(targetSpendValue * 1000000); // Convert dollars to micros
+        }
+
         if (strategyValue === "TARGET_IMPRESSION_SHARE") {
+          // Validate required fields
+          const validationErrors: { percent?: string; cpcCeiling?: string } = {};
+          
+          if (!inlineEditImpressionShareLocation) {
+            validationErrors.percent = "Location is required";
+          }
+          
+          if (!inlineEditImpressionSharePercent || inlineEditImpressionSharePercent.trim() === "") {
+            validationErrors.percent = "Percent (%) impression share is required";
+          } else {
+            const percentValue = parseFloat(inlineEditImpressionSharePercent);
+            if (isNaN(percentValue) || percentValue < 0 || percentValue > 100) {
+              validationErrors.percent = "Percent must be between 0 and 100";
+            }
+          }
+          
+          if (!inlineEditImpressionShareCpcCeiling || inlineEditImpressionShareCpcCeiling.trim() === "") {
+            validationErrors.cpcCeiling = "Maximum CPC bid limit is required";
+          } else {
+            const cpcValue = parseFloat(inlineEditImpressionShareCpcCeiling);
+            if (isNaN(cpcValue) || cpcValue <= 0) {
+              validationErrors.cpcCeiling = "Maximum CPC bid limit must be greater than 0";
+            }
+          }
+          
+          // If there are validation errors, show them and stop
+          if (Object.keys(validationErrors).length > 0) {
+            setImpressionShareValidationErrors(validationErrors);
+            setInlineEditLoading(false);
+            return;
+          }
+          
+          // Clear validation errors if all fields are valid
+          setImpressionShareValidationErrors({});
+          
+          // Set the payload values
           if (inlineEditImpressionShareLocation) {
             payload.target_impression_share_location = inlineEditImpressionShareLocation;
           }
@@ -2644,9 +2557,6 @@ export const GoogleCampaigns: React.FC = () => {
         campaignId: inlineEditCampaign.campaign_id,
         field: inlineEditField,
       });
-      setTimeout(() => {
-        setInlineEditSuccess(null);
-      }, 3000);
       
       setShowInlineEditModal(false);
       setInlineEditCampaign(null);
@@ -2655,6 +2565,7 @@ export const GoogleCampaigns: React.FC = () => {
       setInlineEditNewValue("");
       setInlineEditTargetCpa("");
       setInlineEditTargetRoas("");
+      setInlineEditTargetSpend("");
       setInlineEditImpressionShareLocation("TOP_OF_PAGE");
       setInlineEditImpressionSharePercent("");
       setInlineEditImpressionShareCpcCeiling("");
@@ -3726,7 +3637,7 @@ export const GoogleCampaigns: React.FC = () => {
                                     const oldBudget =
                                       campaign.daily_budget || 0;
                                     const oldStatus =
-                                      campaign.status || "ENABLED";
+                                      getStatusWithDefault(campaign.status);
                                     const newBudget = isBudgetChange
                                       ? calculateNewBudget(oldBudget)
                                       : oldBudget;
@@ -3898,15 +3809,11 @@ export const GoogleCampaigns: React.FC = () => {
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
                       setShowInlineEditModal(false);
-                      setInlineEditCampaign(null);
-                      setInlineEditField(null);
-                      setInlineEditOldValue("");
-                      setInlineEditNewValue("");
                     }
                   }}
                 >
                   <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
-                    <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
                       Confirm{" "}
                       {inlineEditField === "budget"
                         ? "Budget"
@@ -3920,7 +3827,7 @@ export const GoogleCampaigns: React.FC = () => {
                       Change
                     </h3>
                     <div className="mb-4">
-                      <p className="text-[12.8px] text-[#556179] mb-2">
+                      <p className="text-[12.16px] text-[#556179] mb-2">
                         Campaign:{" "}
                         <span className="font-semibold text-[#072929]">
                           {inlineEditCampaign.campaign_name ||
@@ -3929,7 +3836,7 @@ export const GoogleCampaigns: React.FC = () => {
                       </p>
                       <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
                         <div className="flex justify-between items-center">
-                          <span className="text-[12.8px] text-[#556179]">
+                          <span className="text-[12.16px] text-[#556179]">
                             {inlineEditField === "budget"
                               ? "Budget"
                               : inlineEditField === "status"
@@ -3942,13 +3849,13 @@ export const GoogleCampaigns: React.FC = () => {
                             :
                           </span>
                           <div className="flex items-center gap-2">
-                            <span className="text-[12.8px] text-[#556179]">
+                            <span className="text-[12.16px] text-[#556179]">
                               {inlineEditOldValue}
                             </span>
-                            <span className="text-[12.8px] text-[#556179]">
+                            <span className="text-[12.16px] text-[#556179]">
                               →
                             </span>
-                            <span className="text-[12.8px] font-semibold text-[#072929]">
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
                               {inlineEditField === "start_date" ||
                               inlineEditField === "end_date"
                                 ? (() => {
@@ -3979,12 +3886,14 @@ export const GoogleCampaigns: React.FC = () => {
                           .replace(/\s+/g, "_");
                         const isTargetCpa = strategyValue === "TARGET_CPA";
                         const isTargetRoas = strategyValue === "TARGET_ROAS";
+                        const isTargetSpend = strategyValue === "TARGET_SPEND";
                         const isTargetImpressionShare =
                           strategyValue === "TARGET_IMPRESSION_SHARE";
 
                         if (
                           !isTargetCpa &&
                           !isTargetRoas &&
+                          !isTargetSpend &&
                           !isTargetImpressionShare
                         ) {
                           return null;
@@ -4030,11 +3939,30 @@ export const GoogleCampaigns: React.FC = () => {
                               </div>
                             )}
 
+                            {isTargetSpend && (
+                              <div>
+                                <label className="form-label-small">
+                                  Target Spend ($) *
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={inlineEditTargetSpend}
+                                  onChange={(e) =>
+                                    setInlineEditTargetSpend(e.target.value)
+                                  }
+                                  placeholder="e.g., 10.00"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                />
+                              </div>
+                            )}
+
                             {isTargetImpressionShare && (
                               <>
                                 <div>
                                   <label className="form-label-small">
-                                    Where do you want your ads to appear?
+                                    Where do you want your ads to appear? *
                                   </label>
                                   <select
                                     value={inlineEditImpressionShareLocation}
@@ -4058,7 +3986,7 @@ export const GoogleCampaigns: React.FC = () => {
                                 </div>
                                 <div>
                                   <label className="form-label-small">
-                                    Percent (%) impression share to target
+                                    Percent (%) impression share to target *
                                   </label>
                                   <input
                                     type="number"
@@ -4066,32 +3994,50 @@ export const GoogleCampaigns: React.FC = () => {
                                     min="0"
                                     max="100"
                                     value={inlineEditImpressionSharePercent}
-                                    onChange={(e) =>
-                                      setInlineEditImpressionSharePercent(
-                                        e.target.value
-                                      )
-                                    }
+                                    onChange={(e) => {
+                                      setInlineEditImpressionSharePercent(e.target.value);
+                                      // Clear validation error when user types
+                                      if (impressionShareValidationErrors.percent) {
+                                        setImpressionShareValidationErrors(prev => ({ ...prev, percent: undefined }));
+                                      }
+                                    }}
                                     placeholder="e.g., 50"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                    className={`w-full px-3 py-2 border rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D] ${
+                                      impressionShareValidationErrors.percent 
+                                        ? "border-red-500" 
+                                        : "border-gray-300"
+                                    }`}
                                   />
+                                  {impressionShareValidationErrors.percent && (
+                                    <p className="text-red-500 text-xs mt-1">{impressionShareValidationErrors.percent}</p>
+                                  )}
                                 </div>
                                 <div>
                                   <label className="form-label-small">
-                                    Maximum CPC bid limit ($)
+                                    Maximum CPC bid limit ($) *
                                   </label>
                                   <input
                                     type="number"
                                     step="0.01"
                                     min="0"
                                     value={inlineEditImpressionShareCpcCeiling}
-                                    onChange={(e) =>
-                                      setInlineEditImpressionShareCpcCeiling(
-                                        e.target.value
-                                      )
-                                    }
+                                    onChange={(e) => {
+                                      setInlineEditImpressionShareCpcCeiling(e.target.value);
+                                      // Clear validation error when user types
+                                      if (impressionShareValidationErrors.cpcCeiling) {
+                                        setImpressionShareValidationErrors(prev => ({ ...prev, cpcCeiling: undefined }));
+                                      }
+                                    }}
                                     placeholder="e.g., 3.00"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                    className={`w-full px-3 py-2 border rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D] ${
+                                      impressionShareValidationErrors.cpcCeiling 
+                                        ? "border-red-500" 
+                                        : "border-gray-300"
+                                    }`}
                                   />
+                                  {impressionShareValidationErrors.cpcCeiling && (
+                                    <p className="text-red-500 text-xs mt-1">{impressionShareValidationErrors.cpcCeiling}</p>
+                                  )}
                                 </div>
                               </>
                             )}
@@ -4110,9 +4056,11 @@ export const GoogleCampaigns: React.FC = () => {
                           setInlineEditNewValue("");
                           setInlineEditTargetCpa("");
                           setInlineEditTargetRoas("");
+                          setInlineEditTargetSpend("");
                           setInlineEditImpressionShareLocation("TOP_OF_PAGE");
                           setInlineEditImpressionSharePercent("");
                           setInlineEditImpressionShareCpcCeiling("");
+                          setImpressionShareValidationErrors({});
                         }}
                         className="cancel-button"
                       >
@@ -4121,7 +4069,20 @@ export const GoogleCampaigns: React.FC = () => {
                       <button
                         type="button"
                         onClick={runInlineEdit}
-                        disabled={inlineEditLoading}
+                        disabled={
+                          inlineEditLoading || 
+                          (inlineEditField === "bidding_strategy_type" && 
+                           (() => {
+                             const strategyValue = inlineEditNewValue.toUpperCase().replace(/\s+/g, "_");
+                             if (strategyValue === "TARGET_IMPRESSION_SHARE") {
+                               return !inlineEditImpressionSharePercent || !inlineEditImpressionShareCpcCeiling || !inlineEditImpressionShareLocation;
+                             }
+                             if (strategyValue === "TARGET_SPEND") {
+                               return !inlineEditTargetSpend || inlineEditTargetSpend.trim() === "";
+                             }
+                             return false;
+                           })())
+                        }
                         className="create-entity-button btn-sm"
                       >
                         {inlineEditLoading ? "Updating..." : "Confirm"}
@@ -4160,14 +4121,14 @@ export const GoogleCampaigns: React.FC = () => {
                   setVisibleColumns(newVisibleColumns);
                   setColumnOrder(newColumnOrder);
                   // Save preferences
-                  await savePreferencesMutation.mutateAsync({
+                  // await savePreferencesMutation.mutateAsync({
                     visible_columns: Array.from(newVisibleColumns),
                     column_order: newColumnOrder,
                   });
                 }}
                 isOpen={showCustomizeColumns}
                 onClose={() => setShowCustomizeColumns(false)}
-                isSaving={savePreferencesMutation.isPending}
+                // isSaving={savePreferencesMutation.isPending}
               /> */}
 
               {/* Table */}
@@ -4185,7 +4146,7 @@ export const GoogleCampaigns: React.FC = () => {
                     sortOrder={sortOrder}
                     editingCell={editingCell}
                     editedValue={editedValue}
-                    isCancelling={isCancelling}
+                    isCancelling={isCancellingRef.current}
                     summary={summary}
                     updatingField={updatingField}
                     visibleColumns={visibleColumns}

@@ -104,7 +104,7 @@ export interface IGoogleCampaignsTableProps {
     onStartInlineEdit: (campaign: IGoogleCampaign, field: "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type") => void;
     onCancelInlineEdit: () => void;
     onInlineEditChange: (value: string) => void;
-    onConfirmInlineEdit: (value: string) => void;
+    onConfirmInlineEdit: (value?: string, field?: string, campaignId?: string | number) => void;
     onConfirmInlineEditDirect?: (value: string, campaignId?: string | number, field?: string) => void;
     formatCurrency: (value: number) => string;
     formatPercentage: (value: number) => string;

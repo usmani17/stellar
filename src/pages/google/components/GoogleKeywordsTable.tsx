@@ -242,7 +242,11 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       type: "budget",
       sortable: true,
       editable: true,
-      getValue: (row: GoogleKeyword) => row.cpc_bid_dollars || 0,
+      getValue: (row: GoogleKeyword) => {
+        // Handle null/undefined properly - only default to 0 if truly missing
+        const bid = row.cpc_bid_dollars;
+        return bid !== undefined && bid !== null ? bid : 0;
+      },
     },
     {
       key: "match_type",

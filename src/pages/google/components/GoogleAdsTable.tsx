@@ -16,17 +16,13 @@ export function GoogleAdsTable<T = any>({
   selectedItems,
   allSelected,
   someSelected,
-  sortBy,
-  sortOrder,
   editingCell,
   editedValue,
-  isCancelling,
   updatingField,
   pendingChanges,
   summary,
   columns,
   getId,
-  getItemName,
   emptyMessage,
   loadingMessage,
   onSelectAll,
@@ -50,15 +46,13 @@ export function GoogleAdsTable<T = any>({
   // Ref to track if a status selection was made (matches Amazon pattern)
   const statusSelectionMadeRef = useRef<string | number | null>(null);
 
-  const renderCell = (column: IColumnDefinition, row: T, index: number) => {
+  const renderCell = (column: IColumnDefinition, row: T) => {
     const itemId = getId(row);
     const isEditing = editingCell?.itemId === itemId && editingCell?.field === column.key;
     const isUpdating = updatingField?.itemId === itemId && updatingField?.field === column.key;
     const pendingChange = pendingChanges[column.key];
     const hasPendingChange = pendingChange?.itemId === itemId;
     const isSuccess = inlineEditSuccess?.itemId === itemId && inlineEditSuccess?.field === column.key;
-    const isError = inlineEditError?.itemId === itemId && inlineEditError?.field === column.key;
-    const errorMessage = isError ? inlineEditError?.message : null;
     const value = column.getValue(row);
     
     // Check if column is editable (can be boolean or function)
@@ -322,7 +316,6 @@ export function GoogleAdsTable<T = any>({
     const isUpdating = updatingField?.itemId === itemId && updatingField?.field === column.key;
     const isSuccess = inlineEditSuccess?.itemId === itemId && inlineEditSuccess?.field === column.key;
     const isError = inlineEditError?.itemId === itemId && inlineEditError?.field === column.key;
-    const errorMessage = isError ? inlineEditError?.message : null;
     const updatingMessage = isUpdating ? getUpdatingMessage(column, updatingField?.newValue) : "Updating...";
     
     // Use editedValue if actively editing, otherwise use current value from row
@@ -451,10 +444,10 @@ export function GoogleAdsTable<T = any>({
               </div>
             </div>
           )}
-          {isError && errorMessage && !isUpdating && (
+          {isError && inlineEditError?.message && !isUpdating && (
             <div className="absolute top-full left-0 mt-1 z-10">
               <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
-                <X size={12} /> {errorMessage}
+                <X size={12} /> {inlineEditError.message}
               </div>
             </div>
           )}
@@ -517,17 +510,17 @@ export function GoogleAdsTable<T = any>({
                 </div>
               </div>
             )}
-            {isError && errorMessage && !isUpdating && (
+            {isError && inlineEditError?.message && !isUpdating && (
               <div className="absolute top-full left-0 mt-1 z-10">
                 <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
-                  <X size={12} /> {errorMessage}
+                  <X size={12} /> {inlineEditError.message}
                 </div>
               </div>
             )}
           </div>
         );
 
-      case "text":
+      case "text": {
         // For text fields like adgroup_name, keyword_text - use inline editing with tick/cross (same as bid)
         // Always show input field when editable (like budget/bid fields)
         // Check if column is editable for this row
@@ -537,8 +530,6 @@ export function GoogleAdsTable<T = any>({
         if (isTextEditable) {
           // Always show input field, use editedValue when editing, otherwise use current value
           const textValue = isEditing ? editedValue : (value !== undefined && value !== null ? value : "");
-          const oldTextValue = (value !== undefined && value !== null ? value : "").toString();
-          const hasTextChanged = isEditing && textValue !== oldTextValue && textValue !== "";
           return (
             <div className="relative w-full">
               <input
@@ -552,8 +543,16 @@ export function GoogleAdsTable<T = any>({
                 onChange={(e) => {
                   onInlineEditChange(e.target.value);
                 }}
+                onBlur={(e) => {
+                  if (isEditing && isTextEditable) {
+                    const inputValue = e.target.value;
+                    onConfirmInlineEdit(inputValue, column.key, itemId);
+                  }
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === "Escape") {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  } else if (e.key === "Escape") {
                     onCancelInlineEdit();
                   }
                 }}
@@ -561,30 +560,8 @@ export function GoogleAdsTable<T = any>({
                 className="inline-edit-input w-full min-w-[150px]"
                 disabled={!isTextEditable}
               />
-              {(hasTextChanged || isUpdating || isSuccess || isError) && (
+              {(isUpdating || isSuccess || isError) && (
                 <div className="absolute top-full left-0 mt-1 z-10">
-                  {hasTextChanged && !isSuccess && !isUpdating && (
-                    <div className="flex items-center gap-2 bg-white rounded shadow-sm border border-gray-200 p-1">
-                      <button
-                        onClick={() => {
-                          onConfirmInlineEdit(textValue, column.key, itemId);
-                        }}
-                        className="text-green-600 hover:text-green-700 p-1"
-                        title="Save"
-                      >
-                        <Check size={16} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          onCancelInlineEdit();
-                        }}
-                        className="text-red-600 hover:text-red-700 p-1"
-                        title="Cancel"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  )}
                   {isUpdating && (
                     <div className="flex items-center gap-1 text-gray-600 bg-white rounded shadow-sm border border-gray-200 px-2 py-1">
                       <Loader size="sm" />
@@ -596,9 +573,9 @@ export function GoogleAdsTable<T = any>({
                       <Check size={12} /> Updated successfully
                     </div>
                   )}
-                  {isError && errorMessage && (
+                  {isError && inlineEditError?.message && (
                     <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
-                      <X size={12} /> {errorMessage}
+                      <X size={12} /> {inlineEditError.message}
                     </div>
                   )}
                 </div>
@@ -607,15 +584,14 @@ export function GoogleAdsTable<T = any>({
           );
         }
         return renderValue(column, value);
+      }
       case "budget":
-      case "bid":
+      case "bid": {
         // Check if column is editable for this row
         const isBudgetEditable = typeof column.editable === 'function' 
           ? column.editable(row) 
           : column.editable === true;
         const budgetValue = isEditing ? editedValue : (value || 0).toString();
-        const oldBudgetValue = (value || 0).toString();
-        const hasBudgetChanged = isEditing && budgetValue !== oldBudgetValue && budgetValue !== "";
         return (
           <div className="relative w-full">
             <input
@@ -631,8 +607,32 @@ export function GoogleAdsTable<T = any>({
               onChange={(e) => {
                 onInlineEditChange(e.target.value);
               }}
+              onBlur={(e) => {
+                if (isEditing && isBudgetEditable) {
+                  // Capture the value directly from the input to ensure we get the latest value
+                  // For number inputs, use the valueAsNumber or value property
+                  // Use e.currentTarget.value for better reliability with number inputs
+                  const inputElement = e.currentTarget as HTMLInputElement;
+                  const inputValue = inputElement.value;
+                  const inputValueAsNumber = inputElement.valueAsNumber;
+                  
+                  console.log("[GoogleAdsTable onBlur] Column:", column.key, "Input value:", inputValue, "Value as number:", inputValueAsNumber, "ItemId:", itemId);
+                  
+                  // For number inputs, ensure we capture the value even if it's "0" or "0.00"
+                  // Only trigger confirmation if there's a value (not empty string)
+                  if (inputValue !== undefined && inputValue !== null && inputValue !== "") {
+                    console.log("[GoogleAdsTable onBlur] Calling onConfirmInlineEdit with:", inputValue);
+                    onConfirmInlineEdit(inputValue, column.key, itemId);
+                  } else {
+                    console.log("[GoogleAdsTable onBlur] Input value is empty, canceling");
+                    onCancelInlineEdit();
+                  }
+                }
+              }}
               onKeyDown={(e) => {
-                if (e.key === "Escape") {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                } else if (e.key === "Escape") {
                   onCancelInlineEdit();
                 }
               }}
@@ -640,30 +640,8 @@ export function GoogleAdsTable<T = any>({
               className="inline-edit-input w-full min-w-[120px]"
               disabled={!isBudgetEditable}
             />
-            {(hasBudgetChanged || isUpdating || isSuccess || isError) && (
+            {(isUpdating || isSuccess || isError) && (
               <div className="absolute top-full left-0 mt-1 z-10">
-                {hasBudgetChanged && !isSuccess && !isUpdating && (
-                  <div className="flex items-center gap-2 bg-white rounded shadow-sm border border-gray-200 p-1">
-                    <button
-                      onClick={() => {
-                        onConfirmInlineEdit(budgetValue, column.key, itemId);
-                      }}
-                      className="text-green-600 hover:text-green-700 p-1"
-                      title="Save"
-                    >
-                      <Check size={16} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        onCancelInlineEdit();
-                      }}
-                      className="text-red-600 hover:text-red-700 p-1"
-                      title="Cancel"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                )}
                 {isUpdating && (
                   <div className="flex items-center gap-1 text-gray-600 bg-white rounded shadow-sm border border-gray-200 px-2 py-1">
                     <Loader size="sm" />
@@ -675,18 +653,19 @@ export function GoogleAdsTable<T = any>({
                     <Check size={12} /> Updated successfully
                   </div>
                 )}
-                {isError && errorMessage && (
+                {isError && inlineEditError?.message && (
                   <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
-                    <X size={12} /> {errorMessage}
+                    <X size={12} /> {inlineEditError.message}
                   </div>
                 )}
               </div>
             )}
           </div>
         );
+      }
 
       case "start_date":
-      case "end_date":
+      case "end_date": {
         // Check if this date field is editable for this row
         const isDateEditable = typeof column.editable === 'function' 
           ? column.editable(row) 
@@ -724,8 +703,6 @@ export function GoogleAdsTable<T = any>({
         }
         // Format date value for input (YYYY-MM-DD)
         const dateValue = isEditing ? editedValue : (value ? parseDateToYYYYMMDD(value) : "");
-        const oldDateValue = value ? parseDateToYYYYMMDD(value) : "";
-        const hasDateChanged = isEditing && dateValue !== oldDateValue && dateValue !== "";
         return (
           <div className="relative w-full">
             <input
@@ -738,10 +715,24 @@ export function GoogleAdsTable<T = any>({
                 }
               }}
               onChange={(e) => {
-                onInlineEditChange(e.target.value);
+                if (isEditing && isDateEditable) {
+                  const inputValue = e.target.value;
+                  // Update the edited value
+                  onInlineEditChange(inputValue);
+                  // Immediately trigger confirmation modal on date change
+                  onConfirmInlineEdit(inputValue, column.key, itemId);
+                }
+              }}
+              onBlur={(e) => {
+                // Blur handler kept for cleanup, but modal is triggered on onChange
+                if (isEditing && isDateEditable && !e.target.value) {
+                  onCancelInlineEdit();
+                }
               }}
               onKeyDown={(e) => {
-                if (e.key === "Escape") {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                } else if (e.key === "Escape") {
                   onCancelInlineEdit();
                 }
               }}
@@ -749,30 +740,8 @@ export function GoogleAdsTable<T = any>({
               className="inline-edit-input w-full min-w-[140px]"
               disabled={!isDateEditable}
             />
-            {(hasDateChanged || isUpdating || isSuccess || isError) && (
+            {(isUpdating || isSuccess || isError) && (
               <div className="absolute top-full left-0 mt-1 z-10">
-                {hasDateChanged && !isSuccess && !isUpdating && (
-                  <div className="flex items-center gap-2 bg-white rounded shadow-sm border border-gray-200 p-1">
-                    <button
-                      onClick={() => {
-                        onConfirmInlineEdit(dateValue, column.key, itemId);
-                      }}
-                      className="text-green-600 hover:text-green-700 p-1"
-                      title="Save"
-                    >
-                      <Check size={16} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        onCancelInlineEdit();
-                      }}
-                      className="text-red-600 hover:text-red-700 p-1"
-                      title="Cancel"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                )}
                 {isUpdating && (
                   <div className="flex items-center gap-1 text-gray-600 bg-white rounded shadow-sm border border-gray-200 px-2 py-1">
                     <Loader size="sm" />
@@ -784,15 +753,16 @@ export function GoogleAdsTable<T = any>({
                     <Check size={12} /> Updated successfully
                   </div>
                 )}
-                {isError && errorMessage && (
+                {isError && inlineEditError?.message && (
                   <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
-                    <X size={12} /> {errorMessage}
+                    <X size={12} /> {inlineEditError.message}
                   </div>
                 )}
               </div>
             )}
           </div>
         );
+      }
 
       default:
         return renderValue(column, value);
@@ -803,15 +773,7 @@ export function GoogleAdsTable<T = any>({
     if (!column.sticky) return "";
     
     // Calculate left offset based on previous sticky columns
-    let leftOffset = 35; // Checkbox width
-    for (let i = 0; i < index; i++) {
-      if (columns[i]?.sticky) {
-        // Estimate width - use minWidth or default
-        const minWidth = columns[i]?.minWidth;
-        const width = minWidth ? parseInt(minWidth.replace('px', '').replace('min-w-[', '').replace(']', '')) : 300;
-        leftOffset += width;
-      }
-    }
+    // Note: leftOffset calculation removed as it's not used
     
     // Use table-sticky-first-column class for first sticky column (matches Amazon campaigns)
     if (index === 0) {
@@ -871,7 +833,7 @@ export function GoogleAdsTable<T = any>({
                     <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                       <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                     </td>
-                    {columns.map((column, colIndex) => (
+                    {columns.map((column) => (
                       <td key={column.key} className="table-cell">
                         <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                       </td>
@@ -1040,7 +1002,7 @@ export function GoogleAdsTable<T = any>({
                             key={column.key}
                             className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses} ${hoverClass}`}
                           >
-                            {renderCell(column, row, index)}
+                            {renderCell(column, row)}
                           </td>
                         );
                       })}

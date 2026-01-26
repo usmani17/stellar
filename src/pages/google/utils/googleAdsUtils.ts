@@ -1,0 +1,234 @@
+/**
+ * Shared utilities for Google Ads pages (Campaigns, AdGroups, Keywords, Ads)
+ * Consolidates common functions, constants, and mappings to avoid code duplication
+ */
+
+// ============================================================================
+// STATUS CONSTANTS AND MAPS
+// ============================================================================
+
+export const GOOGLE_STATUS_DEFAULT = "ENABLED" as const;
+
+export type GoogleStatus = "ENABLED" | "PAUSED" | "REMOVED";
+
+/**
+ * Maps API status values to display-friendly format
+ */
+export const STATUS_DISPLAY_MAP: Record<string, string> = {
+  ENABLED: "Enabled",
+  PAUSED: "Paused",
+  REMOVED: "Removed",
+  Enabled: "Enabled",
+  Paused: "Paused",
+  Removed: "Removed",
+};
+
+/**
+ * Maps display status values back to API format (uppercase)
+ */
+export const STATUS_API_MAP: Record<string, GoogleStatus> = {
+  ENABLED: "ENABLED",
+  PAUSED: "PAUSED",
+  REMOVED: "REMOVED",
+  Enabled: "ENABLED",
+  Paused: "PAUSED",
+  Removed: "REMOVED",
+};
+
+/**
+ * Gets status with default fallback
+ */
+export const getStatusWithDefault = (status?: string | null): string => {
+  return status || GOOGLE_STATUS_DEFAULT;
+};
+
+/**
+ * Formats status for display
+ */
+export const formatStatusForDisplay = (status?: string | null): string => {
+  const statusValue = getStatusWithDefault(status);
+  return STATUS_DISPLAY_MAP[statusValue] || statusValue;
+};
+
+/**
+ * Converts display status to API format
+ */
+export const convertStatusToApi = (status: string): GoogleStatus => {
+  return STATUS_API_MAP[status] || "ENABLED";
+};
+
+// ============================================================================
+// MATCH TYPE CONSTANTS AND MAPS
+// ============================================================================
+
+export type MatchType = "EXACT" | "PHRASE" | "BROAD";
+
+export const MATCH_TYPE_DEFAULT = "EXACT" as const;
+
+/**
+ * Maps API match type values to display-friendly format
+ */
+export const MATCH_TYPE_DISPLAY_MAP: Record<string, string> = {
+  EXACT: "Exact",
+  PHRASE: "Phrase",
+  BROAD: "Broad",
+  Exact: "Exact",
+  Phrase: "Phrase",
+  Broad: "Broad",
+};
+
+/**
+ * Maps display match type values back to API format (uppercase)
+ */
+export const MATCH_TYPE_API_MAP: Record<string, MatchType> = {
+  EXACT: "EXACT",
+  PHRASE: "PHRASE",
+  BROAD: "BROAD",
+  Exact: "EXACT",
+  Phrase: "PHRASE",
+  Broad: "BROAD",
+};
+
+/**
+ * Gets match type with default fallback
+ */
+export const getMatchTypeWithDefault = (matchType?: string | null): string => {
+  return matchType || MATCH_TYPE_DEFAULT;
+};
+
+/**
+ * Formats match type for display
+ */
+export const formatMatchTypeForDisplay = (matchType?: string | null): string => {
+  const matchTypeValue = getMatchTypeWithDefault(matchType);
+  return MATCH_TYPE_DISPLAY_MAP[matchTypeValue] || matchTypeValue;
+};
+
+/**
+ * Converts display match type to API format
+ */
+export const convertMatchTypeToApi = (matchType: string): MatchType => {
+  return MATCH_TYPE_API_MAP[matchType] || "EXACT";
+};
+
+// ============================================================================
+// BIDDING STRATEGY FORMATTING
+// ============================================================================
+
+/**
+ * Formats bidding strategy for display
+ */
+export const formatBiddingStrategy = (strategy?: string | null): string => {
+  if (!strategy) return "—";
+  return strategy
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (l: string) => l.toUpperCase());
+};
+
+// ============================================================================
+// DATE FORMATTING
+// ============================================================================
+
+/**
+ * Formats date string (YYYY-MM-DD) for display (MM/DD/YYYY)
+ */
+export const formatDateForDisplay = (dateStr?: string | null): string => {
+  if (!dateStr) return "—";
+  try {
+    const parts = dateStr.split("-");
+    if (parts.length !== 3) {
+      return dateStr;
+    }
+    const [year, month, day] = parts;
+    return `${month}/${day}/${year}`;
+  } catch {
+    return dateStr;
+  }
+};
+
+/**
+ * Parses date to YYYY-MM-DD format
+ */
+export const parseDateToYYYYMMDD = (date?: string | Date | null): string => {
+  if (!date) return "";
+  
+  try {
+    if (date instanceof Date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+    
+    if (typeof date === "string") {
+      // If already in YYYY-MM-DD format, return as is
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return date;
+      }
+      
+      // Try to parse other formats
+      const parsed = new Date(date);
+      if (!isNaN(parsed.getTime())) {
+        const year = parsed.getFullYear();
+        const month = String(parsed.getMonth() + 1).padStart(2, "0");
+        const day = String(parsed.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+    }
+    
+    return "";
+  } catch {
+    return "";
+  }
+};
+
+// ============================================================================
+// CURRENCY FORMATTING
+// ============================================================================
+
+/**
+ * Formats currency value for display
+ */
+export const formatCurrency = (value?: number | null): string => {
+  if (value === undefined || value === null || isNaN(value)) {
+    return "$0.00";
+  }
+  return `$${value.toFixed(2)}`;
+};
+
+// ============================================================================
+// VALIDATION HELPERS
+// ============================================================================
+
+/**
+ * Validates that a date is not in the past
+ */
+export const validateDateNotInPast = (dateStr: string): { valid: boolean; error?: string } => {
+  if (!dateStr) {
+    return { valid: true };
+  }
+  
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  
+  if (dateStr < todayStr) {
+    return { valid: false, error: "Date cannot be in the past" };
+  }
+  
+  return { valid: true };
+};
+
+/**
+ * Validates that end date is not before start date
+ */
+export const validateEndDateAfterStart = (endDateStr: string, startDateStr?: string | null): { valid: boolean; error?: string } => {
+  if (!endDateStr || !startDateStr) {
+    return { valid: true };
+  }
+  
+  if (endDateStr < startDateStr) {
+    return { valid: false, error: "End date cannot be before start date" };
+  }
+  
+  return { valid: true };
+};
