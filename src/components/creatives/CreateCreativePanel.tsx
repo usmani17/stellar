@@ -116,7 +116,7 @@ interface CreateCreativePanelProps {
   onUpdate?: (
     creative: CreativeInput,
     adGroupId: number,
-    creativeId: number | string
+    creativeId: number | string,
   ) => void;
   adgroups: Array<{ adGroupId: string | number; name: string }>;
   loading?: boolean;
@@ -158,7 +158,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
   profileId,
 }) => {
   const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>(
-    adgroups.length > 0 ? String(adgroups[0].adGroupId) : ""
+    adgroups.length > 0 ? String(adgroups[0].adGroupId) : "",
   );
   const [currentCreative, setCurrentCreative] = useState<CreativeInput>({
     creativeType: "IMAGE",
@@ -167,7 +167,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
   });
   const [selectedPropertyType, setSelectedPropertyType] = useState<string>("");
   const [addedPropertyTypes, setAddedPropertyTypes] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [activePropertyTab, setActivePropertyTab] = useState<string>("");
   const [addedCreatives, setAddedCreatives] = useState<CreativeInput[]>([]);
@@ -187,7 +187,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
       console.log("[CreateCreativePanel] No accountId, skipping asset load");
       return;
     }
-    
+
     try {
       setAssetsLoading(true);
       const accountIdNum = parseInt(accountId, 10);
@@ -196,13 +196,22 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
         setAssets([]);
         return;
       }
-      console.log("[CreateCreativePanel] Loading assets for accountId:", accountIdNum, "profileId:", profileId);
+      console.log(
+        "[CreateCreativePanel] Loading assets for accountId:",
+        accountIdNum,
+        "profileId:",
+        profileId,
+      );
       const data = await campaignsService.getAssets(accountIdNum, {
         page: 1,
         page_size: 100, // Get all assets for dropdown
         ...(profileId && { profileId }), // Include profileId if available to filter assets
       });
-      console.log("[CreateCreativePanel] Assets loaded:", data.assets?.length || 0, "assets");
+      console.log(
+        "[CreateCreativePanel] Assets loaded:",
+        data.assets?.length || 0,
+        "assets",
+      );
       setAssets(data.assets || []);
     } catch (error) {
       console.error("[CreateCreativePanel] Failed to load assets:", error);
@@ -344,20 +353,44 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
       // Set added property types
       setAddedPropertyTypes(propertyTypes);
 
+      // Set active tab - if IMAGE type and headline exists, default to headline
+      if (
+        editCreative.creativeType === "IMAGE" &&
+        propertyTypes.has("headline")
+      ) {
+        setActivePropertyTab("headline");
+      } else if (
+        editCreative.creativeType === "VIDEO" &&
+        propertyTypes.has("video")
+      ) {
+        setActivePropertyTab("video");
+      } else if (propertyTypes.size > 0) {
+        // Set first available property type as active
+        setActivePropertyTab(Array.from(propertyTypes)[0]);
+      }
+
       // Clear added creatives (we're editing a single creative)
       setAddedCreatives([]);
     } else {
       // Reset form for create mode
       setCurrentCreative({
         creativeType: "IMAGE",
-        properties: {},
+        properties: {
+          headline: {
+            headline: "",
+            hasTermsAndConditions: false,
+            originalHeadline: "",
+          },
+        },
         consentToTranslate: false,
       });
       setSelectedPropertyType("");
-      setAddedPropertyTypes(new Set());
+      // Set headline as default tab when creating
+      setAddedPropertyTypes(new Set(["headline"]));
+      setActivePropertyTab("headline");
       setAddedCreatives([]);
       setSelectedAdGroupId(
-        adgroups.length > 0 ? String(adgroups[0].adGroupId) : ""
+        adgroups.length > 0 ? String(adgroups[0].adGroupId) : "",
       );
     }
   }, [editCreative, adgroups]);
@@ -395,11 +428,15 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
       setAddedPropertyTypes(new Set());
       setSelectedPropertyType("");
       setActivePropertyTab("");
-      
+
       // For VIDEO type, automatically add video property and show form
       if (value === "VIDEO") {
         handleAddPropertyType("video");
         setActivePropertyTab("video");
+      } else if (value === "IMAGE") {
+        // For IMAGE type, automatically add headline property and show form
+        handleAddPropertyType("headline");
+        setActivePropertyTab("headline");
       }
     } else if (field.startsWith("properties.")) {
       const propPath = field.replace("properties.", "");
@@ -555,9 +592,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                 value < 0 ||
                 !Number.isInteger(value))
             ) {
-              newErrors[
-                `properties.brandLogo.croppingCoordinates.${field}`
-              ] = `${field} must be an integer >= 0`;
+              newErrors[`properties.brandLogo.croppingCoordinates.${field}`] =
+                `${field} must be an integer >= 0`;
             }
           }
         }
@@ -637,9 +673,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
             if (video[variant] && Array.isArray(video[variant])) {
               video[variant].forEach((vid: any, idx: number) => {
                 if (!vid.assetId || !vid.assetVersion) {
-                  newErrors[
-                    `properties.video.${variant}[${idx}]`
-                  ] = `${variant}[${idx}] assetId and assetVersion are required`;
+                  newErrors[`properties.video.${variant}[${idx}]`] =
+                    `${variant}[${idx}] assetId and assetVersion are required`;
                 }
               });
             }
@@ -710,7 +745,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
           creativeId: creativeId,
           creativeIdType: typeof creativeId,
           editCreative: editCreative,
-        }
+        },
       );
       onUpdate(currentCreative, parseInt(selectedAdGroupId, 10), creativeId);
     } else {
@@ -729,7 +764,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
   const handleClose = () => {
     setSelectedAdGroupId(
-      adgroups.length > 0 ? String(adgroups[0].adGroupId) : ""
+      adgroups.length > 0 ? String(adgroups[0].adGroupId) : "",
     );
     setCurrentCreative({
       creativeType: "IMAGE",
@@ -760,7 +795,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
         // Custom Image properties
         customImage: {
           rectCustomImage: {
-            assetId: "amzn1.assetlibrary.asset1.ee6b9b75765dfae332cb9169593a2eae",
+            assetId:
+              "amzn1.assetlibrary.asset1.ee6b9b75765dfae332cb9169593a2eae",
             assetVersion: "version_v1",
             croppingCoordinates: {
               top: 286,
@@ -770,7 +806,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
             },
           },
           squareCustomImage: {
-            assetId: "amzn1.assetlibrary.asset1.ee6b9b75765dfae332cb9169593a2eae",
+            assetId:
+              "amzn1.assetlibrary.asset1.ee6b9b75765dfae332cb9169593a2eae",
             assetVersion: "version_v1",
             croppingCoordinates: {
               top: 0,
@@ -804,12 +841,17 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
     };
 
     setCurrentCreative(testCreative);
-    
+
     // Add all property types and set the first one as active
-    const allPropertyTypes = new Set(["customImage", "background", "headline", "brandLogo"]);
+    const allPropertyTypes = new Set([
+      "customImage",
+      "background",
+      "headline",
+      "brandLogo",
+    ]);
     setAddedPropertyTypes(allPropertyTypes);
     setActivePropertyTab("headline"); // Set first tab as active
-    
+
     // Clear any errors
     setErrors({});
   };
@@ -861,9 +903,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
           <div className="mb-6 flex gap-4">
             {/* Ad Group Selection */}
             <div className="flex-1">
-              <label className="form-label-small">
-                Ad Group *
-              </label>
+              <label className="form-label-small">Ad Group *</label>
               <Dropdown
                 options={adgroups.map((ag) => ({
                   value: String(ag.adGroupId),
@@ -882,6 +922,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                     : "Select ad group"
                 }
                 emptyMessage="No ad groups available"
+                buttonClassName="edit-button w-full"
               />
               {errors.adGroupId && (
                 <p className="text-red-500 text-xs mt-1">{errors.adGroupId}</p>
@@ -890,22 +931,14 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
             {/* Creative Type */}
             <div className="flex-1">
-              <label className="form-label-small">
-                Creative Type *
-              </label>
+              <label className="form-label-small">Creative Type *</label>
               <Dropdown
                 options={CREATIVE_TYPE_OPTIONS}
                 value={currentCreative.creativeType}
                 onChange={(value) => {
                   handleChange("creativeType", value);
-                  // When VIDEO is selected, automatically add video property and show form
-                  if (value === "VIDEO") {
-                    if (!addedPropertyTypes.has("video")) {
-                      handleAddPropertyType("video");
-                    }
-                    setActivePropertyTab("video");
-                  }
                 }}
+                buttonClassName="edit-button w-full"
               />
               {errors.creativeType && (
                 <p className="text-red-500 text-xs mt-1">
@@ -923,1825 +956,1952 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
             {/* Property Type Selector - Tabs */}
             <div className="mb-4">
-              <div className="flex border-b border-gray-200 mb-4">
+              <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
                 {/* Show IMAGE property tabs when creative type is IMAGE */}
                 {currentCreative.creativeType === "IMAGE" &&
                   PROPERTY_TYPE_OPTIONS_IMAGE.map((option) => {
-                  const isActive = activePropertyTab === option.value;
-                  const isAdded = addedPropertyTypes.has(option.value);
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        setActivePropertyTab(option.value);
-                        if (!isAdded) {
-                          handleAddPropertyType(option.value);
-                        }
-                      }}
-                      className={`px-4 py-2 text-[14px] transition-colors ${
-                        isActive
-                          ? "text-[#072929] border-b-2 border-[#136D6D]"
-                          : "text-[#556179] hover:text-[#072929]"
-                      }`}
-                    >
-                      {option.label}
-                      </button>
-                    );
-                  })}
-                {/* Always show Video tab, but disable it when creative type is IMAGE */}
-                {PROPERTY_TYPE_OPTIONS_VIDEO.map((option) => {
-                  const isActive = activePropertyTab === option.value;
-                  const isAdded = addedPropertyTypes.has(option.value);
-                  const isDisabled = currentCreative.creativeType !== "VIDEO";
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        if (!isDisabled) {
+                    const isActive = activePropertyTab === option.value;
+                    const isAdded = addedPropertyTypes.has(option.value);
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
                           setActivePropertyTab(option.value);
                           if (!isAdded) {
                             handleAddPropertyType(option.value);
                           }
-                        }
-                      }}
-                      disabled={isDisabled}
-                      className={`px-4 py-2 text-[14px] transition-colors ${
-                        isActive
-                          ? "text-[#072929] border-b-2 border-[#136D6D]"
-                          : isDisabled
-                          ? "text-gray-400 cursor-not-allowed"
-                          : "text-[#556179] hover:text-[#072929]"
-                      }`}
-                    >
-                      {option.label}
-                     
-                    </button>
-                  );
-                })}
+                        }}
+                        className={`px-4 py-2 text-[14px] transition-colors ${
+                          isActive
+                            ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                            : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                {/* Show Video tab only when creative type is VIDEO */}
+                {currentCreative.creativeType === "VIDEO" &&
+                  PROPERTY_TYPE_OPTIONS_VIDEO.map((option) => {
+                    const isActive = activePropertyTab === option.value;
+                    const isAdded = addedPropertyTypes.has(option.value);
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setActivePropertyTab(option.value);
+                          if (!isAdded) {
+                            handleAddPropertyType(option.value);
+                          }
+                        }}
+                        className={`px-4 py-2 text-[14px] transition-colors ${
+                          isActive
+                            ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                            : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
               </div>
-              
+
               {/* Show form for active tab */}
-              {activePropertyTab && addedPropertyTypes.has(activePropertyTab) && (
-                <div className="mt-4">
-                  {/* Forms will be shown based on activePropertyTab */}
-                </div>
-              )}
+              {activePropertyTab &&
+                addedPropertyTypes.has(activePropertyTab) && (
+                  <div className="mt-4">
+                    {/* Forms will be shown based on activePropertyTab */}
+                  </div>
+                )}
             </div>
 
             {/* Property Forms - Show only active tab */}
-            {activePropertyTab === "headline" && addedPropertyTypes.has("headline") && (
-              <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg bg-gray-50">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
-                    Headline Creative Properties
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePropertyType("headline")}
-                    className="text-red-500 hover:text-red-700 text-sm"
-                  >
-                    Remove
-                  </button>
-                </div>
+            {activePropertyTab === "headline" &&
+              addedPropertyTypes.has("headline") && (
+                <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg ">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
+                      Headline Creative Properties
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePropertyType("headline")}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
 
-                {/* Headline Field */}
-                <div className="mb-3">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-1">
-                    Headline{" "}
-                    <span className="text-gray-400 font-normal">
-                      (Optional, max 50 characters)
-                    </span>
-                  </label>
-                  <input
-                    type="text"
-                    value={currentCreative.properties.headline?.headline || ""}
-                    onChange={(e) =>
-                      handleChange("properties.headline", {
-                        ...currentCreative.properties.headline,
-                        headline: e.target.value,
-                      })
-                    }
-                    maxLength={50}
-                    className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                    placeholder="Enter marketing phrase (max 50 characters)"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {currentCreative.properties.headline?.headline?.length || 0}
-                    /50 characters
-                  </p>
-                  {errors["properties.headline.headline"] && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors["properties.headline.headline"]}
-                    </p>
-                  )}
-                </div>
-
-                {/* Original Headline Field */}
-                <div className="mb-3">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-1">
-                    Original Headline{" "}
-                    <span className="text-gray-400 font-normal">
-                      (Optional)
-                    </span>
-                  </label>
-                  <input
-                    type="text"
-                    value={
-                      currentCreative.properties.headline?.originalHeadline ||
-                      ""
-                    }
-                    onChange={(e) =>
-                      handleChange("properties.headline", {
-                        ...currentCreative.properties.headline,
-                        originalHeadline: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                    placeholder="Enter original headline (used when consentToTranslate is true)"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    The original headline before translation. If
-                    consentToTranslate is true and translation succeeds,
-                    headline will show the translated version and
-                    originalHeadline will show this value.
-                  </p>
-                </div>
-
-                {/* Has Terms and Conditions Checkbox */}
-                <div className="mb-2">
-                  <div className="flex items-center">
-                    <Checkbox
-                      checked={
-                        currentCreative.properties.headline
-                          ?.hasTermsAndConditions || false
+                  {/* Headline Field */}
+                  <div className="mb-3">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-1">
+                      Headline{" "}
+                      <span className="text-gray-400 font-normal">
+                        (Optional, max 50 characters)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      value={
+                        currentCreative.properties.headline?.headline || ""
                       }
-                      onChange={(checked) =>
+                      onChange={(e) =>
                         handleChange("properties.headline", {
                           ...currentCreative.properties.headline,
-                          hasTermsAndConditions: checked,
+                          headline: e.target.value,
                         })
                       }
-                      size="small"
+                      maxLength={50}
+                      className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                      placeholder="Enter marketing phrase (max 50 characters)"
                     />
-                    <span className="text-[13.44px] text-[#222124] ml-2">
-                      Has Terms and Conditions
-                    </span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {currentCreative.properties.headline?.headline?.length ||
+                        0}
+                      /50 characters
+                    </p>
+                    {errors["properties.headline.headline"] && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors["properties.headline.headline"]}
+                      </p>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-400 mt-1 ml-6">
-                    Indicates the ad promotes a free product/service with
-                    qualifying terms. Only supported for productAds with
-                    landingPageType of OFF_AMAZON_LINK.
-                  </p>
-                </div>
-              </div>
-            )}
 
-            {activePropertyTab === "brandLogo" && addedPropertyTypes.has("brandLogo") && (
-              <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg bg-gray-50">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
-                    Brand Logo Creative Properties
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePropertyType("brandLogo")}
-                    className="text-red-500 hover:text-red-700 text-sm"
-                  >
-                    Remove
-                  </button>
-                </div>
-
-                {/* Asset ID and Version */}
-                <div className="mb-3">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-1">
-                    Logo Asset{" "}
-                    <span className="text-gray-400 font-normal">
-                      (Required)
-                    </span>
-                  </label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Dropdown<string>
-                        options={assets
-                          .filter((asset) => {
-                            if (!asset.assetId) return false;
-                            // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
-                            const isImageByAssetType = asset.assetType === 'IMAGE';
-                            const isImageByContentType = asset.contentType?.toLowerCase().startsWith('image/');
-                            const isImageByFileMetadata = asset.fileMetadata?.contentType?.toLowerCase().startsWith('image/');
-                            // Fallback to old schema for backward compatibility
-                            const isImageByMediaType = asset.mediaType?.toLowerCase() === 'image';
-                            return isImageByAssetType || isImageByContentType || isImageByFileMetadata || isImageByMediaType;
-                          })
-                          .map((asset) => ({
-                            value: asset.assetId || "",
-                            label: asset.name || asset.fileName
-                              ? `${asset.name || asset.fileName} (${asset.assetId})`
-                              : asset.assetId || `Asset ${asset.id}`,
-                          }))}
-                        value={currentCreative.properties.brandLogo?.assetId || ""}
-                        onChange={(value) => {
-                          handleChange("properties.brandLogo", {
-                            ...currentCreative.properties.brandLogo,
-                            assetId: value || "",
-                            assetVersion: value ? "version_v1" : (currentCreative.properties.brandLogo?.assetVersion || ""),
-                          });
-                        }}
-                        placeholder={assetsLoading ? "Loading..." : "Select Asset ID"}
-                        buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                        disabled={assetsLoading}
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        value={
-                          currentCreative.properties.brandLogo?.assetVersion ||
-                          ""
-                        }
-                        onChange={(e) =>
-                          handleChange("properties.brandLogo", {
-                            ...currentCreative.properties.brandLogo,
-                            assetVersion: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                        placeholder="Asset Version *"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Logo asset ID and version from Creative Asset Library
-                  </p>
-                  {errors["properties.brandLogo"] && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors["properties.brandLogo"]}
-                    </p>
-                  )}
-                </div>
-
-                {/* Cropping Coordinates */}
-                <div className="mb-2">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-1">
-                    Cropping Coordinates{" "}
-                    <span className="text-gray-400 font-normal">
-                      (Optional)
-                    </span>
-                  </label>
-                  <div className="grid grid-cols-4 gap-2">
-                    <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">
-                        Top
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={
-                          currentCreative.properties.brandLogo
-                            ?.croppingCoordinates?.top ?? ""
-                        }
-                        onChange={(e) => {
-                          const value =
-                            e.target.value === ""
-                              ? undefined
-                              : parseInt(e.target.value, 10);
-                          const currentCrop =
-                            currentCreative.properties.brandLogo
-                              ?.croppingCoordinates || {};
-                          const newCrop = { ...currentCrop };
-                          if (value !== undefined && !isNaN(value)) {
-                            newCrop.top = value;
-                          } else {
-                            delete newCrop.top;
-                          }
-                          handleChange("properties.brandLogo", {
-                            ...currentCreative.properties.brandLogo,
-                            croppingCoordinates:
-                              Object.keys(newCrop).length > 0
-                                ? newCrop
-                                : undefined,
-                          });
-                        }}
-                        className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">
-                        Left
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={
-                          currentCreative.properties.brandLogo
-                            ?.croppingCoordinates?.left ?? ""
-                        }
-                        onChange={(e) => {
-                          const value =
-                            e.target.value === ""
-                              ? undefined
-                              : parseInt(e.target.value, 10);
-                          const currentCrop =
-                            currentCreative.properties.brandLogo
-                              ?.croppingCoordinates || {};
-                          const newCrop = { ...currentCrop };
-                          if (value !== undefined && !isNaN(value)) {
-                            newCrop.left = value;
-                          } else {
-                            delete newCrop.left;
-                          }
-                          handleChange("properties.brandLogo", {
-                            ...currentCreative.properties.brandLogo,
-                            croppingCoordinates:
-                              Object.keys(newCrop).length > 0
-                                ? newCrop
-                                : undefined,
-                          });
-                        }}
-                        className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">
-                        Width
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={
-                          currentCreative.properties.brandLogo
-                            ?.croppingCoordinates?.width ?? ""
-                        }
-                        onChange={(e) => {
-                          const value =
-                            e.target.value === ""
-                              ? undefined
-                              : parseInt(e.target.value, 10);
-                          const currentCrop =
-                            currentCreative.properties.brandLogo
-                              ?.croppingCoordinates || {};
-                          const newCrop = { ...currentCrop };
-                          if (value !== undefined && !isNaN(value)) {
-                            newCrop.width = value;
-                          } else {
-                            delete newCrop.width;
-                          }
-                          handleChange("properties.brandLogo", {
-                            ...currentCreative.properties.brandLogo,
-                            croppingCoordinates:
-                              Object.keys(newCrop).length > 0
-                                ? newCrop
-                                : undefined,
-                          });
-                        }}
-                        className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">
-                        Height
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={
-                          currentCreative.properties.brandLogo
-                            ?.croppingCoordinates?.height ?? ""
-                        }
-                        onChange={(e) => {
-                          const value =
-                            e.target.value === ""
-                              ? undefined
-                              : parseInt(e.target.value, 10);
-                          const currentCrop =
-                            currentCreative.properties.brandLogo
-                              ?.croppingCoordinates || {};
-                          const newCrop = { ...currentCrop };
-                          if (value !== undefined && !isNaN(value)) {
-                            newCrop.height = value;
-                          } else {
-                            delete newCrop.height;
-                          }
-                          handleChange("properties.brandLogo", {
-                            ...currentCreative.properties.brandLogo,
-                            croppingCoordinates:
-                              Object.keys(newCrop).length > 0
-                                ? newCrop
-                                : undefined,
-                          });
-                        }}
-                        className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Optional cropping coordinates. All values must be integers
-                    &gt;= 0.
-                  </p>
-                  {errors["properties.brandLogo.croppingCoordinates.top"] && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors["properties.brandLogo.croppingCoordinates.top"]}
-                    </p>
-                  )}
-                  {errors["properties.brandLogo.croppingCoordinates.left"] && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors["properties.brandLogo.croppingCoordinates.left"]}
-                    </p>
-                  )}
-                  {errors["properties.brandLogo.croppingCoordinates.width"] && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors["properties.brandLogo.croppingCoordinates.width"]}
-                    </p>
-                  )}
-                  {errors[
-                    "properties.brandLogo.croppingCoordinates.height"
-                  ] && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {
-                        errors[
-                          "properties.brandLogo.croppingCoordinates.height"
-                        ]
+                  {/* Original Headline Field */}
+                  <div className="mb-3">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-1">
+                      Original Headline{" "}
+                      <span className="text-gray-400 font-normal">
+                        (Optional)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      value={
+                        currentCreative.properties.headline?.originalHeadline ||
+                        ""
                       }
+                      onChange={(e) =>
+                        handleChange("properties.headline", {
+                          ...currentCreative.properties.headline,
+                          originalHeadline: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                      placeholder="Enter original headline (used when consentToTranslate is true)"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      The original headline before translation. If
+                      consentToTranslate is true and translation succeeds,
+                      headline will show the translated version and
+                      originalHeadline will show this value.
                     </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {activePropertyTab === "customImage" && addedPropertyTypes.has("customImage") && (
-              <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg bg-gray-50">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
-                    Custom Image Creative Properties
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePropertyType("customImage")}
-                    className="text-red-500 hover:text-red-700 text-sm"
-                  >
-                    Remove
-                  </button>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Rect Custom Image */}
-                  <div>
-                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2">
-                      Rectangular Custom Image{" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      <Dropdown<string>
-                        options={assets
-                          .filter((asset) => {
-                            if (!asset.assetId) return false;
-                            // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
-                            const isImageByAssetType = asset.assetType === 'IMAGE';
-                            const isImageByContentType = asset.contentType?.toLowerCase().startsWith('image/');
-                            const isImageByFileMetadata = asset.fileMetadata?.contentType?.toLowerCase().startsWith('image/');
-                            // Fallback to old schema for backward compatibility
-                            const isImageByMediaType = asset.mediaType?.toLowerCase() === 'image';
-                            return isImageByAssetType || isImageByContentType || isImageByFileMetadata || isImageByMediaType;
-                          })
-                          .map((asset) => ({
-                            value: asset.assetId || "",
-                            label: asset.name || asset.fileName
-                              ? `${asset.name || asset.fileName} (${asset.assetId})`
-                              : asset.assetId || `Asset ${asset.id}`,
-                          }))}
-                        value={currentCreative.properties.customImage?.rectCustomImage?.assetId || ""}
-                        onChange={(value) => {
-                          setCurrentCreative((prev) => ({
-                            ...prev,
-                            properties: {
-                              ...prev.properties,
-                              customImage: {
-                                ...prev.properties.customImage,
-                                rectCustomImage: {
-                                  ...prev.properties.customImage?.rectCustomImage,
-                                  assetId: value || "",
-                                  assetVersion: value ? "version_v1" : (prev.properties.customImage?.rectCustomImage?.assetVersion || ""),
-                                },
-                              },
-                            },
-                          }));
-                        }}
-                        placeholder={assetsLoading ? "Loading..." : "Select Asset ID"}
-                        buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                        disabled={assetsLoading}
-                      />
-                      <input
-                        type="text"
-                        value={
-                          currentCreative.properties.customImage
-                            ?.rectCustomImage?.assetVersion || ""
-                        }
-                        onChange={(e) => {
-                          setCurrentCreative((prev) => ({
-                            ...prev,
-                            properties: {
-                              ...prev.properties,
-                              customImage: {
-                                ...prev.properties.customImage,
-                                rectCustomImage: {
-                                  ...prev.properties.customImage
-                                    ?.rectCustomImage,
-                                  assetVersion: e.target.value,
-                                },
-                              },
-                            },
-                          }));
-                        }}
-                        className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                        placeholder="Asset Version *"
-                      />
-                    </div>
-                    {/* Cropping Coordinates for Rect */}
-                    <div className="grid grid-cols-4 gap-2">
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">
-                          Top
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={
-                            currentCreative.properties.customImage
-                              ?.rectCustomImage?.croppingCoordinates?.top ?? ""
-                          }
-                          onChange={(e) => {
-                            const value =
-                              e.target.value === ""
-                                ? undefined
-                                : parseInt(e.target.value, 10);
-                            const currentCrop =
-                              currentCreative.properties.customImage
-                                ?.rectCustomImage?.croppingCoordinates || {};
-                            const newCrop = { ...currentCrop };
-                            if (value !== undefined && !isNaN(value)) {
-                              newCrop.top = value;
-                            } else {
-                              delete newCrop.top;
-                            }
-                            handleChange("properties.customImage", {
-                              ...currentCreative.properties.customImage,
-                              rectCustomImage: {
-                                ...currentCreative.properties.customImage
-                                  ?.rectCustomImage,
-                                croppingCoordinates:
-                                  Object.keys(newCrop).length > 0
-                                    ? newCrop
-                                    : undefined,
-                              },
-                            });
-                          }}
-                          className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                          placeholder="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">
-                          Left
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={
-                            currentCreative.properties.customImage
-                              ?.rectCustomImage?.croppingCoordinates?.left ?? ""
-                          }
-                          onChange={(e) => {
-                            const value =
-                              e.target.value === ""
-                                ? undefined
-                                : parseInt(e.target.value, 10);
-                            const currentCrop =
-                              currentCreative.properties.customImage
-                                ?.rectCustomImage?.croppingCoordinates || {};
-                            const newCrop = { ...currentCrop };
-                            if (value !== undefined && !isNaN(value)) {
-                              newCrop.left = value;
-                            } else {
-                              delete newCrop.left;
-                            }
-                            handleChange("properties.customImage", {
-                              ...currentCreative.properties.customImage,
-                              rectCustomImage: {
-                                ...currentCreative.properties.customImage
-                                  ?.rectCustomImage,
-                                croppingCoordinates:
-                                  Object.keys(newCrop).length > 0
-                                    ? newCrop
-                                    : undefined,
-                              },
-                            });
-                          }}
-                          className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                          placeholder="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">
-                          Width
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={
-                            currentCreative.properties.customImage
-                              ?.rectCustomImage?.croppingCoordinates?.width ??
-                            ""
-                          }
-                          onChange={(e) => {
-                            const value =
-                              e.target.value === ""
-                                ? undefined
-                                : parseInt(e.target.value, 10);
-                            const currentCrop =
-                              currentCreative.properties.customImage
-                                ?.rectCustomImage?.croppingCoordinates || {};
-                            const newCrop = { ...currentCrop };
-                            if (value !== undefined && !isNaN(value)) {
-                              newCrop.width = value;
-                            } else {
-                              delete newCrop.width;
-                            }
-                            handleChange("properties.customImage", {
-                              ...currentCreative.properties.customImage,
-                              rectCustomImage: {
-                                ...currentCreative.properties.customImage
-                                  ?.rectCustomImage,
-                                croppingCoordinates:
-                                  Object.keys(newCrop).length > 0
-                                    ? newCrop
-                                    : undefined,
-                              },
-                            });
-                          }}
-                          className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                          placeholder="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">
-                          Height
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={
-                            currentCreative.properties.customImage
-                              ?.rectCustomImage?.croppingCoordinates?.height ??
-                            ""
-                          }
-                          onChange={(e) => {
-                            const value =
-                              e.target.value === ""
-                                ? undefined
-                                : parseInt(e.target.value, 10);
-                            const currentCrop =
-                              currentCreative.properties.customImage
-                                ?.rectCustomImage?.croppingCoordinates || {};
-                            const newCrop = { ...currentCrop };
-                            if (value !== undefined && !isNaN(value)) {
-                              newCrop.height = value;
-                            } else {
-                              delete newCrop.height;
-                            }
-                            handleChange("properties.customImage", {
-                              ...currentCreative.properties.customImage,
-                              rectCustomImage: {
-                                ...currentCreative.properties.customImage
-                                  ?.rectCustomImage,
-                                croppingCoordinates:
-                                  Object.keys(newCrop).length > 0
-                                    ? newCrop
-                                    : undefined,
-                              },
-                            });
-                          }}
-                          className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
-                    {errors["properties.customImage.rectCustomImage"] && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors["properties.customImage.rectCustomImage"]}
-                      </p>
-                    )}
                   </div>
 
-                  {/* Square Custom Image */}
-                  <div>
-                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2">
-                      Square Custom Image{" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      <Dropdown<string>
-                        options={assets
-                          .filter((asset) => {
-                            if (!asset.assetId) return false;
-                            // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
-                            const isImageByAssetType = asset.assetType === 'IMAGE';
-                            const isImageByContentType = asset.contentType?.toLowerCase().startsWith('image/');
-                            const isImageByFileMetadata = asset.fileMetadata?.contentType?.toLowerCase().startsWith('image/');
-                            // Fallback to old schema for backward compatibility
-                            const isImageByMediaType = asset.mediaType?.toLowerCase() === 'image';
-                            return isImageByAssetType || isImageByContentType || isImageByFileMetadata || isImageByMediaType;
-                          })
-                          .map((asset) => ({
-                            value: asset.assetId || "",
-                            label: asset.name || asset.fileName
-                              ? `${asset.name || asset.fileName} (${asset.assetId})`
-                              : asset.assetId || `Asset ${asset.id}`,
-                          }))}
-                        value={currentCreative.properties.customImage?.squareCustomImage?.assetId || ""}
-                        onChange={(value) => {
-                          setCurrentCreative((prev) => ({
-                            ...prev,
-                            properties: {
-                              ...prev.properties,
-                              customImage: {
-                                ...prev.properties.customImage,
-                                squareCustomImage: {
-                                  ...prev.properties.customImage?.squareCustomImage,
-                                  assetId: value || "",
-                                  assetVersion: value ? "version_v1" : (prev.properties.customImage?.squareCustomImage?.assetVersion || ""),
-                                },
-                              },
-                            },
-                          }));
-                        }}
-                        placeholder={assetsLoading ? "Loading..." : "Select Asset ID"}
-                        buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                        disabled={assetsLoading}
-                      />
-                      <input
-                        type="text"
-                        value={
-                          currentCreative.properties.customImage
-                            ?.squareCustomImage?.assetVersion || ""
+                  {/* Has Terms and Conditions Checkbox */}
+                  <div className="mb-2">
+                    <div className="flex items-center">
+                      <Checkbox
+                        checked={
+                          currentCreative.properties.headline
+                            ?.hasTermsAndConditions || false
                         }
-                        onChange={(e) => {
-                          setCurrentCreative((prev) => ({
-                            ...prev,
-                            properties: {
-                              ...prev.properties,
-                              customImage: {
-                                ...prev.properties.customImage,
-                                squareCustomImage: {
-                                  ...prev.properties.customImage
-                                    ?.squareCustomImage,
-                                  assetVersion: e.target.value,
-                                },
-                              },
-                            },
-                          }));
-                        }}
-                        className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                        placeholder="Asset Version *"
+                        onChange={(checked) =>
+                          handleChange("properties.headline", {
+                            ...currentCreative.properties.headline,
+                            hasTermsAndConditions: checked,
+                          })
+                        }
+                        size="small"
                       />
+                      <span className="text-[13.44px] text-[#222124] ml-2">
+                        Has Terms and Conditions
+                      </span>
                     </div>
-                    {/* Cropping Coordinates for Square */}
-                    <div className="grid grid-cols-4 gap-2">
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">
-                          Top
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={
-                            currentCreative.properties.customImage
-                              ?.squareCustomImage?.croppingCoordinates?.top ??
-                            ""
-                          }
-                          onChange={(e) => {
-                            const value =
-                              e.target.value === ""
-                                ? undefined
-                                : parseInt(e.target.value, 10);
-                            const currentCrop =
-                              currentCreative.properties.customImage
-                                ?.squareCustomImage?.croppingCoordinates || {};
-                            const newCrop = { ...currentCrop };
-                            if (value !== undefined && !isNaN(value)) {
-                              newCrop.top = value;
-                            } else {
-                              delete newCrop.top;
-                            }
-                            handleChange("properties.customImage", {
-                              ...currentCreative.properties.customImage,
-                              squareCustomImage: {
-                                ...currentCreative.properties.customImage
-                                  ?.squareCustomImage,
-                                croppingCoordinates:
-                                  Object.keys(newCrop).length > 0
-                                    ? newCrop
-                                    : undefined,
-                              },
-                            });
-                          }}
-                          className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                          placeholder="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">
-                          Left
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={
-                            currentCreative.properties.customImage
-                              ?.squareCustomImage?.croppingCoordinates?.left ??
-                            ""
-                          }
-                          onChange={(e) => {
-                            const value =
-                              e.target.value === ""
-                                ? undefined
-                                : parseInt(e.target.value, 10);
-                            const currentCrop =
-                              currentCreative.properties.customImage
-                                ?.squareCustomImage?.croppingCoordinates || {};
-                            const newCrop = { ...currentCrop };
-                            if (value !== undefined && !isNaN(value)) {
-                              newCrop.left = value;
-                            } else {
-                              delete newCrop.left;
-                            }
-                            handleChange("properties.customImage", {
-                              ...currentCreative.properties.customImage,
-                              squareCustomImage: {
-                                ...currentCreative.properties.customImage
-                                  ?.squareCustomImage,
-                                croppingCoordinates:
-                                  Object.keys(newCrop).length > 0
-                                    ? newCrop
-                                    : undefined,
-                              },
-                            });
-                          }}
-                          className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                          placeholder="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">
-                          Width
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={
-                            currentCreative.properties.customImage
-                              ?.squareCustomImage?.croppingCoordinates?.width ??
-                            ""
-                          }
-                          onChange={(e) => {
-                            const value =
-                              e.target.value === ""
-                                ? undefined
-                                : parseInt(e.target.value, 10);
-                            const currentCrop =
-                              currentCreative.properties.customImage
-                                ?.squareCustomImage?.croppingCoordinates || {};
-                            const newCrop = { ...currentCrop };
-                            if (value !== undefined && !isNaN(value)) {
-                              newCrop.width = value;
-                            } else {
-                              delete newCrop.width;
-                            }
-                            handleChange("properties.customImage", {
-                              ...currentCreative.properties.customImage,
-                              squareCustomImage: {
-                                ...currentCreative.properties.customImage
-                                  ?.squareCustomImage,
-                                croppingCoordinates:
-                                  Object.keys(newCrop).length > 0
-                                    ? newCrop
-                                    : undefined,
-                              },
-                            });
-                          }}
-                          className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                          placeholder="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">
-                          Height
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={
-                            currentCreative.properties.customImage
-                              ?.squareCustomImage?.croppingCoordinates
-                              ?.height ?? ""
-                          }
-                          onChange={(e) => {
-                            const value =
-                              e.target.value === ""
-                                ? undefined
-                                : parseInt(e.target.value, 10);
-                            const currentCrop =
-                              currentCreative.properties.customImage
-                                ?.squareCustomImage?.croppingCoordinates || {};
-                            const newCrop = { ...currentCrop };
-                            if (value !== undefined && !isNaN(value)) {
-                              newCrop.height = value;
-                            } else {
-                              delete newCrop.height;
-                            }
-                            handleChange("properties.customImage", {
-                              ...currentCreative.properties.customImage,
-                              squareCustomImage: {
-                                ...currentCreative.properties.customImage
-                                  ?.squareCustomImage,
-                                croppingCoordinates:
-                                  Object.keys(newCrop).length > 0
-                                    ? newCrop
-                                    : undefined,
-                              },
-                            });
-                          }}
-                          className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
-                    {errors["properties.customImage.squareCustomImage"] && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors["properties.customImage.squareCustomImage"]}
-                      </p>
-                    )}
+                    <p className="text-xs text-gray-400 mt-1 ml-6">
+                      Indicates the ad promotes a free product/service with
+                      qualifying terms. Only supported for productAds with
+                      landingPageType of OFF_AMAZON_LINK.
+                    </p>
                   </div>
-                  {errors["properties.customImage"] && (
-                    <p className="text-red-500 text-xs mt-1 mb-2">
-                      {errors["properties.customImage"]}
-                    </p>
-                  )}
-
-                  {/* Helper function to render image array */}
-                  {(() => {
-                    const renderImageArray = (
-                      arrayKey:
-                        | "squareImages"
-                        | "horizontalImages"
-                        | "verticalImages",
-                      label: string,
-                      description: string
-                    ) => {
-                      const images =
-                        currentCreative.properties.customImage?.[arrayKey] ||
-                        [];
-                      return (
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <label className="block text-[11.2px] font-semibold text-[#556179]">
-                              {label}{" "}
-                              <span className="text-gray-400 font-normal">
-                                (Optional)
-                              </span>
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newImages = [
-                                  ...images,
-                                  { assetId: "", assetVersion: "" },
-                                ];
-                                handleChange("properties.customImage", {
-                                  ...currentCreative.properties.customImage,
-                                  [arrayKey]: newImages,
-                                });
-                              }}
-                              className="text-[#136D6D] hover:text-[#0f5555] text-[12px] font-medium"
-                            >
-                              + Add {label.slice(0, -1)}
-                            </button>
-                          </div>
-                          <p className="text-xs text-gray-400 mb-2">
-                            {description}
-                          </p>
-                          {images.map((img, idx) => (
-                            <div
-                              key={idx}
-                              className="mb-3 p-3 border border-[#EBEBEB] rounded-lg bg-white"
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-[12px] font-medium text-[#222124]">
-                                  {label.slice(0, -1)} #{idx + 1}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const newImages = images.filter(
-                                      (_, i) => i !== idx
-                                    );
-                                    handleChange("properties.customImage", {
-                                      ...currentCreative.properties.customImage,
-                                      [arrayKey]:
-                                        newImages.length > 0
-                                          ? newImages
-                                          : undefined,
-                                    });
-                                  }}
-                                  className="text-red-500 hover:text-red-700 text-sm"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 mb-2">
-                                <input
-                                  type="text"
-                                  value={img.assetId || ""}
-                                  onChange={(e) => {
-                                    const newImages = [...images];
-                                    newImages[idx] = {
-                                      ...img,
-                                      assetId: e.target.value,
-                                    };
-                                    handleChange("properties.customImage", {
-                                      ...currentCreative.properties.customImage,
-                                      [arrayKey]: newImages,
-                                    });
-                                  }}
-                                  className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
-                                  placeholder="Asset ID *"
-                                />
-                                <input
-                                  type="text"
-                                  value={img.assetVersion || ""}
-                                  onChange={(e) => {
-                                    const newImages = [...images];
-                                    newImages[idx] = {
-                                      ...img,
-                                      assetVersion: e.target.value,
-                                    };
-                                    handleChange("properties.customImage", {
-                                      ...currentCreative.properties.customImage,
-                                      [arrayKey]: newImages,
-                                    });
-                                  }}
-                                  className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
-                                  placeholder="Asset Version *"
-                                />
-                              </div>
-                              {/* Cropping Coordinates */}
-                              <div className="grid grid-cols-4 gap-2">
-                                <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">
-                                    Top
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={img.croppingCoordinates?.top ?? ""}
-                                    onChange={(e) => {
-                                      const value =
-                                        e.target.value === ""
-                                          ? undefined
-                                          : parseInt(e.target.value, 10);
-                                      const currentCrop =
-                                        img.croppingCoordinates || {};
-                                      const newCrop = { ...currentCrop };
-                                      if (
-                                        value !== undefined &&
-                                        !isNaN(value)
-                                      ) {
-                                        newCrop.top = value;
-                                      } else {
-                                        delete newCrop.top;
-                                      }
-                                      const newImages = [...images];
-                                      newImages[idx] = {
-                                        ...img,
-                                        croppingCoordinates:
-                                          Object.keys(newCrop).length > 0
-                                            ? newCrop
-                                            : undefined,
-                                      };
-                                      handleChange("properties.customImage", {
-                                        ...currentCreative.properties
-                                          .customImage,
-                                        [arrayKey]: newImages,
-                                      });
-                                    }}
-                                    className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px]"
-                                    placeholder="0"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">
-                                    Left
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={img.croppingCoordinates?.left ?? ""}
-                                    onChange={(e) => {
-                                      const value =
-                                        e.target.value === ""
-                                          ? undefined
-                                          : parseInt(e.target.value, 10);
-                                      const currentCrop =
-                                        img.croppingCoordinates || {};
-                                      const newCrop = { ...currentCrop };
-                                      if (
-                                        value !== undefined &&
-                                        !isNaN(value)
-                                      ) {
-                                        newCrop.left = value;
-                                      } else {
-                                        delete newCrop.left;
-                                      }
-                                      const newImages = [...images];
-                                      newImages[idx] = {
-                                        ...img,
-                                        croppingCoordinates:
-                                          Object.keys(newCrop).length > 0
-                                            ? newCrop
-                                            : undefined,
-                                      };
-                                      handleChange("properties.customImage", {
-                                        ...currentCreative.properties
-                                          .customImage,
-                                        [arrayKey]: newImages,
-                                      });
-                                    }}
-                                    className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px]"
-                                    placeholder="0"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">
-                                    Width
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={img.croppingCoordinates?.width ?? ""}
-                                    onChange={(e) => {
-                                      const value =
-                                        e.target.value === ""
-                                          ? undefined
-                                          : parseInt(e.target.value, 10);
-                                      const currentCrop =
-                                        img.croppingCoordinates || {};
-                                      const newCrop = { ...currentCrop };
-                                      if (
-                                        value !== undefined &&
-                                        !isNaN(value)
-                                      ) {
-                                        newCrop.width = value;
-                                      } else {
-                                        delete newCrop.width;
-                                      }
-                                      const newImages = [...images];
-                                      newImages[idx] = {
-                                        ...img,
-                                        croppingCoordinates:
-                                          Object.keys(newCrop).length > 0
-                                            ? newCrop
-                                            : undefined,
-                                      };
-                                      handleChange("properties.customImage", {
-                                        ...currentCreative.properties
-                                          .customImage,
-                                        [arrayKey]: newImages,
-                                      });
-                                    }}
-                                    className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px]"
-                                    placeholder="0"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">
-                                    Height
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={
-                                      img.croppingCoordinates?.height ?? ""
-                                    }
-                                    onChange={(e) => {
-                                      const value =
-                                        e.target.value === ""
-                                          ? undefined
-                                          : parseInt(e.target.value, 10);
-                                      const currentCrop =
-                                        img.croppingCoordinates || {};
-                                      const newCrop = { ...currentCrop };
-                                      if (
-                                        value !== undefined &&
-                                        !isNaN(value)
-                                      ) {
-                                        newCrop.height = value;
-                                      } else {
-                                        delete newCrop.height;
-                                      }
-                                      const newImages = [...images];
-                                      newImages[idx] = {
-                                        ...img,
-                                        croppingCoordinates:
-                                          Object.keys(newCrop).length > 0
-                                            ? newCrop
-                                            : undefined,
-                                      };
-                                      handleChange("properties.customImage", {
-                                        ...currentCreative.properties
-                                          .customImage,
-                                        [arrayKey]: newImages,
-                                      });
-                                    }}
-                                    className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px]"
-                                    placeholder="0"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    };
-
-                    return (
-                      <>
-                        {renderImageArray(
-                          "squareImages",
-                          "Square Images",
-                          "Multiple square images (1:1 ratio)"
-                        )}
-                        {renderImageArray(
-                          "horizontalImages",
-                          "Horizontal Images",
-                          "Multiple horizontal images (1.91:1 ratio)"
-                        )}
-                        {renderImageArray(
-                          "verticalImages",
-                          "Vertical Images",
-                          "Multiple vertical images (9:16 ratio)"
-                        )}
-                      </>
-                    );
-                  })()}
                 </div>
-              </div>
-            )}
+              )}
 
-            {activePropertyTab === "background" && addedPropertyTypes.has("background") && (
-              <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg bg-gray-50">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
-                    Background Colors
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePropertyType("background")}
-                    className="text-red-500 hover:text-red-700 text-sm"
-                  >
-                    Remove
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {(
-                    currentCreative.properties.background?.backgrounds || []
-                  ).map((bg, idx) => {
-                    const errorKey = `properties.background.backgrounds[${idx}].color`;
-                    const hasError = !!errors[errorKey];
-                    return (
-                      <div key={idx} className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={bg.color || "#000000"}
-                            onChange={(e) => {
-                              setCurrentCreative((prev) => {
-                                const currentBackgrounds =
-                                  prev.properties.background?.backgrounds || [];
-                                const newBackgrounds = [...currentBackgrounds];
-                                newBackgrounds[idx] = { color: e.target.value };
-                                return {
-                                  ...prev,
-                                  properties: {
-                                    ...prev.properties,
-                                    background: {
-                                      backgrounds: newBackgrounds,
-                                    },
-                                  },
-                                };
-                              });
-                              // Clear error when user types
-                              if (errors[errorKey]) {
-                                setErrors((prev) => {
-                                  const newErrors = { ...prev };
-                                  delete newErrors[errorKey];
-                                  return newErrors;
-                                });
-                              }
-                            }}
-                            className="w-12 h-10 border border-[#EBEBEB] rounded bg-white"
-                          />
-                          <input
-                            type="text"
-                            value={bg.color || ""}
-                            onChange={(e) => {
-                              setCurrentCreative((prev) => {
-                                const currentBackgrounds =
-                                  prev.properties.background?.backgrounds || [];
-                                const newBackgrounds = [...currentBackgrounds];
-                                newBackgrounds[idx] = { color: e.target.value };
-                                return {
-                                  ...prev,
-                                  properties: {
-                                    ...prev.properties,
-                                    background: {
-                                      backgrounds: newBackgrounds,
-                                    },
-                                  },
-                                };
-                              });
-                              // Clear error when user types
-                              if (errors[errorKey]) {
-                                setErrors((prev) => {
-                                  const newErrors = { ...prev };
-                                  delete newErrors[errorKey];
-                                  return newErrors;
-                                });
-                              }
-                            }}
-                            className={`flex-1 px-3 py-2 border rounded-lg text-[13.44px] bg-white ${
-                              hasError ? "border-red-500" : "border-[#EBEBEB]"
-                            }`}
-                            placeholder="#RRGGBB"
-                            pattern="^#[0-9A-Fa-f]{6}$"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCurrentCreative((prev) => {
-                                const currentBackgrounds =
-                                  prev.properties.background?.backgrounds || [];
-                                const newBackgrounds =
-                                  currentBackgrounds.filter(
-                                    (_, i) => i !== idx
-                                  );
-                                return {
-                                  ...prev,
-                                  properties: {
-                                    ...prev.properties,
-                                    background: {
-                                      backgrounds: newBackgrounds,
-                                    },
-                                  },
-                                };
-                              });
-                              // Clear error when removing
-                              if (errors[errorKey]) {
-                                setErrors((prev) => {
-                                  const newErrors = { ...prev };
-                                  delete newErrors[errorKey];
-                                  return newErrors;
-                                });
-                              }
-                            }}
-                            className="text-red-500 hover:text-red-700 text-sm"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                        {hasError && (
-                          <p className="text-red-500 text-xs ml-14">
-                            {errors[errorKey]}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCurrentCreative((prev) => {
-                        const currentBackgrounds =
-                          prev.properties.background?.backgrounds || [];
-                        const newBackgrounds = [
-                          ...currentBackgrounds,
-                          { color: "#000000" },
-                        ];
-                        return {
-                          ...prev,
-                          properties: {
-                            ...prev.properties,
-                            background: {
-                              backgrounds: newBackgrounds,
-                            },
-                          },
-                        };
-                      });
-                    }}
-                    className="text-[#136D6D] hover:text-[#0f5555] text-[13.44px]"
-                  >
-                    + Add Background Color
-                  </button>
-                </div>
-                {errors["properties.background"] && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {errors["properties.background"]}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {activePropertyTab === "video" && addedPropertyTypes.has("video") && (
-              <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg bg-gray-50">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
-                    Video Creative Properties
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePropertyType("video")}
-                    className="text-red-500 hover:text-red-700 text-sm"
-                  >
-                    Remove
-                  </button>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Main Video (single object - mandatory, cannot be removed) */}
-                  <div>
-                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2">
-                      Main Video <span className="text-red-500">*</span>
+            {activePropertyTab === "brandLogo" &&
+              addedPropertyTypes.has("brandLogo") && (
+                <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
+                      Brand Logo Creative Properties
                     </label>
-                    <p className="text-xs text-gray-400 mb-2">
-                      Primary video asset (required - main video object is
-                      mandatory)
-                    </p>
-                    <div className="space-y-3 p-3 border border-[#EBEBEB] rounded-lg bg-white">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[10px] text-gray-500 mb-1">
-                            Asset ID *
-                          </label>
-                          <Dropdown<string>
-                            options={assets
-                              .filter((asset) => {
-                                if (!asset.assetId) return false;
-                                // Check both mediaType and contentType for video assets
-                                const isVideoByMediaType = asset.mediaType?.toLowerCase() === 'video';
-                                const isVideoByContentType = asset.contentType?.toLowerCase().startsWith('video/');
-                                const isVideoByFileMetadata = asset.fileMetadata?.contentType?.toLowerCase().startsWith('video/');
-                                const isVideoByAssetType = asset.assetType === 'VIDEO';
-                                return isVideoByMediaType || isVideoByContentType || isVideoByFileMetadata || isVideoByAssetType;
-                              })
-                              .map((asset) => ({
-                                value: asset.assetId || "",
-                                label: asset.name || asset.fileName
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePropertyType("brandLogo")}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  {/* Asset ID and Version */}
+                  <div className="mb-3">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-1">
+                      Logo Asset{" "}
+                      <span className="text-gray-400 font-normal">
+                        (Required)
+                      </span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Dropdown<string>
+                          options={assets
+                            .filter((asset) => {
+                              if (!asset.assetId) return false;
+                              // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
+                              const isImageByAssetType =
+                                asset.assetType === "IMAGE";
+                              const isImageByContentType = asset.contentType
+                                ?.toLowerCase()
+                                .startsWith("image/");
+                              const isImageByFileMetadata =
+                                asset.fileMetadata?.contentType
+                                  ?.toLowerCase()
+                                  .startsWith("image/");
+                              // Fallback to old schema for backward compatibility
+                              const isImageByMediaType =
+                                asset.mediaType?.toLowerCase() === "image";
+                              return (
+                                isImageByAssetType ||
+                                isImageByContentType ||
+                                isImageByFileMetadata ||
+                                isImageByMediaType
+                              );
+                            })
+                            .map((asset) => ({
+                              value: asset.assetId || "",
+                              label:
+                                asset.name || asset.fileName
                                   ? `${asset.name || asset.fileName} (${asset.assetId})`
                                   : asset.assetId || `Asset ${asset.id}`,
-                              }))}
-                            value={currentCreative.properties.video?.video?.assetId || ""}
-                            onChange={(value) => {
-                              handleChange("properties.video", {
-                                ...currentCreative.properties.video,
-                                video: {
-                                  ...(currentCreative.properties.video?.video || {}),
-                                  assetId: value || "",
-                                  assetVersion: value ? "version_v1" : (currentCreative.properties.video?.video?.assetVersion || ""),
+                            }))}
+                          value={
+                            currentCreative.properties.brandLogo?.assetId || ""
+                          }
+                          onChange={(value) => {
+                            handleChange("properties.brandLogo", {
+                              ...currentCreative.properties.brandLogo,
+                              assetId: value || "",
+                              assetVersion: value
+                                ? "version_v1"
+                                : currentCreative.properties.brandLogo
+                                    ?.assetVersion || "",
+                            });
+                          }}
+                          placeholder={
+                            assetsLoading ? "Loading..." : "Select Asset ID"
+                          }
+                          buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                          disabled={assetsLoading}
+                        />
+                      </div>
+                      <div>
+                        <input
+                          type="text"
+                          value={
+                            currentCreative.properties.brandLogo
+                              ?.assetVersion || ""
+                          }
+                          onChange={(e) =>
+                            handleChange("properties.brandLogo", {
+                              ...currentCreative.properties.brandLogo,
+                              assetVersion: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                          placeholder="Asset Version *"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Logo asset ID and version from Creative Asset Library
+                    </p>
+                    {errors["properties.brandLogo"] && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors["properties.brandLogo"]}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Cropping Coordinates */}
+                  <div className="mb-2">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-1">
+                      Cropping Coordinates{" "}
+                      <span className="text-gray-400 font-normal">
+                        (Optional)
+                      </span>
+                    </label>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Top
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={
+                            currentCreative.properties.brandLogo
+                              ?.croppingCoordinates?.top ?? ""
+                          }
+                          onChange={(e) => {
+                            const value =
+                              e.target.value === ""
+                                ? undefined
+                                : parseInt(e.target.value, 10);
+                            const currentCrop =
+                              currentCreative.properties.brandLogo
+                                ?.croppingCoordinates || {};
+                            const newCrop = { ...currentCrop };
+                            if (value !== undefined && !isNaN(value)) {
+                              newCrop.top = value;
+                            } else {
+                              delete newCrop.top;
+                            }
+                            handleChange("properties.brandLogo", {
+                              ...currentCreative.properties.brandLogo,
+                              croppingCoordinates:
+                                Object.keys(newCrop).length > 0
+                                  ? newCrop
+                                  : undefined,
+                            });
+                          }}
+                          className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Left
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={
+                            currentCreative.properties.brandLogo
+                              ?.croppingCoordinates?.left ?? ""
+                          }
+                          onChange={(e) => {
+                            const value =
+                              e.target.value === ""
+                                ? undefined
+                                : parseInt(e.target.value, 10);
+                            const currentCrop =
+                              currentCreative.properties.brandLogo
+                                ?.croppingCoordinates || {};
+                            const newCrop = { ...currentCrop };
+                            if (value !== undefined && !isNaN(value)) {
+                              newCrop.left = value;
+                            } else {
+                              delete newCrop.left;
+                            }
+                            handleChange("properties.brandLogo", {
+                              ...currentCreative.properties.brandLogo,
+                              croppingCoordinates:
+                                Object.keys(newCrop).length > 0
+                                  ? newCrop
+                                  : undefined,
+                            });
+                          }}
+                          className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Width
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={
+                            currentCreative.properties.brandLogo
+                              ?.croppingCoordinates?.width ?? ""
+                          }
+                          onChange={(e) => {
+                            const value =
+                              e.target.value === ""
+                                ? undefined
+                                : parseInt(e.target.value, 10);
+                            const currentCrop =
+                              currentCreative.properties.brandLogo
+                                ?.croppingCoordinates || {};
+                            const newCrop = { ...currentCrop };
+                            if (value !== undefined && !isNaN(value)) {
+                              newCrop.width = value;
+                            } else {
+                              delete newCrop.width;
+                            }
+                            handleChange("properties.brandLogo", {
+                              ...currentCreative.properties.brandLogo,
+                              croppingCoordinates:
+                                Object.keys(newCrop).length > 0
+                                  ? newCrop
+                                  : undefined,
+                            });
+                          }}
+                          className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Height
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={
+                            currentCreative.properties.brandLogo
+                              ?.croppingCoordinates?.height ?? ""
+                          }
+                          onChange={(e) => {
+                            const value =
+                              e.target.value === ""
+                                ? undefined
+                                : parseInt(e.target.value, 10);
+                            const currentCrop =
+                              currentCreative.properties.brandLogo
+                                ?.croppingCoordinates || {};
+                            const newCrop = { ...currentCrop };
+                            if (value !== undefined && !isNaN(value)) {
+                              newCrop.height = value;
+                            } else {
+                              delete newCrop.height;
+                            }
+                            handleChange("properties.brandLogo", {
+                              ...currentCreative.properties.brandLogo,
+                              croppingCoordinates:
+                                Object.keys(newCrop).length > 0
+                                  ? newCrop
+                                  : undefined,
+                            });
+                          }}
+                          className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Optional cropping coordinates. All values must be integers
+                      &gt;= 0.
+                    </p>
+                    {errors["properties.brandLogo.croppingCoordinates.top"] && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors["properties.brandLogo.croppingCoordinates.top"]}
+                      </p>
+                    )}
+                    {errors[
+                      "properties.brandLogo.croppingCoordinates.left"
+                    ] && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {
+                          errors[
+                            "properties.brandLogo.croppingCoordinates.left"
+                          ]
+                        }
+                      </p>
+                    )}
+                    {errors[
+                      "properties.brandLogo.croppingCoordinates.width"
+                    ] && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {
+                          errors[
+                            "properties.brandLogo.croppingCoordinates.width"
+                          ]
+                        }
+                      </p>
+                    )}
+                    {errors[
+                      "properties.brandLogo.croppingCoordinates.height"
+                    ] && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {
+                          errors[
+                            "properties.brandLogo.croppingCoordinates.height"
+                          ]
+                        }
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {activePropertyTab === "customImage" &&
+              addedPropertyTypes.has("customImage") && (
+                <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg ">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
+                      Custom Image Creative Properties
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePropertyType("customImage")}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    {/* Rect Custom Image */}
+                    <div>
+                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2">
+                        Rectangular Custom Image{" "}
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <Dropdown<string>
+                          options={assets
+                            .filter((asset) => {
+                              if (!asset.assetId) return false;
+                              // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
+                              const isImageByAssetType =
+                                asset.assetType === "IMAGE";
+                              const isImageByContentType = asset.contentType
+                                ?.toLowerCase()
+                                .startsWith("image/");
+                              const isImageByFileMetadata =
+                                asset.fileMetadata?.contentType
+                                  ?.toLowerCase()
+                                  .startsWith("image/");
+                              // Fallback to old schema for backward compatibility
+                              const isImageByMediaType =
+                                asset.mediaType?.toLowerCase() === "image";
+                              return (
+                                isImageByAssetType ||
+                                isImageByContentType ||
+                                isImageByFileMetadata ||
+                                isImageByMediaType
+                              );
+                            })
+                            .map((asset) => ({
+                              value: asset.assetId || "",
+                              label:
+                                asset.name || asset.fileName
+                                  ? `${asset.name || asset.fileName} (${asset.assetId})`
+                                  : asset.assetId || `Asset ${asset.id}`,
+                            }))}
+                          value={
+                            currentCreative.properties.customImage
+                              ?.rectCustomImage?.assetId || ""
+                          }
+                          onChange={(value) => {
+                            setCurrentCreative((prev) => ({
+                              ...prev,
+                              properties: {
+                                ...prev.properties,
+                                customImage: {
+                                  ...prev.properties.customImage,
+                                  rectCustomImage: {
+                                    ...prev.properties.customImage
+                                      ?.rectCustomImage,
+                                    assetId: value || "",
+                                    assetVersion: value
+                                      ? "version_v1"
+                                      : prev.properties.customImage
+                                          ?.rectCustomImage?.assetVersion || "",
+                                  },
+                                },
+                              },
+                            }));
+                          }}
+                          placeholder={
+                            assetsLoading ? "Loading..." : "Select Asset ID"
+                          }
+                          buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                          disabled={assetsLoading}
+                        />
+                        <input
+                          type="text"
+                          value={
+                            currentCreative.properties.customImage
+                              ?.rectCustomImage?.assetVersion || ""
+                          }
+                          onChange={(e) => {
+                            setCurrentCreative((prev) => ({
+                              ...prev,
+                              properties: {
+                                ...prev.properties,
+                                customImage: {
+                                  ...prev.properties.customImage,
+                                  rectCustomImage: {
+                                    ...prev.properties.customImage
+                                      ?.rectCustomImage,
+                                    assetVersion: e.target.value,
+                                  },
+                                },
+                              },
+                            }));
+                          }}
+                          className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                          placeholder="Asset Version *"
+                        />
+                      </div>
+                      {/* Cropping Coordinates for Rect */}
+                      <div className="grid grid-cols-4 gap-2">
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">
+                            Top
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={
+                              currentCreative.properties.customImage
+                                ?.rectCustomImage?.croppingCoordinates?.top ??
+                              ""
+                            }
+                            onChange={(e) => {
+                              const value =
+                                e.target.value === ""
+                                  ? undefined
+                                  : parseInt(e.target.value, 10);
+                              const currentCrop =
+                                currentCreative.properties.customImage
+                                  ?.rectCustomImage?.croppingCoordinates || {};
+                              const newCrop = { ...currentCrop };
+                              if (value !== undefined && !isNaN(value)) {
+                                newCrop.top = value;
+                              } else {
+                                delete newCrop.top;
+                              }
+                              handleChange("properties.customImage", {
+                                ...currentCreative.properties.customImage,
+                                rectCustomImage: {
+                                  ...currentCreative.properties.customImage
+                                    ?.rectCustomImage,
+                                  croppingCoordinates:
+                                    Object.keys(newCrop).length > 0
+                                      ? newCrop
+                                      : undefined,
                                 },
                               });
                             }}
-                            placeholder={assetsLoading ? "Loading..." : "Select Asset ID"}
-                            buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                            disabled={assetsLoading}
+                            className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
+                            placeholder="0"
                           />
                         </div>
                         <div>
                           <label className="block text-[10px] text-gray-500 mb-1">
-                            Asset Version *
+                            Left
                           </label>
                           <input
-                            type="text"
+                            type="number"
+                            min="0"
+                            step="1"
                             value={
-                              currentCreative.properties.video?.video
-                                ?.assetVersion || ""
+                              currentCreative.properties.customImage
+                                ?.rectCustomImage?.croppingCoordinates?.left ??
+                              ""
                             }
-                            onChange={(e) =>
-                              handleChange("properties.video", {
-                                ...currentCreative.properties.video,
-                                video: {
-                                  ...(currentCreative.properties.video?.video ||
-                                    {}),
-                                  assetVersion: e.target.value,
+                            onChange={(e) => {
+                              const value =
+                                e.target.value === ""
+                                  ? undefined
+                                  : parseInt(e.target.value, 10);
+                              const currentCrop =
+                                currentCreative.properties.customImage
+                                  ?.rectCustomImage?.croppingCoordinates || {};
+                              const newCrop = { ...currentCrop };
+                              if (value !== undefined && !isNaN(value)) {
+                                newCrop.left = value;
+                              } else {
+                                delete newCrop.left;
+                              }
+                              handleChange("properties.customImage", {
+                                ...currentCreative.properties.customImage,
+                                rectCustomImage: {
+                                  ...currentCreative.properties.customImage
+                                    ?.rectCustomImage,
+                                  croppingCoordinates:
+                                    Object.keys(newCrop).length > 0
+                                      ? newCrop
+                                      : undefined,
                                 },
-                              })
+                              });
+                            }}
+                            className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
+                            placeholder="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">
+                            Width
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={
+                              currentCreative.properties.customImage
+                                ?.rectCustomImage?.croppingCoordinates?.width ??
+                              ""
                             }
-                            className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
-                            placeholder="Asset Version *"
+                            onChange={(e) => {
+                              const value =
+                                e.target.value === ""
+                                  ? undefined
+                                  : parseInt(e.target.value, 10);
+                              const currentCrop =
+                                currentCreative.properties.customImage
+                                  ?.rectCustomImage?.croppingCoordinates || {};
+                              const newCrop = { ...currentCrop };
+                              if (value !== undefined && !isNaN(value)) {
+                                newCrop.width = value;
+                              } else {
+                                delete newCrop.width;
+                              }
+                              handleChange("properties.customImage", {
+                                ...currentCreative.properties.customImage,
+                                rectCustomImage: {
+                                  ...currentCreative.properties.customImage
+                                    ?.rectCustomImage,
+                                  croppingCoordinates:
+                                    Object.keys(newCrop).length > 0
+                                      ? newCrop
+                                      : undefined,
+                                },
+                              });
+                            }}
+                            className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
+                            placeholder="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">
+                            Height
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={
+                              currentCreative.properties.customImage
+                                ?.rectCustomImage?.croppingCoordinates
+                                ?.height ?? ""
+                            }
+                            onChange={(e) => {
+                              const value =
+                                e.target.value === ""
+                                  ? undefined
+                                  : parseInt(e.target.value, 10);
+                              const currentCrop =
+                                currentCreative.properties.customImage
+                                  ?.rectCustomImage?.croppingCoordinates || {};
+                              const newCrop = { ...currentCrop };
+                              if (value !== undefined && !isNaN(value)) {
+                                newCrop.height = value;
+                              } else {
+                                delete newCrop.height;
+                              }
+                              handleChange("properties.customImage", {
+                                ...currentCreative.properties.customImage,
+                                rectCustomImage: {
+                                  ...currentCreative.properties.customImage
+                                    ?.rectCustomImage,
+                                  croppingCoordinates:
+                                    Object.keys(newCrop).length > 0
+                                      ? newCrop
+                                      : undefined,
+                                },
+                              });
+                            }}
+                            className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
+                            placeholder="0"
                           />
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[10px] text-gray-500 mb-1">
-                            Original Asset ID{" "}
-                            <span className="text-gray-400">(Optional)</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={
-                              currentCreative.properties.video?.video
-                                ?.originalAssetId || ""
-                            }
-                            onChange={(e) =>
-                              handleChange("properties.video", {
-                                ...currentCreative.properties.video,
-                                video: {
-                                  ...(currentCreative.properties.video?.video ||
-                                    {}),
-                                  originalAssetId: e.target.value || undefined,
-                                },
-                              })
-                            }
-                            className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
-                            placeholder="Original Asset ID"
-                          />
-                          <p className="text-xs text-gray-400 mt-1">
-                            Original asset ID before translation
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] text-gray-500 mb-1">
-                            Original Asset Version{" "}
-                            <span className="text-gray-400">(Optional)</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={
-                              currentCreative.properties.video?.video
-                                ?.originalAssetVersion || ""
-                            }
-                            onChange={(e) =>
-                              handleChange("properties.video", {
-                                ...currentCreative.properties.video,
-                                video: {
-                                  ...(currentCreative.properties.video?.video ||
-                                    {}),
-                                  originalAssetVersion:
-                                    e.target.value || undefined,
-                                },
-                              })
-                            }
-                            className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
-                            placeholder="Original Asset Version"
-                          />
-                          <p className="text-xs text-gray-400 mt-1">
-                            Original asset version before translation
-                          </p>
-                        </div>
-                      </div>
+                      {errors["properties.customImage.rectCustomImage"] && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors["properties.customImage.rectCustomImage"]}
+                        </p>
+                      )}
                     </div>
-                  </div>
 
-                  {/* Helper function to render video array */}
-                  {(() => {
-                    const renderVideoArray = (
-                      arrayKey:
-                        | "squareVideos"
-                        | "horizontalVideos"
-                        | "verticalVideos",
-                      label: string,
-                      description: string
-                    ) => {
-                      const videos =
-                        currentCreative.properties.video?.[arrayKey] || [];
-                      return (
+                    {/* Square Custom Image */}
+                    <div>
+                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2">
+                        Square Custom Image{" "}
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <Dropdown<string>
+                          options={assets
+                            .filter((asset) => {
+                              if (!asset.assetId) return false;
+                              // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
+                              const isImageByAssetType =
+                                asset.assetType === "IMAGE";
+                              const isImageByContentType = asset.contentType
+                                ?.toLowerCase()
+                                .startsWith("image/");
+                              const isImageByFileMetadata =
+                                asset.fileMetadata?.contentType
+                                  ?.toLowerCase()
+                                  .startsWith("image/");
+                              // Fallback to old schema for backward compatibility
+                              const isImageByMediaType =
+                                asset.mediaType?.toLowerCase() === "image";
+                              return (
+                                isImageByAssetType ||
+                                isImageByContentType ||
+                                isImageByFileMetadata ||
+                                isImageByMediaType
+                              );
+                            })
+                            .map((asset) => ({
+                              value: asset.assetId || "",
+                              label:
+                                asset.name || asset.fileName
+                                  ? `${asset.name || asset.fileName} (${asset.assetId})`
+                                  : asset.assetId || `Asset ${asset.id}`,
+                            }))}
+                          value={
+                            currentCreative.properties.customImage
+                              ?.squareCustomImage?.assetId || ""
+                          }
+                          onChange={(value) => {
+                            setCurrentCreative((prev) => ({
+                              ...prev,
+                              properties: {
+                                ...prev.properties,
+                                customImage: {
+                                  ...prev.properties.customImage,
+                                  squareCustomImage: {
+                                    ...prev.properties.customImage
+                                      ?.squareCustomImage,
+                                    assetId: value || "",
+                                    assetVersion: value
+                                      ? "version_v1"
+                                      : prev.properties.customImage
+                                          ?.squareCustomImage?.assetVersion ||
+                                        "",
+                                  },
+                                },
+                              },
+                            }));
+                          }}
+                          placeholder={
+                            assetsLoading ? "Loading..." : "Select Asset ID"
+                          }
+                          buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                          disabled={assetsLoading}
+                        />
+                        <input
+                          type="text"
+                          value={
+                            currentCreative.properties.customImage
+                              ?.squareCustomImage?.assetVersion || ""
+                          }
+                          onChange={(e) => {
+                            setCurrentCreative((prev) => ({
+                              ...prev,
+                              properties: {
+                                ...prev.properties,
+                                customImage: {
+                                  ...prev.properties.customImage,
+                                  squareCustomImage: {
+                                    ...prev.properties.customImage
+                                      ?.squareCustomImage,
+                                    assetVersion: e.target.value,
+                                  },
+                                },
+                              },
+                            }));
+                          }}
+                          className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                          placeholder="Asset Version *"
+                        />
+                      </div>
+                      {/* Cropping Coordinates for Square */}
+                      <div className="grid grid-cols-4 gap-2">
                         <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <label className="block text-[11.2px] font-semibold text-[#556179]">
-                              {label}{" "}
-                              <span className="text-gray-400 font-normal">
-                                (Optional)
-                              </span>
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newVideos = [
-                                  ...videos,
-                                  { assetId: "", assetVersion: "" },
-                                ];
-                                handleChange("properties.video", {
-                                  ...currentCreative.properties.video,
-                                  [arrayKey]: newVideos,
-                                });
-                              }}
-                              className="text-[#136D6D] hover:text-[#0f5555] text-[12px] font-medium"
-                            >
-                              + Add {label.slice(0, -1)}
-                            </button>
-                          </div>
-                          {description && (
+                          <label className="block text-[10px] text-gray-500 mb-1">
+                            Top
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={
+                              currentCreative.properties.customImage
+                                ?.squareCustomImage?.croppingCoordinates?.top ??
+                              ""
+                            }
+                            onChange={(e) => {
+                              const value =
+                                e.target.value === ""
+                                  ? undefined
+                                  : parseInt(e.target.value, 10);
+                              const currentCrop =
+                                currentCreative.properties.customImage
+                                  ?.squareCustomImage?.croppingCoordinates ||
+                                {};
+                              const newCrop = { ...currentCrop };
+                              if (value !== undefined && !isNaN(value)) {
+                                newCrop.top = value;
+                              } else {
+                                delete newCrop.top;
+                              }
+                              handleChange("properties.customImage", {
+                                ...currentCreative.properties.customImage,
+                                squareCustomImage: {
+                                  ...currentCreative.properties.customImage
+                                    ?.squareCustomImage,
+                                  croppingCoordinates:
+                                    Object.keys(newCrop).length > 0
+                                      ? newCrop
+                                      : undefined,
+                                },
+                              });
+                            }}
+                            className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
+                            placeholder="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">
+                            Left
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={
+                              currentCreative.properties.customImage
+                                ?.squareCustomImage?.croppingCoordinates
+                                ?.left ?? ""
+                            }
+                            onChange={(e) => {
+                              const value =
+                                e.target.value === ""
+                                  ? undefined
+                                  : parseInt(e.target.value, 10);
+                              const currentCrop =
+                                currentCreative.properties.customImage
+                                  ?.squareCustomImage?.croppingCoordinates ||
+                                {};
+                              const newCrop = { ...currentCrop };
+                              if (value !== undefined && !isNaN(value)) {
+                                newCrop.left = value;
+                              } else {
+                                delete newCrop.left;
+                              }
+                              handleChange("properties.customImage", {
+                                ...currentCreative.properties.customImage,
+                                squareCustomImage: {
+                                  ...currentCreative.properties.customImage
+                                    ?.squareCustomImage,
+                                  croppingCoordinates:
+                                    Object.keys(newCrop).length > 0
+                                      ? newCrop
+                                      : undefined,
+                                },
+                              });
+                            }}
+                            className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
+                            placeholder="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">
+                            Width
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={
+                              currentCreative.properties.customImage
+                                ?.squareCustomImage?.croppingCoordinates
+                                ?.width ?? ""
+                            }
+                            onChange={(e) => {
+                              const value =
+                                e.target.value === ""
+                                  ? undefined
+                                  : parseInt(e.target.value, 10);
+                              const currentCrop =
+                                currentCreative.properties.customImage
+                                  ?.squareCustomImage?.croppingCoordinates ||
+                                {};
+                              const newCrop = { ...currentCrop };
+                              if (value !== undefined && !isNaN(value)) {
+                                newCrop.width = value;
+                              } else {
+                                delete newCrop.width;
+                              }
+                              handleChange("properties.customImage", {
+                                ...currentCreative.properties.customImage,
+                                squareCustomImage: {
+                                  ...currentCreative.properties.customImage
+                                    ?.squareCustomImage,
+                                  croppingCoordinates:
+                                    Object.keys(newCrop).length > 0
+                                      ? newCrop
+                                      : undefined,
+                                },
+                              });
+                            }}
+                            className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
+                            placeholder="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">
+                            Height
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={
+                              currentCreative.properties.customImage
+                                ?.squareCustomImage?.croppingCoordinates
+                                ?.height ?? ""
+                            }
+                            onChange={(e) => {
+                              const value =
+                                e.target.value === ""
+                                  ? undefined
+                                  : parseInt(e.target.value, 10);
+                              const currentCrop =
+                                currentCreative.properties.customImage
+                                  ?.squareCustomImage?.croppingCoordinates ||
+                                {};
+                              const newCrop = { ...currentCrop };
+                              if (value !== undefined && !isNaN(value)) {
+                                newCrop.height = value;
+                              } else {
+                                delete newCrop.height;
+                              }
+                              handleChange("properties.customImage", {
+                                ...currentCreative.properties.customImage,
+                                squareCustomImage: {
+                                  ...currentCreative.properties.customImage
+                                    ?.squareCustomImage,
+                                  croppingCoordinates:
+                                    Object.keys(newCrop).length > 0
+                                      ? newCrop
+                                      : undefined,
+                                },
+                              });
+                            }}
+                            className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                      {errors["properties.customImage.squareCustomImage"] && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors["properties.customImage.squareCustomImage"]}
+                        </p>
+                      )}
+                    </div>
+                    {errors["properties.customImage"] && (
+                      <p className="text-red-500 text-xs mt-1 mb-2">
+                        {errors["properties.customImage"]}
+                      </p>
+                    )}
+
+                    {/* Helper function to render image array */}
+                    {(() => {
+                      const renderImageArray = (
+                        arrayKey:
+                          | "squareImages"
+                          | "horizontalImages"
+                          | "verticalImages",
+                        label: string,
+                        description: string,
+                      ) => {
+                        const images =
+                          currentCreative.properties.customImage?.[arrayKey] ||
+                          [];
+                        return (
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="block text-[11.2px] font-semibold text-[#556179]">
+                                {label}{" "}
+                                <span className="text-gray-400 font-normal">
+                                  (Optional)
+                                </span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newImages = [
+                                    ...images,
+                                    { assetId: "", assetVersion: "" },
+                                  ];
+                                  handleChange("properties.customImage", {
+                                    ...currentCreative.properties.customImage,
+                                    [arrayKey]: newImages,
+                                  });
+                                }}
+                                className="text-[#136D6D] hover:text-[#0f5555] text-[12px] font-medium"
+                              >
+                                + Add {label.slice(0, -1)}
+                              </button>
+                            </div>
                             <p className="text-xs text-gray-400 mb-2">
                               {description}
                             </p>
-                          )}
-                          {videos.map((vid, idx) => (
-                            <div
-                              key={idx}
-                              className="mb-3 p-3 border border-[#EBEBEB] rounded-lg bg-white"
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-[12px] font-medium text-[#222124]">
-                                  {label.slice(0, -1)} #{idx + 1}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const newVideos = videos.filter(
-                                      (_, i) => i !== idx
-                                    );
-                                    handleChange("properties.video", {
-                                      ...currentCreative.properties.video,
-                                      [arrayKey]:
-                                        newVideos.length > 0
-                                          ? newVideos
-                                          : undefined,
-                                    });
-                                  }}
-                                  className="text-red-500 hover:text-red-700 text-sm"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 mb-2">
-                                <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">
-                                    Asset ID *
-                                  </label>
+                            {images.map((img, idx) => (
+                              <div
+                                key={idx}
+                                className="mb-3 p-3 border border-[#EBEBEB] rounded-lg bg-white"
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-[12px] font-medium text-[#222124]">
+                                    {label.slice(0, -1)} #{idx + 1}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newImages = images.filter(
+                                        (_, i) => i !== idx,
+                                      );
+                                      handleChange("properties.customImage", {
+                                        ...currentCreative.properties
+                                          .customImage,
+                                        [arrayKey]:
+                                          newImages.length > 0
+                                            ? newImages
+                                            : undefined,
+                                      });
+                                    }}
+                                    className="text-red-500 hover:text-red-700 text-sm"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 mb-2">
                                   <input
                                     type="text"
-                                    value={vid.assetId || ""}
+                                    value={img.assetId || ""}
                                     onChange={(e) => {
-                                      const newVideos = [...videos];
-                                      newVideos[idx] = {
-                                        ...vid,
+                                      const newImages = [...images];
+                                      newImages[idx] = {
+                                        ...img,
                                         assetId: e.target.value,
                                       };
-                                      handleChange("properties.video", {
-                                        ...currentCreative.properties.video,
-                                        [arrayKey]: newVideos,
+                                      handleChange("properties.customImage", {
+                                        ...currentCreative.properties
+                                          .customImage,
+                                        [arrayKey]: newImages,
                                       });
                                     }}
                                     className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
                                     placeholder="Asset ID *"
                                   />
-                                </div>
-                                <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">
-                                    Asset Version *
-                                  </label>
                                   <input
                                     type="text"
-                                    value={vid.assetVersion || ""}
+                                    value={img.assetVersion || ""}
                                     onChange={(e) => {
-                                      const newVideos = [...videos];
-                                      newVideos[idx] = {
-                                        ...vid,
+                                      const newImages = [...images];
+                                      newImages[idx] = {
+                                        ...img,
                                         assetVersion: e.target.value,
                                       };
-                                      handleChange("properties.video", {
-                                        ...currentCreative.properties.video,
-                                        [arrayKey]: newVideos,
+                                      handleChange("properties.customImage", {
+                                        ...currentCreative.properties
+                                          .customImage,
+                                        [arrayKey]: newImages,
                                       });
                                     }}
                                     className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
                                     placeholder="Asset Version *"
                                   />
                                 </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">
-                                    Original Asset ID{" "}
-                                    <span className="text-gray-400">
-                                      (Optional)
-                                    </span>
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={vid.originalAssetId || ""}
-                                    onChange={(e) => {
-                                      const newVideos = [...videos];
-                                      newVideos[idx] = {
-                                        ...vid,
-                                        originalAssetId:
-                                          e.target.value || undefined,
-                                      };
-                                      handleChange("properties.video", {
-                                        ...currentCreative.properties.video,
-                                        [arrayKey]: newVideos,
-                                      });
-                                    }}
-                                    className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
-                                    placeholder="Original Asset ID"
-                                  />
+                                {/* Cropping Coordinates */}
+                                <div className="grid grid-cols-4 gap-2">
+                                  <div>
+                                    <label className="block text-[10px] text-gray-500 mb-1">
+                                      Top
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      value={img.croppingCoordinates?.top ?? ""}
+                                      onChange={(e) => {
+                                        const value =
+                                          e.target.value === ""
+                                            ? undefined
+                                            : parseInt(e.target.value, 10);
+                                        const currentCrop =
+                                          img.croppingCoordinates || {};
+                                        const newCrop = { ...currentCrop };
+                                        if (
+                                          value !== undefined &&
+                                          !isNaN(value)
+                                        ) {
+                                          newCrop.top = value;
+                                        } else {
+                                          delete newCrop.top;
+                                        }
+                                        const newImages = [...images];
+                                        newImages[idx] = {
+                                          ...img,
+                                          croppingCoordinates:
+                                            Object.keys(newCrop).length > 0
+                                              ? newCrop
+                                              : undefined,
+                                        };
+                                        handleChange("properties.customImage", {
+                                          ...currentCreative.properties
+                                            .customImage,
+                                          [arrayKey]: newImages,
+                                        });
+                                      }}
+                                      className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px]"
+                                      placeholder="0"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-gray-500 mb-1">
+                                      Left
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      value={
+                                        img.croppingCoordinates?.left ?? ""
+                                      }
+                                      onChange={(e) => {
+                                        const value =
+                                          e.target.value === ""
+                                            ? undefined
+                                            : parseInt(e.target.value, 10);
+                                        const currentCrop =
+                                          img.croppingCoordinates || {};
+                                        const newCrop = { ...currentCrop };
+                                        if (
+                                          value !== undefined &&
+                                          !isNaN(value)
+                                        ) {
+                                          newCrop.left = value;
+                                        } else {
+                                          delete newCrop.left;
+                                        }
+                                        const newImages = [...images];
+                                        newImages[idx] = {
+                                          ...img,
+                                          croppingCoordinates:
+                                            Object.keys(newCrop).length > 0
+                                              ? newCrop
+                                              : undefined,
+                                        };
+                                        handleChange("properties.customImage", {
+                                          ...currentCreative.properties
+                                            .customImage,
+                                          [arrayKey]: newImages,
+                                        });
+                                      }}
+                                      className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px]"
+                                      placeholder="0"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-gray-500 mb-1">
+                                      Width
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      value={
+                                        img.croppingCoordinates?.width ?? ""
+                                      }
+                                      onChange={(e) => {
+                                        const value =
+                                          e.target.value === ""
+                                            ? undefined
+                                            : parseInt(e.target.value, 10);
+                                        const currentCrop =
+                                          img.croppingCoordinates || {};
+                                        const newCrop = { ...currentCrop };
+                                        if (
+                                          value !== undefined &&
+                                          !isNaN(value)
+                                        ) {
+                                          newCrop.width = value;
+                                        } else {
+                                          delete newCrop.width;
+                                        }
+                                        const newImages = [...images];
+                                        newImages[idx] = {
+                                          ...img,
+                                          croppingCoordinates:
+                                            Object.keys(newCrop).length > 0
+                                              ? newCrop
+                                              : undefined,
+                                        };
+                                        handleChange("properties.customImage", {
+                                          ...currentCreative.properties
+                                            .customImage,
+                                          [arrayKey]: newImages,
+                                        });
+                                      }}
+                                      className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px]"
+                                      placeholder="0"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-gray-500 mb-1">
+                                      Height
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      value={
+                                        img.croppingCoordinates?.height ?? ""
+                                      }
+                                      onChange={(e) => {
+                                        const value =
+                                          e.target.value === ""
+                                            ? undefined
+                                            : parseInt(e.target.value, 10);
+                                        const currentCrop =
+                                          img.croppingCoordinates || {};
+                                        const newCrop = { ...currentCrop };
+                                        if (
+                                          value !== undefined &&
+                                          !isNaN(value)
+                                        ) {
+                                          newCrop.height = value;
+                                        } else {
+                                          delete newCrop.height;
+                                        }
+                                        const newImages = [...images];
+                                        newImages[idx] = {
+                                          ...img,
+                                          croppingCoordinates:
+                                            Object.keys(newCrop).length > 0
+                                              ? newCrop
+                                              : undefined,
+                                        };
+                                        handleChange("properties.customImage", {
+                                          ...currentCreative.properties
+                                            .customImage,
+                                          [arrayKey]: newImages,
+                                        });
+                                      }}
+                                      className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px]"
+                                      placeholder="0"
+                                    />
+                                  </div>
                                 </div>
-                                <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">
-                                    Original Asset Version{" "}
-                                    <span className="text-gray-400">
-                                      (Optional)
-                                    </span>
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={vid.originalAssetVersion || ""}
-                                    onChange={(e) => {
-                                      const newVideos = [...videos];
-                                      newVideos[idx] = {
-                                        ...vid,
-                                        originalAssetVersion:
-                                          e.target.value || undefined,
-                                      };
-                                      handleChange("properties.video", {
-                                        ...currentCreative.properties.video,
-                                        [arrayKey]: newVideos,
-                                      });
-                                    }}
-                                    className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
-                                    placeholder="Original Asset Version"
-                                  />
-                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
+                        );
+                      };
+
+                      return (
+                        <>
+                          {renderImageArray(
+                            "squareImages",
+                            "Square Images",
+                            "Multiple square images (1:1 ratio)",
+                          )}
+                          {renderImageArray(
+                            "horizontalImages",
+                            "Horizontal Images",
+                            "Multiple horizontal images (1.91:1 ratio)",
+                          )}
+                          {renderImageArray(
+                            "verticalImages",
+                            "Vertical Images",
+                            "Multiple vertical images (9:16 ratio)",
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+
+            {activePropertyTab === "background" &&
+              addedPropertyTypes.has("background") && (
+                <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
+                      Background Colors
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePropertyType("background")}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {(
+                      currentCreative.properties.background?.backgrounds || []
+                    ).map((bg, idx) => {
+                      const errorKey = `properties.background.backgrounds[${idx}].color`;
+                      const hasError = !!errors[errorKey];
+                      return (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={bg.color || "#000000"}
+                              onChange={(e) => {
+                                setCurrentCreative((prev) => {
+                                  const currentBackgrounds =
+                                    prev.properties.background?.backgrounds ||
+                                    [];
+                                  const newBackgrounds = [
+                                    ...currentBackgrounds,
+                                  ];
+                                  newBackgrounds[idx] = {
+                                    color: e.target.value,
+                                  };
+                                  return {
+                                    ...prev,
+                                    properties: {
+                                      ...prev.properties,
+                                      background: {
+                                        backgrounds: newBackgrounds,
+                                      },
+                                    },
+                                  };
+                                });
+                                // Clear error when user types
+                                if (errors[errorKey]) {
+                                  setErrors((prev) => {
+                                    const newErrors = { ...prev };
+                                    delete newErrors[errorKey];
+                                    return newErrors;
+                                  });
+                                }
+                              }}
+                              className="w-12 h-10 border border-[#EBEBEB] rounded bg-white"
+                            />
+                            <input
+                              type="text"
+                              value={bg.color || ""}
+                              onChange={(e) => {
+                                setCurrentCreative((prev) => {
+                                  const currentBackgrounds =
+                                    prev.properties.background?.backgrounds ||
+                                    [];
+                                  const newBackgrounds = [
+                                    ...currentBackgrounds,
+                                  ];
+                                  newBackgrounds[idx] = {
+                                    color: e.target.value,
+                                  };
+                                  return {
+                                    ...prev,
+                                    properties: {
+                                      ...prev.properties,
+                                      background: {
+                                        backgrounds: newBackgrounds,
+                                      },
+                                    },
+                                  };
+                                });
+                                // Clear error when user types
+                                if (errors[errorKey]) {
+                                  setErrors((prev) => {
+                                    const newErrors = { ...prev };
+                                    delete newErrors[errorKey];
+                                    return newErrors;
+                                  });
+                                }
+                              }}
+                              className={`flex-1 px-3 py-2 border rounded-lg text-[13.44px] bg-white ${
+                                hasError ? "border-red-500" : "border-[#EBEBEB]"
+                              }`}
+                              placeholder="#RRGGBB"
+                              pattern="^#[0-9A-Fa-f]{6}$"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCurrentCreative((prev) => {
+                                  const currentBackgrounds =
+                                    prev.properties.background?.backgrounds ||
+                                    [];
+                                  const newBackgrounds =
+                                    currentBackgrounds.filter(
+                                      (_, i) => i !== idx,
+                                    );
+                                  return {
+                                    ...prev,
+                                    properties: {
+                                      ...prev.properties,
+                                      background: {
+                                        backgrounds: newBackgrounds,
+                                      },
+                                    },
+                                  };
+                                });
+                                // Clear error when removing
+                                if (errors[errorKey]) {
+                                  setErrors((prev) => {
+                                    const newErrors = { ...prev };
+                                    delete newErrors[errorKey];
+                                    return newErrors;
+                                  });
+                                }
+                              }}
+                              className="text-red-500 hover:text-red-700 text-sm"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          {hasError && (
+                            <p className="text-red-500 text-xs ml-14">
+                              {errors[errorKey]}
+                            </p>
+                          )}
                         </div>
                       );
-                    };
-
-                    return (
-                      <>
-                        {renderVideoArray(
-                          "squareVideos",
-                          "Square Videos",
-                          "Multiple square video variants (1:1 ratio)"
-                        )}
-                        {renderVideoArray(
-                          "horizontalVideos",
-                          "Horizontal Videos",
-                          "Multiple horizontal video variants (1.91:1 ratio)"
-                        )}
-                        {renderVideoArray(
-                          "verticalVideos",
-                          "Vertical Videos",
-                          "Multiple vertical video variants (9:16 ratio)"
-                        )}
-                      </>
-                    );
-                  })()}
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCurrentCreative((prev) => {
+                          const currentBackgrounds =
+                            prev.properties.background?.backgrounds || [];
+                          const newBackgrounds = [
+                            ...currentBackgrounds,
+                            { color: "#000000" },
+                          ];
+                          return {
+                            ...prev,
+                            properties: {
+                              ...prev.properties,
+                              background: {
+                                backgrounds: newBackgrounds,
+                              },
+                            },
+                          };
+                        });
+                      }}
+                      className="text-[#136D6D] hover:text-[#0f5555] text-[13.44px]"
+                    >
+                      + Add Background Color
+                    </button>
+                  </div>
+                  {errors["properties.background"] && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors["properties.background"]}
+                    </p>
+                  )}
                 </div>
-                {errors["properties.video"] && (
-                  <p className="text-red-500 text-xs mt-2">
-                    {errors["properties.video"]}
-                  </p>
-                )}
-                {errors["properties.video.video"] && (
-                  <p className="text-red-500 text-xs mt-2">
-                    {errors["properties.video.video"]}
-                  </p>
-                )}
-              </div>
-            )}
+              )}
+
+            {activePropertyTab === "video" &&
+              addedPropertyTypes.has("video") && (
+                <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg ">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
+                      Video Creative Properties
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePropertyType("video")}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    {/* Main Video (single object - mandatory, cannot be removed) */}
+                    <div>
+                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2">
+                        Main Video <span className="text-red-500">*</span>
+                      </label>
+                      <p className="text-xs text-gray-400 mb-2">
+                        Primary video asset (required - main video object is
+                        mandatory)
+                      </p>
+                      <div className="space-y-3 p-3 border border-[#EBEBEB] rounded-lg bg-white">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[10px] text-gray-500 mb-1">
+                              Asset ID *
+                            </label>
+                            <Dropdown<string>
+                              options={assets
+                                .filter((asset) => {
+                                  if (!asset.assetId) return false;
+                                  // Check both mediaType and contentType for video assets
+                                  const isVideoByMediaType =
+                                    asset.mediaType?.toLowerCase() === "video";
+                                  const isVideoByContentType = asset.contentType
+                                    ?.toLowerCase()
+                                    .startsWith("video/");
+                                  const isVideoByFileMetadata =
+                                    asset.fileMetadata?.contentType
+                                      ?.toLowerCase()
+                                      .startsWith("video/");
+                                  const isVideoByAssetType =
+                                    asset.assetType === "VIDEO";
+                                  return (
+                                    isVideoByMediaType ||
+                                    isVideoByContentType ||
+                                    isVideoByFileMetadata ||
+                                    isVideoByAssetType
+                                  );
+                                })
+                                .map((asset) => ({
+                                  value: asset.assetId || "",
+                                  label:
+                                    asset.name || asset.fileName
+                                      ? `${asset.name || asset.fileName} (${asset.assetId})`
+                                      : asset.assetId || `Asset ${asset.id}`,
+                                }))}
+                              value={
+                                currentCreative.properties.video?.video
+                                  ?.assetId || ""
+                              }
+                              onChange={(value) => {
+                                handleChange("properties.video", {
+                                  ...currentCreative.properties.video,
+                                  video: {
+                                    ...(currentCreative.properties.video
+                                      ?.video || {}),
+                                    assetId: value || "",
+                                    assetVersion: value
+                                      ? "version_v1"
+                                      : currentCreative.properties.video?.video
+                                          ?.assetVersion || "",
+                                  },
+                                });
+                              }}
+                              placeholder={
+                                assetsLoading ? "Loading..." : "Select Asset ID"
+                              }
+                              buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                              disabled={assetsLoading}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-500 mb-1">
+                              Asset Version *
+                            </label>
+                            <input
+                              type="text"
+                              value={
+                                currentCreative.properties.video?.video
+                                  ?.assetVersion || ""
+                              }
+                              onChange={(e) =>
+                                handleChange("properties.video", {
+                                  ...currentCreative.properties.video,
+                                  video: {
+                                    ...(currentCreative.properties.video
+                                      ?.video || {}),
+                                    assetVersion: e.target.value,
+                                  },
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
+                              placeholder="Asset Version *"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[10px] text-gray-500 mb-1">
+                              Original Asset ID{" "}
+                              <span className="text-gray-400">(Optional)</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={
+                                currentCreative.properties.video?.video
+                                  ?.originalAssetId || ""
+                              }
+                              onChange={(e) =>
+                                handleChange("properties.video", {
+                                  ...currentCreative.properties.video,
+                                  video: {
+                                    ...(currentCreative.properties.video
+                                      ?.video || {}),
+                                    originalAssetId:
+                                      e.target.value || undefined,
+                                  },
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
+                              placeholder="Original Asset ID"
+                            />
+                            <p className="text-xs text-gray-400 mt-1">
+                              Original asset ID before translation
+                            </p>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-500 mb-1">
+                              Original Asset Version{" "}
+                              <span className="text-gray-400">(Optional)</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={
+                                currentCreative.properties.video?.video
+                                  ?.originalAssetVersion || ""
+                              }
+                              onChange={(e) =>
+                                handleChange("properties.video", {
+                                  ...currentCreative.properties.video,
+                                  video: {
+                                    ...(currentCreative.properties.video
+                                      ?.video || {}),
+                                    originalAssetVersion:
+                                      e.target.value || undefined,
+                                  },
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
+                              placeholder="Original Asset Version"
+                            />
+                            <p className="text-xs text-gray-400 mt-1">
+                              Original asset version before translation
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Helper function to render video array */}
+                    {(() => {
+                      const renderVideoArray = (
+                        arrayKey:
+                          | "squareVideos"
+                          | "horizontalVideos"
+                          | "verticalVideos",
+                        label: string,
+                        description: string,
+                      ) => {
+                        const videos =
+                          currentCreative.properties.video?.[arrayKey] || [];
+                        return (
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="block text-[11.2px] font-semibold text-[#556179]">
+                                {label}{" "}
+                                <span className="text-gray-400 font-normal">
+                                  (Optional)
+                                </span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newVideos = [
+                                    ...videos,
+                                    { assetId: "", assetVersion: "" },
+                                  ];
+                                  handleChange("properties.video", {
+                                    ...currentCreative.properties.video,
+                                    [arrayKey]: newVideos,
+                                  });
+                                }}
+                                className="text-[#136D6D] hover:text-[#0f5555] text-[12px] font-medium"
+                              >
+                                + Add {label.slice(0, -1)}
+                              </button>
+                            </div>
+                            {description && (
+                              <p className="text-xs text-gray-400 mb-2">
+                                {description}
+                              </p>
+                            )}
+                            {videos.map((vid, idx) => (
+                              <div
+                                key={idx}
+                                className="mb-3 p-3 border border-[#EBEBEB] rounded-lg bg-white"
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-[12px] font-medium text-[#222124]">
+                                    {label.slice(0, -1)} #{idx + 1}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newVideos = videos.filter(
+                                        (_, i) => i !== idx,
+                                      );
+                                      handleChange("properties.video", {
+                                        ...currentCreative.properties.video,
+                                        [arrayKey]:
+                                          newVideos.length > 0
+                                            ? newVideos
+                                            : undefined,
+                                      });
+                                    }}
+                                    className="text-red-500 hover:text-red-700 text-sm"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 mb-2">
+                                  <div>
+                                    <label className="block text-[10px] text-gray-500 mb-1">
+                                      Asset ID *
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={vid.assetId || ""}
+                                      onChange={(e) => {
+                                        const newVideos = [...videos];
+                                        newVideos[idx] = {
+                                          ...vid,
+                                          assetId: e.target.value,
+                                        };
+                                        handleChange("properties.video", {
+                                          ...currentCreative.properties.video,
+                                          [arrayKey]: newVideos,
+                                        });
+                                      }}
+                                      className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
+                                      placeholder="Asset ID *"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-gray-500 mb-1">
+                                      Asset Version *
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={vid.assetVersion || ""}
+                                      onChange={(e) => {
+                                        const newVideos = [...videos];
+                                        newVideos[idx] = {
+                                          ...vid,
+                                          assetVersion: e.target.value,
+                                        };
+                                        handleChange("properties.video", {
+                                          ...currentCreative.properties.video,
+                                          [arrayKey]: newVideos,
+                                        });
+                                      }}
+                                      className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
+                                      placeholder="Asset Version *"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="block text-[10px] text-gray-500 mb-1">
+                                      Original Asset ID{" "}
+                                      <span className="text-gray-400">
+                                        (Optional)
+                                      </span>
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={vid.originalAssetId || ""}
+                                      onChange={(e) => {
+                                        const newVideos = [...videos];
+                                        newVideos[idx] = {
+                                          ...vid,
+                                          originalAssetId:
+                                            e.target.value || undefined,
+                                        };
+                                        handleChange("properties.video", {
+                                          ...currentCreative.properties.video,
+                                          [arrayKey]: newVideos,
+                                        });
+                                      }}
+                                      className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
+                                      placeholder="Original Asset ID"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-gray-500 mb-1">
+                                      Original Asset Version{" "}
+                                      <span className="text-gray-400">
+                                        (Optional)
+                                      </span>
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={vid.originalAssetVersion || ""}
+                                      onChange={(e) => {
+                                        const newVideos = [...videos];
+                                        newVideos[idx] = {
+                                          ...vid,
+                                          originalAssetVersion:
+                                            e.target.value || undefined,
+                                        };
+                                        handleChange("properties.video", {
+                                          ...currentCreative.properties.video,
+                                          [arrayKey]: newVideos,
+                                        });
+                                      }}
+                                      className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
+                                      placeholder="Original Asset Version"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      };
+
+                      return (
+                        <>
+                          {renderVideoArray(
+                            "squareVideos",
+                            "Square Videos",
+                            "Multiple square video variants (1:1 ratio)",
+                          )}
+                          {renderVideoArray(
+                            "horizontalVideos",
+                            "Horizontal Videos",
+                            "Multiple horizontal video variants (1.91:1 ratio)",
+                          )}
+                          {renderVideoArray(
+                            "verticalVideos",
+                            "Vertical Videos",
+                            "Multiple vertical video variants (9:16 ratio)",
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                  {errors["properties.video"] && (
+                    <p className="text-red-500 text-xs mt-2">
+                      {errors["properties.video"]}
+                    </p>
+                  )}
+                  {errors["properties.video.video"] && (
+                    <p className="text-red-500 text-xs mt-2">
+                      {errors["properties.video.video"]}
+                    </p>
+                  )}
+                </div>
+              )}
 
             {/* Consent to Translate */}
             <div className="mb-4">
@@ -2768,14 +2928,16 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
             )}
 
             {!editCreative && (
-              <button
-                type="button"
-                onClick={handleAdd}
-                disabled={addedCreatives.length > 0}
-                className="w-full py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0f5555] disabled:opacity-50 disabled:cursor-not-allowed text-[13.44px] font-medium"
-              >
-                Add Creative
-              </button>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleAdd}
+                  disabled={addedCreatives.length > 0}
+                  className="max-w-[300px] py-2 px-4 bg-[#136D6D] text-white rounded-lg hover:bg-[#0f5555] disabled:opacity-50 disabled:cursor-not-allowed text-[13.44px] font-medium"
+                >
+                  Add Creative
+                </button>
+              </div>
             )}
           </div>
 
@@ -2789,7 +2951,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                 {addedCreatives.map((creative, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-[#EBEBEB]"
+                    className="flex items-center justify-between p-3  rounded-lg border border-[#EBEBEB]"
                   >
                     <div>
                       <span className="text-[13.44px] font-medium text-[#222124]">
@@ -2815,7 +2977,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
           )}
 
           {/* Submit Button */}
-          <div className="flex gap-3">
+          <div className="flex justify-end gap-3">
             <button
               type="button"
               onClick={handleClose}
@@ -2836,8 +2998,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                   ? "Updating..."
                   : "Creating..."
                 : editCreative
-                ? "Update Creative"
-                : `Create ${addedCreatives.length} Creative(s)`}
+                  ? "Update Creative"
+                  : `Create ${addedCreatives.length} Creative(s)`}
             </button>
           </div>
         </div>

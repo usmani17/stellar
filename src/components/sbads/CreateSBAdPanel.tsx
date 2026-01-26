@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
+import { Checkbox } from "../ui/Checkbox";
 import { campaignsService } from "../../services/campaigns";
 import type { Asset } from "../campaigns/AssetsTable";
 
@@ -77,13 +78,9 @@ const VIDEO_AD_TYPE_OPTIONS = [
   { value: "BRAND", label: "Brand Video" },
 ];
 
-const PAGE_TYPE_OPTIONS = [
-  { value: "PRODUCT_LIST", label: "PRODUCT_LIST" },
-];
+const PAGE_TYPE_OPTIONS = [{ value: "PRODUCT_LIST", label: "PRODUCT_LIST" }];
 
-const CREATIVE_PROPERTIES_OPTIONS = [
-  { value: "HEADLINE", label: "HEADLINE" },
-];
+const CREATIVE_PROPERTIES_OPTIONS = [{ value: "HEADLINE", label: "HEADLINE" }];
 
 export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
   isOpen,
@@ -136,7 +133,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
   const loadAssets = async () => {
     if (!accountId) return;
-    
+
     try {
       setAssetsLoading(true);
       const data = await campaignsService.getAssets(accountId, {
@@ -184,6 +181,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
   const [addedAds, setAddedAds] = useState<SBAdInput[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showJsonPreview, setShowJsonPreview] = useState(false);
+  const [videoAssetSearch, setVideoAssetSearch] = useState<string>("");
 
   const handleChange = (field: string, value: any) => {
     if (field.includes(".")) {
@@ -297,7 +295,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       updated.creative = {
         ...updated.creative,
         customImages: (updated.creative?.customImages || []).filter(
-          (_, i) => i !== index
+          (_, i) => i !== index,
         ),
       };
       return updated;
@@ -307,7 +305,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
   const handleCustomImageChange = (
     index: number,
     field: string,
-    value: any
+    value: any,
   ) => {
     setCurrentAd((prev) => {
       const updated = { ...prev };
@@ -347,12 +345,18 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
     }
 
     // Validate Brand Name - required for all ad types
-    if (!currentAd.creative?.brandName || !currentAd.creative.brandName.trim()) {
+    if (
+      !currentAd.creative?.brandName ||
+      !currentAd.creative.brandName.trim()
+    ) {
       newErrors.brandName = "Brand name is required";
     }
 
     // Validate Brand Logo Asset ID and Headline - required for all ad types
-    if (!currentAd.creative?.brandLogoAssetID || !currentAd.creative.brandLogoAssetID.trim()) {
+    if (
+      !currentAd.creative?.brandLogoAssetID ||
+      !currentAd.creative.brandLogoAssetID.trim()
+    ) {
       newErrors.brandLogoAssetID = "Brand logo asset ID is required";
     }
 
@@ -375,13 +379,18 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       if (!currentAd.videoAdType) {
         newErrors.videoAdType = "Video ad type is required";
       }
-      if (!currentAd.creative?.videoAssetIds || currentAd.creative.videoAssetIds.length === 0) {
-        newErrors.videoAssetIds = "At least one video asset ID is required for video ads";
+      if (
+        !currentAd.creative?.videoAssetIds ||
+        currentAd.creative.videoAssetIds.length === 0
+      ) {
+        newErrors.videoAssetIds =
+          "At least one video asset ID is required for video ads";
       }
       // Brand video ads require landing page URL
       if (currentAd.videoAdType === "BRAND") {
         if (!currentAd.landingPage?.url) {
-          newErrors.landingPageUrl = "Landing page URL is required for brand video ads";
+          newErrors.landingPageUrl =
+            "Landing page URL is required for brand video ads";
         }
       }
     }
@@ -410,7 +419,8 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       const hasAsins =
         currentAd.landingPage.asins &&
         currentAd.landingPage.asins.filter((a) => a.trim()).length > 0;
-      const hasUrl = currentAd.landingPage.url && currentAd.landingPage.url.trim();
+      const hasUrl =
+        currentAd.landingPage.url && currentAd.landingPage.url.trim();
 
       if (hasAsins || hasUrl) {
         cleanedAd.landingPage = {
@@ -420,7 +430,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         // Only include asins OR url, not both (mutually exclusive)
         if (hasAsins && currentAd.landingPage?.asins) {
           cleanedAd.landingPage.asins = currentAd.landingPage.asins.filter(
-            (a) => a.trim()
+            (a) => a.trim(),
           );
         } else if (hasUrl && currentAd.landingPage?.url) {
           cleanedAd.landingPage.url = currentAd.landingPage.url.trim();
@@ -486,7 +496,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         currentAd.creative.customImages.length > 0
       ) {
         const validImages = currentAd.creative.customImages.filter(
-          (img) => img.assetId?.trim() || img.url?.trim()
+          (img) => img.assetId?.trim() || img.url?.trim(),
         );
         if (validImages.length > 0) {
           creative.customImages = validImages.map((img) => {
@@ -507,8 +517,8 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         currentAd.creative.videoAssetIds &&
         currentAd.creative.videoAssetIds.length > 0
       ) {
-        creative.videoAssetIds = currentAd.creative.videoAssetIds.filter(
-          (id) => id.trim()
+        creative.videoAssetIds = currentAd.creative.videoAssetIds.filter((id) =>
+          id.trim(),
         );
         hasCreativeData = true;
       }
@@ -604,12 +614,10 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
     // Use exact test data as provided (matches Postman working request)
     // Support both image and video ads based on current ad type
     const isVideo = currentAd.adType === "VIDEO";
-    
+
     // Use provided adGroupId if it exists in the list, otherwise use first available
     const testAdGroupId = "345267636818439";
-    const adGroupId = adgroups.find(
-      (ag) => ag.adGroupId === testAdGroupId
-    )
+    const adGroupId = adgroups.find((ag) => ag.adGroupId === testAdGroupId)
       ? testAdGroupId
       : adgroups[0]?.adGroupId || "";
 
@@ -627,7 +635,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         creative: {
           asins: ["B09PVMBNT4"],
           consentToTranslate: true,
-          videoAssetIds: ["amzn1.assetlibrary.asset1.ddbc2868d036a471a166bc5cce31b866"],
+          videoAssetIds: [
+            "amzn1.assetlibrary.asset1.ddbc2868d036a471a166bc5cce31b866",
+          ],
         },
       });
     } else {
@@ -650,13 +660,15 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           },
           asins: ["B09PVMBNT4"],
           brandName: "Test Brand",
-          brandLogoAssetID: "amzn1.assetlibrary.asset1.c5c3fd754ca1c4d389d9bbbd7348ac10",
+          brandLogoAssetID:
+            "amzn1.assetlibrary.asset1.c5c3fd754ca1c4d389d9bbbd7348ac10",
           headline: "Shop Our Best Products",
           consentToTranslate: true,
           creativePropertiesToOptimize: ["HEADLINE"],
           customImages: [
             {
-              assetId: "amzn1.assetlibrary.asset1.c5c3fd754ca1c4d389d9bbbd7348ac10",
+              assetId:
+                "amzn1.assetlibrary.asset1.c5c3fd754ca1c4d389d9bbbd7348ac10",
               url: "https://example.com/test-image.png",
               crop: {
                 top: 5,
@@ -715,9 +727,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         <div className="grid grid-cols-4 gap-3 mb-4">
           {/* Ad Name */}
           <div>
-            <label className="form-label-small">
-              Ad Name *
-            </label>
+            <label className="form-label-small">Ad Name *</label>
             <input
               type="text"
               value={currentAd.name}
@@ -734,9 +744,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
           {/* Ad Group */}
           <div>
-            <label className="form-label-small">
-              Ad Group *
-            </label>
+            <label className="form-label-small">Ad Group *</label>
             <Dropdown<string>
               options={adgroups.map((ag) => ({
                 value: ag.adGroupId,
@@ -744,10 +752,18 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               }))}
               value={currentAd.adGroupId}
               onChange={(value) => handleChange("adGroupId", value)}
-              placeholder={adgroups.length === 0 ? "No ad groups available" : "Select ad group"}
+              placeholder={
+                adgroups.length === 0
+                  ? "No ad groups available"
+                  : "Select ad group"
+              }
               buttonClassName="edit-button w-full"
               disabled={adgroups.length === 0}
-              emptyMessage={adgroups.length === 0 ? "No ad groups available. Please create an ad group first." : "No options available"}
+              emptyMessage={
+                adgroups.length === 0
+                  ? "No ad groups available. Please create an ad group first."
+                  : "No options available"
+              }
             />
             {errors.adGroupId && (
               <p className="text-[10px] text-red-500 mt-1">
@@ -758,9 +774,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
           {/* State */}
           <div>
-            <label className="form-label-small">
-              State *
-            </label>
+            <label className="form-label-small">State *</label>
             <Dropdown<string>
               options={STATE_OPTIONS}
               value={currentAd.state}
@@ -774,6 +788,41 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
           {/* Ad Type */}
           <div>
+            <label className="form-label-small">Ad Type *</label>
+            <Dropdown<string>
+              options={AD_TYPE_OPTIONS}
+              value={currentAd.adType || "IMAGE"}
+              onChange={(value) => {
+                handleChange("adType", value as "IMAGE" | "VIDEO");
+                // Reset creative fields when switching types
+                if (value === "VIDEO") {
+                  setCurrentAd((prev) => ({
+                    ...prev,
+                    adType: "VIDEO",
+                    creative: {
+                      ...prev.creative,
+                      videoAssetIds: [],
+                      customImages: undefined,
+                    },
+                  }));
+                } else {
+                  setCurrentAd((prev) => ({
+                    ...prev,
+                    adType: "IMAGE",
+                    creative: {
+                      ...prev.creative,
+                      videoAssetIds: undefined,
+                      customImages: prev.creative?.customImages || [],
+                    },
+                  }));
+                }
+              }}
+              placeholder="Select ad type"
+              buttonClassName="edit-button w-full"
+            />
+          </div>
+          {/* Ad Type - Hidden */}
+          {/* <div>
             <label className="form-label-small">
               Ad Type *
             </label>
@@ -809,60 +858,75 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               placeholder="Select ad type"
               buttonClassName="edit-button w-full"
             />
-          </div>
+          </div> */}
         </div>
 
-        {/* Brand Name, Brand Logo Asset ID, Headline - Required fields right after Ad Type */}
-        <div className="mb-4 grid grid-cols-4 gap-6">
-          {/* Brand Name */}
-          <div className="mb-4">
-            <label className="form-label-small">
-              Brand Name *
-            </label>
-            <input
-              type="text"
-              value={currentAd.creative?.brandName || ""}
-              onChange={(e) => handleChange("creative.brandName", e.target.value)}
-              placeholder="My Brand"
-              className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                errors.brandName ? "border-red-500" : "border-gray-200"
-              }`}
-            />
-            {errors.brandName && (
-              <p className="text-[10px] text-red-500 mt-1">{errors.brandName}</p>
-            )}
-          </div>
+        {/* Creative Section */}
+        <div className="mb-4 pt-4 border-t border-gray-200">
+          <h3 className="section-title mb-4">Creative *</h3>
 
-          {/* Brand Logo Asset ID and Headline - In one line, both required */}
-          <div className="mb-4">
+          {/* Prioritized Fields at the beginning */}
+          <div className="mb-6 grid grid-cols-3 gap-6">
+            {/* Brand Name */}
             <div>
-              <label className="form-label-small">
-                Brand Logo Asset ID *
-              </label>
+              <label className="form-label-small">Brand Name *</label>
+              <input
+                type="text"
+                value={currentAd.creative?.brandName || ""}
+                onChange={(e) =>
+                  handleChange("creative.brandName", e.target.value)
+                }
+                placeholder="My Brand"
+                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  errors.brandName ? "border-red-500" : "border-gray-200"
+                }`}
+              />
+              {errors.brandName && (
+                <p className="text-[10px] text-red-500 mt-1">
+                  {errors.brandName}
+                </p>
+              )}
+            </div>
+
+            {/* Brand Logo Asset ID */}
+            <div>
+              <label className="form-label-small">Brand Logo Asset ID *</label>
               <Dropdown<string>
                 options={assets
                   .filter((asset) => {
                     if (!asset.assetId) return false;
                     // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
-                    const isImageByAssetType = asset.assetType === 'IMAGE';
-                    const isImageByContentType = asset.contentType?.toLowerCase().startsWith('image/');
-                    const isImageByFileMetadata = asset.fileMetadata?.contentType?.toLowerCase().startsWith('image/');
+                    const isImageByAssetType = asset.assetType === "IMAGE";
+                    const isImageByContentType = asset.contentType
+                      ?.toLowerCase()
+                      .startsWith("image/");
+                    const isImageByFileMetadata =
+                      asset.fileMetadata?.contentType
+                        ?.toLowerCase()
+                        .startsWith("image/");
                     // Fallback to old schema for backward compatibility
-                    const isImageByMediaType = asset.mediaType?.toLowerCase() === 'image';
-                    return isImageByAssetType || isImageByContentType || isImageByFileMetadata || isImageByMediaType;
+                    const isImageByMediaType =
+                      asset.mediaType?.toLowerCase() === "image";
+                    return (
+                      isImageByAssetType ||
+                      isImageByContentType ||
+                      isImageByFileMetadata ||
+                      isImageByMediaType
+                    );
                   }) // Only show image assets
                   .map((asset) => ({
                     value: asset.assetId || "",
-                    label: asset.name || asset.fileName
-                      ? `${asset.name || asset.fileName} (${asset.assetId})`
-                      : asset.assetId || `Asset ${asset.id}`,
+                    label:
+                      asset.name || asset.fileName
+                        ? `${asset.name || asset.fileName} (${asset.assetId})`
+                        : asset.assetId || `Asset ${asset.id}`,
                   }))}
                 value={currentAd.creative?.brandLogoAssetID || ""}
                 onChange={(value) => {
                   handleChange("creative.brandLogoAssetID", value);
                 }}
                 placeholder={assetsLoading ? "Loading..." : "Select Asset"}
-                buttonClassName={`edit-button w-full px-4 py-2.5   ${
+                buttonClassName={`edit-button w-full px-4 py-2.5 ${
                   errors.brandLogoAssetID ? "border-red-500" : "border-gray-200"
                 }`}
                 menuClassName="max-w-full"
@@ -888,261 +952,519 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 disabled={assetsLoading || assets.length === 0}
               />
               {errors.brandLogoAssetID && (
-                <p className="text-[10px] text-red-500 mt-1">{errors.brandLogoAssetID}</p>
+                <p className="text-[10px] text-red-500 mt-1">
+                  {errors.brandLogoAssetID}
+                </p>
               )}
             </div>
-            
-          </div>
-          <div>
-              <label className="form-label-small">
-                Headline *
-              </label>
+
+            {/* Headline */}
+            <div>
+              <label className="form-label-small">Headline *</label>
               <input
                 type="text"
                 value={currentAd.creative?.headline || ""}
-                onChange={(e) => handleChange("creative.headline", e.target.value)}
+                onChange={(e) =>
+                  handleChange("creative.headline", e.target.value)
+                }
                 placeholder="Shop Our Best Products"
-                className={`w-full campaign-input    ${
+                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                   errors.headline ? "border-red-500" : "border-gray-200"
                 }`}
               />
               {errors.headline && (
-                <p className="text-[10px] text-red-500 mt-1">{errors.headline}</p>
+                <p className="text-[10px] text-red-500 mt-1">
+                  {errors.headline}
+                </p>
               )}
             </div>
-        </div>
+          </div>
 
-        {/* ASINs - Show exactly 3 text fields (max 3 ASINs) */}
-        <div className="mb-4 ">
-          <label className="form-label-small">
-            ASINs * (Maximum 3)
-          </label>
-          <div className="grid grid-cols-3 gap-6">
+          {/* ASINs - Show exactly 3 text fields (max 3 ASINs) */}
+          <div className="mb-6">
+            <label className="form-label-small">ASINs * (Maximum 3)</label>
+            <div className="grid grid-cols-3 gap-6">
               {[0, 1, 2].map((index) => {
                 const asins = currentAd.creative?.asins || [];
                 return (
-                  <div className="space-y-2">
-
-                  <input
-                    key={index}
-                    type="text"
-                    value={asins[index] || ""}
-                    onChange={(e) => {
-                      const newAsins = [...asins];
-                      newAsins[index] = e.target.value;
-                      // Ensure array has exactly 3 elements
-                      while (newAsins.length < 3) {
-                        newAsins.push("");
-                      }
-                      handleChange("creative.asins", newAsins.slice(0, 3));
-                    }}
-                    placeholder={`ASIN ${index + 1} (e.g., B01EXAMPLE)`}
-                    className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                      errors.creativeAsins ? "border-red-500" : "border-gray-200"
-                    }`}
-                  />
+                  <div key={index} className="space-y-2">
+                    <input
+                      type="text"
+                      value={asins[index] || ""}
+                      onChange={(e) => {
+                        const newAsins = [...asins];
+                        newAsins[index] = e.target.value;
+                        // Ensure array has exactly 3 elements
+                        while (newAsins.length < 3) {
+                          newAsins.push("");
+                        }
+                        handleChange("creative.asins", newAsins.slice(0, 3));
+                      }}
+                      placeholder={`ASIN ${index + 1} (e.g., B01EXAMPLE)`}
+                      className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                        errors.creativeAsins
+                          ? "border-red-500"
+                          : "border-gray-200"
+                      }`}
+                    />
                   </div>
                 );
               })}
-          </div>
-          {errors.creativeAsins && (
-            <p className="text-[10px] text-red-500 mt-1">{errors.creativeAsins}</p>
-          )}
-        </div>
-
-        {/* Video Ad Type Toggle - Only show when Video is selected */}
-        {currentAd.adType === "VIDEO" && (
-          <div className="mb-4">
-            <label className="form-label-small">
-              Video Type
-            </label>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="videoAdType"
-                  value="PRODUCT"
-                  checked={currentAd.videoAdType === "PRODUCT"}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      handleChange("videoAdType", "PRODUCT");
-                    }
-                  }}
-                  className="accent-forest-f40"
-                />
-                <span className="text-[11.2px] text-[#556179]">Product Video</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="videoAdType"
-                  value="BRAND"
-                  checked={currentAd.videoAdType === "BRAND"}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      handleChange("videoAdType", "BRAND");
-                    }
-                  }}
-                  className="accent-forest-f40"
-                />
-                <span className="text-[11.2px] text-[#556179]">Brand Video</span>
-              </label>
             </div>
+            {errors.creativeAsins && (
+              <p className="text-[10px] text-red-500 mt-1">
+                {errors.creativeAsins}
+              </p>
+            )}
           </div>
-        )}
 
-        {/* Landing Page Section */}
-        <div className="mb-4 p-4 border border-gray-200 rounded-lg bg-white">
-          <h3 className="section-title mb-4">
-            Landing Page
-          </h3>
-
-          <div className="flex items-end gap-3 mb-4">
-            <div className="w-[180px]">
-              <label className="form-label-small">
-                Page Type
-              </label>
-              <Dropdown<string>
-                options={PAGE_TYPE_OPTIONS}
-                value={currentAd.landingPage?.pageType || "PRODUCT_LIST"}
-                onChange={(value) =>
-                  handleChange("landingPage.pageType", value)
-                }
-                placeholder="Select page type"
-                buttonClassName="edit-button w-full"
-              />
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="form-label-small">
-                URL {currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" ? "*" : ""}
-              </label>
-              <input
-                type="text"
-                value={currentAd.landingPage?.url || ""}
-                onChange={(e) => handleChange("landingPage.url", e.target.value)}
-                placeholder="https://www.amazon.com/s?me=TEST"
-                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                  (currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" && errors.landingPageUrl) ? "border-red-500" : "border-gray-200"
-                }`}
-              />
-              {currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" && errors.landingPageUrl && (
-                <p className="text-[10px] text-red-500 mt-1">{errors.landingPageUrl}</p>
+          {/* Video Asset IDs - For VIDEO ads */}
+          {currentAd.adType === "VIDEO" && (
+            <div className="mb-6">
+              <label className="form-label-small">Video Asset IDs *</label>
+              {/* Search Field */}
+              <div className="mb-3">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg
+                      className="w-4 h-4 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    value={videoAssetSearch}
+                    onChange={(e) => setVideoAssetSearch(e.target.value)}
+                    placeholder="Search video assets..."
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-1 focus:ring-[#136D6D] focus:border-[#136D6D] bg-white"
+                  />
+                </div>
+              </div>
+              {/* Video Assets Multi-Select */}
+              <div className="border border-gray-200 rounded-lg p-3 max-h-[300px] overflow-y-auto">
+                {assets
+                  .filter((asset) => {
+                    if (!asset.assetId) return false;
+                    // Filter for video assets
+                    const isVideoByAssetType = asset.assetType === "VIDEO";
+                    const isVideoByContentType = asset.contentType
+                      ?.toLowerCase()
+                      .startsWith("video/");
+                    const isVideoByFileMetadata =
+                      asset.fileMetadata?.contentType
+                        ?.toLowerCase()
+                        .startsWith("video/");
+                    // Fallback to old schema for backward compatibility
+                    const isVideoByMediaType =
+                      asset.mediaType?.toLowerCase() === "video";
+                    const isVideo =
+                      isVideoByAssetType ||
+                      isVideoByContentType ||
+                      isVideoByFileMetadata ||
+                      isVideoByMediaType;
+                    if (!isVideo) return false;
+                    // Apply search filter
+                    if (!videoAssetSearch.trim()) return true;
+                    const searchLower = videoAssetSearch.toLowerCase();
+                    const assetLabel = (
+                      asset.name ||
+                      asset.fileName ||
+                      asset.assetId ||
+                      ""
+                    ).toLowerCase();
+                    return assetLabel.includes(searchLower);
+                  })
+                  .map((asset) => {
+                    const assetId = asset.assetId || "";
+                    const isSelected = (
+                      currentAd.creative?.videoAssetIds || []
+                    ).includes(assetId);
+                    return (
+                      <div key={assetId} className="mb-2 last:mb-0">
+                        <Checkbox
+                          checked={isSelected}
+                          onChange={(checked) => {
+                            const currentIds =
+                              currentAd.creative?.videoAssetIds || [];
+                            if (checked) {
+                              if (!currentIds.includes(assetId)) {
+                                handleChange("creative.videoAssetIds", [
+                                  ...currentIds,
+                                  assetId,
+                                ]);
+                              }
+                            } else {
+                              handleChange(
+                                "creative.videoAssetIds",
+                                currentIds.filter((id) => id !== assetId),
+                              );
+                            }
+                          }}
+                          label={
+                            asset.name || asset.fileName
+                              ? `${asset.name || asset.fileName} (${assetId})`
+                              : assetId || `Asset ${asset.id}`
+                          }
+                          size="small"
+                          className="w-full [&_label]:text-[11.2px]"
+                        />
+                      </div>
+                    );
+                  })}
+                {assets.filter((asset) => {
+                  if (!asset.assetId) return false;
+                  const isVideoByAssetType = asset.assetType === "VIDEO";
+                  const isVideoByContentType = asset.contentType
+                    ?.toLowerCase()
+                    .startsWith("video/");
+                  const isVideoByFileMetadata = asset.fileMetadata?.contentType
+                    ?.toLowerCase()
+                    .startsWith("video/");
+                  const isVideoByMediaType =
+                    asset.mediaType?.toLowerCase() === "video";
+                  return (
+                    isVideoByAssetType ||
+                    isVideoByContentType ||
+                    isVideoByFileMetadata ||
+                    isVideoByMediaType
+                  );
+                }).length === 0 && (
+                  <p className="text-[11.2px] text-gray-500 text-center py-4">
+                    No video assets available
+                  </p>
+                )}
+              </div>
+              {/* Display selected video asset IDs */}
+              {currentAd.creative?.videoAssetIds &&
+                currentAd.creative.videoAssetIds.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-[10px] text-[#556179] mb-2">
+                      Selected ({currentAd.creative.videoAssetIds.length}):
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {currentAd.creative.videoAssetIds.map((assetId) => {
+                        const asset = assets.find((a) => a.assetId === assetId);
+                        return (
+                          <span
+                            key={assetId}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-[#136D6D] text-white text-[10px] rounded"
+                          >
+                            {asset?.name || asset?.fileName || assetId}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentIds =
+                                  currentAd.creative?.videoAssetIds || [];
+                                handleChange(
+                                  "creative.videoAssetIds",
+                                  currentIds.filter((id) => id !== assetId),
+                                );
+                              }}
+                              className="hover:text-red-200 ml-1"
+                              title="Remove"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              {errors.videoAssetIds && (
+                <p className="text-[10px] text-red-500 mt-1">
+                  {errors.videoAssetIds}
+                </p>
               )}
             </div>
-          </div>
+          )}
 
-          <div>
-            <label className="form-label-small">
-              ASINs (Optional)
-            </label>
-            {(currentAd.landingPage?.asins || []).map((asin, index) => (
-              <div key={index} className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  value={asin}
-                  onChange={(e) =>
-                    handleArrayChange("landingPage.asins", index, e.target.value)
-                  }
-                  placeholder="B01EXAMPLE"
-                  className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleRemoveArrayItem("landingPage.asins", index)}
-                  className="px-3 py-2.5 text-red-500 hover:text-red-700 transition-colors"
-                  title="Remove"
+          {/* Custom Images - Prioritized field */}
+          {currentAd.adType === "IMAGE" && (
+            <div className="mb-6">
+              <label className="form-label-small">
+                Custom Images (Optional)
+              </label>
+              {(currentAd.creative?.customImages || []).map((image, index) => (
+                <div
+                  key={index}
+                  className="mb-4 p-3  border border-gray-200 rounded-lg"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => handleAddArrayItem("landingPage.asins")}
-              className="text-[11.2px] text-[#136D6D] hover:text-[#0e5a5a]"
-            >
-              + Add ASIN
-            </button>
-          </div>
-        </div>
-
-        {/* Creative Section */}
-        <div className="mb-4 p-3  border border-gray-200 rounded-lg">
-          <h3 className="section-title">
-            Creative *
-          </h3>
-
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11.2px] font-semibold text-[#072929]">
+                      Image {index + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCustomImage(index)}
+                      className="text-red-500 hover:text-red-700 transition-colors"
+                      title="Remove"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-[10px] text-gray-600 mb-1">
+                        Asset ID
+                      </label>
+                      <Dropdown<string>
+                        options={assets
+                          .filter((asset) => {
+                            if (!asset.assetId) return false;
+                            // For custom images, show IMAGE type assets
+                            const isImageByAssetType =
+                              asset.assetType === "IMAGE";
+                            const isImageByContentType = asset.contentType
+                              ?.toLowerCase()
+                              .startsWith("image/");
+                            const isImageByFileMetadata =
+                              asset.fileMetadata?.contentType
+                                ?.toLowerCase()
+                                .startsWith("image/");
+                            // Fallback to old schema for backward compatibility
+                            const isImageByMediaType =
+                              asset.mediaType?.toLowerCase() === "image";
+                            return (
+                              isImageByAssetType ||
+                              isImageByContentType ||
+                              isImageByFileMetadata ||
+                              isImageByMediaType
+                            );
+                          })
+                          .map((asset) => ({
+                            value: asset.assetId || "",
+                            label:
+                              asset.name || asset.fileName
+                                ? `${asset.name || asset.fileName} (${asset.assetId})`
+                                : asset.assetId || `Asset ${asset.id}`,
+                          }))}
+                        value={image.assetId || ""}
+                        onChange={(value) => {
+                          handleCustomImageChange(
+                            index,
+                            "assetId",
+                            value || "",
+                          );
+                        }}
+                        placeholder={
+                          assetsLoading ? "Loading..." : "Select Asset"
+                        }
+                        buttonClassName="edit-button px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 w-full truncate"
+                        menuClassName="w-full"
+                        optionClassName="truncate"
+                        renderOption={(option, isSelected) => (
+                          <div className="flex items-center justify-between w-full min-w-0">
+                            <span className="truncate flex-1 w-full">
+                              {option.label}
+                            </span>
+                            {isSelected && (
+                              <svg
+                                className="w-4 h-4 text-[#136D6D] flex-shrink-0 ml-2"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                        )}
+                        disabled={assetsLoading || assets.length === 0}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-600 mb-1">
+                        URL
+                      </label>
+                      <input
+                        type="text"
+                        value={image.url || ""}
+                        onChange={(e) =>
+                          handleCustomImageChange(index, "url", e.target.value)
+                        }
+                        placeholder="https://example.com/image.png"
+                        className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-600 mb-1">
+                      Crop
+                    </label>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="block text-[9px] text-gray-500 mb-1">
+                          Top
+                        </label>
+                        <input
+                          type="number"
+                          value={image.crop?.top || 0}
+                          onChange={(e) =>
+                            handleCustomImageChange(
+                              index,
+                              "crop.top",
+                              parseInt(e.target.value) || 0,
+                            )
+                          }
+                          className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] text-gray-500 mb-1">
+                          Left
+                        </label>
+                        <input
+                          type="number"
+                          value={image.crop?.left || 0}
+                          onChange={(e) =>
+                            handleCustomImageChange(
+                              index,
+                              "crop.left",
+                              parseInt(e.target.value) || 0,
+                            )
+                          }
+                          className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] text-gray-500 mb-1">
+                          Width
+                        </label>
+                        <input
+                          type="number"
+                          value={image.crop?.width || 100}
+                          onChange={(e) =>
+                            handleCustomImageChange(
+                              index,
+                              "crop.width",
+                              parseInt(e.target.value) || 100,
+                            )
+                          }
+                          className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] text-gray-500 mb-1">
+                          Height
+                        </label>
+                        <input
+                          type="number"
+                          value={image.crop?.height || 100}
+                          onChange={(e) =>
+                            handleCustomImageChange(
+                              index,
+                              "crop.height",
+                              parseInt(e.target.value) || 100,
+                            )
+                          }
+                          className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={handleAddCustomImage}
+                className="text-[11.2px] text-[#136D6D] hover:text-[#0e5a5a]"
+              >
+                + Add Custom Image
+              </button>
+            </div>
+          )}
 
           {/* Brand Logo Crop - For IMAGE ads and BRAND video ads */}
-          {(currentAd.adType === "IMAGE" || (currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND")) && (
+          {(currentAd.adType === "IMAGE" ||
+            (currentAd.adType === "VIDEO" &&
+              currentAd.videoAdType === "BRAND")) && (
             <div className="mb-4">
-              <label className="form-label-small">
-                Brand Logo Crop
-              </label>
+              <label className="form-label-small">Brand Logo Crop</label>
               <div className="grid grid-cols-4 gap-2">
                 <div>
-                  <label className="block text-[10px] text-gray-600 mb-1">Top</label>
+                  <label className="block text-[10px] text-gray-600 mb-1">
+                    Top
+                  </label>
                   <input
                     type="number"
                     value={currentAd.creative?.brandLogoCrop?.top || 0}
                     onChange={(e) =>
                       handleChange(
                         "creative.brandLogoCrop.top",
-                        parseInt(e.target.value) || 0
+                        parseInt(e.target.value) || 0,
                       )
                     }
                     className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-gray-600 mb-1">Left</label>
+                  <label className="block text-[10px] text-gray-600 mb-1">
+                    Left
+                  </label>
                   <input
                     type="number"
                     value={currentAd.creative?.brandLogoCrop?.left || 0}
                     onChange={(e) =>
                       handleChange(
                         "creative.brandLogoCrop.left",
-                        parseInt(e.target.value) || 0
+                        parseInt(e.target.value) || 0,
                       )
                     }
                     className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-gray-600 mb-1">Width</label>
+                  <label className="block text-[10px] text-gray-600 mb-1">
+                    Width
+                  </label>
                   <input
                     type="number"
                     value={currentAd.creative?.brandLogoCrop?.width || 100}
                     onChange={(e) =>
                       handleChange(
                         "creative.brandLogoCrop.width",
-                        parseInt(e.target.value) || 100
+                        parseInt(e.target.value) || 100,
                       )
                     }
                     className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-gray-600 mb-1">Height</label>
+                  <label className="block text-[10px] text-gray-600 mb-1">
+                    Height
+                  </label>
                   <input
                     type="number"
                     value={currentAd.creative?.brandLogoCrop?.height || 100}
                     onChange={(e) =>
                       handleChange(
                         "creative.brandLogoCrop.height",
-                        parseInt(e.target.value) || 100
+                        parseInt(e.target.value) || 100,
                       )
                     }
                     className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
@@ -1157,13 +1479,12 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
             <>
               {/* Image ads don't need additional fields here - all fields are above */}
             </>
-          ) : currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" ? (
+          ) : currentAd.adType === "VIDEO" &&
+            currentAd.videoAdType === "BRAND" ? (
             <>
               {/* Video Asset IDs for Brand Video */}
               <div className="mb-4">
-                <label className="form-label-small">
-                  Video Asset IDs *
-                </label>
+                <label className="form-label-small">Video Asset IDs *</label>
                 <div className="space-y-2">
                   {/* Text input to manually add video asset IDs */}
                   <div className="flex gap-2">
@@ -1172,15 +1493,19 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                       placeholder="amzn1.assetlibrary.asset1..."
                       className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
+                        if (e.key === "Enter") {
                           e.preventDefault();
                           const input = e.currentTarget as HTMLInputElement;
                           const value = input.value.trim();
                           if (value) {
-                            const currentIds = currentAd.creative?.videoAssetIds || [];
+                            const currentIds =
+                              currentAd.creative?.videoAssetIds || [];
                             if (!currentIds.includes(value)) {
-                              handleChange("creative.videoAssetIds", [...currentIds, value]);
-                              input.value = '';
+                              handleChange("creative.videoAssetIds", [
+                                ...currentIds,
+                                value,
+                              ]);
+                              input.value = "";
                             }
                           }
                         }
@@ -1189,13 +1514,18 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     <button
                       type="button"
                       onClick={(e) => {
-                        const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                        const input = e.currentTarget
+                          .previousElementSibling as HTMLInputElement;
                         const value = input.value.trim();
                         if (value) {
-                          const currentIds = currentAd.creative?.videoAssetIds || [];
+                          const currentIds =
+                            currentAd.creative?.videoAssetIds || [];
                           if (!currentIds.includes(value)) {
-                            handleChange("creative.videoAssetIds", [...currentIds, value]);
-                            input.value = '';
+                            handleChange("creative.videoAssetIds", [
+                              ...currentIds,
+                              value,
+                            ]);
+                            input.value = "";
                           }
                         }
                       }}
@@ -1204,7 +1534,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                       Add
                     </button>
                   </div>
-                  
+
                   {/* Dropdown to select from available video assets */}
                   <div className="flex gap-2">
                     <Dropdown<string>
@@ -1212,8 +1542,11 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         .filter((asset) => {
                           if (!asset.assetId) return false;
                           // Check both mediaType and contentType for video assets
-                          const isVideoByMediaType = asset.mediaType?.toLowerCase() === 'video';
-                          const isVideoByContentType = asset.contentType?.toLowerCase().startsWith('video/');
+                          const isVideoByMediaType =
+                            asset.mediaType?.toLowerCase() === "video";
+                          const isVideoByContentType = asset.contentType
+                            ?.toLowerCase()
+                            .startsWith("video/");
                           return isVideoByMediaType || isVideoByContentType;
                         })
                         .map((asset) => ({
@@ -1225,19 +1558,27 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                       value=""
                       onChange={(value) => {
                         if (value) {
-                          const currentIds = currentAd.creative?.videoAssetIds || [];
+                          const currentIds =
+                            currentAd.creative?.videoAssetIds || [];
                           if (!currentIds.includes(value)) {
-                            handleChange("creative.videoAssetIds", [...currentIds, value]);
+                            handleChange("creative.videoAssetIds", [
+                              ...currentIds,
+                              value,
+                            ]);
                           }
                         }
                       }}
-                      placeholder={assetsLoading ? "Loading..." : "Select Video Asset"}
+                      placeholder={
+                        assetsLoading ? "Loading..." : "Select Video Asset"
+                      }
                       buttonClassName="edit-button w-full flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 min-w-[400px]"
                       menuClassName="min-w-[400px]"
                       optionClassName="truncate"
                       renderOption={(option, isSelected) => (
                         <div className="flex items-center justify-between w-full min-w-0">
-                          <span className="truncate flex-1">{option.label}</span>
+                          <span className="truncate flex-1">
+                            {option.label}
+                          </span>
                           {isSelected && (
                             <svg
                               className="w-4 h-4 text-[#136D6D] flex-shrink-0 ml-2"
@@ -1257,175 +1598,52 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     />
                   </div>
                 </div>
-                
+
                 {/* Display selected video asset IDs */}
-                {currentAd.creative?.videoAssetIds && currentAd.creative.videoAssetIds.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-[10px] text-[#556179] mb-1">Selected ({currentAd.creative.videoAssetIds.length}):</p>
-                    <div className="flex flex-wrap gap-2">
-                      {currentAd.creative.videoAssetIds.map((assetId, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-[#136D6D] text-white text-[10px] rounded"
-                        >
-                          {assetId}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const currentIds = currentAd.creative?.videoAssetIds || [];
-                              handleChange(
-                                "creative.videoAssetIds",
-                                currentIds.filter((id) => id !== assetId)
-                              );
-                            }}
-                            className="hover:text-red-200"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
+                {currentAd.creative?.videoAssetIds &&
+                  currentAd.creative.videoAssetIds.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-[10px] text-[#556179] mb-1">
+                        Selected ({currentAd.creative.videoAssetIds.length}):
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {currentAd.creative.videoAssetIds.map(
+                          (assetId, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-[#136D6D] text-white text-[10px] rounded"
+                            >
+                              {assetId}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const currentIds =
+                                    currentAd.creative?.videoAssetIds || [];
+                                  handleChange(
+                                    "creative.videoAssetIds",
+                                    currentIds.filter((id) => id !== assetId),
+                                  );
+                                }}
+                                className="hover:text-red-200"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ),
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
                 {errors.videoAssetIds && (
-                  <p className="text-[10px] text-red-500 mt-1">{errors.videoAssetIds}</p>
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.videoAssetIds}
+                  </p>
                 )}
               </div>
             </>
           ) : (
-            <>
-              {/* Product Video Ad Fields - Only Video Asset IDs */}
-              <div className="mb-4">
-                <label className="form-label-small">
-                  Video Asset IDs *
-                </label>
-                <div className="space-y-2">
-                  {/* Text input to manually add video asset IDs */}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="amzn1.assetlibrary.asset1..."
-                      className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          const input = e.currentTarget as HTMLInputElement;
-                          const value = input.value.trim();
-                          if (value) {
-                            const currentIds = currentAd.creative?.videoAssetIds || [];
-                            if (!currentIds.includes(value)) {
-                              handleChange("creative.videoAssetIds", [...currentIds, value]);
-                              input.value = '';
-                            }
-                          }
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
-                        const value = input.value.trim();
-                        if (value) {
-                          const currentIds = currentAd.creative?.videoAssetIds || [];
-                          if (!currentIds.includes(value)) {
-                            handleChange("creative.videoAssetIds", [...currentIds, value]);
-                            input.value = '';
-                          }
-                        }
-                      }}
-                      className="px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
-                    >
-                      Add
-                    </button>
-                  </div>
-                  
-                  {/* Dropdown to select from available video assets */}
-                  <div className="flex gap-2">
-                    <Dropdown<string>
-                      options={assets
-                        .filter((asset) => {
-                          if (!asset.assetId) return false;
-                          // Check both mediaType and contentType for video assets
-                          const isVideoByMediaType = asset.mediaType?.toLowerCase() === 'video';
-                          const isVideoByContentType = asset.contentType?.toLowerCase().startsWith('video/');
-                          return isVideoByMediaType || isVideoByContentType;
-                        })
-                        .map((asset) => ({
-                          value: asset.assetId || "",
-                          label: asset.fileName
-                            ? `${asset.fileName} (${asset.assetId})`
-                            : asset.assetId || `Asset ${asset.id}`,
-                        }))}
-                      value=""
-                      onChange={(value) => {
-                        if (value) {
-                          const currentIds = currentAd.creative?.videoAssetIds || [];
-                          if (!currentIds.includes(value)) {
-                            handleChange("creative.videoAssetIds", [...currentIds, value]);
-                          }
-                        }
-                      }}
-                      placeholder={assetsLoading ? "Loading..." : "Select Video Asset"}
-                      buttonClassName="edit-button w-full flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 min-w-[400px]"
-                      menuClassName="min-w-[400px]"
-                      optionClassName="truncate"
-                      renderOption={(option, isSelected) => (
-                        <div className="flex items-center justify-between w-full min-w-0">
-                          <span className="truncate flex-1">{option.label}</span>
-                          {isSelected && (
-                            <svg
-                              className="w-4 h-4 text-[#136D6D] flex-shrink-0 ml-2"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          )}
-                        </div>
-                      )}
-                      disabled={assetsLoading || assets.length === 0}
-                    />
-                  </div>
-                </div>
-                
-                {/* Display selected video asset IDs */}
-                {currentAd.creative?.videoAssetIds && currentAd.creative.videoAssetIds.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-[10px] text-[#556179] mb-1">Selected ({currentAd.creative.videoAssetIds.length}):</p>
-                    <div className="flex flex-wrap gap-2">
-                      {currentAd.creative.videoAssetIds.map((assetId, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-[#136D6D] text-white text-[10px] rounded"
-                        >
-                          {assetId}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const currentIds = currentAd.creative?.videoAssetIds || [];
-                              handleChange(
-                                "creative.videoAssetIds",
-                                currentIds.filter((id) => id !== assetId)
-                              );
-                            }}
-                            className="hover:text-red-200"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
+            <>{/* Product Video Ad Fields - Only Video Asset IDs */}</>
           )}
-
 
           {/* Consent to Translate - Show for both image and video */}
           <div className="mb-4">
@@ -1457,9 +1675,11 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               <label className="form-label-small">
                 Creative Properties to Optimize (Optional)
                 {currentAd.creative?.creativePropertiesToOptimize &&
-                  currentAd.creative.creativePropertiesToOptimize.length > 0 && (
+                  currentAd.creative.creativePropertiesToOptimize.length >
+                    0 && (
                     <span className="ml-2 text-[10px] text-[#556179] font-normal">
-                      ({currentAd.creative.creativePropertiesToOptimize.length} selected)
+                      ({currentAd.creative.creativePropertiesToOptimize.length}{" "}
+                      selected)
                     </span>
                   )}
               </label>
@@ -1473,25 +1693,26 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                       type="checkbox"
                       checked={
                         currentAd.creative?.creativePropertiesToOptimize?.includes(
-                          option.value
+                          option.value,
                         ) || false
                       }
                       onChange={(e) => {
                         const current =
-                          currentAd.creative?.creativePropertiesToOptimize || [];
+                          currentAd.creative?.creativePropertiesToOptimize ||
+                          [];
                         if (e.target.checked) {
                           // Add to array if not already present
                           if (!current.includes(option.value)) {
-                            handleChange("creative.creativePropertiesToOptimize", [
-                              ...current,
-                              option.value,
-                            ]);
+                            handleChange(
+                              "creative.creativePropertiesToOptimize",
+                              [...current, option.value],
+                            );
                           }
                         } else {
                           // Remove from array
                           handleChange(
                             "creative.creativePropertiesToOptimize",
-                            current.filter((v) => v !== option.value)
+                            current.filter((v) => v !== option.value),
                           );
                         }
                       }}
@@ -1507,7 +1728,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               {currentAd.creative?.creativePropertiesToOptimize &&
                 currentAd.creative.creativePropertiesToOptimize.length > 0 && (
                   <div className="mt-2">
-                    <p className="text-[10px] text-[#556179] mb-1">Selected properties:</p>
+                    <p className="text-[10px] text-[#556179] mb-1">
+                      Selected properties:
+                    </p>
                     <div className="flex flex-wrap gap-2">
                       {currentAd.creative.creativePropertiesToOptimize.map(
                         (property, idx) => (
@@ -1520,10 +1743,11 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                               type="button"
                               onClick={() => {
                                 const current =
-                                  currentAd.creative?.creativePropertiesToOptimize || [];
+                                  currentAd.creative
+                                    ?.creativePropertiesToOptimize || [];
                                 handleChange(
                                   "creative.creativePropertiesToOptimize",
-                                  current.filter((v) => v !== property)
+                                  current.filter((v) => v !== property),
                                 );
                               }}
                               className="hover:text-red-200 ml-1"
@@ -1532,198 +1756,114 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                               ×
                             </button>
                           </span>
-                        )
+                        ),
                       )}
                     </div>
                   </div>
                 )}
             </div>
           )}
+        </div>
 
-          {/* Custom Images - Only for IMAGE ads */}
-          {currentAd.adType === "IMAGE" && (
-            <div>
+        {/* Landing Page Section */}
+        <div className="mb-4 pt-4 border-t border-gray-200">
+          <h3 className="section-title mb-4">Landing Page</h3>
+
+          <div className="flex items-end gap-3 mb-4">
+            <div className="w-[180px]">
+              <label className="form-label-small">Page Type</label>
+              <Dropdown<string>
+                options={PAGE_TYPE_OPTIONS}
+                value={currentAd.landingPage?.pageType || "PRODUCT_LIST"}
+                onChange={(value) =>
+                  handleChange("landingPage.pageType", value)
+                }
+                placeholder="Select page type"
+                buttonClassName="edit-button w-full"
+              />
+            </div>
+            <div className="flex-1 min-w-[200px]">
               <label className="form-label-small">
-                Custom Images (Optional)
+                URL{" "}
+                {currentAd.adType === "VIDEO" &&
+                currentAd.videoAdType === "BRAND"
+                  ? "*"
+                  : ""}
               </label>
-              {(currentAd.creative?.customImages || []).map((image, index) => (
-              <div
-                key={index}
-                className="mb-4 p-3  border border-gray-200 rounded-lg"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11.2px] font-semibold text-[#072929]">
-                    Image {index + 1}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveCustomImage(index)}
-                    className="text-red-500 hover:text-red-700 transition-colors"
-                    title="Remove"
+              <input
+                type="text"
+                value={currentAd.landingPage?.url || ""}
+                onChange={(e) =>
+                  handleChange("landingPage.url", e.target.value)
+                }
+                placeholder="https://www.amazon.com/s?me=TEST"
+                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  currentAd.adType === "VIDEO" &&
+                  currentAd.videoAdType === "BRAND" &&
+                  errors.landingPageUrl
+                    ? "border-red-500"
+                    : "border-gray-200"
+                }`}
+              />
+              {currentAd.adType === "VIDEO" &&
+                currentAd.videoAdType === "BRAND" &&
+                errors.landingPageUrl && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.landingPageUrl}
+                  </p>
+                )}
+            </div>
+          </div>
+
+          <div>
+            <label className="form-label-small">ASINs (Optional)</label>
+            {(currentAd.landingPage?.asins || []).map((asin, index) => (
+              <div key={index} className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={asin}
+                  onChange={(e) =>
+                    handleArrayChange(
+                      "landingPage.asins",
+                      index,
+                      e.target.value,
+                    )
+                  }
+                  placeholder="B01EXAMPLE"
+                  className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleRemoveArrayItem("landingPage.asins", index)
+                  }
+                  className="px-3 py-2.5 text-red-500 hover:text-red-700 transition-colors"
+                  title="Remove"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
                   >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                  <div>
-                    <label className="block text-[10px] text-gray-600 mb-1">
-                      Asset ID
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={image.assetId || ""}
-                        onChange={(e) =>
-                          handleCustomImageChange(index, "assetId", e.target.value)
-                        }
-                        placeholder="amzn1.assetlibrary.asset1..."
-                        className="flex-1 min-w-[200px] w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
-                      />
-                      <Dropdown<string>
-                        options={assets
-                          .filter((asset) => {
-                            if (!asset.assetId) return false;
-                            // For custom images, show IMAGE type assets
-                            const isImageByAssetType = asset.assetType === 'IMAGE';
-                            const isImageByContentType = asset.contentType?.toLowerCase().startsWith('image/');
-                            const isImageByFileMetadata = asset.fileMetadata?.contentType?.toLowerCase().startsWith('image/');
-                            // Fallback to old schema for backward compatibility
-                            const isImageByMediaType = asset.mediaType?.toLowerCase() === 'image';
-                            return isImageByAssetType || isImageByContentType || isImageByFileMetadata || isImageByMediaType;
-                          })
-                          .map((asset) => ({
-                            value: asset.assetId || "",
-                            label: asset.name || asset.fileName
-                              ? `${asset.name || asset.fileName} (${asset.assetId})`
-                              : asset.assetId || `Asset ${asset.id}`,
-                          }))}
-                        value={image.assetId || ""}
-                        onChange={(value) => {
-                          handleCustomImageChange(index, "assetId", value || "");
-                        }}
-                        placeholder={assetsLoading ? "Loading..." : "Select Asset"}
-                        buttonClassName="edit-button px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 max-w-[300px] truncate"
-                        menuClassName="max-w-[300px]"
-                        optionClassName="truncate"
-                        renderOption={(option, isSelected) => (
-                          <div className="flex items-center justify-between w-full min-w-0">
-                            <span className="truncate flex-1 max-w-[300px]">{option.label}</span>
-                            {isSelected && (
-                              <svg
-                                className="w-4 h-4 text-[#136D6D] flex-shrink-0 ml-2"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            )}
-                          </div>
-                        )}
-                        disabled={assetsLoading || assets.length === 0}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-gray-600 mb-1">
-                      URL
-                    </label>
-                    <input
-                      type="text"
-                      value={image.url || ""}
-                      onChange={(e) =>
-                        handleCustomImageChange(index, "url", e.target.value)
-                      }
-                      placeholder="https://example.com/image.png"
-                      className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                     />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] text-gray-600 mb-1">
-                    Crop
-                  </label>
-                  <div className="grid grid-cols-4 gap-2">
-                    <div>
-                      <label className="block text-[9px] text-gray-500 mb-1">
-                        Top
-                      </label>
-                      <input
-                        type="number"
-                        value={image.crop?.top || 0}
-                        onChange={(e) =>
-                          handleCustomImageChange(index, "crop.top", parseInt(e.target.value) || 0)
-                        }
-                        className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] text-gray-500 mb-1">
-                        Left
-                      </label>
-                      <input
-                        type="number"
-                        value={image.crop?.left || 0}
-                        onChange={(e) =>
-                          handleCustomImageChange(index, "crop.left", parseInt(e.target.value) || 0)
-                        }
-                        className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] text-gray-500 mb-1">
-                        Width
-                      </label>
-                      <input
-                        type="number"
-                        value={image.crop?.width || 100}
-                        onChange={(e) =>
-                          handleCustomImageChange(index, "crop.width", parseInt(e.target.value) || 100)
-                        }
-                        className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] text-gray-500 mb-1">
-                        Height
-                      </label>
-                      <input
-                        type="number"
-                        value={image.crop?.height || 100}
-                        onChange={(e) =>
-                          handleCustomImageChange(index, "crop.height", parseInt(e.target.value) || 100)
-                        }
-                        className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
-                      />
-                    </div>
-                  </div>
-                </div>
+                  </svg>
+                </button>
               </div>
             ))}
             <button
               type="button"
-              onClick={handleAddCustomImage}
+              onClick={() => handleAddArrayItem("landingPage.asins")}
               className="text-[11.2px] text-[#136D6D] hover:text-[#0e5a5a]"
             >
-              + Add Custom Image
+              + Add ASIN
             </button>
           </div>
-          )}
         </div>
 
         {/* Add Ad Button and Test Button */}
@@ -1748,26 +1888,16 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       {/* Added Ads Table */}
       {addedAds.length > 0 && (
         <div className="p-4 border-b border-gray-200">
-          <h3 className="section-title">
-            Added Ads ({addedAds.length})
-          </h3>
+          <h3 className="section-title">Added Ads ({addedAds.length})</h3>
           <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
             <div className="overflow-x-auto w-full">
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b border-[#e8e8e3]">
-                    <th className="table-header">
-                      Ad Name
-                    </th>
-                    <th className="table-header">
-                      State
-                    </th>
-                    <th className="table-header">
-                      Ad Group
-                    </th>
-                    <th className="table-header">
-                      Action
-                    </th>
+                    <th className="table-header">Ad Name</th>
+                    <th className="table-header">State</th>
+                    <th className="table-header">Ad Group</th>
+                    <th className="table-header">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1835,11 +1965,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
       {/* Footer Actions */}
       <div className="p-4 flex items-center justify-end gap-3">
-        <button
-          type="button"
-          onClick={handleCancel}
-          className="cancel-button"
-        >
+        <button type="button" onClick={handleCancel} className="cancel-button">
           Cancel
         </button>
         <button
@@ -1854,4 +1980,3 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
     </div>
   );
 };
-
