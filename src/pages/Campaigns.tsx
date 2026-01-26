@@ -3148,7 +3148,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Budget Header */}
                           <th
-                            className="table-header"
+                            className="table-header w-[80px]"
                             onClick={() => handleSort("budget")}
                           >
                             <div className="flex items-center gap-1">
@@ -3500,7 +3500,7 @@ export const Campaigns: React.FC = () => {
                                   </td>
 
                                   {/* Daily Budget */}
-                                  <td className="table-cell">
+                                  <td className="table-cell w-[100px]">
                                     {(() => {
                                       const currentStatus = (
                                         campaign.status || "Enabled"

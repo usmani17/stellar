@@ -159,7 +159,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
 
                 {/* State Header */}
                 <th
-                  className={`table-header min-w-[250px] ${
+                  className={`table-header w-[130px] ${
                     onSort ? "cursor-pointer hover:bg-gray-50" : ""
                   }`}
                   onClick={() => onSort?.("status")}
@@ -171,27 +171,12 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                 </th>
 
                 {/* Bid Header */}
-                <th className="table-header min-w-[100px]">
+                <th className="table-header w-[100px]">
                   Bid
                 </th>
 
                 {/* Profile Name Header */}
                 <th className="table-header">Profile</th>
-
-                {/* Keyword Header */}
-                <th className="table-header">Keyword</th>
-
-                {/* Keyword Type Header */}
-                <th className="table-header">Keyword Type</th>
-
-                {/* Keyword Bid Header */}
-                <th className="table-header">Keyword Bid</th>
-
-                {/* Match Type Header */}
-                <th className="table-header">Match Type</th>
-
-                {/* Targeting Header */}
-                <th className="table-header">Targeting</th>
 
                 {/* CTR Header */}
                 <th
@@ -272,7 +257,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                     </td>
 
                     {/* State */}
-                    <td className="table-cell min-w-[250px]">
+                    <td className="table-cell w-[130px]">
                       {(() => {
                         if (inlineEditLoading.has(target.id)) {
                           return (
@@ -333,34 +318,36 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                           : statusValue;
                         
                         return (
-                          <Dropdown
-                            options={[
-                              { value: "enabled", label: "Enabled" },
-                              { value: "paused", label: "Paused" },
-                              ...(campaignType === "SD"
-                                ? [{ value: "archived", label: "Archived" }]
-                                : []),
-                            ]}
-                            value={currentValue}
-                            onChange={(val) => {
-                              const newValue = val as string;
-                              if (editingField?.id !== target.id ||
-                                  editingField?.field !== "status") {
-                                onEditStart?.(target.id, "status", statusValue);
-                              }
-                              onEditChange?.(newValue);
-                              onEditEnd?.(newValue);
-                            }}
-                            buttonClassName="inline-edit-dropdown"
-                            width="w-full"
-                            align="center"
-                          />
+                          <div className="w-[120px]">
+                            <Dropdown
+                              options={[
+                                { value: "enabled", label: "Enabled" },
+                                { value: "paused", label: "Paused" },
+                                ...(campaignType === "SD"
+                                  ? [{ value: "archived", label: "Archived" }]
+                                  : []),
+                              ]}
+                              value={currentValue}
+                              onChange={(val) => {
+                                const newValue = val as string;
+                                if (editingField?.id !== target.id ||
+                                    editingField?.field !== "status") {
+                                  onEditStart?.(target.id, "status", statusValue);
+                                }
+                                onEditChange?.(newValue);
+                                onEditEnd?.(newValue);
+                              }}
+                              buttonClassName="inline-edit-dropdown"
+                              width="w-full"
+                              align="center"
+                            />
+                          </div>
                         );
                       })()}
                     </td>
 
                     {/* Bid */}
-                    <td className="table-cell">
+                    <td className="table-cell w-[100px]">
                       {(() => {
                         if (inlineEditLoading.has(target.id)) {
                           return (
@@ -448,7 +435,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                               }}
                               onClick={(e) => e.stopPropagation()}
                               disabled={isArchived}
-                              className={`inline-edit-input w-20 ${
+                              className={`inline-edit-input w-16 ${
                                 isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
                               }`}
                             />
@@ -461,41 +448,6 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                     <td className="table-cell">
                       <span className="table-text leading-[1.26]">
                         {target.profile_name || "—"}
-                      </span>
-                    </td>
-
-                    {/* Keyword */}
-                    <td className="table-cell">
-                      <span className="table-text leading-[1.26]">
-                        {target.keyword || "—"}
-                      </span>
-                    </td>
-
-                    {/* Keyword Type */}
-                    <td className="table-cell">
-                      <span className="table-text leading-[1.26]">
-                        {target.keyword_type || "—"}
-                      </span>
-                    </td>
-
-                    {/* Keyword Bid */}
-                    <td className="table-cell">
-                      <span className="table-text leading-[1.26]">
-                        {target.keyword_bid || "$0.00"}
-                      </span>
-                    </td>
-
-                    {/* Match Type */}
-                    <td className="table-cell">
-                      <span className="table-text leading-[1.26]">
-                        {target.match_type || "—"}
-                      </span>
-                    </td>
-
-                    {/* Targeting */}
-                    <td className="table-cell">
-                      <span className="table-text leading-[1.26]">
-                        {target.targeting || "—"}
                       </span>
                     </td>
 

@@ -288,7 +288,7 @@ export const CreateNegativeTargetPanel: React.FC<
   if (!isOpen) return null;
 
   return (
-    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-4">
+    <div className="create-panel p-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-[16px] font-semibold text-[#072929]">
           Create Negative Targets
@@ -375,14 +375,14 @@ export const CreateNegativeTargetPanel: React.FC<
         {campaignType === "SD" && (
           <div>
             <label className="form-label-small">
-              Expression Type (Manual/Auto) *
+              Expression Type  *
             </label>
             <Dropdown
               options={EXPRESSION_TYPE_SD_OPTIONS}
               value={currentNegativeTarget.sdExpressionType || ""}
               onChange={(value) => handleChange("sdExpressionType", value)}
               placeholder="Select Type"
-              buttonClassName="w-full bg-[#FEFEFB]"
+              buttonClassName="w-full edit-button"
             />
             {errors.sdExpressionType && (
               <p className="mt-1 text-[11.2px] text-red-600">
@@ -442,13 +442,13 @@ export const CreateNegativeTargetPanel: React.FC<
         )}
 
         {/* Add Button */}
-        <div className="w-[160px]">
+        <div className="flex items-end">
           <button
             type="button"
             onClick={handleAddNegativeTarget}
-            className="create-entity-button w-full text-[11px] justify-center"
+            className="create-entity-button"
           >
-            Add Negative Target
+            Add
           </button>
         </div>
       </div>
@@ -553,7 +553,7 @@ export const CreateNegativeTargetPanel: React.FC<
           type="button"
           onClick={handleCancel}
           disabled={loading}
-          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="cancel-button"
         >
           Cancel
         </button>
@@ -561,9 +561,9 @@ export const CreateNegativeTargetPanel: React.FC<
           type="button"
           onClick={handleSubmit}
           disabled={loading || addedNegativeTargets.length === 0}
-          className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+          className="create-entity-button"
         >
-          {loading ? "Creating..." : "Add All Negative Targets"}
+          {loading ? "Creating..." : "Create Negative Targets"}
         </button>
       </div>
     </div>
