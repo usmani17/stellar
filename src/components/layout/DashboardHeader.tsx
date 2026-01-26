@@ -49,19 +49,19 @@ const AccountChannelsList: React.FC<{
 }> = ({ accountId, channels, navigate, onClose }) => {
   return (
     <div
-      className="w-64 bg-[#FEFEFB] border-t border-r border-b border-[#e8e8e3] rounded-r-[10px] shadow-lg z-50 -ml-px"
+      className="w-64 bg-[#FEFEFB] border-t border-r border-b border-[#e8e8e3] rounded-tr-[10px] rounded-br-[10px] shadow-lg z-50 -ml-px overflow-hidden"
       onMouseEnter={(e) => {
         e.stopPropagation();
       }}
     >
-      <ul>
+      <ul className="overflow-hidden">
         {channels.length === 0 ? (
           <li className="px-3 py-2 text-[12.32px] text-[#556179]">
             No channels
           </li>
         ) : (
-          channels.map((channel) => (
-            <li key={channel.id}>
+          channels.map((channel, index) => (
+            <li key={channel.id} className="overflow-hidden">
               <button
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={() => {
@@ -74,7 +74,9 @@ const AccountChannelsList: React.FC<{
                   );
                   onClose();
                 }}
-                className="w-full flex items-center gap-2 text-left px-3 py-2 text-[12.32px] hover:bg-gray-50"
+                className={`w-full flex items-center gap-2 text-left px-3 py-2 text-[12.32px] hover:bg-gray-50 transition-colors ${
+                  index === 0 ? "rounded-tr-[10px]" : ""
+                } ${index === channels.length - 1 ? "rounded-br-[10px]" : ""}`}
               >
                 {channel.channel_type === "amazon" && (
                   <img
