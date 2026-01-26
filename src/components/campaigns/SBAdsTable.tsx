@@ -208,6 +208,24 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                 <th className="table-header">
                   Serving Status
                 </th>
+                <th
+                  className="table-header"
+                  onClick={() => onSort?.("creationDateTime")}
+                >
+                  <div className="flex items-center">
+                    Creation Date
+                    {getSortIcon("creationDateTime")}
+                  </div>
+                </th>
+                <th
+                  className="table-header"
+                  onClick={() => onSort?.("lastUpdateDateTime")}
+                >
+                  <div className="flex items-center">
+                    Last Update Date
+                    {getSortIcon("lastUpdateDateTime")}
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -264,9 +282,8 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                 return (
                   <tr
                     key={ad.id}
-                    className={`table-row group ${
-                      isArchived ? "bg-gray-100 opacity-60" : ""
-                    }`}
+                    className={`table-row group ${isArchived ? "bg-gray-100 opacity-60" : ""
+                      }`}
                   >
                     {onSelect && (
                       <td className="table-cell">
@@ -303,7 +320,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                             type="text"
                             value={editedValue}
                             onChange={(e) => onEditChange?.(e.target.value)}
-                            className="inline-edit-input min-w-[150px] max-w-[200px]"
+                            className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
                             autoFocus
                             onBlur={() => onEditEnd?.()}
                             onKeyDown={(e) => {
@@ -315,11 +332,10 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                         </div>
                       ) : (
                         <div
-                          className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${
-                            isArchived
+                          className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${isArchived
                               ? "text-gray-400 cursor-not-allowed"
                               : "text-[#0b0f16] cursor-pointer hover:underline"
-                          }`}
+                            }`}
                           onClick={() => {
                             if (!isArchived) {
                               onEditStart?.(
@@ -396,7 +412,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                               // If a selection was made, statusSelectionMadeRef will be set
                               if (
                                 statusSelectionMadeRef.current !==
-                                  ad.id &&
+                                ad.id &&
                                 editingField?.id === ad.id
                               ) {
                                 onEditCancel?.();
@@ -411,18 +427,17 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                         </div>
                       ) : (
                         <div
-                          className={`text-[13.3px] leading-[1.26] ${
-                            isArchived
+                          className={`text-[13.3px] leading-[1.26] ${isArchived
                               ? "cursor-not-allowed opacity-60"
                               : "cursor-pointer hover:underline"
-                          }`}
+                            }`}
                           onClick={() => {
                             if (!isArchived) {
                               const statusLower =
                                 statusValue?.toLowerCase() || "enabled";
                               const statusValueNormalized =
                                 statusLower === "enable" ||
-                                statusLower === "enabled"
+                                  statusLower === "enabled"
                                   ? "enabled"
                                   : "paused";
                               onEditStart?.(
@@ -449,6 +464,12 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                     </td>
                     <td className="table-cell table-text leading-[1.26]">
                       {ad.servingStatus || "—"}
+                    </td>
+                    <td className="table-cell table-text leading-[1.26]">
+                      {formatDate(ad.creationDateTime)}
+                    </td>
+                    <td className="table-cell table-text leading-[1.26]">
+                      {formatDate(ad.lastUpdateDateTime)}
                     </td>
                   </tr>
                 );

@@ -1082,3 +1082,19 @@ body input[type="submit"]:disabled {
   background-color: #FEFEFB;
   padding: 1rem;
 }
+
+.add-button {
+  padding: 0.5rem 1rem;
+  background-color: #136D6D;
+  color: #ffffff;
+  border: 1px solid #136D6D;
+  border-radius: 0.5rem;
+  font-size: 11.2px;
+  white-space: nowrap;
+  transition: color 0.2s, background-color 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+
+.add-button:hover {
+  background-color: #0e5a5a;
+}
