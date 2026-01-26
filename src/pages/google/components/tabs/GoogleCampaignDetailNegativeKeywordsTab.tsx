@@ -638,7 +638,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                                 val as string
                               )
                             }
-                            defaultOpen={false}
+                            defaultOpen={true}
                             closeOnSelect={true}
                             onClose={() => {
                               setEditingNegativeKeywordId(null);
@@ -776,7 +776,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                                 val as string
                               )
                             }
-                            defaultOpen={false}
+                            defaultOpen={true}
                             closeOnSelect={true}
                             onClose={() => {
                               setEditingNegativeKeywordId(null);

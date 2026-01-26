@@ -403,7 +403,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                                 const newValue = val as string;
                                 handleStatusChange(productGroup.id, newValue);
                               }}
-                              defaultOpen={false}
+                              defaultOpen={true}
                               closeOnSelect={true}
                               buttonClassName="w-full text-[13.3px] px-2 py-1"
                               width="w-[100px]"

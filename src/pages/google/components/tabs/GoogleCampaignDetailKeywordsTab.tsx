@@ -587,7 +587,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                               onChange={(val) =>
                                 handleMatchTypeChange(keyword.id, val as string)
                               }
-                              defaultOpen={false}
+                              defaultOpen={true}
                               closeOnSelect={true}
                               showCheckmark={false}
                               buttonClassName="inline-edit-dropdown w-full text-[13.3px] min-w-0"
@@ -706,7 +706,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                               onChange={(val) =>
                                 handleStatusChange(keyword.id, val as string)
                               }
-                              defaultOpen={false}
+                              defaultOpen={true}
                               closeOnSelect={true}
                               showCheckmark={false}
                               buttonClassName="inline-edit-dropdown w-full text-[13.3px] min-w-0"

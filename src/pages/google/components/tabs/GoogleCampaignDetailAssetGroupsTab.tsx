@@ -433,7 +433,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                               onChange={(val) => {
                                 handleStatusChange(assetGroup.id, val as string);
                               }}
-                              defaultOpen={false}
+                              defaultOpen={true}
                               closeOnSelect={true}
                               buttonClassName="w-full text-[13.3px] px-2 py-1"
                               width="w-32"

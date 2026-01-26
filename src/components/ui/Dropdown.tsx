@@ -278,7 +278,7 @@ export const Dropdown = <T extends string | number = string>({
       <div
         ref={menuRef}
         className={cn(
-          "z-[999999] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden",
+          "z-[999999] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col",
           maxHeight,
           menuClassName
         )}
@@ -298,7 +298,7 @@ export const Dropdown = <T extends string | number = string>({
       >
         {/* Search Input */}
         {searchable && (
-          <div className="p-2 border-b border-gray-200">
+          <div className="p-2 border-b border-gray-200 flex-shrink-0">
             <input
               ref={searchInputRef}
               type="text"
@@ -318,7 +318,9 @@ export const Dropdown = <T extends string | number = string>({
         )}
 
         {/* Options List */}
-        <div className="overflow-y-auto" style={{ maxHeight: "inherit" }}>
+        <div 
+          className="overflow-y-auto overflow-x-hidden flex-1 min-h-0 dropdown-options-list"
+        >
           {filteredOptions.length === 0 ? (
             <div className="px-3 py-2 text-[10px] text-[#556179] text-center">
               {emptyMessage}
