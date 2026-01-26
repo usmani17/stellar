@@ -1,9 +1,11 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { GoogleAdsTable } from "./GoogleAdsTable";
 import { Loader } from "../../../components/ui/Loader";
+import { ConfirmationModal } from "../../../components/ui/ConfirmationModal";
 import type { IGoogleCampaignsTableProps, IGoogleCampaign } from "../../../types/google/campaign";
 import type { IColumnDefinition } from "../../../types/google";
+import { TrashIcon } from "lucide-react";
 
 
 export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
@@ -43,6 +45,13 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
   isPanelOpen = false,
 }) => {
   const navigate = useNavigate();
+  const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
+  const [pendingRemoveChange, setPendingRemoveChange] = useState<{
+    value: string;
+    campaignId: string | number;
+    field: string;
+  } | null>(null);
+
   // Map editingCell to shared component format
   const sharedEditingCell = editingCell ? {
     itemId: editingCell.campaignId,
@@ -151,8 +160,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
         { value: "PAUSED", label: "Paused" },
-        // REMOVED is read-only - cannot be set via update operation
-        // It only appears when filtering/displaying campaigns that have been deleted
+        { value: "REMOVED", label: "Removed" },
       ],
       getValue: (row: IGoogleCampaign) => row.status || "ENABLED",
     },
@@ -314,12 +322,12 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
   const columns: IColumnDefinition[] = useMemo(() => {
     // Create a map for quick column lookup
     const columnMap = new Map(allColumns.map((col) => [col.key, col]));
-    
+
     // If no visibility preference, show all columns
-    const visible = visibleColumns && visibleColumns.size > 0 
+    const visible = visibleColumns && visibleColumns.size > 0
       ? Array.from(visibleColumns)
       : allColumns.map((col) => col.key);
-    
+
     // If columnOrder is provided, use it to sort; otherwise use default order
     let orderedKeys: string[];
     if (columnOrder && columnOrder.length > 0) {
@@ -334,7 +342,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
         .map((col) => col.key)
         .filter((key) => visible.includes(key));
     }
-    
+
     // Return columns in the specified order
     return orderedKeys
       .map((key) => columnMap.get(key))
@@ -349,17 +357,24 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
     if (!fieldToUse) {
       return;
     }
-    
+
     // Use itemIdParam if provided, otherwise fall back to editingCell
     const campaignIdToUse = itemIdParam || editingCell?.campaignId;
-    
+
+    // Check if status is being changed to REMOVED - show confirmation modal
+    if (fieldToUse === "status" && value === "REMOVED") {
+      setPendingRemoveChange({ value: "REMOVED", campaignId: campaignIdToUse!, field: fieldToUse });
+      setShowRemoveConfirmation(true);
+      return;
+    }
+
     // For budget, date, status, and bidding_strategy_type, use direct confirmation
     // This calls confirmInlineEditDirect which makes the API call immediately
     if (onConfirmInlineEditDirect && (
-      fieldToUse === "budget" || 
-      fieldToUse === "start_date" || 
-      fieldToUse === "end_date" || 
-      fieldToUse === "status" || 
+      fieldToUse === "budget" ||
+      fieldToUse === "start_date" ||
+      fieldToUse === "end_date" ||
+      fieldToUse === "status" ||
       fieldToUse === "bidding_strategy_type"
     )) {
       onConfirmInlineEditDirect(value, campaignIdToUse, fieldToUse);
@@ -369,66 +384,100 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
     }
   };
 
+  // Handle confirmation for REMOVED status change
+  const handleConfirmRemove = () => {
+    if (pendingRemoveChange && onConfirmInlineEditDirect) {
+      onConfirmInlineEditDirect(
+        "REMOVED",
+        pendingRemoveChange.campaignId,
+        "status"
+      );
+      console.log("handleConfirmRemove called with:", { value: "REMOVED", campaignId: pendingRemoveChange.campaignId, field: "status" });
+    }
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+  };
+
+  // Handle cancel for REMOVED status change
+  const handleCancelRemove = () => {
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+    // Cancel the inline edit
+    if (onCancelInlineEdit) {
+      onCancelInlineEdit();
+    }
+  };
+
   // Handle confirm change - route to appropriate handler
   const handleConfirmChange = (_itemId: string | number, _field: string, _newValue: any) => {
-    // This handler is kept for compatibility but is not currently used
-    // All inline edits use handleConfirmInlineEdit which routes to direct confirmation
+    console.warn("handleConfirmChange is not implemented", _itemId, _field, _newValue);
   };
 
   // Handle cancel change
   const handleCancelChange = (_field: string) => {
-    // This handler is kept for compatibility but is not currently used
-    // All inline edits use onCancelInlineEdit for cancellation
+    console.warn("handleCancelChange is not implemented", _field);
   };
 
   return (
-    <GoogleAdsTable
-      data={campaigns}
-      loading={loading}
-      sorting={sorting}
-      accountId={accountId}
-      selectedItems={selectedCampaigns}
-      allSelected={allSelected}
-      someSelected={someSelected}
-      sortBy={sortBy}
-      sortOrder={sortOrder}
-      editingCell={sharedEditingCell}
-      editedValue={editedValue}
-      isCancelling={isCancelling}
-      updatingField={sharedUpdatingField}
-      pendingChanges={pendingChanges}
-      summary={summary}
-      columns={columns}
-      inlineEditSuccess={inlineEditSuccess ? {
-        itemId: inlineEditSuccess.campaignId,
-        field: inlineEditSuccess.field,
-      } : null}
-      inlineEditError={inlineEditError ? {
-        itemId: inlineEditError.campaignId,
-        field: inlineEditError.field,
-        message: inlineEditError.message,
-      } : null}
-      getId={(row: IGoogleCampaign) => row.campaign_id}
-      getItemName={(row: IGoogleCampaign) => row.campaign_name || "Unnamed Campaign"}
-      emptyMessage='No campaigns found. Click "Sync Campaigns from Google Ads" to fetch campaigns.'
-      loadingMessage="Loading campaigns..."
-      onSelectAll={onSelectAll}
-      onSelectItem={onSelectCampaign}
-      onSort={onSort}
-      onStartInlineEdit={(item: IGoogleCampaign, field: string) => {
-        return onStartInlineEdit(item, field as "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type");
-      }}
-      onCancelInlineEdit={onCancelInlineEdit}
-      onInlineEditChange={onInlineEditChange}
-      onConfirmInlineEdit={handleConfirmInlineEdit}
-      onConfirmChange={handleConfirmChange}
-      onCancelChange={handleCancelChange}
-      formatCurrency={formatCurrency}
-      formatPercentage={formatPercentage}
-      getStatusBadge={getStatusBadge}
-      getSortIcon={getSortIcon}
-      isPanelOpen={isPanelOpen}
-    />
+    <>
+      <GoogleAdsTable
+        data={campaigns}
+        loading={loading}
+        sorting={sorting}
+        accountId={accountId}
+        selectedItems={selectedCampaigns}
+        allSelected={allSelected}
+        someSelected={someSelected}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        editingCell={sharedEditingCell}
+        editedValue={editedValue}
+        isCancelling={isCancelling}
+        updatingField={sharedUpdatingField}
+        pendingChanges={pendingChanges}
+        summary={summary}
+        columns={columns}
+        inlineEditSuccess={inlineEditSuccess ? {
+          itemId: inlineEditSuccess.campaignId,
+          field: inlineEditSuccess.field,
+        } : null}
+        inlineEditError={inlineEditError ? {
+          itemId: inlineEditError.campaignId,
+          field: inlineEditError.field,
+          message: inlineEditError.message,
+        } : null}
+        getId={(row: IGoogleCampaign) => row.campaign_id}
+        getItemName={(row: IGoogleCampaign) => row.campaign_name || "Unnamed Campaign"}
+        emptyMessage='No campaigns found. Click "Sync Campaigns from Google Ads" to fetch campaigns.'
+        loadingMessage="Loading campaigns..."
+        onSelectAll={onSelectAll}
+        onSelectItem={onSelectCampaign}
+        onSort={onSort}
+        onStartInlineEdit={(item: IGoogleCampaign, field: string) => {
+          return onStartInlineEdit(item, field as "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type");
+        }}
+        onCancelInlineEdit={onCancelInlineEdit}
+        onInlineEditChange={onInlineEditChange}
+        onConfirmInlineEdit={handleConfirmInlineEdit}
+        onConfirmChange={handleConfirmChange}
+        onCancelChange={handleCancelChange}
+        formatCurrency={formatCurrency}
+        formatPercentage={formatPercentage}
+        getStatusBadge={getStatusBadge}
+        getSortIcon={getSortIcon}
+        isPanelOpen={isPanelOpen}
+      />
+      <ConfirmationModal
+        isOpen={showRemoveConfirmation}
+        onClose={handleCancelRemove}
+        onConfirm={handleConfirmRemove}
+        title="Are you sure you want to remove this campaign?"
+        message="This action cannot be undone. All data associated with this campaign will be permanently removed."
+        type="danger"
+        size="sm"
+        icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+      />
+    </>
   );
 };
 

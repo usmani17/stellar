@@ -2251,21 +2251,20 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       if (field === "status") {
-        // Map status values: Google API uses "ENABLED" | "PAUSED" (uppercase)
-        // REMOVED is read-only and cannot be set via update operation
+        // Map status values: Google API uses "ENABLED" | "PAUSED" | "REMOVED" (uppercase)
         // Handle both formatted display values (from modal) and raw values
-        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+        const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
           ENABLED: "ENABLED",
           PAUSED: "PAUSED",
+          REMOVED: "REMOVED",
           Enabled: "ENABLED",
           Paused: "PAUSED",
+          Removed: "REMOVED",
           enable: "ENABLED",
           pause: "PAUSED",
+          removed: "REMOVED",
         };
         const statusValue = statusMap[newValue] || "ENABLED";
-        
-        // REMOVED is not in statusMap, so it cannot be set via update operation
-        // If user somehow selects REMOVED, it will be caught by backend validation
 
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,

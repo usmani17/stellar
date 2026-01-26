@@ -5,7 +5,7 @@ export interface IGoogleCampaign {
     customer_id: string;
     campaign_name: string;
     account_name?: string;
-    status: string;
+    status: "ENABLED" | "PAUSED" | "REMOVED";
     advertising_channel_type: string;
     advertising_channel_sub_type?: string;
     bidding_strategy_type?: string;
