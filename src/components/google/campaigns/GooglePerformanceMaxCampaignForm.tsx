@@ -1,9 +1,11 @@
 // Performance Max Campaign Form Component
 // This component handles Performance Max campaign-specific fields
 
-import React from "react";
+import React, { useState } from "react";
 import type { BaseCampaignFormProps } from "./types";
 import { getMinHeadlines, getMaxHeadlines, getMinDescriptions, getMaxDescriptions, DEVICE_OPTIONS } from "./utils";
+import { AssetSelectorModal } from "../AssetSelectorModal";
+import type { Asset } from "../../../services/googleAdwords/googleAdwordsAssets";
 
 interface GooglePerformanceMaxCampaignFormProps extends BaseCampaignFormProps {
   // Headline and description handlers
@@ -23,6 +25,9 @@ interface GooglePerformanceMaxCampaignFormProps extends BaseCampaignFormProps {
   // Error setter for logo upload
   setErrors: (errors: any) => void;
   errors: any;
+  // Profile selection (from BaseGoogleCampaignForm)
+  selectedProfileId?: string;
+  googleProfiles?: Array<{ value: string; label: string; customer_id: string; customer_id_raw: string; profile_id?: number }>;
 }
 
 export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCampaignFormProps> = ({
@@ -42,11 +47,103 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
   squareMarketingImagePreview,
   setSquareMarketingImagePreview,
   setErrors,
+  selectedProfileId,
+  googleProfiles,
 }) => {
   const minHeadlines = getMinHeadlines("PERFORMANCE_MAX");
   const maxHeadlines = getMaxHeadlines();
   const minDescriptions = getMinDescriptions("PERFORMANCE_MAX");
   const maxDescriptions = getMaxDescriptions();
+
+  // Asset Selector Modal state
+  const [assetSelectorOpen, setAssetSelectorOpen] = useState(false);
+  const [assetSelectorType, setAssetSelectorType] = useState<"BUSINESS_NAME" | "LOGO" | "HEADLINE" | "DESCRIPTION" | "IMAGE" | null>(null);
+
+  // Get numeric profile ID from selected profile
+  const selectedProfile = googleProfiles?.find((p: any) => p.value === selectedProfileId);
+  const profileId = selectedProfile?.profile_id || null;
+
+  const handleSelectAsset = (asset: Asset) => {
+    if (!assetSelectorType || !profileId) return;
+
+    switch (assetSelectorType) {
+      case "BUSINESS_NAME":
+        if (asset.type === "TEXT" && "text" in asset) {
+          onChange("business_name", asset.text);
+        }
+        break;
+      case "LOGO":
+        if (asset.type === "IMAGE") {
+          // For logo, we need to use the asset resource name since we can't get the image URL directly
+          // The backend will handle linking the asset during campaign creation
+          onChange("logo_asset_resource_name", asset.resource_name);
+          // Also store asset ID for reference
+          onChange("logo_asset_id", asset.id);
+          // Note: Preview won't work without URL, but asset will be linked during creation
+        }
+        break;
+      case "HEADLINE":
+        if (asset.type === "TEXT" && "text" in asset && formData.headlines) {
+          // Add headline if not at max
+          if (formData.headlines.length < maxHeadlines) {
+            const newHeadlines = [...formData.headlines];
+            // Find first empty slot or add to end
+            const emptyIndex = newHeadlines.findIndex(h => !h.trim());
+            if (emptyIndex >= 0) {
+              newHeadlines[emptyIndex] = asset.text;
+            } else {
+              newHeadlines.push(asset.text);
+            }
+            onChange("headlines", newHeadlines);
+          } else {
+            // Replace last headline
+            const newHeadlines = [...formData.headlines];
+            newHeadlines[newHeadlines.length - 1] = asset.text;
+            onChange("headlines", newHeadlines);
+          }
+        }
+        break;
+      case "DESCRIPTION":
+        if (asset.type === "TEXT" && "text" in asset && formData.descriptions) {
+          // Add description if not at max
+          if (formData.descriptions.length < maxDescriptions) {
+            const newDescriptions = [...formData.descriptions];
+            const emptyIndex = newDescriptions.findIndex(d => !d.trim());
+            if (emptyIndex >= 0) {
+              newDescriptions[emptyIndex] = asset.text;
+            } else {
+              newDescriptions.push(asset.text);
+            }
+            onChange("descriptions", newDescriptions);
+          } else {
+            // Replace last description
+            const newDescriptions = [...formData.descriptions];
+            newDescriptions[newDescriptions.length - 1] = asset.text;
+            onChange("descriptions", newDescriptions);
+          }
+        }
+        break;
+      case "IMAGE":
+        if (asset.type === "IMAGE") {
+          // Store asset resource name for linking during campaign creation
+          onChange("marketing_image_asset_resource_name", asset.resource_name);
+          onChange("marketing_image_asset_id", asset.id);
+          // Note: Preview won't work without URL, but asset will be linked during creation
+        }
+        break;
+    }
+    setAssetSelectorOpen(false);
+    setAssetSelectorType(null);
+  };
+
+  const openAssetSelector = (type: "BUSINESS_NAME" | "LOGO" | "HEADLINE" | "DESCRIPTION" | "IMAGE") => {
+    if (!profileId) {
+      setErrors({ ...errors, general: "Please select a Google Ads account first" });
+      return;
+    }
+    setAssetSelectorType(type);
+    setAssetSelectorOpen(true);
+  };
 
   return (
     <>
@@ -57,13 +154,23 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
         </h3>
 
         <div className="bg-gray-50 rounded-lg border border-gray-200 p-5 space-y-5">
-
-      {/* Business Name and Logo - Campaign Settings */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="form-label">
-            Business Name *
-          </label>
+          {/* Business Name and Logo - Campaign Settings */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="form-label mb-0">
+              Business Name *
+            </label>
+            {profileId && (
+              <button
+                type="button"
+                onClick={() => openAssetSelector("BUSINESS_NAME")}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Select Existing
+              </button>
+            )}
+          </div>
           <input
             type="text"
             value={formData.business_name || ""}
@@ -81,9 +188,20 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
         </div>
 
         <div>
-          <label className="form-label">
-            Logo (URL or Upload) *
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="form-label mb-0">
+              Logo (URL or Upload) *
+            </label>
+            {profileId && (
+              <button
+                type="button"
+                onClick={() => openAssetSelector("LOGO")}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Select Existing
+              </button>
+            )}
+          </div>
           <div className="space-y-2">
             <input
               type="url"
@@ -261,11 +379,11 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
               Logo must be square (1:1 aspect ratio) and at least 128x128 pixels. Recommended: 128x128px or larger.
             </p>
           </div>
-        </div>
-      </div>
+            </div>
+          </div>
 
-      {/* Asset Group Name and Final URL */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Asset Group Name and Final URL */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="form-label">
             Asset Group Name *
@@ -303,17 +421,28 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
               {errors.final_url}
             </p>
           )}
+          </div>
         </div>
-      </div>
 
-      {/* Headlines */}
-      <div>
-        <label className="form-label">
-          Headlines * ({minHeadlines}-{maxHeadlines} required)
-          <span className="text-[10px] text-[#556179] font-normal ml-2">
-            ({formData.headlines?.filter((h) => h.trim()).length || 0}/{maxHeadlines})
-          </span>
-        </label>
+        {/* Headlines */}
+        <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="form-label mb-0">
+            Headlines * ({minHeadlines}-{maxHeadlines} required)
+            <span className="text-[10px] text-[#556179] font-normal ml-2">
+              ({formData.headlines?.filter((h) => h.trim()).length || 0}/{maxHeadlines})
+            </span>
+          </label>
+          {profileId && (
+            <button
+              type="button"
+              onClick={() => openAssetSelector("HEADLINE")}
+              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Select Existing
+            </button>
+          )}
+        </div>
         <div className="space-y-2" data-headlines-section>
           {formData.headlines?.map((headline, index) => (
             <div key={index} className="flex gap-2">
@@ -395,16 +524,27 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
             {errors.headlines}
           </p>
         )}
-      </div>
+        </div>
 
-      {/* Descriptions */}
-      <div>
-        <label className="form-label">
-          Descriptions * ({minDescriptions}-{maxDescriptions} required)
-          <span className="text-[10px] text-[#556179] font-normal ml-2">
-            ({formData.descriptions?.filter((d) => d.trim()).length || 0}/{maxDescriptions})
-          </span>
-        </label>
+        {/* Descriptions */}
+        <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="form-label mb-0">
+            Descriptions * ({minDescriptions}-{maxDescriptions} required)
+            <span className="text-[10px] text-[#556179] font-normal ml-2">
+              ({formData.descriptions?.filter((d) => d.trim()).length || 0}/{maxDescriptions})
+            </span>
+          </label>
+          {profileId && (
+            <button
+              type="button"
+              onClick={() => openAssetSelector("DESCRIPTION")}
+              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Select Existing
+            </button>
+          )}
+        </div>
         <div className="space-y-2" data-descriptions-section>
           {formData.descriptions?.map((description, index) => (
             <div key={index} className="flex gap-2">
@@ -486,11 +626,11 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
             {errors.descriptions}
           </p>
         )}
-      </div>
+        </div>
 
-      {/* Optional Performance Max Fields */}
-      {/* Long Headline - Full Width */}
-      <div>
+        {/* Optional Performance Max Fields */}
+        {/* Long Headline - Full Width */}
+        <div>
         <label className="form-label">
           Long Headline
         </label>
@@ -503,14 +643,25 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
           }`}
           placeholder="Optional long headline"
         />
-      </div>
+        </div>
 
-      {/* Marketing Image URLs - Side by Side */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Marketing Image URLs - Side by Side */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="form-label">
-            Marketing Image URL *
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="form-label mb-0">
+              Marketing Image URL *
+            </label>
+            {profileId && (
+              <button
+                type="button"
+                onClick={() => openAssetSelector("IMAGE")}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Select Existing
+              </button>
+            )}
+          </div>
           <input
             type="url"
             value={formData.marketing_image_url || ""}
@@ -603,10 +754,36 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
           <p className="text-[10px] text-[#556179] mt-1">
             Required. Backend will not generate defaults. Recommended size: 512x512px (square).
           </p>
+          </div>
+        </div>
         </div>
       </div>
-        </div>
-      </div>
+
+      {/* Asset Selector Modal */}
+      {profileId && (
+        <AssetSelectorModal
+          isOpen={assetSelectorOpen}
+          onClose={() => {
+            setAssetSelectorOpen(false);
+            setAssetSelectorType(null);
+          }}
+          onSelect={handleSelectAsset}
+          profileId={profileId}
+          assetType={
+            assetSelectorType === "IMAGE" ? "IMAGE" :
+            assetSelectorType === "BUSINESS_NAME" || assetSelectorType === "HEADLINE" || assetSelectorType === "DESCRIPTION" ? "TEXT" :
+            undefined
+          }
+          title={
+            assetSelectorType === "BUSINESS_NAME" ? "Select Business Name Asset" :
+            assetSelectorType === "LOGO" ? "Select Logo Asset" :
+            assetSelectorType === "HEADLINE" ? "Select Headline Asset" :
+            assetSelectorType === "DESCRIPTION" ? "Select Description Asset" :
+            assetSelectorType === "IMAGE" ? "Select Marketing Image Asset" :
+            "Select Asset"
+          }
+        />
+      )}
 
       {/* Device Targeting - Available for PERFORMANCE_MAX campaigns */}
       <div className="mt-6">

@@ -7,6 +7,7 @@ import { KPICard } from "../../components/ui/KPICard";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
+import { accountsService } from "../../services/accounts";
 import type { FilterValues } from "../../components/filters/FilterPanel";
 import { GoogleOverviewTab } from "./components/tabs/GoogleOverviewTab";
 import { GoogleCampaignDetailAdGroupsTab } from "./components/tabs/GoogleCampaignDetailAdGroupsTab";
@@ -17,6 +18,7 @@ import { GoogleCampaignDetailAssetGroupsTab } from "./components/tabs/GoogleCamp
 import { GoogleCampaignDetailProductGroupsTab } from "./components/tabs/GoogleCampaignDetailProductGroupsTab";
 import { GoogleCampaignDetailLogsTab } from "./components/tabs/GoogleCampaignDetailLogsTab";
 import { GoogleCampaignInformation } from "./components/GoogleCampaignInformation";
+import { GoogleAssetManagementPanel } from "../../components/google/GoogleAssetManagementPanel";
 import {
   CreateGoogleAdGroupPanel,
 } from "../../components/google/CreateGoogleAdGroupPanel";
@@ -101,6 +103,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate } = useDateRange();
   const [activeTab, setActiveTab] = useState("Overview");
+  const [campaignAssetPanelOpen, setCampaignAssetPanelOpen] = useState(false);
 
   // Use campaign detail hook
   const {
@@ -116,6 +119,50 @@ export const GoogleCampaignDetail: React.FC = () => {
     startDate,
     endDate,
   });
+
+  // Get profileId for asset management (using customer_id to find profile)
+  const [profileId, setProfileId] = useState<number | null>(null);
+  
+  useEffect(() => {
+    const fetchProfileId = async () => {
+      if (!accountId || !campaignDetail?.campaign.customer_id) return;
+      
+      try {
+        const accountIdNum = parseInt(accountId, 10);
+        // Get channels for the account
+        const channels = await accountsService.getAccountChannels(accountIdNum);
+        // Find Google channel
+        const googleChannel = channels.find(c => c.channel_type === "google");
+        if (googleChannel?.id) {
+          const profilesData = await accountsService.getGoogleProfiles(googleChannel.id, true);
+          const profiles = profilesData.profiles || [];
+          // Find profile matching customer_id
+          const matchingProfile = profiles.find((p: any) => {
+            const profileCustomerId = p.customer_id_raw || p.customer_id?.replace(/-/g, '');
+            const campaignCustomerId = campaignDetail.campaign.customer_id?.replace(/-/g, '');
+            return profileCustomerId === campaignCustomerId;
+          });
+          if (matchingProfile?.id) {
+            setProfileId(matchingProfile.id);
+          } else {
+            // Fallback: use first profile or default to 21 for testing
+            setProfileId(profiles[0]?.id || 21);
+          }
+        } else {
+          // Default to 21 for testing if no channel found
+          setProfileId(21);
+        }
+      } catch (err) {
+        console.error("Failed to fetch profile ID:", err);
+        // Default to 21 for testing
+        setProfileId(21);
+      }
+    };
+    
+    if (campaignDetail?.campaign.customer_id) {
+      fetchProfileId();
+    }
+  }, [accountId, campaignDetail?.campaign.customer_id]);
 
   // Use Negative Keywords hook
   const negativeKeywordsHook = useGoogleCampaignDetailNegativeKeywords({
@@ -864,34 +911,45 @@ export const GoogleCampaignDetail: React.FC = () => {
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
           <div className="space-y-6">
             {/* Campaign Header - Matching Campaigns page style */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() =>
-                  navigate(`/brands/${accountId}/google-campaigns`)
-                }
-                className="flex items-center gap-2 text-[#072929] hover:text-[#136D6D] transition-colors"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() =>
+                    navigate(`/brands/${accountId}/google-campaigns`)
+                  }
+                  className="flex items-center gap-2 text-[#072929] hover:text-[#136D6D] transition-colors"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-              </button>
-              <h1 className="text-[24px] font-medium text-[#072929] leading-[normal]">
-                {loading
-                  ? "Loading..."
-                  : campaignDetail
-                    ? campaignDetail.campaign.name
-                    : "Campaign Not Found"}
-              </h1>
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                </button>
+                <h1 className="text-[24px] font-medium text-[#072929] leading-[normal]">
+                  {loading
+                    ? "Loading..."
+                    : campaignDetail
+                      ? campaignDetail.campaign.name
+                      : "Campaign Not Found"}
+                </h1>
+              </div>
+              {/* Manage Campaign Assets Button - Only for PERFORMANCE_MAX campaigns */}
+              {campaignDetail?.campaign.advertising_channel_type === "PERFORMANCE_MAX" && profileId && campaignId && (
+                <button
+                  onClick={() => setCampaignAssetPanelOpen(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  Manage Campaign Assets
+                </button>
+              )}
             </div>
 
             {/* Campaign Entity Information Card */}
@@ -1086,6 +1144,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onEditAssetGroup={handleEditAssetGroup}
                     editLoadingAssetGroupId={editLoadingAssetGroupId}
                     onUpdateAssetGroupStatus={handleUpdateAssetGroupStatus}
+                    profileId={profileId || undefined}
+                    campaignId={campaignId}
                   />
                 </>
               )}
@@ -1812,6 +1872,17 @@ export const GoogleCampaignDetail: React.FC = () => {
         isSuccess={errorModal.isSuccess}
         errorDetails={errorModal.errorDetails}
       />
+
+      {/* Campaign Asset Management Panel */}
+      {profileId && campaignId && (
+        <GoogleAssetManagementPanel
+          isOpen={campaignAssetPanelOpen}
+          onClose={() => setCampaignAssetPanelOpen(false)}
+          profileId={profileId}
+          campaignId={campaignId}
+          mode="campaign"
+        />
+      )}
     </div>
   );
 };

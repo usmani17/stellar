@@ -5,6 +5,7 @@ import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Loader } from "../../../../components/ui/Loader";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
+import { GoogleAssetManagementPanel } from "../../../../components/google/GoogleAssetManagementPanel";
 
 interface GoogleAssetGroup {
   id: number;
@@ -46,6 +47,8 @@ interface GoogleCampaignDetailAssetGroupsTabProps {
   onEditAssetGroup?: (assetGroup: GoogleAssetGroup) => void;
   editLoadingAssetGroupId?: number | null;
   onUpdateAssetGroupStatus?: (assetGroupId: number, status: string) => Promise<void>;
+  profileId?: number; // Profile ID for asset management
+  campaignId?: string | number; // Campaign ID for asset management
 }
 
 export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAssetGroupsTabProps> = ({
@@ -75,6 +78,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
   onEditAssetGroup,
   editLoadingAssetGroupId,
   onUpdateAssetGroupStatus,
+  profileId,
+  campaignId,
 }) => {
   const [editingAssetGroupId, setEditingAssetGroupId] = useState<number | null>(null);
   const [editingField, setEditingField] = useState<"status" | null>(null);
@@ -86,6 +91,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
     oldValue: string;
     newValue: string;
   } | null>(null);
+  const [assetManagementPanelOpen, setAssetManagementPanelOpen] = useState(false);
+  const [selectedAssetGroupIdForManagement, setSelectedAssetGroupIdForManagement] = useState<string | null>(null);
 
   const handleStatusClick = (assetGroup: GoogleAssetGroup) => {
     if (onUpdateAssetGroupStatus) {
@@ -357,6 +364,11 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                   <th className="table-header hidden md:table-cell">
                     Conv. value
                   </th>
+                  {profileId && (
+                    <th className="table-header">
+                      Actions
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -503,6 +515,22 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                           {formatCurrency2Decimals(assetGroup.sales)}
                         </span>
                       </td>
+                      <td className="table-cell">
+                        {profileId && assetGroup.asset_group_id && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedAssetGroupIdForManagement(String(assetGroup.asset_group_id));
+                              setAssetManagementPanelOpen(true);
+                            }}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1"
+                            title="Manage Assets"
+                          >
+                            Manage Assets
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -511,6 +539,21 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
           )}
         </div>
       </div>
+
+      {/* Asset Management Panel */}
+      {profileId && selectedAssetGroupIdForManagement && (
+        <GoogleAssetManagementPanel
+          isOpen={assetManagementPanelOpen}
+          onClose={() => {
+            setAssetManagementPanelOpen(false);
+            setSelectedAssetGroupIdForManagement(null);
+          }}
+          profileId={profileId}
+          assetGroupId={selectedAssetGroupIdForManagement}
+          campaignId={campaignId ? String(campaignId) : undefined}
+          mode="asset-group"
+        />
+      )}
 
       {/* Pagination */}
       {!loading && assetGroups.length > 0 && totalPages > 1 && (

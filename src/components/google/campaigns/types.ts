@@ -44,7 +44,11 @@ export interface CreateGoogleCampaignData {
   descriptions?: string[];
   business_name?: string;
   logo_url?: string;
+  logo_asset_resource_name?: string; // For linking existing logo asset
+  logo_asset_id?: string; // Asset ID for reference
   marketing_image_url?: string;
+  marketing_image_asset_resource_name?: string; // For linking existing marketing image asset
+  marketing_image_asset_id?: string; // Asset ID for reference
   square_marketing_image_url?: string;
   long_headline?: string;
   // URL options
