@@ -29,10 +29,10 @@ export interface CreateCampaignData {
   brandEntityId?: string;
   goal?: "PAGE_VISIT" | "BRAND_IMPRESSION_SHARE";
   productLocation?:
-    | "SOLD_ON_AMAZON"
-    | "NOT_SOLD_ON_AMAZON"
-    | "SOLD_ON_DTC"
-    | "";
+  | "SOLD_ON_AMAZON"
+  | "NOT_SOLD_ON_AMAZON"
+  | "SOLD_ON_DTC"
+  | "";
   costType?: "cpc" | "vcpm" | "CPC" | "VCPM" | "FIXED_PRICE"; // SD: cpc/vcpm, SB: CPC/VCPM/FIXED_PRICE
   portfolioId?: string;
   targetedPGDealId?: string;
@@ -54,14 +54,14 @@ export interface CreateCampaignData {
     bidAdjustmentsByPlacement?: Array<{
       percentage: number;
       placement:
-        | "PLACEMENT_TOP"
-        | "PLACEMENT_REST_OF_SEARCH"
-        | "PLACEMENT_PRODUCT_PAGE"
-        | "SITE_AMAZON_BUSINESS"
-        | "TOP_OF_SEARCH"
-        | "DETAIL_PAGE"
-        | "OTHER"
-        | "HOME";
+      | "PLACEMENT_TOP"
+      | "PLACEMENT_REST_OF_SEARCH"
+      | "PLACEMENT_PRODUCT_PAGE"
+      | "SITE_AMAZON_BUSINESS"
+      | "TOP_OF_SEARCH"
+      | "DETAIL_PAGE"
+      | "OTHER"
+      | "HOME";
     }>;
   };
   // SD (Sponsored Display) specific fields
@@ -856,10 +856,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           newErrors.endDate = "End date must be greater than start date";
         }
       }
-      
+
       // SB campaigns with LIFETIME budget type require endDate
-      if (formData.type === "SB" && 
-          (formData.budgetType?.toUpperCase() === "LIFETIME" || formData.budgetType === "lifetime")) {
+      if (formData.type === "SB" &&
+        (formData.budgetType?.toUpperCase() === "LIFETIME" || formData.budgetType === "lifetime")) {
         if (!formData.endDate || !formData.endDate.trim()) {
           newErrors.endDate = "End date is required for campaigns with LIFETIME budget type";
         }
@@ -1432,9 +1432,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           handleChange("campaign_name", e.target.value)
                         }
                         placeholder="Enter campaign name"
-                        className={`campaign-input w-full ${
-                          errors.campaign_name ? "border-red-500" : ""
-                        }`}
+                        className={`campaign-input w-full ${errors.campaign_name ? "border-red-500" : ""
+                          }`}
                       />
                       {errors.campaign_name && (
                         <p className="text-[10px] text-red-500 mt-1">
@@ -1460,9 +1459,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         placeholder="Enter budget"
                         min="0"
                         step="0.01"
-                        className={`campaign-input w-full ${
-                          errors.budget ? "border-red-500" : ""
-                        }`}
+                        className={`campaign-input w-full ${errors.budget ? "border-red-500" : ""
+                          }`}
                       />
                       {errors.budget && (
                         <p className="text-[10px] text-red-500 mt-1 flex items-center gap-1">
@@ -1512,8 +1510,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           formData.status === "ENABLED"
                             ? "Enabled"
                             : String(formData.status).toLowerCase() === "paused"
-                            ? "Paused"
-                            : formData.status
+                              ? "Paused"
+                              : formData.status
                         }
                         onChange={(value) => {
                           handleChange(
@@ -1546,9 +1544,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           handleChange("campaign_name", e.target.value)
                         }
                         placeholder="Enter campaign name"
-                        className={`campaign-input w-full ${
-                          errors.campaign_name ? "border-red-500" : ""
-                        }`}
+                        className={`campaign-input w-full ${errors.campaign_name ? "border-red-500" : ""
+                          }`}
                       />
                       {errors.campaign_name && (
                         <p className="text-[10px] text-red-500 mt-1">
@@ -1574,9 +1571,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         placeholder="Enter budget"
                         min="0"
                         step="0.01"
-                        className={`campaign-input w-full ${
-                          errors.budget ? "border-red-500" : ""
-                        }`}
+                        className={`campaign-input w-full ${errors.budget ? "border-red-500" : ""
+                          }`}
                       />
                       {errors.budget && (
                         <p className="text-[10px] text-red-500 mt-1 flex items-center gap-1">
@@ -1615,8 +1611,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           formData.status === "enabled"
                             ? "Enabled"
                             : String(formData.status).toLowerCase() === "paused"
-                            ? "Paused"
-                            : formData.status
+                              ? "Paused"
+                              : formData.status
                         }
                         onChange={(value) => {
                           handleChange(
@@ -1649,9 +1645,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           handleChange("campaign_name", e.target.value)
                         }
                         placeholder="Enter campaign name"
-                        className={`campaign-input w-full ${
-                          errors.campaign_name ? "border-red-500" : ""
-                        }`}
+                        className={`campaign-input w-full ${errors.campaign_name ? "border-red-500" : ""
+                          }`}
                       />
                       {errors.campaign_name && (
                         <p className="text-[10px] text-red-500 mt-1">
@@ -1677,9 +1672,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         placeholder="Enter budget"
                         min="0"
                         step="0.01"
-                        className={`campaign-input w-full ${
-                          errors.budget ? "border-red-500" : ""
-                        }`}
+                        className={`campaign-input w-full ${errors.budget ? "border-red-500" : ""
+                          }`}
                       />
                       {errors.budget && (
                         <p className="text-[10px] text-red-500 mt-1 flex items-center gap-1">
@@ -1752,15 +1746,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           }
                           disabled={mode === "edit"}
                           min={new Date().toISOString().split("T")[0]} // Prevent selecting past dates
-                          className={`campaign-input w-full ${
-                            errors.startDate
-                              ? "border-red-500"
-                              : "border-gray-200"
-                          } ${
-                            mode === "edit"
+                          className={`campaign-input w-full ${errors.startDate
+                            ? "border-red-500"
+                            : "border-gray-200"
+                            } ${mode === "edit"
                               ? "bg-gray-50 cursor-not-allowed"
                               : ""
-                          }`}
+                            }`}
                         />
                       </div>
                       {mode === "edit" && (
@@ -1792,15 +1784,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             formData.startDate ||
                             new Date().toISOString().split("T")[0]
                           } // Must be after start date or today
-                          className={`campaign-input w-full ${
-                            errors.endDate
-                              ? "border-red-500"
-                              : "border-gray-200"
-                          } ${
-                            mode === "edit"
+                          className={`campaign-input w-full ${errors.endDate
+                            ? "border-red-500"
+                            : "border-gray-200"
+                            } ${mode === "edit"
                               ? "bg-gray-50 cursor-not-allowed"
                               : ""
-                          }`}
+                            }`}
                         />
                         {/* Clear button to remove end date */}
                         {formData.endDate && mode !== "edit" && (
@@ -1848,11 +1838,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onChange={(e) =>
                             handleChange("startDate", e.target.value)
                           }
-                          className={`campaign-input w-full ${
-                            errors.startDate
-                              ? "border-red-500"
-                              : "border-gray-200"
-                          }`}
+                          className={`campaign-input w-full ${errors.startDate
+                            ? "border-red-500"
+                            : "border-gray-200"
+                            }`}
                         />
                       </div>
                       {errors.startDate && (
@@ -1879,11 +1868,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                               formData.startDate ||
                               new Date().toISOString().split("T")[0]
                             } // Must be after start date or today
-                            className={`campaign-input w-full ${
-                              errors.endDate
-                                ? "border-red-500"
-                                : "border-gray-200"
-                            }`}
+                            className={`campaign-input w-full ${errors.endDate
+                              ? "border-red-500"
+                              : "border-gray-200"
+                              }`}
                           />
                         </div>
                         {errors.endDate ? (
@@ -1916,15 +1904,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             handleChange("startDate", e.target.value)
                           }
                           disabled={mode === "edit"}
-                          className={`campaign-input w-full ${
-                            errors.startDate
-                              ? "border-red-500"
-                              : "border-gray-200"
-                          } ${
-                            mode === "edit"
+                          className={`campaign-input w-full ${errors.startDate
+                            ? "border-red-500"
+                            : "border-gray-200"
+                            } ${mode === "edit"
                               ? "bg-gray-50 cursor-not-allowed"
                               : ""
-                          }`}
+                            }`}
                         />
                       </div>
                       {mode === "edit" && (
@@ -1956,15 +1942,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             new Date().toISOString().split("T")[0]
                           } // Must be after start date or today
                           disabled={mode === "edit"}
-                          className={`campaign-input w-full ${
-                            errors.endDate
-                              ? "border-red-500"
-                              : "border-gray-200"
-                          } ${
-                            mode === "edit"
+                          className={`campaign-input w-full ${errors.endDate
+                            ? "border-red-500"
+                            : "border-gray-200"
+                            } ${mode === "edit"
                               ? "bg-gray-50 cursor-not-allowed"
                               : ""
-                          }`}
+                            }`}
                         />
                       </div>
                       {mode === "edit" && (
@@ -1995,9 +1979,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         Advanced Settings <span className="text-[#556179] font-normal">(Optional)</span>
                       </h3>
                       <svg
-                        className={`w-5 h-5 text-[#072929] transition-transform ${
-                          isAdvancedSettingsExpanded ? "rotate-180" : ""
-                        }`}
+                        className={`w-5 h-5 text-[#072929] transition-transform ${isAdvancedSettingsExpanded ? "rotate-180" : ""
+                          }`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -2013,554 +1996,129 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {isAdvancedSettingsExpanded && (
                       <div className="space-y-6">
-                              {/* Dynamic Bidding Section */}
-                              <div>
-                                <div className="flex items-center justify-between mb-4">
-                                  <h4 className="text-[13px] font-semibold text-[#072929]">
-                                    Dynamic Bidding
-                                  </h4>
-                                </div>
-
-                    {/* Placement Bid Adjustments - Always visible and enabled */}
-                    <div className="mb-6 border border-[#e8e8e3] rounded-lg overflow-hidden">
-                      {/* Tabs */}
-                      <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
-                        <button
-                          type="button"
-                          onClick={() => setActiveBiddingTab("strategy")}
-                          className={`px-4 py-2 text-[14px] transition-colors ${
-                            activeBiddingTab === "strategy"
-                              ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                              : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
-                          }`}
-                        >
-                          Strategy
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveBiddingTab("placements")}
-                          className={`px-4 py-2 text-[14px] transition-colors ${
-                            activeBiddingTab === "placements"
-                              ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                              : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
-                          }`}
-                        >
-                          Placements
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveBiddingTab("audiences")}
-                          className={`px-4 py-2 text-[14px] transition-colors ${
-                            activeBiddingTab === "audiences"
-                              ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                              : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
-                          }`}
-                        >
-                          Audiences
-                        </button>
-                      </div>
-
-                      {/* Strategy Tab Content */}
-                      {activeBiddingTab === "strategy" && (
-                        <div className="bg-[#FEFEFB] p-4 space-y-4">
-                          <div className="grid grid-cols-4 gap-6">
-                            <div>
-                              <label className="form-label">
-                                Strategy
-                              </label>
-                              <Dropdown<string>
-                                options={[
-                                  {
-                                    value: "LEGACY_FOR_SALES",
-                                    label: "LEGACY_FOR_SALES",
-                                  },
-                                  {
-                                    value: "AUTO_FOR_SALES",
-                                    label: "AUTO_FOR_SALES",
-                                  },
-                                  { value: "MANUAL", label: "MANUAL" },
-                                ]}
-                                value={formData.bidding?.strategy || undefined}
-                                onChange={(value) => {
-                                  setFormData((prev) => {
-                                    const updated = { ...prev };
-                                    if (!updated.bidding) {
-                                      updated.bidding = {
-                                        strategy: value as
-                                          | "LEGACY_FOR_SALES"
-                                          | "AUTO_FOR_SALES"
-                                          | "MANUAL",
-                                        bidOptimization: true,
-                                        shopperCohortBidAdjustments: [],
-                                        bidAdjustmentsByPlacement: [],
-                                      };
-                                    } else {
-                                      updated.bidding = {
-                                        ...updated.bidding,
-                                        strategy: value as
-                                          | "LEGACY_FOR_SALES"
-                                          | "AUTO_FOR_SALES"
-                                          | "MANUAL",
-                                      };
-                                    }
-                                    return updated;
-                                  });
-                                }}
-                                placeholder="Select strategy"
-                                buttonClassName="edit-button w-full"
-                              />
-                              {mode === "create" &&
-                                formData.bidding &&
-                                !formData.bidding.strategy &&
-                                ((formData.bidding.bidAdjustmentsByPlacement
-                                  ?.length ?? 0) > 0 ||
-                                  (formData.bidding.shopperCohortBidAdjustments
-                                    ?.length ?? 0) > 0) && (
-                                  <p className="text-[10px] text-[#556179] mt-1">
-                                    Strategy is required when Dynamic Bidding is
-                                    provided
-                                  </p>
-                                )}
-                            </div>
+                        {/* Dynamic Bidding Section */}
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-[13px] font-semibold text-[#072929]">
+                              Dynamic Bidding
+                            </h4>
                           </div>
-                        </div>
-                      )}
 
-                      {/* Placements Tab Content */}
-                      {activeBiddingTab === "placements" && (
-                        <>
-                          {/* Placement Inputs */}
-                          <div className="bg-[#FEFEFB] p-4 space-y-4">
-                            {/* Instructions */}
-                            <div className="flex items-center gap-2">
-                              <p className="text-[13px] text-[#072929]">
-                                Increase your bid for specific Amazon
-                                placements.
-                              </p>
-                              <svg
-                                className="w-4 h-4 text-[#556179] cursor-help"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
+                          {/* Placement Bid Adjustments - Always visible and enabled */}
+                          <div className="mb-6 border border-[#e8e8e3] rounded-lg overflow-hidden">
+                            {/* Tabs */}
+                            <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
+                              <button
+                                type="button"
+                                onClick={() => setActiveBiddingTab("strategy")}
+                                className={`px-4 py-2 text-[14px] transition-colors ${activeBiddingTab === "strategy"
+                                  ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                                  : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                                  }`}
                               >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                              </svg>
+                                Strategy
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setActiveBiddingTab("placements")}
+                                className={`px-4 py-2 text-[14px] transition-colors ${activeBiddingTab === "placements"
+                                  ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                                  : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                                  }`}
+                              >
+                                Placements
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setActiveBiddingTab("audiences")}
+                                className={`px-4 py-2 text-[14px] transition-colors ${activeBiddingTab === "audiences"
+                                  ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                                  : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                                  }`}
+                              >
+                                Audiences
+                              </button>
                             </div>
 
-                            {/* Bid Optimization Field - Only for SP campaigns */}
-                            {formData.type === "SP" && (
-                              <div>
-                                <label className="form-label-small">
-                                  Bid Optimization
-                                </label>
-                                <div className="flex items-center gap-3">
-                                  <Checkbox
-                                    checked={
-                                      formData.bidding?.bidOptimization ?? true
-                                    }
-                                    onChange={(checked) => {
-                                      const newBidOptimization = checked;
-                                      setFormData((prev) => {
-                                        const updated = { ...prev };
-                                        if (!updated.bidding) {
-                                          updated.bidding = {
-                                            bidOptimization: newBidOptimization,
-                                            shopperCohortBidAdjustments: [],
-                                            bidAdjustmentsByPlacement: [],
-                                          };
-                                        } else {
-                                          updated.bidding = {
-                                            ...updated.bidding,
-                                            bidOptimization: newBidOptimization,
-                                            // Keep bidAdjustmentsByPlacement regardless of bidOptimization
-                                            bidAdjustmentsByPlacement:
-                                              updated.bidding
-                                                .bidAdjustmentsByPlacement ||
-                                              [],
-                                          };
-                                        }
-                                        return updated;
-                                      });
-                                    }}
-                                    label="Automatic placement optimization"
-                                    className="[&_label]:text-[13.3px] [&_label]:font-medium [&_label]:text-[#072929]"
-                                  />
-                                </div>
-                                <p className="text-[12px] text-[#556179] mt-1">
-                                  When enabled, placement adjustments are
-                                  ignored
-                                </p>
-                              </div>
-                            )}
-                            {/* Placement Fields - 2 per row */}
-                            <div className="grid grid-cols-2 gap-4">
-                              {/* Top of search (PLACEMENT_TOP) */}
-                              <div>
-                                <label className="block text-[13px] font-medium text-[#072929] mb-2">
-                                  Top of search (PLACEMENT_TOP)
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <div className="relative flex-1">
-                                    <input
-                                      type="number"
-                                      value={
-                                        formData.bidding?.bidAdjustmentsByPlacement?.find(
-                                          (adj) =>
-                                            adj.placement === "PLACEMENT_TOP"
-                                        )?.percentage || 0
-                                      }
-                                      onChange={(e) => {
-                                        const value =
-                                          parseFloat(e.target.value) || 0;
-                                        if (value >= -99 && value <= 900) {
-                                          setFormData((prev) => {
-                                            const updated = { ...prev };
-                                            if (!updated.bidding) {
-                                              updated.bidding = {
-                                                bidOptimization: true,
-                                                shopperCohortBidAdjustments: [],
-                                                bidAdjustmentsByPlacement: [],
-                                              };
-                                            }
-                                            const adjustments = [
-                                              ...(updated.bidding
-                                                .bidAdjustmentsByPlacement ||
-                                                []),
-                                            ];
-                                            const existingIndex =
-                                              adjustments.findIndex(
-                                                (adj) =>
-                                                  adj.placement ===
-                                                  "PLACEMENT_TOP"
-                                              );
-                                            if (existingIndex >= 0) {
-                                              adjustments[
-                                                existingIndex
-                                              ].percentage = value;
-                                            } else {
-                                              adjustments.push({
-                                                percentage: value,
-                                                placement: "PLACEMENT_TOP",
-                                              });
-                                            }
-                                            updated.bidding.bidAdjustmentsByPlacement =
-                                              adjustments;
-                                            return updated;
-                                          });
-                                        }
-                                      }}
-                                      min="-99"
-                                      max="900"
-                                      step="1"
-                                      className="campaign-input w-full"
-                                    />
-                                  </div>
-                                  <span className="text-[13px] text-[#072929]">
-                                    %
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Rest of search (PLACEMENT_REST_OF_SEARCH) */}
-                              <div>
-                                <label className="block text-[13px] font-medium text-[#072929] mb-2">
-                                  Rest of search (PLACEMENT_REST_OF_SEARCH)
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <div className="relative flex-1">
-                                    <input
-                                      type="number"
-                                      value={
-                                        formData.bidding?.bidAdjustmentsByPlacement?.find(
-                                          (adj) =>
-                                            adj.placement ===
-                                            "PLACEMENT_REST_OF_SEARCH"
-                                        )?.percentage || 0
-                                      }
-                                      onChange={(e) => {
-                                        const value =
-                                          parseFloat(e.target.value) || 0;
-                                        if (value >= -99 && value <= 900) {
-                                          setFormData((prev) => {
-                                            const updated = { ...prev };
-                                            if (!updated.bidding) {
-                                              updated.bidding = {
-                                                bidOptimization: true,
-                                                shopperCohortBidAdjustments: [],
-                                                bidAdjustmentsByPlacement: [],
-                                              };
-                                            }
-                                            const adjustments = [
-                                              ...(updated.bidding
-                                                .bidAdjustmentsByPlacement ||
-                                                []),
-                                            ];
-                                            const existingIndex =
-                                              adjustments.findIndex(
-                                                (adj) =>
-                                                  adj.placement ===
-                                                  "PLACEMENT_REST_OF_SEARCH"
-                                              );
-                                            if (existingIndex >= 0) {
-                                              adjustments[
-                                                existingIndex
-                                              ].percentage = value;
-                                            } else {
-                                              adjustments.push({
-                                                percentage: value,
-                                                placement:
-                                                  "PLACEMENT_REST_OF_SEARCH",
-                                              });
-                                            }
-                                            updated.bidding.bidAdjustmentsByPlacement =
-                                              adjustments;
-                                            return updated;
-                                          });
-                                        }
-                                      }}
-                                      min="-99"
-                                      max="900"
-                                      step="1"
-                                      className="campaign-input w-full"
-                                    />
-                                  </div>
-                                  <span className="text-[13px] text-[#072929]">
-                                    %
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Product page (PLACEMENT_PRODUCT_PAGE) */}
-                              <div>
-                                <label className="block text-[13px] font-medium text-[#072929] mb-2">
-                                  Product page (PLACEMENT_PRODUCT_PAGE)
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <div className="relative flex-1">
-                                    <input
-                                      type="number"
-                                      value={
-                                        formData.bidding?.bidAdjustmentsByPlacement?.find(
-                                          (adj) =>
-                                            adj.placement ===
-                                            "PLACEMENT_PRODUCT_PAGE"
-                                        )?.percentage || 0
-                                      }
-                                      onChange={(e) => {
-                                        const value =
-                                          parseFloat(e.target.value) || 0;
-                                        if (value >= -99 && value <= 900) {
-                                          setFormData((prev) => {
-                                            const updated = { ...prev };
-                                            if (!updated.bidding) {
-                                              updated.bidding = {
-                                                bidOptimization: true,
-                                                shopperCohortBidAdjustments: [],
-                                                bidAdjustmentsByPlacement: [],
-                                              };
-                                            }
-                                            const adjustments = [
-                                              ...(updated.bidding
-                                                .bidAdjustmentsByPlacement ||
-                                                []),
-                                            ];
-                                            const existingIndex =
-                                              adjustments.findIndex(
-                                                (adj) =>
-                                                  adj.placement ===
-                                                  "PLACEMENT_PRODUCT_PAGE"
-                                              );
-                                            if (existingIndex >= 0) {
-                                              adjustments[
-                                                existingIndex
-                                              ].percentage = value;
-                                            } else {
-                                              adjustments.push({
-                                                percentage: value,
-                                                placement:
-                                                  "PLACEMENT_PRODUCT_PAGE",
-                                              });
-                                            }
-                                            updated.bidding.bidAdjustmentsByPlacement =
-                                              adjustments;
-                                            return updated;
-                                          });
-                                        }
-                                      }}
-                                      min="-99"
-                                      max="900"
-                                      step="1"
-                                      className="campaign-input w-full"
-                                    />
-                                  </div>
-                                  <span className="text-[13px] text-[#072929]">
-                                    %
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Amazon Business (SITE_AMAZON_BUSINESS) */}
-                              <div>
-                                <label className="block text-[13px] font-medium text-[#072929] mb-2">
-                                  Amazon Business (SITE_AMAZON_BUSINESS)
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <div className="relative flex-1">
-                                    <input
-                                      type="number"
-                                      value={
-                                        formData.bidding?.bidAdjustmentsByPlacement?.find(
-                                          (adj) =>
-                                            adj.placement ===
-                                            "SITE_AMAZON_BUSINESS"
-                                        )?.percentage || 0
-                                      }
-                                      onChange={(e) => {
-                                        const value =
-                                          parseFloat(e.target.value) || 0;
-                                        if (value >= -99 && value <= 900) {
-                                          setFormData((prev) => {
-                                            const updated = { ...prev };
-                                            if (!updated.bidding) {
-                                              updated.bidding = {
-                                                bidOptimization: true,
-                                                shopperCohortBidAdjustments: [],
-                                                bidAdjustmentsByPlacement: [],
-                                              };
-                                            }
-                                            const adjustments = [
-                                              ...(updated.bidding
-                                                .bidAdjustmentsByPlacement ||
-                                                []),
-                                            ];
-                                            const existingIndex =
-                                              adjustments.findIndex(
-                                                (adj) =>
-                                                  adj.placement ===
-                                                  "SITE_AMAZON_BUSINESS"
-                                              );
-                                            if (existingIndex >= 0) {
-                                              adjustments[
-                                                existingIndex
-                                              ].percentage = value;
-                                            } else {
-                                              adjustments.push({
-                                                percentage: value,
-                                                placement:
-                                                  "SITE_AMAZON_BUSINESS",
-                                              });
-                                            }
-                                            updated.bidding.bidAdjustmentsByPlacement =
-                                              adjustments;
-                                            return updated;
-                                          });
-                                        }
-                                      }}
-                                      min="-99"
-                                      max="900"
-                                      step="1"
-                                      className="campaign-input w-full"
-                                    />
-                                  </div>
-                                  <span className="text-[13px] text-[#072929]">
-                                    %
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </>
-                      )}
-
-                      {/* Audiences Tab Content */}
-                      {activeBiddingTab === "audiences" && (
-                        <div className="bg-[#FEFEFB] p-4 space-y-4">
-                          {/* Radio Buttons */}
-                          <div className="space-y-3">
-                            <label
-                              className={`flex items-center gap-3 ${
-                                mode === "edit"
-                                  ? "cursor-not-allowed opacity-60"
-                                  : "cursor-pointer"
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name="audienceBidOption"
-                                checked={increaseBidsForAudiences}
-                                onChange={() =>
-                                  setIncreaseBidsForAudiences(true)
-                                }
-                                className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
-                              />
-                              <span className="text-[13px] font-medium text-[#072929]">
-                                Increase bids for audiences built by Amazon
-                              </span>
-                            </label>
-                            <label
-                              className={`flex items-center gap-3 ${
-                                mode === "edit"
-                                  ? "cursor-not-allowed opacity-60"
-                                  : "cursor-pointer"
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name="audienceBidOption"
-                                checked={!increaseBidsForAudiences}
-                                onChange={() =>
-                                  setIncreaseBidsForAudiences(false)
-                                }
-                                className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
-                              />
-                              <span className="text-[13px] font-medium text-[#072929]">
-                                Don't increase bids for an audience
-                              </span>
-                            </label>
-                          </div>
-
-                          {/* Audience Selection and Percentage - Only show when "Increase bids" is selected */}
-                          {increaseBidsForAudiences && (
-                            <div className="space-y-4">
-                              <div className="flex gap-4 items-end">
-                                {/* Audience Dropdown */}
-                                <div className="flex-1">
-                                  <label className="form-label">
-                                    Audience
-                                  </label>
-                                  <div className="relative">
+                            {/* Strategy Tab Content */}
+                            {activeBiddingTab === "strategy" && (
+                              <div className="bg-[#FEFEFB] p-4 space-y-4">
+                                <div className="grid grid-cols-4 gap-6">
+                                  <div>
+                                    <label className="form-label">
+                                      Strategy
+                                    </label>
                                     <Dropdown<string>
                                       options={[
                                         {
-                                          value: "40836",
-                                          label:
-                                            "Clicked or Added brand's product to cart - 40836...",
+                                          value: "LEGACY_FOR_SALES",
+                                          label: "LEGACY_FOR_SALES",
                                         },
                                         {
-                                          value: "40837",
-                                          label:
-                                            "Viewed brand's product detail page - 40837...",
+                                          value: "AUTO_FOR_SALES",
+                                          label: "AUTO_FOR_SALES",
                                         },
-                                        {
-                                          value: "40838",
-                                          label:
-                                            "Purchased brand's product - 40838...",
-                                        },
+                                        { value: "MANUAL", label: "MANUAL" },
                                       ]}
-                                      value={selectedAudience}
-                                      onChange={(value) =>
-                                        setSelectedAudience(value)
-                                      }
-                                      placeholder="Select audience"
+                                      value={formData.bidding?.strategy || undefined}
+                                      onChange={(value) => {
+                                        setFormData((prev) => {
+                                          const updated = { ...prev };
+                                          if (!updated.bidding) {
+                                            updated.bidding = {
+                                              strategy: value as
+                                                | "LEGACY_FOR_SALES"
+                                                | "AUTO_FOR_SALES"
+                                                | "MANUAL",
+                                              bidOptimization: true,
+                                              shopperCohortBidAdjustments: [],
+                                              bidAdjustmentsByPlacement: [],
+                                            };
+                                          } else {
+                                            updated.bidding = {
+                                              ...updated.bidding,
+                                              strategy: value as
+                                                | "LEGACY_FOR_SALES"
+                                                | "AUTO_FOR_SALES"
+                                                | "MANUAL",
+                                            };
+                                          }
+                                          return updated;
+                                        });
+                                      }}
+                                      placeholder="Select strategy"
                                       buttonClassName="edit-button w-full"
                                     />
+                                    {mode === "create" &&
+                                      formData.bidding &&
+                                      !formData.bidding.strategy &&
+                                      ((formData.bidding.bidAdjustmentsByPlacement
+                                        ?.length ?? 0) > 0 ||
+                                        (formData.bidding.shopperCohortBidAdjustments
+                                          ?.length ?? 0) > 0) && (
+                                        <p className="text-[10px] text-[#556179] mt-1">
+                                          Strategy is required when Dynamic Bidding is
+                                          provided
+                                        </p>
+                                      )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Placements Tab Content */}
+                            {activeBiddingTab === "placements" && (
+                              <>
+                                {/* Placement Inputs */}
+                                <div className="bg-[#FEFEFB] p-4 space-y-4">
+                                  {/* Instructions */}
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-[13px] text-[#072929]">
+                                      Increase your bid for specific Amazon
+                                      placements.
+                                    </p>
                                     <svg
-                                      className="w-4 h-4 text-[#556179] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                                      className="w-4 h-4 text-[#556179] cursor-help"
                                       fill="none"
                                       viewBox="0 0 24 24"
                                       stroke="currentColor"
@@ -2573,195 +2131,614 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                       />
                                     </svg>
                                   </div>
-                                </div>
 
-                                {/* Percentage Input */}
-                                <div className="flex-shrink-0">
-                                  <div className="flex items-center gap-2">
-                                    <div className="relative">
-                                      <input
-                                        type="number"
-                                        value={audiencePercentage}
-                                        onChange={(e) => {
-                                          const value =
-                                            parseFloat(e.target.value) || 0;
-                                          if (value >= 0 && value <= 900) {
-                                            setAudiencePercentage(value);
+                                  {/* Bid Optimization Field - Only for SP campaigns */}
+                                  {formData.type === "SP" && (
+                                    <div>
+                                      <label className="form-label-small">
+                                        Bid Optimization
+                                      </label>
+                                      <div className="flex items-center gap-3">
+                                        <Checkbox
+                                          checked={
+                                            formData.bidding?.bidOptimization ?? true
                                           }
-                                        }}
-                                        min="0"
-                                        max="900"
-                                        step="1"
-                                        className="bg-[#FEFEFB] w-24 px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                      />
+                                          onChange={(checked) => {
+                                            const newBidOptimization = checked;
+                                            setFormData((prev) => {
+                                              const updated = { ...prev };
+                                              if (!updated.bidding) {
+                                                updated.bidding = {
+                                                  bidOptimization: newBidOptimization,
+                                                  shopperCohortBidAdjustments: [],
+                                                  bidAdjustmentsByPlacement: [],
+                                                };
+                                              } else {
+                                                updated.bidding = {
+                                                  ...updated.bidding,
+                                                  bidOptimization: newBidOptimization,
+                                                  // Keep bidAdjustmentsByPlacement regardless of bidOptimization
+                                                  bidAdjustmentsByPlacement:
+                                                    updated.bidding
+                                                      .bidAdjustmentsByPlacement ||
+                                                    [],
+                                                };
+                                              }
+                                              return updated;
+                                            });
+                                          }}
+                                          label="Automatic placement optimization"
+                                          className="[&_label]:text-[13.3px] [&_label]:font-medium [&_label]:text-[#072929]"
+                                        />
+                                      </div>
+                                      <p className="text-[12px] text-[#556179] mt-1">
+                                        When enabled, placement adjustments are
+                                        ignored
+                                      </p>
                                     </div>
-                                    <span className="text-[13px] text-[#072929]">
-                                      %
-                                    </span>
+                                  )}
+                                  {/* Placement Fields - 2 per row */}
+                                  <div className="grid grid-cols-2 gap-4">
+                                    {/* Top of search (PLACEMENT_TOP) */}
+                                    <div>
+                                      <label className="block text-[13px] font-medium text-[#072929] mb-2">
+                                        Top of search (PLACEMENT_TOP)
+                                      </label>
+                                      <div className="flex items-center gap-2">
+                                        <div className="relative flex-1">
+                                          <input
+                                            type="number"
+                                            value={
+                                              formData.bidding?.bidAdjustmentsByPlacement?.find(
+                                                (adj) =>
+                                                  adj.placement === "PLACEMENT_TOP"
+                                              )?.percentage || 0
+                                            }
+                                            onChange={(e) => {
+                                              const value =
+                                                parseFloat(e.target.value) || 0;
+                                              if (value >= -99 && value <= 900) {
+                                                setFormData((prev) => {
+                                                  const updated = { ...prev };
+                                                  if (!updated.bidding) {
+                                                    updated.bidding = {
+                                                      bidOptimization: true,
+                                                      shopperCohortBidAdjustments: [],
+                                                      bidAdjustmentsByPlacement: [],
+                                                    };
+                                                  }
+                                                  const adjustments = [
+                                                    ...(updated.bidding
+                                                      .bidAdjustmentsByPlacement ||
+                                                      []),
+                                                  ];
+                                                  const existingIndex =
+                                                    adjustments.findIndex(
+                                                      (adj) =>
+                                                        adj.placement ===
+                                                        "PLACEMENT_TOP"
+                                                    );
+                                                  if (existingIndex >= 0) {
+                                                    adjustments[
+                                                      existingIndex
+                                                    ].percentage = value;
+                                                  } else {
+                                                    adjustments.push({
+                                                      percentage: value,
+                                                      placement: "PLACEMENT_TOP",
+                                                    });
+                                                  }
+                                                  updated.bidding.bidAdjustmentsByPlacement =
+                                                    adjustments;
+                                                  return updated;
+                                                });
+                                              }
+                                            }}
+                                            min="-99"
+                                            max="900"
+                                            step="1"
+                                            className="campaign-input w-full"
+                                          />
+                                        </div>
+                                        <span className="text-[13px] text-[#072929]">
+                                          %
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Rest of search (PLACEMENT_REST_OF_SEARCH) */}
+                                    <div>
+                                      <label className="block text-[13px] font-medium text-[#072929] mb-2">
+                                        Rest of search (PLACEMENT_REST_OF_SEARCH)
+                                      </label>
+                                      <div className="flex items-center gap-2">
+                                        <div className="relative flex-1">
+                                          <input
+                                            type="number"
+                                            value={
+                                              formData.bidding?.bidAdjustmentsByPlacement?.find(
+                                                (adj) =>
+                                                  adj.placement ===
+                                                  "PLACEMENT_REST_OF_SEARCH"
+                                              )?.percentage || 0
+                                            }
+                                            onChange={(e) => {
+                                              const value =
+                                                parseFloat(e.target.value) || 0;
+                                              if (value >= -99 && value <= 900) {
+                                                setFormData((prev) => {
+                                                  const updated = { ...prev };
+                                                  if (!updated.bidding) {
+                                                    updated.bidding = {
+                                                      bidOptimization: true,
+                                                      shopperCohortBidAdjustments: [],
+                                                      bidAdjustmentsByPlacement: [],
+                                                    };
+                                                  }
+                                                  const adjustments = [
+                                                    ...(updated.bidding
+                                                      .bidAdjustmentsByPlacement ||
+                                                      []),
+                                                  ];
+                                                  const existingIndex =
+                                                    adjustments.findIndex(
+                                                      (adj) =>
+                                                        adj.placement ===
+                                                        "PLACEMENT_REST_OF_SEARCH"
+                                                    );
+                                                  if (existingIndex >= 0) {
+                                                    adjustments[
+                                                      existingIndex
+                                                    ].percentage = value;
+                                                  } else {
+                                                    adjustments.push({
+                                                      percentage: value,
+                                                      placement:
+                                                        "PLACEMENT_REST_OF_SEARCH",
+                                                    });
+                                                  }
+                                                  updated.bidding.bidAdjustmentsByPlacement =
+                                                    adjustments;
+                                                  return updated;
+                                                });
+                                              }
+                                            }}
+                                            min="-99"
+                                            max="900"
+                                            step="1"
+                                            className="campaign-input w-full"
+                                          />
+                                        </div>
+                                        <span className="text-[13px] text-[#072929]">
+                                          %
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Product page (PLACEMENT_PRODUCT_PAGE) */}
+                                    <div>
+                                      <label className="block text-[13px] font-medium text-[#072929] mb-2">
+                                        Product page (PLACEMENT_PRODUCT_PAGE)
+                                      </label>
+                                      <div className="flex items-center gap-2">
+                                        <div className="relative flex-1">
+                                          <input
+                                            type="number"
+                                            value={
+                                              formData.bidding?.bidAdjustmentsByPlacement?.find(
+                                                (adj) =>
+                                                  adj.placement ===
+                                                  "PLACEMENT_PRODUCT_PAGE"
+                                              )?.percentage || 0
+                                            }
+                                            onChange={(e) => {
+                                              const value =
+                                                parseFloat(e.target.value) || 0;
+                                              if (value >= -99 && value <= 900) {
+                                                setFormData((prev) => {
+                                                  const updated = { ...prev };
+                                                  if (!updated.bidding) {
+                                                    updated.bidding = {
+                                                      bidOptimization: true,
+                                                      shopperCohortBidAdjustments: [],
+                                                      bidAdjustmentsByPlacement: [],
+                                                    };
+                                                  }
+                                                  const adjustments = [
+                                                    ...(updated.bidding
+                                                      .bidAdjustmentsByPlacement ||
+                                                      []),
+                                                  ];
+                                                  const existingIndex =
+                                                    adjustments.findIndex(
+                                                      (adj) =>
+                                                        adj.placement ===
+                                                        "PLACEMENT_PRODUCT_PAGE"
+                                                    );
+                                                  if (existingIndex >= 0) {
+                                                    adjustments[
+                                                      existingIndex
+                                                    ].percentage = value;
+                                                  } else {
+                                                    adjustments.push({
+                                                      percentage: value,
+                                                      placement:
+                                                        "PLACEMENT_PRODUCT_PAGE",
+                                                    });
+                                                  }
+                                                  updated.bidding.bidAdjustmentsByPlacement =
+                                                    adjustments;
+                                                  return updated;
+                                                });
+                                              }
+                                            }}
+                                            min="-99"
+                                            max="900"
+                                            step="1"
+                                            className="campaign-input w-full"
+                                          />
+                                        </div>
+                                        <span className="text-[13px] text-[#072929]">
+                                          %
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Amazon Business (SITE_AMAZON_BUSINESS) */}
+                                    <div>
+                                      <label className="block text-[13px] font-medium text-[#072929] mb-2">
+                                        Amazon Business (SITE_AMAZON_BUSINESS)
+                                      </label>
+                                      <div className="flex items-center gap-2">
+                                        <div className="relative flex-1">
+                                          <input
+                                            type="number"
+                                            value={
+                                              formData.bidding?.bidAdjustmentsByPlacement?.find(
+                                                (adj) =>
+                                                  adj.placement ===
+                                                  "SITE_AMAZON_BUSINESS"
+                                              )?.percentage || 0
+                                            }
+                                            onChange={(e) => {
+                                              const value =
+                                                parseFloat(e.target.value) || 0;
+                                              if (value >= -99 && value <= 900) {
+                                                setFormData((prev) => {
+                                                  const updated = { ...prev };
+                                                  if (!updated.bidding) {
+                                                    updated.bidding = {
+                                                      bidOptimization: true,
+                                                      shopperCohortBidAdjustments: [],
+                                                      bidAdjustmentsByPlacement: [],
+                                                    };
+                                                  }
+                                                  const adjustments = [
+                                                    ...(updated.bidding
+                                                      .bidAdjustmentsByPlacement ||
+                                                      []),
+                                                  ];
+                                                  const existingIndex =
+                                                    adjustments.findIndex(
+                                                      (adj) =>
+                                                        adj.placement ===
+                                                        "SITE_AMAZON_BUSINESS"
+                                                    );
+                                                  if (existingIndex >= 0) {
+                                                    adjustments[
+                                                      existingIndex
+                                                    ].percentage = value;
+                                                  } else {
+                                                    adjustments.push({
+                                                      percentage: value,
+                                                      placement:
+                                                        "SITE_AMAZON_BUSINESS",
+                                                    });
+                                                  }
+                                                  updated.bidding.bidAdjustmentsByPlacement =
+                                                    adjustments;
+                                                  return updated;
+                                                });
+                                              }
+                                            }}
+                                            min="-99"
+                                            max="900"
+                                            step="1"
+                                            className="campaign-input w-full"
+                                          />
+                                        </div>
+                                        <span className="text-[13px] text-[#072929]">
+                                          %
+                                        </span>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
+                              </>
+                            )}
 
-                              {/* Helper Text */}
-                              {selectedAudience && audiencePercentage > 0 && (
-                                <p className="text-[12px] text-[#556179]">
-                                  A A$0.80 cost-per-click can increase up to A$
-                                  {(
-                                    0.8 *
-                                    (1 + audiencePercentage / 100)
-                                  ).toFixed(2)}{" "}
-                                  for this audience.
+                            {/* Audiences Tab Content */}
+                            {activeBiddingTab === "audiences" && (
+                              <div className="bg-[#FEFEFB] p-4 space-y-4">
+                                {/* Radio Buttons */}
+                                <div className="space-y-3">
+                                  <label
+                                    className={`flex items-center gap-3 ${mode === "edit"
+                                      ? "cursor-not-allowed opacity-60"
+                                      : "cursor-pointer"
+                                      }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name="audienceBidOption"
+                                      checked={increaseBidsForAudiences}
+                                      onChange={() =>
+                                        setIncreaseBidsForAudiences(true)
+                                      }
+                                      className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
+                                    />
+                                    <span className="text-[13px] font-medium text-[#072929]">
+                                      Increase bids for audiences built by Amazon
+                                    </span>
+                                  </label>
+                                  <label
+                                    className={`flex items-center gap-3 ${mode === "edit"
+                                      ? "cursor-not-allowed opacity-60"
+                                      : "cursor-pointer"
+                                      }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name="audienceBidOption"
+                                      checked={!increaseBidsForAudiences}
+                                      onChange={() =>
+                                        setIncreaseBidsForAudiences(false)
+                                      }
+                                      className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
+                                    />
+                                    <span className="text-[13px] font-medium text-[#072929]">
+                                      Don't increase bids for an audience
+                                    </span>
+                                  </label>
+                                </div>
+
+                                {/* Audience Selection and Percentage - Only show when "Increase bids" is selected */}
+                                {increaseBidsForAudiences && (
+                                  <div className="space-y-4">
+                                    <div className="flex gap-4 items-end">
+                                      {/* Audience Dropdown */}
+                                      <div className="flex-1">
+                                        <label className="form-label">
+                                          Audience
+                                        </label>
+                                        <div className="relative">
+                                          <Dropdown<string>
+                                            options={[
+                                              {
+                                                value: "40836",
+                                                label:
+                                                  "Clicked or Added brand's product to cart - 40836...",
+                                              },
+                                              {
+                                                value: "40837",
+                                                label:
+                                                  "Viewed brand's product detail page - 40837...",
+                                              },
+                                              {
+                                                value: "40838",
+                                                label:
+                                                  "Purchased brand's product - 40838...",
+                                              },
+                                            ]}
+                                            value={selectedAudience}
+                                            onChange={(value) =>
+                                              setSelectedAudience(value)
+                                            }
+                                            placeholder="Select audience"
+                                            buttonClassName="edit-button w-full"
+                                          />
+                                          <svg
+                                            className="w-4 h-4 text-[#556179] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                            />
+                                          </svg>
+                                        </div>
+                                      </div>
+
+                                      {/* Percentage Input */}
+                                      <div className="flex-shrink-0">
+                                        <div className="flex items-center gap-2">
+                                          <div className="relative">
+                                            <input
+                                              type="number"
+                                              value={audiencePercentage}
+                                              onChange={(e) => {
+                                                const value =
+                                                  parseFloat(e.target.value) || 0;
+                                                if (value >= 0 && value <= 900) {
+                                                  setAudiencePercentage(value);
+                                                }
+                                              }}
+                                              min="0"
+                                              max="900"
+                                              step="1"
+                                              className="bg-[#FEFEFB] w-24 px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                            />
+                                          </div>
+                                          <span className="text-[13px] text-[#072929]">
+                                            %
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Helper Text */}
+                                    {selectedAudience && audiencePercentage > 0 && (
+                                      <p className="text-[12px] text-[#556179]">
+                                        A A$0.80 cost-per-click can increase up to A$
+                                        {(
+                                          0.8 *
+                                          (1 + audiencePercentage / 100)
+                                        ).toFixed(2)}{" "}
+                                        for this audience.
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Portfolio Section */}
+                        <div className="grid grid-cols-4 gap-6">
+                          <div>
+                            <label className="form-label">
+                              Portfolio
+                            </label>
+                            <Dropdown<string>
+                              options={portfolioOptions}
+                              value={formData.portfolioId || undefined}
+                              onChange={(value) => handleChange("portfolioId", value)}
+                              placeholder={
+                                !formData.profileId
+                                  ? "Select profile first"
+                                  : loadingPortfolios
+                                    ? "Loading portfolios..."
+                                    : "Select portfolio (optional)"
+                              }
+                              buttonClassName="edit-button w-full"
+                              disabled={
+                                !formData.profileId ||
+                                loadingPortfolios ||
+                                portfolioOptions.length === 0
+                              }
+                            />
+                            {errors.portfolioId && (
+                              <p className="text-[10px] text-red-500 mt-1">
+                                {errors.portfolioId}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="form-label">
+                              Site Restrictions
+                            </label>
+                            {mode === "edit" && (
+                              <p className="text-[10px] text-[#556179] mb-2 italic">
+                                Read-only: Site restrictions cannot be changed after
+                                campaign creation
+                              </p>
+                            )}
+                            <Dropdown<string>
+                              options={[
+                                {
+                                  value: "",
+                                  label: "Select Site Restrictions",
+                                },
+                                {
+                                  value: "AMAZON_BUSINESS",
+                                  label: "AMAZON_BUSINESS",
+                                },
+                              ]}
+                              value={formData.siteRestrictions || ""}
+                              onChange={(value) =>
+                                handleChange("siteRestrictions", value || undefined)
+                              }
+                              placeholder="Select site restrictions (optional)"
+                              buttonClassName={`w-full edit-button  ${mode === "edit"
+                                ? "bg-gray-50 cursor-not-allowed"
+                                : "bg-[#FEFEFB]"
+                                }`}
+                              disabled={mode === "edit"}
+                            />
+                          </div>
+
+                        </div>
+
+                        {/* Tags Section */}
+                        <div>
+                          <div>
+                            <label className="form-label">
+                              Tags - Max 50
+                            </label>
+                            <div className="space-y-2">
+                              {(formData.tags || []).map((tag, index) => (
+                                <div key={index} className="flex gap-2 items-center">
+                                  <input
+                                    type="text"
+                                    value={tag.key || ""}
+                                    onChange={(e) => {
+                                      const newTags = [...(formData.tags || [])];
+                                      newTags[index] = {
+                                        ...newTags[index],
+                                        key: e.target.value,
+                                      };
+                                      handleChange("tags", newTags);
+                                    }}
+                                    placeholder="Key"
+                                    className="campaign-input w-full"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={tag.value || ""}
+                                    onChange={(e) => {
+                                      const newTags = [...(formData.tags || [])];
+                                      newTags[index] = {
+                                        ...newTags[index],
+                                        value: e.target.value,
+                                      };
+                                      handleChange("tags", newTags);
+                                    }}
+                                    placeholder="Value"
+                                    className="campaign-input w-full"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newTags = [...(formData.tags || [])];
+                                      newTags.splice(index, 1);
+                                      handleChange("tags", newTags);
+                                    }}
+                                    className="px-3 py-2 text-red-500 hover:text-red-700 transition-colors"
+                                    title="Remove"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                              {(!formData.tags || formData.tags.length < 50) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newTags = [...(formData.tags || [])];
+                                    newTags.push({ key: "", value: "" });
+                                    handleChange("tags", newTags);
+                                  }}
+                                  className="px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[14px]"
+                                >
+                                  + Add Tag
+                                </button>
+                              )}
+                              {formData.tags && formData.tags.length >= 50 && (
+                                <p className="text-[11px] text-[#556179]">
+                                  Maximum of 50 tags reached
                                 </p>
                               )}
                             </div>
-                          )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                              </div>
-
-                              {/* Portfolio Section */}
-                                <div className="grid grid-cols-4 gap-6">
-                                  <div>
-                                    <label className="form-label">
-                                      Portfolio
-                                    </label>
-                                    <Dropdown<string>
-                                      options={portfolioOptions}
-                                      value={formData.portfolioId || undefined}
-                                      onChange={(value) => handleChange("portfolioId", value)}
-                                      placeholder={
-                                        !formData.profileId
-                                          ? "Select profile first"
-                                          : loadingPortfolios
-                                          ? "Loading portfolios..."
-                                          : "Select portfolio (optional)"
-                                      }
-                                      buttonClassName="edit-button w-full"
-                                      disabled={
-                                        !formData.profileId ||
-                                        loadingPortfolios ||
-                                        portfolioOptions.length === 0
-                                      }
-                                    />
-                                    {errors.portfolioId && (
-                                      <p className="text-[10px] text-red-500 mt-1">
-                                        {errors.portfolioId}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <div>
-                                    <label className="form-label">
-                                      Site Restrictions
-                                    </label>
-                                    {mode === "edit" && (
-                                      <p className="text-[10px] text-[#556179] mb-2 italic">
-                                        Read-only: Site restrictions cannot be changed after
-                                        campaign creation
-                                      </p>
-                                    )}
-                                    <Dropdown<string>
-                                      options={[
-                                        {
-                                          value: "",
-                                          label: "Select Site Restrictions",
-                                        },
-                                        {
-                                          value: "AMAZON_BUSINESS",
-                                          label: "AMAZON_BUSINESS",
-                                        },
-                                      ]}
-                                      value={formData.siteRestrictions || ""}
-                                      onChange={(value) =>
-                                        handleChange("siteRestrictions", value || undefined)
-                                      }
-                                      placeholder="Select site restrictions (optional)"
-                                      buttonClassName={`w-full edit-button  ${
-                                        mode === "edit"
-                                          ? "bg-gray-50 cursor-not-allowed"
-                                          : "bg-[#FEFEFB]"
-                                      }`}
-                                      disabled={mode === "edit"}
-                                    />
-                                  </div>
-
-                                </div>
-
-                              {/* Tags Section */}
-                              <div>
-                                <div>
-                                  <label className="form-label">
-                                    Tags - Max 50
-                                  </label>
-                                  <div className="space-y-2">
-                                    {(formData.tags || []).map((tag, index) => (
-                                      <div key={index} className="flex gap-2 items-center">
-                                        <input
-                                          type="text"
-                                          value={tag.key || ""}
-                                          onChange={(e) => {
-                                            const newTags = [...(formData.tags || [])];
-                                            newTags[index] = {
-                                              ...newTags[index],
-                                              key: e.target.value,
-                                            };
-                                            handleChange("tags", newTags);
-                                          }}
-                                          placeholder="Key"
-                                          className="campaign-input w-full"
-                                        />
-                                        <input
-                                          type="text"
-                                          value={tag.value || ""}
-                                          onChange={(e) => {
-                                            const newTags = [...(formData.tags || [])];
-                                            newTags[index] = {
-                                              ...newTags[index],
-                                              value: e.target.value,
-                                            };
-                                            handleChange("tags", newTags);
-                                          }}
-                                          placeholder="Value"
-                                          className="campaign-input w-full"
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const newTags = [...(formData.tags || [])];
-                                            newTags.splice(index, 1);
-                                            handleChange("tags", newTags);
-                                          }}
-                                          className="px-3 py-2 text-red-500 hover:text-red-700 transition-colors"
-                                          title="Remove"
-                                        >
-                                          ×
-                                        </button>
-                                      </div>
-                                    ))}
-                                    {(!formData.tags || formData.tags.length < 50) && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const newTags = [...(formData.tags || [])];
-                                          newTags.push({ key: "", value: "" });
-                                          handleChange("tags", newTags);
-                                        }}
-                                        className="px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[14px]"
-                                      >
-                                        + Add Tag
-                                      </button>
-                                    )}
-                                    {formData.tags && formData.tags.length >= 50 && (
-                                      <p className="text-[11px] text-[#556179]">
-                                        Maximum of 50 tags reached
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                    </div>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* SD (Sponsored Display) Specific Fields */}
@@ -2842,8 +2819,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           !formData.profileId
                             ? "Select profile first"
                             : loadingPortfolios
-                            ? "Loading portfolios..."
-                            : "Select portfolio (optional)"
+                              ? "Loading portfolios..."
+                              : "Select portfolio (optional)"
                         }
                         buttonClassName="edit-button w-full"
                         disabled={
@@ -2960,9 +2937,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         Advanced Settings <span className="text-[#556179] font-normal">(Optional)</span>
                       </h3>
                       <svg
-                        className={`w-5 h-5 text-[#072929] transition-transform ${
-                          isAdvancedSettingsExpanded ? "rotate-180" : ""
-                        }`}
+                        className={`w-5 h-5 text-[#072929] transition-transform ${isAdvancedSettingsExpanded ? "rotate-180" : ""
+                          }`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -3036,9 +3012,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                 }
                                 placeholder="Enter DealId"
                                 disabled={mode === "edit"}
-                                className={`campaign-input w-full ${
-                                  mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
-                                }`}
+                                className={`campaign-input w-full ${mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                                  }`}
                               />
                               {mode === "edit" && (
                                 <p className="text-[10px] text-[#556179] mt-1 italic">
@@ -3060,8 +3035,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                   !formData.profileId
                                     ? "Select profile first"
                                     : loadingPortfolios
-                                    ? "Loading portfolios..."
-                                    : "Select portfolio (optional)"
+                                      ? "Loading portfolios..."
+                                      : "Select portfolio (optional)"
                                 }
                                 buttonClassName="edit-button w-full"
                                 disabled={
@@ -3115,507 +3090,503 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             Dynamic Bidding
                           </h4>
 
-                    {/* Bid Optimization Field */}
-                    <div className="mb-6">
-                      <label className="form-label-small">
-                        Bid Optimization
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={formData.bidding?.bidOptimization ?? true}
-                          onChange={(checked) => {
-                            const newBidOptimization = checked;
-                            setFormData((prev) => {
-                              const updated = { ...prev };
-                              if (!updated.bidding) {
-                                updated.bidding = {
-                                  bidOptimization: newBidOptimization,
-                                  shopperCohortBidAdjustments: [],
-                                  bidAdjustmentsByPlacement: [],
-                                };
-                              } else {
-                                updated.bidding = {
-                                  ...updated.bidding,
-                                  bidOptimization: newBidOptimization,
-                                  // Keep bidAdjustmentsByPlacement regardless of bidOptimization
-                                  bidAdjustmentsByPlacement:
-                                    updated.bidding.bidAdjustmentsByPlacement ||
-                                    [],
-                                };
-                              }
-                              return updated;
-                            });
-                          }}
-                          label="Automatic placement optimization"
-                          className="[&_label]:text-[13.3px] [&_label]:font-medium [&_label]:text-[#072929]"
-                        />
-                      </div>
-                      <p className="text-[12px] text-[#556179] mt-1">
-                        When enabled, placement adjustments are ignored
-                      </p>
-                    </div>
-
-                    {/* Placement Bid Adjustments - Always visible and enabled */}
-                    <div className="mb-6 border border-[#e8e8e3] rounded-lg overflow-hidden">
-                      {/* Tabs */}
-                      <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
-                        <button
-                          type="button"
-                          onClick={() => setActiveBiddingTab("placements")}
-                          className={`px-4 py-2 text-[14px] transition-colors ${
-                            activeBiddingTab === "placements"
-                              ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                              : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
-                          }`}
-                        >
-                          Placements
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveBiddingTab("audiences")}
-                          className={`px-4 py-2 text-[14px] transition-colors ${
-                            activeBiddingTab === "audiences"
-                              ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                              : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
-                          }`}
-                        >
-                          Audiences
-                        </button>
-                      </div>
-
-                      {/* Placements Tab Content */}
-                      {activeBiddingTab === "placements" && (
-                        <>
-                          {/* Instructions */}
-                          <div className="flex items-center gap-2 mb-4 px-4 pt-4">
-                            <p className="text-[13px] text-[#072929]">
-                              Increase your bid for specific Amazon placements.
+                          {/* Bid Optimization Field */}
+                          <div className="mb-6">
+                            <label className="form-label-small">
+                              Bid Optimization
+                            </label>
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                checked={formData.bidding?.bidOptimization ?? true}
+                                onChange={(checked) => {
+                                  const newBidOptimization = checked;
+                                  setFormData((prev) => {
+                                    const updated = { ...prev };
+                                    if (!updated.bidding) {
+                                      updated.bidding = {
+                                        bidOptimization: newBidOptimization,
+                                        shopperCohortBidAdjustments: [],
+                                        bidAdjustmentsByPlacement: [],
+                                      };
+                                    } else {
+                                      updated.bidding = {
+                                        ...updated.bidding,
+                                        bidOptimization: newBidOptimization,
+                                        // Keep bidAdjustmentsByPlacement regardless of bidOptimization
+                                        bidAdjustmentsByPlacement:
+                                          updated.bidding.bidAdjustmentsByPlacement ||
+                                          [],
+                                      };
+                                    }
+                                    return updated;
+                                  });
+                                }}
+                                label="Automatic placement optimization"
+                                className="[&_label]:text-[13.3px] [&_label]:font-medium [&_label]:text-[#072929]"
+                              />
+                            </div>
+                            <p className="text-[12px] text-[#556179] mt-1">
+                              When enabled, placement adjustments are ignored
                             </p>
                           </div>
 
-                          {/* Placement Inputs */}
-                          <div className="bg-[#FEFEFB] px-4 pb-4">
-                            {/* Placement Fields - 2 per row */}
-                            <div className="grid grid-cols-2 gap-4">
-                              {/* Top of search (PLACEMENT_TOP) */}
-                              <div>
-                                <label className="block text-[13px] font-medium text-[#072929] mb-2">
-                                  Top of search (PLACEMENT_TOP)
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <div className="relative flex-1">
-                                    <input
-                                      type="number"
-                                      value={
-                                        formData.bidding?.bidAdjustmentsByPlacement?.find(
-                                          (adj) =>
-                                            adj.placement === "PLACEMENT_TOP"
-                                        )?.percentage || 0
-                                      }
-                                      onChange={(e) => {
-                                        const value =
-                                          parseFloat(e.target.value) || 0;
-                                        if (value >= -99 && value <= 900) {
-                                          setFormData((prev) => {
-                                            const updated = { ...prev };
-                                            if (!updated.bidding) {
-                                              updated.bidding = {
-                                                bidOptimization: true,
-                                                shopperCohortBidAdjustments: [],
-                                                bidAdjustmentsByPlacement: [],
-                                              };
-                                            }
-                                            const adjustments = [
-                                              ...(updated.bidding
-                                                .bidAdjustmentsByPlacement ||
-                                                []),
-                                            ];
-                                            const existingIndex =
-                                              adjustments.findIndex(
-                                                (adj) =>
-                                                  adj.placement ===
-                                                  "PLACEMENT_TOP"
-                                              );
-                                            if (existingIndex >= 0) {
-                                              adjustments[
-                                                existingIndex
-                                              ].percentage = value;
-                                            } else {
-                                              adjustments.push({
-                                                percentage: value,
-                                                placement: "PLACEMENT_TOP",
-                                              });
-                                            }
-                                            updated.bidding.bidAdjustmentsByPlacement =
-                                              adjustments;
-                                            return updated;
-                                          });
-                                        }
-                                      }}
-                                      min="-99"
-                                      max="900"
-                                      step="1"
-                                      className="campaign-input w-full"
-                                    />
-                                  </div>
-                                  <span className="text-[13px] text-[#072929]">
-                                    %
-                                  </span>
-                                </div>
-                              </div>
+                          {/* Placement Bid Adjustments - Always visible and enabled */}
+                          <div className="mb-6 border border-[#e8e8e3] rounded-lg overflow-hidden">
+                            {/* Tabs */}
+                            <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
+                              <button
+                                type="button"
+                                onClick={() => setActiveBiddingTab("placements")}
+                                className={`px-4 py-2 text-[14px] transition-colors ${activeBiddingTab === "placements"
+                                  ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                                  : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                                  }`}
+                              >
+                                Placements
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setActiveBiddingTab("audiences")}
+                                className={`px-4 py-2 text-[14px] transition-colors ${activeBiddingTab === "audiences"
+                                  ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                                  : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                                  }`}
+                              >
+                                Audiences
+                              </button>
+                            </div>
 
-                              {/* Rest of search (PLACEMENT_REST_OF_SEARCH) */}
-                              <div>
-                                <label className="block text-[13px] font-medium text-[#072929] mb-2">
-                                  Rest of search (PLACEMENT_REST_OF_SEARCH)
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <div className="relative flex-1">
-                                    <input
-                                      type="number"
-                                      value={
-                                        formData.bidding?.bidAdjustmentsByPlacement?.find(
-                                          (adj) =>
-                                            adj.placement ===
-                                            "PLACEMENT_REST_OF_SEARCH"
-                                        )?.percentage || 0
-                                      }
-                                      onChange={(e) => {
-                                        const value =
-                                          parseFloat(e.target.value) || 0;
-                                        if (value >= -99 && value <= 900) {
-                                          setFormData((prev) => {
-                                            const updated = { ...prev };
-                                            if (!updated.bidding) {
-                                              updated.bidding = {
-                                                bidOptimization: true,
-                                                shopperCohortBidAdjustments: [],
-                                                bidAdjustmentsByPlacement: [],
-                                              };
+                            {/* Placements Tab Content */}
+                            {activeBiddingTab === "placements" && (
+                              <>
+                                {/* Instructions */}
+                                <div className="flex items-center gap-2 mb-4 px-4 pt-4">
+                                  <p className="text-[13px] text-[#072929]">
+                                    Increase your bid for specific Amazon placements.
+                                  </p>
+                                </div>
+
+                                {/* Placement Inputs */}
+                                <div className="bg-[#FEFEFB] px-4 pb-4">
+                                  {/* Placement Fields - 2 per row */}
+                                  <div className="grid grid-cols-2 gap-4">
+                                    {/* Top of search (PLACEMENT_TOP) */}
+                                    <div>
+                                      <label className="block text-[13px] font-medium text-[#072929] mb-2">
+                                        Top of search (PLACEMENT_TOP)
+                                      </label>
+                                      <div className="flex items-center gap-2">
+                                        <div className="relative flex-1">
+                                          <input
+                                            type="number"
+                                            value={
+                                              formData.bidding?.bidAdjustmentsByPlacement?.find(
+                                                (adj) =>
+                                                  adj.placement === "PLACEMENT_TOP"
+                                              )?.percentage || 0
                                             }
-                                            const adjustments = [
-                                              ...(updated.bidding
-                                                .bidAdjustmentsByPlacement ||
-                                                []),
-                                            ];
-                                            const existingIndex =
-                                              adjustments.findIndex(
+                                            onChange={(e) => {
+                                              const value =
+                                                parseFloat(e.target.value) || 0;
+                                              if (value >= -99 && value <= 900) {
+                                                setFormData((prev) => {
+                                                  const updated = { ...prev };
+                                                  if (!updated.bidding) {
+                                                    updated.bidding = {
+                                                      bidOptimization: true,
+                                                      shopperCohortBidAdjustments: [],
+                                                      bidAdjustmentsByPlacement: [],
+                                                    };
+                                                  }
+                                                  const adjustments = [
+                                                    ...(updated.bidding
+                                                      .bidAdjustmentsByPlacement ||
+                                                      []),
+                                                  ];
+                                                  const existingIndex =
+                                                    adjustments.findIndex(
+                                                      (adj) =>
+                                                        adj.placement ===
+                                                        "PLACEMENT_TOP"
+                                                    );
+                                                  if (existingIndex >= 0) {
+                                                    adjustments[
+                                                      existingIndex
+                                                    ].percentage = value;
+                                                  } else {
+                                                    adjustments.push({
+                                                      percentage: value,
+                                                      placement: "PLACEMENT_TOP",
+                                                    });
+                                                  }
+                                                  updated.bidding.bidAdjustmentsByPlacement =
+                                                    adjustments;
+                                                  return updated;
+                                                });
+                                              }
+                                            }}
+                                            min="-99"
+                                            max="900"
+                                            step="1"
+                                            className="campaign-input w-full"
+                                          />
+                                        </div>
+                                        <span className="text-[13px] text-[#072929]">
+                                          %
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Rest of search (PLACEMENT_REST_OF_SEARCH) */}
+                                    <div>
+                                      <label className="block text-[13px] font-medium text-[#072929] mb-2">
+                                        Rest of search (PLACEMENT_REST_OF_SEARCH)
+                                      </label>
+                                      <div className="flex items-center gap-2">
+                                        <div className="relative flex-1">
+                                          <input
+                                            type="number"
+                                            value={
+                                              formData.bidding?.bidAdjustmentsByPlacement?.find(
                                                 (adj) =>
                                                   adj.placement ===
                                                   "PLACEMENT_REST_OF_SEARCH"
-                                              );
-                                            if (existingIndex >= 0) {
-                                              adjustments[
-                                                existingIndex
-                                              ].percentage = value;
-                                            } else {
-                                              adjustments.push({
-                                                percentage: value,
-                                                placement:
-                                                  "PLACEMENT_REST_OF_SEARCH",
-                                              });
+                                              )?.percentage || 0
                                             }
-                                            updated.bidding.bidAdjustmentsByPlacement =
-                                              adjustments;
-                                            return updated;
-                                          });
-                                        }
-                                      }}
-                                      min="-99"
-                                      max="900"
-                                      step="1"
-                                      className="campaign-input w-full"
-                                    />
-                                  </div>
-                                  <span className="text-[13px] text-[#072929]">
-                                    %
-                                  </span>
-                                </div>
-                              </div>
+                                            onChange={(e) => {
+                                              const value =
+                                                parseFloat(e.target.value) || 0;
+                                              if (value >= -99 && value <= 900) {
+                                                setFormData((prev) => {
+                                                  const updated = { ...prev };
+                                                  if (!updated.bidding) {
+                                                    updated.bidding = {
+                                                      bidOptimization: true,
+                                                      shopperCohortBidAdjustments: [],
+                                                      bidAdjustmentsByPlacement: [],
+                                                    };
+                                                  }
+                                                  const adjustments = [
+                                                    ...(updated.bidding
+                                                      .bidAdjustmentsByPlacement ||
+                                                      []),
+                                                  ];
+                                                  const existingIndex =
+                                                    adjustments.findIndex(
+                                                      (adj) =>
+                                                        adj.placement ===
+                                                        "PLACEMENT_REST_OF_SEARCH"
+                                                    );
+                                                  if (existingIndex >= 0) {
+                                                    adjustments[
+                                                      existingIndex
+                                                    ].percentage = value;
+                                                  } else {
+                                                    adjustments.push({
+                                                      percentage: value,
+                                                      placement:
+                                                        "PLACEMENT_REST_OF_SEARCH",
+                                                    });
+                                                  }
+                                                  updated.bidding.bidAdjustmentsByPlacement =
+                                                    adjustments;
+                                                  return updated;
+                                                });
+                                              }
+                                            }}
+                                            min="-99"
+                                            max="900"
+                                            step="1"
+                                            className="campaign-input w-full"
+                                          />
+                                        </div>
+                                        <span className="text-[13px] text-[#072929]">
+                                          %
+                                        </span>
+                                      </div>
+                                    </div>
 
-                              {/* Product page (PLACEMENT_PRODUCT_PAGE) */}
-                              <div>
-                                <label className="block text-[13px] font-medium text-[#072929] mb-2">
-                                  Product page (PLACEMENT_PRODUCT_PAGE)
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <div className="relative flex-1">
-                                    <input
-                                      type="number"
-                                      value={
-                                        formData.bidding?.bidAdjustmentsByPlacement?.find(
-                                          (adj) =>
-                                            adj.placement ===
-                                            "PLACEMENT_PRODUCT_PAGE"
-                                        )?.percentage || 0
-                                      }
-                                      onChange={(e) => {
-                                        const value =
-                                          parseFloat(e.target.value) || 0;
-                                        if (value >= -99 && value <= 900) {
-                                          setFormData((prev) => {
-                                            const updated = { ...prev };
-                                            if (!updated.bidding) {
-                                              updated.bidding = {
-                                                bidOptimization: true,
-                                                shopperCohortBidAdjustments: [],
-                                                bidAdjustmentsByPlacement: [],
-                                              };
-                                            }
-                                            const adjustments = [
-                                              ...(updated.bidding
-                                                .bidAdjustmentsByPlacement ||
-                                                []),
-                                            ];
-                                            const existingIndex =
-                                              adjustments.findIndex(
+                                    {/* Product page (PLACEMENT_PRODUCT_PAGE) */}
+                                    <div>
+                                      <label className="block text-[13px] font-medium text-[#072929] mb-2">
+                                        Product page (PLACEMENT_PRODUCT_PAGE)
+                                      </label>
+                                      <div className="flex items-center gap-2">
+                                        <div className="relative flex-1">
+                                          <input
+                                            type="number"
+                                            value={
+                                              formData.bidding?.bidAdjustmentsByPlacement?.find(
                                                 (adj) =>
                                                   adj.placement ===
                                                   "PLACEMENT_PRODUCT_PAGE"
-                                              );
-                                            if (existingIndex >= 0) {
-                                              adjustments[
-                                                existingIndex
-                                              ].percentage = value;
-                                            } else {
-                                              adjustments.push({
-                                                percentage: value,
-                                                placement:
-                                                  "PLACEMENT_PRODUCT_PAGE",
-                                              });
+                                              )?.percentage || 0
                                             }
-                                            updated.bidding.bidAdjustmentsByPlacement =
-                                              adjustments;
-                                            return updated;
-                                          });
-                                        }
-                                      }}
-                                      min="-99"
-                                      max="900"
-                                      step="1"
-                                      className="campaign-input w-full"
-                                    />
-                                  </div>
-                                  <span className="text-[13px] text-[#072929]">
-                                    %
-                                  </span>
-                                </div>
-                              </div>
+                                            onChange={(e) => {
+                                              const value =
+                                                parseFloat(e.target.value) || 0;
+                                              if (value >= -99 && value <= 900) {
+                                                setFormData((prev) => {
+                                                  const updated = { ...prev };
+                                                  if (!updated.bidding) {
+                                                    updated.bidding = {
+                                                      bidOptimization: true,
+                                                      shopperCohortBidAdjustments: [],
+                                                      bidAdjustmentsByPlacement: [],
+                                                    };
+                                                  }
+                                                  const adjustments = [
+                                                    ...(updated.bidding
+                                                      .bidAdjustmentsByPlacement ||
+                                                      []),
+                                                  ];
+                                                  const existingIndex =
+                                                    adjustments.findIndex(
+                                                      (adj) =>
+                                                        adj.placement ===
+                                                        "PLACEMENT_PRODUCT_PAGE"
+                                                    );
+                                                  if (existingIndex >= 0) {
+                                                    adjustments[
+                                                      existingIndex
+                                                    ].percentage = value;
+                                                  } else {
+                                                    adjustments.push({
+                                                      percentage: value,
+                                                      placement:
+                                                        "PLACEMENT_PRODUCT_PAGE",
+                                                    });
+                                                  }
+                                                  updated.bidding.bidAdjustmentsByPlacement =
+                                                    adjustments;
+                                                  return updated;
+                                                });
+                                              }
+                                            }}
+                                            min="-99"
+                                            max="900"
+                                            step="1"
+                                            className="campaign-input w-full"
+                                          />
+                                        </div>
+                                        <span className="text-[13px] text-[#072929]">
+                                          %
+                                        </span>
+                                      </div>
+                                    </div>
 
-                              {/* Amazon Business (SITE_AMAZON_BUSINESS) */}
-                              <div>
-                                <label className="block text-[13px] font-medium text-[#072929] mb-2">
-                                  Amazon Business (SITE_AMAZON_BUSINESS)
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <div className="relative flex-1">
-                                    <input
-                                      type="number"
-                                      value={
-                                        formData.bidding?.bidAdjustmentsByPlacement?.find(
-                                          (adj) =>
-                                            adj.placement ===
-                                            "SITE_AMAZON_BUSINESS"
-                                        )?.percentage || 0
-                                      }
-                                      onChange={(e) => {
-                                        const value =
-                                          parseFloat(e.target.value) || 0;
-                                        if (value >= -99 && value <= 900) {
-                                          setFormData((prev) => {
-                                            const updated = { ...prev };
-                                            if (!updated.bidding) {
-                                              updated.bidding = {
-                                                bidOptimization: true,
-                                                shopperCohortBidAdjustments: [],
-                                                bidAdjustmentsByPlacement: [],
-                                              };
-                                            }
-                                            const adjustments = [
-                                              ...(updated.bidding
-                                                .bidAdjustmentsByPlacement ||
-                                                []),
-                                            ];
-                                            const existingIndex =
-                                              adjustments.findIndex(
+                                    {/* Amazon Business (SITE_AMAZON_BUSINESS) */}
+                                    <div>
+                                      <label className="block text-[13px] font-medium text-[#072929] mb-2">
+                                        Amazon Business (SITE_AMAZON_BUSINESS)
+                                      </label>
+                                      <div className="flex items-center gap-2">
+                                        <div className="relative flex-1">
+                                          <input
+                                            type="number"
+                                            value={
+                                              formData.bidding?.bidAdjustmentsByPlacement?.find(
                                                 (adj) =>
                                                   adj.placement ===
                                                   "SITE_AMAZON_BUSINESS"
-                                              );
-                                            if (existingIndex >= 0) {
-                                              adjustments[
-                                                existingIndex
-                                              ].percentage = value;
-                                            } else {
-                                              adjustments.push({
-                                                percentage: value,
-                                                placement:
-                                                  "SITE_AMAZON_BUSINESS",
-                                              });
+                                              )?.percentage || 0
                                             }
-                                            updated.bidding.bidAdjustmentsByPlacement =
-                                              adjustments;
-                                            return updated;
-                                          });
-                                        }
-                                      }}
-                                      min="-99"
-                                      max="900"
-                                      step="1"
-                                      className="campaign-input w-full"
-                                    />
-                                  </div>
-                                  <span className="text-[13px] text-[#072929]">
-                                    %
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </>
-                      )}
-
-                      {/* Audiences Tab Content */}
-                      {activeBiddingTab === "audiences" && (
-                        <div className="bg-[#FEFEFB] p-4 space-y-4">
-                          {/* Radio Buttons */}
-                          <div className="space-y-3">
-                            <label
-                              className={`flex items-center gap-3 ${
-                                mode === "edit"
-                                  ? "cursor-not-allowed opacity-60"
-                                  : "cursor-pointer"
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name="audienceBidOption"
-                                checked={increaseBidsForAudiences}
-                                onChange={() =>
-                                  setIncreaseBidsForAudiences(true)
-                                }
-                                className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
-                              />
-                              <span className="text-[13px] font-medium text-[#072929]">
-                                Increase bids for audiences built by Amazon
-                              </span>
-                            </label>
-                            <label
-                              className={`flex items-center gap-3 ${
-                                mode === "edit"
-                                  ? "cursor-not-allowed opacity-60"
-                                  : "cursor-pointer"
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name="audienceBidOption"
-                                checked={!increaseBidsForAudiences}
-                                onChange={() =>
-                                  setIncreaseBidsForAudiences(false)
-                                }
-                                className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
-                              />
-                              <span className="text-[13px] font-medium text-[#072929]">
-                                Don't increase bids for an audience
-                              </span>
-                            </label>
-                          </div>
-
-                          {/* Audience Selection and Percentage - Only show when "Increase bids" is selected */}
-                          {increaseBidsForAudiences && (
-                            <div className="space-y-4">
-                              <div className="flex gap-4 items-end">
-                                {/* Audience Dropdown */}
-                                <div className="flex-1">
-                                  <label className="form-label">
-                                    Audience
-                                  </label>
-                                  <div className="relative">
-                                    <Dropdown<string>
-                                      options={[
-                                        {
-                                          value: "40836",
-                                          label:
-                                            "Clicked or Added brand's product to cart - 40836...",
-                                        },
-                                        {
-                                          value: "40837",
-                                          label:
-                                            "Viewed brand's product detail page - 40837...",
-                                        },
-                                        {
-                                          value: "40838",
-                                          label:
-                                            "Purchased brand's product - 40838...",
-                                        },
-                                      ]}
-                                      value={selectedAudience}
-                                      onChange={(value) =>
-                                        setSelectedAudience(value)
-                                      }
-                                      placeholder="Select audience"
-                                      buttonClassName="edit-button w-full"
-                                    />
-                                    <svg
-                                      className="w-4 h-4 text-[#556179] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                      />
-                                    </svg>
-                                  </div>
-                                </div>
-
-                                {/* Percentage Input */}
-                                <div className="flex-shrink-0">
-                                  <div className="flex items-center gap-2">
-                                    <div className="relative">
-                                      <input
-                                        type="number"
-                                        value={audiencePercentage}
-                                        onChange={(e) => {
-                                          const value =
-                                            parseFloat(e.target.value) || 0;
-                                          if (value >= 0 && value <= 900) {
-                                            setAudiencePercentage(value);
-                                          }
-                                        }}
-                                        min="0"
-                                        max="900"
-                                        step="1"
-                                        className="bg-[#FEFEFB] w-24 px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                      />
+                                            onChange={(e) => {
+                                              const value =
+                                                parseFloat(e.target.value) || 0;
+                                              if (value >= -99 && value <= 900) {
+                                                setFormData((prev) => {
+                                                  const updated = { ...prev };
+                                                  if (!updated.bidding) {
+                                                    updated.bidding = {
+                                                      bidOptimization: true,
+                                                      shopperCohortBidAdjustments: [],
+                                                      bidAdjustmentsByPlacement: [],
+                                                    };
+                                                  }
+                                                  const adjustments = [
+                                                    ...(updated.bidding
+                                                      .bidAdjustmentsByPlacement ||
+                                                      []),
+                                                  ];
+                                                  const existingIndex =
+                                                    adjustments.findIndex(
+                                                      (adj) =>
+                                                        adj.placement ===
+                                                        "SITE_AMAZON_BUSINESS"
+                                                    );
+                                                  if (existingIndex >= 0) {
+                                                    adjustments[
+                                                      existingIndex
+                                                    ].percentage = value;
+                                                  } else {
+                                                    adjustments.push({
+                                                      percentage: value,
+                                                      placement:
+                                                        "SITE_AMAZON_BUSINESS",
+                                                    });
+                                                  }
+                                                  updated.bidding.bidAdjustmentsByPlacement =
+                                                    adjustments;
+                                                  return updated;
+                                                });
+                                              }
+                                            }}
+                                            min="-99"
+                                            max="900"
+                                            step="1"
+                                            className="campaign-input w-full"
+                                          />
+                                        </div>
+                                        <span className="text-[13px] text-[#072929]">
+                                          %
+                                        </span>
+                                      </div>
                                     </div>
-                                    <span className="text-[13px] text-[#072929]">
-                                      %
-                                    </span>
                                   </div>
                                 </div>
-                              </div>
+                              </>
+                            )}
 
-                              {/* Helper Text */}
-                              {selectedAudience && audiencePercentage > 0 && (
-                                <p className="text-[12px] text-[#556179]">
-                                  A A$0.80 cost-per-click can increase up to A$
-                                  {(
-                                    0.8 *
-                                    (1 + audiencePercentage / 100)
-                                  ).toFixed(2)}{" "}
-                                  for this audience.
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                            {/* Audiences Tab Content */}
+                            {activeBiddingTab === "audiences" && (
+                              <div className="bg-[#FEFEFB] p-4 space-y-4">
+                                {/* Radio Buttons */}
+                                <div className="space-y-3">
+                                  <label
+                                    className={`flex items-center gap-3 ${mode === "edit"
+                                      ? "cursor-not-allowed opacity-60"
+                                      : "cursor-pointer"
+                                      }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name="audienceBidOption"
+                                      checked={increaseBidsForAudiences}
+                                      onChange={() =>
+                                        setIncreaseBidsForAudiences(true)
+                                      }
+                                      className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
+                                    />
+                                    <span className="text-[13px] font-medium text-[#072929]">
+                                      Increase bids for audiences built by Amazon
+                                    </span>
+                                  </label>
+                                  <label
+                                    className={`flex items-center gap-3 ${mode === "edit"
+                                      ? "cursor-not-allowed opacity-60"
+                                      : "cursor-pointer"
+                                      }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name="audienceBidOption"
+                                      checked={!increaseBidsForAudiences}
+                                      onChange={() =>
+                                        setIncreaseBidsForAudiences(false)
+                                      }
+                                      className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
+                                    />
+                                    <span className="text-[13px] font-medium text-[#072929]">
+                                      Don't increase bids for an audience
+                                    </span>
+                                  </label>
+                                </div>
+
+                                {/* Audience Selection and Percentage - Only show when "Increase bids" is selected */}
+                                {increaseBidsForAudiences && (
+                                  <div className="space-y-4">
+                                    <div className="flex gap-4 items-end">
+                                      {/* Audience Dropdown */}
+                                      <div className="flex-1">
+                                        <label className="form-label">
+                                          Audience
+                                        </label>
+                                        <div className="relative">
+                                          <Dropdown<string>
+                                            options={[
+                                              {
+                                                value: "40836",
+                                                label:
+                                                  "Clicked or Added brand's product to cart - 40836...",
+                                              },
+                                              {
+                                                value: "40837",
+                                                label:
+                                                  "Viewed brand's product detail page - 40837...",
+                                              },
+                                              {
+                                                value: "40838",
+                                                label:
+                                                  "Purchased brand's product - 40838...",
+                                              },
+                                            ]}
+                                            value={selectedAudience}
+                                            onChange={(value) =>
+                                              setSelectedAudience(value)
+                                            }
+                                            placeholder="Select audience"
+                                            buttonClassName="edit-button w-full"
+                                          />
+                                          <svg
+                                            className="w-4 h-4 text-[#556179] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                            />
+                                          </svg>
+                                        </div>
+                                      </div>
+
+                                      {/* Percentage Input */}
+                                      <div className="flex-shrink-0">
+                                        <div className="flex items-center gap-2">
+                                          <div className="relative">
+                                            <input
+                                              type="number"
+                                              value={audiencePercentage}
+                                              onChange={(e) => {
+                                                const value =
+                                                  parseFloat(e.target.value) || 0;
+                                                if (value >= 0 && value <= 900) {
+                                                  setAudiencePercentage(value);
+                                                }
+                                              }}
+                                              min="0"
+                                              max="900"
+                                              step="1"
+                                              className="bg-[#FEFEFB] w-24 px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                            />
+                                          </div>
+                                          <span className="text-[13px] text-[#072929]">
+                                            %
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Helper Text */}
+                                    {selectedAudience && audiencePercentage > 0 && (
+                                      <p className="text-[12px] text-[#556179]">
+                                        A A$0.80 cost-per-click can increase up to A$
+                                        {(
+                                          0.8 *
+                                          (1 + audiencePercentage / 100)
+                                        ).toFixed(2)}{" "}
+                                        for this audience.
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         {/* Tags Section */}
@@ -3715,8 +3686,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                 ? "Saving..."
                 : "Creating..."
               : mode === "edit"
-              ? "Save Changes"
-              : "Create Campaign"}
+                ? "Save Changes"
+                : "Create Campaign"}
           </button>
         </div>
       </form>

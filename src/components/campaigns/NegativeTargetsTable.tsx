@@ -2,6 +2,7 @@ import React, { useRef } from "react";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Dropdown } from "../ui/Dropdown";
 import { Checkbox } from "../ui/Checkbox";
+import { Loader } from "../ui/Loader";
 
 interface NegativeTarget {
   id: number;
@@ -128,7 +129,8 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
   };
 
   return (
-    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+    <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
+
       <div className="overflow-x-auto w-full">
         {loading ? (
           <div className="text-center py-8 text-[#556179] text-[13.3px]">
@@ -173,9 +175,8 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
 
                   {/* State Header */}
                   <th
-                    className={`table-header min-w-[250px] ${
-                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
+                    className={`table-header min-w-[250px] ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                      }`}
                     onClick={() => onSort?.("state")}
                   >
                     <div className="flex items-center gap-1">
@@ -212,9 +213,8 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                   return (
                     <tr
                       key={target.id}
-                      className={`${
-                        !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
+                      className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
+                        } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
                     >
                       {/* Checkbox */}
                       {onSelect && (
@@ -250,46 +250,45 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                       {/* State */}
                       <td className="table-cell min-w-[250px]">
                         {editingField?.id === target.id &&
-                        editingField?.field === "status" ? (
-                            <Dropdown
-                              options={[
-                                ...(campaignType === "SD"
-                                  ? [
-                                      { value: "enabled", label: "Enabled" },
-                                      { value: "paused", label: "Paused" },
-                                      { value: "archived", label: "Archived" },
-                                    ]
-                                  : [
-                                      { value: "ENABLED", label: "ENABLED" },
-                                      { value: "PAUSED", label: "PAUSED" },
-                                    ]),
-                              ]}
-                              value={editedValue || target.state || (campaignType === "SD" ? "enabled" : "ENABLED")}
-                              onChange={(value) => {
-                                statusSelectionMadeRef.current = target.id;
-                                onEditChange?.(value);
-                                onEditEnd?.(value);
-                              }}
-                              onClose={() => {
-                                if (
-                                  statusSelectionMadeRef.current !== target.id
-                                ) {
-                                  onEditCancel?.();
-                                }
-                                statusSelectionMadeRef.current = null;
-                              }}
-                              defaultOpen={true}
-                              buttonClassName="inline-edit-dropdown"
-                              width="w-full"
-                              align="center"
-                            />
+                          editingField?.field === "status" ? (
+                          <Dropdown
+                            options={[
+                              ...(campaignType === "SD"
+                                ? [
+                                  { value: "enabled", label: "Enabled" },
+                                  { value: "paused", label: "Paused" },
+                                  { value: "archived", label: "Archived" },
+                                ]
+                                : [
+                                  { value: "ENABLED", label: "ENABLED" },
+                                  { value: "PAUSED", label: "PAUSED" },
+                                ]),
+                            ]}
+                            value={editedValue || target.state || (campaignType === "SD" ? "enabled" : "ENABLED")}
+                            onChange={(value) => {
+                              statusSelectionMadeRef.current = target.id;
+                              onEditChange?.(value);
+                              onEditEnd?.(value);
+                            }}
+                            onClose={() => {
+                              if (
+                                statusSelectionMadeRef.current !== target.id
+                              ) {
+                                onEditCancel?.();
+                              }
+                              statusSelectionMadeRef.current = null;
+                            }}
+                            defaultOpen={true}
+                            buttonClassName="inline-edit-dropdown"
+                            width="w-full"
+                            align="center"
+                          />
                         ) : (
                           <div
-                            className={`rounded px-2 py-1 transition-colors ${
-                              isArchived
-                                ? "cursor-not-allowed opacity-60"
-                                : "cursor-pointer hover:bg-gray-100"
-                            }`}
+                            className={`rounded px-2 py-1 transition-colors ${isArchived
+                              ? "cursor-not-allowed opacity-60"
+                              : "cursor-pointer hover:bg-gray-100"
+                              }`}
                             onClick={() => {
                               if (!isArchived) {
                                 onEditStart?.(target.id, "status", statusValue);
@@ -330,6 +329,14 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
           </div>
         )}
       </div>
+      {/* Loading overlay for table */}
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-overlay-content">
+            <Loader size="md" message="Loading negative targets..." />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
