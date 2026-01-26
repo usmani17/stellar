@@ -1077,3 +1077,8 @@ body input[type="submit"]:disabled {
   color: #9CA3AF;
   border-bottom-color: transparent;
 }
+
+.tab-content {
+  background-color: #FEFEFB;
+  padding: 1rem;
+}

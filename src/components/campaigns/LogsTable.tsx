@@ -394,8 +394,8 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                       {campaignId
                         ? "There are no log entries for this campaign yet. Logs will appear here when changes are made."
                         : marketplace
-                        ? `There are no log entries for ${marketplace} marketplace. Logs will appear here when changes are made.`
-                        : "There are no log entries for the selected filters. Try adjusting your date range or filters."}
+                          ? `There are no log entries for ${marketplace} marketplace. Logs will appear here when changes are made.`
+                          : "There are no log entries for the selected filters. Try adjusting your date range or filters."}
                     </p>
                   </div>
                 </div>
@@ -424,9 +424,8 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                       return (
                         <tr
                           key={log.id}
-                          className={`hover:bg-gray-50 transition-colors ${
-                            !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                          }`}
+                          className={`hover:bg-gray-50 transition-colors ${!isLastRow ? "border-b border-[#e8e8e3]" : ""
+                            }`}
                         >
                           <td className="table-cell">
                             <span className="table-text">{log.id}</span>
@@ -436,7 +435,7 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                               <span className="table-text">
                                 {log.marketplace
                                   ? log.marketplace.charAt(0).toUpperCase() +
-                                    log.marketplace.slice(1)
+                                  log.marketplace.slice(1)
                                   : "—"}
                               </span>
                             </td>
@@ -522,11 +521,10 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                     <button
                       key={pageNum}
                       onClick={() => handlePageChange(pageNum)}
-                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                        currentPage === pageNum
+                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
                           ? "bg-white text-[#136D6D] font-semibold"
                           : "text-black hover:bg-gray-50"
-                      }`}
+                        }`}
                     >
                       {pageNum}
                     </button>
@@ -540,11 +538,10 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                 {totalPages > 5 && (
                   <button
                     onClick={() => handlePageChange(totalPages)}
-                    className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                      currentPage === totalPages
+                    className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
                         ? "bg-white text-[#136D6D] font-semibold"
                         : "text-black hover:bg-gray-50"
-                    }`}
+                      }`}
                   >
                     {totalPages}
                   </button>
@@ -713,8 +710,8 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                       {campaignId
                         ? "There are no log entries for this campaign yet. Logs will appear here when changes are made."
                         : marketplace
-                        ? `There are no log entries for ${marketplace} marketplace. Logs will appear here when changes are made.`
-                        : "There are no log entries for the selected filters. Try adjusting your date range or filters."}
+                          ? `There are no log entries for ${marketplace} marketplace. Logs will appear here when changes are made.`
+                          : "There are no log entries for the selected filters. Try adjusting your date range or filters."}
                     </p>
                   </div>
                 </div>
@@ -743,9 +740,8 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                       return (
                         <tr
                           key={log.id}
-                          className={`hover:bg-gray-50 transition-colors ${
-                            !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                          }`}
+                          className={`hover:bg-gray-50 transition-colors ${!isLastRow ? "border-b border-[#e8e8e3]" : ""
+                            }`}
                         >
                           <td className="table-cell">
                             <span className="table-text">{log.id}</span>
@@ -755,7 +751,7 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                               <span className="table-text">
                                 {log.marketplace
                                   ? log.marketplace.charAt(0).toUpperCase() +
-                                    log.marketplace.slice(1)
+                                  log.marketplace.slice(1)
                                   : "—"}
                               </span>
                             </td>
@@ -840,11 +836,10 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                     <button
                       key={pageNum}
                       onClick={() => handlePageChange(pageNum)}
-                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                        currentPage === pageNum
+                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
                           ? "bg-white text-[#136D6D] font-semibold"
                           : "text-black hover:bg-gray-50"
-                      }`}
+                        }`}
                     >
                       {pageNum}
                     </button>
@@ -858,11 +853,10 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                 {totalPages > 5 && (
                   <button
                     onClick={() => handlePageChange(totalPages)}
-                    className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                      currentPage === totalPages
+                    className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
                         ? "bg-white text-[#136D6D] font-semibold"
                         : "text-black hover:bg-gray-50"
-                    }`}
+                      }`}
                   >
                     {totalPages}
                   </button>

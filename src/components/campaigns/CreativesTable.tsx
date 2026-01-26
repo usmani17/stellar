@@ -1,6 +1,7 @@
 import React from "react";
 import { Checkbox } from "../ui/Checkbox";
 import { StatusBadge } from "../ui/StatusBadge";
+import { Loader } from "../ui/Loader";
 
 export interface Creative {
   id: number;
@@ -123,29 +124,13 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#136D6D]"></div>
-      </div>
-    );
-  }
-
-  if (creatives.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        No creatives found. Create your first creative to get started.
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-white rounded-lg border border-[#EBEBEB] overflow-hidden">
+    <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
       <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-[#F8F9FA] border-b border-[#EBEBEB]">
-            <tr>
-              <th className="px-4 py-3 text-left">
+        <table className="w-full min-w-max">
+          <thead className="sticky top-0 bg-[#fefefb] z-10">
+            <tr className="border-b border-[#e8e8e3]">
+              <th className="table-header w-[35px]">
                 {onSelectAll && (
                   <Checkbox
                     checked={allSelected}
@@ -155,7 +140,8 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                 )}
               </th>
               <th
-                className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase cursor-pointer hover:bg-gray-50"
+                className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
                 onClick={() => handleSort("creativeId")}
               >
                 <div className="flex items-center">
@@ -164,7 +150,8 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                 </div>
               </th>
               <th
-                className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase cursor-pointer hover:bg-gray-50"
+                className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
                 onClick={() => handleSort("adGroupId")}
               >
                 <div className="flex items-center">
@@ -172,17 +159,21 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                   {getSortIcon("adGroupId")}
                 </div>
               </th>
-              <th className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase">
+              <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                }`}>
                 CreativeType
               </th>
-              <th className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase">
+              <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                }`}>
                 Properties (JSON)
               </th>
-              <th className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase">
+              <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                }`}>
                 Moderation Status
               </th>
               <th
-                className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase cursor-pointer hover:bg-gray-50"
+                className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
                 onClick={() => handleSort("last_updated")}
               >
                 <div className="flex items-center">
@@ -191,7 +182,8 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                 </div>
               </th>
               {onEdit && (
-                <th className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase">
+                <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}>
                   Actions
                 </th>
               )}
@@ -201,9 +193,9 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
             {creatives.map((creative) => (
               <tr
                 key={creative.creativeId}
-                className="border-b border-[#EBEBEB] hover:bg-gray-50"
+                className="table-row group"
               >
-                <td className="px-4 py-3">
+                <td className="table-cell">
                   {onSelect && (
                     <Checkbox
                       checked={selectedIds.has(Number(creative.creativeId))}
@@ -213,22 +205,22 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                     />
                   )}
                 </td>
-                <td className="px-4 py-3 text-[13.44px] text-[#222124]">
+                <td className="table-cell table-text leading-[1.26]">
                   {creative.creativeId}
                 </td>
-                <td className="px-4 py-3 text-[13.44px] text-[#222124]">
+                <td className="table-cell table-text leading-[1.26]">
                   {creative.adGroupId}
                 </td>
-                <td className="px-4 py-3">
+                <td className="table-cell">
                   <StatusBadge
                     status={creative.creativeType}
                     uppercase={false}
                   />
                 </td>
-                <td className="px-4 py-3 text-[13.44px] text-[#222124] font-mono text-xs break-all">
+                <td className="table-cell table-text leading-[1.26]">
                   {getPropertySummary(creative)}
                 </td>
-                <td className="px-4 py-3">
+                <td className="table-cell">
                   {creative.moderationStatus ? (
                     <StatusBadge
                       status={creative.moderationStatus}
@@ -238,13 +230,13 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                     <span className="text-gray-400 text-[13.44px]">N/A</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-[13.44px] text-[#222124]">
+                <td className="table-cell table-text leading-[1.26]">
                   {creative.last_updated
                     ? new Date(creative.last_updated).toLocaleDateString()
                     : "N/A"}
                 </td>
                 {onEdit && (
-                  <td className="px-4 py-3">
+                  <td className="table-cell">
                     <button
                       onClick={() => onEdit(creative)}
                       className="text-[#136D6D] hover:text-[#0f5555] transition-colors"
@@ -271,6 +263,14 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
           </tbody>
         </table>
       </div>
+      {/* Loading overlay for table */}
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-overlay-content">
+            <Loader size="md" message="Loading creatives..." />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

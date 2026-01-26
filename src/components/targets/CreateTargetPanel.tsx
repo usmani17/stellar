@@ -1177,7 +1177,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                 {/* Show only active tab form */}
                 {/* TargetingPredicate fields */}
                 {activeExpressionTab === "TargetingPredicate" && (
-                  <div className="bg-[#FEFEFB] p-4">
+                  <div className="tab-content">
                     <div className="flex items-end gap-3 grid grid-cols-4">
                       <div className="flex-1 min-w-[200px]">
                         <label className="form-label-small">
@@ -1248,7 +1248,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
 
               {/* ContentTargetingPredicate field */}
               {activeExpressionTab === "ContentTargetingPredicate" && (
-                <div className="bg-[#FEFEFB] p-4">
+                <div className="tab-content">
                   <label className="block text-[11.2px] font-semibold text-[#556179] uppercase mb-2">
                     Content Categories *
                   </label>
@@ -1315,7 +1315,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
 
               {/* TargetingPredicateNested fields */}
               {activeExpressionTab === "TargetingPredicateNested" && (
-                <div className="bg-[#FEFEFB] p-4">
+                <div className="tab-content">
                   <div className="flex items-end gap-3 grid grid-cols-4">
                     <div className="flex-1 min-w-[180px] w-full">
                       <label className="form-label-small">

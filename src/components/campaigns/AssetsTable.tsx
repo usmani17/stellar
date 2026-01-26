@@ -1,5 +1,6 @@
 import React from "react";
 import { Checkbox } from "../ui/Checkbox";
+import { Loader } from "../ui/Loader";
 
 export interface Asset {
   id: number;
@@ -134,22 +135,19 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
   };
 
   return (
-    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+    <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
+
       <div className="overflow-x-auto w-full">
-        {loading ? (
-          <div className="text-center py-8 text-[#556179] text-[13.3px]">
-            Loading assets...
-          </div>
-        ) : assets.length === 0 ? (
+        {assets.length === 0 && !loading ? (
           <div className="text-center py-8">
             <p className="text-[13.3px] text-[#556179] mb-4">No assets found</p>
           </div>
         ) : (
-          <table className="w-full border-collapse">
+          <table className="w-full min-w-max">
             <thead>
-              <tr className="bg-[#f5f5f0] border-b border-[#e8e8e3]">
+              <tr className="sticky top-0 bg-[#fefefb] z-10">
                 {onSelectAll && (
-                  <th className="table-cell text-left">
+                  <th className="table-header w-[35px]">
                     <Checkbox
                       checked={allSelected}
                       indeterminate={someSelected && !allSelected}
@@ -157,11 +155,12 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                     />
                   </th>
                 )}
-                <th className="table-header">
+                <th className="table-header w-[100px]">
                   Preview
                 </th>
                 <th
-                  className="table-header"
+                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
                   onClick={() => onSort?.("assetId")}
                 >
                   <div className="flex items-center">
@@ -170,7 +169,8 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header"
+                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
                   onClick={() => onSort?.("fileName")}
                 >
                   <div className="flex items-center">
@@ -179,7 +179,8 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header"
+                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
                   onClick={() => onSort?.("mediaType")}
                 >
                   <div className="flex items-center">
@@ -188,7 +189,8 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header"
+                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
                   onClick={() => onSort?.("fileSize")}
                 >
                   <div className="flex items-center">
@@ -197,7 +199,8 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header"
+                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
                   onClick={() => onSort?.("contentType")}
                 >
                   <div className="flex items-center">
@@ -205,7 +208,10 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                     {getSortIcon("contentType")}
                   </div>
                 </th>
-                <th className="table-header">
+                <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
+                  onClick={() => onSort?.("createdAt")}
+                >
                   Created
                 </th>
               </tr>
@@ -346,8 +352,8 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                     <td className="table-cell table-text leading-[1.26]">
                       {asset.createdAt || asset.creationTime
                         ? new Date(
-                            asset.createdAt || asset.creationTime!
-                          ).toLocaleString()
+                          asset.createdAt || asset.creationTime!
+                        ).toLocaleString()
                         : "—"}
                     </td>
                   </tr>
@@ -357,6 +363,14 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
           </table>
         )}
       </div>
+      {/* Loading overlay for table */}
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-overlay-content">
+            <Loader size="md" message="Loading assets..." />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
