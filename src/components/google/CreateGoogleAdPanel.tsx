@@ -52,7 +52,7 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
     return `Ad Group - ${dateTime}`;
   };
 
-  const [useExistingAdGroup, setUseExistingAdGroup] = useState(false);
+  const [useExistingAdGroup, setUseExistingAdGroup] = useState(true);
   const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>("");
   const [newAdGroupName, setNewAdGroupName] = useState(generateDefaultAdGroupName());
   const [adGroupBid, setAdGroupBid] = useState<number | undefined>(undefined);
@@ -89,7 +89,11 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
         params.adgroup_name__icontains = searchQuery.trim();
       }
       
-      const response = await campaignsService.getGoogleAdGroups(accountIdNum, campaignIdNum, params);
+      // Pass campaignId as second parameter to ensure proper filtering
+      const response = await campaignsService.getGoogleAdGroups(accountIdNum, campaignIdNum, {
+        ...params,
+        campaign_id: campaignIdNum, // Explicitly set in params as well
+      });
       
       // Map adgroups to options format
       // Use adgroup_id from the response (this is the Google Ads adgroup ID)
@@ -153,7 +157,7 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
   // Reset form when panel closes
   useEffect(() => {
     if (!isOpen) {
-      setUseExistingAdGroup(false);
+      setUseExistingAdGroup(true);
       setSelectedAdGroupId("");
       setNewAdGroupName(generateDefaultAdGroupName());
       setAdGroupBid(undefined);
@@ -174,7 +178,7 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
   useEffect(() => {
     if (prevLoadingRef.current === true && loading === false && isOpen) {
       // Successful submission - reset form
-      setUseExistingAdGroup(false);
+      setUseExistingAdGroup(true);
       setSelectedAdGroupId("");
       setNewAdGroupName(generateDefaultAdGroupName());
       setAdGroupBid(undefined);
@@ -276,7 +280,7 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
   };
 
   const handleCancel = () => {
-    setUseExistingAdGroup(false);
+    setUseExistingAdGroup(true);
     setSelectedAdGroupId("");
     setNewAdGroupName(generateDefaultAdGroupName());
     setAdGroupBid(undefined);

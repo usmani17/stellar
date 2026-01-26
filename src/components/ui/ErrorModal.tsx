@@ -206,21 +206,34 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
               </div>
             )}
 
-            {/* Error Details Table (for policy violations) */}
+            {/* Error Details Table (for policy violations) or Success Details Table */}
             {hasErrorDetails && (
               <div className="max-h-[400px] overflow-y-auto border border-[#e8e8e3] rounded-lg">
                 <table className="w-full text-left">
                   <thead className="bg-[#f5f5f0] sticky top-0">
                     <tr>
-                      <th className="py-2 px-3 text-[12px] font-semibold text-[#29303f] border-b border-[#e8e8e3]">
-                        Entity
-                      </th>
-                      <th className="py-2 px-3 text-[12px] font-semibold text-[#29303f] border-b border-[#e8e8e3]">
-                        Policy/Error
-                      </th>
-                      <th className="py-2 px-3 text-[12px] font-semibold text-[#29303f] border-b border-[#e8e8e3]">
-                        Details
-                      </th>
+                      {isSuccess ? (
+                        <>
+                          <th className="py-2 px-3 text-[12px] font-semibold text-[#29303f] border-b border-[#e8e8e3]">
+                            Field
+                          </th>
+                          <th className="py-2 px-3 text-[12px] font-semibold text-[#29303f] border-b border-[#e8e8e3]">
+                            Value
+                          </th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="py-2 px-3 text-[12px] font-semibold text-[#29303f] border-b border-[#e8e8e3]">
+                            Entity
+                          </th>
+                          <th className="py-2 px-3 text-[12px] font-semibold text-[#29303f] border-b border-[#e8e8e3]">
+                            Policy/Error
+                          </th>
+                          <th className="py-2 px-3 text-[12px] font-semibold text-[#29303f] border-b border-[#e8e8e3]">
+                            Details
+                          </th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -233,39 +246,52 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
                             : ""
                         }
                       >
-                        <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
-                          {error.entity || "—"}
-                        </td>
-                        <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
-                          {error.policy_name || error.error_code || "Error"}
-                        </td>
-                        <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
-                          <div className="space-y-1">
-                            {error.violating_text && (
-                              <div>
-                                <span className="font-medium">
-                                  Violating text:
-                                </span>{" "}
-                                "{error.violating_text}"
+                        {isSuccess ? (
+                          <>
+                            <td className="py-2 px-3 text-[13px] font-medium text-[#0b0f16]">
+                              {error.entity || "—"}
+                            </td>
+                            <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
+                              {error.message || "—"}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
+                              {error.entity || "—"}
+                            </td>
+                            <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
+                              {error.policy_name || error.error_code || "Error"}
+                            </td>
+                            <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
+                              <div className="space-y-1">
+                                {error.violating_text && (
+                                  <div>
+                                    <span className="font-medium">
+                                      Violating text:
+                                    </span>{" "}
+                                    "{error.violating_text}"
+                                  </div>
+                                )}
+                                {error.policy_description && (
+                                  <div className="text-[12px] text-[#556179]">
+                                    {error.policy_description}
+                                  </div>
+                                )}
+                                {error.message && !error.policy_description && (
+                                  <div className="text-[12px] text-[#556179]">
+                                    {error.message}
+                                  </div>
+                                )}
+                                {error.is_exemptible && (
+                                  <div className="text-[11px] text-blue-600 italic">
+                                    (This violation may be exemptible)
+                                  </div>
+                                )}
                               </div>
-                            )}
-                            {error.policy_description && (
-                              <div className="text-[12px] text-[#556179]">
-                                {error.policy_description}
-                              </div>
-                            )}
-                            {error.message && !error.policy_description && (
-                              <div className="text-[12px] text-[#556179]">
-                                {error.message}
-                              </div>
-                            )}
-                            {error.is_exemptible && (
-                              <div className="text-[11px] text-blue-600 italic">
-                                (This violation may be exemptible)
-                              </div>
-                            )}
-                          </div>
-                        </td>
+                            </td>
+                          </>
+                        )}
                       </tr>
                     ))}
                   </tbody>

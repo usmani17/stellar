@@ -1856,7 +1856,7 @@ export const GoogleKeywords: React.FC = () => {
               isCollapsed={isChartCollapsed}
               onCollapseToggle={toggleChartCollapse}
             />
-            {loading && (
+            {loading && !isChartCollapsed && (
                   <div className="loading-overlay">
                     <div className="loading-overlay-content">
                       <Loader size="md" message="Loading chart data..." />

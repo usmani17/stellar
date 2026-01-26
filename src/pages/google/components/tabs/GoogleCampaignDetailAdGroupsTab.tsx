@@ -73,9 +73,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
   filters,
   onApplyFilters,
   syncing,
-  onSync,
   syncingAnalytics,
-  onSyncAnalytics,
   syncMessage,
   onRefresh,
   formatPercentage,
@@ -649,7 +647,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                       />
                     </div>
                   </th>
-                  <th className="table-header" onClick={() => onSort("name")}>
+                  <th className="table-header min-w-[300px]" onClick={() => onSort("name")}>
                     <div className="flex items-center gap-1">
                       Ad Group Name
                       {getSortIcon("name", sortBy, sortOrder)}
@@ -661,12 +659,84 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
                   </th>
-                  <th className="table-header hidden md:table-cell">
-                    Default max. CPC
+                  <th className="table-header hidden md:table-cell" onClick={() => onSort("cpc_bid_dollars")}>
+                    <div className="flex items-center gap-1">
+                      Default max. CPC
+                      {getSortIcon("cpc_bid_dollars", sortBy, sortOrder)}
+                    </div>
                   </th>
-                  <th className="table-header hidden md:table-cell">CTR</th>
-                  <th className="table-header hidden md:table-cell">Cost</th>
-                  <th className="table-header hidden md:table-cell">Conv. value</th>
+                  <th className="table-header hidden md:table-cell" onClick={() => onSort("ctr")}>
+                    <div className="flex items-center gap-1">
+                      CTR
+                      {getSortIcon("ctr", sortBy, sortOrder)}
+                    </div>
+                  </th>
+                  <th className="table-header hidden md:table-cell" onClick={() => onSort("spends")}>
+                    <div className="flex items-center gap-1">
+                      Cost
+                      {getSortIcon("spends", sortBy, sortOrder)}
+                    </div>
+                  </th>
+                  <th className="table-header hidden md:table-cell" onClick={() => onSort("sales")}>
+                    <div className="flex items-center gap-1">
+                      Conv. value
+                      {getSortIcon("sales", sortBy, sortOrder)}
+                    </div>
+                  </th>
+                  <th className="table-header hidden md:table-cell" onClick={() => onSort("impressions")}>
+                    <div className="flex items-center gap-1">
+                      Impressions
+                      {getSortIcon("impressions", sortBy, sortOrder)}
+                    </div>
+                  </th>
+                  <th className="table-header hidden md:table-cell" onClick={() => onSort("clicks")}>
+                    <div className="flex items-center gap-1">
+                      Clicks
+                      {getSortIcon("clicks", sortBy, sortOrder)}
+                    </div>
+                  </th>
+                  <th className="table-header hidden md:table-cell" onClick={() => onSort("roas")}>
+                    <div className="flex items-center gap-1">
+                      Conv. value / cost
+                      {getSortIcon("roas", sortBy, sortOrder)}
+                    </div>
+                  </th>
+                  <th className="table-header hidden md:table-cell" onClick={() => onSort("avg_cpc")}>
+                    <div className="flex items-center gap-1">
+                      Avg. CPC
+                      {getSortIcon("avg_cpc", sortBy, sortOrder)}
+                    </div>
+                  </th>
+                  <th className="table-header hidden md:table-cell" onClick={() => onSort("conversions")}>
+                    <div className="flex items-center gap-1">
+                      Conversions
+                      {getSortIcon("conversions", sortBy, sortOrder)}
+                    </div>
+                  </th>
+                  <th className="table-header hidden md:table-cell" onClick={() => onSort("conversion_rate")}>
+                    <div className="flex items-center gap-1">
+                      Conv. rate
+                      {getSortIcon("conversion_rate", sortBy, sortOrder)}
+                    </div>
+                  </th>
+                  <th className="table-header hidden md:table-cell" onClick={() => onSort("cost_per_conversion")}>
+                    <div className="flex items-center gap-1">
+                      Cost / conv.
+                      {getSortIcon("cost_per_conversion", sortBy, sortOrder)}
+                    </div>
+                  </th>
+                  <th className="table-header hidden md:table-cell" onClick={() => onSort("avg_cost")}>
+                    <div className="flex items-center gap-1">
+                      Avg. cost
+                      {getSortIcon("avg_cost", sortBy, sortOrder)}
+                    </div>
+                  </th>
+                  <th className="table-header hidden md:table-cell" onClick={() => onSort("interaction_rate")}>
+                    <div className="flex items-center gap-1">
+                      Interaction rate
+                      {getSortIcon("interaction_rate", sortBy, sortOrder)}
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -690,7 +760,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                           />
                         </div>
                       </td>
-                      <td className="table-cell">
+                      <td className="table-cell min-w-[300px]">
                         <span
                           onClick={() =>
                             onStartNameEdit && handleNameClick(adgroup)
@@ -931,6 +1001,57 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                       <td className="table-cell hidden md:table-cell">
                         <span className="table-text leading-[1.26]">
                           {formatCurrency2Decimals(adgroup.sales)}
+                        </span>
+                      </td>
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {((adgroup as any).impressions || 0).toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {((adgroup as any).clicks || 0).toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {((adgroup as any).roas || 0).toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {formatCurrency2Decimals((adgroup as any).avg_cpc || (adgroup as any).cpc || 0)}
+                        </span>
+                      </td>
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {((adgroup as any).conversions || 0).toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {formatPercentage((adgroup as any).conversion_rate || 0)}
+                        </span>
+                      </td>
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {formatCurrency2Decimals((adgroup as any).cost_per_conversion || 0)}
+                        </span>
+                      </td>
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {formatCurrency2Decimals(
+                            (() => {
+                              const interactions = Number((adgroup as any).interactions ?? (adgroup as any).clicks ?? 0);
+                              const spends = Number(adgroup.spends ?? 0);
+                              return interactions > 0 ? spends / interactions : Number((adgroup as any).avg_cost ?? 0);
+                            })()
+                          )}
+                        </span>
+                      </td>
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {formatPercentage((adgroup as any).interaction_rate || 0)}
                         </span>
                       </td>
                     </tr>

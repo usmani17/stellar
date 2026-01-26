@@ -1,147 +1,30 @@
+// CreateGoogleCampaignPanel - Refactored version using modular components
+// Original file backed up as CreateGoogleCampaignPanel.old.tsx
+
 import React, { useState, useEffect, useCallback } from "react";
-import { Dropdown } from "../ui/Dropdown";
 import { campaignsService } from "../../services/campaigns";
 import { accountsService } from "../../services/accounts";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
-
-interface RefreshMessage {
-  type: "loading" | "success" | "error";
-  message: string;
-  details?: string;
-}
-
-interface CreateGoogleCampaignPanelProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (data: CreateGoogleCampaignData) => Promise<void>;
-  accountId?: string;
-  loading?: boolean;
-  submitError?: string | null;
-  mode?: "create" | "edit";
-  initialData?: Partial<CreateGoogleCampaignData> | null;
-  campaignId?: string | number;
-  refreshMessage?: RefreshMessage | null;
-}
-
-export interface CreateGoogleCampaignData {
-  campaign_type: "PERFORMANCE_MAX" | "SHOPPING" | "SEARCH" | "DEMAND_GEN" | "DISPLAY" | "VIDEO";
-  customer_id?: string;
-  name: string;
-  budget_amount: number;
-  budget_name?: string;
-  start_date?: string; // YYYY-MM-DD format
-  end_date?: string; // YYYY-MM-DD format
-  status?: "ENABLED" | "PAUSED";
-  bidding_strategy_type?: string;
-  target_cpa_micros?: number; // Target CPA in micros (e.g., 1000000 = $1.00)
-  target_roas?: number; // Target ROAS (e.g., 3.0 = 300%)
-  target_impression_share_location?: string; // TOP_OF_PAGE, ABSOLUTE_TOP_OF_PAGE, ANYWHERE_ON_PAGE
-  target_impression_share_location_fraction_micros?: number; // Target impression share in micros (e.g., 800000 = 80%)
-  target_impression_share_cpc_bid_ceiling_micros?: number; // Maximum CPC bid ceiling in micros (e.g., 1000000 = $1.00)
-  // Performance Max fields
-  final_url?: string;
-  asset_group_name?: string;
-  headlines?: string[];
-  descriptions?: string[];
-  business_name?: string;
-  logo_url?: string;
-  marketing_image_url?: string;
-  square_marketing_image_url?: string;
-  long_headline?: string;
-  // URL options
-  tracking_url_template?: string;
-  final_url_suffix?: string;
-  url_custom_parameters?: Array<{ key: string; value: string }>;
-  // Shopping fields
-  merchant_id?: string;
-  sales_country?: string;
-  campaign_priority?: number;
-  enable_local?: boolean;
-  location_ids?: number[];  // Array of location criterion IDs to target
-  excluded_location_ids?: string[];  // Array of location criterion IDs to exclude
-  language_ids?: string[];  // Array of language constant IDs to target
-  device_ids?: string[];  // Array of device type IDs to target (MOBILE, DESKTOP, TABLET, CONNECTED_TV)
-  // Search fields
-  adgroup_name?: string;
-  keywords?: string[] | string; // Can be array or comma-separated string
-  match_type?: "BROAD" | "PHRASE" | "EXACT";
-  language_codes?: string[]; // Language codes for language targeting
-  conversion_action_ids?: string[]; // Conversion action IDs for selective optimization
-  // Demand Gen fields
-  video_url?: string;
-  video_id?: string;
-  ad_group_name?: string;
-  ad_name?: string;
-  ad_type?: string;
-  channel_controls?: {
-    gmail?: boolean;
-    discover?: boolean;
-    display?: boolean;
-    youtube_in_feed?: boolean;
-    youtube_in_stream?: boolean;
-    youtube_shorts?: boolean;
-  };
-  // Display fields
-  network_settings?: {
-    target_content_network?: boolean;
-    target_google_search?: boolean;
-    target_search_network?: boolean;
-    target_partner_search_network?: boolean;
-  };
-}
-
-const CAMPAIGN_TYPES = [
-  { value: "PERFORMANCE_MAX", label: "Performance Max" },
-  { value: "SHOPPING", label: "Shopping" },
-  { value: "SEARCH", label: "Search" },
-  // { value: "DEMAND_GEN", label: "Demand Gen" },
-  // { value: "DISPLAY", label: "Display" },
-  // { value: "VIDEO", label: "Video (Read-Only)", disabled: true },
-];
-
-const STATUS_OPTIONS = [
-  { value: "ENABLED", label: "Enabled" },
-  { value: "PAUSED", label: "Paused" },
-];
-
-const CAMPAIGN_PRIORITY_OPTIONS = [
-  { value: 0, label: "Low (0)" },
-  { value: 1, label: "Medium (1)" },
-  { value: 2, label: "High (2)" },
-];
-
-const SALES_COUNTRY_OPTIONS = [
-  { value: "US", label: "United States" },
-  { value: "CA", label: "Canada" },
-  { value: "GB", label: "United Kingdom" },
-  { value: "AU", label: "Australia" },
-  { value: "DE", label: "Germany" },
-  { value: "FR", label: "France" },
-  { value: "IT", label: "Italy" },
-  { value: "ES", label: "Spain" },
-  { value: "NL", label: "Netherlands" },
-  { value: "BE", label: "Belgium" },
-  { value: "SE", label: "Sweden" },
-  { value: "NO", label: "Norway" },
-  { value: "DK", label: "Denmark" },
-  { value: "FI", label: "Finland" },
-  { value: "PL", label: "Poland" },
-  { value: "JP", label: "Japan" },
-  { value: "BR", label: "Brazil" },
-  { value: "MX", label: "Mexico" },
-  { value: "IN", label: "India" },
-  { value: "CN", label: "China" },
-];
-
-const BIDDING_STRATEGY_OPTIONS = [
-  { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
-  { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
-  { value: "TARGET_CPA", label: "Target CPA" },
-  { value: "TARGET_ROAS", label: "Target ROAS" },
-  { value: "TARGET_IMPRESSION_SHARE", label: "Target Impression Share" },
-  { value: "TARGET_SPEND", label: "Target Spend" },
-  { value: "MANUAL_CPC", label: "Manual CPC" },
-];
+import {
+  BaseGoogleCampaignForm,
+  GoogleVideoCampaignForm,
+  GoogleShoppingCampaignForm,
+  GoogleDisplayCampaignForm,
+  GoogleSearchCampaignForm,
+  GooglePerformanceMaxCampaignForm,
+  GoogleDemandGenCampaignForm,
+  GoogleTrackingTemplateForm,
+  GoogleLocationTargetingForm,
+  GoogleLanguageTargetingForm,
+  type CreateGoogleCampaignPanelProps,
+  type CreateGoogleCampaignData,
+} from "./campaigns/index";
+import {
+  getAvailableBiddingStrategies,
+  getDefaultBiddingStrategy,
+  formatDate,
+  formatDateForName,
+} from "./campaigns/utils";
 
 export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps> = ({
   isOpen,
@@ -204,6 +87,86 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   const [errors, setErrors] = useState<
     Partial<Record<keyof CreateGoogleCampaignData, string>>
   >({});
+
+  // Scroll to first error field when errors are set
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      // Find the first error field
+      const firstErrorField = Object.keys(errors)[0] as keyof CreateGoogleCampaignData;
+      
+      // Try multiple selectors to find the field
+      let fieldElement: HTMLElement | null = null;
+      
+      // First try: input/select with name attribute
+      const inputSelector = `input[name="${firstErrorField}"]`;
+      const selectSelector = `select[name="${firstErrorField}"]`;
+      const textareaSelector = `textarea[name="${firstErrorField}"]`;
+      fieldElement = document.querySelector(inputSelector) as HTMLElement ||
+                    document.querySelector(selectSelector) as HTMLElement ||
+                    document.querySelector(textareaSelector) as HTMLElement;
+      
+      // Second try: element with data-field attribute
+      if (!fieldElement) {
+        fieldElement = document.querySelector(
+          `[data-field="${firstErrorField}"]`
+        ) as HTMLElement;
+      }
+      
+      // Third try: find by label text (for fields like campaign_type in dropdown)
+      if (!fieldElement) {
+        const labels = Array.from(document.querySelectorAll('label'));
+        const label = labels.find(l => {
+          const text = l.textContent?.toLowerCase() || '';
+          const fieldName = firstErrorField.toLowerCase().replace(/_/g, ' ');
+          return text.includes(fieldName) || text.includes(firstErrorField.toLowerCase());
+        });
+        if (label) {
+          // Find the associated input/select
+          const inputId = label.getAttribute('for');
+          if (inputId) {
+            const found = document.getElementById(inputId);
+            if (found) fieldElement = found as HTMLElement;
+          } else {
+            // Try to find input/select next to the label
+            const nextSibling = label.nextElementSibling?.querySelector('input, select, textarea');
+            if (nextSibling) {
+              fieldElement = nextSibling as HTMLElement;
+            } else {
+              const parentInput = label.parentElement?.querySelector('input, select, textarea');
+              if (parentInput) fieldElement = parentInput as HTMLElement;
+            }
+          }
+        }
+      }
+      
+      if (fieldElement) {
+        // Scroll to the field with smooth behavior
+        setTimeout(() => {
+          fieldElement?.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+          // Focus the field if it's an input
+          if (fieldElement instanceof HTMLInputElement || 
+              fieldElement instanceof HTMLSelectElement || 
+              fieldElement instanceof HTMLTextAreaElement) {
+            fieldElement.focus();
+          }
+        }, 100);
+      } else {
+        // Fallback: scroll to first error message
+        const firstErrorMsg = document.querySelector('.text-red-500');
+        if (firstErrorMsg) {
+          setTimeout(() => {
+            firstErrorMsg.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            });
+          }, 100);
+        }
+      }
+    }
+  }, [errors]);
 
   // Parse field errors from submitError
   useEffect(() => {
@@ -429,8 +392,12 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         formData.campaign_type !== "PERFORMANCE_MAX") ||
       !selectedProfileId
     ) {
-      setLocationOptions([]);
-      setLanguageOptions([]);
+      // Only clear location options, not language options (they're managed separately)
+      if (formData.campaign_type !== "SHOPPING" &&
+          formData.campaign_type !== "SEARCH" &&
+          formData.campaign_type !== "PERFORMANCE_MAX") {
+        setLocationOptions([]);
+      }
       return;
     }
 
@@ -485,10 +452,12 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
   // Function to fetch language constants
   const fetchLanguages = useCallback(async () => {
-    // Languages are selectable for SEARCH and PERFORMANCE_MAX campaigns
+    // Languages are selectable for SEARCH, PERFORMANCE_MAX, and SHOPPING campaigns
     if (
       !accountId ||
-      (formData.campaign_type !== "SEARCH" && formData.campaign_type !== "PERFORMANCE_MAX") ||
+      (formData.campaign_type !== "SEARCH" && 
+       formData.campaign_type !== "PERFORMANCE_MAX" && 
+       formData.campaign_type !== "SHOPPING") ||
       !selectedProfileId
     ) {
       setLanguageOptions([]);
@@ -519,11 +488,13 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     }
   }, [accountId, formData.campaign_type, selectedProfileId]);
 
-  // Fetch languages when SEARCH / PERFORMANCE_MAX campaign is selected
+  // Fetch languages when SEARCH / PERFORMANCE_MAX / SHOPPING campaign is selected
   useEffect(() => {
     if (
       isOpen &&
-      (formData.campaign_type === "SEARCH" || formData.campaign_type === "PERFORMANCE_MAX") &&
+      (formData.campaign_type === "SEARCH" || 
+       formData.campaign_type === "PERFORMANCE_MAX" || 
+       formData.campaign_type === "SHOPPING") &&
       accountId &&
       selectedProfileId
     ) {
@@ -634,65 +605,6 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       url_custom_parameters: [],
     }));
   };
-  // Get available bidding strategies based on campaign type
-  // Note: TARGET_CPA and TARGET_ROAS are not allowed during creation for SEARCH campaigns
-  // per Google Ads API restrictions. They can only be set after campaign creation.
-  // Reference: https://developers.google.com/google-ads/api/docs/campaigns/create-campaigns
-  const getAvailableBiddingStrategies = (campaignType: string) => {
-    if (campaignType === "PERFORMANCE_MAX") {
-      // Performance Max campaigns only support: MAXIMIZE_CONVERSIONS, MAXIMIZE_CONVERSION_VALUE
-      return BIDDING_STRATEGY_OPTIONS.filter(
-        (opt) =>
-          opt.value === "MAXIMIZE_CONVERSIONS" ||
-          opt.value === "MAXIMIZE_CONVERSION_VALUE"
-      );
-    } else if (campaignType === "SHOPPING") {
-      // Shopping campaigns: keep creation UI conservative to avoid API rejections.
-      // We only allow MANUAL_CPC here (matches our inline edit restrictions and avoids conversion-value strategy errors).
-      return BIDDING_STRATEGY_OPTIONS.filter(
-        (opt) => opt.value === "MANUAL_CPC"
-      );
-    } else if (campaignType === "DEMAND_GEN") {
-      // Demand Gen campaigns support: MAXIMIZE_CONVERSIONS, MAXIMIZE_CONVERSION_VALUE, TARGET_CPA, TARGET_ROAS
-      return BIDDING_STRATEGY_OPTIONS.filter(
-        (opt) =>
-          opt.value === "MAXIMIZE_CONVERSIONS" ||
-          opt.value === "MAXIMIZE_CONVERSION_VALUE" ||
-          opt.value === "TARGET_CPA" ||
-          opt.value === "TARGET_ROAS"
-      );
-    } else if (campaignType === "DISPLAY") {
-      // Display campaigns support all bidding strategies
-      return BIDDING_STRATEGY_OPTIONS;
-    } else {
-      // SEARCH - TARGET_CPA and TARGET_ROAS are not supported
-      // They require conversion tracking setup and historical conversion data
-      return BIDDING_STRATEGY_OPTIONS.filter(
-        (opt) =>
-          opt.value === "MANUAL_CPC" ||
-          opt.value === "MAXIMIZE_CONVERSIONS" ||
-          opt.value === "MAXIMIZE_CONVERSION_VALUE" ||
-          opt.value === "TARGET_IMPRESSION_SHARE" ||
-          opt.value === "TARGET_SPEND"
-      );
-    }
-  };
-
-  // Get default bidding strategy for campaign type
-  const getDefaultBiddingStrategy = (campaignType: string): string => {
-    if (campaignType === "PERFORMANCE_MAX") {
-      return "MAXIMIZE_CONVERSIONS";
-    } else if (campaignType === "SHOPPING") {
-      return "MANUAL_CPC";
-    } else if (campaignType === "DEMAND_GEN") {
-      return "MAXIMIZE_CONVERSIONS";
-    } else if (campaignType === "DISPLAY") {
-      return "MANUAL_CPC";
-    } else {
-      // SEARCH
-      return "MANUAL_CPC";
-    }
-  };
 
   const handleChange = (
     field: keyof CreateGoogleCampaignData,
@@ -753,7 +665,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           };
         }
         
-        // Initialize network settings for Search (Google Search and Search Network enabled by default)
+        // Initialize network settings for Search (defaults, but user can change)
         if (value === "SEARCH" && !updated.network_settings) {
           updated.network_settings = {
             target_google_search: true,
@@ -927,6 +839,10 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         newErrors.language_ids = "At least one target language is required";
       }
 
+      if (!formData.asset_group_name?.trim()) {
+        newErrors.asset_group_name = "Asset Group Name is required";
+      }
+
       if (!formData.final_url?.trim()) {
         newErrors.final_url = "Final URL is required";
       } else if (!/^https?:\/\/.+/.test(formData.final_url)) {
@@ -956,6 +872,19 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       } else if (validDescriptions.length > 4) {
         newErrors.descriptions = "Maximum 4 descriptions allowed";
       }
+
+      // Marketing image URLs are required for Performance Max
+      if (!formData.marketing_image_url?.trim() || formData.marketing_image_url === 'https://example.com') {
+        newErrors.marketing_image_url = "Marketing Image URL is required. Backend will not generate defaults.";
+      } else if (!/^https?:\/\/.+/.test(formData.marketing_image_url)) {
+        newErrors.marketing_image_url = "Marketing Image URL must be a valid URL (http:// or https://)";
+      }
+
+      if (!formData.square_marketing_image_url?.trim() || formData.square_marketing_image_url === 'https://example.com') {
+        newErrors.square_marketing_image_url = "Square Marketing Image URL is required. Backend will not generate defaults.";
+      } else if (!/^https?:\/\/.+/.test(formData.square_marketing_image_url)) {
+        newErrors.square_marketing_image_url = "Square Marketing Image URL must be a valid URL (http:// or https://)";
+      }
     } else if (formData.campaign_type === "SHOPPING") {
       if (!selectedProfileId) {
         newErrors.customer_id = "Please select a Google Ads account first";
@@ -965,9 +894,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       }
     } else if (formData.campaign_type === "SEARCH") {
       // Search campaign validation
-      if (!formData.language_codes || formData.language_codes.length === 0) {
-        newErrors.language_codes = "At least one target language is required";
-      }
+      // Language targeting is optional for SEARCH campaigns
+      // No validation required for languages
     } else if (formData.campaign_type === "VIDEO") {
       // VIDEO campaigns cannot be created via API
       newErrors.campaign_type = "VIDEO campaigns cannot be created or modified via the Google Ads API. Please use the Google Ads UI to create Video campaigns, or use Demand Gen or Performance Max campaigns for video placements.";
@@ -1042,11 +970,16 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const isValid = Object.keys(newErrors).length === 0;
+    if (!isValid) {
+      console.log("Validation failed with errors:", newErrors);
+    }
+    return isValid;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("handleSubmit called", { mode, formData, loading });
 
     // Prevent submission of VIDEO campaigns
     if (formData.campaign_type === "VIDEO") {
@@ -1056,9 +989,23 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       return;
     }
 
-    if (!validate()) {
+    const validationResult = validate();
+    if (!validationResult) {
+      // Get the current errors (they were just set by validate())
+      // Use a small timeout to ensure state has updated, or check errors state
+      setTimeout(() => {
+        const firstErrorField = Object.keys(errors)[0];
+        if (firstErrorField) {
+          const errorElement = document.querySelector(`[data-field="${firstErrorField}"]`);
+          if (errorElement) {
+            errorElement.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }
+      }, 0);
       return;
     }
+
+    console.log("Validation passed, proceeding with submit");
 
     // Filter out empty headlines and descriptions
     const payload: CreateGoogleCampaignData = {
@@ -1092,7 +1039,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       keywords: formData.campaign_type === "SEARCH" ? formData.keywords : undefined,
       match_type: formData.campaign_type === "SEARCH" ? formData.match_type : undefined,
       location_ids: formData.campaign_type === "SEARCH" ? formData.location_ids : undefined,
-      language_codes: formData.campaign_type === "SEARCH" ? formData.language_codes : undefined,
+      language_ids: formData.campaign_type === "SEARCH" ? formData.language_ids : undefined,
+      // language_codes is kept for backward compatibility but language_ids is the primary field
+      language_codes: formData.campaign_type === "SEARCH" && formData.language_ids && formData.language_ids.length > 0 ? undefined : formData.language_codes,
       conversion_action_ids: formData.campaign_type === "SEARCH" && formData.conversion_action_ids?.length ? formData.conversion_action_ids : undefined,
       // For Demand Gen, ensure only one of video_url or video_id is sent
       video_url: formData.campaign_type === "DEMAND_GEN" && formData.video_url?.trim() ? formData.video_url : undefined,
@@ -1100,34 +1049,22 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     };
 
     try {
+      console.log("Calling onSubmit with payload", payload);
       await onSubmit(payload);
+      console.log("onSubmit completed successfully");
       resetForm();
       setErrors({});
-    } catch {
-      // Error handling is done in parent component
+    } catch (error: any) {
+      console.error("Error in handleSubmit:", error);
+      // Error handling is done in parent component, but log it here for debugging
+      // Re-throw so parent can handle it
+      throw error;
     }
   };
 
   const handleCancel = () => {
     resetForm();
     onClose();
-  };
-
-  // Helper function to format date as YYYY-MM-DD
-  const formatDate = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  // Helper function to format date as "DD MMM YYYY" (e.g., "24 Dec 2025")
-  const formatDateForName = (date: Date): string => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const day = date.getDate();
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
-    return `${day} ${month} ${year}`;
   };
 
   // Quick fill functions for testing
@@ -1138,6 +1075,10 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     startDate.setDate(today.getDate() + 14); // 14 days from now
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 1); // 1 day after start date
+    
+    const marketingImageUrl = "https://placehold.co/1200x628";
+    const squareMarketingImageUrl = "https://placehold.co/512x512";
+    const logoUrl = "https://placehold.co/128x128";
     
     setFormData({
       campaign_type: "PERFORMANCE_MAX",
@@ -1150,7 +1091,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       end_date: formatDate(endDate),
       final_url: "https://techesthete.com",
       business_name: "Techesthete",
-      logo_url: "https://placehold.co/128x128", // 128x128 PNG placeholder logo
+      logo_url: logoUrl, // 128x128 PNG placeholder logo
       headlines: [
         "Great Software Solutions",
         "AI-Powered Development",
@@ -1162,14 +1103,34 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         "We provide cutting-edge software solutions for your business needs",
         "Transform your business with our AI-powered development services"
       ],
-      marketing_image_url: "",
-      square_marketing_image_url: "",
-      long_headline: "",
-      asset_group_name: "",
+      marketing_image_url: marketingImageUrl,
+      square_marketing_image_url: squareMarketingImageUrl,
+      long_headline: "Transform Your Business with Our Expert Software Solutions",
+      asset_group_name: `PMAX Asset Group - ${dateStr}`,
       sales_country: "US",
       campaign_priority: 0,
       enable_local: false,
+      // Device Targeting - Enable all devices for testing
+      device_ids: ["MOBILE", "DESKTOP", "TABLET", "CONNECTED_TV"],
+      // Location Targeting - Will be populated when locations are loaded
+      location_ids: undefined,
+      excluded_location_ids: undefined,
+      // Language Targeting - Will be populated when languages are loaded
+      language_ids: undefined,
+      // Campaign URL options
+      tracking_url_template: "{lpurl}?utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_content={creative}",
+      final_url_suffix: "utm_source=google&utm_medium=cpc&utm_campaign={campaignid}",
+      url_custom_parameters: [
+        { key: "campaign", value: "pmax_test" },
+        { key: "source", value: "google_ads" }
+      ],
     });
+    
+    // Set previews for images
+    setLogoPreview(logoUrl);
+    setMarketingImagePreview(marketingImageUrl);
+    setSquareMarketingImagePreview(squareMarketingImageUrl);
+    
     setErrors({});
   };
 
@@ -1199,6 +1160,27 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       logo_url: "",
       headlines: [],
       descriptions: [],
+      // Network Settings - Enable all for testing
+      network_settings: {
+        target_google_search: true,
+        target_search_network: true,
+        target_content_network: true,
+        target_partner_search_network: true,
+      },
+      // Device Targeting - Enable all devices for testing
+      device_ids: ["MOBILE", "DESKTOP", "TABLET", "CONNECTED_TV"],
+      // Location Targeting - Will be populated when locations are loaded
+      location_ids: undefined,
+      excluded_location_ids: undefined,
+      // Language Targeting - Will be populated when languages are loaded
+      language_ids: undefined,
+      // Campaign URL options
+      tracking_url_template: "{lpurl}?utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_content={creative}",
+      final_url_suffix: "utm_source=google&utm_medium=cpc&utm_campaign={campaignid}",
+      url_custom_parameters: [
+        { key: "campaign", value: "shopping_test" },
+        { key: "source", value: "google_ads" }
+      ],
     });
     setErrors({});
   };
@@ -1228,9 +1210,29 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       sales_country: "US",
       campaign_priority: 0,
       enable_local: false,
+      // Network Settings - Enable all for testing
+      network_settings: {
+        target_google_search: true,
+        target_search_network: true,
+        target_content_network: true,
+        target_partner_search_network: true,
+      },
+      // Device Targeting - Enable all devices for testing
+      device_ids: ["MOBILE", "DESKTOP", "TABLET", "CONNECTED_TV"],
+      // Location Targeting - Will be populated when locations are loaded
       location_ids: undefined,
-      language_codes: ["en"], // English
+      excluded_location_ids: undefined,
+      // Language Targeting - Will be populated when languages are loaded
+      language_ids: undefined,
+      language_codes: ["en"], // English (fallback)
       conversion_action_ids: [],
+      // Campaign URL options
+      tracking_url_template: "{lpurl}?utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_content={creative}",
+      final_url_suffix: "utm_source=google&utm_medium=cpc&utm_campaign={campaignid}",
+      url_custom_parameters: [
+        { key: "campaign", value: "search_test" },
+        { key: "source", value: "google_ads" }
+      ],
     });
     setErrors({});
   };
@@ -1240,13 +1242,13 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   return (
     <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]">
       <form onSubmit={handleSubmit}>
-      <div className="p-4 border-b border-gray-200">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-[16px] font-semibold text-[#072929]">
-          {mode === "edit" ? "Edit Google Campaign" : "Create Google Campaign"}
-        </h2>
-      </div>
-      
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[16px] font-semibold text-[#072929]">
+              {mode === "edit" ? "Edit Google Campaign" : "Create Google Campaign"}
+            </h2>
+          </div>
+          
           {/* Refresh Message */}
           {refreshMessage && mode === "edit" && (
             <div
@@ -1339,2025 +1341,144 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Google Ads Account (Profile) - Only show if more than one account */}
-            {googleProfiles.length > 1 && (
-              <div>
-                <label className="form-label">
-                  Google Ads Account *
-                </label>
-                <Dropdown<string>
-                  options={googleProfiles}
-                  value={selectedProfileId}
-                  onChange={(value) => {
-                    setSelectedProfileId(value);
-                    if (profilesError) {
-                      setProfilesError(null);
-                    }
-                  }}
-                  placeholder={
-                    loadingProfiles
-                      ? "Loading accounts..."
-                      : googleProfiles.length === 0
-                      ? "No Google Ads accounts available"
-                      : "Select Google Ads account"
-                  }
-                  buttonClassName="w-full"
-                  searchable={googleProfiles.length > 5}
-                  searchPlaceholder="Search accounts..."
-                  emptyMessage={
-                    loadingProfiles
-                      ? "Loading..."
-                      : profilesError
-                      ? profilesError
-                      : "No Google Ads accounts found. Please enable Google Ads accounts first."
-                  }
-                  disabled={loadingProfiles}
-                />
-                {profilesError && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {profilesError}
-                  </p>
-                )}
-                {!loadingProfiles && googleProfiles.length > 0 && !profilesError && (
-                  <p className="text-[10px] text-gray-500 mt-1">
-                    {googleProfiles.length} account(s) available
-                  </p>
-                )}
-              </div>
-            )}
+          {/* Base Form - Common Fields */}
+          <BaseGoogleCampaignForm
+            formData={formData}
+            errors={errors}
+            onChange={handleChange}
+            mode={mode}
+            googleProfiles={googleProfiles}
+            selectedProfileId={selectedProfileId}
+            setSelectedProfileId={setSelectedProfileId}
+            loadingProfiles={loadingProfiles}
+            profilesError={profilesError}
+            budgetOptions={budgetOptions}
+            selectedBudgetId={selectedBudgetId}
+            setSelectedBudgetId={setSelectedBudgetId}
+            useCustomBudgetName={useCustomBudgetName}
+            setUseCustomBudgetName={setUseCustomBudgetName}
+            loadingBudgets={loadingBudgets}
+            onQuickFillPerformanceMax={quickFillPerformanceMax}
+            onQuickFillShopping={quickFillShopping}
+            onQuickFillSearch={quickFillSearch}
+          />
 
-            {/* Campaign Type */}
-            <div>
-              <label className="form-label">
-                Campaign Type *
-              </label>
-              <div className="space-y-2">
-                <Dropdown<string>
-                  options={CAMPAIGN_TYPES}
-                  value={formData.campaign_type}
-                  onChange={(value) => handleChange("campaign_type", value)}
-                  placeholder="Select campaign type"
-                  buttonClassName="edit-button w-full"
-                  disabled={mode === "edit"}
-                />
-                {/* Quick Fill Buttons for Testing */}
-                {mode !== "edit" && (
-                <div className="flex gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={quickFillPerformanceMax}
-                    className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[10px] hover:bg-blue-200 transition-colors"
-                    title="Quick fill Performance Max campaign with test data"
-                  >
-                    Quick Fill PMax
-                  </button>
-                  <button
-                    type="button"
-                    onClick={quickFillShopping}
-                    className="px-2 py-1 bg-green-100 text-green-700 rounded text-[10px] hover:bg-green-200 transition-colors"
-                    title="Quick fill Shopping campaign with test data"
-                  >
-                    Quick Fill Shopping
-                  </button>
-                  <button
-                    type="button"
-                    onClick={quickFillSearch}
-                    className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-[10px] hover:bg-purple-200 transition-colors"
-                    title="Quick fill Search campaign with test data"
-                  >
-                    Quick Fill Search
-                  </button>
-                  {/* <button
-                    type="button"
-                    onClick={quickFillDemandGen}
-                    className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-[10px] hover:bg-orange-200 transition-colors"
-                    title="Quick fill Demand Gen campaign with test data"
-                  >
-                    Quick Fill Demand Gen
-                  </button> */}
-                  {/* <button
-                    type="button"
-                    onClick={quickFillDisplay}
-                    className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-[10px] hover:bg-indigo-200 transition-colors"
-                    title="Quick fill Display campaign with test data"
-                  >
-                    Quick Fill Display
-                  </button> */}
-                </div>
-                )}
-              </div>
-              {errors.campaign_type && (
-                <p className="text-[10px] text-red-500 mt-1">
-                  {errors.campaign_type}
-                </p>
-              )}
-            </div>
-
-            {/* Campaign Name */}
-            <div>
-              <label className="form-label">
-                Campaign Name *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleChange("name", e.target.value)}
-                className={`campaign-input w-full ${
-                  errors.name ? "border-red-500" : ""
-                }`}
-                placeholder="Enter campaign name"
-              />
-              {errors.name && (
-                <p className="text-[10px] text-red-500 mt-1">{errors.name}</p>
-              )}
-            </div>
-
-            {/* Budget Amount */}
-            <div>
-              <label className="form-label">
-                Budget Amount ($) *
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.budget_amount || ""}
-                onChange={(e) =>
-                  handleChange("budget_amount", parseFloat(e.target.value) || 0)
-                }
-                className={`campaign-input w-full ${
-                  errors.budget_amount ? "border-red-500" : ""
-                }`}
-                placeholder="0.00"
-              />
-              {errors.budget_amount && (
-                <p className="text-[10px] text-red-500 mt-1">
-                  {errors.budget_amount}
-                </p>
-              )}
-            </div>
-
-            {/* Budget Name */}
-            <div>
-              <label className="form-label">
-                Budget Name
-              </label>
-              {useCustomBudgetName || selectedBudgetId === "__CUSTOM__" ? (
-                <div>
-                  <input
-                    type="text"
-                    value={formData.budget_name || ""}
-                    onChange={(e) => {
-                      handleChange("budget_name", e.target.value);
-                    }}
-                    className={`campaign-input w-full ${
-                      errors.budget_name ? "border-red-500" : ""
-                    }`}
-                    placeholder="Enter custom budget name"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUseCustomBudgetName(false);
-                      setSelectedBudgetId("");
-                      handleChange("budget_name", "");
-                    }}
-                    className="text-[10px] text-[#136D6D] mt-1 hover:underline"
-                  >
-                    ← Back to budget list
-                  </button>
-                </div>
-              ) : (
-                <Dropdown<string>
-                  options={budgetOptions}
-                  value={selectedBudgetId || (formData.budget_name && budgetOptions.find(opt => opt.value === formData.budget_name) ? formData.budget_name : "")}
-                  placeholder={loadingBudgets ? "Loading budgets..." : "Select a budget or choose Custom..."}
-                  onChange={(value) => {
-                    if (value === "__CUSTOM__") {
-                      setUseCustomBudgetName(true);
-                      setSelectedBudgetId("__CUSTOM__");
-                      handleChange("budget_name", "");
-                    } else {
-                      setUseCustomBudgetName(false);
-                      setSelectedBudgetId(value);
-                      handleChange("budget_name", value);
-                    }
-                  }}
-                  disabled={loadingBudgets}
-                  searchable={true}
-                  searchPlaceholder="Search budgets..."
-                  emptyMessage="No budgets found"
-                  buttonClassName="edit-button w-full"
-                />
-              )}
-            </div>
-
-            {/* Start Date */}
-            <div>
-              <label className="form-label">
-                Start Date
-              </label>
-              {(() => {
-                // Check if start date is today or in the past (only in edit mode)
-                const isReadonly = mode === "edit" && formData.start_date ? (() => {
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  const startDate = new Date(formData.start_date);
-                  startDate.setHours(0, 0, 0, 0);
-                  return startDate <= today;
-                })() : false;
-                
-                return (
-                  <input
-                    type="date"
-                    value={formData.start_date || ""}
-                    onChange={(e) => handleChange("start_date", e.target.value)}
-                    disabled={isReadonly}
-                    className={`campaign-input w-full ${
-                      isReadonly ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
-                    }`}
-                    title={isReadonly ? "Start date cannot be changed if it's today or in the past" : ""}
-                  />
-                );
-              })()}
-            </div>
-
-            {/* End Date */}
-            <div>
-              <label className="form-label">
-                End Date
-              </label>
-              <input
-                type="date"
-                value={formData.end_date || ""}
-                onChange={(e) => handleChange("end_date", e.target.value)}
-                className={`campaign-input w-full ${
-                  errors.end_date ? "border-red-500" : ""
-                }`}
-              />
-            </div>
-
-            {/* Status */}
-            <div>
-              <label className="form-label">
-                Status
-              </label>
-              <Dropdown<string>
-                options={STATUS_OPTIONS}
-                value={formData.status || "PAUSED"}
-                onChange={(value) => handleChange("status", value)}
-                buttonClassName="edit-button w-full"
-              />
-            </div>
-
-            {/* Bidding Strategy Type */}
-            <div>
-              <label className="form-label">
-                Bidding Strategy
-              </label>
-              <Dropdown<string>
-                options={getAvailableBiddingStrategies(formData.campaign_type)}
-                value={formData.bidding_strategy_type || getDefaultBiddingStrategy(formData.campaign_type)}
-                onChange={(value) => handleChange("bidding_strategy_type", value)}
-                buttonClassName="edit-button w-full"
-              />
-            </div>
-
-            {/* Target CPA (required when TARGET_CPA is selected) */}
-            {formData.bidding_strategy_type === "TARGET_CPA" && (
-              <div>
-                <label className="form-label">
-                  Target CPA ($) *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.target_cpa_micros ? (formData.target_cpa_micros / 1000000).toFixed(2) : ""}
-                  onChange={(e) => {
-                    const value = parseFloat(e.target.value) || 0;
-                    handleChange("target_cpa_micros", Math.round(value * 1000000));
-                  }}
-                  className={`campaign-input w-full ${
-                    errors.target_cpa_micros ? "border-red-500" : "border-gray-200"
-                  }`}
-                  placeholder="1.00"
-                />
-                {errors.target_cpa_micros && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.target_cpa_micros}
-                  </p>
-                )}
-                <p className="text-[10px] text-[#556179] mt-1">
-                  The target cost per acquisition (CPA) in dollars
-                </p>
-              </div>
-            )}
-
-            {/* Target ROAS (required when TARGET_ROAS is selected) */}
-            {formData.bidding_strategy_type === "TARGET_ROAS" && (
-              <div>
-                <label className="form-label">
-                  Target ROAS *
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={formData.target_roas || ""}
-                  onChange={(e) => {
-                    const value = parseFloat(e.target.value) || 0;
-                    handleChange("target_roas", value);
-                  }}
-                  className={`campaign-input w-full ${
-                    errors.target_roas ? "border-red-500" : "border-gray-200"
-                  }`}
-                  placeholder="3.0"
-                />
-                {errors.target_roas && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.target_roas}
-                  </p>
-                )}
-                <p className="text-[10px] text-[#556179] mt-1">
-                  The target return on ad spend (ROAS). Example: 3.0 = 300% ROAS
-                </p>
-              </div>
-            )}
-
-            {/* Target Impression Share fields (required when TARGET_IMPRESSION_SHARE is selected) */}
-            {formData.bidding_strategy_type === "TARGET_IMPRESSION_SHARE" && (
-              <>
-                <div>
-                  <label className="form-label">
-                    Where do you want your ads to appear? *
-                  </label>
-                  <Dropdown<string>
-                    options={[
-                      { value: "ANYWHERE_ON_PAGE", label: "Anywhere on results page" },
-                      { value: "TOP_OF_PAGE", label: "Top of results page" },
-                      { value: "ABSOLUTE_TOP_OF_PAGE", label: "Absolute top of results page" },
-                    ]}
-                    value={formData.target_impression_share_location || "TOP_OF_PAGE"}
-                    onChange={(value) => handleChange("target_impression_share_location", value)}
-                    buttonClassName="edit-button w-full"
-                  />
-                  {errors.target_impression_share_location && (
-                    <p className="text-[10px] text-red-500 mt-1">
-                      {errors.target_impression_share_location}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="form-label">
-                    Percent (%) impression share to target *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="100"
-                    value={formData.target_impression_share_location_fraction_micros ? (formData.target_impression_share_location_fraction_micros / 10000).toFixed(1) : ""}
-                    onChange={(e) => {
-                      const value = parseFloat(e.target.value) || 0;
-                      handleChange("target_impression_share_location_fraction_micros", Math.round(value * 10000));
-                    }}
-                    className={`campaign-input w-full ${
-                      errors.target_impression_share_location_fraction_micros ? "border-red-500" : "border-gray-200"
-                    }`}
-                    placeholder="2.0"
-                  />
-                  {errors.target_impression_share_location_fraction_micros && (
-                    <p className="text-[10px] text-red-500 mt-1">
-                      {errors.target_impression_share_location_fraction_micros}
-                    </p>
-                  )}
-                  <p className="text-[10px] text-[#556179] mt-1">
-                    Target impression share percentage (0-100). Example: 2.0 = 2%
-                  </p>
-                </div>
-
-                <div>
-                  <label className="form-label">
-                    Maximum CPC bid limit *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.target_impression_share_cpc_bid_ceiling_micros ? (formData.target_impression_share_cpc_bid_ceiling_micros / 1000000).toFixed(2) : ""}
-                    onChange={(e) => {
-                      const value = parseFloat(e.target.value) || 0;
-                      handleChange("target_impression_share_cpc_bid_ceiling_micros", Math.round(value * 1000000));
-                    }}
-                    className={`campaign-input w-full ${
-                      errors.target_impression_share_cpc_bid_ceiling_micros ? "border-red-500" : "border-gray-200"
-                    }`}
-                    placeholder="3.00"
-                  />
-                  {errors.target_impression_share_cpc_bid_ceiling_micros && (
-                    <p className="text-[10px] text-red-500 mt-1">
-                      {errors.target_impression_share_cpc_bid_ceiling_micros}
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Performance Max Specific Fields */}
+          {/* Campaign Type Specific Components */}
           {formData.campaign_type === "PERFORMANCE_MAX" && (
-            <div className="mt-6 space-y-4">
-              <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                Performance Max Settings
-              </h3>
-
-              {/* Final URL */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                <label className="form-label">
-                  Final URL *
-                </label>
-                <input
-                  type="url"
-                  value={formData.final_url || ""}
-                  onChange={(e) => handleChange("final_url", e.target.value)}
-                  className={`campaign-input w-full ${
-                    errors.final_url ? "border-red-500" : "border-gray-200"
-                  }`}
-                  placeholder="https://example.com"
-                />
-                {errors.final_url && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.final_url}
-                  </p>
-                )}
-                </div>
-                <div>
-                <label className="form-label">
-                  Asset Group Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.asset_group_name || ""}
-                  onChange={(e) =>
-                    handleChange("asset_group_name", e.target.value)
-                  }
-                  className={`campaign-input w-full ${
-                    errors.asset_group_name ? "border-red-500" : ""
-                  }`}
-                  placeholder="Optional asset group name"
-                />
-                {errors.asset_group_name && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.asset_group_name}
-                  </p>
-                )}
-              </div>
-
-              </div>
-
-              
-              {/* Headlines */}
-              <div>
-                  <label className="form-label">
-                  Headlines * (3-15 required)
-                  <span className="text-[10px] text-[#556179] font-normal ml-2">
-                    ({formData.headlines?.filter((h) => h.trim()).length || 0}/15)
-                  </span>
-                </label>
-                <div className="space-y-2">
-                  {formData.headlines?.map((headline, index) => (
-                    <div key={index} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={headline}
-                        onChange={(e) =>
-                          updateHeadline(index, e.target.value)
-                        }
-                        className={`campaign-input w-full ${
-                          errors.headlines ? "border-red-500" : ""
-                        }`}
-                        placeholder={`Headline ${index + 1}`}
-                      />
-                      {formData.headlines && formData.headlines.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeHeadline(index)}
-                          className="p-2 hover:bg-red-50 rounded transition-colors"
-                          title="Remove headline"
-                        >
-                          <svg
-                            className="w-5 h-5 text-red-600"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {formData.headlines && formData.headlines.length < 15 && (
-                    <button
-                      type="button"
-                      onClick={addHeadline}
-                      className="edit-button"
-                    >
-                      + Add Headline
-                    </button>
-                  )}
-                </div>
-                {errors.headlines && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.headlines}
-                  </p>
-                )}
-              </div>
-
-              {/* Descriptions */}
-              <div>
-                <label className="form-label">
-                  Descriptions * (2-4 required)
-                  <span className="text-[10px] text-[#556179] font-normal ml-2">
-                    ({formData.descriptions?.filter((d) => d.trim()).length || 0}/4)
-                  </span>
-                </label>
-                <div className="space-y-2">
-                  {formData.descriptions?.map((description, index) => (
-                    <div key={index} className="flex gap-2">
-                      <textarea
-                        value={description}
-                        onChange={(e) =>
-                          updateDescription(index, e.target.value)
-                        }
-                        rows={2}
-                        className={`campaign-input w-full ${
-                          errors.descriptions ? "border-red-500" : ""
-                        }`}
-                        placeholder={`Description ${index + 1}`}
-                      />
-                      {formData.descriptions &&
-                        formData.descriptions.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeDescription(index)}
-                            className="p-2 hover:bg-red-50 rounded transition-colors"
-                            title="Remove description"
-                          >
-                            <svg
-                              className="w-5 h-5 text-red-600"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
-                        )}
-                    </div>
-                  ))}
-                  {formData.descriptions &&
-                    formData.descriptions.length < 4 && (
-                      <button
-                        type="button"
-                        onClick={addDescription}
-                        className="edit-button"
-                      >
-                        + Add Description
-                      </button>
-                    )}
-                </div>
-                {errors.descriptions && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.descriptions}
-                  </p>
-                )}
-              </div>
-
-              {/* Optional Performance Max Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="form-label">
-                    Business Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.business_name || ""}
-                    onChange={(e) =>
-                      handleChange("business_name", e.target.value)
-                    }
-                    className={`campaign-input w-full ${
-                      errors.business_name ? "border-red-300" : "border-gray-200"
-                    }`}
-                    placeholder="Required business name"
-                  />
-                  {errors.business_name && (
-                    <p className="text-[10px] text-red-500 mt-1">
-                      {errors.business_name}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="form-label">
-                    Long Headline
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.long_headline || ""}
-                    onChange={(e) =>
-                      handleChange("long_headline", e.target.value)
-                    }
-                    className={`campaign-input w-full ${
-                      errors.long_headline ? "border-red-500" : ""
-                    }`}
-                    placeholder="Optional long headline"
-                  />
-                </div>
-
-                <div>
-                    <label className="form-label">
-                    Logo (URL or Upload) *
-                  </label>
-                  <div className="space-y-2">
-                    <input
-                      type="url"
-                      value={formData.logo_url || ""}
-                      onChange={(e) => handleChange("logo_url", e.target.value)}
-                      className={`campaign-input w-full ${
-                        errors.logo_url ? "border-red-500" : ""
-                      }`}
-                      placeholder="https://example.com/logo.png"
-                    />
-                    {errors.logo_url && (
-                      <p className="text-[10px] text-red-500 mt-1">
-                        {errors.logo_url}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            // Validate file size (max 5MB)
-                            if (file.size > 5 * 1024 * 1024) {
-                              setErrors({ ...errors, logo_url: "File size must be less than 5MB" });
-                              setLogoPreview(null);
-                              return;
-                            }
-                            // Validate file type
-                            if (!file.type.startsWith("image/")) {
-                              setErrors({ ...errors, logo_url: "File must be an image" });
-                              setLogoPreview(null);
-                              return;
-                            }
-                            
-                            // Validate image dimensions (must be square, minimum 128x128)
-                            try {
-                              const img = new Image();
-                              const objectUrl = URL.createObjectURL(file);
-                              
-                              await new Promise((resolve, reject) => {
-                                img.onload = () => {
-                                  URL.revokeObjectURL(objectUrl);
-                                  const width = img.width;
-                                  const height = img.height;
-                                  
-                                  // Check if square (1:1 aspect ratio)
-                                  if (width !== height) {
-                                    setErrors({ 
-                                      ...errors, 
-                                      logo_url: `Logo must be square (1:1 aspect ratio). Current dimensions: ${width}x${height}px. Please use a square image.` 
-                                    });
-                                    setLogoPreview(null);
-                                    reject(new Error("Not square"));
-                                    return;
-                                  }
-                                  
-                                  // Check minimum size
-                                  if (width < 128 || height < 128) {
-                                    setErrors({ 
-                                      ...errors, 
-                                      logo_url: `Logo must be at least 128x128 pixels. Current dimensions: ${width}x${height}px. Recommended: 128x128px or larger.` 
-                                    });
-                                    setLogoPreview(null);
-                                    reject(new Error("Too small"));
-                                    return;
-                                  }
-                                  
-                                  // Create preview using FileReader
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    setLogoPreview(reader.result as string);
-                                  };
-                                  reader.onerror = () => {
-                                    setLogoPreview(null);
-                                  };
-                                  reader.readAsDataURL(file);
-                                  
-                                  resolve(null);
-                                };
-                                
-                                img.onerror = () => {
-                                  URL.revokeObjectURL(objectUrl);
-                                  setErrors({ ...errors, logo_url: "Failed to load image. Please try a different file." });
-                                  setLogoPreview(null);
-                                  reject(new Error("Image load failed"));
-                                };
-                                
-                                img.src = objectUrl;
-                              });
-                              
-                              // If dimension validation passed, proceed with upload
-                              try {
-                                // Upload file
-                                const formData = new FormData();
-                                formData.append("file", file);
-                                
-                                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api"}/accounts/upload/logo/`, {
-                                  method: "POST",
-                                  headers: {
-                                    Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-                                  },
-                                  body: formData,
-                                });
-                                
-                                const responseData = await response.json();
-                                
-                                if (!response.ok) {
-                                  const errorMessage = responseData.error || responseData.message || "Upload failed";
-                                  setErrors({ ...errors, logo_url: errorMessage });
-                                  setLogoPreview(null);
-                                  return;
-                                }
-                                
-                                if (responseData.url) {
-                                  handleChange("logo_url", responseData.url);
-                                  setErrors({ ...errors, logo_url: undefined });
-                                  // Preview will be updated by handleChange
-                                } else {
-                                  setErrors({ ...errors, logo_url: "Upload succeeded but no URL returned" });
-                                  setLogoPreview(null);
-                                }
-                              } catch (error: any) {
-                                setErrors({ ...errors, logo_url: error.message || "Failed to upload logo. Please try again or use a URL." });
-                                setLogoPreview(null);
-                              }
-                            } catch (error: any) {
-                              // Dimension validation error already set
-                              if (!error.message || (error.message !== "Not square" && error.message !== "Too small" && error.message !== "Image load failed")) {
-                                setErrors({ ...errors, logo_url: "Failed to validate image dimensions. Please try a different file." });
-                                setLogoPreview(null);
-                              }
-                            }
-                          }
-                        }}
-                        className="hidden"
-                        id="logo-upload"
-                      />
-                      <label
-                        htmlFor="logo-upload"
-                        className="edit-button"
-                      >
-                        Upload Logo
-                      </label>
-                    </div>
-                    {/* Logo Preview */}
-                    {logoPreview && (
-                      <div className="mt-2">
-                        <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
-                        <div className="inline-block border border-gray-200 rounded p-1 bg-white">
-                          <img
-                            src={logoPreview}
-                            alt="Logo preview"
-                            className="w-32 h-32 object-contain rounded"
-                            onError={(e) => {
-                              // Hide preview on error (e.g., CORS issues, invalid URL)
-                              const img = e.currentTarget;
-                              img.style.display = "none";
-                              // Clear preview after a short delay to allow for retries
-                              setTimeout(() => {
-                                setLogoPreview(null);
-                              }, 500);
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                    {errors.logo_url && (
-                      <p className="text-[10px] text-red-500 mt-1">
-                        {errors.logo_url}
-                      </p>
-                    )}
-                    <p className="text-[10px] text-[#556179] mt-1">
-                      Logo must be square (1:1 aspect ratio) and at least 128x128 pixels. Recommended: 128x128px or larger.
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="form-label">
-                    Marketing Image URL
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.marketing_image_url || ""}
-                    onChange={(e) =>
-                      handleChange("marketing_image_url", e.target.value)
-                    }
-                    className={`campaign-input w-full ${
-                      errors.marketing_image_url ? "border-red-500" : ""
-                    }`}
-                    placeholder="https://example.com/image.png"
-                  />
-                  {/* Marketing Image Preview */}
-                  {marketingImagePreview && (
-                    <div className="mt-2">
-                      <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
-                      <div className="inline-block border border-gray-200 rounded bg-white p-1">
-                        <img
-                          src={marketingImagePreview}
-                          alt="Marketing image preview"
-                          className="max-w-48 max-h-32 w-auto h-auto object-contain block rounded"
-                          onError={(e) => {
-                            // Hide preview on error (e.g., CORS issues)
-                            const img = e.currentTarget;
-                            img.style.display = "none";
-                            setMarketingImagePreview(null);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  {errors.marketing_image_url && (
-                    <p className="text-[10px] text-red-500 mt-1">
-                      {errors.marketing_image_url}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="form-label">
-                    Square Marketing Image URL
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.square_marketing_image_url || ""}
-                    onChange={(e) =>
-                      handleChange("square_marketing_image_url", e.target.value)
-                    }
-                    className={`campaign-input w-full ${
-                      errors.square_marketing_image_url ? "border-red-500" : ""
-                    }`}
-                    placeholder="https://example.com/square-image.png"
-                  />
-                  {/* Square Marketing Image Preview */}
-                  {squareMarketingImagePreview && (
-                    <div className="mt-2">
-                      <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
-                      <div className="inline-block border border-gray-200 rounded p-1 bg-white">
-                        <img
-                          src={squareMarketingImagePreview}
-                          alt="Square marketing image preview"
-                          className="w-32 h-32 object-contain rounded"
-                          onError={(e) => {
-                            // Hide preview on error (e.g., CORS issues)
-                            const img = e.currentTarget;
-                            img.style.display = "none";
-                            setSquareMarketingImagePreview(null);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  {errors.square_marketing_image_url && (
-                    <p className="text-[10px] text-red-500 mt-1">
-                      {errors.square_marketing_image_url}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
+            <GooglePerformanceMaxCampaignForm
+              formData={formData}
+              errors={errors}
+              onChange={handleChange}
+              mode={mode}
+              onAddHeadline={addHeadline}
+              onRemoveHeadline={removeHeadline}
+              onUpdateHeadline={updateHeadline}
+              onAddDescription={addDescription}
+              onRemoveDescription={removeDescription}
+              onUpdateDescription={updateDescription}
+              logoPreview={logoPreview}
+              setLogoPreview={setLogoPreview}
+              marketingImagePreview={marketingImagePreview}
+              setMarketingImagePreview={setMarketingImagePreview}
+              squareMarketingImagePreview={squareMarketingImagePreview}
+              setSquareMarketingImagePreview={setSquareMarketingImagePreview}
+              setErrors={setErrors}
+            />
           )}
 
-          {/* Shopping Specific Fields */}
+          {/* Language Targeting for PERFORMANCE_MAX campaigns */}
+          {formData.campaign_type === "PERFORMANCE_MAX" && (
+            <GoogleLanguageTargetingForm
+              languageIds={formData.language_ids}
+              languageOptions={languageOptions}
+              loadingLanguages={loadingLanguages}
+              onLanguageIdsChange={(ids: string[] | undefined) => handleChange("language_ids", ids)}
+              errors={errors}
+            />
+          )}
+
           {formData.campaign_type === "SHOPPING" && (
-            <div className="mt-6 space-y-4">
-              <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                Shopping Settings
-              </h3>
+            <GoogleShoppingCampaignForm
+              formData={formData}
+              errors={errors}
+              onChange={handleChange}
+              mode={mode}
+              merchantAccountOptions={merchantAccountOptions}
+              loadingMerchantAccounts={loadingMerchantAccounts}
+              merchantAccountsError={merchantAccountsError}
+              onFetchMerchantAccounts={fetchMerchantAccounts}
+              languageOptions={languageOptions}
+              loadingLanguages={loadingLanguages}
+            />
+          )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Merchant ID */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="form-label mb-0">
-                      Merchant ID *
-                    </label>
-                    <button
-                      type="button"
-                      onClick={fetchMerchantAccounts}
-                      disabled={loadingMerchantAccounts || !accountId || formData.campaign_type !== "SHOPPING"}
-                      className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] disabled:text-gray-400 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
-                      title="Refresh merchant accounts list"
-                    >
-                      <svg
-                        className={`w-3 h-3 ${loadingMerchantAccounts ? "animate-spin" : ""}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                        />
-                      </svg>
-                      {loadingMerchantAccounts ? "Refreshing..." : "Refresh"}
-                    </button>
-                  </div>
-                  <Dropdown<string>
-                    options={merchantAccountOptions}
-                    value={formData.merchant_id || ""}
-                    onChange={(value) => {
-                      handleChange("merchant_id", value);
-                      if (errors.merchant_id) {
-                        setErrors((prev) => {
-                          const newErrors = { ...prev };
-                          delete newErrors.merchant_id;
-                          return newErrors;
-                        });
-                      }
-                    }}
-                    placeholder={
-                      loadingMerchantAccounts
-                        ? "Loading merchant accounts..."
-                        : merchantAccountOptions.length === 0
-                        ? "No merchant accounts available"
-                        : "Select merchant account"
-                    }
-                    buttonClassName="edit-button w-full"
-                    searchable={true}
-                    searchPlaceholder="Search merchant accounts..."
-                    emptyMessage={
-                      loadingMerchantAccounts
-                        ? "Loading..."
-                        : merchantAccountsError
-                        ? merchantAccountsError
-                        : "No Merchant Center accounts found. Please link a Merchant Center account to your Google Ads account."
-                    }
-                    disabled={loadingMerchantAccounts || (mode === "edit" && formData.campaign_type === "SHOPPING")}
-                  />
-                  {errors.merchant_id && (
-                    <p className="text-[10px] text-red-500 mt-1">
-                      {errors.merchant_id}
-                    </p>
-                  )}
-                  {merchantAccountsError && !errors.merchant_id && (
-                    <p className="text-[10px] text-yellow-600 mt-1">
-                      {merchantAccountsError}
-                    </p>
-                  )}
-                  {!loadingMerchantAccounts && merchantAccountOptions.length > 0 && !merchantAccountsError && (
-                    <p className="text-[10px] text-gray-500 mt-1">
-                      {merchantAccountOptions.length} merchant account(s) available
-                    </p>
-                  )}
-                </div>
+          {formData.campaign_type === "SEARCH" && (
+            <GoogleSearchCampaignForm
+              formData={formData}
+              errors={errors}
+              onChange={handleChange}
+              mode={mode}
+              languageOptions={languageOptions}
+              loadingLanguages={loadingLanguages}
+            />
+          )}
 
-                {/* Sales Country */}
-                <div>
-                  <label className="form-label">
-                    Sales Country
-                  </label>
-                  <Dropdown<string>
-                    options={SALES_COUNTRY_OPTIONS}
-                    value={formData.sales_country || "US"}
-                    onChange={(value) => handleChange("sales_country", value)}
-                    buttonClassName="edit-button w-full"
-                    disabled={mode === "edit" && formData.campaign_type === "SHOPPING"}
-                  />
-                </div>
+          {formData.campaign_type === "DEMAND_GEN" && (
+            <GoogleDemandGenCampaignForm
+              formData={formData}
+              errors={errors}
+              onChange={handleChange}
+              mode={mode}
+              onAddHeadline={addHeadline}
+              onRemoveHeadline={removeHeadline}
+              onUpdateHeadline={updateHeadline}
+              onAddDescription={addDescription}
+              onRemoveDescription={removeDescription}
+              onUpdateDescription={updateDescription}
+              logoPreview={logoPreview}
+              setLogoPreview={setLogoPreview}
+            />
+          )}
 
-                {/* Campaign Priority */}
-                <div>
-                  <label className="form-label">
-                    Campaign Priority
-                  </label>
-                  <Dropdown<number>
-                    options={CAMPAIGN_PRIORITY_OPTIONS}
-                    value={formData.campaign_priority || 0}
-                    onChange={(value) => handleChange("campaign_priority", value)}
-                    buttonClassName="w-full edit-button"
-                  />
-                  <p className="text-[10px] text-[#556179] mt-1">
-                    Priority determines how your Shopping campaigns compete with each other. Low (0) = lowest priority, High (2) = highest priority.
-                  </p>
-                </div>
+          {formData.campaign_type === "DISPLAY" && (
+            <GoogleDisplayCampaignForm
+              formData={formData}
+              errors={errors}
+              onChange={handleChange}
+              mode={mode}
+            />
+          )}
 
-                {/* Enable Local */}
-                <div className="pt-6">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.enable_local || false}
-                      onChange={(e) =>
-                        handleChange("enable_local", e.target.checked)
-                      }
-                      className={`w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40 ${
-                        errors.enable_local ? "border-red-500" : ""
-                      }`}
-                    />
-                    <span className="form-label mb-0">
-                      Enable Local
-                    </span>
-                  </label>
-                  <p className="text-[10px] text-[#556179] mt-1 ml-6">
-                    Enable local inventory ads to show your products to nearby customers with local inventory available.
-                  </p>
-                </div>
-              </div>
-            </div>
+          {formData.campaign_type === "VIDEO" && (
+            <GoogleVideoCampaignForm />
           )}
 
           {/* Location Targeting - Available for SHOPPING / SEARCH / PERFORMANCE_MAX campaigns */}
           {(formData.campaign_type === "SHOPPING" ||
             formData.campaign_type === "SEARCH" ||
             formData.campaign_type === "PERFORMANCE_MAX") && (
-            <>
-              <div className="mt-6 space-y-4">
-                <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                  Location Targeting
-                </h3>
-
-                {/* Target Locations */}
-                <div>
-                  <label className="form-label">
-                    Target Locations
-                  </label>
-                  {errors.location_ids && (
-                    <p className="text-[10px] text-red-500 -mt-1 mb-2">
-                      {errors.location_ids}
-                    </p>
-                  )}
-                  <Dropdown<string>
-                    options={locationOptions.filter(
-                      (opt) => !formData.excluded_location_ids?.includes(opt.value)
-                    )}
-                    value=""
-                    onChange={(value) => {
-                      const currentIds = formData.location_ids || [];
-                      const valueNum = parseInt(value, 10);
-                      if (!isNaN(valueNum) && !currentIds.includes(valueNum)) {
-                        // Remove from excluded locations if it exists there
-                        const excludedIds = (formData.excluded_location_ids || []).filter(id => id !== value);
-                        handleChange("excluded_location_ids", excludedIds.length > 0 ? excludedIds : undefined);
-                        // Add to target locations
-                        handleChange("location_ids", [...currentIds, valueNum]);
-                      }
-                    }}
-                    placeholder={
-                      loadingLocations
-                        ? "Loading locations..."
-                        : locationOptions.length === 0
-                        ? "No locations found"
-                        : "Select locations to target"
-                    }
-                    buttonClassName="edit-button w-full"
-                    searchable={true}
-                    searchPlaceholder="Search locations..."
-                    emptyMessage={
-                      loadingLocations
-                        ? "Loading..."
-                        : "Start typing to search for locations"
-                    }
-                    disabled={loadingLocations}
-                  />
-                  {formData.location_ids && formData.location_ids.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {formData.location_ids.map((locId) => {
-                        const location = locationOptions.find(l => l.value === String(locId));
-                        return (
-                          <span
-                            key={locId}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-[#136D6D] text-white text-[11px] rounded"
-                          >
-                            {location?.label || locId}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newIds = (formData.location_ids || []).filter(id => id !== locId);
-                                handleChange("location_ids", newIds.length > 0 ? newIds : undefined);
-                              }}
-                              className="hover:text-red-200"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Exclude Locations */}
-                <div>
-                  <label className="form-label">
-                    Exclude Locations
-                  </label>
-                  <Dropdown<string>
-                    options={locationOptions.filter(
-                      (opt) => {
-                        const optValueNum = parseInt(opt.value, 10);
-                        return !isNaN(optValueNum) && !formData.location_ids?.includes(optValueNum);
-                      }
-                    )}
-                    value=""
-                    onChange={(value) => {
-                      const currentIds = formData.excluded_location_ids || [];
-                      if (!currentIds.includes(value)) {
-                        // Remove from target locations if it exists there
-                        const valueNum = parseInt(value, 10);
-                        const targetIds = !isNaN(valueNum) 
-                          ? (formData.location_ids || []).filter(id => id !== valueNum)
-                          : (formData.location_ids || []);
-                        handleChange("location_ids", targetIds.length > 0 ? targetIds : undefined);
-                        // Add to excluded locations
-                        handleChange("excluded_location_ids", [...currentIds, value]);
-                      }
-                    }}
-                    placeholder="Select locations to exclude"
-                    buttonClassName="edit-button w-full"
-                    searchable={true}
-                    searchPlaceholder="Search locations to exclude..."
-                    emptyMessage={
-                      loadingLocations
-                        ? "Loading..."
-                        : "Start typing to search for locations"
-                    }
-                    disabled={loadingLocations}
-                  />
-                  {formData.excluded_location_ids && formData.excluded_location_ids.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {formData.excluded_location_ids.map((locId) => {
-                        const location = locationOptions.find(l => l.value === locId);
-                        return (
-                          <span
-                            key={locId}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-red-600 text-white text-[11px] rounded"
-                          >
-                            {location?.label || locId}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newIds = (formData.excluded_location_ids || []).filter(id => id !== locId);
-                                handleChange("excluded_location_ids", newIds.length > 0 ? newIds : undefined);
-                              }}
-                              className="hover:text-red-200"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Language Targeting - Available for SEARCH and PERFORMANCE_MAX campaigns */}
-              {(formData.campaign_type === "SEARCH" || formData.campaign_type === "PERFORMANCE_MAX") && (
-                <div className="mt-6 space-y-4">
-                  <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                    Language Targeting
-                  </h3>
-
-                  <div>
-                    <label className="form-label">
-                      Target Languages
-                    </label>
-                    {errors.language_ids && (
-                      <p className="text-[10px] text-red-500 -mt-1 mb-2">
-                        {errors.language_ids}
-                      </p>
-                    )}
-                    <Dropdown<string>
-                      options={languageOptions}
-                      value=""
-                      onChange={(value) => {
-                        const currentIds = formData.language_ids || [];
-                        if (!currentIds.includes(value)) {
-                          handleChange("language_ids", [...currentIds, value]);
-                        }
-                      }}
-                      placeholder={
-                        loadingLanguages
-                          ? "Loading languages..."
-                          : languageOptions.length === 0
-                          ? "No languages found"
-                          : "Select languages to target"
-                      }
-                      buttonClassName="edit-button w-full"
-                      searchable={true}
-                      searchPlaceholder="Search languages..."
-                      emptyMessage={
-                        loadingLanguages
-                          ? "Loading..."
-                          : "Start typing to search for languages"
-                      }
-                      disabled={loadingLanguages}
-                    />
-                    {formData.language_ids && formData.language_ids.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {formData.language_ids.map((langId) => {
-                          const language = languageOptions.find(l => l.value === langId);
-                          return (
-                            <span
-                              key={langId}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-[#136D6D] text-white text-[11px] rounded"
-                            >
-                              {language?.label || langId}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newIds = (formData.language_ids || []).filter(id => id !== langId);
-                                  handleChange("language_ids", newIds.length > 0 ? newIds : undefined);
-                                }}
-                                className="hover:text-red-200"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Shopping Network info - matches Google UI (Search Network only) */}
-              {formData.campaign_type === "SHOPPING" && (
-                <div className="mt-6 space-y-4">
-                  <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                    Network
-                  </h3>
-                  <div className="border border-gray-200 rounded-lg p-4 bg-white">
-                    <h4 className="text-[13px] font-semibold text-[#072929] mb-2">
-                      Google Search Network
-                    </h4>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={true}
-                        disabled
-                        className="w-4 h-4 accent-forest-f40 border-gray-300 rounded"
-                      />
-                      <span className="text-[12px] text-[#072929]">
-                        Enabled by default for Shopping campaigns
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {/* Network Settings and Device Targeting - Available for SEARCH campaigns */}
-              {formData.campaign_type === "SEARCH" && (
-                <>
-                  {/* Network Settings */}
-                  <div className="mt-6 space-y-4">
-                    <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                      Network Settings
-                    </h3>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Search Network card (always on in Google UI) */}
-                      <div className="border border-gray-200 rounded-lg p-4 bg-white">
-                        <h4 className="text-[13px] font-semibold text-[#072929] mb-1">
-                          Search Network
-                        </h4>
-                        <p className="text-[11px] text-[#556179] mb-3">
-                          Ads can appear near Google Search results and other Google sites
-                          when people search for terms that are relevant to your keywords.
-                          Search Network is always enabled for Search campaigns.
-                        </p>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={formData.network_settings?.target_partner_search_network ?? false}
-                            onChange={(e) =>
-                              handleChange("network_settings", {
-                                // Always keep core Search network on; this checkbox only controls partners
-                                target_google_search: true,
-                                target_search_network: true,
-                                target_content_network:
-                                  formData.network_settings?.target_content_network ?? false,
-                                target_partner_search_network: e.target.checked,
-                              })
-                            }
-                            className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
-                          />
-                          <span className="text-[12px] text-[#072929]">
-                            Include Google search partners
-                          </span>
-                        </label>
-                      </div>
-
-                      {/* Display Network card */}
-                      <div className="border border-gray-200 rounded-lg p-4 bg-white">
-                        <h4 className="text-[13px] font-semibold text-[#072929] mb-1">
-                          Display Network
-                        </h4>
-                        <p className="text-[11px] text-[#556179] mb-3">
-                          Easy way to get additional conversions at similar or lower costs than
-                          Search with unused Search budget.
-                        </p>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={formData.network_settings?.target_content_network ?? false}
-                            onChange={(e) =>
-                              handleChange("network_settings", {
-                                // Keep core Search network on; this checkbox only controls Display Network
-                                target_google_search: true,
-                                target_search_network: true,
-                                target_partner_search_network:
-                                  formData.network_settings?.target_partner_search_network ?? false,
-                                target_content_network: e.target.checked,
-                              })
-                            }
-                            className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
-                          />
-                          <span className="text-[12px] text-[#072929]">
-                            Include Google Display Network
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Device Targeting */}
-                  <div className="mt-6 space-y-4">
-                    <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                      Device Targeting
-                    </h3>
-
-                    <div>
-                      <label className="form-label">
-                        Target Devices
-                      </label>
-                      <div className="space-y-2">
-                        {[
-                          { value: "MOBILE", label: "Mobile" },
-                          { value: "DESKTOP", label: "Desktop" },
-                          { value: "TABLET", label: "Tablet" },
-                          { value: "CONNECTED_TV", label: "Connected TV" },
-                        ].map((device) => (
-                          <div key={device.value} className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={formData.device_ids?.includes(device.value) ?? false}
-                              onChange={(e) => {
-                                const currentIds = formData.device_ids || [];
-                                if (e.target.checked) {
-                                  handleChange("device_ids", [...currentIds, device.value]);
-                                } else {
-                                  handleChange("device_ids", currentIds.filter(id => id !== device.value));
-                                }
-                              }}
-                              className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
-                            />
-                            <label className="form-label mb-0">
-                              {device.label}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-[10px] text-[#556179] mt-2">
-                        Select devices to target. If none selected, ads will show on all devices.
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Device Targeting - Available for PERFORMANCE_MAX campaigns */}
-              {formData.campaign_type === "PERFORMANCE_MAX" && (
-                <div className="mt-6 space-y-4">
-                  <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                    Device Targeting
-                  </h3>
-
-                  <div>
-                    <label className="form-label">
-                      Target Devices
-                    </label>
-                    <div className="space-y-2">
-                      {[
-                        { value: "MOBILE", label: "Mobile" },
-                        { value: "DESKTOP", label: "Desktop" },
-                        { value: "TABLET", label: "Tablet" },
-                        { value: "CONNECTED_TV", label: "Connected TV" },
-                      ].map((device) => (
-                        <div key={device.value} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={formData.device_ids?.includes(device.value) ?? false}
-                            onChange={(e) => {
-                              const currentIds = formData.device_ids || [];
-                              if (e.target.checked) {
-                                handleChange("device_ids", [...currentIds, device.value]);
-                              } else {
-                                handleChange("device_ids", currentIds.filter(id => id !== device.value));
-                              }
-                            }}
-                            className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
-                          />
-                          <label className="form-label mb-0">
-                            {device.label}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-[10px] text-[#556179] mt-2">
-                      Select devices to target. If none selected, ads will show on all devices.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </>
+            <GoogleLocationTargetingForm
+              locationIds={formData.location_ids}
+              excludedLocationIds={formData.excluded_location_ids}
+              locationOptions={locationOptions}
+              loadingLocations={loadingLocations}
+              onLocationIdsChange={(ids) => handleChange("location_ids", ids)}
+              onExcludedLocationIdsChange={(ids) => handleChange("excluded_location_ids", ids)}
+              errors={errors}
+            />
           )}
 
-          {/* Campaign URL options - available for all API-created campaign types */}
+          {/* Campaign URL options - available for all API-created campaign types - at the end */}
           {formData.campaign_type !== "VIDEO" && (
-            <div className="mt-6 space-y-4">
-              <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                Campaign URL options
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                    Tracking template
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.tracking_url_template || ""}
-                    onChange={(e) => handleChange("tracking_url_template", e.target.value)}
-                    className="campaign-input w-full"
-                    placeholder="{lpurl}?utm_source=google&utm_medium=cpc&utm_campaign={campaignid}"
-                  />
-                  <p className="text-[10px] text-[#556179] mt-1">
-                    Optional. Define a campaign-level tracking URL that can include ValueTrack parameters.
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                    Final URL suffix
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.final_url_suffix || ""}
-                    onChange={(e) => handleChange("final_url_suffix", e.target.value)}
-                    className="campaign-input w-full"
-                    placeholder="utm_source=google&utm_medium=cpc&utm_campaign={campaignid}"
-                  />
-                  <p className="text-[10px] text-[#556179] mt-1">
-                    Optional. Appended to your landing page URL after any existing query string.
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                  Custom parameters (optional)
-                </label>
-                {formData.url_custom_parameters && formData.url_custom_parameters.length > 0 ? (
-                  <div className="space-y-2">
-                    {formData.url_custom_parameters.map((param, index) => (
-                      <div
-                        key={index}
-                        className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto] gap-2 items-center"
-                      >
-                        <input
-                          type="text"
-                          value={param.key}
-                          onChange={(e) => {
-                            const newParams = [...(formData.url_custom_parameters || [])];
-                            newParams[index] = { ...newParams[index], key: e.target.value };
-                            handleChange("url_custom_parameters", newParams);
-                          }}
-                          className="campaign-input w-full"
-                          placeholder="utm_source"
-                        />
-                        <input
-                          type="text"
-                          value={param.value}
-                          onChange={(e) => {
-                            const newParams = [...(formData.url_custom_parameters || [])];
-                            newParams[index] = { ...newParams[index], value: e.target.value };
-                            handleChange("url_custom_parameters", newParams);
-                          }}
-                          className="campaign-input w-full"
-                          placeholder="google"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newParams = (formData.url_custom_parameters || []).filter(
-                              (_, i) => i !== index
-                            );
-                            handleChange(
-                              "url_custom_parameters",
-                              newParams.length > 0 ? newParams : undefined
-                            );
-                          }}
-                          className="p-2 hover:bg-red-50 rounded transition-colors text-xs text-red-600"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[10px] text-[#556179] mb-2">
-                    Custom parameters are{" "}
-                    <span className="font-semibold">tracking-only</span> labels that you define
-                    (for example <code className="font-mono text-[10px]">_campaign</code> or{" "}
-                    <code className="font-mono text-[10px]">_source</code>) and then reference
-                    in your tracking template, like{" "}
-                    <code className="font-mono text-[10px]">
-                      {`{lpurl}?source_campaign={_campaign}`}
-                    </code>
-                    . They <span className="font-semibold">do not change the landing page</span>
-                    — use the final URL / final URL suffix for content-modifying parameters
-                    such as product IDs.
-                  </p>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const current = formData.url_custom_parameters || [];
-                    handleChange("url_custom_parameters", [...current, { key: "", value: "" }]);
-                  }}
-                  className="edit-button mt-1"
-                >
-                  + Add parameter
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Demand Gen Specific Fields */}
-          {formData.campaign_type === "DEMAND_GEN" && (
-            <div className="mt-6 space-y-4">
-              <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                Demand Gen Settings
-              </h3>
-
-              {/* Final URL */}
-              <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                  Final URL *
-                </label>
-                <input
-                  type="url"
-                  value={formData.final_url || ""}
-                  onChange={(e) => handleChange("final_url", e.target.value)}
-                  className={`campaign-input w-full ${
-                    errors.final_url ? "border-red-500" : "border-gray-200"
-                  }`}
-                  placeholder="https://example.com"
-                />
-                {errors.final_url && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.final_url}
-                  </p>
-                )}
-              </div>
-
-              {/* Video Input - Radio to choose between video_url and video_id */}
-              <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                  Video Asset *
-                </label>
-                <div className="space-y-3">
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="video_type"
-                        checked={!formData.video_url || !!formData.video_id}
-                        onChange={() => {
-                          handleChange("video_url", "");
-                          if (!formData.video_id) {
-                            handleChange("video_id", "");
-                          }
-                        }}
-                        className="w-4 h-4 accent-forest-f40"
-                      />
-                      <span className="text-[13px] text-[#072929]">YouTube Video ID</span>
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="video_type"
-                        checked={!!formData.video_url && !formData.video_id}
-                        onChange={() => {
-                          handleChange("video_id", "");
-                          if (!formData.video_url) {
-                            handleChange("video_url", "");
-                          }
-                        }}
-                        className="w-4 h-4 accent-forest-f40"
-                      />
-                      <span className="text-[13px] text-[#072929]">Video URL</span>
-                    </label>
-                  </div>
-                  
-                  {(!formData.video_url || formData.video_id) && (
-                    <div>
-                      <input
-                        type="text"
-                        value={formData.video_id || ""}
-                        onChange={(e) => {
-                          handleChange("video_id", e.target.value);
-                          if (e.target.value) {
-                            handleChange("video_url", "");
-                          }
-                        }}
-                        className={`campaign-input w-full ${
-                          errors.video_id ? "border-red-500" : "border-gray-200"
-                        }`}
-                        placeholder="dQw4w9WgXcQ"
-                      />
-                      {errors.video_id && (
-                        <p className="text-[10px] text-red-500 mt-1">
-                          {errors.video_id}
-                        </p>
-                      )}
-                      <p className="text-[10px] text-[#556179] mt-1">
-                        Enter a YouTube video ID (11 characters, e.g., dQw4w9WgXcQ)
-                      </p>
-                    </div>
-                  )}
-                  
-                  {(!formData.video_id || formData.video_url) && (
-                    <div>
-                      <input
-                        type="url"
-                        value={formData.video_url || ""}
-                        onChange={(e) => {
-                          handleChange("video_url", e.target.value);
-                          if (e.target.value) {
-                            handleChange("video_id", "");
-                          }
-                        }}
-                        className={`campaign-input w-full ${
-                          errors.video_url ? "border-red-500" : "border-gray-200"
-                        }`}
-                        placeholder="https://example.com/video.mp4"
-                      />
-                      {errors.video_url && (
-                        <p className="text-[10px] text-red-500 mt-1">
-                          {errors.video_url}
-                        </p>
-                      )}
-                      <p className="text-[10px] text-[#556179] mt-1">
-                        Enter a valid video file URL
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Logo URL */}
-              <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                  Logo URL *
-                </label>
-                <input
-                  type="url"
-                  value={formData.logo_url || ""}
-                  onChange={(e) => handleChange("logo_url", e.target.value)}
-                  className={`campaign-input w-full ${
-                    errors.logo_url ? "border-red-500" : "border-gray-200"
-                  }`}
-                  placeholder="https://example.com/logo.png"
-                />
-                {errors.logo_url && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.logo_url}
-                  </p>
-                )}
-                {logoPreview && (
-                  <div className="mt-2">
-                    <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
-                    <div className="inline-block border border-gray-200 rounded p-1 bg-white">
-                      <img
-                        src={logoPreview}
-                        alt="Logo preview"
-                        className="w-32 h-32 object-contain rounded"
-                        onError={() => setLogoPreview(null)}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Business Name */}
-              <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                  Business Name *
-                </label>
-                <input
-                  type="text"
-                  value={formData.business_name || ""}
-                  onChange={(e) => handleChange("business_name", e.target.value)}
-                  className={`campaign-input w-full ${
-                    errors.business_name ? "border-red-500" : "border-gray-200"
-                  }`}
-                  placeholder="My Business Name"
-                />
-                {errors.business_name && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.business_name}
-                  </p>
-                )}
-              </div>
-
-              {/* Headlines */}
-              <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                  Headlines * (3-15 required)
-                  <span className="text-[10px] text-[#556179] font-normal ml-2">
-                    ({formData.headlines?.filter((h) => h.trim()).length || 0}/15)
-                  </span>
-                </label>
-                <div className="space-y-2">
-                  {formData.headlines?.map((headline, index) => (
-                    <div key={index} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={headline}
-                        onChange={(e) => updateHeadline(index, e.target.value)}
-                        className="campaign-input flex-1"
-                        placeholder={`Headline ${index + 1}`}
-                      />
-                      {formData.headlines && formData.headlines.length > 3 && (
-                        <button
-                          type="button"
-                          onClick={() => removeHeadline(index)}
-                          className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-[12px]"
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {formData.headlines && formData.headlines.length < 15 && (
-                    <button
-                      type="button"
-                      onClick={addHeadline}
-                      className="px-3 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-[12px]"
-                    >
-                      + Add Headline
-                    </button>
-                  )}
-                </div>
-                {errors.headlines && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.headlines}
-                  </p>
-                )}
-              </div>
-
-              {/* Descriptions */}
-              <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                  Descriptions * (2-4 required)
-                  <span className="text-[10px] text-[#556179] font-normal ml-2">
-                    ({formData.descriptions?.filter((d) => d.trim()).length || 0}/4)
-                  </span>
-                </label>
-                <div className="space-y-2">
-                  {formData.descriptions?.map((description, index) => (
-                    <div key={index} className="flex gap-2">
-                      <textarea
-                        value={description}
-                        onChange={(e) => updateDescription(index, e.target.value)}
-                        rows={2}
-                        className="campaign-input flex-1"
-                        placeholder={`Description ${index + 1}`}
-                      />
-                      {formData.descriptions && formData.descriptions.length > 2 && (
-                        <button
-                          type="button"
-                          onClick={() => removeDescription(index)}
-                          className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-[12px]"
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {formData.descriptions && formData.descriptions.length < 4 && (
-                    <button
-                      type="button"
-                      onClick={addDescription}
-                      className="px-3 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-[12px]"
-                    >
-                      + Add Description
-                    </button>
-                  )}
-                </div>
-                {errors.descriptions && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.descriptions}
-                  </p>
-                )}
-              </div>
-
-              {/* Optional Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                    Long Headline
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.long_headline || ""}
-                    onChange={(e) => handleChange("long_headline", e.target.value)}
-                    className="campaign-input w-full"
-                    placeholder="Optional long headline"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                    Ad Group Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.ad_group_name || ""}
-                    onChange={(e) => handleChange("ad_group_name", e.target.value)}
-                    className="campaign-input w-full"
-                    placeholder="Optional ad group name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                    Ad Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.ad_name || ""}
-                    onChange={(e) => handleChange("ad_name", e.target.value)}
-                    className="campaign-input w-full"
-                    placeholder="Optional ad name"
-                  />
-                </div>
-              </div>
-
-              {/* Channel Controls */}
-              <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                  Channel Controls
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-white border border-gray-200 rounded">
-                  {[
-                    { key: "gmail", label: "Gmail" },
-                    { key: "discover", label: "Google Discover" },
-                    { key: "display", label: "Display Network" },
-                    { key: "youtube_in_feed", label: "YouTube Feed" },
-                    { key: "youtube_in_stream", label: "YouTube In-Stream" },
-                    { key: "youtube_shorts", label: "YouTube Shorts" },
-                  ].map((channel) => (
-                    <label key={channel.key} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.channel_controls?.[channel.key as keyof typeof formData.channel_controls] ?? true}
-                        onChange={(e) => {
-                          const current = formData.channel_controls || {};
-                          handleChange("channel_controls", {
-                            ...current,
-                            [channel.key]: e.target.checked,
-                          });
-                        }}
-                        className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
-                      />
-                      <span className="text-[13px] text-[#072929]">{channel.label}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-[10px] text-[#556179] mt-1">
-                  Control where your Demand Gen ads appear. All channels are enabled by default.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Display Specific Fields */}
-          {formData.campaign_type === "DISPLAY" && (
-            <div className="mt-6 space-y-4">
-              <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                Display Settings
-              </h3>
-
-              {/* Ad Group Name */}
-              <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                  Ad Group Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.adgroup_name || ""}
-                  onChange={(e) => handleChange("adgroup_name", e.target.value)}
-                  className="campaign-input w-full"
-                  placeholder="Optional ad group name"
-                />
-              </div>
-
-              {/* Network Settings */}
-              <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                  Network Settings
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-white border border-gray-200 rounded">
-                  {[
-                    { key: "target_content_network", label: "Display Network", default: true },
-                    { key: "target_google_search", label: "Google Search", default: false },
-                    { key: "target_search_network", label: "Search Network", default: false },
-                    { key: "target_partner_search_network", label: "Partner Search Network", default: false },
-                  ].map((network) => (
-                    <label key={network.key} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.network_settings?.[network.key as keyof typeof formData.network_settings] ?? network.default}
-                        onChange={(e) => {
-                          const current = formData.network_settings || {};
-                          handleChange("network_settings", {
-                            ...current,
-                            [network.key]: e.target.checked,
-                          });
-                        }}
-                        className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
-                      />
-                      <span className="text-[13px] text-[#072929]">{network.label}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-[10px] text-[#556179] mt-1">
-                  Control where your Display ads appear. Display Network is enabled by default.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* VIDEO Campaign - Read Only Message */}
-          {formData.campaign_type === "VIDEO" && (
-            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <svg
-                  className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <div>
-                  <h4 className="text-[13px] font-semibold text-yellow-800 mb-1">
-                    Video Campaigns Cannot Be Created via API
-                  </h4>
-                  <p className="text-[12px] text-yellow-700">
-                    VIDEO campaigns cannot be created or modified via the Google Ads API. Please use the Google Ads UI to create Video campaigns, or use Demand Gen or Performance Max campaigns for video placements.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <GoogleTrackingTemplateForm
+              trackingUrlTemplate={formData.tracking_url_template}
+              finalUrlSuffix={formData.final_url_suffix}
+              urlCustomParameters={formData.url_custom_parameters}
+              onTrackingUrlTemplateChange={(value) => handleChange("tracking_url_template", value)}
+              onFinalUrlSuffixChange={(value) => handleChange("final_url_suffix", value)}
+              onCustomParametersChange={(params) => handleChange("url_custom_parameters", params)}
+              title="Campaign URL options"
+            />
           )}
 
           {/* General Error Message */}
@@ -3398,3 +1519,5 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   );
 };
 
+// Export types for backward compatibility
+export type { CreateGoogleCampaignPanelProps, CreateGoogleCampaignData, RefreshMessage } from "./campaigns/index";

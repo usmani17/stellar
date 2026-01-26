@@ -4,7 +4,6 @@ import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Button } from "../../../../components/ui";
-import { Loader } from "../../../../components/ui/Loader";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
 import type { GoogleAd } from "./GoogleTypes";
 
@@ -51,9 +50,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
   filters,
   onApplyFilters,
   syncing,
-  onSync,
   syncingAnalytics,
-  onSyncAnalytics,
   syncMessage,
   onRefresh,
   getSortIcon,
@@ -61,12 +58,6 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
 }) => {
   const [editingAdId, setEditingAdId] = useState<number | null>(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
-  const [pendingChange, setPendingChange] = useState<{
-    id: number;
-    newValue: string;
-    oldValue: string;
-  } | null>(null);
-  const [updatingAdId, setUpdatingAdId] = useState<number | null>(null);
   // Modal state for status changes - matches Amazon pattern
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
   const [inlineEditAd, setInlineEditAd] = useState<GoogleAd | null>(null);
@@ -143,26 +134,6 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
     setInlineEditNewValue("");
   };
 
-  const confirmChange = async () => {
-    if (!pendingChange || !onUpdateAdStatus) return;
-
-    setUpdatingAdId(pendingChange.id);
-    try {
-      await onUpdateAdStatus(pendingChange.id, pendingChange.newValue);
-      setPendingChange(null);
-    } catch (error) {
-      console.error("Failed to update ad status:", error);
-      alert("Failed to update ad status. Please try again.");
-    } finally {
-      setUpdatingAdId(null);
-    }
-  };
-
-  const cancelChange = () => {
-    setPendingChange(null);
-    setEditingAdId(null);
-    setEditingStatus("");
-  };
   return (
     <>
       {/* Sync Message */}
@@ -347,12 +318,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                         </span>
                       </td>
                       <td className="table-cell hidden md:table-cell">
-                        {updatingAdId === ad.id ? (
-                          <div className="flex items-center gap-2">
-                            <StatusBadge status={ad.status || "ENABLED"} />
-                            <Loader size="sm" showMessage={false} />
-                          </div>
-                        ) : editingAdId === ad.id && onUpdateAdStatus ? (
+                        {editingAdId === ad.id && onUpdateAdStatus ? (
                           <Dropdown
                             options={[
                               { value: "ENABLED", label: "Enabled" },
