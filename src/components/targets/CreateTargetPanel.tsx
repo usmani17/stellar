@@ -16,9 +16,9 @@ export interface TargetInput {
   }>;
   // SD-specific: expression structure type
   sdExpressionStructureType?:
-  | "TargetingPredicate"
-  | "ContentTargetingPredicate"
-  | "TargetingPredicateNested";
+    | "TargetingPredicate"
+    | "ContentTargetingPredicate"
+    | "TargetingPredicateNested";
   // SD-specific: for nested expressions
   sdNestedType?: "views" | "audience" | "purchases";
   sdNestedPredicates?: Array<{ type: string; value: string }>;
@@ -488,8 +488,8 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
       campaignType === "SB"
         ? "asinSameAs"
         : campaignType === "SD"
-          ? "manual"
-          : "ASIN_SAME_AS",
+        ? "manual"
+        : "ASIN_SAME_AS",
     expressionValue: "",
     state: campaignType === "SD" ? "enabled" : "ENABLED",
     sdExpressionStructureType:
@@ -746,8 +746,8 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
         campaignType === "SB"
           ? "asinSameAs"
           : campaignType === "SD"
-            ? "manual"
-            : "ASIN_SAME_AS",
+          ? "manual"
+          : "ASIN_SAME_AS",
       expressionValue: "",
       state: campaignType === "SD" ? "enabled" : "ENABLED",
       sdExpressionStructureType:
@@ -909,8 +909,8 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
         campaignType === "SB"
           ? "asinSameAs"
           : campaignType === "SD"
-            ? "manual"
-            : "ASIN_SAME_AS",
+          ? "manual"
+          : "ASIN_SAME_AS",
       expressionValue: "",
       state: campaignType === "SD" ? "enabled" : "ENABLED",
       sdExpressionStructureType:
@@ -995,7 +995,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                   min="0"
                   step="0.01"
                   className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${errors.bid ? "border-red-500" : "border-gray-200"
-                    }`}
+                  }`}
                 />
                 {errors.bid && (
                   <p className="text-[10px] text-red-500 mt-1">{errors.bid}</p>
@@ -1070,9 +1070,9 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                   }
                   placeholder="Enter ASIN or value"
                   className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${errors.expressionValue
-                    ? "border-red-500"
-                    : "border-gray-200"
-                    }`}
+                      ? "border-red-500"
+                      : "border-gray-200"
+                  }`}
                 />
                 {errors.expressionValue && (
                   <p className="text-[10px] text-red-500 mt-1">
@@ -1096,7 +1096,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                   min="0"
                   step="0.01"
                   className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${errors.bid ? "border-red-500" : "border-gray-200"
-                    }`}
+                  }`}
                 />
                 {errors.bid && (
                   <p className="text-[10px] text-red-500 mt-1">{errors.bid}</p>
@@ -1144,7 +1144,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
 
               {/* Tabs Container with Background and Border */}
               <div className="tabs-container">
-                {/* Tabs for Expression Structure Type */}
+              {/* Tabs for Expression Structure Type */}
                 <div className="tabs-nav">
                   {SD_EXPRESSION_STRUCTURE_TYPES.map((option) => {
                     const isActive = activeExpressionTab === option.value;
@@ -1157,7 +1157,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                           handleChange("sdExpressionStructureType", option.value);
                         }}
                         className={`tab-button ${isActive ? "tab-button-active" : "tab-button-inactive"
-                          }`}
+                        }`}
                       >
                         {option.label}
                       </button>
@@ -1170,79 +1170,79 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                   </p>
                 )}
 
-                {/* Show only active tab form */}
-                {/* TargetingPredicate fields */}
-                {activeExpressionTab === "TargetingPredicate" && (
+              {/* Show only active tab form */}
+              {/* TargetingPredicate fields */}
+              {activeExpressionTab === "TargetingPredicate" && (
                   <div className="tab-content">
                     <div className="flex items-end gap-3 grid grid-cols-4">
-                      <div className="flex-1 min-w-[200px]">
-                        <label className="form-label-small">
-                          Predicate Type *
-                        </label>
-                        <Dropdown<string>
-                          options={SD_TARGETING_PREDICATE_TYPES}
-                          value={
-                            currentTarget.expression?.[0]?.type ||
-                            currentTarget.expressionValue ||
-                            ""
-                          }
-                          onChange={(value) => {
-                            const currentValue =
-                              currentTarget.expression?.[0]?.value || "";
-                            setCurrentTarget((prev) => ({
-                              ...prev,
-                              expressionValue: value,
-                              expression: value
-                                ? [{ type: value, value: currentValue }]
-                                : [],
-                            }));
-                          }}
-                          placeholder="Select predicate type"
-                          buttonClassName="edit-button w-full"
-                        />
-                        {errors.expressionValue && (
-                          <p className="text-[10px] text-red-500 mt-1">
-                            {errors.expressionValue}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-[200px]">
-                        <label className="form-label-small">
-                          Predicate Value *
-                        </label>
-                        <div className="flex-1 min-w-[200px]">
-                          <input
-                            type="text"
-                            value={
-                              (currentTarget.expression?.[0]?.value as string) || ""
-                            }
-                            onChange={(e) => {
-                              const exprType =
-                                currentTarget.expression?.[0]?.type ||
-                                currentTarget.expressionValue;
-                              if (exprType) {
-                                setCurrentTarget((prev) => ({
-                                  ...prev,
-                                  expression: [
-                                    { type: exprType, value: e.target.value },
-                                  ],
-                                }));
-                              }
-                            }}
-                            placeholder="Enter value (e.g., ASIN)"
-                            className={`w-full campaign-input    ${errors.expressionValue
-                              ? "border-red-500"
-                              : "border-gray-200"
-                              }`}
-                          />
-                        </div>
-                      </div>
-                    </div>
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="form-label-small">
+                      Predicate Type *
+                    </label>
+                    <Dropdown<string>
+                      options={SD_TARGETING_PREDICATE_TYPES}
+                      value={
+                        currentTarget.expression?.[0]?.type ||
+                        currentTarget.expressionValue ||
+                        ""
+                      }
+                      onChange={(value) => {
+                        const currentValue =
+                          currentTarget.expression?.[0]?.value || "";
+                        setCurrentTarget((prev) => ({
+                          ...prev,
+                          expressionValue: value,
+                          expression: value
+                            ? [{ type: value, value: currentValue }]
+                            : [],
+                        }));
+                      }}
+                      placeholder="Select predicate type"
+                      buttonClassName="edit-button w-full"
+                    />
+                    {errors.expressionValue && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.expressionValue}
+                      </p>
+                    )}
                   </div>
-                )}
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="form-label-small">
+                      Predicate Value *
+                    </label>
+                    <div className="flex-1 min-w-[200px]">
+                    <input
+                      type="text"
+                      value={
+                        (currentTarget.expression?.[0]?.value as string) || ""
+                      }
+                      onChange={(e) => {
+                        const exprType =
+                          currentTarget.expression?.[0]?.type ||
+                          currentTarget.expressionValue;
+                        if (exprType) {
+                          setCurrentTarget((prev) => ({
+                            ...prev,
+                            expression: [
+                              { type: exprType, value: e.target.value },
+                            ],
+                          }));
+                        }
+                      }}
+                      placeholder="Enter value (e.g., ASIN)"
+                            className={`w-full campaign-input    ${errors.expressionValue
+                          ? "border-red-500"
+                          : "border-gray-200"
+                        }`}
+                      />
+                        </div>
+                    </div>  
+                  </div>
+                </div>
+              )}
 
-                {/* ContentTargetingPredicate field */}
-                {activeExpressionTab === "ContentTargetingPredicate" && (
+              {/* ContentTargetingPredicate field */}
+              {activeExpressionTab === "ContentTargetingPredicate" && (
                   <div className="tab-content">
                     <label className="block text-[11.2px] font-semibold text-[#556179] uppercase mb-2">
                       Content Categories *
@@ -1251,19 +1251,19 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                     <div className="mb-3 flex-1 min-w-[180px]">
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <svg
+                            <svg
                             className="w-4 h-4 text-gray-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
                               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                            />
-                          </svg>
+                              />
+                            </svg>
                         </div>
                         <input
                           type="text"
@@ -1272,7 +1272,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                           placeholder="Search content categories..."
                           className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-1 focus:ring-[#136D6D] focus:border-[#136D6D] bg-white"
                         />
-                      </div>
+                    </div>
                     </div>
                     <div className="border border-gray-200 rounded-lg p-3 max-h-[300px] overflow-y-auto">
                       {SD_CONTENT_CATEGORIES.filter((cat) => {
@@ -1300,41 +1300,41 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                         );
                       })}
                     </div>
-                    {errors.sdContentCategories && (
-                      <p className="text-[10px] text-red-500 mt-1">
-                        {errors.sdContentCategories}
-                      </p>
-                    )}
-                  </div>
-                )}
+                  {errors.sdContentCategories && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.sdContentCategories}
+                    </p>
+                  )}
+                </div>
+              )}
 
-                {/* TargetingPredicateNested fields */}
-                {activeExpressionTab === "TargetingPredicateNested" && (
+              {/* TargetingPredicateNested fields */}
+              {activeExpressionTab === "TargetingPredicateNested" && (
                   <div className="tab-content">
                     <div className="flex items-end gap-3 grid grid-cols-4">
                       <div className="flex-1 min-w-[180px] w-full">
-                        <label className="form-label-small">
-                          Nested Type *
-                        </label>
-                        <Dropdown<string>
-                          options={SD_NESTED_TYPES}
-                          value={currentTarget.sdNestedType || ""}
-                          onChange={(value) =>
-                            handleChange("sdNestedType", value)
-                          }
-                          placeholder="Select type"
-                          buttonClassName="edit-button w-full"
-                        />
-                        {errors.sdNestedType && (
-                          <p className="text-[10px] text-red-500 mt-1">
-                            {errors.sdNestedType}
-                          </p>
-                        )}
-                      </div>
+                      <label className="form-label-small">
+                        Nested Type *
+                      </label>
+                      <Dropdown<string>
+                        options={SD_NESTED_TYPES}
+                        value={currentTarget.sdNestedType || ""}
+                        onChange={(value) =>
+                          handleChange("sdNestedType", value)
+                        }
+                        placeholder="Select type"
+                        buttonClassName="edit-button w-full"
+                      />
+                      {errors.sdNestedType && (
+                        <p className="text-[10px] text-red-500 mt-1">
+                          {errors.sdNestedType}
+                        </p>
+                      )}
                     </div>
+                  </div>
 
-                    {/* Nested Predicates Section */}
-                    <div className="mt-3">
+                  {/* Nested Predicates Section */}
+                  <div className="mt-3">
                       <label className="block text-[11.2px] font-semibold text-[#556179] uppercase mb-2">
                         Nested Predicates *
                       </label>
@@ -1359,7 +1359,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                               );
                             })
                             .filter(Boolean)}
-                        </div>
+                    </div>
                       ) : null}
 
                       {/* Input field to add/edit predicate - show first incomplete predicate or new one */}
@@ -1411,26 +1411,26 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                               />
                             </div>
                             {predicateIndex < 0 && (
-                              <button
-                                type="button"
+                            <button
+                              type="button"
                                 onClick={handleAddNestedPredicate}
                                 disabled={!currentType || !currentValue.trim()}
                                 className="create-entity-button"
                               >
                                 +
-                              </button>
+                            </button>
                             )}
-                          </div>
+                      </div>
                         );
                       })()}
-                      {errors.sdNestedPredicates && (
-                        <p className="text-[10px] text-red-500 mt-1">
-                          {errors.sdNestedPredicates}
-                        </p>
-                      )}
-                    </div>
+                    {errors.sdNestedPredicates && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.sdNestedPredicates}
+                      </p>
+                    )}
                   </div>
-                )}
+                  </div>
+              )}
               </div>
 
               {/* Add Target Button - Outside tabs container */}
@@ -1524,7 +1524,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                         key={index}
                         className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
                           } ${shouldHighlight ? "bg-red-50" : ""
-                          } hover:bg-gray-50 transition-colors`}
+                        } hover:bg-gray-50 transition-colors`}
                       >
                         <td className="table-cell">
                           <div className="flex flex-col">
@@ -1549,8 +1549,8 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                               {campaignType === "SD"
                                 ? target.sdExpressionStructureType || "—"
                                 : EXPRESSION_TYPE_OPTIONS.find(
-                                  (opt) => opt.value === target.expressionType
-                                )?.label || target.expressionType}
+                                    (opt) => opt.value === target.expressionType
+                                  )?.label || target.expressionType}
                             </span>
                             {targetRowErrors
                               .filter((e) => e.field === "expressionType")
@@ -1571,14 +1571,14 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                                 ? target.sdExpressionStructureType ===
                                   "TargetingPredicate"
                                   ? `${target.expression?.[0]?.type ||
-                                  target.expressionValue ||
-                                  "—"
-                                  }: ${target.expression?.[0]?.value || "—"}`
+                                      target.expressionValue ||
+                                      "—"
+                                    }: ${target.expression?.[0]?.value || "—"}`
                                   : target.sdExpressionStructureType ===
                                     "ContentTargetingPredicate"
-                                    ? target.expression &&
-                                      target.expression.length > 0
-                                      ? target.expression
+                                  ? target.expression &&
+                                    target.expression.length > 0
+                                    ? target.expression
                                         .map((expr) => {
                                           const cat =
                                             SD_CONTENT_CATEGORIES.find(
@@ -1589,12 +1589,12 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                                             : expr.value || "—";
                                         })
                                         .join(", ") || "—"
-                                      : "—"
-                                    : target.sdExpressionStructureType ===
-                                      "TargetingPredicateNested"
+                                    : "—"
+                                  : target.sdExpressionStructureType ===
+                                    "TargetingPredicateNested"
                                       ? `${target.sdNestedType || "—"} (${target.sdNestedPredicates?.length || 0
-                                      } predicates)`
-                                      : "—"
+                                    } predicates)`
+                                  : "—"
                                 : target.expressionValue}
                             </span>
                             {targetRowErrors
@@ -1678,21 +1678,21 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
       {/* Footer Actions */}
       <div className="p-4">
         <div className="flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="cancel-button"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={addedTargets.length === 0 || loading}
-            className="apply-button"
-          >
-            {loading ? "Creating..." : "Add All Targets"}
-          </button>
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="cancel-button"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={addedTargets.length === 0 || loading}
+          className="apply-button"
+        >
+          {loading ? "Creating..." : "Add All Targets"}
+        </button>
         </div>
       </div>
     </div>
