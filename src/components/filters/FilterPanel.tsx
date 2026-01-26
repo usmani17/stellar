@@ -1094,9 +1094,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           Clear All
         </button>
         {channelType !== "amazon" && (
-          <button type="button" onClick={handleApply} className="apply-button">
-            Apply Filters
-          </button>
+        <button type="button" onClick={handleApply} className="apply-button">
+          Apply Filters
+        </button>
         )}
       </div>
     </div>

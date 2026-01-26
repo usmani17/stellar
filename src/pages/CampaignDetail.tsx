@@ -8900,42 +8900,89 @@ export const CampaignDetail: React.FC = () => {
 
       {/* Campaign Inline Edit Confirmation Modal */}
       {showInlineEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Confirm Change</h3>
-            <div className="mb-4">
-              <p className="text-sm text-gray-600 mb-2">
-                {inlineEditField === "status" ? "Status" : "Budget"}
-              </p>
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !inlineEditLoading) {
+              cancelInlineEdit();
+            }
+          }}
+        >
+          <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+              {inlineEditField === "status"
+                ? "Confirm Status Changes"
+                : "Confirm Budget Changes"}
+            </h3>
+
+            {/* Summary */}
+            <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">From:</span>
-                <span className="text-sm font-medium">
-                  {inlineEditOldValue}
+                <span className="text-[12.16px] text-[#556179]">
+                  1 campaign will be updated:
                 </span>
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-sm text-gray-500">To:</span>
-                <span className="text-sm font-medium">
-                  {inlineEditField === "status"
-                    ? inlineEditNewValue
-                    : `$${parseFloat(
-                        inlineEditNewValue || "0"
-                      ).toLocaleString()}`}
+                <span className="text-[12.16px] font-semibold text-[#072929]">
+                  {inlineEditField === "status" ? "Status" : "Budget"} change
                 </span>
               </div>
             </div>
-            <div className="flex gap-3 justify-end">
+
+            {/* Campaign Preview Table */}
+            <div className="mb-6">
+              <div className="mb-2">
+                <span className="text-[10.64px] text-[#556179]">
+                  1 campaign selected
+                </span>
+              </div>
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-sandstorm-s20">
+                    <tr>
+                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                        Campaign Name
+                      </th>
+                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                        Old Value
+                      </th>
+                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                        New Value
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-gray-200 last:border-b-0">
+                      <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                        {campaignDetail?.campaign.name || "Unnamed Campaign"}
+                      </td>
+                      <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                        {inlineEditOldValue}
+                      </td>
+                      <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                        {inlineEditField === "status"
+                          ? inlineEditNewValue.charAt(0).toUpperCase() +
+                            inlineEditNewValue.slice(1)
+                          : `$${parseFloat(
+                              inlineEditNewValue || "0"
+                            ).toFixed(2)}`}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
               <button
                 onClick={cancelInlineEdit}
                 disabled={inlineEditLoading}
-                className="cancel-button"
+                className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={runInlineEdit}
                 disabled={inlineEditLoading}
-                className="create-entity-button btn-sm"
+                className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
               >
                 {inlineEditLoading ? "Saving..." : "Confirm"}
               </button>
