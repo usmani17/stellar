@@ -1145,9 +1145,10 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                 Predicate Settings
               </h3>
               
-              {/* Tabs for Expression Structure Type */}
-              <div className="mb-4">
-                <div className="flex border-b border-gray-200">
+              {/* Tabs Container with Background and Border */}
+              <div className="tabs-container">
+                {/* Tabs for Expression Structure Type */}
+                <div className="tabs-nav">
                   {SD_EXPRESSION_STRUCTURE_TYPES.map((option) => {
                     const isActive = activeExpressionTab === option.value;
                     return (
@@ -1158,10 +1159,8 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                           setActiveExpressionTab(option.value);
                           handleChange("sdExpressionStructureType", option.value);
                         }}
-                        className={`px-4 py-2 text-[14px] transition-colors ${
-                          isActive
-                            ? "text-[#072929] border-b-2 border-[#136D6D]"
-                            : "text-[#556179] hover:text-[#072929]"
+                        className={`tab-button ${
+                          isActive ? "tab-button-active" : "tab-button-inactive"
                         }`}
                       >
                         {option.label}
@@ -1174,82 +1173,82 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                     {errors.sdExpressionStructureType}
                   </p>
                 )}
-              </div>
 
-              {/* Show only active tab form */}
-              {/* TargetingPredicate fields */}
-              {activeExpressionTab === "TargetingPredicate" && (
-                <div className="flex items-end gap-3 grid grid-cols-4">
-                  <div className="flex-1 min-w-[200px]">
-                    <label className="form-label-small">
-                      Predicate Type *
-                    </label>
-                    <Dropdown<string>
-                      options={SD_TARGETING_PREDICATE_TYPES}
-                      value={
-                        currentTarget.expression?.[0]?.type ||
-                        currentTarget.expressionValue ||
-                        ""
-                      }
-                      onChange={(value) => {
-                        const currentValue =
-                          currentTarget.expression?.[0]?.value || "";
-                        setCurrentTarget((prev) => ({
-                          ...prev,
-                          expressionValue: value,
-                          expression: value
-                            ? [{ type: value, value: currentValue }]
-                            : [],
-                        }));
-                      }}
-                      placeholder="Select predicate type"
-                      buttonClassName="edit-button w-full"
-                    />
-                    {errors.expressionValue && (
-                      <p className="text-[10px] text-red-500 mt-1">
-                        {errors.expressionValue}
-                      </p>
-                    )}
+                {/* Show only active tab form */}
+                {/* TargetingPredicate fields */}
+                {activeExpressionTab === "TargetingPredicate" && (
+                  <div className="bg-[#FEFEFB] p-4">
+                    <div className="flex items-end gap-3 grid grid-cols-4">
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="form-label-small">
+                          Predicate Type *
+                        </label>
+                        <Dropdown<string>
+                          options={SD_TARGETING_PREDICATE_TYPES}
+                          value={
+                            currentTarget.expression?.[0]?.type ||
+                            currentTarget.expressionValue ||
+                            ""
+                          }
+                          onChange={(value) => {
+                            const currentValue =
+                              currentTarget.expression?.[0]?.value || "";
+                            setCurrentTarget((prev) => ({
+                              ...prev,
+                              expressionValue: value,
+                              expression: value
+                                ? [{ type: value, value: currentValue }]
+                                : [],
+                            }));
+                          }}
+                          placeholder="Select predicate type"
+                          buttonClassName="edit-button w-full"
+                        />
+                        {errors.expressionValue && (
+                          <p className="text-[10px] text-red-500 mt-1">
+                            {errors.expressionValue}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="form-label-small">
+                          Predicate Value *
+                        </label>
+                        <div className="flex-1 min-w-[200px]">
+                          <input
+                            type="text"
+                            value={
+                              (currentTarget.expression?.[0]?.value as string) || ""
+                            }
+                            onChange={(e) => {
+                              const exprType =
+                                currentTarget.expression?.[0]?.type ||
+                                currentTarget.expressionValue;
+                              if (exprType) {
+                                setCurrentTarget((prev) => ({
+                                  ...prev,
+                                  expression: [
+                                    { type: exprType, value: e.target.value },
+                                  ],
+                                }));
+                              }
+                            }}
+                            placeholder="Enter value (e.g., ASIN)"
+                            className={`w-full campaign-input    ${
+                              errors.expressionValue
+                                ? "border-red-500"
+                                : "border-gray-200"
+                              }`}
+                          />
+                        </div>  
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-[200px]">
-                    <label className="form-label-small">
-                      Predicate Value *
-                    </label>
-                    <div className="flex-1 min-w-[200px]">
-                    <input
-                      type="text"
-                      value={
-                        (currentTarget.expression?.[0]?.value as string) || ""
-                      }
-                      onChange={(e) => {
-                        const exprType =
-                          currentTarget.expression?.[0]?.type ||
-                          currentTarget.expressionValue;
-                        if (exprType) {
-                          setCurrentTarget((prev) => ({
-                            ...prev,
-                            expression: [
-                              { type: exprType, value: e.target.value },
-                            ],
-                          }));
-                        }
-                      }}
-                      placeholder="Enter value (e.g., ASIN)"
-                      className={`w-full campaign-input    ${
-                        errors.expressionValue
-                          ? "border-red-500"
-                          : "border-gray-200"
-                        }`}
-                      />
-                    </div>  
-                  </div>
-                </div>
-              )}
+                )}
 
               {/* ContentTargetingPredicate field */}
               {activeExpressionTab === "ContentTargetingPredicate" && (
-                <div className="flex items-end gap-3 grid grid-cols-4">
-                  <div className="flex-1 min-w-[200px]">
+                <div className="bg-[#FEFEFB] p-4">
                   <label className="block text-[11.2px] font-semibold text-[#556179] uppercase mb-2">
                     Content Categories *
                   </label>
@@ -1311,13 +1310,12 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                       {errors.sdContentCategories}
                     </p>
                   )}
-                  </div>
                 </div>
               )}
 
               {/* TargetingPredicateNested fields */}
               {activeExpressionTab === "TargetingPredicateNested" && (
-                <>
+                <div className="bg-[#FEFEFB] p-4">
                   <div className="flex items-end gap-3 grid grid-cols-4">
                     <div className="flex-1 min-w-[180px] w-full">
                       <label className="form-label-small">
@@ -1340,7 +1338,6 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                     </div>
                   </div>
 
-                <div className="flex items-end gap-3 grid grid-cols-4">
                   {/* Nested Predicates Section */}
                   <div className="mt-3">
                     <label className="block text-[11.2px] font-semibold text-[#556179] uppercase mb-2">
@@ -1437,10 +1434,9 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                       </p>
                     )}
                   </div>
-                  </div>
-
-                </>
+                </div>
               )}
+              </div>
             </>
           )}
         </div>
