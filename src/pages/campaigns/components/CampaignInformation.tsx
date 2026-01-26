@@ -71,17 +71,15 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
           </div>
         )}
 
-        {/* Profile Name */}
-        {campaignDetail.campaign.profile_name && (
-          <div className="flex flex-col gap-1">
-            <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-              Profile
-            </label>
-            <div className="table-text leading-[1.26]">
-              {campaignDetail.campaign.profile_name}
-            </div>
+        {/* Profile Name - Show for all campaign types */}
+        <div className="flex flex-col gap-1">
+          <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+            Profile
+          </label>
+          <div className="table-text leading-[1.26]">
+            {campaignDetail.campaign.profile_name || "—"}
           </div>
-        )}
+        </div>
 
         {/* Status - Editable */}
         <div className="flex flex-col gap-1">
@@ -236,9 +234,8 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
           </div>
         )}
 
-        {/* Targeting Type - Only for SP campaigns */}
-        {(campaignDetail.campaign.targetingType ||
-          campaignDetail.campaign.targeting_type) && (
+        {/* Targeting Type - Show for SP and SB campaigns only (not SD) */}
+        {campaignDetail.campaign.type !== "SD" && (
           <div className="flex flex-col gap-1">
             <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
               Targeting Type

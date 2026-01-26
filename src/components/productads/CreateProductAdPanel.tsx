@@ -221,6 +221,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
         <div className="space-y-4">
           {/* For SD campaigns, show type selector as dropdown */}
           {campaignType === "SD" && (
+
             <div>
               <label className="form-label-small">
                 Product Type *
@@ -624,9 +625,8 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
         >
           {loading
             ? "Creating..."
-            : `Add All Product Ads${
-                addedProductAds.length > 0 ? ` (${addedProductAds.length})` : ""
-              }`}
+            : `Add All Product Ads${addedProductAds.length > 0 ? ` (${addedProductAds.length})` : ""
+            }`}
         </button>
       </div>
     </div>

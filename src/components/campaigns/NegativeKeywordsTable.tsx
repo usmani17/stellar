@@ -3,6 +3,7 @@ import { StatusBadge } from "../ui/StatusBadge";
 import { Tooltip } from "../ui/Tooltip";
 import { Dropdown } from "../ui/Dropdown";
 import { Checkbox } from "../ui/Checkbox";
+import { Loader } from "../ui";
 
 interface NegativeKeyword {
   id: number;
@@ -130,7 +131,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
   };
 
   return (
-    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+    <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
       <div className="overflow-x-auto w-full">
         {loading ? (
           <div className="text-center py-8 text-[#556179] text-[13.3px]">
@@ -170,9 +171,8 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
 
                   {/* Keyword Text Header */}
                   <th
-                    className={`table-header max-w-[200px] ${
-                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
+                    className={`table-header max-w-[200px] ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                      }`}
                     onClick={() => onSort?.("keywordText")}
                   >
                     <div className="flex items-center gap-1">
@@ -183,9 +183,8 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
 
                   {/* Match Type Header */}
                   <th
-                    className={`table-header ${
-                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
+                    className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                      }`}
                     onClick={() => onSort?.("matchType")}
                   >
                     <div className="flex items-center gap-1">
@@ -196,9 +195,8 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
 
                   {/* State Header */}
                   <th
-                    className={`table-header min-w-[250px] ${
-                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
+                    className={`table-header min-w-[250px] ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                      }`}
                     onClick={() => onSort?.("state")}
                   >
                     <div className="flex items-center gap-1">
@@ -227,9 +225,8 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                   return (
                     <tr
                       key={keyword.id}
-                      className={`${
-                        !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
+                      className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
+                        } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
                     >
                       {/* Checkbox */}
                       {onSelect && (
@@ -296,8 +293,8 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                                   ? pendingChange.newValue === "enabled"
                                     ? "Enabled"
                                     : pendingChange.newValue === "paused"
-                                    ? "Paused"
-                                    : "Archived"
+                                      ? "Paused"
+                                      : "Archived"
                                   : statusValue
                               }
                             />
@@ -311,8 +308,8 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                                 pendingChange.newValue === "enabled"
                                   ? "Enabled"
                                   : pendingChange.newValue === "paused"
-                                  ? "Paused"
-                                  : "Archived"
+                                    ? "Paused"
+                                    : "Archived"
                               }
                             />
                           </div>
@@ -357,7 +354,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                                 // Only cancel if no selection was made (clicked outside)
                                 if (
                                   statusSelectionMadeRef.current !==
-                                    keyword.id &&
+                                  keyword.id &&
                                   editingField?.id === keyword.id
                                 ) {
                                   onEditCancel?.();
@@ -372,17 +369,16 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                           </div>
                         ) : (
                           <div
-                            className={`text-[13.3px] leading-[1.26] ${
-                              isArchived
-                                ? "cursor-not-allowed opacity-60"
-                                : "cursor-pointer hover:underline"
-                            }`}
+                            className={`text-[13.3px] leading-[1.26] ${isArchived
+                              ? "cursor-not-allowed opacity-60"
+                              : "cursor-pointer hover:underline"
+                              }`}
                             onClick={() => {
                               if (!isArchived) {
                                 const statusLower = statusValue.toLowerCase();
                                 const editStatusValue =
                                   statusLower === "enable" ||
-                                  statusLower === "enabled"
+                                    statusLower === "enabled"
                                     ? "enabled"
                                     : "paused";
                                 onEditStart?.(keyword.id, "status", editStatusValue);
@@ -419,6 +415,18 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
           </div>
         )}
       </div>
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-overlay-content">
+            <Loader size="md" message="Loading negative keywords..." />
+          </div>
+        </div>
+      )}
+      {negativeKeywords.length === 0 && (
+        <div className="text-center py-8">
+          <Loader message="No negative keywords found" showMessage={false} size="md" />
+        </div>
+      )}
     </div>
   );
 };
