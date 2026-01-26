@@ -8,7 +8,7 @@ interface CampaignInformationProps {
   editedValue: string;
   onEditField: (field: "budget" | "status") => void;
   onEditValueChange: (value: string) => void;
-  onEditEnd: () => void;
+  onEditEnd: (value?: string, field?: "budget" | "status") => void;
   onEditCancel: () => void;
 }
 
@@ -74,7 +74,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
         )}
 
         {/* State - Inline Dropdown */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1" style={{ width: "120px" }}>
           <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
             State
           </label>
@@ -96,11 +96,15 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
             }
             onChange={(value) => {
               const newValue = value as string;
-              if (editingField !== "status") {
+              const wasEditing = editingField === "status";
+              
+              if (!wasEditing) {
                 onEditField("status");
               }
               onEditValueChange(newValue);
-              onEditEnd();
+              // Pass the value and field directly to avoid state timing issues
+              // This matches the pattern from Campaigns.tsx
+              onEditEnd(newValue, "status");
             }}
             buttonClassName="inline-edit-dropdown w-full"
             width="w-full"
@@ -108,7 +112,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
         </div>
 
         {/* Budget - Inline Input */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1" style={{ width: "120px" }}>
           <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
             Budget
           </label>

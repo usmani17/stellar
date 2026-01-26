@@ -660,15 +660,9 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                   
                                   if (!wasEditing) {
                                     onEditStart?.(adgroup.id, "status", statusValue);
-                                    // Pass adgroup ID and field directly to avoid state timing issues
-                                    setTimeout(() => {
-                                      onEditChange?.(newValue);
-                                      onEditEnd?.(newValue, adgroup.id, "status");
-                                    }, 0);
-                                  } else {
-                                    onEditChange?.(newValue);
-                                    onEditEnd?.(newValue, adgroup.id, "status");
                                   }
+                                  onEditChange?.(newValue);
+                                  onEditEnd?.(newValue, adgroup.id, "status");
                                 }}
                                 buttonClassName="inline-edit-dropdown"
                                 width="w-full"
