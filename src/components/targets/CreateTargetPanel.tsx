@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
+import { Checkbox } from "../ui/Checkbox";
+import { Chip } from "../ui/Chip";
 
 export interface TargetInput {
   adGroupId: string;
@@ -493,7 +495,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
     sdExpressionStructureType:
       campaignType === "SD" ? "TargetingPredicate" : undefined,
     sdNestedType: undefined,
-    sdNestedPredicates: [],
+    sdNestedPredicates: campaignType === "SD" ? [{ type: SD_NESTED_PREDICATE_TYPES[0]?.value || "", value: "" }] : [],
     sdContentCategories: [],
   });
   const [addedTargets, setAddedTargets] = useState<TargetInput[]>([]);
@@ -504,6 +506,9 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
   const [activeExpressionTab, setActiveExpressionTab] = useState<string>(
     campaignType === "SD" ? "TargetingPredicate" : ""
   );
+  const [contentCategorySearch, setContentCategorySearch] = useState<string>("");
+  const [newPredicateType, setNewPredicateType] = useState<string>("");
+  const [newPredicateValue, setNewPredicateValue] = useState<string>("");
 
   // Sync active tab with currentTarget.sdExpressionStructureType
   useEffect(() => {
@@ -534,13 +539,18 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
   };
 
   const handleAddNestedPredicate = () => {
+    if (!newPredicateType || !newPredicateValue.trim()) {
+      return;
+    }
     setCurrentTarget((prev) => ({
       ...prev,
       sdNestedPredicates: [
         ...(prev.sdNestedPredicates || []),
-        { type: "", value: "" },
+        { type: newPredicateType, value: newPredicateValue.trim() },
       ],
     }));
+    setNewPredicateType("");
+    setNewPredicateValue("");
   };
 
   const handleRemoveNestedPredicate = (index: number) => {
@@ -552,37 +562,26 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
     }));
   };
 
-  const handleAddContentCategory = () => {
-    setCurrentTarget((prev) => ({
-      ...prev,
-      sdContentCategories: [
-        ...(prev.sdContentCategories || []),
-        { type: "contentCategorySameAs", value: "" },
-      ],
-    }));
-  };
-
-  const handleRemoveContentCategory = (index: number) => {
-    setCurrentTarget((prev) => ({
-      ...prev,
-      sdContentCategories: (prev.sdContentCategories || []).filter(
-        (_, i) => i !== index
-      ),
-    }));
-  };
-
-  const handleContentCategoryChange = (
-    index: number,
-    field: "type" | "value",
-    value: string
-  ) => {
+  const handleContentCategoryChange = (value: string, checked: boolean) => {
     setCurrentTarget((prev) => {
-      const categories = [...(prev.sdContentCategories || [])];
-      categories[index] = {
-        type: "contentCategorySameAs", // Always ensure type is contentCategorySameAs
-        value: field === "value" ? value : categories[index]?.value || "",
-      };
-      return { ...prev, sdContentCategories: categories };
+      const currentValues = (prev.sdContentCategories || []).map(cat => cat.value);
+      let updatedValues: string[];
+      
+      if (checked) {
+        // Add the value if not already present
+        updatedValues = [...currentValues, value];
+      } else {
+        // Remove the value
+        updatedValues = currentValues.filter(v => v !== value);
+      }
+      
+      // Convert array of values to array of objects with type and value
+      const updatedCategories = updatedValues.map(val => ({
+        type: "contentCategorySameAs",
+        value: val,
+      }));
+      
+      return { ...prev, sdContentCategories: updatedCategories };
     });
   };
 
@@ -632,18 +631,11 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
         ) {
           if (
             !currentTarget.sdContentCategories ||
-            currentTarget.sdContentCategories.length === 0
+            currentTarget.sdContentCategories.length === 0 ||
+            currentTarget.sdContentCategories.every((cat) => !cat.value?.trim())
           ) {
             newErrors.sdContentCategories =
               "At least one content category is required";
-          } else {
-            // Validate each content category
-            currentTarget.sdContentCategories.forEach((cat, idx) => {
-              if (!cat.value?.trim()) {
-                newErrors[`contentCategory_${idx}_value` as keyof TargetInput] =
-                  "Content category value is required";
-              }
-            });
           }
         } else if (
           currentTarget.sdExpressionStructureType === "TargetingPredicateNested"
@@ -1133,13 +1125,13 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
               )}
 
               {/* Add Target Button - Only show inline for SP/SB */}
-              <div className="w-[120px]">
+              <div className="flex items-end">
                 <button
                   type="button"
                   onClick={handleAddTarget}
-                  className="create-entity-button w-full text-[11px] justify-center"
+                  className="create-entity-button"
                 >
-                  Add Target
+                  Add
                 </button>
               </div>
             </div>
@@ -1148,6 +1140,11 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
           {/* SD Expression Structure Type Tabs - Show at bottom */}
           {campaignType === "SD" && (
             <>
+              {/* Predicate Settings Heading */}
+              <h3 className="text-[14px] font-medium text-[#556179] mb-3">
+                Predicate Settings
+              </h3>
+              
               {/* Tabs for Expression Structure Type */}
               <div className="mb-4">
                 <div className="flex border-b border-gray-200">
@@ -1182,7 +1179,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
               {/* Show only active tab form */}
               {/* TargetingPredicate fields */}
               {activeExpressionTab === "TargetingPredicate" && (
-                <div className="flex items-end gap-3">
+                <div className="flex items-end gap-3 grid grid-cols-4">
                   <div className="flex-1 min-w-[200px]">
                     <label className="form-label-small">
                       Predicate Type *
@@ -1218,6 +1215,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                     <label className="form-label-small">
                       Predicate Value *
                     </label>
+                    <div className="flex-1 min-w-[200px]">
                     <input
                       type="text"
                       value={
@@ -1237,102 +1235,91 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                         }
                       }}
                       placeholder="Enter value (e.g., ASIN)"
-                      className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                      className={`w-full campaign-input    ${
                         errors.expressionValue
                           ? "border-red-500"
                           : "border-gray-200"
-                      }`}
-                    />
+                        }`}
+                      />
+                    </div>  
                   </div>
                 </div>
               )}
 
               {/* ContentTargetingPredicate field */}
               {activeExpressionTab === "ContentTargetingPredicate" && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
-                      Content Categories *
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleAddContentCategory}
-                      className="text-[11.2px] text-[#136D6D] hover:text-[#0e5a5a] font-semibold"
-                    >
-                      + Add Category
-                    </button>
-                  </div>
-                  {currentTarget.sdContentCategories &&
-                  currentTarget.sdContentCategories.length > 0 ? (
-                    <div className="space-y-2">
-                      {currentTarget.sdContentCategories.map((cat, idx) => (
-                        <div key={idx} className="flex gap-2 items-end">
-                          <div className="flex-1 min-w-[300px]">
-                            <Dropdown<string>
-                              options={SD_CONTENT_CATEGORIES.map((cat) => ({
-                                value: cat.value,
-                                label: `${cat.category} - ${cat.subcategory}`,
-                              }))}
-                              value={cat.value || ""}
-                              onChange={(value) =>
-                                handleContentCategoryChange(idx, "value", value)
-                              }
-                              placeholder="Select content category"
-                              buttonClassName="edit-button w-full"
-                            />
-                            {errors[
-                              `contentCategory_${idx}_value` as keyof TargetInput
-                            ] && (
-                              <p className="text-[10px] text-red-500 mt-1">
-                                {
-                                  errors[
-                                    `contentCategory_${idx}_value` as keyof TargetInput
-                                  ]
-                                }
-                              </p>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveContentCategory(idx)}
-                            className="px-3 py-2.5 text-red-500 hover:text-red-700 transition-colors"
-                            title="Remove"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
+                <div className="flex items-end gap-3 grid grid-cols-4">
+                  <div className="flex-1 min-w-[200px]">
+                  <label className="block text-[11.2px] font-semibold text-[#556179] uppercase mb-2">
+                    Content Categories *
+                  </label>
+                  {/* Search Field */}
+                  <div className="mb-3 flex-1 min-w-[180px]">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg
+                          className="w-4 h-4 text-gray-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                          />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        value={contentCategorySearch}
+                        onChange={(e) => setContentCategorySearch(e.target.value)}
+                        placeholder="Search content categories..."
+                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-1 focus:ring-[#136D6D] focus:border-[#136D6D] bg-white"
+                      />
                     </div>
-                  ) : (
-                    <p className="text-[11.2px] text-gray-500 italic">
-                      No categories added. Click "Add Category" to add one.
-                    </p>
-                  )}
+                  </div>
+                  <div className="border border-gray-200 rounded-lg p-3 max-h-[300px] overflow-y-auto">
+                    {SD_CONTENT_CATEGORIES.filter((cat) => {
+                      if (!contentCategorySearch.trim()) return true;
+                      const searchLower = contentCategorySearch.toLowerCase();
+                      const categoryLabel = `${cat.category} - ${cat.subcategory}`.toLowerCase();
+                      return categoryLabel.includes(searchLower);
+                    }).map((cat) => {
+                      const categoryValue = cat.value;
+                      const isSelected = (currentTarget.sdContentCategories || []).some(
+                        (c) => c.value === categoryValue
+                      );
+                      return (
+                        <div key={categoryValue} className="mb-2 last:mb-0">
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={(checked) =>
+                              handleContentCategoryChange(categoryValue, checked)
+                            }
+                            label={`${cat.category} - ${cat.subcategory}`}
+                            size="small"
+                            className="w-full [&_label]:text-[11.2px]"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
                   {errors.sdContentCategories && (
                     <p className="text-[10px] text-red-500 mt-1">
                       {errors.sdContentCategories}
                     </p>
                   )}
+                  </div>
                 </div>
               )}
 
               {/* TargetingPredicateNested fields */}
               {activeExpressionTab === "TargetingPredicateNested" && (
                 <>
-                  <div className="flex items-end gap-3">
-                    <div className="flex-1 min-w-[180px]">
+                  <div className="flex items-end gap-3 grid grid-cols-4">
+                    <div className="flex-1 min-w-[180px] w-full">
                       <label className="form-label-small">
                         Nested Type *
                       </label>
@@ -1353,117 +1340,105 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                     </div>
                   </div>
 
+                <div className="flex items-end gap-3 grid grid-cols-4">
                   {/* Nested Predicates Section */}
                   <div className="mt-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
-                        Nested Predicates *
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleAddNestedPredicate}
-                        className="text-[11.2px] text-[#136D6D] hover:text-[#0e5a5a] font-semibold"
-                      >
-                        + Add Predicate
-                      </button>
-                    </div>
+                    <label className="block text-[11.2px] font-semibold text-[#556179] uppercase mb-2">
+                      Nested Predicates *
+                    </label>
+                    
+                    {/* Display completed predicates as chips (only show those with both type and value) */}
                     {currentTarget.sdNestedPredicates &&
-                    currentTarget.sdNestedPredicates.length > 0 ? (
-                      <div className="space-y-2">
-                        {currentTarget.sdNestedPredicates.map((pred, idx) => (
-                          <div key={idx} className="flex gap-2 items-end">
-                            <div className="flex-1 min-w-[200px]">
-                              <Dropdown<string>
-                                options={SD_NESTED_PREDICATE_TYPES}
-                                value={pred.type}
-                                onChange={(value) =>
-                                  handleNestedPredicateChange(
-                                    idx,
-                                    "type",
-                                    value
-                                  )
+                    currentTarget.sdNestedPredicates.filter(p => p.type && p.value?.trim()).length > 0 ? (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {currentTarget.sdNestedPredicates
+                          .map((pred, idx) => {
+                            if (!pred.type || !pred.value?.trim()) return null;
+                            const predicateLabel = SD_NESTED_PREDICATE_TYPES.find(
+                              (opt) => opt.value === pred.type
+                            )?.label || pred.type;
+                            return (
+                              <Chip
+                                key={idx}
+                                onClose={() => handleRemoveNestedPredicate(idx)}
+                              >
+                                {predicateLabel}: {pred.value}
+                              </Chip>
+                            );
+                          })
+                          .filter(Boolean)}
+                      </div>
+                    ) : null}
+                    
+                    {/* Input field to add/edit predicate - show first incomplete predicate or new one */}
+                    {(() => {
+                      const incompletePredicate = currentTarget.sdNestedPredicates?.find(p => !p.type || !p.value?.trim());
+                      const currentType = incompletePredicate?.type || newPredicateType || SD_NESTED_PREDICATE_TYPES[0]?.value || "";
+                      const currentValue = incompletePredicate?.value || newPredicateValue;
+                      const predicateIndex = incompletePredicate ? currentTarget.sdNestedPredicates!.indexOf(incompletePredicate) : -1;
+                      
+                      return (
+                        <div className="flex items-end gap-3">
+                          <div className="flex-1 min-w-[200px]">
+                            <Dropdown<string>
+                              options={SD_NESTED_PREDICATE_TYPES}
+                              value={currentType}
+                              onChange={(value) => {
+                                if (predicateIndex >= 0) {
+                                  handleNestedPredicateChange(predicateIndex, "type", value);
+                                } else {
+                                  setNewPredicateType(value);
                                 }
-                                placeholder="Select predicate type"
-                                buttonClassName="edit-button w-full"
-                              />
-                              {errors[
-                                `nestedPredicate_${idx}_type` as keyof TargetInput
-                              ] && (
-                                <p className="text-[10px] text-red-500 mt-1">
-                                  {
-                                    errors[
-                                      `nestedPredicate_${idx}_type` as keyof TargetInput
-                                    ]
-                                  }
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-[200px]">
-                              <input
-                                type="text"
-                                value={pred.value}
-                                onChange={(e) =>
-                                  handleNestedPredicateChange(
-                                    idx,
-                                    "value",
-                                    e.target.value
-                                  )
+                              }}
+                              placeholder="Select predicate type"
+                              buttonClassName="edit-button w-full"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-[200px]">
+                            <input
+                              type="text"
+                              value={currentValue}
+                              onChange={(e) => {
+                                if (predicateIndex >= 0) {
+                                  handleNestedPredicateChange(predicateIndex, "value", e.target.value);
+                                } else {
+                                  setNewPredicateValue(e.target.value);
                                 }
-                                placeholder="Enter value"
-                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                  errors[
-                                    `nestedPredicate_${idx}_value` as keyof TargetInput
-                                  ]
-                                    ? "border-red-500"
-                                    : "border-gray-200"
-                                }`}
-                              />
-                              {errors[
-                                `nestedPredicate_${idx}_value` as keyof TargetInput
-                              ] && (
-                                <p className="text-[10px] text-red-500 mt-1">
-                                  {
-                                    errors[
-                                      `nestedPredicate_${idx}_value` as keyof TargetInput
-                                    ]
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && currentType && e.currentTarget.value.trim()) {
+                                  if (predicateIndex >= 0) {
+                                    // Value is already being updated via onChange
+                                  } else {
+                                    handleAddNestedPredicate();
                                   }
-                                </p>
-                              )}
-                            </div>
+                                }
+                              }}
+                              placeholder="Enter value"
+                              className="campaign-input w-full"
+                            />
+                          </div>
+                          {predicateIndex < 0 && (
                             <button
                               type="button"
-                              onClick={() => handleRemoveNestedPredicate(idx)}
-                              className="px-3 py-2.5 text-red-500 hover:text-red-700 transition-colors"
-                              title="Remove"
+                              onClick={handleAddNestedPredicate}
+                              disabled={!currentType || !currentValue.trim()}
+                              className="create-entity-button"
                             >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                />
-                              </svg>
+                              +
                             </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-[11.2px] text-gray-500 italic">
-                        No predicates added. Click "Add Predicate" to add one.
-                      </p>
-                    )}
+                          )}
+                        </div>
+                      );
+                    })()}
                     {errors.sdNestedPredicates && (
                       <p className="text-[10px] text-red-500 mt-1">
                         {errors.sdNestedPredicates}
                       </p>
                     )}
                   </div>
+                  </div>
+
                 </>
               )}
             </>
@@ -1703,32 +1678,36 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
       )}
 
       {/* Footer Actions */}
-      <div className="p-4 flex items-center justify-end gap-3">
-        {/* Add Target Button for SD campaigns - positioned at bottom right */}
+      <div className="p-4">
+        {/* Add Target Button for SD campaigns - right aligned on its own row */}
         {campaignType === "SD" && (
+          <div className="mb-3 flex justify-end">
+            <button
+              type="button"
+              onClick={handleAddTarget}
+              className="create-entity-button"
+            >
+              Add
+            </button>
+          </div>
+        )}
+        <div className="flex items-center justify-end gap-3">
           <button
             type="button"
-            onClick={handleAddTarget}
-            className="apply-button text-[11px] justify-center"
+            onClick={handleCancel}
+            className="cancel-button"
           >
-            Add Target
+            Cancel
           </button>
-        )}
-        <button
-          type="button"
-          onClick={handleCancel}
-          className="cancel-button"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={addedTargets.length === 0 || loading}
-          className="apply-button"
-        >
-          {loading ? "Creating..." : "Add All Targets"}
-        </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={addedTargets.length === 0 || loading}
+            className="apply-button"
+          >
+            {loading ? "Creating..." : "Add All Targets"}
+          </button>
+        </div>
       </div>
     </div>
   );

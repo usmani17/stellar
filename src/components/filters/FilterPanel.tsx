@@ -462,7 +462,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       value: filterValueToStore,
     };
 
-    setActiveFilters([...activeFilters, newFilter]);
+    const updatedFilters = [...activeFilters, newFilter];
+    setActiveFilters(updatedFilters);
+    
+    // Apply filters immediately for Amazon pages
+    if (channelType === "amazon") {
+      onApply(updatedFilters);
+    }
 
     // Auto-select next available filter
     const nextField = getNextAvailableField();
@@ -1087,9 +1093,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         <button onClick={handleClearAll} className="cancel-button">
           Clear All
         </button>
-        <button type="button" onClick={handleApply} className="apply-button">
-          Apply Filters
-        </button>
+        {channelType !== "amazon" && (
+          <button type="button" onClick={handleApply} className="apply-button">
+            Apply Filters
+          </button>
+        )}
       </div>
     </div>
   );

@@ -44,11 +44,6 @@ interface GoogleCampaignDetailAdGroupsTabProps {
   onUpdateAdGroupStatus?: (adgroupId: number, status: string) => Promise<void>;
   onUpdateAdGroupBid?: (adgroupId: number, bid: number) => Promise<void>;
   onUpdateAdGroupName?: (adgroupId: number, name: string) => Promise<void>;
-  onStartBidConfirmation?: (
-    adgroup: GoogleAdGroup,
-    oldBid: number,
-    newBid: number
-  ) => void;
   onStartNameEdit?: (adgroup: GoogleAdGroup) => void;
   accountId?: string;
   onBulkUpdateComplete?: () => void;
@@ -81,7 +76,6 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
   getSortIcon,
   onUpdateAdGroupStatus,
   onUpdateAdGroupBid,
-  onStartBidConfirmation,
   onStartNameEdit,
   accountId,
   onBulkUpdateComplete,
@@ -117,6 +111,12 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
   const [inlineEditField, setInlineEditField] = useState<"status" | null>(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
+  const [showBidConfirmationModal, setShowBidConfirmationModal] = useState(false);
+  const [bidConfirmationData, setBidConfirmationData] = useState<{
+    adgroup: GoogleAdGroup;
+    oldBid: number;
+    newBid: number;
+  } | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const statusSelectionMadeRef = useRef<number | null>(null);
@@ -162,7 +162,8 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
     if (onUpdateAdGroupBid) {
       setEditingAdGroupId(adgroup.id);
       setEditingField("bid");
-      setEditingValue((adgroup.cpc_bid_dollars || 0).toString());
+      const bidValue = (adgroup.cpc_bid_dollars || 0).toString().replace(/\$/g, "");
+      setEditingValue(bidValue);
     }
   };
 
@@ -206,9 +207,10 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
         return;
       }
 
-      if (bidValue !== oldBid && onStartBidConfirmation) {
+      if (bidValue !== oldBid) {
         // Show confirmation modal
-        onStartBidConfirmation(adgroup, oldBid, bidValue);
+        setBidConfirmationData({ adgroup, oldBid, newBid: bidValue });
+        setShowBidConfirmationModal(true);
       }
       setEditingAdGroupId(null);
       setEditingField(null);
@@ -271,9 +273,10 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
         return;
       }
 
-      if (bidValue !== oldBid && onStartBidConfirmation) {
+      if (bidValue !== oldBid) {
         // Show confirmation modal
-        onStartBidConfirmation(adgroup, oldBid, bidValue);
+        setBidConfirmationData({ adgroup, oldBid, newBid: bidValue });
+        setShowBidConfirmationModal(true);
       }
       setEditingAdGroupId(null);
       setEditingField(null);
@@ -874,19 +877,42 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                               />
                             </div>
                           ) : (
-                            <div
+                            <button
+                              type="button"
                               className={
                                 onUpdateAdGroupStatus
-                                  ? "cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
-                                  : ""
+                                  ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
+                                  : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
                               }
                               onClick={() =>
                                 onUpdateAdGroupStatus &&
                                 handleStatusClick(adgroup)
                               }
+                              disabled={!onUpdateAdGroupStatus}
                             >
-                              <StatusBadge status={adgroup.status} />
-                            </div>
+                              <span className="truncate flex-1 min-w-0 text-left">
+                                {adgroup.status === "ENABLED" || adgroup.status === "Enabled" || adgroup.status === "ENABLE"
+                                  ? "Enabled"
+                                  : adgroup.status === "PAUSED" || adgroup.status === "Paused" || adgroup.status === "PAUSE"
+                                  ? "Paused"
+                                  : adgroup.status || "Enabled"}
+                              </span>
+                              {onUpdateAdGroupStatus && (
+                                <svg
+                                  className="w-4 h-4 text-[#072929] flex-shrink-0"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 9l-7 7-7-7"
+                                  />
+                                </svg>
+                              )}
+                            </button>
                           )}
                         </div>
                       </td>
@@ -953,16 +979,16 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                         ) : editingAdGroupId === adgroup.id &&
                           editingField === "bid" &&
                           onUpdateAdGroupBid ? (
-                          <div className="flex items-center">
-                            <span className="table-text mr-1">
-                              $
-                            </span>
+                          <div className="relative" style={{ width: "96px" }}>
                             <input
                               type="number"
                               step="0.01"
                               min="0"
-                              value={editingValue}
-                              onChange={(e) => setEditingValue(e.target.value)}
+                              value={editingValue.replace(/\$/g, "")}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/\$/g, "");
+                                setEditingValue(value);
+                              }}
                               onBlur={() => handleEditEnd()}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
@@ -974,18 +1000,33 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                 }
                               }}
                               autoFocus
-                              className="inline-edit-input w-24"
+                              className="inline-edit-input"
+                              style={{ 
+                                width: "96px", 
+                                minWidth: "96px", 
+                                maxWidth: "96px",
+                                boxSizing: "border-box"
+                              }}
                             />
                           </div>
                         ) : (
-                          <p
-                            onClick={() =>
-                              onUpdateAdGroupBid && handleBidClick(adgroup)
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onUpdateAdGroupBid) {
+                                handleBidClick(adgroup);
+                              }
+                            }}
+                            disabled={!onUpdateAdGroupBid}
+                            className={
+                              onUpdateAdGroupBid
+                                ? "inline-edit-input w-24 cursor-pointer text-left disabled:cursor-default"
+                                : "inline-edit-input w-24 cursor-default text-left"
                             }
-                            className="table-text leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                           >
                             {formatCurrency2Decimals(adgroup.cpc_bid_dollars)}
-                          </p>
+                          </button>
                         )}
                       </td>
                       <td className="table-cell hidden md:table-cell">
@@ -1294,6 +1335,90 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                 className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {inlineEditLoading ? "Updating..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bid Change Confirmation Modal */}
+      {showBidConfirmationModal && bidConfirmationData && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && updatingAdGroupId !== bidConfirmationData.adgroup.id) {
+              setShowBidConfirmationModal(false);
+              setBidConfirmationData(null);
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+              Confirm Bid Change
+            </h3>
+            <div className="mb-4">
+              <p className="text-[12.8px] text-[#556179] mb-2">
+                Ad Group:{" "}
+                <span className="font-semibold text-[#072929]">
+                  {bidConfirmationData.adgroup.name || "Unnamed Ad Group"}
+                </span>
+              </p>
+              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-[12.8px] text-[#556179]">Default max. CPC:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12.8px] text-[#556179]">
+                      {formatCurrency2Decimals(bidConfirmationData.oldBid)}
+                    </span>
+                    <span className="text-[12.8px] text-[#556179]">→</span>
+                    <span className="text-[12.8px] font-semibold text-[#072929]">
+                      {formatCurrency2Decimals(bidConfirmationData.newBid)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBidConfirmationModal(false);
+                  setBidConfirmationData(null);
+                }}
+                disabled={updatingAdGroupId === bidConfirmationData.adgroup.id}
+                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!onUpdateAdGroupBid || !bidConfirmationData) return;
+                  
+                  setUpdatingAdGroupId(bidConfirmationData.adgroup.id);
+                  try {
+                    await onUpdateAdGroupBid(
+                      bidConfirmationData.adgroup.id,
+                      bidConfirmationData.newBid
+                    );
+                    setShowBidConfirmationModal(false);
+                    setBidConfirmationData(null);
+                  } catch (error) {
+                    console.error("Failed to update bid:", error);
+                  } finally {
+                    setUpdatingAdGroupId(null);
+                  }
+                }}
+                disabled={updatingAdGroupId === bidConfirmationData.adgroup.id}
+                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {updatingAdGroupId === bidConfirmationData.adgroup.id
+                  ? "Updating..."
+                  : "Confirm"}
               </button>
             </div>
           </div>

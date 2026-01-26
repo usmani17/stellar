@@ -464,32 +464,17 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
             </div>
           )}
 
-          {/* Add Ad Group Button - Inline for SB campaigns, separate row for others */}
-          {campaignType === "SB" ? (
-            <div className="flex items-end">
-              <button
-                type="button"
-                onClick={handleAddAdGroup}
-                className="create-entity-button text-[12px]"
-              >
-                Add Ad Group
-              </button>
-            </div>
-          ) : null}
-        </div>
-
-        {/* Add Ad Group Button - Separate row for SP and SD campaigns */}
-        {campaignType !== "SB" && (
-          <div className="mt-4">
+          {/* Add Ad Group Button - Inline for all campaign types */}
+          <div className="flex items-end">
             <button
               type="button"
               onClick={handleAddAdGroup}
-              className="create-entity-button text-[12px]"
+              className="create-entity-button"
             >
-              Add Ad Group
+              Add 
             </button>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Ad Groups Table */}
@@ -684,9 +669,9 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
           type="button"
           onClick={handleSubmit}
           disabled={addedAdGroups.length === 0 || loading}
-          className="apply-button"
+          className="create-entity-button"
         >
-          {loading ? "Creating..." : "Add All Ad Groups"}
+          {loading ? "Creating..." : "Create AdGroups"}
         </button>
       </div>
     </div>

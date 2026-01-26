@@ -787,6 +787,7 @@ body input[type="submit"]:disabled {
   font-size: 11.2px;
   transition: background-color 0.2s, border-color 0.2s;
   cursor: pointer;
+  height: 40px;
 }
 
 .cancel-button:hover {

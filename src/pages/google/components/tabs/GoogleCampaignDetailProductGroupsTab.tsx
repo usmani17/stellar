@@ -403,19 +403,48 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                                 const newValue = val as string;
                                 handleStatusChange(productGroup.id, newValue);
                               }}
-                              defaultOpen={true}
+                              defaultOpen={false}
                               closeOnSelect={true}
-                              buttonClassName="text-[13.3px] px-2 py-1 min-w-0"
+                              buttonClassName="w-full text-[13.3px] px-2 py-1"
                               width="w-[100px]"
+                              className="w-full"
+                              menuClassName="z-[100000]"
                             />
                           </div>
                         ) : productGroup.status ? (
-                          <div
+                          <button
+                            type="button"
+                            className={
+                              onUpdateProductGroupStatus
+                                ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
+                                : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
+                            }
                             onClick={() => handleStatusClick(productGroup)}
-                            className={onUpdateProductGroupStatus ? "cursor-pointer" : ""}
+                            disabled={!onUpdateProductGroupStatus}
                           >
-                            <StatusBadge status={productGroup.status} />
-                          </div>
+                            <span className="truncate flex-1 min-w-0 text-left">
+                              {productGroup.status === "ENABLED" || productGroup.status === "Enabled" || productGroup.status === "ENABLE"
+                                ? "Enabled"
+                                : productGroup.status === "PAUSED" || productGroup.status === "Paused" || productGroup.status === "PAUSE"
+                                ? "Paused"
+                                : productGroup.status || "Enabled"}
+                            </span>
+                            {onUpdateProductGroupStatus && (
+                              <svg
+                                className="w-4 h-4 text-[#072929] flex-shrink-0"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 9l-7 7-7-7"
+                                />
+                              </svg>
+                            )}
+                          </button>
                         ) : null}
                       </td>
                       <td className="table-cell hidden md:table-cell">
