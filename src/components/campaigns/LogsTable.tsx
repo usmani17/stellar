@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { Button } from "../ui";
 import { Dropdown } from "../ui/Dropdown";
+import { Loader } from "../ui/Loader";
 import { logsService } from "../../services/logs";
 
 interface LogsTableProps {
@@ -360,13 +361,9 @@ export const LogsTable: React.FC<LogsTableProps> = ({
             </div>
           )}
           {/* Table Container - White card container */}
-          <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+          <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
             <div className="overflow-x-auto w-full">
-              {loading ? (
-                <div className="flex items-center justify-center h-64 w-full">
-                  <div className="text-[#556179] text-[13.3px]">Loading...</div>
-                </div>
-              ) : logs.length === 0 ? (
+              {logs.length === 0 && !loading ? (
                 <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
                   <div className="flex flex-col items-center justify-center max-w-md">
                     {/* Icon */}
@@ -480,6 +477,15 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                 </table>
               )}
             </div>
+
+            {/* Loading overlay for table - scoped to table container */}
+            {loading && (
+              <div className="loading-overlay">
+                <div className="loading-overlay-content">
+                  <Loader size="md" message="Loading logs..." />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Pagination */}
@@ -676,13 +682,9 @@ export const LogsTable: React.FC<LogsTableProps> = ({
             </div>
           )}
           {/* Table Container - No outer container when showHeader is false */}
-          <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+          <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
             <div className="overflow-x-auto w-full">
-              {loading ? (
-                <div className="flex items-center justify-center h-64 w-full">
-                  <div className="text-[#556179] text-[13.3px]">Loading...</div>
-                </div>
-              ) : logs.length === 0 ? (
+              {logs.length === 0 && !loading ? (
                 <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
                   <div className="flex flex-col items-center justify-center max-w-md">
                     {/* Icon */}
@@ -796,6 +798,15 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                 </table>
               )}
             </div>
+
+            {/* Loading overlay for table - scoped to table container */}
+            {loading && (
+              <div className="loading-overlay">
+                <div className="loading-overlay-content">
+                  <Loader size="md" message="Loading logs..." />
+                </div>
+              </div>
+            )}
           </div>
           {/* Pagination */}
           {!loading && logs.length > 0 && (

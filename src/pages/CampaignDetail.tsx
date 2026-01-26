@@ -6918,11 +6918,11 @@ export const CampaignDetail: React.FC = () => {
           {/* Campaign Header - Matching Campaigns page style */}
           <div>
             <h1 className="text-[24px] font-medium text-[#072929] leading-[normal]">
-              {loading
-                ? "Loading..."
-                : campaignDetail
-                ? campaignDetail.campaign.name
-                : "Campaign Not Found"}
+              {campaignDetail ? (
+                campaignDetail.campaign.name
+              ) : !loading ? (
+                "Campaign Not Found"
+              ) : null}
             </h1>
           </div>
 
@@ -6931,6 +6931,7 @@ export const CampaignDetail: React.FC = () => {
             campaignDetail={campaignDetail}
             editingField={editingField}
             editedValue={editedValue}
+            loading={loading}
             onEditField={(field) => {
               setEditingField(field);
               if (field === "status" && campaignDetail) {
@@ -6990,7 +6991,14 @@ export const CampaignDetail: React.FC = () => {
           {/* KPI Cards */}
           {loading ? (
             <div className="flex flex-col gap-4 mb-4">
-              <div className="text-center py-8">Loading campaign data...</div>
+              <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6">
+                <div className="flex items-center justify-center py-8">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#136D6D] border-t-transparent"></div>
+                    <p className="text-[14px] text-[#556179]">Loading campaign data...</p>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : campaignDetail ? (
             <div className="flex flex-col gap-4 mb-4">
