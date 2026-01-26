@@ -955,8 +955,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
             </h3>
 
             {/* Property Type Selector - Tabs */}
-            <div className="mb-4">
-              <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
+            <div className="tabs-container">
+              <div className="tabs-nav">
                 {/* Show IMAGE property tabs when creative type is IMAGE */}
                 {currentCreative.creativeType === "IMAGE" &&
                   PROPERTY_TYPE_OPTIONS_IMAGE.map((option) => {
@@ -972,11 +972,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                             handleAddPropertyType(option.value);
                           }
                         }}
-                        className={`px-4 py-2 text-[14px] transition-colors ${
-                          isActive
-                            ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                            : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
-                        }`}
+                        className={`tab-button ${isActive ? "tab-button-active" : "tab-button-inactive"}`}
                       >
                         {option.label}
                       </button>
@@ -997,11 +993,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                             handleAddPropertyType(option.value);
                           }
                         }}
-                        className={`px-4 py-2 text-[14px] transition-colors ${
-                          isActive
-                            ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                            : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
-                        }`}
+                        className={`tab-button ${isActive ? "tab-button-active" : "tab-button-inactive"}`}
                       >
                         {option.label}
                       </button>

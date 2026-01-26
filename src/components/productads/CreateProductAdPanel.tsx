@@ -219,55 +219,54 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
         </h2>
 
         <div className="space-y-4">
-          {/* For SD campaigns, show type selector as dropdown */}
-          {campaignType === "SD" && (
+          {/* Single line inputs - Product Type (SD only), Ad Group, SKU/ASIN/Off-Amazon, State */}
+          <div className="flex flex-wrap items-end gap-3">
+            {/* Product Type * - SD only, reduced width inline */}
+            {campaignType === "SD" && (
+              <div className="min-w-[140px] w-[140px]">
+                <label className="form-label-small">
+                  Product Type *
+                </label>
+                <Dropdown<string>
+                  options={[
+                    { value: "sku", label: "SKU" },
+                    { value: "asin", label: "ASIN" },
+                    { value: "off-amazon", label: "Off-Amazon" },
+                  ]}
+                  value={sdProductType}
+                  onChange={(value) => {
+                    setSdProductType(value as "sku" | "asin" | "off-amazon");
+                    // Clear other fields when switching
+                    if (value === "sku") {
+                      setCurrentProductAd((prev) => ({
+                        ...prev,
+                        asin: "",
+                        landingPageURL: "",
+                        landingPageType: "OFF_AMAZON_LINK",
+                        adName: "",
+                      }));
+                    } else if (value === "asin") {
+                      setCurrentProductAd((prev) => ({
+                        ...prev,
+                        sku: "",
+                        landingPageURL: "",
+                        landingPageType: "OFF_AMAZON_LINK",
+                        adName: "",
+                      }));
+                    } else if (value === "off-amazon") {
+                      setCurrentProductAd((prev) => ({
+                        ...prev,
+                        sku: "",
+                        asin: "",
+                      }));
+                    }
+                  }}
+                  placeholder="Select product type"
+                  buttonClassName="edit-button w-full"
+                />
+              </div>
+            )}
 
-            <div>
-              <label className="form-label-small">
-                Product Type *
-              </label>
-              <Dropdown<string>
-                options={[
-                  { value: "sku", label: "SKU" },
-                  { value: "asin", label: "ASIN" },
-                  { value: "off-amazon", label: "Off-Amazon" },
-                ]}
-                value={sdProductType}
-                onChange={(value) => {
-                  setSdProductType(value as "sku" | "asin" | "off-amazon");
-                  // Clear other fields when switching
-                  if (value === "sku") {
-                    setCurrentProductAd((prev) => ({
-                      ...prev,
-                      asin: "",
-                      landingPageURL: "",
-                      landingPageType: "OFF_AMAZON_LINK",
-                      adName: "",
-                    }));
-                  } else if (value === "asin") {
-                    setCurrentProductAd((prev) => ({
-                      ...prev,
-                      sku: "",
-                      landingPageURL: "",
-                      landingPageType: "OFF_AMAZON_LINK",
-                      adName: "",
-                    }));
-                  } else if (value === "off-amazon") {
-                    setCurrentProductAd((prev) => ({
-                      ...prev,
-                      sku: "",
-                      asin: "",
-                    }));
-                  }
-                }}
-                placeholder="Select product type"
-                buttonClassName="edit-button w-full"
-              />
-            </div>
-          )}
-
-          {/* Single line inputs */}
-          <div className="flex items-end gap-3">
             {/* Ad Group Dropdown */}
             <div className="flex-1 min-w-[180px] w-full">
               <label className="form-label-small">
@@ -446,16 +445,16 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 buttonClassName="edit-button w-full"
               />
             </div>
+          </div>
 
-            {/* Add Button */}
-            <div className="flex-shrink-0">
-              <button
-                onClick={handleAddProductAd}
-                className="px-4 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg hover:bg-[#0e5a5a] transition-colors text-[11.2px] whitespace-nowrap"
-              >
-                Add
-              </button>
-            </div>
+          {/* Add Button - new line */}
+          <div>
+            <button
+              onClick={handleAddProductAd}
+              className="px-4 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg hover:bg-[#0e5a5a] transition-colors text-[11.2px] whitespace-nowrap"
+            >
+              Add
+            </button>
           </div>
 
           {/* Preview Table */}
