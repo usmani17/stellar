@@ -7,6 +7,7 @@ import AccountRoutes from "./AccountRoutes";
 import AmazonRoutes from "./AmazonRoutes";
 import GoogleRoutes from "./GoogleRoutes";
 import TikTokRoutes from "./TikTokRoutes";
+import NotFoundRoutes from "./NotFoundRoutes";
 
 function AppRoutes() {
     return (
@@ -18,6 +19,7 @@ function AppRoutes() {
             {AmazonRoutes()}
             {GoogleRoutes()}
             {TikTokRoutes()}
+            {NotFoundRoutes()}
         </Routes>
     );
 }
