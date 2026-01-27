@@ -47,8 +47,9 @@ export const Auth0Callback: React.FC = () => {
           localStorage.setItem('user', JSON.stringify(userData));
           updateUser(userData);
           
-          // Redirect to brands
-          navigate('/brands', { replace: true });
+          const redirectTo = sessionStorage.getItem('loginRedirect') || '/brands';
+          sessionStorage.removeItem('loginRedirect');
+          navigate(redirectTo, { replace: true });
         } catch (profileError: any) {
           console.error('Error fetching user profile:', profileError);
           
@@ -68,7 +69,9 @@ export const Auth0Callback: React.FC = () => {
                 const userData = backendUser.data;
                 localStorage.setItem('user', JSON.stringify(userData));
                 updateUser(userData);
-                navigate('/brands', { replace: true });
+                const redirectTo = sessionStorage.getItem('loginRedirect') || '/brands';
+                sessionStorage.removeItem('loginRedirect');
+                navigate(redirectTo, { replace: true });
               } catch (retryError) {
                 retry(retryCount + 1);
               }
