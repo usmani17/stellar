@@ -243,12 +243,21 @@ export const useGoogleCampaignDetailAssetGroups = ({
       descriptionsArray.push("");
     }
 
+    // Handle long_headlines (plural array) - backward compatible with long_headline (singular)
+    // Asset group panel expects single string, so use first long headline from array if available
+    let longHeadline = "";
+    if (apiData?.long_headlines && Array.isArray(apiData.long_headlines) && apiData.long_headlines.length > 0) {
+      longHeadline = apiData.long_headlines[0] || "";
+    } else if (apiData?.long_headline) {
+      longHeadline = apiData.long_headline;
+    }
+
     return {
       asset_group_name: apiData?.asset_group_name || "",
       final_url: apiData?.final_urls?.[0] || apiData?.final_url || "",
       headlines: headlinesArray,
       descriptions: descriptionsArray,
-      long_headline: apiData?.long_headline || "",
+      long_headline: longHeadline,
       marketing_image_url: apiData?.marketing_image_url || "",
       square_marketing_image_url: apiData?.square_marketing_image_url || "",
       business_name: apiData?.business_name || "",

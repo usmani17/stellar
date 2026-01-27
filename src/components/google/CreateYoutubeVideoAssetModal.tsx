@@ -1,76 +1,72 @@
 import React, { useState } from "react";
-import { type CreateTextAssetPayload } from "../../services/googleAdwords/googleAdwordsAssets";
+import { type CreateYoutubeVideoAssetPayload } from "../../services/googleAdwords/googleAdwordsAssets";
 import { Loader } from "../ui/Loader";
-import { useCreateTextAsset } from "../../hooks/mutations/useAssetMutations";
+import { useCreateYoutubeVideoAsset } from "../../hooks/mutations/useAssetMutations";
 
-interface CreateTextAssetModalProps {
+interface CreateYoutubeVideoAssetModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (asset: any) => void;
   profileId: number;
   title?: string;
-  placeholder?: string;
-  fieldType?: string; // Field type for the asset (e.g., "BUSINESS_NAME", "HEADLINE", "DESCRIPTION")
 }
 
-export const CreateTextAssetModal: React.FC<CreateTextAssetModalProps> = ({
+export const CreateYoutubeVideoAssetModal: React.FC<CreateYoutubeVideoAssetModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
   profileId,
-  title = "Create Text Asset",
-  placeholder = "Enter text...",
-  fieldType,
+  title = "Create YouTube Video Asset",
 }) => {
-  const [text, setText] = useState("");
+  const [youtubeVideoId, setYoutubeVideoId] = useState("");
   const [assetName, setAssetName] = useState("");
   const [error, setError] = useState<string | null>(null);
   
-  const createTextAssetMutation = useCreateTextAsset(profileId);
-  const loading = createTextAssetMutation.isPending;
+  const createYoutubeVideoAssetMutation = useCreateYoutubeVideoAsset(profileId);
+  const loading = createYoutubeVideoAssetMutation.isPending;
 
-  const handleCancel = (e: React.MouseEvent) => {
+  const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement> | React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Clear form state
-    setText("");
-    setAssetName("");
-    setError(null);
-    onClose();
-  };
-
-  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
+    
+    if (!youtubeVideoId.trim()) {
+      setError("YouTube Video ID is required");
+      return;
     }
-    if (!text.trim()) {
-      setError("Text is required");
+
+    // Validate YouTube video ID format (11 characters, alphanumeric, dashes, underscores)
+    const videoIdPattern = /^[a-zA-Z0-9_-]{11}$/;
+    if (!videoIdPattern.test(youtubeVideoId.trim())) {
+      setError("YouTube Video ID must be 11 characters (alphanumeric, dashes, underscores)");
       return;
     }
 
     setError(null);
 
     try {
-      const payload: CreateTextAssetPayload = {
-        text: text.trim(),
+      const payload: CreateYoutubeVideoAssetPayload = {
+        youtube_video_id: youtubeVideoId.trim(),
         asset_name: assetName.trim() || undefined,
       };
 
-      const asset = await createTextAssetMutation.mutateAsync({
-        data: payload,
-        fieldType,
-      });
-      
-      // Reset form before closing
-      setText("");
-      setAssetName("");
-      setError(null);
+      const asset = await createYoutubeVideoAssetMutation.mutateAsync(payload);
       onSuccess(asset);
+      // Reset form
+      setYoutubeVideoId("");
+      setAssetName("");
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || err.message || "Failed to create asset");
+      setError(err.response?.data?.error || err.message || "Failed to create asset");
     }
+  };
+
+  const handleCancel = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setYoutubeVideoId("");
+    setAssetName("");
+    setError(null);
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -94,7 +90,7 @@ export const CreateTextAssetModal: React.FC<CreateTextAssetModalProps> = ({
         </div>
 
         {/* Form */}
-        <form onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); handleSubmit(e); }} className="p-6 space-y-4" noValidate>
+        <form onSubmit={handleSubmit} noValidate className="p-6 space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
               <p className="text-sm text-red-600">{error}</p>
@@ -103,17 +99,22 @@ export const CreateTextAssetModal: React.FC<CreateTextAssetModalProps> = ({
 
           <div>
             <label className="block text-sm font-medium text-[#072929] mb-1">
-              Text <span className="text-red-500">*</span>
+              YouTube Video ID <span className="text-red-500">*</span>
             </label>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={placeholder}
-              rows={3}
+            <input
+              type="text"
+              value={youtubeVideoId}
+              onChange={(e) => setYoutubeVideoId(e.target.value)}
+              placeholder="dQw4w9WgXcQ"
               className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] text-[13.3px] text-[#072929]"
               required
               disabled={loading}
+              pattern="[a-zA-Z0-9_-]{11}"
+              maxLength={11}
             />
+            <p className="text-xs text-[#556179] mt-1">
+              Enter the 11-character YouTube video ID (e.g., from https://www.youtube.com/watch?v=VIDEO_ID)
+            </p>
           </div>
 
           <div>
@@ -124,7 +125,7 @@ export const CreateTextAssetModal: React.FC<CreateTextAssetModalProps> = ({
               type="text"
               value={assetName}
               onChange={(e) => setAssetName(e.target.value)}
-              placeholder="e.g., Business Name Asset"
+              placeholder="e.g., Product Video"
               className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] text-[13.3px] text-[#072929]"
               disabled={loading}
             />
@@ -143,7 +144,7 @@ export const CreateTextAssetModal: React.FC<CreateTextAssetModalProps> = ({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={loading || !text.trim()}
+              disabled={loading || !youtubeVideoId.trim()}
               className="create-entity-button disabled:opacity-50 flex items-center gap-2"
             >
               {loading && <Loader size="sm" showMessage={false} variant="white" />}

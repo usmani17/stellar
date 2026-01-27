@@ -23,6 +23,8 @@ import {
   type GoogleAdGroup,
 } from "./components/GoogleAdGroupsTable";
 import { Loader } from "../../components/ui/Loader";
+import { ConfirmationModal } from "../../components/ui/ConfirmationModal";
+import { TrashIcon } from "lucide-react";
 import {
   getStatusWithDefault,
   formatStatusForDisplay,
@@ -111,6 +113,12 @@ export const GoogleAdGroups: React.FC = () => {
   const [pendingStatusAction, setPendingStatusAction] = useState<
     "ENABLED" | "PAUSED" | null
   >(null);
+  const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
+  const [pendingRemoveChange, setPendingRemoveChange] = useState<{
+    value: string;
+    adgroupId: string | number;
+    field: string;
+  } | null>(null);
   const [isBidChange, setIsBidChange] = useState(false);
   const [bulkUpdateResults, setBulkUpdateResults] = useState<{
     updated: number;
@@ -522,6 +530,15 @@ export const GoogleAdGroups: React.FC = () => {
         oldValue = formatStatusForDisplay(adgroup.status);
         const newStatusRaw = valueToCheck.trim();
         newValue = formatStatusForDisplay(newStatusRaw);
+        
+        // Check if status is being changed to REMOVED - show confirmation modal
+        if (newStatusRaw.toUpperCase() === "REMOVED") {
+          // Close the dropdown immediately when modal appears
+          cancelInlineEdit();
+          setPendingRemoveChange({ value: "REMOVED", adgroupId: adgroupIdParam!, field: fieldKey });
+          setShowRemoveConfirmation(true);
+          return;
+        }
       } else if (fieldKey === "name" || fieldKey === "adgroup_name") {
         oldValue = adgroup.adgroup_name || adgroup.name || "";
         newValue = valueToCheck.trim();
@@ -564,6 +581,15 @@ export const GoogleAdGroups: React.FC = () => {
       
       // For status changes, show modal
       if (hasChanged) {
+        // Check if status is being changed to REMOVED - show confirmation modal
+        if (newValue.toUpperCase() === "REMOVED") {
+          // Close the dropdown immediately when modal appears
+          cancelInlineEdit();
+          setPendingRemoveChange({ value: "REMOVED", adgroupId: editingCell.adgroupId, field: "status" });
+          setShowRemoveConfirmation(true);
+          return;
+        }
+        
         // Format status values for display
         const oldValueDisplay = formatStatusForDisplay(oldValue);
         const newValueDisplay = formatStatusForDisplay(newValue);
@@ -611,6 +637,78 @@ export const GoogleAdGroups: React.FC = () => {
       setEditingCell(null);
       return;
     }
+  };
+
+  // Handle confirmation for REMOVED status change
+  const handleConfirmRemove = async () => {
+    if (!pendingRemoveChange || !accountId) return;
+
+    setInlineEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const statusValue = convertStatusToApi("REMOVED");
+      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        adgroupIds: [pendingRemoveChange.adgroupId],
+        action: "status",
+        status: statusValue,
+      });
+
+      await loadAdgroups(accountIdNum);
+      
+      setShowRemoveConfirmation(false);
+      setPendingRemoveChange(null);
+      
+      // Clear any previous errors
+      setInlineEditError(null);
+      
+      // Show success feedback
+      setInlineEditSuccess({
+        adgroupId: pendingRemoveChange.adgroupId,
+        field: "status",
+      });
+    } catch (error: any) {
+      console.error("Failed to remove adgroup:", error);
+      
+      // Clear any previous success
+      setInlineEditSuccess(null);
+      
+      // Set error state for inline feedback
+      let errorMessage = "Failed to remove adgroup. Please try again.";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error?.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (
+          error.response.data.errors &&
+          Array.isArray(error.response.data.errors) &&
+          error.response.data.errors.length > 0
+        ) {
+          errorMessage = error.response.data.errors[0].replace(/^AdGroup\s+\d+:\s*/i, "");
+        }
+      }
+      
+      setInlineEditError({
+        adgroupId: pendingRemoveChange.adgroupId,
+        field: "status",
+        message: errorMessage,
+      });
+    } finally {
+      setInlineEditLoading(false);
+    }
+  };
+
+  // Handle cancel for REMOVED status change
+  const handleCancelRemove = () => {
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+    // Cancel the inline edit
+    cancelInlineEdit();
   };
 
   // Run inline edit from modal confirmation
@@ -2279,6 +2377,17 @@ export const GoogleAdGroups: React.FC = () => {
           </div>
         </div>
       </div>
+      <ConfirmationModal
+        isOpen={showRemoveConfirmation}
+        onClose={handleCancelRemove}
+        onConfirm={handleConfirmRemove}
+        title="Are you sure you want to remove this ad group?"
+        message="This action cannot be undone. All data associated with this ad group will be permanently removed."
+        type="danger"
+        size="sm"
+        isLoading={inlineEditLoading}
+        icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+      />
     </div>
   );
 };

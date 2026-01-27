@@ -490,6 +490,11 @@ export const GoogleAds: React.FC = () => {
       return;
     }
 
+    // Check if status is being changed to REMOVED - close dropdown immediately
+    if (newValue.toUpperCase() === "REMOVED") {
+      cancelInlineEdit();
+    }
+
     // Show modal for confirmation
     setInlineEditAd(ad);
     setInlineEditField("status");

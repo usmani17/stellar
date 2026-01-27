@@ -245,8 +245,10 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
       const statusDisplayMap: Record<string, string> = {
         ENABLED: "Enabled",
         PAUSED: "Paused",
+        REMOVED: "Remove",
         Enabled: "Enabled",
         Paused: "Paused",
+        Removed: "Remove",
       };
       const oldValue = statusDisplayMap[oldStatusRaw] || oldStatusRaw;
       const newValue = statusDisplayMap[newStatusRaw] || newStatusRaw;
@@ -838,6 +840,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                 options={[
                                   { value: "ENABLED", label: "Enabled" },
                                   { value: "PAUSED", label: "Paused" },
+                                  { value: "REMOVED", label: "Remove" },
                                 ]}
                                 value={editingValue}
                                 onChange={(val) => {
@@ -845,6 +848,13 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                   statusSelectionMadeRef.current = adgroup.id;
                                   const newValue = val as string;
                                   setEditingValue(newValue);
+                                  
+                                  // Close dropdown immediately when REMOVED is selected
+                                  if (newValue === "REMOVED") {
+                                    setEditingAdGroupId(null);
+                                    setEditingField(null);
+                                  }
+                                  
                                   // Call confirmInlineEdit immediately when a value is selected
                                   // This will trigger the modal confirmation (matches Google campaign table pattern)
                                   confirmInlineEdit(newValue);
@@ -895,6 +905,8 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                   ? "Enabled"
                                   : adgroup.status === "PAUSED" || adgroup.status === "Paused" || adgroup.status === "PAUSE"
                                   ? "Paused"
+                                  : adgroup.status === "REMOVED" || adgroup.status === "Removed" || adgroup.status === "REMOVE"
+                                  ? "Remove"
                                   : adgroup.status || "Enabled"}
                               </span>
                               {onUpdateAdGroupStatus && (

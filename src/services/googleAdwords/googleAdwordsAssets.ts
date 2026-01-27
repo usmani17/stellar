@@ -21,7 +21,7 @@ export interface ImageAsset {
   mime_type?: string;
   width?: number;
   height?: number;
-  image_url?: string;
+  image_url?: string; // URL to display the image
 }
 
 export interface YoutubeVideoAsset {
@@ -52,7 +52,10 @@ export interface CalloutAsset {
   text: string;
 }
 
-export type Asset = TextAsset | ImageAsset | YoutubeVideoAsset | SitelinkAsset | CalloutAsset;
+export type Asset = (TextAsset | ImageAsset | YoutubeVideoAsset | SitelinkAsset | CalloutAsset) & {
+  usage?: string[]; // Array of field types where this asset is used (e.g., ["BUSINESS_NAME"], ["CALLOUT"])
+  field_type?: string; // Primary field type (subtype) - e.g., "BUSINESS_NAME", "CALLOUT", "HEADLINE", "DESCRIPTION", "SITELINK", "LOGO", "AD_IMAGE"
+};
 
 // Campaign Asset Response
 export interface CampaignAssets {
@@ -122,11 +125,14 @@ export const googleAdwordsAssetsService = {
   // Asset Creation
   createTextAsset: async (
     profileId: number,
-    payload: CreateTextAssetPayload
+    payload: CreateTextAssetPayload,
+    fieldType?: string
   ): Promise<{ success: boolean; asset: TextAsset }> => {
+    const config = fieldType ? { params: { field_type: fieldType } } : undefined;
     const response = await api.post(
       `/google-adwords/profiles/${profileId}/assets/text/`,
-      payload
+      payload,
+      config
     );
     return response.data;
   },

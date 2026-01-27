@@ -79,22 +79,29 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
     const newStatusUpper = newStatus.toUpperCase();
 
     if (newStatusUpper !== oldStatus) {
+      // Close dropdown immediately when REMOVED is selected
+      if (newStatusUpper === "REMOVED") {
+        setEditingAdId(null);
+        setEditingStatus("");
+      }
+      
       // Show confirmation modal immediately - matches Amazon pattern
       const statusDisplayMap: Record<string, string> = {
         ENABLED: "Enabled",
         PAUSED: "Paused",
-        REMOVED: "Removed",
+        REMOVED: "Remove",
         Enabled: "Enabled",
         Paused: "Paused",
-        Removed: "Removed",
+        Removed: "Remove",
       };
       setInlineEditAd(ad);
       setInlineEditOldValue(statusDisplayMap[oldStatus] || oldStatus);
       setInlineEditNewValue(statusDisplayMap[newStatusUpper] || newStatusUpper);
       setShowInlineEditModal(true);
+    } else {
+      setEditingAdId(null);
+      setEditingStatus("");
     }
-    setEditingAdId(null);
-    setEditingStatus("");
   };
 
   const runInlineEdit = async () => {
@@ -322,7 +329,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                             options={[
                               { value: "ENABLED", label: "Enabled" },
                               { value: "PAUSED", label: "Paused" },
-                              { value: "REMOVED", label: "Removed" },
+                              { value: "REMOVED", label: "Remove" },
                             ]}
                             value={editingStatus}
                             onChange={(val) => handleStatusChange(ad.id, val as string)}
@@ -351,7 +358,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                                 : ad.status === "PAUSED" || ad.status === "Paused" || ad.status === "PAUSE"
                                 ? "Paused"
                                 : ad.status === "REMOVED" || ad.status === "Removed" || ad.status === "REMOVE"
-                                ? "Removed"
+                                ? "Remove"
                                 : ad.status || "Enabled"}
                             </span>
                             {onUpdateAdStatus && (

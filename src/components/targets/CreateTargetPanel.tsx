@@ -682,7 +682,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
     }
 
     // For SD campaigns, ensure expression is properly formatted
-    let targetToAdd = { ...currentTarget };
+    const targetToAdd = { ...currentTarget };
     if (campaignType === "SD" && targetToAdd.sdExpressionStructureType) {
       // Build expression based on structure type
       if (targetToAdd.sdExpressionStructureType === "TargetingPredicate") {

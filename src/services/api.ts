@@ -23,7 +23,7 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     // Try to get token from Auth0 first, fallback to localStorage
-    let token = localStorage.getItem("accessToken");
+    const token = localStorage.getItem("accessToken");
 
     // If no token in localStorage, try to get it from Auth0
     if (!token) {

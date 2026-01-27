@@ -3682,7 +3682,7 @@ export const CampaignDetail: React.FC = () => {
       const imageAds = ads.filter((ad) => !ad.adType || ad.adType === "IMAGE");
       const videoAds = ads.filter((ad) => ad.adType === "VIDEO");
 
-      let response: any = { created: 0, failed: 0, ads: [], failed_ads: [] };
+      const response: any = { created: 0, failed: 0, ads: [], failed_ads: [] };
 
       // Create image ads if any
       if (imageAds.length > 0) {

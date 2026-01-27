@@ -941,13 +941,13 @@ export const GoogleCampaignDetail: React.FC = () => {
                       : "Campaign Not Found"}
                 </h1>
               </div>
-              {/* Manage Campaign Assets Button - Only for PERFORMANCE_MAX campaigns */}
+              {/* View Campaign Assets Button - Only for PERFORMANCE_MAX campaigns */}
               {campaignDetail?.campaign.advertising_channel_type === "PERFORMANCE_MAX" && profileId && campaignId && (
                 <button
                   onClick={() => setCampaignAssetPanelOpen(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                  className="px-4 py-2 bg-forest-f40 text-white rounded-lg hover:bg-forest-f50 transition-colors text-sm font-medium"
                 >
-                  Manage Campaign Assets
+                  View Campaign Assets
                 </button>
               )}
             </div>
@@ -1079,6 +1079,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                             campaignId={campaignId}
                             loading={createPmaxAssetGroupLoading}
                             submitError={createPmaxAssetGroupError}
+                            profileId={profileId}
                           />
                         )}
                         {isEditAssetGroupPanelOpen &&
@@ -1096,6 +1097,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                                 initialData={editingAssetGroupData}
                                 assetGroupId={editingAssetGroupId}
                                 refreshMessage={refreshAssetGroupMessage}
+                                profileId={profileId}
                               />
                             </div>
                           )}
@@ -1123,15 +1125,6 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onApplyFilters={(newFilters) => {
                       setAssetGroupsFilters(newFilters);
                       setAssetGroupsCurrentPage(1);
-                    }}
-                    syncing={syncingAssetGroups}
-                    onSync={handleSyncAssetGroups}
-                    syncingAnalytics={false}
-                    onSyncAnalytics={async () => {
-                      // TODO: Implement asset groups analytics sync
-                      console.log(
-                        "Sync asset groups analytics not yet implemented"
-                      );
                     }}
                     syncMessage={
                       syncMessage.type === "assetgroups"

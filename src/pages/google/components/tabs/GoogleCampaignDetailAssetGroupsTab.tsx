@@ -36,10 +36,6 @@ interface GoogleCampaignDetailAssetGroupsTabProps {
   onToggleFilterPanel: () => void;
   filters: FilterValues;
   onApplyFilters: (filters: FilterValues) => void;
-  syncing: boolean;
-  onSync: () => void;
-  syncingAnalytics?: boolean;
-  onSyncAnalytics?: () => void;
   syncMessage: string | null;
   formatPercentage: (value: number | string | undefined) => string;
   formatCurrency2Decimals: (value: number | string | undefined) => string;
@@ -67,10 +63,6 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
   onToggleFilterPanel,
   filters,
   onApplyFilters,
-  syncing,
-  onSync,
-  syncingAnalytics,
-  onSyncAnalytics,
   syncMessage,
   formatPercentage,
   formatCurrency2Decimals,
@@ -132,12 +124,21 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
     const hasChanged = newStatusUpper !== normalizedCurrent;
 
     if (hasChanged) {
+      // Close dropdown immediately when REMOVED is selected
+      if (newStatusUpper === "REMOVED") {
+        setEditingAssetGroupId(null);
+        setEditingField(null);
+        setEditingValue("");
+      }
+      
       // Format status values for display
       const statusDisplayMap: Record<string, string> = {
         ENABLED: "Enabled",
         PAUSED: "Paused",
+        REMOVED: "Remove",
         Enabled: "Enabled",
         Paused: "Paused",
+        Removed: "Remove",
       };
       const oldValue = statusDisplayMap[normalizedCurrent] || normalizedCurrent;
       const newValue = statusDisplayMap[newStatusUpper] || newStatus;
@@ -148,27 +149,13 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
         newValue,
       });
       setShowStatusModal(true);
-    }
-    setEditingAssetGroupId(null);
-    setEditingField(null);
-    setEditingValue("");
-  };
-
-  const _handleEditEnd = () => {
-    if (!editingAssetGroupId || !editingField) return;
-
-    const assetGroup = assetGroups.find((ag) => ag.id === editingAssetGroupId);
-    if (!assetGroup) {
+    } else {
       setEditingAssetGroupId(null);
       setEditingField(null);
       setEditingValue("");
-      return;
-    }
-
-    if (editingField === "status") {
-      handleStatusChange(editingAssetGroupId, editingValue);
     }
   };
+
 
   const confirmStatusChange = async () => {
     if (!statusModalData || !onUpdateAssetGroupStatus) return;
@@ -176,13 +163,16 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
     setUpdatingAssetGroupId(statusModalData.assetGroup.id);
     try {
       // Map display value back to API value
-      const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+      const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
         Enabled: "ENABLED",
         ENABLED: "ENABLED",
         Paused: "PAUSED",
         PAUSED: "PAUSED",
+        Remove: "REMOVED",
+        Removed: "REMOVED",
+        REMOVED: "REMOVED",
       };
-      const apiStatus = statusMap[statusModalData.newValue] || statusModalData.newValue.toUpperCase() as "ENABLED" | "PAUSED";
+      const apiStatus = statusMap[statusModalData.newValue] || statusModalData.newValue.toUpperCase() as "ENABLED" | "PAUSED" | "REMOVED";
 
       await onUpdateAssetGroupStatus(statusModalData.assetGroup.id, apiStatus);
       setShowStatusModal(false);
@@ -213,7 +203,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
         </div>
       )}
 
-      {/* Header with Filter Button and Sync Button */}
+      {/* Header with Filter Button */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
           Asset Groups
@@ -254,36 +244,6 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
               />
             </svg>
           </button>
-          <button
-            onClick={onSync}
-            disabled={syncing || syncingAnalytics}
-            className="create-entity-button disabled:opacity-50"
-          >
-            {syncing ? (
-              <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
-                Syncing...
-              </span>
-            ) : (
-              <span className="text-[10.64px] text-white font-normal">Sync Asset Groups</span>
-            )}
-          </button>
-          {onSyncAnalytics && (
-            <button
-              onClick={onSyncAnalytics}
-              disabled={syncing || syncingAnalytics}
-              className="create-entity-button disabled:opacity-50"
-            >
-              {syncingAnalytics ? (
-                <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                  <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
-                  Syncing Analytics...
-                </span>
-              ) : (
-                <span className="text-[10.64px] text-white font-normal">Sync Analytics</span>
-              )}
-            </button>
-          )}
         </div>
       </div>
 
@@ -440,6 +400,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                               options={[
                                 { value: "ENABLED", label: "Enabled" },
                                 { value: "PAUSED", label: "Paused" },
+                                { value: "REMOVED", label: "Remove" },
                               ]}
                               value={editingValue}
                               onChange={(val) => {

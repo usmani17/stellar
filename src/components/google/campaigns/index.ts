@@ -7,6 +7,7 @@ export { GoogleShoppingCampaignForm } from "./GoogleShoppingCampaignForm";
 export { GoogleDisplayCampaignForm } from "./GoogleDisplayCampaignForm";
 export { GoogleSearchCampaignForm } from "./GoogleSearchCampaignForm";
 export { GooglePerformanceMaxCampaignForm } from "./GooglePerformanceMaxCampaignForm";
+export { GooglePerformanceMaxAssetGroupForm } from "./GooglePerformanceMaxAssetGroupForm";
 export { GoogleDemandGenCampaignForm } from "./GoogleDemandGenCampaignForm";
 export { BaseGoogleCampaignForm } from "./BaseGoogleCampaignForm";
 export { GoogleTrackingTemplateForm, type GoogleTrackingTemplateFormProps } from "./GoogleTrackingTemplateForm";

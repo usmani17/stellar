@@ -41,8 +41,14 @@ export interface CreateGoogleCampaignData {
   final_url?: string;
   asset_group_name?: string;
   headlines?: string[];
+  headline_asset_ids?: (string | undefined)[]; // Asset IDs for each headline
+  headline_asset_resource_names?: (string | undefined)[]; // Resource names for each headline asset
   descriptions?: string[];
+  description_asset_ids?: (string | undefined)[]; // Asset IDs for each description
+  description_asset_resource_names?: (string | undefined)[]; // Resource names for each description asset
   business_name?: string;
+  business_name_asset_id?: string; // Asset ID for business name
+  business_name_asset_resource_name?: string; // Resource name for business name asset
   logo_url?: string;
   logo_asset_resource_name?: string; // For linking existing logo asset
   logo_asset_id?: string; // Asset ID for reference
@@ -50,7 +56,18 @@ export interface CreateGoogleCampaignData {
   marketing_image_asset_resource_name?: string; // For linking existing marketing image asset
   marketing_image_asset_id?: string; // Asset ID for reference
   square_marketing_image_url?: string;
-  long_headline?: string;
+  square_marketing_image_asset_resource_name?: string; // For linking existing square marketing image asset
+  square_marketing_image_asset_id?: string; // Asset ID for reference
+  long_headlines?: string[]; // Array of long headlines
+  long_headline_asset_ids?: (string | undefined)[]; // Asset IDs for each long headline
+  long_headline_asset_resource_names?: (string | undefined)[]; // Resource names for each long headline asset
+  // Additional asset arrays for PMax
+  video_asset_resource_names?: string[];
+  video_asset_ids?: string[];
+  sitelink_asset_resource_names?: string[];
+  sitelink_asset_ids?: string[];
+  callout_asset_resource_names?: string[];
+  callout_asset_ids?: string[];
   // URL options
   tracking_url_template?: string;
   final_url_suffix?: string;

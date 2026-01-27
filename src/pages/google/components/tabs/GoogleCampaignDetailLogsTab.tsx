@@ -185,6 +185,48 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
     }
   };
 
+  const isImageUrl = (value: string | undefined): boolean => {
+    if (!value) return false;
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp'];
+    const lowerValue = value.toLowerCase();
+    return imageExtensions.some(ext => lowerValue.includes(ext)) || 
+           lowerValue.startsWith('http') && (lowerValue.includes('image') || lowerValue.match(/\.(jpg|jpeg|png|gif|webp|svg|bmp)/i));
+  };
+
+  const renderLogValue = (value: string | undefined) => {
+    if (!value) return "—";
+    
+    if (isImageUrl(value)) {
+      return (
+        <div className="flex items-center gap-2">
+          <img
+            src={value}
+            alt="Log value"
+            className="max-w-[100px] max-h-[60px] object-contain rounded border border-gray-200"
+            onError={(e) => {
+              // Fallback to text if image fails to load
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                parent.innerHTML = `<span class="justify-center text-[#556179] text-xs font-normal truncate w-full" title="${value}">${value}</span>`;
+              }
+            }}
+          />
+        </div>
+      );
+    }
+    
+    return (
+      <div
+        className="justify-center text-[#556179] text-xs font-normal truncate w-full"
+        title={value}
+      >
+        {value}
+      </div>
+    );
+  };
+
   return (
     <div className="w-full inline-flex flex-col justify-start items-start">
       <div className="self-stretch bg-sandstorm-s0 rounded-xl p-3 border border-sandstorm-s40">
@@ -487,14 +529,9 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
                 {logs.map((log) => (
                   <div
                     key={`old-value-${log.id}`}
-                    className="self-stretch h-10 px-2 py-1.5 border-b border-[#e8e8e3] flex flex-col justify-center items-start min-w-0"
+                    className="self-stretch min-h-[60px] px-2 py-1.5 border-b border-[#e8e8e3] flex flex-col justify-center items-start min-w-0"
                   >
-                    <div
-                      className="justify-center text-[#556179] text-xs font-normal truncate w-full"
-                      title={log.old_value || ""}
-                    >
-                      {log.old_value || "—"}
-                    </div>
+                    {renderLogValue(log.old_value)}
                   </div>
                 ))}
               </div>
@@ -509,14 +546,9 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
                 {logs.map((log) => (
                   <div
                     key={`new-value-${log.id}`}
-                    className="self-stretch h-10 px-2 py-1.5 border-b border-[#e8e8e3] flex flex-col justify-center items-start min-w-0"
+                    className="self-stretch min-h-[60px] px-2 py-1.5 border-b border-[#e8e8e3] flex flex-col justify-center items-start min-w-0"
                   >
-                    <div
-                      className="justify-center text-[#556179] text-xs font-normal truncate w-full"
-                      title={log.new_value || ""}
-                    >
-                      {log.new_value || "—"}
-                    </div>
+                    {renderLogValue(log.new_value)}
                   </div>
                 ))}
               </div>

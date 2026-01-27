@@ -320,8 +320,8 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
         </div>
       </div>
 
-      {/* Bidding Strategy Section - Only show for non-Search/Shopping campaigns (they have tabs) */}
-      {formData.campaign_type !== "SEARCH" && formData.campaign_type !== "SHOPPING" && (
+      {/* Bidding Strategy Section - Only show for non-Search/Shopping/Performance Max campaigns (they have tabs) */}
+      {formData.campaign_type !== "SEARCH" && formData.campaign_type !== "SHOPPING" && formData.campaign_type !== "PERFORMANCE_MAX" && (
         <div className="mt-6">
           <GoogleBiddingStrategyForm
             formData={formData}
