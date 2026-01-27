@@ -425,10 +425,11 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                       {/* Ad Group Name */}
                       <td className="table-cell">
                         <span className="table-text leading-[1.26]">
-<<<<<<< HEAD
                           {(() => {
                             const adgroup = adgroups.find(
-                              (ag) => String(ag.adGroupId) === String(keyword.adGroupId)
+                              (ag) =>
+                                String(ag.adGroupId) ===
+                                String(keyword.adGroupId),
                             );
                             return adgroup?.name || keyword.adGroupId || "—";
                           })()}
@@ -439,9 +440,6 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                       <td className="table-cell">
                         <span className="table-text leading-[1.26]">
                           {keyword.campaignId || "—"}
-=======
-                          {keyword.adgroup_name || "—"}
->>>>>>> d319c677242c46d7269e43d147de4f72be659271
                         </span>
                       </td>
                     </tr>
