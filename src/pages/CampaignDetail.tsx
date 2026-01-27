@@ -3229,7 +3229,16 @@ export const CampaignDetail: React.FC = () => {
         // Close panel and reload creatives
         setIsCreateCreativePanelOpen(false);
         setEditingCreative(null);
+        setCreateCreativeError(null);
         await loadCreatives();
+        // Show success popup
+        const count = response.success.length;
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `${count} creative${count === 1 ? "" : "s"} created successfully!`,
+          isSuccess: true,
+        });
       } else if (response.error && response.error.length > 0) {
         console.error(
           "[handleCreateCreative] Error - Failed to create creatives:",
