@@ -689,10 +689,16 @@ export const Campaigns: React.FC = () => {
       const newValue = valueToCheck.trim().toUpperCase();
       hasChanged = newValue !== oldValue;
     } else if (fieldToUse === "status") {
-      // Normalize status values for comparison
-      const oldValue = (campaign.status || "Enabled").trim();
-      const newValue = valueToCheck.trim();
-      hasChanged = newValue !== oldValue;
+      // Normalize status so ENABLED/Enabled/enabled etc. are treated as same
+      const norm = (s: string) => {
+        const v = (s || "").trim().toLowerCase();
+        if (v === "enable" || v === "enabled" || v === "active") return "enabled";
+        if (v === "pause" || v === "paused" || v === "inactive") return "paused";
+        if (v === "archive" || v === "archived") return "archived";
+        return v || "enabled";
+      };
+      hasChanged =
+        norm(campaign.status || "Enabled") !== norm(valueToCheck);
     }
 
     if (!hasChanged) {
@@ -2398,7 +2404,7 @@ export const Campaigns: React.FC = () => {
                       />
                     </svg>
                     <span className="text-[10.64px] text-[#072929] font-normal">
-                      Edit
+                      Bulk Actions
                     </span>
                   </Button>
                   {showBulkActions && (

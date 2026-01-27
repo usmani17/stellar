@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React from "react";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Dropdown } from "../ui/Dropdown";
 import { Checkbox } from "../ui/Checkbox";
@@ -17,6 +17,7 @@ interface NegativeTarget {
   state?: string;
   status?: string; // For backward compatibility
   adGroupId?: number;
+  adgroup_name?: string;
   campaignId?: string | number;
   creationDateTime?: string;
   lastUpdateDateTime?: string;
@@ -40,7 +41,7 @@ interface NegativeTargetsTableProps {
   editedValue?: string;
   onEditStart?: (id: number, field: "status", currentValue: string) => void;
   onEditChange?: (value: string) => void;
-  onEditEnd?: (value?: string) => void;
+  onEditEnd?: (value?: string, targetId?: number, field?: "status") => void;
   onEditCancel?: () => void;
   inlineEditLoading?: Set<number>;
   pendingChange?: {
@@ -71,7 +72,6 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
   inlineEditLoading = new Set(),
   pendingChange = null,
 }) => {
-  const statusSelectionMadeRef = useRef<number | null>(null);
   const allSelected =
     negativeTargets.length > 0 &&
     negativeTargets.every((ntg) => selectedIds.has(ntg.id));
@@ -208,14 +208,9 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                     </div>
                   </th>
 
-                  {/* Ad Group ID Header */}
+                  {/* Ad Group Name Header */}
                   <th className="table-header">
-                    Ad Group ID
-                  </th>
-
-                  {/* Campaign ID Header */}
-                  <th className="table-header">
-                    Campaign ID
+                    Ad Group Name
                   </th>
                 </tr>
               </thead>
@@ -272,76 +267,117 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
 
                       {/* State */}
                       <td className="table-cell min-w-[250px]">
-                        {editingField?.id === target.id &&
-                          editingField?.field === "status" ? (
-                          <Dropdown
-                            options={[
-                              ...(campaignType === "SD"
-                                ? [
-                                  { value: "enabled", label: "Enabled" },
-                                  { value: "paused", label: "Paused" },
-                                  { value: "archived", label: "Archived" },
-                                ]
-                                : [
-                                  { value: "ENABLED", label: "ENABLED" },
-                                  { value: "PAUSED", label: "PAUSED" },
-                                ]),
-                            ]}
-                            value={editedValue || target.state || (campaignType === "SD" ? "enabled" : "ENABLED")}
-                            onChange={(value) => {
-                              statusSelectionMadeRef.current = target.id;
-                              onEditChange?.(value);
-                              onEditEnd?.(value);
-                            }}
-                            onClose={() => {
-                              if (
-                                statusSelectionMadeRef.current !== target.id
-                              ) {
-                                onEditCancel?.();
-                              }
-                              statusSelectionMadeRef.current = null;
-                            }}
-                            defaultOpen={true}
-                            buttonClassName="inline-edit-dropdown"
-                            width="w-full"
-                            align="center"
-                          />
-                        ) : (
-                          <div
-                            className={`rounded px-2 py-1 transition-colors ${isArchived
-                              ? "cursor-not-allowed opacity-60"
-                              : "cursor-pointer hover:bg-gray-100"
-                              }`}
-                            onClick={() => {
-                              if (!isArchived) {
-                                onEditStart?.(target.id, "status", statusValue);
-                              }
-                            }}
-                          >
+                        {inlineEditLoading.has(target.id) ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
+                            <span className="table-text leading-[1.26]">
+                              Updating...
+                            </span>
+                          </div>
+                        ) : pendingChange?.id === target.id &&
+                          pendingChange?.field === "status" ? (
+                          <div className="flex items-center gap-2">
+                            <span className="table-text leading-[1.26]">
+                              {pendingChange.newValue === "enabled" ||
+                              pendingChange.newValue === "ENABLED"
+                                ? campaignType === "SD"
+                                  ? "Enabled"
+                                  : "ENABLED"
+                                : pendingChange.newValue === "paused" ||
+                                  pendingChange.newValue === "PAUSED"
+                                ? campaignType === "SD"
+                                  ? "Paused"
+                                  : "PAUSED"
+                                : "Archived"}
+                            </span>
+                          </div>
+                        ) : isArchived ? (
+                          <div className="opacity-60">
                             <StatusBadge
                               status={statusValue}
                               uppercase={campaignType !== "SD"}
                             />
-                            {inlineEditLoading.has(target.id) && (
-                              <span className="ml-2 text-[11.2px] text-gray-500">
-                                Updating...
-                              </span>
-                            )}
+                          </div>
+                        ) : (
+                          <div className="w-[120px]">
+                            <Dropdown
+                              options={[
+                                ...(campaignType === "SD"
+                                  ? [
+                                      { value: "enabled", label: "Enabled" },
+                                      { value: "paused", label: "Paused" },
+                                      {
+                                        value: "archived",
+                                        label: "Archived",
+                                      },
+                                    ]
+                                  : [
+                                      { value: "ENABLED", label: "ENABLED" },
+                                      { value: "PAUSED", label: "PAUSED" },
+                                    ]),
+                              ]}
+                              value={(() => {
+                                const raw =
+                                  target.status || target.state || "ENABLED";
+                                const lower = raw?.toLowerCase() || "enabled";
+                                const normalized =
+                                  campaignType === "SD"
+                                    ? lower === "enable" || lower === "enabled"
+                                      ? "enabled"
+                                      : lower === "paused"
+                                        ? "paused"
+                                        : lower === "archived" ||
+                                            lower === "archive"
+                                          ? "archived"
+                                          : "enabled"
+                                    : lower === "enable" || lower === "enabled"
+                                      ? "ENABLED"
+                                      : "PAUSED";
+                                return editingField?.id === target.id &&
+                                  editingField?.field === "status"
+                                  ? editedValue
+                                  : normalized;
+                              })()}
+                              onChange={(value) => {
+                                const raw =
+                                  target.status || target.state || "ENABLED";
+                                const lower = raw?.toLowerCase() || "enabled";
+                                const currentStatus =
+                                  campaignType === "SD"
+                                    ? lower === "enable" || lower === "enabled"
+                                      ? "enabled"
+                                      : lower === "paused"
+                                        ? "paused"
+                                        : "archived"
+                                    : lower === "enable" || lower === "enabled"
+                                      ? "ENABLED"
+                                      : "PAUSED";
+                                const wasEditing =
+                                  editingField?.id === target.id &&
+                                  editingField?.field === "status";
+
+                                if (!wasEditing) {
+                                  onEditStart?.(
+                                    target.id,
+                                    "status",
+                                    currentStatus
+                                  );
+                                }
+                                onEditChange?.(value);
+                                onEditEnd?.(value, target.id, "status");
+                              }}
+                              buttonClassName="inline-edit-dropdown"
+                              width="w-full"
+                              align="center"
+                            />
                           </div>
                         )}
                       </td>
 
-                      {/* Ad Group ID */}
+                      {/* Ad Group Name */}
                       <td className="table-cell">
                         <span className="table-text leading-[1.26]">
-                          {target.adGroupId || "—"}
-                        </span>
-                      </td>
-
-                      {/* Campaign ID */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {target.campaignId || "—"}
+                          {target.adgroup_name || "—"}
                         </span>
                       </td>
                     </tr>

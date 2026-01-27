@@ -7,6 +7,7 @@ export interface Creative {
   id: number;
   creativeId: number | string; // Can be string to preserve precision for large integers
   adGroupId: number | string; // Can be string to preserve precision for large integers
+  adgroup_name?: string;
   creativeType: "IMAGE" | "VIDEO";
   properties: any; // Full JSON properties object
   moderationStatus?: string;
@@ -179,15 +180,8 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                     {getSortIcon("creativeId")}
                   </div>
                 </th>
-                <th
-                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
-                  onClick={() => handleSort("adGroupId")}
-                >
-                  <div className="flex items-center">
-                    Ad Group ID
-                    {getSortIcon("adGroupId")}
-                  </div>
+                <th className="table-header">
+                  Ad Group Name
                 </th>
                 <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
                   }`}>
@@ -239,7 +233,7 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                   {creative.creativeId}
                 </td>
                 <td className="table-cell table-text leading-[1.26]">
-                  {creative.adGroupId}
+                  {creative.adgroup_name || "—"}
                 </td>
                 <td className="table-cell">
                   <StatusBadge

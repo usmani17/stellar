@@ -1088,18 +1088,28 @@ export const CampaignDetail: React.FC = () => {
           params.name = filter.value;
         }
       } else if (filter.field === "state") {
-        params.state = filter.value;
+        // Normalize to lowercase so backend state filter matches (enabled/paused/archived)
+        const v = String(filter.value).trim().toLowerCase();
+        if (v) params.state = v;
       } else if (filter.field === "default_bid") {
-        if (filter.operator === "lt") {
-          params.default_bid__lt = filter.value;
-        } else if (filter.operator === "gt") {
-          params.default_bid__gt = filter.value;
-        } else if (filter.operator === "eq") {
-          params.default_bid = filter.value;
-        } else if (filter.operator === "lte") {
-          params.default_bid__lte = filter.value;
-        } else if (filter.operator === "gte") {
-          params.default_bid__gte = filter.value;
+        const numVal =
+          typeof filter.value === "number"
+            ? filter.value
+            : parseFloat(String(filter.value));
+        if (numVal !== undefined && !Number.isNaN(numVal)) {
+          const isEq =
+            filter.operator === "eq" || filter.operator === "equals";
+          if (filter.operator === "lt") {
+            params.default_bid__lt = numVal;
+          } else if (filter.operator === "gt") {
+            params.default_bid__gt = numVal;
+          } else if (isEq) {
+            params.default_bid = numVal;
+          } else if (filter.operator === "lte") {
+            params.default_bid__lte = numVal;
+          } else if (filter.operator === "gte") {
+            params.default_bid__gte = numVal;
+          }
         }
       } else if (filter.field === "spends") {
         if (filter.operator === "lt") {
@@ -1316,6 +1326,8 @@ export const CampaignDetail: React.FC = () => {
     if (adgroupsAbortControllerRef.current) {
       adgroupsAbortControllerRef.current.abort();
     }
+    // Allow a new load when filters/sort/page etc. change even if previous request was in flight
+    adgroupsLoadingRef.current = false;
 
     // Create new abort controller for this request
     adgroupsAbortControllerRef.current = new AbortController();
@@ -1343,10 +1355,6 @@ export const CampaignDetail: React.FC = () => {
     adgroupsRequestIdRef.current = requestId;
 
     if (accountId && campaignId && activeTab === "Ad Groups") {
-      // Prevent multiple simultaneous calls
-      if (adgroupsLoadingRef.current) {
-        return;
-      }
       loadAdGroups();
     }
 
@@ -4800,18 +4808,21 @@ export const CampaignDetail: React.FC = () => {
     setEditedProductAdValue(value);
   };
 
-  const handleProductAdEditEnd = (newValue?: string) => {
-    if (!editingProductAdField) return;
-    const productad = productads.find(
-      (pa) => pa.id === editingProductAdField.id,
-    );
+  const handleProductAdEditEnd = (newValue?: string, adId?: number, field?: "status") => {
+    // Use override parameters if provided, otherwise fall back to editingProductAdField state
+    // Same pattern as Targets tab to avoid state timing issues
+    const adIdToUse = adId !== undefined ? adId : editingProductAdField?.id;
+    const fieldToUse = field !== undefined ? field : editingProductAdField?.field;
+
+    if (adIdToUse === undefined || fieldToUse === undefined) return;
+
+    const productad = productads.find((pa) => pa.id === adIdToUse);
     if (!productad) {
       setEditingProductAdField(null);
       setEditedProductAdValue("");
       return;
     }
 
-    // Use the passed value if provided, otherwise use the state value
     const valueToCompare =
       newValue !== undefined ? newValue : editedProductAdValue;
 
@@ -4821,16 +4832,17 @@ export const CampaignDetail: React.FC = () => {
         ? "enabled"
         : "paused";
     const oldValue = currentStatus;
-    const hasChanged = valueToCompare !== currentStatus;
+    const hasChanged = valueToCompare.toLowerCase() !== currentStatus;
 
     if (hasChanged) {
       setPendingProductAdChange({
-        id: editingProductAdField.id,
-        field: editingProductAdField.field,
+        id: adIdToUse,
+        field: fieldToUse,
         newValue: valueToCompare,
         oldValue: oldValue,
       });
       setShowProductAdsConfirmationModal(true);
+      setEditingProductAdField(null);
     } else {
       setEditingProductAdField(null);
       setEditedProductAdValue("");
@@ -5083,19 +5095,16 @@ export const CampaignDetail: React.FC = () => {
     setEditedTargetValue(value);
   };
 
-  const handleTargetEditEnd = (newValue?: string) => {
-    console.log("handleTargetEditEnd:", {
-      editingTargetField,
-      newValue,
-      editedTargetValue,
-    });
-    if (!editingTargetField) {
-      console.log("handleTargetEditEnd: No editingTargetField, returning");
-      return;
-    }
-    const target = targets.find((tgt) => tgt.id === editingTargetField.id);
+  const handleTargetEditEnd = (newValue?: string, targetId?: number, field?: "status" | "bid") => {
+    // Use override parameters if provided, otherwise fall back to editingTargetField state
+    // This matches the pattern from AdGroupsTable to avoid state timing issues
+    const targetIdToUse = targetId !== undefined ? targetId : editingTargetField?.id;
+    const fieldToUse = field !== undefined ? field : editingTargetField?.field;
+
+    if (targetIdToUse === undefined || fieldToUse === undefined) return;
+
+    const target = targets.find((tgt) => tgt.id === targetIdToUse);
     if (!target) {
-      console.log("handleTargetEditEnd: Target not found");
       setEditingTargetField(null);
       setEditedTargetValue("");
       return;
@@ -5105,52 +5114,42 @@ export const CampaignDetail: React.FC = () => {
     const valueToCompare =
       newValue !== undefined ? newValue : editedTargetValue;
 
-    console.log("handleTargetEditEnd: valueToCompare:", valueToCompare);
-
     let hasChanged = false;
     let oldValue = "";
 
-    if (editingTargetField.field === "status") {
+    if (fieldToUse === "status") {
       const statusLower = target.status?.toLowerCase() || "enabled";
       const currentStatus =
         statusLower === "enable" || statusLower === "enabled"
           ? "enabled"
+          : statusLower === "paused"
+          ? "paused"
+          : statusLower === "archived" || statusLower === "archive"
+          ? "archived"
           : "paused";
       oldValue = currentStatus;
-      hasChanged = valueToCompare !== currentStatus;
-    } else if (editingTargetField.field === "bid") {
+      hasChanged = valueToCompare.toLowerCase() !== currentStatus;
+    } else if (fieldToUse === "bid") {
       const currentBid = target.bid ? target.bid.replace(/[^0-9.]/g, "") : "0";
       oldValue = target.bid || "$0.00";
-      // Compare numeric values
       const currentBidNum = parseFloat(currentBid) || 0;
       const newBidNum = parseFloat(valueToCompare) || 0;
       hasChanged =
         Math.abs(newBidNum - currentBidNum) > 0.001 &&
         valueToCompare !== "" &&
         !isNaN(newBidNum);
-      console.log("handleTargetEditEnd: bid comparison:", {
-        currentBid,
-        currentBidNum,
-        valueToCompare,
-        newBidNum,
-        hasChanged,
-      });
     }
 
     if (hasChanged) {
-      console.log(
-        "handleTargetEditEnd: Value changed, showing confirmation modal",
-      );
       setPendingTargetChange({
-        id: editingTargetField.id,
-        field: editingTargetField.field,
+        id: targetIdToUse,
+        field: fieldToUse,
         newValue: valueToCompare,
         oldValue: oldValue,
       });
       setShowTargetsConfirmationModal(true);
       setEditingTargetField(null);
     } else {
-      console.log("handleTargetEditEnd: No change, clearing edit state");
       setEditingTargetField(null);
       setEditedTargetValue("");
     }
@@ -5489,31 +5488,32 @@ export const CampaignDetail: React.FC = () => {
     setEditedNegativeTargetValue(value);
   };
 
-  const handleNegativeTargetEditEnd = (newValue?: string) => {
-    if (!editingNegativeTargetField) return;
-    const negativeTarget = negativeTargets.find(
-      (ntg) => ntg.id === editingNegativeTargetField.id,
-    );
+  const handleNegativeTargetEditEnd = (newValue?: string, targetId?: number, field?: "status") => {
+    // Use override parameters if provided, otherwise fall back to editingNegativeTargetField state
+    // Same pattern as Targets tab to avoid state timing issues
+    const targetIdToUse = targetId !== undefined ? targetId : editingNegativeTargetField?.id;
+    const fieldToUse = field !== undefined ? field : editingNegativeTargetField?.field;
+
+    if (targetIdToUse === undefined || fieldToUse === undefined) return;
+
+    const negativeTarget = negativeTargets.find((ntg) => ntg.id === targetIdToUse);
     if (!negativeTarget) {
       setEditingNegativeTargetField(null);
       setEditedNegativeTargetValue("");
       return;
     }
 
-    // Use the passed value if provided, otherwise use the state value
     const valueToCompare =
       newValue !== undefined ? newValue : editedNegativeTargetValue;
 
     let hasChanged = false;
     let oldValue = "";
 
-    if (editingNegativeTargetField.field === "status") {
+    if (fieldToUse === "status") {
       const statusLower =
         negativeTarget.status?.toLowerCase() ||
         negativeTarget.state?.toLowerCase() ||
         "enabled";
-      // For SD campaigns, handle lowercase states (enabled, paused, archived)
-      // For SP/SB campaigns, handle uppercase states (ENABLED, PAUSED)
       let currentStatus: string;
       if (campaignType === "SD") {
         currentStatus =
@@ -5538,8 +5538,8 @@ export const CampaignDetail: React.FC = () => {
 
     if (hasChanged) {
       setPendingNegativeTargetChange({
-        id: editingNegativeTargetField.id,
-        field: editingNegativeTargetField.field,
+        id: targetIdToUse,
+        field: fieldToUse,
         newValue: valueToCompare,
         oldValue: oldValue,
       });
@@ -6989,10 +6989,19 @@ export const CampaignDetail: React.FC = () => {
               const fieldToUse = field !== undefined ? field : editingField;
               
               if (fieldToUse === "status") {
-                const currentStatus =
-                  campaignDetail.campaign.status?.toLowerCase() || "enabled";
-                const newEditedValue = valueToCompare.toLowerCase();
-                if (newEditedValue !== currentStatus) {
+                const rawCurrent =
+                  campaignDetail.campaign.status ?? "";
+                const rawNew = String(valueToCompare ?? "").trim();
+                const norm = (s: string) => {
+                  const v = s.trim().toLowerCase();
+                  if (v === "enable" || v === "enabled" || v === "active")
+                    return "enabled";
+                  if (v === "pause" || v === "paused" || v === "inactive")
+                    return "paused";
+                  if (v === "archive" || v === "archived") return "archived";
+                  return v || "enabled";
+                };
+                if (norm(rawCurrent) !== norm(rawNew)) {
                   setInlineEditField("status");
                   setInlineEditOldValue(
                     campaignDetail.campaign.status || "Enabled",
@@ -7435,7 +7444,7 @@ export const CampaignDetail: React.FC = () => {
                             />
                           </svg>
                           <span className="text-[10.64px] text-[#072929] font-normal">
-                            Edit
+                            Bulk Actions
                           </span>
                         </Button>
                         {showSBAdsBulkActions && (
@@ -7732,7 +7741,7 @@ export const CampaignDetail: React.FC = () => {
                           />
                         </svg>
                         <span className="text-[10.64px] text-[#072929] font-normal">
-                          Edit
+                          Bulk Actions
                         </span>
                       </Button>
                       {showProductAdsBulkActions && (
@@ -8242,7 +8251,7 @@ export const CampaignDetail: React.FC = () => {
                             />
                           </svg>
                           <span className="text-[10.64px] text-[#072929] font-normal">
-                            Edit
+                            Bulk Actions
                           </span>
                         </Button>
                         {showNegativeTargetsBulkActions && (

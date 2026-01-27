@@ -16,6 +16,7 @@ interface NegativeKeyword {
   state?: string;
   status?: string; // For backward compatibility
   adGroupId?: number;
+  adgroup_name?: string;
   campaignId?: string | number;
   creationDateTime?: string;
   lastUpdateDateTime?: string;
@@ -231,11 +232,8 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                     </div>
                   </th>
 
-                  {/* Ad Group ID Header */}
-                  <th className="table-header">Ad Group ID</th>
-
-                  {/* Campaign ID Header */}
-                  <th className="table-header">Campaign ID</th>
+                  {/* Ad Group Name Header */}
+                  <th className="table-header">Ad Group Name</th>
                 </tr>
               </thead>
               <tbody>
@@ -419,17 +417,10 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                         )}
                       </td>
 
-                      {/* Ad Group ID */}
+                      {/* Ad Group Name */}
                       <td className="table-cell">
                         <span className="table-text leading-[1.26]">
-                          {keyword.adGroupId || "—"}
-                        </span>
-                      </td>
-
-                      {/* Campaign ID */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {keyword.campaignId || "—"}
+                          {keyword.adgroup_name || "—"}
                         </span>
                       </td>
                     </tr>

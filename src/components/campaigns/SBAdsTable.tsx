@@ -11,6 +11,7 @@ export interface SBAd {
   state?: string;
   status?: string;
   adGroupId?: string | number;
+  adgroup_name?: string;
   campaignId?: string | number;
   landingPage?: string | any; // Can be JSON string or object
   creative?: string | any; // Can be JSON string or object
@@ -212,23 +213,8 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                     {getSortIcon("status")}
                   </div>
                 </th>
-                <th
-                  className="table-header"
-                  onClick={() => onSort?.("adGroupId")}
-                >
-                  <div className="flex items-center">
-                    Ad Group ID
-                    {getSortIcon("adGroupId")}
-                  </div>
-                </th>
-                <th
-                  className="table-header"
-                  onClick={() => onSort?.("campaignId")}
-                >
-                  <div className="flex items-center">
-                    Campaign ID
-                    {getSortIcon("campaignId")}
-                  </div>
+                <th className="table-header">
+                  Ad Group Name
                 </th>
                 <th className="table-header">
                   Serving Status
@@ -478,14 +464,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                       )}
                     </td>
                     <td className="table-cell table-text leading-[1.26]">
-                      {ad.adGroupId != null && ad.adGroupId !== ""
-                        ? String(ad.adGroupId)
-                        : "—"}
-                    </td>
-                    <td className="table-cell table-text leading-[1.26]">
-                      {ad.campaignId != null && ad.campaignId !== ""
-                        ? String(ad.campaignId)
-                        : "—"}
+                      {ad.adgroup_name || "—"}
                     </td>
                     <td className="table-cell table-text leading-[1.26]">
                       {ad.servingStatus || "—"}

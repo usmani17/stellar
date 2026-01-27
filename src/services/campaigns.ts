@@ -337,6 +337,7 @@ export interface ProductAd {
   sku?: string;
   status: string;
   adGroupId?: string;
+  adgroup_name?: string;
 }
 
 export interface ProductAdsResponse {
