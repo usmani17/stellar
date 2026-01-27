@@ -64,4 +64,21 @@ export const queryKeys = {
         presetName || "default",
       ] as const,
   },
+  assets: {
+    all: ["assets"] as const,
+    lists: (profileId: number, assetType?: string) =>
+      [
+        ...queryKeys.assets.all,
+        "list",
+        profileId,
+        assetType || "all",
+      ] as const,
+    detail: (profileId: number, assetId: string) =>
+      [
+        ...queryKeys.assets.all,
+        "detail",
+        profileId,
+        assetId,
+      ] as const,
+  },
 } as const;

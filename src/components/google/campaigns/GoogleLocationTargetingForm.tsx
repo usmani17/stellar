@@ -29,14 +29,14 @@ export const GoogleLocationTargetingForm: React.FC<GoogleLocationTargetingFormPr
   showTitle = true,
 }) => {
   return (
-    <div className="mt-6">
+    <>
       {showTitle && (
         <h3 className="text-[15px] font-bold text-[#072929] mb-3">
           Location Targeting
         </h3>
       )}
 
-      <div className="bg-gray-50 rounded-lg border border-gray-200 p-5">
+      <div>
         {/* Target and Exclude Locations - Side by Side */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Target Locations */}
@@ -172,6 +172,6 @@ export const GoogleLocationTargetingForm: React.FC<GoogleLocationTargetingFormPr
         </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };

@@ -7,9 +7,8 @@ import type { CreateGoogleCampaignData } from "./types";
 import {
   CAMPAIGN_TYPES,
   STATUS_OPTIONS,
-  getAvailableBiddingStrategies,
-  getDefaultBiddingStrategy,
 } from "./utils";
+import { GoogleBiddingStrategyForm } from "./GoogleBiddingStrategyForm";
 
 interface BaseGoogleCampaignFormProps {
   formData: CreateGoogleCampaignData;
@@ -17,7 +16,7 @@ interface BaseGoogleCampaignFormProps {
   onChange: (field: keyof CreateGoogleCampaignData, value: any) => void;
   mode?: "create" | "edit";
   // Google Profiles
-  googleProfiles: Array<{ value: string; label: string; customer_id: string; customer_id_raw: string }>;
+  googleProfiles: Array<{ value: string; label: string; customer_id: string; customer_id_raw: string; profile_id?: number }>;
   selectedProfileId: string;
   setSelectedProfileId: (id: string) => void;
   loadingProfiles: boolean;
@@ -321,233 +320,17 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
         </div>
       </div>
 
-      {/* Bidding Strategy Section */}
-      <div className="mt-6">
-        <h3 className="text-[15px] font-bold text-[#072929] mb-3">
-          Bidding Strategy
-        </h3>
-
-        <div className="bg-gray-50 rounded-lg border border-gray-200 p-5 space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Bidding Strategy Type */}
-          <div>
-            <label className="form-label">
-              Bidding Strategy
-            </label>
-            <Dropdown<string>
-              options={getAvailableBiddingStrategies(formData.campaign_type)}
-              value={formData.bidding_strategy_type || getDefaultBiddingStrategy(formData.campaign_type)}
-              onChange={(value) => onChange("bidding_strategy_type", value)}
-              buttonClassName="edit-button w-full"
-            />
-          </div>
-
-          {/* Target CPA (required when TARGET_CPA is selected) */}
-          {formData.bidding_strategy_type === "TARGET_CPA" && (
-            <div>
-              <label className="form-label">
-                Target CPA ($) *
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.target_cpa_micros ? (formData.target_cpa_micros / 1000000).toFixed(2) : ""}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value) || 0;
-                  onChange("target_cpa_micros", Math.round(value * 1000000));
-                }}
-                className={`campaign-input w-full ${
-                  errors.target_cpa_micros ? "border-red-500" : "border-gray-200"
-                }`}
-                placeholder="1.00"
-              />
-              {errors.target_cpa_micros && (
-                <p className="text-[10px] text-red-500 mt-1">
-                  {errors.target_cpa_micros}
-                </p>
-              )}
-              <p className="text-[10px] text-[#556179] mt-1">
-                Target cost per acquisition
-              </p>
-            </div>
-          )}
-
-          {/* Target ROAS (required when TARGET_ROAS is selected) */}
-          {formData.bidding_strategy_type === "TARGET_ROAS" && (
-            <div>
-              <label className="form-label">
-                Target ROAS *
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                value={formData.target_roas || ""}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value) || 0;
-                  onChange("target_roas", value);
-                }}
-                className={`campaign-input w-full ${
-                  errors.target_roas ? "border-red-500" : "border-gray-200"
-                }`}
-                placeholder="3.0"
-              />
-              {errors.target_roas && (
-                <p className="text-[10px] text-red-500 mt-1">
-                  {errors.target_roas}
-                </p>
-              )}
-              <p className="text-[10px] text-[#556179] mt-1">
-                Target return on ad spend
-              </p>
-            </div>
-          )}
-
-          {/* Target Spend (required when TARGET_SPEND is selected) */}
-          {formData.bidding_strategy_type === "TARGET_SPEND" && (
-            <div>
-              <label className="form-label">
-                Target Spend ($) *
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.target_spend_micros ? (formData.target_spend_micros / 1000000).toFixed(2) : ""}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value) || 0;
-                  onChange("target_spend_micros", Math.round(value * 1000000));
-                }}
-                className={`campaign-input w-full ${
-                  errors.target_spend_micros ? "border-red-500" : "border-gray-200"
-                }`}
-                placeholder="10.00"
-              />
-              {errors.target_spend_micros && (
-                <p className="text-[10px] text-red-500 mt-1">
-                  {errors.target_spend_micros}
-                </p>
-              )}
-              <p className="text-[10px] text-[#556179] mt-1">
-                Target daily spend amount in dollars
-              </p>
-            </div>
-          )}
-
-          {/* Target Impression Share - Location */}
-          {formData.bidding_strategy_type === "TARGET_IMPRESSION_SHARE" && (
-            <div className="col-span-full">
-              <label className="form-label mb-3 block">
-                Where do you want your ads to appear? *
-              </label>
-              {errors.target_impression_share_location && (
-                <p className="text-[10px] text-red-500 mb-2">
-                  {errors.target_impression_share_location}
-                </p>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[
-                  { value: "ANYWHERE_ON_PAGE", label: "Anywhere on results page", description: "Anywhere on the search results page" },
-                  { value: "TOP_OF_PAGE", label: "Top of results page", description: "Top portion of the search results page" },
-                  { value: "ABSOLUTE_TOP_OF_PAGE", label: "Absolute top of results page", description: "Very top of the search results page" },
-                ].map((option) => (
-                  <div
-                    key={option.value}
-                    onClick={() => onChange("target_impression_share_location", option.value)}
-                    className={`border-2 rounded-lg p-4 bg-white cursor-pointer transition-all ${
-                      (formData.target_impression_share_location || "TOP_OF_PAGE") === option.value
-                        ? "border-forest-f40 bg-forest-f40/5"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <label className="flex flex-col gap-3 cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name="impression_share_location"
-                          checked={(formData.target_impression_share_location || "TOP_OF_PAGE") === option.value}
-                          onChange={() => onChange("target_impression_share_location", option.value)}
-                          className="w-4 h-4 accent-forest-f40 border-gray-300 focus:ring-forest-f40"
-                        />
-                        <span className="text-[13px] text-[#072929] font-semibold">
-                          {option.label}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-[#556179] ml-6">
-                        {option.description}
-                      </p>
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      {/* Bidding Strategy Section - Only show for non-Search/Shopping/Performance Max campaigns (they have tabs) */}
+      {formData.campaign_type !== "SEARCH" && formData.campaign_type !== "SHOPPING" && formData.campaign_type !== "PERFORMANCE_MAX" && (
+        <div className="mt-6">
+          <GoogleBiddingStrategyForm
+            formData={formData}
+            errors={errors}
+            onChange={onChange}
+            showTitle={true}
+          />
         </div>
-
-        {/* Target Impression Share - Additional fields in same row */}
-        {formData.bidding_strategy_type === "TARGET_IMPRESSION_SHARE" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="form-label">
-                Percent (%) impression share to target *
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                max="100"
-                value={formData.target_impression_share_location_fraction_micros ? (formData.target_impression_share_location_fraction_micros / 10000).toFixed(1) : ""}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value) || 0;
-                  onChange("target_impression_share_location_fraction_micros", Math.round(value * 10000));
-                }}
-                className={`campaign-input w-full ${
-                  errors.target_impression_share_location_fraction_micros ? "border-red-500" : "border-gray-200"
-                }`}
-                placeholder="2.0"
-              />
-              {errors.target_impression_share_location_fraction_micros && (
-                <p className="text-[10px] text-red-500 mt-1">
-                  {errors.target_impression_share_location_fraction_micros}
-                </p>
-              )}
-              <p className="text-[10px] text-[#556179] mt-1">
-                Target impression share percentage (0-100)
-              </p>
-            </div>
-
-            <div>
-              <label className="form-label">
-                Maximum CPC bid limit *
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.target_impression_share_cpc_bid_ceiling_micros ? (formData.target_impression_share_cpc_bid_ceiling_micros / 1000000).toFixed(2) : ""}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value) || 0;
-                  onChange("target_impression_share_cpc_bid_ceiling_micros", Math.round(value * 1000000));
-                }}
-                className={`campaign-input w-full ${
-                  errors.target_impression_share_cpc_bid_ceiling_micros ? "border-red-500" : "border-gray-200"
-                }`}
-                placeholder="3.00"
-              />
-              {errors.target_impression_share_cpc_bid_ceiling_micros && (
-                <p className="text-[10px] text-red-500 mt-1">
-                  {errors.target_impression_share_cpc_bid_ceiling_micros}
-                </p>
-              )}
-              <p className="text-[10px] text-[#556179] mt-1">
-                Maximum CPC bid limit in dollars
-              </p>
-            </div>
-          </div>
-        )}
-        </div>
-      </div>
+      )}
 
     </>
   );

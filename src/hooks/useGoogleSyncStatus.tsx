@@ -169,6 +169,7 @@ export const useGoogleSyncStatus = ({
       );
     }
 
+    // Don't show anything for idle status - sync status is shown in header
     return null;
   }, [syncStatus, entityType, showCompletedBanner, showRefreshButton, accountId]);
 

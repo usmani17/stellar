@@ -382,12 +382,18 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
       if (justOpenedForCreate) {
         setCurrentCreative({
           creativeType: "IMAGE",
-          properties: {},
+          properties: {
+            headline: {
+              headline: "",
+              hasTermsAndConditions: false,
+              originalHeadline: "",
+            },
+          },
           consentToTranslate: false,
         });
         setSelectedPropertyType("");
-        setAddedPropertyTypes(new Set());
-        setActivePropertyTab("");
+        setAddedPropertyTypes(new Set(["headline"])); // IMAGE default: Headline tab open with content
+        setActivePropertyTab("headline");
         setAddedCreatives([]);
         setSelectedAdGroupId(
           adgroups.length > 0 ? String(adgroups[0].adGroupId) : "",
@@ -421,22 +427,36 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
   const handleChange = (field: string, value: any) => {
     if (field === "creativeType") {
-      setCurrentCreative({
-        creativeType: value,
-        properties: {},
-        consentToTranslate: currentCreative.consentToTranslate,
-      });
-      setAddedPropertyTypes(new Set());
+      if (value === "IMAGE") {
+        setCurrentCreative({
+          creativeType: "IMAGE",
+          properties: {
+            headline: {
+              headline: "",
+              hasTermsAndConditions: false,
+              originalHeadline: "",
+            },
+          },
+          consentToTranslate: currentCreative.consentToTranslate,
+        });
+        setAddedPropertyTypes(new Set(["headline"]));
+        setActivePropertyTab("headline");
+      } else {
+        setCurrentCreative({
+          creativeType: value,
+          properties: {},
+          consentToTranslate: currentCreative.consentToTranslate,
+        });
+        setAddedPropertyTypes(new Set());
+        setActivePropertyTab("");
+      }
       setSelectedPropertyType("");
-      setActivePropertyTab("");
 
       // For VIDEO type, automatically add video property and show form
       if (value === "VIDEO") {
         handleAddPropertyType("video");
         setActivePropertyTab("video");
       }
-      // IMAGE: do not auto-add headline — let user add only the properties they want
-      // (e.g. background-only, or headline + brand logo, etc.)
     } else if (field.startsWith("properties.")) {
       const propPath = field.replace("properties.", "");
       setCurrentCreative((prev) => {

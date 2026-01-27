@@ -220,6 +220,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             label: `${profileName} (${customerIdFormatted})${profile.is_manager ? ' - Manager' : ''}`,
             customer_id: customerIdFormatted,
             customer_id_raw: customerIdRaw,
+            profile_id: profile.id, // Include profile ID for asset API calls
           };
         }).filter((p: any) => p.value);
 
@@ -831,13 +832,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         newErrors.customer_id = "Please select a Google Ads account first";
       }
 
-      if (!formData.location_ids || formData.location_ids.length === 0) {
-        newErrors.location_ids = "At least one target location is required";
-      }
+      // Location targeting is optional for PERFORMANCE_MAX campaigns
 
-      if (!formData.language_ids || formData.language_ids.length === 0) {
-        newErrors.language_ids = "At least one target language is required";
-      }
+      // Language targeting is optional for PERFORMANCE_MAX campaigns
 
       if (!formData.asset_group_name?.trim()) {
         newErrors.asset_group_name = "Asset Group Name is required";
@@ -1007,15 +1004,46 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
     console.log("Validation passed, proceeding with submit");
 
-    // Filter out empty headlines and descriptions
+    // Filter out empty headlines and descriptions, and align asset ID arrays
+    let filteredHeadlines: string[] | undefined;
+    let filteredHeadlineAssetIds: (string | undefined)[] | undefined;
+    let filteredHeadlineAssetResourceNames: (string | undefined)[] | undefined;
+    
+    if (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN") {
+      const headlines = (formData.headlines || []).filter((h) => h.trim());
+      const headlineAssetIds = formData.headline_asset_ids || [];
+      const headlineAssetResourceNames = formData.headline_asset_resource_names || [];
+      
+      // Filter asset IDs to match filtered headlines (duplicates are prevented at selection time)
+      filteredHeadlines = headlines;
+      filteredHeadlineAssetIds = headlines.map((_, index) => headlineAssetIds[index]);
+      filteredHeadlineAssetResourceNames = headlines.map((_, index) => headlineAssetResourceNames[index]);
+    }
+    
+    let filteredDescriptions: string[] | undefined;
+    let filteredDescriptionAssetIds: (string | undefined)[] | undefined;
+    let filteredDescriptionAssetResourceNames: (string | undefined)[] | undefined;
+    
+    if (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN") {
+      const descriptions = (formData.descriptions || []).filter((d) => d.trim());
+      const descriptionAssetIds = formData.description_asset_ids || [];
+      const descriptionAssetResourceNames = formData.description_asset_resource_names || [];
+      
+      // Filter asset IDs to match filtered descriptions (duplicates are prevented at selection time)
+      filteredDescriptions = descriptions;
+      filteredDescriptionAssetIds = descriptions.map((_, index) => descriptionAssetIds[index]);
+      filteredDescriptionAssetResourceNames = descriptions.map((_, index) => descriptionAssetResourceNames[index]);
+    }
+    
     const payload: CreateGoogleCampaignData = {
       ...formData,
-      headlines: (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN")
-        ? (formData.headlines || []).filter((h) => h.trim())
-        : undefined,
-      descriptions: (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN")
-        ? (formData.descriptions || []).filter((d) => d.trim())
-        : undefined,
+      headlines: filteredHeadlines,
+      descriptions: filteredDescriptions,
+      // Keep arrays aligned with headlines/descriptions
+      headline_asset_ids: filteredHeadlineAssetIds,
+      headline_asset_resource_names: filteredHeadlineAssetResourceNames,
+      description_asset_ids: filteredDescriptionAssetIds,
+      description_asset_resource_names: filteredDescriptionAssetResourceNames,
       // URL options - omit empty values
       tracking_url_template: formData.tracking_url_template?.trim()
         ? formData.tracking_url_template.trim()
@@ -1038,8 +1066,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       adgroup_name: formData.campaign_type === "DISPLAY" ? formData.adgroup_name : formData.campaign_type === "SEARCH" ? formData.adgroup_name : undefined,
       keywords: formData.campaign_type === "SEARCH" ? formData.keywords : undefined,
       match_type: formData.campaign_type === "SEARCH" ? formData.match_type : undefined,
-      location_ids: formData.campaign_type === "SEARCH" ? formData.location_ids : undefined,
-      language_ids: formData.campaign_type === "SEARCH" ? formData.language_ids : undefined,
+      location_ids: (formData.campaign_type === "SEARCH" || formData.campaign_type === "PERFORMANCE_MAX") ? formData.location_ids : undefined,
+      language_ids: (formData.campaign_type === "SEARCH" || formData.campaign_type === "PERFORMANCE_MAX") ? formData.language_ids : undefined,
       // language_codes is kept for backward compatibility but language_ids is the primary field
       language_codes: formData.campaign_type === "SEARCH" && formData.language_ids && formData.language_ids.length > 0 ? undefined : formData.language_codes,
       conversion_action_ids: formData.campaign_type === "SEARCH" && formData.conversion_action_ids?.length ? formData.conversion_action_ids : undefined,
@@ -1076,9 +1104,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 1); // 1 day after start date
     
-    const marketingImageUrl = "https://placehold.co/1200x628";
-    const squareMarketingImageUrl = "https://placehold.co/512x512";
-    const logoUrl = "https://placehold.co/128x128";
+    const marketingImageUrl = "https://placehold.co/1200x628/png";
+    const squareMarketingImageUrl = "https://placehold.co/512x512/png";
+    const logoUrl = "https://placehold.co/128x128/png";
     
     setFormData({
       campaign_type: "PERFORMANCE_MAX",
@@ -1105,7 +1133,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       ],
       marketing_image_url: marketingImageUrl,
       square_marketing_image_url: squareMarketingImageUrl,
-      long_headline: "Transform Your Business with Our Expert Software Solutions",
+      long_headlines: ["Transform Your Business with Our Expert Software Solutions"],
       asset_group_name: `PMAX Asset Group - ${dateStr}`,
       sales_country: "US",
       campaign_priority: 0,
@@ -1383,17 +1411,20 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
               squareMarketingImagePreview={squareMarketingImagePreview}
               setSquareMarketingImagePreview={setSquareMarketingImagePreview}
               setErrors={setErrors}
-            />
-          )}
-
-          {/* Language Targeting for PERFORMANCE_MAX campaigns */}
-          {formData.campaign_type === "PERFORMANCE_MAX" && (
-            <GoogleLanguageTargetingForm
-              languageIds={formData.language_ids}
+              selectedProfileId={selectedProfileId}
+              googleProfiles={googleProfiles}
               languageOptions={languageOptions}
               loadingLanguages={loadingLanguages}
-              onLanguageIdsChange={(ids: string[] | undefined) => handleChange("language_ids", ids)}
-              errors={errors}
+              locationOptions={locationOptions}
+              loadingLocations={loadingLocations}
+              onLocationIdsChange={(ids) => handleChange("location_ids", ids)}
+              onExcludedLocationIdsChange={(ids) => handleChange("excluded_location_ids", ids)}
+              trackingUrlTemplate={formData.tracking_url_template}
+              finalUrlSuffix={formData.final_url_suffix}
+              urlCustomParameters={formData.url_custom_parameters}
+              onTrackingUrlTemplateChange={(value) => handleChange("tracking_url_template", value)}
+              onFinalUrlSuffixChange={(value) => handleChange("final_url_suffix", value)}
+              onCustomParametersChange={(params) => handleChange("url_custom_parameters", params)}
             />
           )}
 
@@ -1409,6 +1440,16 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
               onFetchMerchantAccounts={fetchMerchantAccounts}
               languageOptions={languageOptions}
               loadingLanguages={loadingLanguages}
+              locationOptions={locationOptions}
+              loadingLocations={loadingLocations}
+              onLocationIdsChange={(ids) => handleChange("location_ids", ids)}
+              onExcludedLocationIdsChange={(ids) => handleChange("excluded_location_ids", ids)}
+              trackingUrlTemplate={formData.tracking_url_template}
+              finalUrlSuffix={formData.final_url_suffix}
+              urlCustomParameters={formData.url_custom_parameters}
+              onTrackingUrlTemplateChange={(value) => handleChange("tracking_url_template", value)}
+              onFinalUrlSuffixChange={(value) => handleChange("final_url_suffix", value)}
+              onCustomParametersChange={(params) => handleChange("url_custom_parameters", params)}
             />
           )}
 
@@ -1420,6 +1461,16 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
               mode={mode}
               languageOptions={languageOptions}
               loadingLanguages={loadingLanguages}
+              locationOptions={locationOptions}
+              loadingLocations={loadingLocations}
+              onLocationIdsChange={(ids) => handleChange("location_ids", ids)}
+              onExcludedLocationIdsChange={(ids) => handleChange("excluded_location_ids", ids)}
+              trackingUrlTemplate={formData.tracking_url_template}
+              finalUrlSuffix={formData.final_url_suffix}
+              urlCustomParameters={formData.url_custom_parameters}
+              onTrackingUrlTemplateChange={(value) => handleChange("tracking_url_template", value)}
+              onFinalUrlSuffixChange={(value) => handleChange("final_url_suffix", value)}
+              onCustomParametersChange={(params) => handleChange("url_custom_parameters", params)}
             />
           )}
 
@@ -1453,23 +1504,11 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             <GoogleVideoCampaignForm />
           )}
 
-          {/* Location Targeting - Available for SHOPPING / SEARCH / PERFORMANCE_MAX campaigns */}
-          {(formData.campaign_type === "SHOPPING" ||
-            formData.campaign_type === "SEARCH" ||
-            formData.campaign_type === "PERFORMANCE_MAX") && (
-            <GoogleLocationTargetingForm
-              locationIds={formData.location_ids}
-              excludedLocationIds={formData.excluded_location_ids}
-              locationOptions={locationOptions}
-              loadingLocations={loadingLocations}
-              onLocationIdsChange={(ids) => handleChange("location_ids", ids)}
-              onExcludedLocationIdsChange={(ids) => handleChange("excluded_location_ids", ids)}
-              errors={errors}
-            />
-          )}
-
-          {/* Campaign URL options - available for all API-created campaign types - at the end */}
-          {formData.campaign_type !== "VIDEO" && (
+          {/* Campaign URL options - Only for non-SEARCH/SHOPPING/PERFORMANCE_MAX campaigns (they have it in tabs) */}
+          {formData.campaign_type !== "VIDEO" &&
+           formData.campaign_type !== "SEARCH" &&
+           formData.campaign_type !== "SHOPPING" &&
+           formData.campaign_type !== "PERFORMANCE_MAX" && (
             <GoogleTrackingTemplateForm
               trackingUrlTemplate={formData.tracking_url_template}
               finalUrlSuffix={formData.final_url_suffix}

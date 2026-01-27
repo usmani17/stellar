@@ -99,3 +99,87 @@ export const parseDateToYYYYMMDD = (dateStr: string | null | undefined): string 
   return "";
 };
 
+/**
+ * Formats a timestamp to a relative time string (e.g., "2 min ago", "1 hour ago")
+ * Handles ISO format timestamps from the backend
+ * 
+ * @param dateString - ISO format timestamp string (e.g., "2026-01-26T10:30:00Z")
+ * @returns Relative time string or "Never" if invalid/null
+ */
+export const formatTimeAgo = (dateString: string | null | undefined): string => {
+  if (!dateString) return "Never";
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return "Never";
+    }
+    
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000);
+    
+    if (diffInMinutes < 1) return "Just now";
+    if (diffInMinutes < 60) return `${diffInMinutes} min ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) {
+      return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`;
+    }
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) {
+      return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
+    }
+    
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    if (diffInWeeks < 4) {
+      return `${diffInWeeks} week${diffInWeeks > 1 ? "s" : ""} ago`;
+    }
+    
+    const diffInMonths = Math.floor(diffInDays / 30);
+    if (diffInMonths < 12) {
+      return `${diffInMonths} month${diffInMonths > 1 ? "s" : ""} ago`;
+    }
+    
+    const diffInYears = Math.floor(diffInDays / 365);
+    return `${diffInYears} year${diffInYears > 1 ? "s" : ""} ago`;
+  } catch (e) {
+    return "Never";
+  }
+};
+
+/**
+ * Formats a timestamp to a beautiful date/time display
+ * Handles ISO format timestamps from the backend
+ * 
+ * @param dateString - ISO format timestamp string (e.g., "2026-01-26T10:30:00Z")
+ * @returns Formatted date/time string (e.g., "Jan 26, 2026 at 10:30 AM") or "Never" if invalid/null
+ */
+export const formatDateTime = (dateString: string | null | undefined): string => {
+  if (!dateString) return "Never";
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return "Never";
+    }
+    
+    // Format: "Jan 26, 2026 at 10:30 AM"
+    const datePart = date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    
+    const timePart = date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    
+    return `${datePart} at ${timePart}`;
+  } catch (e) {
+    return "Never";
+  }
+};
+

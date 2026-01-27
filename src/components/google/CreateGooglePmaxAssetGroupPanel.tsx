@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { GooglePerformanceMaxAssetGroupForm } from "./campaigns/GooglePerformanceMaxAssetGroupForm";
+import type { CreateGoogleCampaignData } from "./campaigns/types";
 
 export interface PmaxAssetGroupInput {
   asset_group: {
@@ -8,7 +10,7 @@ export interface PmaxAssetGroupInput {
   assets: {
     headlines: string[];
     descriptions: string[];
-    long_headline: string;
+    long_headline?: string;
     marketing_image_url?: string;
     square_marketing_image_url?: string;
     business_name?: string;
@@ -43,6 +45,7 @@ interface CreateGooglePmaxAssetGroupPanelProps {
     message: string;
     details?: string;
   } | null;
+  profileId?: number | null; // Profile ID for asset selector
 }
 
 export const CreateGooglePmaxAssetGroupPanel: React.FC<
@@ -58,6 +61,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
   initialData = null,
   assetGroupId: _assetGroupId,
   refreshMessage = null,
+  profileId = null,
 }) => {
     const generateDefaultAssetGroupName = React.useCallback((): string => {
       const now = new Date();
@@ -72,95 +76,105 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
       return `Performance Max Asset Group - ${dateTime}`;
     }, []);
 
-    const [assetGroupName, setAssetGroupName] = useState(
-      generateDefaultAssetGroupName()
-    );
-    const [finalUrl, setFinalUrl] = useState<string>("");
-    const [headlines, setHeadlines] = useState<string[]>(["", "", ""]);
-    const [descriptions, setDescriptions] = useState<string[]>(["", ""]);
-    const [longHeadline, setLongHeadline] = useState<string>("");
-    const [marketingImageUrl, setMarketingImageUrl] = useState<string>("");
-    const [squareMarketingImageUrl, setSquareMarketingImageUrl] = useState<string>("");
-    const [businessName, setBusinessName] = useState<string>("");
-    const [logoUrl, setLogoUrl] = useState<string>("");
-    const [errors, setErrors] = useState<Record<string, string>>({});
+    // Form data state (using CreateGoogleCampaignData format for compatibility)
+    const [formData, setFormData] = useState<CreateGoogleCampaignData>({
+      campaign_type: "PERFORMANCE_MAX",
+      name: "",
+      budget_amount: 0,
+      asset_group_name: generateDefaultAssetGroupName(),
+      final_url: "",
+      headlines: ["", "", ""], // Minimum 3 for validation
+      descriptions: ["", ""], // Minimum 2 for validation
+      long_headlines: [],
+    });
+
+    const [errors, setErrors] = useState<Partial<Record<keyof CreateGoogleCampaignData, string>>>({});
 
     // Image previews
     const [marketingImagePreview, setMarketingImagePreview] = useState<string | null>(null);
     const [squareMarketingImagePreview, setSquareMarketingImagePreview] = useState<string | null>(null);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
-    // Initialize form fields from initialData when in edit mode
+    // Initialize form data from initialData when in edit mode
     useEffect(() => {
       if (editMode && initialData) {
-        setAssetGroupName(initialData.asset_group_name || "");
-        setFinalUrl(initialData.final_url || "");
-
-        // Ensure minimum arrays for headlines and descriptions
-        if (Array.isArray(initialData.headlines) && initialData.headlines.length > 0) {
-          setHeadlines(initialData.headlines);
-        } else {
-          setHeadlines(["", "", ""]);
-        }
-
-        if (Array.isArray(initialData.descriptions) && initialData.descriptions.length > 0) {
-          setDescriptions(initialData.descriptions);
-        } else {
-          setDescriptions(["", ""]);
-        }
-
-        setLongHeadline(initialData.long_headline || "");
-        setMarketingImageUrl(initialData.marketing_image_url || "");
-        setSquareMarketingImageUrl(initialData.square_marketing_image_url || "");
-        setBusinessName(initialData.business_name || "");
-        setLogoUrl(initialData.logo_url || "");
+        setFormData({
+          campaign_type: "PERFORMANCE_MAX",
+          name: "",
+          budget_amount: 0,
+          asset_group_name: initialData.asset_group_name || "",
+          final_url: initialData.final_url || "",
+          headlines: Array.isArray(initialData.headlines) && initialData.headlines.length > 0 ? initialData.headlines : ["", "", ""],
+          descriptions: Array.isArray(initialData.descriptions) && initialData.descriptions.length > 0 ? initialData.descriptions : ["", ""],
+          long_headlines: initialData.long_headline ? [initialData.long_headline] : [],
+          marketing_image_url: initialData.marketing_image_url || "",
+          square_marketing_image_url: initialData.square_marketing_image_url || "",
+          business_name: initialData.business_name || "",
+          logo_url: initialData.logo_url || "",
+        });
       } else if (!editMode) {
         // Reset to defaults when not in edit mode
-        setAssetGroupName(generateDefaultAssetGroupName());
-        setFinalUrl("");
-        setHeadlines(["", "", ""]);
-        setDescriptions(["", ""]);
-        setLongHeadline("");
-        setMarketingImageUrl("");
-        setSquareMarketingImageUrl("");
-        setBusinessName("");
-        setLogoUrl("");
+        setFormData({
+          campaign_type: "PERFORMANCE_MAX",
+          name: "",
+          budget_amount: 0,
+          asset_group_name: generateDefaultAssetGroupName(),
+          final_url: "",
+          headlines: ["", "", ""], // Minimum 3 for validation
+          descriptions: ["", ""], // Minimum 2 for validation
+          long_headlines: [],
+        });
       }
     }, [editMode, initialData, generateDefaultAssetGroupName]);
 
     // Update image previews when URLs change
     useEffect(() => {
-      if (marketingImageUrl && marketingImageUrl.trim()) {
-        setMarketingImagePreview(marketingImageUrl.trim());
+      if (formData.marketing_image_url && formData.marketing_image_url.trim()) {
+        setMarketingImagePreview(formData.marketing_image_url.trim());
       } else {
         setMarketingImagePreview(null);
       }
-    }, [marketingImageUrl]);
+    }, [formData.marketing_image_url]);
 
     useEffect(() => {
-      if (squareMarketingImageUrl && squareMarketingImageUrl.trim()) {
-        setSquareMarketingImagePreview(squareMarketingImageUrl.trim());
+      if (formData.square_marketing_image_url && formData.square_marketing_image_url.trim()) {
+        setSquareMarketingImagePreview(formData.square_marketing_image_url.trim());
       } else {
         setSquareMarketingImagePreview(null);
       }
-    }, [squareMarketingImageUrl]);
+    }, [formData.square_marketing_image_url]);
 
     useEffect(() => {
-      if (logoUrl && logoUrl.trim()) {
-        setLogoPreview(logoUrl.trim());
+      if (formData.logo_url && formData.logo_url.trim()) {
+        setLogoPreview(formData.logo_url.trim());
       } else {
         setLogoPreview(null);
       }
-    }, [logoUrl]);
+    }, [formData.logo_url]);
+
+    const handleChange = useCallback((field: keyof CreateGoogleCampaignData, value: any) => {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+      // Clear error for this field when user starts typing
+      if (errors[field]) {
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors[field];
+          return newErrors;
+        });
+      }
+    }, [errors]);
 
     const validate = (): boolean => {
-      const newErrors: Record<string, string> = {};
+      const newErrors: Partial<Record<keyof CreateGoogleCampaignData, string>> = {};
 
-      if (!assetGroupName.trim()) {
-        newErrors.assetGroupName = "Asset Group name is required";
+      if (!formData.asset_group_name?.trim()) {
+        newErrors.asset_group_name = "Asset Group name is required";
       }
 
-      const validHeadlines = headlines.filter((h) => h.trim()).length;
+      const validHeadlines = formData.headlines?.filter((h) => h.trim()).length || 0;
       if (validHeadlines < 3) {
         newErrors.headlines = "At least 3 headlines are required";
       }
@@ -168,7 +182,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
         newErrors.headlines = "Maximum 15 headlines allowed";
       }
 
-      const validDescriptions = descriptions.filter((d) => d.trim()).length;
+      const validDescriptions = formData.descriptions?.filter((d) => d.trim()).length || 0;
       if (validDescriptions < 2) {
         newErrors.descriptions = "At least 2 descriptions are required";
       }
@@ -176,56 +190,92 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
         newErrors.descriptions = "Maximum 4 descriptions allowed";
       }
 
-      if (!longHeadline.trim()) {
-        newErrors.longHeadline = "Long headline is required";
-      }
+      // Long headlines are optional - no validation needed
 
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
     };
 
-    const handleAddHeadline = () => {
-      if (headlines.length < 15) {
-        setHeadlines([...headlines, ""]);
+    const handleAddHeadline = useCallback(() => {
+      const currentHeadlines = formData.headlines || [""];
+      if (currentHeadlines.length < 15) {
+        handleChange("headlines", [...currentHeadlines, ""]);
       }
-    };
+    }, [formData.headlines, handleChange]);
 
-    const handleRemoveHeadline = (index: number) => {
-      if (headlines.length > 3) {
-        setHeadlines(headlines.filter((_, i) => i !== index));
+    const handleRemoveHeadline = useCallback((index: number) => {
+      const currentHeadlines = formData.headlines || [""];
+      if (currentHeadlines.length > 3) {
+        const newHeadlines = currentHeadlines.filter((_, i) => i !== index);
+        // Also remove corresponding asset IDs if they exist
+        const newHeadlineAssetIds = formData.headline_asset_ids?.filter((_, i) => i !== index);
+        const newHeadlineAssetResourceNames = formData.headline_asset_resource_names?.filter((_, i) => i !== index);
+        handleChange("headlines", newHeadlines);
+        if (newHeadlineAssetIds) handleChange("headline_asset_ids", newHeadlineAssetIds);
+        if (newHeadlineAssetResourceNames) handleChange("headline_asset_resource_names", newHeadlineAssetResourceNames);
       }
-    };
+    }, [formData.headlines, formData.headline_asset_ids, formData.headline_asset_resource_names, handleChange]);
 
-    const handleAddDescription = () => {
-      if (descriptions.length < 4) {
-        setDescriptions([...descriptions, ""]);
+    const handleUpdateHeadline = useCallback((index: number, value: string) => {
+      const currentHeadlines = formData.headlines || [""];
+      const newHeadlines = [...currentHeadlines];
+      while (newHeadlines.length <= index) {
+        newHeadlines.push("");
       }
-    };
+      newHeadlines[index] = value;
+      handleChange("headlines", newHeadlines);
+    }, [formData.headlines, handleChange]);
 
-    const handleRemoveDescription = (index: number) => {
-      if (descriptions.length > 2) {
-        setDescriptions(descriptions.filter((_, i) => i !== index));
+    const handleAddDescription = useCallback(() => {
+      const currentDescriptions = formData.descriptions || [""];
+      if (currentDescriptions.length < 4) {
+        handleChange("descriptions", [...currentDescriptions, ""]);
       }
-    };
+    }, [formData.descriptions, handleChange]);
+
+    const handleRemoveDescription = useCallback((index: number) => {
+      const currentDescriptions = formData.descriptions || [""];
+      if (currentDescriptions.length > 2) {
+        const newDescriptions = currentDescriptions.filter((_, i) => i !== index);
+        // Also remove corresponding asset IDs if they exist
+        const newDescriptionAssetIds = formData.description_asset_ids?.filter((_, i) => i !== index);
+        const newDescriptionAssetResourceNames = formData.description_asset_resource_names?.filter((_, i) => i !== index);
+        handleChange("descriptions", newDescriptions);
+        if (newDescriptionAssetIds) handleChange("description_asset_ids", newDescriptionAssetIds);
+        if (newDescriptionAssetResourceNames) handleChange("description_asset_resource_names", newDescriptionAssetResourceNames);
+      }
+    }, [formData.descriptions, formData.description_asset_ids, formData.description_asset_resource_names, handleChange]);
+
+    const handleUpdateDescription = useCallback((index: number, value: string) => {
+      const currentDescriptions = formData.descriptions || [""];
+      const newDescriptions = [...currentDescriptions];
+      while (newDescriptions.length <= index) {
+        newDescriptions.push("");
+      }
+      newDescriptions[index] = value;
+      handleChange("descriptions", newDescriptions);
+    }, [formData.descriptions, handleChange]);
 
     const handleSubmit = () => {
       if (!validate()) {
         return;
       }
 
+      const longHeadline = formData.long_headlines && formData.long_headlines.length > 0 ? formData.long_headlines[0]?.trim() : undefined;
+
       const entity: PmaxAssetGroupInput = {
         asset_group: {
-          name: assetGroupName.trim(),
-          ...(finalUrl.trim() && { final_url: finalUrl.trim() }),
+          name: formData.asset_group_name?.trim() || "",
+          ...(formData.final_url?.trim() && { final_url: formData.final_url.trim() }),
         },
         assets: {
-          headlines: headlines.filter((h) => h.trim()),
-          descriptions: descriptions.filter((d) => d.trim()),
-          long_headline: longHeadline.trim(),
-          ...(marketingImageUrl.trim() && { marketing_image_url: marketingImageUrl.trim() }),
-          ...(squareMarketingImageUrl.trim() && { square_marketing_image_url: squareMarketingImageUrl.trim() }),
-          ...(businessName.trim() && { business_name: businessName.trim() }),
-          ...(logoUrl.trim() && { logo_url: logoUrl.trim() }),
+          headlines: formData.headlines?.filter((h) => h.trim()) || [],
+          descriptions: formData.descriptions?.filter((d) => d.trim()) || [],
+          ...(longHeadline && { long_headline: longHeadline }),
+          ...(formData.marketing_image_url?.trim() && { marketing_image_url: formData.marketing_image_url.trim() }),
+          ...(formData.square_marketing_image_url?.trim() && { square_marketing_image_url: formData.square_marketing_image_url.trim() }),
+          ...(formData.business_name?.trim() && { business_name: formData.business_name.trim() }),
+          ...(formData.logo_url?.trim() && { logo_url: formData.logo_url.trim() }),
         },
       };
 
@@ -235,26 +285,32 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
     const handleCancel = () => {
       if (editMode && initialData) {
         // Reset to initial data in edit mode
-        setAssetGroupName(initialData.asset_group_name || "");
-        setFinalUrl(initialData.final_url || "");
-        setHeadlines(Array.isArray(initialData.headlines) && initialData.headlines.length > 0 ? initialData.headlines : ["", "", ""]);
-        setDescriptions(Array.isArray(initialData.descriptions) && initialData.descriptions.length > 0 ? initialData.descriptions : ["", ""]);
-        setLongHeadline(initialData.long_headline || "");
-        setMarketingImageUrl(initialData.marketing_image_url || "");
-        setSquareMarketingImageUrl(initialData.square_marketing_image_url || "");
-        setBusinessName(initialData.business_name || "");
-        setLogoUrl(initialData.logo_url || "");
+        setFormData({
+          campaign_type: "PERFORMANCE_MAX",
+          name: "",
+          budget_amount: 0,
+          asset_group_name: initialData.asset_group_name || "",
+          final_url: initialData.final_url || "",
+          headlines: Array.isArray(initialData.headlines) && initialData.headlines.length > 0 ? initialData.headlines : ["", "", ""],
+          descriptions: Array.isArray(initialData.descriptions) && initialData.descriptions.length > 0 ? initialData.descriptions : ["", ""],
+          long_headlines: initialData.long_headline ? [initialData.long_headline] : [],
+          marketing_image_url: initialData.marketing_image_url || "",
+          square_marketing_image_url: initialData.square_marketing_image_url || "",
+          business_name: initialData.business_name || "",
+          logo_url: initialData.logo_url || "",
+        });
       } else {
         // Reset to defaults in create mode
-        setAssetGroupName(generateDefaultAssetGroupName());
-        setFinalUrl("");
-        setHeadlines(["", "", ""]);
-        setDescriptions(["", ""]);
-        setLongHeadline("");
-        setMarketingImageUrl("");
-        setSquareMarketingImageUrl("");
-        setBusinessName("");
-        setLogoUrl("");
+        setFormData({
+          campaign_type: "PERFORMANCE_MAX",
+          name: "",
+          budget_amount: 0,
+          asset_group_name: generateDefaultAssetGroupName(),
+          final_url: "",
+          headlines: ["", "", ""], // Minimum 3 for validation
+          descriptions: ["", ""], // Minimum 2 for validation
+          long_headlines: [],
+        });
       }
       setErrors({});
       onClose();
@@ -284,351 +340,28 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
             {editMode ? "Edit Asset Group" : "Create Asset Group"}
           </h2>
 
-          {/* Asset Group Section */}
-          <div className="mb-6">
-            <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
-              Asset Group
-            </h3>
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="flex-1 min-w-[200px]">
-                <label className="form-label-small">
-                  Asset Group Name *
-                </label>
-                <input
-                  type="text"
-                  value={assetGroupName}
-                  onChange={(e) => {
-                    setAssetGroupName(e.target.value);
-                    if (errors.assetGroupName) {
-                      setErrors((prev) => {
-                        const newErrors = { ...prev };
-                        delete newErrors.assetGroupName;
-                        return newErrors;
-                      });
-                    }
-                  }}
-                  placeholder="Enter asset group name"
-                  className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${errors.assetGroupName ? "border-red-500" : "border-gray-200"
-                    }`}
-                />
-                {errors.assetGroupName && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.assetGroupName}
-                  </p>
-                )}
-              </div>
-              <div className="flex-1 min-w-[200px]">
-                <label className="form-label-small">
-                  Final URL (Optional)
-                </label>
-                <input
-                  type="url"
-                  value={finalUrl}
-                  onChange={(e) => setFinalUrl(e.target.value)}
-                  placeholder="https://example.com"
-                  className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Assets Section */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-[14px] font-semibold text-[#072929]">
-                Assets
-              </h3>
-              <button
-                type="button"
-                onClick={() => {
-                  // Fill dummy values for quick testing
-                  setHeadlines([
-                    "Best Products Online",
-                    "Shop Now and Save",
-                    "Quality You Can Trust",
-                    "Free Shipping Available",
-                    "Limited Time Offer"
-                  ]);
-                  setDescriptions([
-                    "Discover amazing deals on our premium products. Shop now and enjoy fast delivery!",
-                    "Get the best prices on quality items. Customer satisfaction guaranteed."
-                  ]);
-                  setLongHeadline("Unlock unparalleled value and exceptional quality with our diverse range of products.");
-                  setFinalUrl("https://pixis.ai");
-                  setMarketingImageUrl("");
-                  setSquareMarketingImageUrl("");
-                  // Clear any errors
-                  setErrors((prev) => {
-                    const newErrors = { ...prev };
-                    delete newErrors.headlines;
-                    delete newErrors.descriptions;
-                    delete newErrors.longHeadline;
-                    return newErrors;
-                  });
-                }}
-                className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] hover:underline px-2 py-1"
-                title="Fill with dummy values for testing"
-              >
-                Fill Dummy Values
-              </button>
-            </div>
-            <div className="mb-3">
-              <label className="form-label-small">
-                Headlines * (3-15 required)
-              </label>
-              <div className="space-y-2">
-                {headlines.map((headline, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={headline}
-                      onChange={(e) => {
-                        const newHeadlines = [...headlines];
-                        newHeadlines[index] = e.target.value;
-                        setHeadlines(newHeadlines);
-                        if (errors.headlines) {
-                          setErrors((prev) => {
-                            const newErrors = { ...prev };
-                            delete newErrors.headlines;
-                            return newErrors;
-                          });
-                        }
-                      }}
-                      placeholder={`Headline ${index + 1}`}
-                      maxLength={30}
-                      className={`flex-1 bg-white px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${errors.headlines ? "border-red-500" : "border-gray-200"
-                        }`}
-                    />
-                    {headlines.length > 3 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveHeadline(index)}
-                        className="text-red-500 hover:text-red-700 text-[11.2px] px-2"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {headlines.length < 15 && (
-                <button
-                  type="button"
-                  onClick={handleAddHeadline}
-                  className="mt-2 text-[11.2px] text-[#136D6D] hover:underline"
-                >
-                  + Add Headline
-                </button>
-              )}
-              {errors.headlines && (
-                <p className="text-[10px] text-red-500 mt-1">{errors.headlines}</p>
-              )}
-            </div>
-
-            <div className="mb-3">
-              <label className="form-label-small">
-                Descriptions * (2-4 required)
-              </label>
-              <div className="space-y-2">
-                {descriptions.map((description, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <textarea
-                      value={description}
-                      onChange={(e) => {
-                        const newDescriptions = [...descriptions];
-                        newDescriptions[index] = e.target.value;
-                        setDescriptions(newDescriptions);
-                        if (errors.descriptions) {
-                          setErrors((prev) => {
-                            const newErrors = { ...prev };
-                            delete newErrors.descriptions;
-                            return newErrors;
-                          });
-                        }
-                      }}
-                      placeholder={`Description ${index + 1}`}
-                      maxLength={90}
-                      rows={2}
-                      className={`flex-1 bg-white px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${errors.descriptions ? "border-red-500" : "border-gray-200"
-                        }`}
-                    />
-                    {descriptions.length > 2 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDescription(index)}
-                        className="text-red-500 hover:text-red-700 text-[11.2px] px-2"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {descriptions.length < 4 && (
-                <button
-                  type="button"
-                  onClick={handleAddDescription}
-                  className="mt-2 text-[11.2px] text-[#136D6D] hover:underline"
-                >
-                  + Add Description
-                </button>
-              )}
-              {errors.descriptions && (
-                <p className="text-[10px] text-red-500 mt-1">
-                  {errors.descriptions}
-                </p>
-              )}
-            </div>
-
-            {/* Optional Performance Max Fields - 2 columns per row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              {/* Row 1: Long Headline and Business Name */}
-              <div>
-                <label className="form-label-small">
-                  Long Headline * (Required)
-                </label>
-                <input
-                  type="text"
-                  value={longHeadline}
-                  onChange={(e) => {
-                    setLongHeadline(e.target.value);
-                    if (errors.longHeadline) {
-                      setErrors((prev) => {
-                        const newErrors = { ...prev };
-                        delete newErrors.longHeadline;
-                        return newErrors;
-                      });
-                    }
-                  }}
-                  placeholder="Enter long headline (max 90 characters)"
-                  maxLength={90}
-                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${errors.longHeadline ? "border-red-500" : "border-gray-200"
-                    }`}
-                />
-                {errors.longHeadline && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.longHeadline}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="form-label-small">
-                  Business Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder="Enter business name"
-                  className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                />
-              </div>
-
-              {/* Row 2: Marketing Image URLs */}
-              <div>
-                <label className="form-label-small">
-                  Marketing Image URL (Optional)
-                </label>
-                <input
-                  type="url"
-                  value={marketingImageUrl}
-                  onChange={(e) => setMarketingImageUrl(e.target.value)}
-                  placeholder="https://example.com/marketing-image.png"
-                  className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                />
-                <p className="text-[10px] text-[#556179] mt-1">
-                  Recommended: 1200x628 pixels. If not provided, a default image will be generated.
-                </p>
-                {/* Marketing Image Preview */}
-                {marketingImagePreview && (
-                  <div className="mt-2">
-                    <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
-                    <div className="inline-block border border-gray-200 rounded bg-white p-1">
-                      <img
-                        src={marketingImagePreview}
-                        alt="Marketing image preview"
-                        className="max-w-48 max-h-32 w-auto h-auto object-contain block rounded"
-                        onError={(e) => {
-                          // Hide preview on error (e.g., CORS issues, invalid URL)
-                          const img = e.currentTarget;
-                          img.style.display = "none";
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="form-label-small">
-                  Square Marketing Image URL (Optional)
-                </label>
-                <input
-                  type="url"
-                  value={squareMarketingImageUrl}
-                  onChange={(e) => setSquareMarketingImageUrl(e.target.value)}
-                  placeholder="https://example.com/square-image.png"
-                  className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                />
-                <p className="text-[10px] text-[#556179] mt-1">
-                  Recommended: 1200x1200 pixels. If not provided, a default image will be generated.
-                </p>
-                {/* Square Marketing Image Preview */}
-                {squareMarketingImagePreview && (
-                  <div className="mt-2">
-                    <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
-                    <div className="inline-block border border-gray-200 rounded bg-white p-1">
-                      <img
-                        src={squareMarketingImagePreview}
-                        alt="Square marketing image preview"
-                        className="w-32 h-32 object-contain rounded"
-                        onError={(e) => {
-                          // Hide preview on error (e.g., CORS issues, invalid URL)
-                          const img = e.currentTarget;
-                          img.style.display = "none";
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="form-label-small">
-                  Logo URL (Optional)
-                </label>
-                <input
-                  type="url"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://example.com/logo.png"
-                  className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                />
-                <p className="text-[10px] text-[#556179] mt-1">
-                  Recommended: Square logo (1:1 aspect ratio). If not provided, a default logo will be used.
-                </p>
-                {/* Logo Preview */}
-                {logoPreview && (
-                  <div className="mt-2">
-                    <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
-                    <div className="inline-block border border-gray-200 rounded p-1 bg-white">
-                      <img
-                        src={logoPreview}
-                        alt="Logo preview"
-                        className="w-32 h-32 object-contain rounded"
-                        onError={(e) => {
-                          // Hide preview on error (e.g., CORS issues, invalid URL)
-                          const img = e.currentTarget;
-                          img.style.display = "none";
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          {/* Use Reusable Asset Group Form */}
+          <GooglePerformanceMaxAssetGroupForm
+            formData={formData}
+            errors={errors}
+            onChange={handleChange}
+            mode={editMode ? "edit" : "create"}
+            onAddHeadline={handleAddHeadline}
+            onRemoveHeadline={handleRemoveHeadline}
+            onUpdateHeadline={handleUpdateHeadline}
+            onAddDescription={handleAddDescription}
+            onRemoveDescription={handleRemoveDescription}
+            onUpdateDescription={handleUpdateDescription}
+            logoPreview={logoPreview}
+            setLogoPreview={setLogoPreview}
+            marketingImagePreview={marketingImagePreview}
+            setMarketingImagePreview={setMarketingImagePreview}
+            squareMarketingImagePreview={squareMarketingImagePreview}
+            setSquareMarketingImagePreview={setSquareMarketingImagePreview}
+            setErrors={setErrors}
+            profileId={profileId}
+            campaignType="PERFORMANCE_MAX"
+          />
         </div>
 
         {/* Error Message */}

@@ -1,5 +1,7 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { GoogleAdsTable } from "./GoogleAdsTable";
+import { ConfirmationModal } from "../../../components/ui/ConfirmationModal";
+import { TrashIcon } from "lucide-react";
 import type { IColumnDefinition } from "../../../types/google";
 
 export interface GoogleAdGroup {
@@ -196,6 +198,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
         { value: "PAUSED", label: "Paused" },
+        { value: "REMOVED", label: "Remove" },
       ],
       getValue: (row: GoogleAdGroup) => row.status || "ENABLED",
     },
@@ -299,15 +302,66 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     },
   ], [accountId]);
 
+  const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
+  const [pendingRemoveChange, setPendingRemoveChange] = useState<{
+    value: string;
+    adgroupId: string | number;
+    field: string;
+  } | null>(null);
+
   // Handle confirm inline edit - route to appropriate handler
   const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
+    // Use the field parameter if provided, otherwise fall back to editingCell
+    const fieldToUse = field || editingCell?.field;
+    if (!fieldToUse) {
+      return;
+    }
+
+    // Use itemIdParam if provided, otherwise fall back to editingCell
+    const adgroupIdToUse = itemIdParam || editingCell?.adgroupId;
+
+    // Check if status is being changed to REMOVED - show confirmation modal
+    if (fieldToUse === "status" && value === "REMOVED") {
+      // Close the dropdown immediately when modal appears (matches ENABLED/PAUSED behavior)
+      if (onCancelInlineEdit) {
+        onCancelInlineEdit();
+      }
+      setPendingRemoveChange({ value: "REMOVED", adgroupId: adgroupIdToUse!, field: fieldToUse });
+      setShowRemoveConfirmation(true);
+      return;
+    }
+
     // Pass all parameters to parent handler
     onConfirmInlineEdit(value, field, itemIdParam);
+  };
+
+  // Handle confirmation for REMOVED status change
+  const handleConfirmRemove = () => {
+    if (pendingRemoveChange && onConfirmInlineEdit) {
+      onConfirmInlineEdit(
+        "REMOVED",
+        "status",
+        pendingRemoveChange.adgroupId
+      );
+    }
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+  };
+
+  // Handle cancel for REMOVED status change
+  const handleCancelRemove = () => {
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+    // Cancel the inline edit
+    if (onCancelInlineEdit) {
+      onCancelInlineEdit();
+    }
   };
 
   // pendingChanges is now passed as a prop
 
   return (
+    <>
     <GoogleAdsTable
       data={adgroups}
       loading={loading}
@@ -354,6 +408,17 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       getStatusBadge={getStatusBadge}
       getSortIcon={getSortIcon}
     />
+    <ConfirmationModal
+      isOpen={showRemoveConfirmation}
+      onClose={handleCancelRemove}
+      onConfirm={handleConfirmRemove}
+      title="Are you sure you want to remove this ad group?"
+      message="This action cannot be undone. All data associated with this ad group will be permanently removed."
+      type="danger"
+      size="sm"
+      icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+    />
+  </>
   );
 };
 

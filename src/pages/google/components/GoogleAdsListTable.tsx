@@ -1,5 +1,7 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { GoogleAdsTable } from "./GoogleAdsTable";
+import { ConfirmationModal } from "../../../components/ui/ConfirmationModal";
+import { TrashIcon } from "lucide-react";
 import type { IColumnDefinition } from "../../../types/google";
 import type { GoogleAd } from "./tabs/GoogleTypes";
 
@@ -194,7 +196,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
         { value: "PAUSED", label: "Paused" },
-        { value: "REMOVED", label: "Removed" },
+        { value: "REMOVED", label: "Remove" },
       ],
       getValue: (row: GoogleAd) => row.status || "ENABLED",
     },
@@ -297,9 +299,50 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
     },
   ], []);
 
+  const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
+  const [pendingRemoveChange, setPendingRemoveChange] = useState<{
+    value: string;
+    adId: string | number;
+    field: string;
+  } | null>(null);
+
   const handleConfirmInlineEdit = (value: string, field?: string, itemId?: string | number) => {
     if (field === "status") {
+      // Check if status is being changed to REMOVED - show confirmation modal
+      if (value === "REMOVED") {
+        // Close the dropdown immediately when modal appears (matches ENABLED/PAUSED behavior)
+        if (onCancelInlineEdit) {
+          onCancelInlineEdit();
+        }
+        const adIdToUse = itemId || editingCell?.adId;
+        setPendingRemoveChange({ value: "REMOVED", adId: adIdToUse!, field: "status" });
+        setShowRemoveConfirmation(true);
+        return;
+      }
       onConfirmInlineEdit(value, field, itemId);
+    }
+  };
+
+  // Handle confirmation for REMOVED status change
+  const handleConfirmRemove = () => {
+    if (pendingRemoveChange && onConfirmInlineEdit) {
+      onConfirmInlineEdit(
+        "REMOVED",
+        "status",
+        pendingRemoveChange.adId
+      );
+    }
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+  };
+
+  // Handle cancel for REMOVED status change
+  const handleCancelRemove = () => {
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+    // Cancel the inline edit
+    if (onCancelInlineEdit) {
+      onCancelInlineEdit();
     }
   };
 
@@ -316,6 +359,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
   };
 
   return (
+    <>
     <GoogleAdsTable
       data={ads}
       loading={loading}
@@ -357,6 +401,17 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       getStatusBadge={getStatusBadge}
       getSortIcon={getSortIcon}
     />
+    <ConfirmationModal
+      isOpen={showRemoveConfirmation}
+      onClose={handleCancelRemove}
+      onConfirm={handleConfirmRemove}
+      title="Are you sure you want to remove this ad?"
+      message="This action cannot be undone. All data associated with this ad will be permanently removed."
+      type="danger"
+      size="sm"
+      icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+    />
+  </>
   );
 };
 
