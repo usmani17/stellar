@@ -625,7 +625,7 @@
 .custom-datepicker-single .react-datepicker__day--selected {
   background-color: #136d6d !important;
   color: white !important;
-  font-weight: 700 !important;
+  font-weight: 300 !important;
 }
 .custom-datepicker-single .react-datepicker__day--keyboard-selected {
   background-color: #d6e5e5 !important;

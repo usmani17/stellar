@@ -14,6 +14,14 @@ export type SingleDatePickerProps = {
   id?: string;
 };
 
+/** Format Date to YYYY-MM-DD in local time (avoids off-by-one from UTC) */
+function toLocalYYYYMMDD(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function SingleDatePickerHeader({
   monthDate,
   decreaseMonth,
@@ -69,7 +77,7 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
   const selected = value ? new Date(value + "T00:00:00") : null;
 
   const handleChange = (date: Date | null) => {
-    onChange(date ? date.toISOString().split("T")[0] : "");
+    onChange(date ? toLocalYYYYMMDD(date) : "");
   };
 
   return (
