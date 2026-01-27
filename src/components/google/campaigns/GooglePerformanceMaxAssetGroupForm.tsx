@@ -280,8 +280,32 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
         break;
       case "VIDEO":
         if (asset.type === "YOUTUBE_VIDEO" && "youtube_video_id" in asset) {
-          onChange("video_asset_resource_names", [asset.resource_name]);
-          onChange("video_asset_ids", [asset.id]);
+          const currentVideos = formData.video_asset_resource_names || [];
+          const currentVideoIds = formData.video_asset_ids || [];
+          const maxVideos = 5; // Google requirement: max 5 videos per asset group
+          
+          // Check if we've reached the maximum
+          if (currentVideos.length >= maxVideos) {
+            setAssetSelectorError(
+              `Maximum ${maxVideos} video assets allowed per asset group. Please remove a video before adding another.`
+            );
+            return; // Don't close modal, prevent selection
+          }
+          
+          // Check if this video is already added (prevent duplicates)
+          if (currentVideoIds.includes(asset.id)) {
+            setAssetSelectorError(
+              "This video asset is already added. Please select a different video."
+            );
+            return; // Don't close modal, prevent selection
+          }
+          
+          // Add the new video to the array
+          onChange("video_asset_resource_names", [...currentVideos, asset.resource_name]);
+          onChange("video_asset_ids", [...currentVideoIds, asset.id]);
+          
+          // Clear any previous error on successful selection
+          setAssetSelectorError(null);
         }
         break;
       case "SITELINK":
@@ -333,8 +357,17 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="form-label mb-0">
-                Business Name *
+                Business Name * <span className="text-[10px] text-[#556179] font-normal">(max 25 characters)</span>
               </label>
+              {profileId && (
+                <button
+                  type="button"
+                  onClick={() => openAssetSelector("BUSINESS_NAME")}
+                  className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium"
+                >
+                  Select Asset
+                </button>
+              )}
             </div>
             {formData.business_name_asset_id ? (
               <div className="flex items-center gap-2">
@@ -343,8 +376,8 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                   value={formData.business_name || ""}
                   disabled
                   readOnly
+                  maxLength={25}
                   className="campaign-input w-full bg-gray-50 border-gray-200 cursor-not-allowed"
-                  onClick={() => openAssetSelector("BUSINESS_NAME")}
                 />
                 <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
                   From Asset
@@ -387,14 +420,17 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                 {errors.business_name}
               </p>
             )}
+            <p className="text-[10px] text-[#556179] mt-1">
+              Required. Select from assets or create a new Business Name asset in the asset selector.
+            </p>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="form-label mb-0">
-                Logo (URL) *
+                Logo (URL) * <span className="text-[10px] text-[#556179] font-normal">(1:1 aspect ratio, min 128x128px)</span>
               </label>
-              {!formData.logo_asset_id && profileId && (
+              {profileId && (
                 <button
                   type="button"
                   onClick={() => openAssetSelector("LOGO")}
@@ -404,109 +440,107 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                 </button>
               )}
             </div>
-            {formData.logo_asset_id ? (
-              <div className="flex items-center gap-2">
-                <div className="flex-1 relative group">
-                  <input
-                    type="url"
-                    value={formData.logo_url || ""}
-                    disabled
-                    readOnly
-                    className="campaign-input w-full bg-gray-50 border-gray-200 cursor-not-allowed"
-                    onClick={() => openAssetSelector("LOGO")}
-                  />
-                  {formData.logo_url && (formData.logo_url.startsWith("http://") || formData.logo_url.startsWith("https://")) && (
-                    <div className="absolute left-0 top-full mt-2 hidden group-hover:block z-50">
-                      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-2">
-                        <img
-                          src={formData.logo_url}
-                          alt="Logo preview"
-                          className="w-32 h-32 object-contain rounded"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
+            <div className="space-y-2">
+              {formData.logo_asset_id ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 relative group">
+                    <input
+                      type="url"
+                      value={formData.logo_url || ""}
+                      disabled
+                      readOnly
+                      className="campaign-input w-full bg-gray-50 border-gray-200 cursor-not-allowed"
+                    />
+                    {formData.logo_url && (formData.logo_url.startsWith("http://") || formData.logo_url.startsWith("https://")) && (
+                      <div className="absolute left-0 top-full mt-2 hidden group-hover:block z-50">
+                        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-2">
+                          <img
+                            src={formData.logo_url}
+                            alt="Logo preview"
+                            className="w-32 h-32 object-contain rounded"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        </div>
                       </div>
+                    )}
+                  </div>
+                  {formData.logo_url && (formData.logo_url.startsWith("http://") || formData.logo_url.startsWith("https://")) && (
+                    <div className="relative">
+                      <img
+                        src={formData.logo_url}
+                        alt="Logo preview"
+                        className="w-12 h-12 object-contain border border-gray-200 rounded bg-white"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
                     </div>
                   )}
+                  <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
+                    From Asset
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange("logo_url", "");
+                      onChange("logo_asset_id", undefined);
+                      onChange("logo_asset_resource_name", undefined);
+                      _setLogoPreview(null);
+                    }}
+                    className="text-red-500 hover:text-red-700 text-sm font-medium"
+                    title="Remove selected asset"
+                  >
+                    ×
+                  </button>
                 </div>
-                {formData.logo_url && (formData.logo_url.startsWith("http://") || formData.logo_url.startsWith("https://")) && (
-                  <div className="relative">
-                    <img
-                      src={formData.logo_url}
-                      alt="Logo preview"
-                      className="w-12 h-12 object-contain border border-gray-200 rounded bg-white"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                  </div>
-                )}
-                <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
-                  From Asset
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange("logo_url", "");
-                    onChange("logo_asset_id", undefined);
-                    onChange("logo_asset_resource_name", undefined);
-                  }}
-                  className="text-red-500 hover:text-red-700 text-sm font-medium"
-                  title="Remove selected asset"
-                >
-                  ×
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-start gap-2">
-                <div className="flex-1 relative group">
+              ) : (
+                <>
                   <input
                     type="url"
                     value={formData.logo_url || ""}
-                    onChange={(e) => onChange("logo_url", e.target.value)}
+                    onChange={(e) => {
+                      onChange("logo_url", e.target.value);
+                      const urlValue = e.target.value.trim();
+                      if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
+                        _setLogoPreview(urlValue);
+                      } else {
+                        _setLogoPreview(null);
+                      }
+                    }}
                     className={`campaign-input w-full ${
                       errors.logo_url ? "border-red-500" : ""
                     }`}
                     placeholder="https://example.com/logo.png"
                   />
-                  {errors.logo_url && (
-                    <p className="text-[10px] text-red-500 mt-1">
-                      {errors.logo_url}
-                    </p>
-                  )}
-                  {formData.logo_url && (formData.logo_url.startsWith("http://") || formData.logo_url.startsWith("https://")) && (
-                    <div className="absolute left-0 top-full mt-2 hidden group-hover:block z-50">
-                      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-2">
+                  {_logoPreview && (
+                    <div>
+                      <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
+                      <div className="inline-block border border-gray-200 rounded p-1 bg-white">
                         <img
-                          src={formData.logo_url}
+                          src={_logoPreview}
                           alt="Logo preview"
-                          className="w-32 h-32 object-contain rounded"
+                          className="w-12 h-12 object-contain rounded"
                           onError={(e) => {
                             e.currentTarget.style.display = "none";
+                            _setLogoPreview(null);
                           }}
                         />
                       </div>
                     </div>
                   )}
-                </div>
-                {formData.logo_url && (formData.logo_url.startsWith("http://") || formData.logo_url.startsWith("https://")) && (
-                  <div className="relative">
-                    <img
-                      src={formData.logo_url}
-                      alt="Logo preview"
-                      className="w-12 h-12 object-contain border border-gray-200 rounded bg-white"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-            <p className="text-[10px] text-[#556179] mt-1">
-              Logo must be square (1:1 aspect ratio) and at least 128x128 pixels. Recommended: 128x128px or larger.
-            </p>
+                </>
+              )}
+              {errors.logo_url && (
+                <p className="text-[10px] text-red-500 mt-1">
+                  {errors.logo_url}
+                </p>
+              )}
+              <p className="text-[10px] text-[#556179] mt-1">
+                Required. Enter logo URL directly or select from assets. Must be 1:1 aspect ratio, minimum 128x128px.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -621,10 +655,11 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                               }}
                               disabled={!!headlineAssetId}
                               readOnly={!!headlineAssetId}
+                              maxLength={30}
                               className={`campaign-input w-full ${
                                 errors.headlines ? "border-red-500" : ""
                               } ${headlineAssetId ? "bg-gray-50 border-gray-200 cursor-not-allowed" : ""}`}
-                              placeholder={`Headline ${index + 1}`}
+                              placeholder={`Headline ${index + 1} (max 30 characters)`}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter' && 
                                     formData.headlines &&
@@ -768,6 +803,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                               }}
                               disabled={!!descriptionAssetId}
                               readOnly={!!descriptionAssetId}
+                              maxLength={90}
                               onKeyDown={(e) => {
                                 if ((e.key === 'Enter' && (e.ctrlKey || e.metaKey)) &&
                                     formData.descriptions &&
@@ -798,7 +834,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                               className={`campaign-input w-full ${
                                 errors.descriptions ? "border-red-500" : ""
                               } ${descriptionAssetId ? "bg-gray-50 border-gray-200 cursor-not-allowed" : ""}`}
-                              placeholder={`Description ${index + 1}`}
+                              placeholder={`Description ${index + 1} (max 90 characters)`}
                             />
                             {descriptionAssetId && (
                               <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap mt-1">
@@ -916,10 +952,11 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                               }}
                               disabled={!!longHeadlineAssetId}
                               readOnly={!!longHeadlineAssetId}
+                              maxLength={90}
                               className={`campaign-input w-full ${
                                 errors.long_headlines ? "border-red-500" : ""
                               } ${longHeadlineAssetId ? "bg-gray-50 border-gray-200 cursor-not-allowed" : ""}`}
-                              placeholder={`Long Headline ${index + 1}`}
+                              placeholder={`Long Headline ${index + 1} (max 90 characters)`}
                             />
                             {longHeadlineAssetId && (
                               <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
@@ -1019,9 +1056,9 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="form-label mb-0">
-                      Marketing Image URL *
+                      Marketing Image URL * <span className="text-[10px] text-[#556179] font-normal">(1.91:1 aspect ratio, min 600x314px)</span>
                     </label>
-                    {!formData.marketing_image_asset_id && profileId && (
+                    {profileId && (
                       <button
                         type="button"
                         onClick={() => openAssetSelector("IMAGE")}
@@ -1121,16 +1158,16 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                     </p>
                   )}
                   <p className="text-[10px] text-[#556179] mt-1">
-                    Required. Backend will not generate defaults. Recommended size: 1200x628px.
+                    Required. Enter image URL directly or select from assets. Must be 1.91:1 aspect ratio (landscape), minimum 600x314px, recommended 1200x628px.
                   </p>
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="form-label mb-0">
-                      Square Marketing Image URL *
+                      Square Marketing Image URL * <span className="text-[10px] text-[#556179] font-normal">(1:1 aspect ratio, min 300x300px)</span>
                     </label>
-                    {!formData.square_marketing_image_asset_id && profileId && (
+                    {profileId && (
                       <button
                         type="button"
                         onClick={() => openAssetSelector("SQUARE_IMAGE")}
@@ -1230,7 +1267,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                     </p>
                   )}
                   <p className="text-[10px] text-[#556179] mt-1">
-                    Required. Backend will not generate defaults. Recommended size: 512x512px (square).
+                    Required. Enter image URL directly or select from assets. Must be 1:1 aspect ratio (square), minimum 300x300px, recommended 1200x1200px.
                   </p>
                 </div>
               </div>
@@ -1243,12 +1280,20 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-[13px] font-semibold text-[#072929]">
                   Video Assets (Optional)
+                  <span className="text-[10px] text-[#556179] font-normal ml-2">
+                    ({formData.video_asset_resource_names?.length || 0}/5)
+                  </span>
                 </h4>
                 {profileId && (
                   <button
                     type="button"
                     onClick={() => openAssetSelector("VIDEO")}
-                    className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium"
+                    disabled={(formData.video_asset_resource_names?.length || 0) >= 5}
+                    className={`text-xs font-medium ${
+                      (formData.video_asset_resource_names?.length || 0) >= 5
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-[#136D6D] hover:text-[#0f5a5a]"
+                    }`}
                   >
                     Select Asset
                   </button>
@@ -1291,7 +1336,12 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                     })}
                   </div>
                 ) : (
-                  <p className="text-sm text-[#556179]">No video asset selected. Click "Select Asset" to add a video.</p>
+                  <p className="text-sm text-[#556179]">No video asset selected. Click "Select Asset" to add a video (max 5 allowed).</p>
+                )}
+                {(formData.video_asset_resource_names?.length || 0) >= 5 && (
+                  <p className="text-xs text-[#556179] mt-2">
+                    Maximum 5 videos reached. Videos must be horizontal (16:9), square (1:1), or vertical (9:16) aspect ratio, and at least 10 seconds in duration.
+                  </p>
                 )}
               </div>
             </div>

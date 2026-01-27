@@ -174,9 +174,10 @@ export const getMaxHeadlines = (): number => {
 
 /**
  * Get maximum descriptions allowed
+ * Per Google Ads API: Performance Max requires 2-5 descriptions
  */
 export const getMaxDescriptions = (): number => {
-  return 4;
+  return 5;
 };
 
 /**

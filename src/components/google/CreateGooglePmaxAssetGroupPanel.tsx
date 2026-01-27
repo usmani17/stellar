@@ -15,6 +15,8 @@ export interface PmaxAssetGroupInput {
     square_marketing_image_url?: string;
     business_name?: string;
     logo_url?: string;
+    video_asset_resource_names?: string[];
+    sitelink_asset_resource_names?: string[];
   };
 }
 
@@ -276,6 +278,12 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
           ...(formData.square_marketing_image_url?.trim() && { square_marketing_image_url: formData.square_marketing_image_url.trim() }),
           ...(formData.business_name?.trim() && { business_name: formData.business_name.trim() }),
           ...(formData.logo_url?.trim() && { logo_url: formData.logo_url.trim() }),
+          ...(formData.video_asset_resource_names && formData.video_asset_resource_names.length > 0 && { 
+            video_asset_resource_names: formData.video_asset_resource_names 
+          }),
+          ...(formData.sitelink_asset_resource_names && formData.sitelink_asset_resource_names.length > 0 && { 
+            sitelink_asset_resource_names: formData.sitelink_asset_resource_names 
+          }),
         },
       };
 

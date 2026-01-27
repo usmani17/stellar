@@ -126,6 +126,12 @@ export const googleAdwordsCampaignsService = {
         headlines: string[]; // Min 3, max 15
         descriptions: string[]; // Min 2, max 4
         long_headline: string; // Required
+        marketing_image_url?: string;
+        square_marketing_image_url?: string;
+        business_name?: string;
+        logo_url?: string;
+        video_asset_resource_names?: string[];
+        sitelink_asset_resource_names?: string[];
       };
     }
   ): Promise<{
