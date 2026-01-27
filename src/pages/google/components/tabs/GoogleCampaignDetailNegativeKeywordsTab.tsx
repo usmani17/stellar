@@ -766,7 +766,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                             options={[
                               { value: "ENABLED", label: "Enabled" },
                               { value: "PAUSED", label: "Paused" },
-                              { value: "REMOVED", label: "Removed" },
+                              { value: "REMOVED", label: "Remove" },
                             ]}
                             value={editingStatus}
                             onChange={(val) =>
@@ -808,7 +808,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                                 : negativeKeyword.status === "PAUSED" || negativeKeyword.status === "Paused" || negativeKeyword.status === "PAUSE"
                                 ? "Paused"
                                 : negativeKeyword.status === "REMOVED" || negativeKeyword.status === "Removed" || negativeKeyword.status === "REMOVE"
-                                ? "Removed"
+                                ? "Remove"
                                 : negativeKeyword.status || "Enabled"}
                             </span>
                             {onUpdateNegativeKeywordStatus && (

@@ -25,14 +25,14 @@ export const GoogleLanguageTargetingForm: React.FC<GoogleLanguageTargetingFormPr
   showTitle = true,
 }) => {
   return (
-    <div className="mt-6">
+    <>
       {showTitle && (
         <h3 className="text-[15px] font-bold text-[#072929] mb-3">
           Language Targeting
         </h3>
       )}
 
-      <div className="bg-gray-50 rounded-lg border border-gray-200 p-5">
+      <div>
         <div>
         <label className="form-label">
           Target Languages
@@ -94,6 +94,6 @@ export const GoogleLanguageTargetingForm: React.FC<GoogleLanguageTargetingFormPr
         )}
         </div>
       </div>
-    </div>
+    </>
   );
 };

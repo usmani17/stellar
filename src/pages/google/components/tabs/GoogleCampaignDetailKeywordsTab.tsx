@@ -185,10 +185,10 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
         const statusDisplayMap: Record<string, string> = {
           ENABLED: "Enabled",
           PAUSED: "Paused",
-          REMOVED: "Removed",
+          REMOVED: "Remove",
           Enabled: "Enabled",
           Paused: "Paused",
-          Removed: "Removed",
+          Removed: "Remove",
         };
         setInlineEditKeyword(keyword);
         setInlineEditField("status");
@@ -700,7 +700,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                               options={[
                                 { value: "ENABLED", label: "Enabled" },
                                 { value: "PAUSED", label: "Paused" },
-                                { value: "REMOVED", label: "Removed" },
+                                { value: "REMOVED", label: "Remove" },
                               ]}
                               value={editingStatus}
                               onChange={(val) =>
@@ -734,7 +734,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                                   : keyword.status === "PAUSED" || keyword.status === "Paused" || keyword.status === "PAUSE"
                                   ? "Paused"
                                   : keyword.status === "REMOVED" || keyword.status === "Removed" || keyword.status === "REMOVE"
-                                  ? "Removed"
+                                  ? "Remove"
                                   : keyword.status || "Enabled"}
                               </span>
                               {onUpdateKeywordStatus && (

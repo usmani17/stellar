@@ -373,16 +373,21 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
       value: valueToStore,
     };
 
+    let updatedFilters: FilterValues;
     if (editingFilterId) {
       // Replace existing filter
-      const updatedFilters = activeFilters.map((f) =>
+      updatedFilters = activeFilters.map((f) =>
         f.id === editingFilterId ? filterToAdd : f
       );
       setActiveFilters(updatedFilters);
     } else {
       // Add new filter
-      setActiveFilters([...activeFilters, filterToAdd]);
+      updatedFilters = [...activeFilters, filterToAdd];
+      setActiveFilters(updatedFilters);
     }
+
+    // Apply filters immediately when a filter is added/edited
+    onApply(updatedFilters);
 
     // Clear validation error and reset form
     setValidationError(null);
@@ -402,7 +407,8 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   const handleRemoveFilter = (filterId: string) => {
     const updatedFilters = activeFilters.filter((f) => f.id !== filterId);
     setActiveFilters(updatedFilters);
-    // Filters will auto-apply via useEffect
+    // Apply filters immediately when a filter is removed
+    onApply(updatedFilters);
     // If we were editing this filter, cancel edit mode
     if (editingFilterId === filterId) {
       setEditingFilterId(null);

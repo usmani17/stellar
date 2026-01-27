@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React from "react";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Dropdown } from "../ui/Dropdown";
 import { Checkbox } from "../ui/Checkbox";
@@ -17,6 +17,7 @@ interface NegativeTarget {
   state?: string;
   status?: string; // For backward compatibility
   adGroupId?: number;
+  adgroup_name?: string;
   campaignId?: string | number;
   creationDateTime?: string;
   lastUpdateDateTime?: string;
@@ -40,7 +41,7 @@ interface NegativeTargetsTableProps {
   editedValue?: string;
   onEditStart?: (id: number, field: "status", currentValue: string) => void;
   onEditChange?: (value: string) => void;
-  onEditEnd?: (value?: string) => void;
+  onEditEnd?: (value?: string, targetId?: number, field?: "status") => void;
   onEditCancel?: () => void;
   inlineEditLoading?: Set<number>;
   pendingChange?: {
@@ -73,7 +74,6 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
   inlineEditLoading = new Set(),
   pendingChange = null,
 }) => {
-  const statusSelectionMadeRef = useRef<number | null>(null);
   const allSelected =
     negativeTargets.length > 0 &&
     negativeTargets.every((ntg) => selectedIds.has(ntg.id));
@@ -131,8 +131,10 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
   };
 
   return (
-    <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
-
+    <div
+      className="table-container"
+      style={{ position: "relative", minHeight: loading ? "400px" : "auto" }}
+    >
       <div className="overflow-x-auto w-full">
         {loading ? (
           <div className="text-center py-8 text-[#556179] text-[13.3px]">
@@ -163,7 +165,8 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
               </h3>
               {/* Description */}
               <p className="text-sm text-[#556179] text-center leading-relaxed">
-                There are no negative targets for this campaign yet. Negative targets will appear here when they are created.
+                There are no negative targets for this campaign yet. Negative
+                targets will appear here when they are created.
               </p>
             </div>
           </div>
@@ -184,24 +187,19 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                   )}
 
                   {/* Profile ID Header */}
-                  <th className="table-header">
-                    Profile ID
-                  </th>
+                  <th className="table-header">Profile ID</th>
 
                   {/* Expression Header */}
-                  <th className="table-header">
-                    Expression
-                  </th>
+                  <th className="table-header">Expression</th>
 
                   {/* Resolved Expression Header */}
-                  <th className="table-header">
-                    Resolved Expression
-                  </th>
+                  <th className="table-header">Resolved Expression</th>
 
                   {/* State Header */}
                   <th
-                    className={`table-header min-w-[250px] ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                      }`}
+                    className={`table-header min-w-[250px] ${
+                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
                     onClick={() => onSort?.("state")}
                   >
                     <div className="flex items-center gap-1">
@@ -211,14 +209,10 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                   </th>
 
                   {/* Ad Group Header */}
-                  <th className="table-header">
-                    Ad Group
-                  </th>
+                  <th className="table-header">Ad Group</th>
 
                   {/* Campaign ID Header */}
-                  <th className="table-header">
-                    Campaign ID
-                  </th>
+                  <th className="table-header">Campaign ID</th>
                 </tr>
               </thead>
               <tbody>
@@ -233,13 +227,15 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                     target.resolvedExpression ||
                     target.resolvedExpressions ||
                     "";
-                  const statusValue = target.status || target.state || "ENABLED";
+                  const statusValue =
+                    target.status || target.state || "ENABLED";
                   const isArchived = statusValue?.toLowerCase() === "archived";
                   return (
                     <tr
                       key={target.id}
-                      className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
-                        } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
+                      className={`${
+                        !isLastRow ? "border-b border-[#e8e8e3]" : ""
+                      } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
                     >
                       {/* Checkbox */}
                       {onSelect && (
@@ -274,61 +270,109 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
 
                       {/* State */}
                       <td className="table-cell min-w-[250px]">
-                        {editingField?.id === target.id &&
-                          editingField?.field === "status" ? (
-                          <Dropdown
-                            options={[
-                              ...(campaignType === "SD"
-                                ? [
-                                  { value: "enabled", label: "Enabled" },
-                                  { value: "paused", label: "Paused" },
-                                  { value: "archived", label: "Archived" },
-                                ]
-                                : [
-                                  { value: "ENABLED", label: "ENABLED" },
-                                  { value: "PAUSED", label: "PAUSED" },
-                                ]),
-                            ]}
-                            value={editedValue || target.state || (campaignType === "SD" ? "enabled" : "ENABLED")}
-                            onChange={(value) => {
-                              statusSelectionMadeRef.current = target.id;
-                              onEditChange?.(value);
-                              onEditEnd?.(value);
-                            }}
-                            onClose={() => {
-                              if (
-                                statusSelectionMadeRef.current !== target.id
-                              ) {
-                                onEditCancel?.();
-                              }
-                              statusSelectionMadeRef.current = null;
-                            }}
-                            defaultOpen={true}
-                            buttonClassName="inline-edit-dropdown"
-                            width="w-full"
-                            align="center"
-                          />
-                        ) : (
-                          <div
-                            className={`rounded px-2 py-1 transition-colors ${isArchived
-                              ? "cursor-not-allowed opacity-60"
-                              : "cursor-pointer hover:bg-gray-100"
-                              }`}
-                            onClick={() => {
-                              if (!isArchived) {
-                                onEditStart?.(target.id, "status", statusValue);
-                              }
-                            }}
-                          >
+                        {inlineEditLoading.has(target.id) ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
+                            <span className="table-text leading-[1.26]">
+                              Updating...
+                            </span>
+                          </div>
+                        ) : pendingChange?.id === target.id &&
+                          pendingChange?.field === "status" ? (
+                          <div className="flex items-center gap-2">
+                            <span className="table-text leading-[1.26]">
+                              {pendingChange.newValue === "enabled" ||
+                              pendingChange.newValue === "ENABLED"
+                                ? campaignType === "SD"
+                                  ? "Enabled"
+                                  : "ENABLED"
+                                : pendingChange.newValue === "paused" ||
+                                    pendingChange.newValue === "PAUSED"
+                                  ? campaignType === "SD"
+                                    ? "Paused"
+                                    : "PAUSED"
+                                  : "Archived"}
+                            </span>
+                          </div>
+                        ) : isArchived ? (
+                          <div className="opacity-60">
                             <StatusBadge
                               status={statusValue}
                               uppercase={campaignType !== "SD"}
                             />
-                            {inlineEditLoading.has(target.id) && (
-                              <span className="ml-2 text-[11.2px] text-gray-500">
-                                Updating...
-                              </span>
-                            )}
+                          </div>
+                        ) : (
+                          <div className="w-[120px]">
+                            <Dropdown
+                              options={[
+                                ...(campaignType === "SD"
+                                  ? [
+                                      { value: "enabled", label: "Enabled" },
+                                      { value: "paused", label: "Paused" },
+                                      {
+                                        value: "archived",
+                                        label: "Archived",
+                                      },
+                                    ]
+                                  : [
+                                      { value: "ENABLED", label: "ENABLED" },
+                                      { value: "PAUSED", label: "PAUSED" },
+                                    ]),
+                              ]}
+                              value={(() => {
+                                const raw =
+                                  target.status || target.state || "ENABLED";
+                                const lower = raw?.toLowerCase() || "enabled";
+                                const normalized =
+                                  campaignType === "SD"
+                                    ? lower === "enable" || lower === "enabled"
+                                      ? "enabled"
+                                      : lower === "paused"
+                                        ? "paused"
+                                        : lower === "archived" ||
+                                            lower === "archive"
+                                          ? "archived"
+                                          : "enabled"
+                                    : lower === "enable" || lower === "enabled"
+                                      ? "ENABLED"
+                                      : "PAUSED";
+                                return editingField?.id === target.id &&
+                                  editingField?.field === "status"
+                                  ? editedValue
+                                  : normalized;
+                              })()}
+                              onChange={(value) => {
+                                const raw =
+                                  target.status || target.state || "ENABLED";
+                                const lower = raw?.toLowerCase() || "enabled";
+                                const currentStatus =
+                                  campaignType === "SD"
+                                    ? lower === "enable" || lower === "enabled"
+                                      ? "enabled"
+                                      : lower === "paused"
+                                        ? "paused"
+                                        : "archived"
+                                    : lower === "enable" || lower === "enabled"
+                                      ? "ENABLED"
+                                      : "PAUSED";
+                                const wasEditing =
+                                  editingField?.id === target.id &&
+                                  editingField?.field === "status";
+
+                                if (!wasEditing) {
+                                  onEditStart?.(
+                                    target.id,
+                                    "status",
+                                    currentStatus,
+                                  );
+                                }
+                                onEditChange?.(value);
+                                onEditEnd?.(value, target.id, "status");
+                              }}
+                              buttonClassName="inline-edit-dropdown"
+                              width="w-full"
+                              align="center"
+                            />
                           </div>
                         )}
                       </td>
@@ -345,7 +389,9 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                               return agId === targetId;
                             });
                             // Return name if found, otherwise fall back to ID
-                            return adgroup?.name || String(target.adGroupId) || "—";
+                            return (
+                              adgroup?.name || String(target.adGroupId) || "—"
+                            );
                           })()}
                         </span>
                       </td>

@@ -1179,13 +1179,16 @@ export const GoogleCampaigns: React.FC = () => {
           updatePayload.pmax_assets.square_marketing_image_url = newSquareImage;
         }
 
-        // Check long_headline
-        const originalLongHeadline =
-          original.long_headline || originalExtraData.long_headline || "";
-        const newLongHeadline = data.long_headline || "";
-        if (newLongHeadline !== originalLongHeadline && newLongHeadline) {
+        // Check long_headlines (plural array) - backward compatible with long_headline (singular)
+        const originalLongHeadlines = original.long_headlines || 
+          (originalExtraData.long_headlines ? originalExtraData.long_headlines : 
+           (originalExtraData.long_headline ? [originalExtraData.long_headline] : []));
+        const newLongHeadlines = data.long_headlines || [];
+        // Compare arrays - check if they're different
+        const longHeadlinesChanged = JSON.stringify(originalLongHeadlines) !== JSON.stringify(newLongHeadlines);
+        if (longHeadlinesChanged && newLongHeadlines.length > 0) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
-          updatePayload.pmax_assets.long_headline = newLongHeadline;
+          updatePayload.pmax_assets.long_headlines = newLongHeadlines;
         }
 
         // Check asset_group_name
@@ -1352,7 +1355,10 @@ export const GoogleCampaigns: React.FC = () => {
       if (pmaxAssets?.square_marketing_image_url) {
         updatedFields.push({ field: "Square Marketing Image", value: pmaxAssets.square_marketing_image_url });
       }
-      if (pmaxAssets?.long_headline) {
+      // Handle long_headlines (plural array) - backward compatible with long_headline (singular)
+      if (pmaxAssets?.long_headlines && Array.isArray(pmaxAssets.long_headlines)) {
+        updatedFields.push({ field: "Long Headlines", value: pmaxAssets.long_headlines.join(", ") });
+      } else if (pmaxAssets?.long_headline) {
         updatedFields.push({ field: "Long Headline", value: pmaxAssets.long_headline });
       }
       if (pmaxAssets?.asset_group_name) {
@@ -1578,8 +1584,23 @@ export const GoogleCampaigns: React.FC = () => {
         if (extra_data.descriptions && Array.isArray(extra_data.descriptions)) {
           initial.descriptions = extra_data.descriptions;
         }
-        if (extra_data.long_headline) {
-          initial.long_headline = extra_data.long_headline;
+        // Handle long_headlines (plural array) - backward compatible with long_headline (singular)
+        if (extra_data.long_headlines && Array.isArray(extra_data.long_headlines)) {
+          initial.long_headlines = extra_data.long_headlines;
+        } else if (extra_data.long_headline) {
+          // Backward compatibility: if singular long_headline exists, convert to array
+          initial.long_headlines = [extra_data.long_headline];
+        }
+        
+        // Handle video, sitelink, and callout asset resource names
+        if (extra_data.video_asset_resource_names && Array.isArray(extra_data.video_asset_resource_names)) {
+          initial.video_asset_resource_names = extra_data.video_asset_resource_names;
+        }
+        if (extra_data.sitelink_asset_resource_names && Array.isArray(extra_data.sitelink_asset_resource_names)) {
+          initial.sitelink_asset_resource_names = extra_data.sitelink_asset_resource_names;
+        }
+        if (extra_data.callout_asset_resource_names && Array.isArray(extra_data.callout_asset_resource_names)) {
+          initial.callout_asset_resource_names = extra_data.callout_asset_resource_names;
         }
         if (extra_data.marketing_image_url) {
           initial.marketing_image_url = extra_data.marketing_image_url;

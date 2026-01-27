@@ -161,7 +161,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
         { value: "PAUSED", label: "Paused" },
-        { value: "REMOVED", label: "Removed" },
+        { value: "REMOVED", label: "Remove" },
       ],
       getValue: (row: IGoogleCampaign) => getStatusWithDefault(row.status),
     },
@@ -364,6 +364,10 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
 
     // Check if status is being changed to REMOVED - show confirmation modal
     if (fieldToUse === "status" && value === "REMOVED") {
+      // Close the dropdown immediately when modal appears (matches ENABLED/PAUSED behavior)
+      if (onCancelInlineEdit) {
+        onCancelInlineEdit();
+      }
       setPendingRemoveChange({ value: "REMOVED", campaignId: campaignIdToUse!, field: fieldToUse });
       setShowRemoveConfirmation(true);
       return;
