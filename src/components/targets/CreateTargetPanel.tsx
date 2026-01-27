@@ -22,6 +22,8 @@ export interface TargetInput {
   // SD-specific: for nested expressions
   sdNestedType?: "views" | "audience" | "purchases";
   sdNestedPredicates?: Array<{ type: string; value: string }>;
+  // SD-specific: for Targeting Predicate tab (array of {type, value} — API accepts array)
+  sdTargetingPredicates?: Array<{ type: string; value: string }>;
   // SD-specific: for content targeting (array of objects with type and value)
   sdContentCategories?: Array<{ type: string; value: string }>;
 }
@@ -496,6 +498,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
       campaignType === "SD" ? "TargetingPredicate" : undefined,
     sdNestedType: undefined,
     sdNestedPredicates: campaignType === "SD" ? [{ type: SD_NESTED_PREDICATE_TYPES[0]?.value || "", value: "" }] : [],
+    sdTargetingPredicates: campaignType === "SD" ? [{ type: "", value: "" }] : [],
     sdContentCategories: [],
   });
   const [addedTargets, setAddedTargets] = useState<TargetInput[]>([]);
@@ -529,6 +532,8 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
         updated.sdContentCategories = [];
         updated.sdNestedType = undefined;
         updated.sdNestedPredicates = [];
+        updated.sdTargetingPredicates =
+          value === "TargetingPredicate" ? [{ type: "", value: "" }] : [];
       }
       return updated;
     });
@@ -597,6 +602,38 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
     });
   };
 
+  const handleAddTargetingPredicate = () => {
+    setCurrentTarget((prev) => ({
+      ...prev,
+      sdTargetingPredicates: [
+        ...(prev.sdTargetingPredicates || []),
+        { type: SD_TARGETING_PREDICATE_TYPES[0]?.value || "", value: "" },
+      ],
+    }));
+  };
+
+  const handleRemoveTargetingPredicate = (index: number) => {
+    setCurrentTarget((prev) => {
+      const next = (prev.sdTargetingPredicates || []).filter((_, i) => i !== index);
+      return {
+        ...prev,
+        sdTargetingPredicates: next.length > 0 ? next : [{ type: "", value: "" }],
+      };
+    });
+  };
+
+  const handleTargetingPredicateChange = (
+    index: number,
+    field: "type" | "value",
+    value: string
+  ) => {
+    setCurrentTarget((prev) => {
+      const predicates = [...(prev.sdTargetingPredicates || [])];
+      predicates[index] = { ...predicates[index], [field]: value };
+      return { ...prev, sdTargetingPredicates: predicates };
+    });
+  };
+
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof TargetInput, string>> = {};
 
@@ -615,15 +652,26 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
           "Expression structure type is required";
       } else {
         if (currentTarget.sdExpressionStructureType === "TargetingPredicate") {
-          const predicateType =
-            currentTarget.expression?.[0]?.type ||
-            currentTarget.expressionValue;
-          const predicateValue = currentTarget.expression?.[0]?.value as string;
-          if (!predicateType) {
-            newErrors.expressionValue = "Predicate type is required";
-          }
-          if (!predicateValue?.trim()) {
-            newErrors.expressionValue = "Predicate value is required";
+          const preds = currentTarget.sdTargetingPredicates || [];
+          const validCount = preds.filter(
+            (p) => p.type && (p.value ?? "").trim()
+          ).length;
+          if (validCount === 0) {
+            newErrors.sdTargetingPredicates =
+              "At least one targeting predicate (type and value) is required";
+          } else {
+            preds.forEach((p, idx) => {
+              if (!p.type && (p.value ?? "").trim()) {
+                newErrors[
+                  `targetingPredicate_${idx}_type` as keyof TargetInput
+                ] = "Predicate type is required";
+              }
+              if (p.type && !(p.value ?? "").trim()) {
+                newErrors[
+                  `targetingPredicate_${idx}_value` as keyof TargetInput
+                ] = "Predicate value is required";
+              }
+            });
           }
         } else if (
           currentTarget.sdExpressionStructureType ===
@@ -686,17 +734,14 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
     if (campaignType === "SD" && targetToAdd.sdExpressionStructureType) {
       // Build expression based on structure type
       if (targetToAdd.sdExpressionStructureType === "TargetingPredicate") {
-        // Use expression array if available, otherwise build from expressionValue
-        if (!targetToAdd.expression || targetToAdd.expression.length === 0) {
-          const predicateType =
-            targetToAdd.expression?.[0]?.type || targetToAdd.expressionValue;
-          const predicateValue =
-            (targetToAdd.expression?.[0]?.value as string) || "";
-          if (predicateType) {
-            targetToAdd.expression = [
-              { type: predicateType, value: predicateValue },
-            ];
-          }
+        const preds = (targetToAdd.sdTargetingPredicates || []).filter(
+          (p) => p.type && (p.value ?? "").trim()
+        );
+        if (preds.length > 0) {
+          targetToAdd.expression = preds.map((p) => ({
+            type: p.type,
+            value: (p.value ?? "").trim(),
+          }));
         }
       } else if (
         targetToAdd.sdExpressionStructureType === "ContentTargetingPredicate"
@@ -754,6 +799,8 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
         campaignType === "SD" ? "TargetingPredicate" : undefined,
       sdNestedType: undefined,
       sdNestedPredicates: [],
+      sdTargetingPredicates:
+        campaignType === "SD" ? [{ type: "", value: "" }] : [],
       sdContentCategories: [],
       expression: undefined,
     });
@@ -917,6 +964,8 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
         campaignType === "SD" ? "TargetingPredicate" : undefined,
       sdNestedType: undefined,
       sdNestedPredicates: [],
+      sdTargetingPredicates:
+        campaignType === "SD" ? [{ type: "", value: "" }] : [],
       sdContentCategories: [],
     });
     setErrors({});
@@ -1171,74 +1220,108 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                 )}
 
               {/* Show only active tab form */}
-              {/* TargetingPredicate fields */}
+              {/* TargetingPredicate fields — API accepts array; user can add as many as needed */}
               {activeExpressionTab === "TargetingPredicate" && (
                   <div className="tab-content">
-                    <div className="flex items-end gap-3 grid grid-cols-4">
-                  <div className="flex-1 min-w-[200px]">
-                    <label className="form-label-small">
-                      Predicate Type *
+                    <label className="block text-[11.2px] font-semibold text-[#556179] uppercase mb-2">
+                      Targeting Predicates *
                     </label>
-                    <Dropdown<string>
-                      options={SD_TARGETING_PREDICATE_TYPES}
-                      value={
-                        currentTarget.expression?.[0]?.type ||
-                        currentTarget.expressionValue ||
-                        ""
-                      }
-                      onChange={(value) => {
-                        const currentValue =
-                          currentTarget.expression?.[0]?.value || "";
-                        setCurrentTarget((prev) => ({
-                          ...prev,
-                          expressionValue: value,
-                          expression: value
-                            ? [{ type: value, value: currentValue }]
-                            : [],
-                        }));
-                      }}
-                      placeholder="Select predicate type"
-                      buttonClassName="edit-button w-full"
-                    />
-                    {errors.expressionValue && (
+                    {(currentTarget.sdTargetingPredicates || []).map(
+                      (pred, idx) => (
+                        <div
+                          key={idx}
+                          className="grid grid-cols-[1fr_1fr_auto] items-end gap-3 mb-3"
+                        >
+                          <div className="flex-1 min-w-[160px]">
+                            <label className="form-label-small">
+                              Predicate Type *
+                            </label>
+                            <Dropdown<string>
+                              options={SD_TARGETING_PREDICATE_TYPES}
+                              value={pred.type}
+                              onChange={(value) =>
+                                handleTargetingPredicateChange(idx, "type", value ?? "")
+                              }
+                              placeholder="Select predicate type"
+                              buttonClassName="edit-button w-full"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-[160px]">
+                            <label className="form-label-small">
+                              Predicate Value *
+                            </label>
+                            <input
+                              type="text"
+                              value={pred.value}
+                              onChange={(e) =>
+                                handleTargetingPredicateChange(
+                                  idx,
+                                  "value",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="Enter value (e.g., ASIN)"
+                              className={`w-full campaign-input ${
+                                errors.expressionValue ? "border-red-500" : "border-gray-200"
+                              }`}
+                            />
+                          </div>
+                          <div className="flex items-end pb-1">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTargetingPredicate(idx)}
+                              className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                              title="Remove predicate"
+                              disabled={
+                                (currentTarget.sdTargetingPredicates?.length ?? 0) <= 1
+                              }
+                            >
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    )}
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={handleAddTargetingPredicate}
+                        className="flex items-center gap-2 px-3 py-2 text-[#136D6D] hover:text-[#0f5555] hover:bg-[#136D6D]/5 rounded-lg transition-colors text-[13px] font-medium"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4v16m8-8H4"
+                          />
+                        </svg>
+                        Add predicate
+                      </button>
+                    </div>
+                    {errors.sdTargetingPredicates && (
                       <p className="text-[10px] text-red-500 mt-1">
-                        {errors.expressionValue}
+                        {errors.sdTargetingPredicates}
                       </p>
                     )}
                   </div>
-                  <div className="flex-1 min-w-[200px]">
-                    <label className="form-label-small">
-                      Predicate Value *
-                    </label>
-                    <div className="flex-1 min-w-[200px]">
-                    <input
-                      type="text"
-                      value={
-                        (currentTarget.expression?.[0]?.value as string) || ""
-                      }
-                      onChange={(e) => {
-                        const exprType =
-                          currentTarget.expression?.[0]?.type ||
-                          currentTarget.expressionValue;
-                        if (exprType) {
-                          setCurrentTarget((prev) => ({
-                            ...prev,
-                            expression: [
-                              { type: exprType, value: e.target.value },
-                            ],
-                          }));
-                        }
-                      }}
-                      placeholder="Enter value (e.g., ASIN)"
-                            className={`w-full campaign-input    ${errors.expressionValue
-                          ? "border-red-500"
-                          : "border-gray-200"
-                        }`}
-                      />
-                        </div>
-                    </div>  
-                  </div>
-                </div>
               )}
 
               {/* ContentTargetingPredicate field */}
@@ -1570,10 +1653,12 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                               {campaignType === "SD"
                                 ? target.sdExpressionStructureType ===
                                   "TargetingPredicate"
-                                  ? `${target.expression?.[0]?.type ||
-                                      target.expressionValue ||
-                                      "—"
-                                    }: ${target.expression?.[0]?.value || "—"}`
+                                  ? target.expression &&
+                                    target.expression.length > 0
+                                    ? (target.expression as Array<{ type: string; value: string }>)
+                                        .map((e) => `${e.type}: ${e.value ?? "—"}`)
+                                        .join(", ")
+                                    : "—"
                                   : target.sdExpressionStructureType ===
                                     "ContentTargetingPredicate"
                                   ? target.expression &&

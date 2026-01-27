@@ -2158,7 +2158,7 @@ const InteractiveToggleExample: React.FC = () => {
   return (
     <div className="space-y-4 p-4 border border-sandstorm-s40 rounded-xl">
       <div className="flex items-center justify-between gap-4">
-        <label className="text-base text-neutral-n1000" className="font-inter">
+        <label className="text-base text-neutral-n1000 font-inter">
           Enable notifications
         </label>
         <Toggle
@@ -2168,19 +2168,19 @@ const InteractiveToggleExample: React.FC = () => {
         />
       </div>
       <div className="flex items-center justify-between gap-4">
-        <label className="text-base text-neutral-n1000" className="font-inter">
+        <label className="text-base text-neutral-n1000 font-inter">
           Dark mode
         </label>
         <Toggle size="regular" checked={darkMode} onChange={setDarkMode} />
       </div>
       <div className="flex items-center justify-between gap-4">
-        <label className="text-base text-neutral-n1000" className="font-inter">
+        <label className="text-base text-neutral-n1000 font-inter">
           Auto-save documents
         </label>
         <Toggle size="regular" checked={autoSave} onChange={setAutoSave} />
       </div>
       <div className="flex items-center justify-between gap-4">
-        <label className="text-base text-neutral-n400" className="font-inter">
+        <label className="text-base text-neutral-n400 font-inter">
           Disabled option
         </label>
         <Toggle size="regular" checked disabled />

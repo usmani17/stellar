@@ -102,6 +102,10 @@ api.interceptors.response.use(
           localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
+          const path = window.location.pathname + window.location.search + (window.location.hash || "");
+          if (path && path !== "/login") {
+            sessionStorage.setItem("loginRedirect", path);
+          }
           window.location.href = "/login";
           return Promise.reject(refreshError);
         }
@@ -131,6 +135,10 @@ api.interceptors.response.use(
           localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
+          const path = window.location.pathname + window.location.search + (window.location.hash || "");
+          if (path && path !== "/login") {
+            sessionStorage.setItem("loginRedirect", path);
+          }
           window.location.href = "/login";
           return Promise.reject(auth0Error);
         }

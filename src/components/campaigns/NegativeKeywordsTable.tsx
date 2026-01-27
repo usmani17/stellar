@@ -131,7 +131,10 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
   };
 
   return (
-    <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
+    <div
+      className="table-container"
+      style={{ position: "relative", minHeight: loading ? "400px" : "auto" }}
+    >
       <div className="overflow-x-auto w-full">
         {loading ? (
           <div className="text-center py-8 text-[#556179] text-[13.3px]">
@@ -162,7 +165,8 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
               </h3>
               {/* Description */}
               <p className="text-sm text-[#556179] text-center leading-relaxed">
-                There are no negative keywords for this campaign yet. Negative keywords will appear here when they are created.
+                There are no negative keywords for this campaign yet. Negative
+                keywords will appear here when they are created.
               </p>
             </div>
           </div>
@@ -183,19 +187,16 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                   )}
 
                   {/* Profile ID Header */}
-                  <th className="table-header">
-                    Profile ID
-                  </th>
+                  <th className="table-header">Profile ID</th>
 
                   {/* Keyword ID Header */}
-                  <th className="table-header">
-                    Keyword ID
-                  </th>
+                  <th className="table-header">Keyword ID</th>
 
                   {/* Keyword Text Header */}
                   <th
-                    className={`table-header max-w-[200px] ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                      }`}
+                    className={`table-header max-w-[200px] ${
+                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
                     onClick={() => onSort?.("keywordText")}
                   >
                     <div className="flex items-center gap-1">
@@ -206,8 +207,9 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
 
                   {/* Match Type Header */}
                   <th
-                    className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                      }`}
+                    className={`table-header ${
+                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
                     onClick={() => onSort?.("matchType")}
                   >
                     <div className="flex items-center gap-1">
@@ -218,8 +220,9 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
 
                   {/* State Header */}
                   <th
-                    className={`table-header min-w-[250px] ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                      }`}
+                    className={`table-header min-w-[250px] ${
+                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
                     onClick={() => onSort?.("state")}
                   >
                     <div className="flex items-center gap-1">
@@ -229,27 +232,24 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                   </th>
 
                   {/* Ad Group ID Header */}
-                  <th className="table-header">
-                    Ad Group ID
-                  </th>
+                  <th className="table-header">Ad Group ID</th>
 
                   {/* Campaign ID Header */}
-                  <th className="table-header">
-                    Campaign ID
-                  </th>
-
+                  <th className="table-header">Campaign ID</th>
                 </tr>
               </thead>
               <tbody>
                 {negativeKeywords.map((keyword, index) => {
                   const isLastRow = index === negativeKeywords.length - 1;
-                  const statusValue = keyword.status || keyword.state || "Enabled";
+                  const statusValue =
+                    keyword.status || keyword.state || "Enabled";
                   const isArchived = statusValue?.toLowerCase() === "archived";
                   return (
                     <tr
                       key={keyword.id}
-                      className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
-                        } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
+                      className={`${
+                        !isLastRow ? "border-b border-[#e8e8e3]" : ""
+                      } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
                     >
                       {/* Checkbox */}
                       {onSelect && (
@@ -293,9 +293,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                             </div>
                           </Tooltip>
                         ) : (
-                          <span className="table-text leading-[1.26]">
-                            —
-                          </span>
+                          <span className="table-text leading-[1.26]">—</span>
                         )}
                       </td>
 
@@ -377,7 +375,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                                 // Only cancel if no selection was made (clicked outside)
                                 if (
                                   statusSelectionMadeRef.current !==
-                                  keyword.id &&
+                                    keyword.id &&
                                   editingField?.id === keyword.id
                                 ) {
                                   onEditCancel?.();
@@ -392,19 +390,24 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                           </div>
                         ) : (
                           <div
-                            className={`text-[13.3px] leading-[1.26] ${isArchived
-                              ? "cursor-not-allowed opacity-60"
-                              : "cursor-pointer hover:underline"
-                              }`}
+                            className={`text-[13.3px] leading-[1.26] ${
+                              isArchived
+                                ? "cursor-not-allowed opacity-60"
+                                : "cursor-pointer hover:underline"
+                            }`}
                             onClick={() => {
                               if (!isArchived) {
                                 const statusLower = statusValue.toLowerCase();
                                 const editStatusValue =
                                   statusLower === "enable" ||
-                                    statusLower === "enabled"
+                                  statusLower === "enabled"
                                     ? "enabled"
                                     : "paused";
-                                onEditStart?.(keyword.id, "status", editStatusValue);
+                                onEditStart?.(
+                                  keyword.id,
+                                  "status",
+                                  editStatusValue,
+                                );
                               }
                             }}
                           >
@@ -429,7 +432,6 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                           {keyword.campaignId || "—"}
                         </span>
                       </td>
-
                     </tr>
                   );
                 })}
@@ -438,6 +440,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
           </div>
         )}
       </div>
+
       {loading && (
         <div className="loading-overlay">
           <div className="loading-overlay-content">
@@ -445,11 +448,15 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
           </div>
         </div>
       )}
-      {negativeKeywords.length === 0 && (
+      {/* {negativeKeywords.length === 0 && (
         <div className="text-center py-8">
-          <Loader message="No negative keywords found" showMessage={false} size="md" />
+          <Loader
+            message="No negative keywords found"
+            showMessage={false}
+            size="md"
+          />
         </div>
-      )}
+      )} */}
     </div>
   );
 };
