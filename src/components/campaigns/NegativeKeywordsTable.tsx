@@ -49,6 +49,7 @@ interface NegativeKeywordsTableProps {
     newValue: string;
     oldValue: string;
   } | null;
+  adgroups?: Array<{ adGroupId: number | string; name?: string }>; // Ad groups to map IDs to names
 }
 
 export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
@@ -68,6 +69,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
   onEditCancel,
   inlineEditLoading = new Set(),
   pendingChange = null,
+  adgroups = [],
 }) => {
   const statusSelectionMadeRef = useRef<number | null>(null);
   const allSelected =
@@ -232,8 +234,11 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                     </div>
                   </th>
 
-                  {/* Ad Group Name Header */}
-                  <th className="table-header">Ad Group Name</th>
+                  {/* Ad Group Header */}
+                  <th className="table-header">Ad Group</th>
+
+                  {/* Campaign ID Header */}
+                  <th className="table-header">Campaign ID</th>
                 </tr>
               </thead>
               <tbody>
@@ -420,7 +425,21 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                       {/* Ad Group Name */}
                       <td className="table-cell">
                         <span className="table-text leading-[1.26]">
-                          {keyword.adgroup_name || "—"}
+                          {(() => {
+                            const adgroup = adgroups.find(
+                              (ag) =>
+                                String(ag.adGroupId) ===
+                                String(keyword.adGroupId),
+                            );
+                            return adgroup?.name || keyword.adGroupId || "—";
+                          })()}
+                        </span>
+                      </td>
+
+                      {/* Campaign ID */}
+                      <td className="table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {keyword.campaignId || "—"}
                         </span>
                       </td>
                     </tr>

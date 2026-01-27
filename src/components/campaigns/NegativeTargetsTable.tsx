@@ -51,6 +51,7 @@ interface NegativeTargetsTableProps {
     oldValue: string;
   } | null;
   campaignType?: string; // SP, SB, or SD
+  adgroups?: Array<{ adGroupId: number | string; name?: string }>; // Ad groups to map IDs to names
 }
 
 export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
@@ -59,6 +60,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
   onSelectAll,
   onSelect,
   selectedIds = new Set(),
+  adgroups = [],
   sortBy = "id",
   sortOrder = "asc",
   campaignType,
@@ -129,8 +131,10 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
   };
 
   return (
-    <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
-
+    <div
+      className="table-container"
+      style={{ position: "relative", minHeight: loading ? "400px" : "auto" }}
+    >
       <div className="overflow-x-auto w-full">
         {loading ? (
           <div className="text-center py-8 text-[#556179] text-[13.3px]">
@@ -161,7 +165,8 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
               </h3>
               {/* Description */}
               <p className="text-sm text-[#556179] text-center leading-relaxed">
-                There are no negative targets for this campaign yet. Negative targets will appear here when they are created.
+                There are no negative targets for this campaign yet. Negative
+                targets will appear here when they are created.
               </p>
             </div>
           </div>
@@ -182,24 +187,19 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                   )}
 
                   {/* Profile ID Header */}
-                  <th className="table-header">
-                    Profile ID
-                  </th>
+                  <th className="table-header">Profile ID</th>
 
                   {/* Expression Header */}
-                  <th className="table-header">
-                    Expression
-                  </th>
+                  <th className="table-header">Expression</th>
 
                   {/* Resolved Expression Header */}
-                  <th className="table-header">
-                    Resolved Expression
-                  </th>
+                  <th className="table-header">Resolved Expression</th>
 
                   {/* State Header */}
                   <th
-                    className={`table-header min-w-[250px] ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                      }`}
+                    className={`table-header min-w-[250px] ${
+                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
                     onClick={() => onSort?.("state")}
                   >
                     <div className="flex items-center gap-1">
@@ -208,10 +208,11 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                     </div>
                   </th>
 
-                  {/* Ad Group Name Header */}
-                  <th className="table-header">
-                    Ad Group Name
-                  </th>
+                  {/* Ad Group Header */}
+                  <th className="table-header">Ad Group</th>
+
+                  {/* Campaign ID Header */}
+                  <th className="table-header">Campaign ID</th>
                 </tr>
               </thead>
               <tbody>
@@ -226,13 +227,15 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                     target.resolvedExpression ||
                     target.resolvedExpressions ||
                     "";
-                  const statusValue = target.status || target.state || "ENABLED";
+                  const statusValue =
+                    target.status || target.state || "ENABLED";
                   const isArchived = statusValue?.toLowerCase() === "archived";
                   return (
                     <tr
                       key={target.id}
-                      className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
-                        } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
+                      className={`${
+                        !isLastRow ? "border-b border-[#e8e8e3]" : ""
+                      } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
                     >
                       {/* Checkbox */}
                       {onSelect && (
@@ -284,11 +287,11 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                                   ? "Enabled"
                                   : "ENABLED"
                                 : pendingChange.newValue === "paused" ||
-                                  pendingChange.newValue === "PAUSED"
-                                ? campaignType === "SD"
-                                  ? "Paused"
-                                  : "PAUSED"
-                                : "Archived"}
+                                    pendingChange.newValue === "PAUSED"
+                                  ? campaignType === "SD"
+                                    ? "Paused"
+                                    : "PAUSED"
+                                  : "Archived"}
                             </span>
                           </div>
                         ) : isArchived ? (
@@ -360,7 +363,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                                   onEditStart?.(
                                     target.id,
                                     "status",
-                                    currentStatus
+                                    currentStatus,
                                   );
                                 }
                                 onEditChange?.(value);
@@ -377,7 +380,26 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                       {/* Ad Group Name */}
                       <td className="table-cell">
                         <span className="table-text leading-[1.26]">
-                          {target.adgroup_name || "—"}
+                          {(() => {
+                            if (!target.adGroupId) return "—";
+                            // Try to find ad group by matching IDs (handle both string and number)
+                            const adgroup = adgroups.find((ag) => {
+                              const agId = String(ag.adGroupId || "");
+                              const targetId = String(target.adGroupId || "");
+                              return agId === targetId;
+                            });
+                            // Return name if found, otherwise fall back to ID
+                            return (
+                              adgroup?.name || String(target.adGroupId) || "—"
+                            );
+                          })()}
+                        </span>
+                      </td>
+
+                      {/* Campaign ID */}
+                      <td className="table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {target.campaignId || "—"}
                         </span>
                       </td>
                     </tr>

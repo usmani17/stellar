@@ -148,6 +148,7 @@ export interface AdGroup {
   impressions?: number;
   acos?: string;
   roas?: string;
+  creativeType?: string | null; // SD only: IMAGE or VIDEO
 }
 
 export interface AdGroupsSummary {

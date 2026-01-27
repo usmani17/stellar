@@ -8424,6 +8424,12 @@ export const CampaignDetail: React.FC = () => {
                     onEditCancel={handleNegativeTargetEditCancel}
                     inlineEditLoading={negativeTargetEditLoading}
                     pendingChange={pendingNegativeTargetChange}
+                    adgroups={(allAdgroups.length > 0 ? allAdgroups : adgroups)
+                      .filter(ag => ag.adGroupId != null)
+                      .map(ag => ({
+                        adGroupId: ag.adGroupId!,
+                        name: ag.name
+                      }))}
                   />
                 </div>
                 {/* Pagination */}
@@ -8795,6 +8801,7 @@ export const CampaignDetail: React.FC = () => {
                       ).map((ag) => ({
                         adGroupId: ag.adGroupId,
                         name: ag.name || `Ad Group ${ag.adGroupId}`,
+                        creativeType: ag.creativeType || null,
                       }))}
                       loading={createCreativeLoading}
                       editCreative={editingCreative}
@@ -8822,6 +8829,7 @@ export const CampaignDetail: React.FC = () => {
                     sortOrder={creativesSortOrder}
                     onSort={handleCreativesSort}
                     onEdit={handleEditCreative}
+                    adgroups={adgroups}
                   />
                 </div>
 
