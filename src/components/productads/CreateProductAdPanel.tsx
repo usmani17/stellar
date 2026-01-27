@@ -289,9 +289,25 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
               )}
             </div>
 
-            {/* SKU Input - Show for SP or SD (when SKU type selected) */}
+            {/* State Dropdown - before SKU/ASIN for SD only */}
+            {campaignType === "SD" && (
+              <div className="min-w-[120px] max-w-[140px]">
+                <label className="form-label-small">
+                  State *
+                </label>
+                <Dropdown<string>
+                  options={SD_STATE_OPTIONS}
+                  value={currentProductAd.state}
+                  onChange={(value) => handleChange("state", value as any)}
+                  placeholder="Select state"
+                  buttonClassName="edit-button w-full"
+                />
+              </div>
+            )}
+
+            {/* SKU Input - Show for SP or SD (when SKU type selected). SD: max 225px */}
             {(campaignType !== "SD" || sdProductType === "sku") && (
-              <div className="flex-1 min-w-[150px]">
+              <div className={campaignType === "SD" ? "flex-1 min-w-0 max-w-[225px]" : "flex-1 min-w-[150px]"}>
                 <label className="form-label-small">
                   {campaignType === "SD" ? "SKU *" : "SKU"}
                 </label>
@@ -310,9 +326,9 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
               </div>
             )}
 
-            {/* ASIN Input - Show for SP/SB or SD (when ASIN type selected) */}
+            {/* ASIN Input - Show for SP/SB or SD (when ASIN type selected). SD: max 225px */}
             {(campaignType !== "SD" || sdProductType === "asin") && (
-              <div className="flex-1 min-w-[150px]">
+              <div className={campaignType === "SD" ? "flex-1 min-w-0 max-w-[225px]" : "flex-1 min-w-[150px]"}>
                 <label className="form-label-small">
                   ASIN {campaignType !== "SD" ? "*" : "*"}
                 </label>
@@ -430,32 +446,48 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
               </div>
             )}
 
-            {/* State Dropdown */}
-            <div className="flex-1 min-w-[120px] w-full">
-              <label className="form-label-small">
-                State *
-              </label>
-              <Dropdown<string>
-                options={
-                  campaignType === "SD" ? SD_STATE_OPTIONS : STATE_OPTIONS
-                }
-                value={currentProductAd.state}
-                onChange={(value) => handleChange("state", value as any)}
-                placeholder="Select state"
-                buttonClassName="edit-button w-full"
-              />
-            </div>
+            {/* State Dropdown - Only for SP/SB (for SD, State is already above before SKU/ASIN) */}
+            {campaignType !== "SD" && (
+              <div className="flex-1 min-w-[120px] w-full">
+                <label className="form-label-small">
+                  State *
+                </label>
+                <Dropdown<string>
+                  options={STATE_OPTIONS}
+                  value={currentProductAd.state}
+                  onChange={(value) => handleChange("state", value as any)}
+                  placeholder="Select state"
+                  buttonClassName="edit-button w-full"
+                />
+              </div>
+            )}
+
+            {/* Add Button - inline when SD SKU/ASIN or non-SD; moved to new line for SD Off-Amazon below */}
+            {(campaignType !== "SD" || sdProductType === "sku" || sdProductType === "asin") && (
+              <div className="shrink-0">
+                <button
+                  type="button"
+                  onClick={handleAddProductAd}
+                  className="apply-button"
+                >
+                  Add
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Add Button - new line */}
-          <div>
-            <button
-              onClick={handleAddProductAd}
-              className="px-4 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg hover:bg-[#0e5a5a] transition-colors text-[11.2px] whitespace-nowrap"
-            >
-              Add
-            </button>
-          </div>
+          {/* Add Button - new line for SD Off-Amazon (more fields, not enough space inline) */}
+          {campaignType === "SD" && sdProductType === "off-amazon" && (
+            <div>
+              <button
+                type="button"
+                onClick={handleAddProductAd}
+                className="apply-button"
+              >
+                Add
+              </button>
+            </div>
+          )}
 
           {/* Preview Table */}
           {addedProductAds.length > 0 && (

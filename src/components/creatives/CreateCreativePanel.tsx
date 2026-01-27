@@ -955,7 +955,12 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
             </h3>
 
             {/* Property Type Selector - Tabs */}
-            <div className="tabs-container">
+            <div
+              className="tabs-container"
+              style={{
+                marginBottom: "0px",
+              }}
+            >
               <div className="tabs-nav">
                 {/* Show IMAGE property tabs when creative type is IMAGE */}
                 {currentCreative.creativeType === "IMAGE" &&
@@ -1000,20 +1005,12 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                     );
                   })}
               </div>
-
-              {/* Show form for active tab */}
-              {activePropertyTab &&
-                addedPropertyTypes.has(activePropertyTab) && (
-                  <div className="mt-4">
-                    {/* Forms will be shown based on activePropertyTab */}
-                  </div>
-                )}
             </div>
 
             {/* Property Forms - Show only active tab */}
             {activePropertyTab === "headline" &&
               addedPropertyTypes.has("headline") && (
-                <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg ">
+                <div className="mb-4 p-4 border border-[#EBEBEB] border-t-0 rounded-b-lg  ">
                   <div className="flex items-center justify-between mb-3">
                     <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
                       Headline Creative Properties
