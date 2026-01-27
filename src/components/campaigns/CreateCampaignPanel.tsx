@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { Checkbox } from "../ui/Checkbox";
+import { SingleDatePicker } from "../ui/SingleDatePicker";
 import { accountsService } from "../../services/accounts";
 
 interface CreateCampaignPanelProps {
@@ -1738,14 +1739,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         Start Date <span>*</span>
                       </label>
                       <div className="relative">
-                        <input
-                          type="date"
+                        <SingleDatePicker
                           value={formData.startDate || ""}
-                          onChange={(e) =>
-                            handleChange("startDate", e.target.value)
-                          }
+                          onChange={(v) => handleChange("startDate", v)}
+                          minDate={new Date()}
                           disabled={mode === "edit"}
-                          min={new Date().toISOString().split("T")[0]} // Prevent selecting past dates
                           className={`campaign-input w-full ${errors.startDate
                             ? "border-red-500"
                             : "border-gray-200"
@@ -1773,17 +1771,15 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         End Date
                       </label>
                       <div className="relative">
-                        <input
-                          type="date"
+                        <SingleDatePicker
                           value={formData.endDate || ""}
-                          onChange={(e) =>
-                            handleChange("endDate", e.target.value)
+                          onChange={(v) => handleChange("endDate", v)}
+                          minDate={
+                            formData.startDate
+                              ? new Date(formData.startDate + "T00:00:00")
+                              : new Date()
                           }
                           disabled={mode === "edit"}
-                          min={
-                            formData.startDate ||
-                            new Date().toISOString().split("T")[0]
-                          } // Must be after start date or today
                           className={`campaign-input w-full ${errors.endDate
                             ? "border-red-500"
                             : "border-gray-200"
@@ -1797,7 +1793,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           <button
                             type="button"
                             onClick={() => handleChange("endDate", "")}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-[#556179] hover:text-[#072929] text-[12px] font-medium"
+                            className="absolute right-10 top-1/2 -translate-y-1/2 text-[#556179] hover:text-[#072929] text-[12px] font-medium z-10"
                             title="Clear end date"
                           >
                             ×
@@ -1832,12 +1828,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         Start Date <span>*</span>
                       </label>
                       <div className="relative">
-                        <input
-                          type="date"
+                        <SingleDatePicker
                           value={formData.startDate || ""}
-                          onChange={(e) =>
-                            handleChange("startDate", e.target.value)
-                          }
+                          onChange={(v) => handleChange("startDate", v)}
+                          minDate={new Date()}
                           className={`campaign-input w-full ${errors.startDate
                             ? "border-red-500"
                             : "border-gray-200"
@@ -1858,16 +1852,14 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           End Date <span>*</span>
                         </label>
                         <div className="relative">
-                          <input
-                            type="date"
+                          <SingleDatePicker
                             value={formData.endDate || ""}
-                            onChange={(e) =>
-                              handleChange("endDate", e.target.value)
+                            onChange={(v) => handleChange("endDate", v)}
+                            minDate={
+                              formData.startDate
+                                ? new Date(formData.startDate + "T00:00:00")
+                                : new Date()
                             }
-                            min={
-                              formData.startDate ||
-                              new Date().toISOString().split("T")[0]
-                            } // Must be after start date or today
                             className={`campaign-input w-full ${errors.endDate
                               ? "border-red-500"
                               : "border-gray-200"
@@ -1897,12 +1889,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         Start Date
                       </label>
                       <div className="relative">
-                        <input
-                          type="date"
+                        <SingleDatePicker
                           value={formData.startDate || ""}
-                          onChange={(e) =>
-                            handleChange("startDate", e.target.value)
-                          }
+                          onChange={(v) => handleChange("startDate", v)}
+                          minDate={new Date()}
                           disabled={mode === "edit"}
                           className={`campaign-input w-full ${errors.startDate
                             ? "border-red-500"
@@ -1931,16 +1921,14 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         End Date
                       </label>
                       <div className="relative">
-                        <input
-                          type="date"
+                        <SingleDatePicker
                           value={formData.endDate || ""}
-                          onChange={(e) =>
-                            handleChange("endDate", e.target.value)
+                          onChange={(v) => handleChange("endDate", v)}
+                          minDate={
+                            formData.startDate
+                              ? new Date(formData.startDate + "T00:00:00")
+                              : new Date()
                           }
-                          min={
-                            formData.startDate ||
-                            new Date().toISOString().split("T")[0]
-                          } // Must be after start date or today
                           disabled={mode === "edit"}
                           className={`campaign-input w-full ${errors.endDate
                             ? "border-red-500"
