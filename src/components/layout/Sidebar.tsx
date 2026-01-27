@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   getCurrentAccountId,
   buildMarketplaceRoute,
@@ -6,6 +7,9 @@ import {
 } from "../../utils/urlHelpers";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../../contexts/SidebarContext";
+import { useAccounts } from "../../contexts/AccountsContext";
+import { useChannels } from "../../hooks/queries/useChannels";
+import { ConfirmationModal } from "../ui/ConfirmationModal";
 import StellarLogo from "../../assets/images/stellar-logo-v2 1.svg";
 import InstacartIcon from "../../assets/images/cib_instacart.svg";
 import CampaignIcon from "../../assets/images/campaign-svgrepo-com 1.svg";
@@ -35,6 +39,20 @@ export const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const accountId = getCurrentAccountId(location.pathname);
   const { isCollapsed, toggleSidebar, sidebarWidth } = useSidebar();
+  const { getAccountById } = useAccounts();
+  const accountIdNum = accountId !== null ? accountId : undefined;
+  const currentAccount = accountIdNum != null ? getAccountById(accountIdNum) : null;
+  const { data: channelsFromApi = [] } = useChannels(accountIdNum);
+  const channels = currentAccount?.channels?.length
+    ? currentAccount.channels
+    : channelsFromApi;
+  const hasGoogleChannel = channels.some((c) => c.channel_type === "google");
+  const hasTikTokChannel = channels.some((c) => c.channel_type === "tiktok");
+
+  const [channelRequiredModal, setChannelRequiredModal] = useState<
+    "google" | "tiktok" | null
+  >(null);
+
   const [isAmazonSectionCollapsed, setIsAmazonSectionCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(AMAZON_SECTION_STORAGE_KEY);
@@ -203,6 +221,23 @@ export const Sidebar: React.FC = () => {
       } else {
         navigate("/brands");
       }
+    }
+  };
+
+  const handleMarketplaceClick = (
+    marketplace: "google" | "tiktok",
+    e: React.MouseEvent<HTMLAnchorElement>,
+    buildRoute: () => string | null,
+  ) => {
+    if (!accountId) {
+      handleAccountRequiredClick(e, buildRoute);
+      return;
+    }
+    const hasChannel =
+      marketplace === "google" ? hasGoogleChannel : hasTikTokChannel;
+    if (!hasChannel) {
+      e.preventDefault();
+      setChannelRequiredModal(marketplace);
     }
   };
 
@@ -558,7 +593,7 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) => {
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("google", e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "campaigns")
                       : "/brands/1/google/campaigns",
@@ -613,7 +648,7 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("google", e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "campaigns")
                       : "/brands/1/google/campaigns",
@@ -654,7 +689,7 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("google", e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "adgroups")
                       : "/brands/1/google/adgroups",
@@ -693,7 +728,7 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("google", e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "keywords")
                       : "/brands/1/google/keywords",
@@ -738,7 +773,7 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("google", e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "ads")
                       : "/brands/1/google/ads",
@@ -767,7 +802,7 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={accountId ? `/brands/${accountId}/google/logs` : "/brands"}
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("google", e, () =>
                     accountId
                       ? `/brands/${accountId}/google/logs`
                       : "/brands/1/google/logs",
@@ -822,7 +857,7 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) => {
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("tiktok", e, () =>
                     accountId ? `/brands/${accountId}/tiktok/campaigns` : null,
                   );
                 }}
@@ -878,13 +913,13 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? `/accounts/${accountId}/tiktok/campaigns`
+                    ? `/brands/${accountId}/tiktok/campaigns`
                     : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("tiktok", e, () =>
                     accountId
-                      ? `/accounts/${accountId}/tiktok/campaigns`
+                      ? `/brands/${accountId}/tiktok/campaigns`
                       : null,
                   )
                 }
@@ -921,7 +956,7 @@ export const Sidebar: React.FC = () => {
                   accountId ? `/brands/${accountId}/tiktok/adgroups` : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("tiktok", e, () =>
                     accountId ? `/brands/${accountId}/tiktok/adgroups` : null,
                   )
                 }
@@ -954,7 +989,7 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={accountId ? `/brands/${accountId}/tiktok/ads` : "/brands"}
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("tiktok", e, () =>
                     accountId ? `/brands/${accountId}/tiktok/ads` : null,
                   )
                 }
@@ -987,7 +1022,7 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={accountId ? `/brands/${accountId}/tiktok/logs` : "/brands"}
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("tiktok", e, () =>
                     accountId
                       ? `/brands/${accountId}/tiktok/logs`
                       : "/brands/1/tiktok/logs",
@@ -1031,6 +1066,27 @@ export const Sidebar: React.FC = () => {
           )}
         </div>
       </div>
+
+      {channelRequiredModal !== null &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <ConfirmationModal
+            isOpen
+            onClose={() => setChannelRequiredModal(null)}
+            onConfirm={() => {
+              if (accountId) {
+                navigate(`/brands/${accountId}/channels`);
+              }
+              setChannelRequiredModal(null);
+            }}
+            title={`Connect ${channelRequiredModal === "google" ? "Google" : "TikTok"}`}
+            message={`This brand does not have ${channelRequiredModal === "google" ? "Google" : "TikTok"} integration. Want to connect?`}
+            confirmButtonLabel="Go to Channels"
+            cancelButtonLabel="Cancel"
+            type="info"
+          />,
+          document.body,
+        )}
     </div>
   );
 };
