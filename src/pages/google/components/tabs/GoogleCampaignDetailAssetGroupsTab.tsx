@@ -18,6 +18,11 @@ interface GoogleAssetGroup {
   ctr?: number | string;
   spends?: number | string;
   sales?: number | string;
+  health?: string; // Health detection status
+  headline_count?: number; // Number of headlines
+  image_count?: number; // Number of images
+  video_count?: number; // Number of videos
+  description_count?: number; // Number of descriptions
 }
 
 interface GoogleCampaignDetailAssetGroupsTabProps {
@@ -315,7 +320,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                   <th className="table-header hidden lg:table-cell">
                     Final URLs
                   </th>
-                  <th className="table-header hidden md:table-cell">
+                  {/* <th className="table-header hidden md:table-cell">
                     CTR
                   </th>
                   <th className="table-header hidden md:table-cell">
@@ -323,12 +328,18 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                   </th>
                   <th className="table-header hidden md:table-cell">
                     Conv. value
+                  </th> */}
+                  <th className="table-header hidden md:table-cell">
+                    Health
                   </th>
-                  {profileId && (
+                  <th className="table-header hidden md:table-cell">
+                    Assets
+                  </th>
+                  {/* {profileId && (
                     <th className="table-header">
                       Actions
                     </th>
-                  )}
+                  )} */}
                 </tr>
               </thead>
               <tbody>
@@ -461,7 +472,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                               : "—"}
                         </span>
                       </td>
-                      <td className="table-cell hidden md:table-cell">
+                      {/* <td className="table-cell hidden md:table-cell">
                         <span className="table-text leading-[1.26]">
                           {formatPercentage(assetGroup.ctr)}
                         </span>
@@ -475,8 +486,35 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                         <span className="table-text leading-[1.26]">
                           {formatCurrency2Decimals(assetGroup.sales)}
                         </span>
+                      </td> */}
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {assetGroup.health ? (
+                            <span className={`inline-flex items-center px-2 py-1 rounded text-[11px] font-medium ${
+                              assetGroup.health.toLowerCase() === 'good' || assetGroup.health.toLowerCase() === 'healthy'
+                                ? 'bg-green-50 text-green-700'
+                                : assetGroup.health.toLowerCase() === 'warning' || assetGroup.health.toLowerCase() === 'needs attention'
+                                ? 'bg-yellow-50 text-yellow-700'
+                                : 'bg-red-50 text-red-700'
+                            }`}>
+                              {assetGroup.health}
+                            </span>
+                          ) : "—"}
+                        </span>
                       </td>
-                      <td className="table-cell">
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {(() => {
+                            const counts = [];
+                            if (assetGroup.headline_count !== undefined) counts.push(`${assetGroup.headline_count}H`);
+                            if (assetGroup.image_count !== undefined) counts.push(`${assetGroup.image_count}I`);
+                            if (assetGroup.video_count !== undefined) counts.push(`${assetGroup.video_count}V`);
+                            if (assetGroup.description_count !== undefined) counts.push(`${assetGroup.description_count}D`);
+                            return counts.length > 0 ? counts.join(", ") : "—";
+                          })()}
+                        </span>
+                      </td>
+                      {/* <td className="table-cell">
                         {profileId && assetGroup.asset_group_id && (
                           <button
                             type="button"
@@ -491,7 +529,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                             Manage Assets
                           </button>
                         )}
-                      </td>
+                      </td> */}
                     </tr>
                   );
                 })}
@@ -581,61 +619,74 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
       {/* Status Change Confirmation Modal */}
       {showStatusModal && statusModalData && (
         <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          className="fixed inset-0 z-[999999] flex items-center justify-center"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               cancelStatusChange();
             }
           }}
         >
+          {/* Backdrop */}
           <div
-            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+            className="absolute inset-0 bg-black/40 transition-opacity"
+            onClick={cancelStatusChange}
+          />
+          
+          {/* Modal */}
+          <div
+            className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-              Confirm Status Change
-            </h3>
-            <div className="mb-4">
-              <p className="text-[12.8px] text-[#556179] mb-2">
-                Asset Group:{" "}
-                <span className="font-semibold text-[#072929]">
-                  {statusModalData.assetGroup.name || "Unnamed Asset Group"}
-                </span>
-              </p>
-              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-[12.8px] text-[#556179]">Status:</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[12.8px] text-[#556179]">
-                      {statusModalData.oldValue}
-                    </span>
-                    <span className="text-[12.8px] text-[#556179]">→</span>
-                    <span className="text-[12.8px] font-semibold text-[#072929]">
-                      {statusModalData.newValue}
-                    </span>
+            <div className="p-6">
+              {/* Header */}
+              <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                Confirm Status Change
+              </h3>
+              
+              {/* Content */}
+              <div className="mb-4">
+                <p className="text-[12.16px] text-[#556179] mb-2">
+                  Asset Group:{" "}
+                  <span className="font-semibold text-[#072929]">
+                    {statusModalData.assetGroup.name || "Unnamed Asset Group"}
+                  </span>
+                </p>
+                <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[12.16px] text-[#556179]">Status:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12.16px] text-[#556179]">
+                        {statusModalData.oldValue}
+                      </span>
+                      <span className="text-[12.16px] text-[#556179]">→</span>
+                      <span className="text-[12.16px] font-semibold text-[#072929]">
+                        {statusModalData.newValue}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={cancelStatusChange}
-                className="cancel-button"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmStatusChange}
-                disabled={updatingAssetGroupId === statusModalData.assetGroup.id}
-                className="create-entity-button btn-sm"
-              >
-                {updatingAssetGroupId === statusModalData.assetGroup.id
-                  ? "Updating..."
-                  : "Confirm"}
-              </button>
+              {/* Actions */}
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={cancelStatusChange}
+                  className="cancel-button"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmStatusChange}
+                  disabled={updatingAssetGroupId === statusModalData.assetGroup.id}
+                  className="create-entity-button btn-sm"
+                >
+                  {updatingAssetGroupId === statusModalData.assetGroup.id
+                    ? "Updating..."
+                    : "Confirm"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

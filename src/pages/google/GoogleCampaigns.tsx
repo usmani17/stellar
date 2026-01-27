@@ -35,6 +35,7 @@ import {
   CreateGoogleCampaignPanel,
   type CreateGoogleCampaignData,
 } from "../../components/google/CreateGoogleCampaignPanel";
+import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../../components/google/CreateGooglePmaxAssetGroupPanel";
 import { ErrorModal } from "../../components/ui/ErrorModal";
 import { Loader } from "../../components/ui/Loader";
 // import { CustomizeColumns } from "../../components/ui/CustomizeColumns";
@@ -308,6 +309,16 @@ export const GoogleCampaigns: React.FC = () => {
     };
   }, []);
 
+  // Auto-hide success message after 2 seconds
+  useEffect(() => {
+    if (inlineEditSuccess) {
+      const timer = setTimeout(() => {
+        setInlineEditSuccess(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [inlineEditSuccess]);
+
   // Default column order (matches GoogleCampaignsTable allColumns order)
   const defaultColumnOrder = useMemo(() => [
     "campaign_name",
@@ -567,13 +578,59 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      // Prepare payload - filter out asset group fields if constant is false and campaign type is PERFORMANCE_MAX
+      let payload: any = { ...(data as any) };
+      
+      if (
+        data.campaign_type === "PERFORMANCE_MAX" &&
+        !SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION
+      ) {
+        // Filter out asset group fields to prevent backend from creating asset group
+        // Note: The backend currently requires headlines, descriptions, logo_url, marketing_image_url,
+        // and square_marketing_image_url for PERFORMANCE_MAX campaigns and will always create an asset group.
+        // Filtering these out will cause backend validation errors. To fully prevent asset group creation,
+        // backend changes would be needed to make asset group creation optional.
+        // This constant is a frontend control that can be used when backend supports optional asset groups.
+        const {
+          asset_group_name,
+          headlines,
+          descriptions,
+          long_headlines,
+          business_name,
+          logo_url,
+          marketing_image_url,
+          square_marketing_image_url,
+          headline_asset_resource_names,
+          description_asset_resource_names,
+          long_headline_asset_resource_names,
+          business_name_asset_resource_name,
+          logo_asset_resource_name,
+          marketing_image_asset_resource_name,
+          square_marketing_image_asset_resource_name,
+          video_asset_resource_names,
+          sitelink_asset_resource_names,
+          callout_asset_resource_names,
+          headline_asset_ids,
+          description_asset_ids,
+          long_headline_asset_ids,
+          business_name_asset_id,
+          logo_asset_id,
+          marketing_image_asset_id,
+          square_marketing_image_asset_id,
+          video_asset_ids,
+          sitelink_asset_ids,
+          callout_asset_ids,
+          ...rest
+        } = payload;
+        
+        payload = rest;
+        console.log("Asset group fields filtered out from PMAX campaign creation payload (SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION = false)");
+        console.warn("Note: Backend currently requires asset group fields for PERFORMANCE_MAX campaigns. This may cause validation errors.");
+      }
+
       const response = await googleAdwordsCampaignsService.createGoogleCampaign(
         accountIdNum,
-        {
-          // The service type only includes the core campaign types; DISPLAY/VIDEO
-          // are not creatable via this endpoint, so we narrow here for typing.
-          ...(data as any),
-        }
+        payload
       );
 
       console.log("Create Google campaign response:", response);
@@ -1012,26 +1069,16 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       // 8. Check if URL tracking fields changed
-      // Note: These fields are not yet supported by the bulk update endpoint
-      // They will be added in a future update
       const originalTrackingUrl = original.tracking_url_template || "";
       const newTrackingUrl = data.tracking_url_template || "";
       if (newTrackingUrl !== originalTrackingUrl) {
-        console.log("Tracking URL template changed (not yet supported in bulk update):", {
-          originalTrackingUrl,
-          newTrackingUrl,
-        });
-        // TODO: Add backend support for tracking_url_template in bulk update
+        updatePayload.tracking_url_template = newTrackingUrl;
       }
 
       const originalFinalUrlSuffix = original.final_url_suffix || "";
       const newFinalUrlSuffix = data.final_url_suffix || "";
       if (newFinalUrlSuffix !== originalFinalUrlSuffix) {
-        console.log("Final URL suffix changed (not yet supported in bulk update):", {
-          originalFinalUrlSuffix,
-          newFinalUrlSuffix,
-        });
-        // TODO: Add backend support for final_url_suffix in bulk update
+        updatePayload.final_url_suffix = newFinalUrlSuffix;
       }
 
       const originalUrlParams = original.url_custom_parameters || [];
@@ -1040,21 +1087,17 @@ export const GoogleCampaigns: React.FC = () => {
         JSON.stringify(originalUrlParams.sort()) !==
         JSON.stringify(newUrlParams.sort())
       ) {
-        console.log("URL custom parameters changed (not yet supported in bulk update)");
-        // TODO: Add backend support for url_custom_parameters in bulk update
+        updatePayload.url_custom_parameters = newUrlParams;
       }
 
       // 9. Check if targeting fields changed
-      // Note: These fields are not yet supported by the bulk update endpoint
-      // They will be added in a future update
       const originalLocationIds = original.location_ids || [];
       const newLocationIds = data.location_ids || [];
       if (
         JSON.stringify([...originalLocationIds].sort()) !==
         JSON.stringify([...newLocationIds].sort())
       ) {
-        console.log("Location IDs changed (not yet supported in bulk update)");
-        // TODO: Add backend support for location_ids in bulk update
+        updatePayload.location_ids = newLocationIds;
       }
 
       const originalExcludedLocationIds = original.excluded_location_ids || [];
@@ -1063,8 +1106,7 @@ export const GoogleCampaigns: React.FC = () => {
         JSON.stringify([...originalExcludedLocationIds].sort()) !==
         JSON.stringify([...newExcludedLocationIds].sort())
       ) {
-        console.log("Excluded location IDs changed (not yet supported in bulk update)");
-        // TODO: Add backend support for excluded_location_ids in bulk update
+        updatePayload.excluded_location_ids = newExcludedLocationIds;
       }
 
       const originalLanguageIds = original.language_ids || [];
@@ -1073,8 +1115,7 @@ export const GoogleCampaigns: React.FC = () => {
         JSON.stringify([...originalLanguageIds].sort()) !==
         JSON.stringify([...newLanguageIds].sort())
       ) {
-        console.log("Language IDs changed (not yet supported in bulk update)");
-        // TODO: Add backend support for language_ids in bulk update
+        updatePayload.language_ids = newLanguageIds;
       }
 
       const originalDeviceIds = original.device_ids || [];
@@ -1083,13 +1124,10 @@ export const GoogleCampaigns: React.FC = () => {
         JSON.stringify([...originalDeviceIds].sort()) !==
         JSON.stringify([...newDeviceIds].sort())
       ) {
-        console.log("Device IDs changed (not yet supported in bulk update)");
-        // TODO: Add backend support for device_ids in bulk update
+        updatePayload.device_ids = newDeviceIds;
       }
 
       // 10. Check if network settings changed (for SEARCH campaigns)
-      // Note: This field is not yet supported by the bulk update endpoint
-      // It will be added in a future update
       if (data.campaign_type === "SEARCH") {
         const originalNetworkSettings = original.network_settings || {};
         const newNetworkSettings = data.network_settings || {};
@@ -1097,109 +1135,12 @@ export const GoogleCampaigns: React.FC = () => {
           JSON.stringify(originalNetworkSettings) !==
           JSON.stringify(newNetworkSettings)
         ) {
-          console.log("Network settings changed (not yet supported in bulk update)");
-          // TODO: Add backend support for network_settings in bulk update
+          updatePayload.network_settings = newNetworkSettings;
         }
       }
 
-      // 11. Check if PMax Asset fields changed (only for PERFORMANCE_MAX campaigns)
-      if (data.campaign_type === "PERFORMANCE_MAX") {
-        const originalExtraData = (original as any).extra_data || {};
-
-        // Check headlines
-        const originalHeadlines =
-          original.headlines || originalExtraData.headlines || [];
-        const newHeadlines = data.headlines || [];
-        if (
-          JSON.stringify(originalHeadlines.sort()) !==
-          JSON.stringify(newHeadlines.sort())
-        ) {
-          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
-          updatePayload.pmax_assets.headlines = newHeadlines;
-        }
-
-        // Check descriptions
-        const originalDescriptions =
-          original.descriptions || originalExtraData.descriptions || [];
-        const newDescriptions = data.descriptions || [];
-        if (
-          JSON.stringify(originalDescriptions.sort()) !==
-          JSON.stringify(newDescriptions.sort())
-        ) {
-          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
-          updatePayload.pmax_assets.descriptions = newDescriptions;
-        }
-
-        // Check final_url
-        const originalFinalUrl =
-          original.final_url || originalExtraData.final_url || "";
-        const newFinalUrl = data.final_url || "";
-        if (newFinalUrl !== originalFinalUrl && newFinalUrl) {
-          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
-          updatePayload.pmax_assets.final_url = newFinalUrl;
-        }
-
-        // Check business_name
-        const originalBusinessName =
-          original.business_name || originalExtraData.business_name || "";
-        const newBusinessName = data.business_name || "";
-        if (newBusinessName !== originalBusinessName && newBusinessName) {
-          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
-          updatePayload.pmax_assets.business_name = newBusinessName;
-        }
-
-        // Check logo_url
-        const originalLogoUrl =
-          original.logo_url || originalExtraData.logo_url || "";
-        const newLogoUrl = data.logo_url || "";
-        if (newLogoUrl !== originalLogoUrl && newLogoUrl) {
-          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
-          updatePayload.pmax_assets.logo_url = newLogoUrl;
-        }
-
-        // Check marketing_image_url
-        const originalMarketingImage =
-          original.marketing_image_url ||
-          originalExtraData.marketing_image_url ||
-          "";
-        const newMarketingImage = data.marketing_image_url || "";
-        if (newMarketingImage !== originalMarketingImage && newMarketingImage) {
-          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
-          updatePayload.pmax_assets.marketing_image_url = newMarketingImage;
-        }
-
-        // Check square_marketing_image_url
-        const originalSquareImage =
-          original.square_marketing_image_url ||
-          originalExtraData.square_marketing_image_url ||
-          "";
-        const newSquareImage = data.square_marketing_image_url || "";
-        if (newSquareImage !== originalSquareImage && newSquareImage) {
-          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
-          updatePayload.pmax_assets.square_marketing_image_url = newSquareImage;
-        }
-
-        // Check long_headlines (plural array) - backward compatible with long_headline (singular)
-        const originalLongHeadlines = original.long_headlines || 
-          (originalExtraData.long_headlines ? originalExtraData.long_headlines : 
-           (originalExtraData.long_headline ? [originalExtraData.long_headline] : []));
-        const newLongHeadlines = data.long_headlines || [];
-        // Compare arrays - check if they're different
-        const longHeadlinesChanged = JSON.stringify(originalLongHeadlines) !== JSON.stringify(newLongHeadlines);
-        if (longHeadlinesChanged && newLongHeadlines.length > 0) {
-          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
-          updatePayload.pmax_assets.long_headlines = newLongHeadlines;
-        }
-
-        // Check asset_group_name
-        const originalAssetGroupName =
-          original.asset_group_name || originalExtraData.asset_group_name || "";
-        const newAssetGroupName = data.asset_group_name || "";
-        if (newAssetGroupName !== originalAssetGroupName && newAssetGroupName) {
-          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
-          updatePayload.pmax_assets.asset_group_name = newAssetGroupName;
-        }
-      }
+      // 11. PMax Asset fields are not checked in edit mode since asset groups are not part of the edit form
+      // (SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION is false, so this code is removed)
 
       console.log("Update payload:", updatePayload);
 
@@ -1246,36 +1187,101 @@ export const GoogleCampaigns: React.FC = () => {
         
         // Check for errors in the response
         if (result.errors && result.errors.length > 0) {
-          const errorMessage = result.errors[0] || "Failed to update campaign";
+          // Handle both string errors (legacy) and object errors (new format with campaign_id, error, updated_fields)
+          const firstError = result.errors[0];
+          let errorMessage: string;
+          let errorDetails: Array<{ 
+            entity?: string;
+            message?: string; 
+            campaign_id?: string; 
+            updated_fields?: string[];
+            policy_name?: string;
+          }> = [];
+          
+          if (typeof firstError === 'string') {
+            // Legacy format: array of strings
+            errorMessage = firstError || "Failed to update campaign";
+            errorDetails = result.errors.map((err: string) => ({ 
+              entity: "Campaign",
+              message: err,
+              policy_name: "Error"
+            }));
+          } else if (firstError && typeof firstError === 'object') {
+            // New format: array of objects with {campaign_id, error, updated_fields}
+            errorMessage = firstError.error || "Failed to update campaign";
+            
+            // Process each error object
+            result.errors.forEach((err: any) => {
+              const errorText = typeof err === 'string' ? err : err.error || 'Unknown error';
+              const campaignId = err.campaign_id;
+              const updatedFields = err.updated_fields && Array.isArray(err.updated_fields) ? err.updated_fields : null;
+              
+              // Split error message by semicolon to show each targeting error separately
+              let errorParts = errorText.split(';').map((part: string) => part.trim()).filter((part: string) => part);
+              
+              // If no semicolons found or empty after filtering, use the whole message
+              if (errorParts.length === 0) {
+                errorParts = [errorText];
+              }
+              
+              errorParts.forEach((part: string) => {
+                // Determine error type from message (check for exact matches first)
+                let errorType = "Error";
+                const partLower = part.toLowerCase();
+                if (part.includes('Language targeting:')) {
+                  errorType = "Language Targeting";
+                } else if (part.includes('Device targeting:')) {
+                  errorType = "Device Targeting";
+                } else if (part.includes('Location targeting:')) {
+                  errorType = "Location Targeting";
+                } else if (part.includes('Excluded location targeting:')) {
+                  errorType = "Excluded Location";
+                } else if (partLower.includes('language') && partLower.includes('target')) {
+                  errorType = "Language Targeting";
+                } else if (partLower.includes('device') && partLower.includes('target')) {
+                  errorType = "Device Targeting";
+                } else if (partLower.includes('location') && partLower.includes('target')) {
+                  errorType = "Location Targeting";
+                }
+                
+                errorDetails.push({
+                  entity: campaignId ? `Campaign ${campaignId}` : "Campaign",
+                  message: part,
+                  campaign_id: campaignId,
+                  updated_fields: updatedFields,
+                  policy_name: errorType
+                });
+              });
+            });
+          } else {
+            errorMessage = "Failed to update campaign";
+          }
+          
+          // Debug: Log errorDetails to verify they're being created
+          console.log("Error details created:", errorDetails);
+          console.log("Error details length:", errorDetails.length);
+          
           setCreateCampaignError(errorMessage);
           setErrorModal({
             isOpen: true,
             title: "Update Failed",
-            message: errorMessage,
+            message: errorDetails.length > 0 ? "Some fields failed to update. See details below:" : errorMessage,
             isSuccess: false,
-            errorDetails: result.errors.map((err: string) => ({ message: err })),
+            errorDetails: errorDetails.length > 0 ? errorDetails : undefined,
           });
           setCreateCampaignLoading(false);
-          throw new Error(errorMessage);
+          
+          // Only throw error if the update completely failed (no successful updates)
+          // If there are partial successes (updated > 0), just show the modal without throwing
+          if (result.updated === 0 && result.failed > 0) {
+            throw new Error(errorMessage);
+          }
+          // If there are partial successes, return early without throwing
+          return;
         }
       }
 
-      // Update asset group if PMax assets changed
-      if (hasPmaxChanges && campaignFormMode === "edit") {
-        try {
-          console.log("Executing asset group update with changes...");
-          await campaignsService.updateGooglePmaxAssetGroup(
-            accountIdNum,
-            campaignId,
-            pmaxAssets
-          );
-          console.log("Asset group updated successfully");
-        } catch (assetError: any) {
-          console.error("Failed to update asset group:", assetError);
-          // Log error but don't fail the entire update
-          // The campaign update succeeded, asset group update is separate
-        }
-      }
+      // Asset group updates are not part of edit mode - removed
 
       console.log("Update completed successfully");
 
@@ -1333,36 +1339,38 @@ export const GoogleCampaigns: React.FC = () => {
         updatedFields.push({ field: "Enable Local", value: campaignUpdatePayload.enable_local ? "Yes" : "No" });
       }
       
-      // PMax asset fields
-      if (pmaxAssets?.headlines) {
-        updatedFields.push({ field: "Headlines", value: `${pmaxAssets.headlines.length} headline(s)` });
-      }
-      if (pmaxAssets?.descriptions) {
-        updatedFields.push({ field: "Descriptions", value: `${pmaxAssets.descriptions.length} description(s)` });
-      }
-      if (pmaxAssets?.final_url) {
-        updatedFields.push({ field: "Final URL", value: pmaxAssets.final_url });
-      }
-      if (pmaxAssets?.business_name) {
-        updatedFields.push({ field: "Business Name", value: pmaxAssets.business_name });
-      }
-      if (pmaxAssets?.logo_url) {
-        updatedFields.push({ field: "Logo URL", value: pmaxAssets.logo_url });
-      }
-      if (pmaxAssets?.marketing_image_url) {
-        updatedFields.push({ field: "Marketing Image", value: pmaxAssets.marketing_image_url });
-      }
-      if (pmaxAssets?.square_marketing_image_url) {
-        updatedFields.push({ field: "Square Marketing Image", value: pmaxAssets.square_marketing_image_url });
-      }
-      // Handle long_headlines (plural array) - backward compatible with long_headline (singular)
-      if (pmaxAssets?.long_headlines && Array.isArray(pmaxAssets.long_headlines)) {
-        updatedFields.push({ field: "Long Headlines", value: pmaxAssets.long_headlines.join(", ") });
-      } else if (pmaxAssets?.long_headline) {
-        updatedFields.push({ field: "Long Headline", value: pmaxAssets.long_headline });
-      }
-      if (pmaxAssets?.asset_group_name) {
-        updatedFields.push({ field: "Asset Group Name", value: pmaxAssets.asset_group_name });
+      // PMax asset fields - only show in create mode when asset groups are enabled
+      if (campaignFormMode === "create" && SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION && pmaxAssets) {
+        if (pmaxAssets?.headlines && pmaxAssets.headlines.length > 0) {
+          updatedFields.push({ field: "Headlines", value: `${pmaxAssets.headlines.length} headline(s)` });
+        }
+        if (pmaxAssets?.descriptions && pmaxAssets.descriptions.length > 0) {
+          updatedFields.push({ field: "Descriptions", value: `${pmaxAssets.descriptions.length} description(s)` });
+        }
+        if (pmaxAssets?.final_url) {
+          updatedFields.push({ field: "Final URL", value: pmaxAssets.final_url });
+        }
+        if (pmaxAssets?.business_name) {
+          updatedFields.push({ field: "Business Name", value: pmaxAssets.business_name });
+        }
+        if (pmaxAssets?.logo_url) {
+          updatedFields.push({ field: "Logo URL", value: pmaxAssets.logo_url });
+        }
+        if (pmaxAssets?.marketing_image_url) {
+          updatedFields.push({ field: "Marketing Image", value: pmaxAssets.marketing_image_url });
+        }
+        if (pmaxAssets?.square_marketing_image_url) {
+          updatedFields.push({ field: "Square Marketing Image", value: pmaxAssets.square_marketing_image_url });
+        }
+        // Handle long_headlines (plural array) - backward compatible with long_headline (singular)
+        if (pmaxAssets?.long_headlines && Array.isArray(pmaxAssets.long_headlines) && pmaxAssets.long_headlines.length > 0) {
+          updatedFields.push({ field: "Long Headlines", value: pmaxAssets.long_headlines.join(", ") });
+        } else if (pmaxAssets?.long_headline) {
+          updatedFields.push({ field: "Long Headline", value: pmaxAssets.long_headline });
+        }
+        if (pmaxAssets?.asset_group_name) {
+          updatedFields.push({ field: "Asset Group Name", value: pmaxAssets.asset_group_name });
+        }
       }
 
       // Format updated fields as errorDetails for table display
@@ -1415,9 +1423,19 @@ export const GoogleCampaigns: React.FC = () => {
       } else if (error.response?.data?.google_ads_errors) {
         errorDetails = error.response.data.google_ads_errors;
       } else if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
-        errorDetails = error.response.data.errors.map((err: string) => ({
-          message: err,
-        }));
+        // Handle both string errors (legacy) and object errors (new format)
+        errorDetails = error.response.data.errors.map((err: any) => {
+          if (typeof err === 'string') {
+            return { message: err };
+          } else if (err && typeof err === 'object') {
+            return {
+              message: err.error || 'Unknown error',
+              campaign_id: err.campaign_id,
+              updated_fields: err.updated_fields
+            };
+          }
+          return { message: 'Unknown error' };
+        });
       }
       
       // Set error in form
@@ -3576,14 +3594,39 @@ export const GoogleCampaigns: React.FC = () => {
                             </div>
                             <div className="max-h-48 overflow-y-auto">
                               <ul className="list-disc list-inside space-y-1">
-                                {bulkUpdateResults.errors.map((error, index) => (
-                                  <li
-                                    key={index}
-                                    className="text-[11.2px] text-red-r40"
-                                  >
-                                    {error}
-                                  </li>
-                                ))}
+                                {bulkUpdateResults.errors.map((error, index) => {
+                                  // Handle both string errors (legacy) and object errors (new format)
+                                  if (typeof error === 'string') {
+                                    return (
+                                      <li
+                                        key={index}
+                                        className="text-[11.2px] text-red-r40"
+                                      >
+                                        {error}
+                                      </li>
+                                    );
+                                  } else if (error && typeof error === 'object') {
+                                    // New format: {campaign_id, error, updated_fields}
+                                    const errorObj = error as { campaign_id?: string; error: string; updated_fields?: string[] };
+                                    return (
+                                      <li
+                                        key={index}
+                                        className="text-[11.2px] text-red-r40 mb-2"
+                                      >
+                                        {errorObj.campaign_id && (
+                                          <span className="font-semibold">Campaign {errorObj.campaign_id}: </span>
+                                        )}
+                                        <span>{errorObj.error}</span>
+                                        {errorObj.updated_fields && errorObj.updated_fields.length > 0 && (
+                                          <div className="text-[10.4px] text-forest-f60 mt-1 ml-4">
+                                            ✓ Successfully updated: {errorObj.updated_fields.join(', ')}
+                                          </div>
+                                        )}
+                                      </li>
+                                    );
+                                  }
+                                  return null;
+                                })}
                               </ul>
                             </div>
                           </div>

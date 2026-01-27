@@ -203,6 +203,16 @@ export const GoogleAds: React.FC = () => {
     };
   }, []);
 
+  // Auto-hide success message after 2 seconds
+  useEffect(() => {
+    if (inlineEditSuccess) {
+      const timer = setTimeout(() => {
+        setInlineEditSuccess(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [inlineEditSuccess]);
+
   // Removed buildFilterParams - now passing filters array directly to service
 
   const loadAds = useCallback(async (accountId: number) => {
@@ -547,10 +557,6 @@ export const GoogleAds: React.FC = () => {
         adId: inlineEditAd.ad_id || inlineEditAd.id,
         field: inlineEditField,
       });
-      // Clear success feedback after 3 seconds
-      setTimeout(() => {
-        setInlineEditSuccess(null);
-      }, 3000);
     } catch (error: any) {
       console.error("Error updating ad:", error);
       

@@ -57,49 +57,47 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Google Ads Account (Profile) - Only show if more than one account */}
-        {googleProfiles.length > 1 && (
-          <div>
-            <label className="form-label">
-              Google Ads Account *
-            </label>
-            <Dropdown<string>
-              options={googleProfiles}
-              value={selectedProfileId}
-              onChange={(value) => {
-                setSelectedProfileId(value);
-              }}
-              placeholder={
-                loadingProfiles
-                  ? "Loading accounts..."
-                  : googleProfiles.length === 0
-                  ? "No Google Ads accounts available"
-                  : "Select Google Ads account"
-              }
-              buttonClassName="w-full"
-              searchable={googleProfiles.length > 5}
-              searchPlaceholder="Search accounts..."
-              emptyMessage={
-                loadingProfiles
-                  ? "Loading..."
-                  : profilesError
-                  ? profilesError
-                  : "No Google Ads accounts found. Please enable Google Ads accounts first."
-              }
-              disabled={loadingProfiles}
-            />
-            {profilesError && (
-              <p className="text-[10px] text-red-500 mt-1">
-                {profilesError}
-              </p>
-            )}
-            {!loadingProfiles && googleProfiles.length > 0 && !profilesError && (
-              <p className="text-[10px] text-gray-500 mt-1">
-                {googleProfiles.length} account(s) available
-              </p>
-            )}
-          </div>
-        )}
+        {/* Google Ads Account (Profile) - always show to prevent layout shift */}
+        <div>
+          <label className="form-label">
+            Google Ads Account *
+          </label>
+          <Dropdown<string>
+            options={Array.isArray(googleProfiles) ? googleProfiles : []}
+            value={selectedProfileId}
+            onChange={(value) => {
+              setSelectedProfileId(value);
+            }}
+            placeholder={
+              loadingProfiles
+                ? "Loading accounts..."
+                : !Array.isArray(googleProfiles) || googleProfiles.length === 0
+                ? "No Google Ads accounts available"
+                : "Select Google Ads account"
+            }
+            buttonClassName="edit-button w-full"
+            searchable={Array.isArray(googleProfiles) && googleProfiles.length > 5}
+            searchPlaceholder="Search accounts..."
+            emptyMessage={
+              loadingProfiles
+                ? "Loading..."
+                : profilesError
+                ? profilesError
+                : "No Google Ads accounts found. Please enable Google Ads accounts first."
+            }
+            disabled={mode === "edit" || loadingProfiles || !Array.isArray(googleProfiles) || googleProfiles.length === 0}
+          />
+          {profilesError && (
+            <p className="text-[10px] text-red-500 mt-1">
+              {profilesError}
+            </p>
+          )}
+          {!loadingProfiles && Array.isArray(googleProfiles) && googleProfiles.length > 0 && !profilesError && (
+            <p className="text-[10px] text-gray-500 mt-1">
+              {googleProfiles.length} account(s) available
+            </p>
+          )}
+        </div>
 
         {/* Campaign Type */}
         <div>
@@ -190,10 +188,18 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
             name="budget_amount"
             step="0.01"
             min="0"
-            value={formData.budget_amount || ""}
-            onChange={(e) =>
-              onChange("budget_amount", parseFloat(e.target.value) || 0)
-            }
+            value={formData.budget_amount !== undefined && formData.budget_amount !== null ? formData.budget_amount : ""}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === "") {
+                onChange("budget_amount", 0);
+              } else {
+                const numValue = parseFloat(value);
+                if (!isNaN(numValue) && numValue >= 0) {
+                  onChange("budget_amount", numValue);
+                }
+              }
+            }}
             className={`campaign-input w-full ${
               errors.budget_amount ? "border-red-500" : ""
             }`}

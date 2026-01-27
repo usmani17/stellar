@@ -1,4 +1,5 @@
 import api from "../api";
+import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../../components/google/CreateGooglePmaxAssetGroupPanel";
 
 export const googleAdwordsCampaignsService = {
   createGoogleCampaign: async (
@@ -425,7 +426,10 @@ export const googleAdwordsCampaignsService = {
     };
   }> => {
     const url = `/google-adwords/${accountId}/campaigns/${campaignId}/refresh/`;
-    const response = await api.post(url);
+    // Send the constant to API so it can decide whether to fetch asset groups
+    const response = await api.post(url, {
+      should_fetch_asset_groups: SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION,
+    });
     return response.data;
   },
 

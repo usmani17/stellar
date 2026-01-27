@@ -9,6 +9,7 @@ import { GoogleLocationTargetingForm } from "./GoogleLocationTargetingForm";
 import { GoogleTrackingTemplateForm } from "./GoogleTrackingTemplateForm";
 import { GoogleBiddingStrategyForm } from "./GoogleBiddingStrategyForm";
 import { GooglePerformanceMaxAssetGroupForm } from "./GooglePerformanceMaxAssetGroupForm";
+import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../CreateGooglePmaxAssetGroupPanel";
 
 interface GooglePerformanceMaxCampaignFormProps extends BaseCampaignFormProps {
   // Headline and description handlers
@@ -352,27 +353,29 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
       </div>
 
       {/* Section 2: Business Information, Asset Group Settings, and Asset Tabs (Reusable Component) */}
-      <GooglePerformanceMaxAssetGroupForm
-        formData={formData}
-        errors={errors}
-        onChange={onChange}
-        mode={mode}
-        onAddHeadline={onAddHeadline}
-        onRemoveHeadline={onRemoveHeadline}
-        onUpdateHeadline={onUpdateHeadline}
-        onAddDescription={onAddDescription}
-        onRemoveDescription={onRemoveDescription}
-        onUpdateDescription={onUpdateDescription}
-        logoPreview={_logoPreview}
-        setLogoPreview={_setLogoPreview}
-        marketingImagePreview={marketingImagePreview}
-        setMarketingImagePreview={setMarketingImagePreview}
-        squareMarketingImagePreview={squareMarketingImagePreview}
-        setSquareMarketingImagePreview={setSquareMarketingImagePreview}
-        setErrors={setErrors}
-        profileId={profileId}
-        campaignType="PERFORMANCE_MAX"
-      />
+      {SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION && (
+        <GooglePerformanceMaxAssetGroupForm
+          formData={formData}
+          errors={errors}
+          onChange={onChange}
+          mode={mode}
+          onAddHeadline={onAddHeadline}
+          onRemoveHeadline={onRemoveHeadline}
+          onUpdateHeadline={onUpdateHeadline}
+          onAddDescription={onAddDescription}
+          onRemoveDescription={onRemoveDescription}
+          onUpdateDescription={onUpdateDescription}
+          logoPreview={_logoPreview}
+          setLogoPreview={_setLogoPreview}
+          marketingImagePreview={marketingImagePreview}
+          setMarketingImagePreview={setMarketingImagePreview}
+          squareMarketingImagePreview={squareMarketingImagePreview}
+          setSquareMarketingImagePreview={setSquareMarketingImagePreview}
+          setErrors={setErrors}
+          profileId={profileId}
+          campaignType="PERFORMANCE_MAX"
+        />
+      )}
     </>
   );
 };

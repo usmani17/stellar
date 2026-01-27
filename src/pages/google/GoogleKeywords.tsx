@@ -260,6 +260,16 @@ export const GoogleKeywords: React.FC = () => {
     };
   }, []);
 
+  // Auto-hide success message after 2 seconds
+  useEffect(() => {
+    if (inlineEditSuccess) {
+      const timer = setTimeout(() => {
+        setInlineEditSuccess(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [inlineEditSuccess]);
+
   // Removed buildFilterParams - now passing filters array directly to service
 
   const loadKeywords = useCallback(async (accountId: number) => {

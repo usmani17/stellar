@@ -2,6 +2,11 @@ import React, { useState, useEffect, useCallback } from "react";
 import { GooglePerformanceMaxAssetGroupForm } from "./campaigns/GooglePerformanceMaxAssetGroupForm";
 import type { CreateGoogleCampaignData } from "./campaigns/types";
 
+// Feature flag: Controls whether asset groups are automatically created when creating a PMAX campaign
+// When false, asset group fields are filtered out from the campaign creation payload
+// This prevents the backend from automatically creating an asset group during campaign creation
+export const SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION = false;
+
 export interface PmaxAssetGroupInput {
   asset_group: {
     name: string;

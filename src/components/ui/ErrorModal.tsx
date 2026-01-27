@@ -11,6 +11,8 @@ interface ErrorDetail {
   message?: string;
   is_exemptible?: boolean;
   user_message?: string;
+  campaign_id?: string; // New: campaign ID for targeting errors
+  updated_fields?: string[]; // New: fields that were successfully updated
 }
 
 interface ErrorModalProps {
@@ -117,9 +119,16 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
             </h3>
 
             {/* Summary Message */}
-            {message && (
+            {message && !hasErrorDetails && (
               <div className="mb-4">
                 <p className="text-[14px] text-[#556179] whitespace-pre-wrap break-words text-center">
+                  {message}
+                </p>
+              </div>
+            )}
+            {message && hasErrorDetails && (
+              <div className="mb-4">
+                <p className="text-[14px] text-[#556179] whitespace-pre-wrap break-words">
                   {message}
                 </p>
               </div>
@@ -208,7 +217,11 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
 
             {/* Error Details Table (for policy violations) or Success Details Table */}
             {hasErrorDetails && (
-              <div className="max-h-[400px] overflow-y-auto border border-[#e8e8e3] rounded-lg">
+              <div className="mb-4">
+                <h4 className="text-[14px] font-semibold text-[#072929] mb-2">
+                  Error Details
+                </h4>
+                <div className="max-h-[400px] overflow-y-auto border border-[#e8e8e3] rounded-lg">
                 <table className="w-full text-left">
                   <thead className="bg-[#f5f5f0] sticky top-0">
                     <tr>
@@ -224,13 +237,13 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
                       ) : (
                         <>
                           <th className="py-2 px-3 text-[12px] font-semibold text-[#29303f] border-b border-[#e8e8e3]">
-                            Entity
+                            Campaign
                           </th>
                           <th className="py-2 px-3 text-[12px] font-semibold text-[#29303f] border-b border-[#e8e8e3]">
-                            Policy/Error
+                            Error Type
                           </th>
                           <th className="py-2 px-3 text-[12px] font-semibold text-[#29303f] border-b border-[#e8e8e3]">
-                            Details
+                            Error Message
                           </th>
                         </>
                       )}
@@ -257,14 +270,20 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
                           </>
                         ) : (
                           <>
-                            <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
-                              {error.entity || "—"}
+                            <td className="py-2 px-3 text-[13px] font-medium text-[#0b0f16]">
+                              {error.campaign_id ? `Campaign ${error.campaign_id}` : (error.entity || "—")}
                             </td>
                             <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
-                              {error.policy_name || error.error_code || "Error"}
+                              <span className={`px-2 py-1 rounded text-[11px] font-medium ${
+                                error.policy_name === 'Success' 
+                                  ? 'bg-green-100 text-green-700' 
+                                  : 'bg-red-100 text-red-700'
+                              }`}>
+                                {error.policy_name || error.error_code || 'Error'}
+                              </span>
                             </td>
                             <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
-                              <div className="space-y-1">
+                              <div className="space-y-2">
                                 {error.violating_text && (
                                   <div>
                                     <span className="font-medium">
@@ -279,8 +298,22 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
                                   </div>
                                 )}
                                 {error.message && !error.policy_description && (
-                                  <div className="text-[12px] text-[#556179]">
+                                  <div className={`text-[12px] ${
+                                    error.policy_name === 'Success' 
+                                      ? 'text-green-700' 
+                                      : 'text-red-700'
+                                  }`}>
                                     {error.message}
+                                  </div>
+                                )}
+                                {error.updated_fields && error.updated_fields.length > 0 && error.policy_name !== 'Success' && (
+                                  <div className="mt-2 pt-2 border-t border-green-200">
+                                    <div className="text-[11px] font-medium text-green-700 mb-1">
+                                      ✓ Successfully updated:
+                                    </div>
+                                    <div className="text-[11px] text-green-600">
+                                      {error.updated_fields.join(', ')}
+                                    </div>
                                   </div>
                                 )}
                                 {error.is_exemptible && (
@@ -296,6 +329,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </div>
