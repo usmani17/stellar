@@ -4459,9 +4459,15 @@ export const CampaignDetail: React.FC = () => {
     setEditedAdGroupValue(value);
   };
 
-  const handleAdGroupEditEnd = (newValue?: string) => {
-    if (!editingAdGroupField) return;
-    const adgroup = adgroups.find((ag) => ag.id === editingAdGroupField.id);
+  const handleAdGroupEditEnd = (newValue?: string, adgroupId?: number, field?: "status" | "default_bid" | "name") => {
+    // Use override parameters if provided, otherwise fall back to editingAdGroupField state
+    // This matches the pattern from Campaigns.tsx to avoid state timing issues
+    const adgroupIdToUse = adgroupId !== undefined ? adgroupId : editingAdGroupField?.id;
+    const fieldToUse = field !== undefined ? field : editingAdGroupField?.field;
+    
+    if (adgroupIdToUse === undefined || fieldToUse === undefined) return;
+    
+    const adgroup = adgroups.find((ag) => ag.id === adgroupIdToUse);
     if (!adgroup) {
       setEditingAdGroupField(null);
       setEditedAdGroupValue("");
@@ -4477,7 +4483,7 @@ export const CampaignDetail: React.FC = () => {
     let hasChanged = false;
     let oldValue = "";
 
-    if (editingAdGroupField.field === "status") {
+    if (fieldToUse === "status") {
       const statusLower = adgroup.status?.toLowerCase() || "enabled";
       const currentStatus =
         statusLower === "enable" || statusLower === "enabled"
@@ -4487,7 +4493,7 @@ export const CampaignDetail: React.FC = () => {
             : "archived";
       oldValue = currentStatus;
       hasChanged = valueToCompare !== currentStatus;
-    } else if (editingAdGroupField.field === "default_bid") {
+    } else if (fieldToUse === "default_bid") {
       const currentBid = adgroup.default_bid
         ? adgroup.default_bid.replace(/[^0-9.]/g, "")
         : "0";
@@ -4503,7 +4509,7 @@ export const CampaignDetail: React.FC = () => {
       //   return;
       // }
       hasChanged = valueToCompare !== currentBid && valueToCompare !== "";
-    } else if (editingAdGroupField.field === "name") {
+    } else if (fieldToUse === "name") {
       oldValue = adgroup.name || "";
       hasChanged =
         valueToCompare.trim() !== oldValue.trim() &&
@@ -4512,8 +4518,8 @@ export const CampaignDetail: React.FC = () => {
 
     if (hasChanged) {
       setPendingAdGroupChange({
-        id: editingAdGroupField.id,
-        field: editingAdGroupField.field,
+        id: adgroupIdToUse,
+        field: fieldToUse,
         newValue: valueToCompare,
         oldValue: oldValue,
       });
@@ -6974,30 +6980,36 @@ export const CampaignDetail: React.FC = () => {
               }
             }}
             onEditValueChange={setEditedValue}
-            onEditEnd={() => {
+            onEditEnd={(value, field) => {
               if (!campaignDetail) return;
-              if (editingField === "status") {
+              // Use the passed value and field if provided, otherwise use the state values
+              // This handles the case where onEditEnd is called immediately after onChange
+              // before React state has updated - matches pattern from Campaigns.tsx
+              const valueToCompare = value !== undefined ? value : editedValue;
+              const fieldToUse = field !== undefined ? field : editingField;
+              
+              if (fieldToUse === "status") {
                 const currentStatus =
                   campaignDetail.campaign.status?.toLowerCase() || "enabled";
-                const newEditedValue = editedValue.toLowerCase();
+                const newEditedValue = valueToCompare.toLowerCase();
                 if (newEditedValue !== currentStatus) {
                   setInlineEditField("status");
                   setInlineEditOldValue(
                     campaignDetail.campaign.status || "Enabled",
                   );
-                  setInlineEditNewValue(editedValue);
+                  setInlineEditNewValue(valueToCompare);
                   setShowInlineEditModal(true);
                 } else {
                   setEditingField(null);
                   setEditedValue("");
                 }
-              } else if (editingField === "budget") {
-                const budgetValue = parseFloat(editedValue);
+              } else if (fieldToUse === "budget") {
+                const budgetValue = parseFloat(valueToCompare);
                 const oldBudget = campaignDetail.campaign.budget || 0;
                 if (!isNaN(budgetValue) && budgetValue !== oldBudget) {
                   setInlineEditField("budget");
                   setInlineEditOldValue(`$${oldBudget.toLocaleString()}`);
-                  setInlineEditNewValue(editedValue);
+                  setInlineEditNewValue(valueToCompare);
                   setShowInlineEditModal(true);
                 } else {
                   setEditingField(null);
