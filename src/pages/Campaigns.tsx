@@ -355,6 +355,10 @@ export const Campaigns: React.FC = () => {
   const [editLoadingCampaignId, setEditLoadingCampaignId] = useState<
     string | number | null
   >(null);
+  // Loading campaign details when opening edit panel (row spinner); submit loading uses editLoadingCampaignId
+  const [loadingEditCampaignId, setLoadingEditCampaignId] = useState<
+    string | number | null
+  >(null);
   const [campaignId, setCampaignId] = useState<string | number | undefined>(
     undefined
   );
@@ -1049,6 +1053,16 @@ export const Campaigns: React.FC = () => {
       // Build update payload with all changed fields
       const updatePayload: any = {};
 
+      /** Backend requires bidAdjustmentsByPlacement to be omitted when bidOptimization is true */
+      const sanitizeBiddingForApi = (b: any) => {
+        if (!b || typeof b !== "object") return b;
+        if (b.bidOptimization) {
+          const { bidAdjustmentsByPlacement: _drop, ...rest } = b;
+          return rest;
+        }
+        return b;
+      };
+
       // 1. Check if name changed
       if (
         data.campaign_name !== original.campaign_name &&
@@ -1153,7 +1167,7 @@ export const Campaigns: React.FC = () => {
         updatePayload.portfolioId = newPortfolioIdStr || null;
       }
 
-      // 7. Check if targetingType changed (for SP campaigns)
+      // 7. Check if targetingType changed (for SP campaigns only)
       if (data.type === "SP") {
         const originalTargetingType = original.targetingType || "";
         const newTargetingType = data.targetingType || "";
@@ -1176,8 +1190,10 @@ export const Campaigns: React.FC = () => {
               | "MANUAL";
           }
         }
+      }
 
-        // 8. Check if tags changed
+      // 8. Check if tags changed (SP and SB)
+      if (data.type === "SP" || data.type === "SB") {
         const normalizeTags = (tags: any): string[] => {
           if (!tags) return [];
           if (Array.isArray(tags)) {
@@ -1239,11 +1255,11 @@ export const Campaigns: React.FC = () => {
             newBidding.bidAdjustmentsByPlacement.length > 0
           ) {
             // Original empty but new has placements - there's a change
-            updatePayload.dynamicBidding = newBidding;
+            (updatePayload as any)[data.type === "SB" ? "bidding" : "dynamicBidding"] = sanitizeBiddingForApi(newBidding);
           }
         } else if (!newBidding || Object.keys(newBidding).length === 0) {
           // Original has data but new is empty - there's a change
-          updatePayload.dynamicBidding = newBidding;
+          (updatePayload as any)[data.type === "SB" ? "bidding" : "dynamicBidding"] = sanitizeBiddingForApi(newBidding);
         } else {
           // Both have data, normalize and compare
           // Normalize bidding objects for comparison
@@ -1390,7 +1406,7 @@ export const Campaigns: React.FC = () => {
             placementsChanged || strategyChanged || cohortsChanged;
 
           if (biddingChanged) {
-            updatePayload.dynamicBidding = newBidding;
+            (updatePayload as any)[data.type === "SB" ? "bidding" : "dynamicBidding"] = sanitizeBiddingForApi(newBidding);
           }
         }
       }
@@ -1454,11 +1470,11 @@ export const Campaigns: React.FC = () => {
             newBidding.bidAdjustmentsByPlacement.length > 0
           ) {
             // Original empty but new has placements - there's a change
-            updatePayload.bidding = newBidding;
+            updatePayload.bidding = sanitizeBiddingForApi(newBidding);
           }
         } else if (!newBidding || Object.keys(newBidding).length === 0) {
           // Original has data but new is empty - there's a change
-          updatePayload.bidding = newBidding;
+          updatePayload.bidding = sanitizeBiddingForApi(newBidding);
         } else {
           // Both have data, normalize and compare
           // Normalize bidding objects for comparison (same logic as SP)
@@ -1599,7 +1615,7 @@ export const Campaigns: React.FC = () => {
             placementsChanged || bidOptimizationChanged || cohortsChanged;
 
           if (biddingChanged) {
-            updatePayload.bidding = newBidding;
+            updatePayload.bidding = sanitizeBiddingForApi(newBidding);
           }
         }
 
@@ -1715,7 +1731,11 @@ export const Campaigns: React.FC = () => {
     if (!accountId) return;
 
     try {
-      setEditLoadingCampaignId(row.campaignId);
+      // Clear previous edit state so the panel re-initializes when data loads
+      setInitialCampaignData(null);
+      setOriginalCampaignDataSnapshot(null);
+      setCampaignId(undefined);
+      setLoadingEditCampaignId(row.campaignId);
       setCampaignFormMode("edit");
       setIsCreateCampaignPanelOpen(true);
 
@@ -1940,6 +1960,16 @@ export const Campaigns: React.FC = () => {
           brandEntityId: (campaign as any).brandEntityId || undefined,
           goal: (campaign as any).goal || "PAGE_VISIT",
           productLocation: (campaign as any).productLocation || "",
+          costType:
+            (campaign as any).costType || (row as any).costType || undefined,
+          targetedPGDealId:
+            (campaign as any).targetedPGDealId ??
+            (campaign as any).targeted_pg_deal_id ??
+            undefined,
+          smartDefault:
+            (campaign as any).smartDefault ??
+            (campaign as any).smart_default ??
+            undefined,
         }),
         // SD-specific fields
         ...(campaignTypeUpper === "SD" && {
@@ -2004,10 +2034,10 @@ export const Campaigns: React.FC = () => {
       window.requestAnimationFrame(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });
       });
-      setEditLoadingCampaignId(null);
+      setLoadingEditCampaignId(null);
     } catch (error) {
       console.error("Failed to load campaign for edit:", error);
-      setEditLoadingCampaignId(null);
+      setLoadingEditCampaignId(null);
     }
   };
 
@@ -2272,13 +2302,20 @@ export const Campaigns: React.FC = () => {
                     setCampaignFormMode("create");
                     setCampaignId(undefined);
                     setEditLoadingCampaignId(null);
+                    setLoadingEditCampaignId(null);
                   }}
                   onSubmit={handleCampaignPanelSubmit}
                   accountId={accountId}
                   profiles={profileOptions}
                   loading={
                     createCampaignLoading ||
-                    editLoadingCampaignId === campaignId
+                    editLoadingCampaignId === campaignId ||
+                    loadingEditCampaignId !== null
+                  }
+                  loadingMessage={
+                    loadingEditCampaignId !== null
+                      ? "Loading campaign..."
+                      : undefined
                   }
                   submitError={createCampaignError}
                   mode={campaignFormMode}
@@ -3287,36 +3324,32 @@ export const Campaigns: React.FC = () => {
                           ))
                         ) : (
                           <>
-                            {/* Summary Row */}
+                            {/* Summary Row - "Total (n)" spans Campaign Name through Start Date (9 cols) so numeric totals align with their columns */}
                             {summary && (
                               <tr className="table-summary-row">
                                 <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
-                                <td className="table-cell table-sticky-first-column">
+                                <td
+                                  className="table-cell table-sticky-first-column"
+                                  colSpan={9}
+                                >
                                   Total ({summary.total_campaigns})
                                 </td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-right">
                                   {formatCurrency(summary.total_spends)}
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-right">
                                   {formatCurrency(summary.total_sales)}
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-right">
                                   {summary.total_impressions.toLocaleString()}
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-right">
                                   {summary.total_clicks.toLocaleString()}
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-right">
                                   {summary.avg_acos.toFixed(2)}%
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-right">
                                   {summary.avg_roas.toFixed(2)}x
                                 </td>
                               </tr>
@@ -3377,11 +3410,11 @@ export const Campaigns: React.FC = () => {
                                         className="table-edit-icon"
                                         title="Edit campaign"
                                         disabled={
-                                          editLoadingCampaignId ===
+                                          loadingEditCampaignId ===
                                           campaign.campaignId
                                         }
                                       >
-                                        {editLoadingCampaignId ===
+                                        {loadingEditCampaignId ===
                                         campaign.campaignId ? (
                                           // Small spinner while campaign details load
                                           <Loader size="sm" />

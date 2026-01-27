@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { accountsService } from "../services/accounts";
 import { useAccounts } from "../contexts/AccountsContext";
 import { useSidebar } from "../contexts/SidebarContext";
@@ -25,7 +25,8 @@ interface GoogleAdsAccount {
 export const SelectGoogleAdsAccounts: React.FC = () => {
   const { channelId } = useParams<{ channelId: string }>();
   const navigate = useNavigate();
-  const { refreshAccounts } = useAccounts();
+  const location = useLocation();
+  const { accounts: brandAccounts, refreshAccounts } = useAccounts();
   const { sidebarWidth } = useSidebar();
   const queryClient = useQueryClient();
   
@@ -39,7 +40,11 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
   } = useGoogleProfiles(channelIdNum);
 
   const accounts = useMemo(() => profilesData?.profiles || [], [profilesData?.profiles]);
-  
+
+  const accountIdForBack: string | number | undefined =
+    (location.state as { accountId?: string })?.accountId ??
+    brandAccounts?.find((a) => a.channels?.some((ch) => ch.id === channelIdNum))?.id;
+
   // Initialize selected customer IDs from profiles data
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
   
@@ -566,7 +571,13 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                 <div className="flex gap-3 justify-end">
                   <Button
                     variant="outline"
-                    onClick={() => navigate("/brands")}
+                    onClick={() =>
+                      navigate(
+                        accountIdForBack != null
+                          ? `/brands/${accountIdForBack}/integrations`
+                          : "/brands"
+                      )
+                    }
                     disabled={saving}
                   >
                     Cancel
