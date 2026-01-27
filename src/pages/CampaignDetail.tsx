@@ -97,12 +97,12 @@ export const CampaignDetail: React.FC = () => {
   const [activeTab, setActiveTab] = useState("Overview");
   const [loading, setLoading] = useState(true);
   const [campaignDetail, setCampaignDetail] = useState<CampaignDetail | null>(
-    null
+    null,
   );
 
   // Inline edit state
   const [editingField, setEditingField] = useState<"budget" | "status" | null>(
-    null
+    null,
   );
   const [editedValue, setEditedValue] = useState<string>("");
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
@@ -122,18 +122,18 @@ export const CampaignDetail: React.FC = () => {
   const [adgroupsTotalPages, setAdgroupsTotalPages] = useState(0);
   const [adgroupsSortBy, setAdgroupsSortBy] = useState<string>("id");
   const [adgroupsSortOrder, setAdgroupsSortOrder] = useState<"asc" | "desc">(
-    "asc"
+    "asc",
   );
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [keywordsLoading, setKeywordsLoading] = useState(false);
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [keywordsCurrentPage, setKeywordsCurrentPage] = useState(1);
   const [keywordsTotalPages, setKeywordsTotalPages] = useState(0);
   const [keywordsSortBy, setKeywordsSortBy] = useState<string>("id");
   const [keywordsSortOrder, setKeywordsSortOrder] = useState<"asc" | "desc">(
-    "asc"
+    "asc",
   );
   const [isAdGroupsFilterPanelOpen, setIsAdGroupsFilterPanelOpen] =
     useState(false);
@@ -157,12 +157,12 @@ export const CampaignDetail: React.FC = () => {
     setCreateNegativeKeywordFieldErrors,
   ] = useState<Record<string, string>>({});
   const [createdNegativeKeywords, setCreatedNegativeKeywords] = useState<any[]>(
-    []
+    [],
   );
   const [failedNegativeKeywordCount, setFailedNegativeKeywordCount] =
     useState(0);
   const [failedNegativeKeywords, setFailedNegativeKeywords] = useState<any[]>(
-    []
+    [],
   );
   const [isCreateProductAdPanelOpen, setIsCreateProductAdPanelOpen] =
     useState(false);
@@ -222,7 +222,7 @@ export const CampaignDetail: React.FC = () => {
     "increase" | "decrease" | "set"
   >("increase");
   const [targetsBidUnit, setTargetsBidUnit] = useState<"percent" | "amount">(
-    "percent"
+    "percent",
   );
   const [targetsBidValue, setTargetsBidValue] = useState<string>("");
   const [targetsBidUpperLimit, setTargetsBidUpperLimit] = useState<string>("");
@@ -232,7 +232,7 @@ export const CampaignDetail: React.FC = () => {
     "increase" | "decrease" | "set"
   >("increase");
   const [keywordsBidUnit, setKeywordsBidUnit] = useState<"percent" | "amount">(
-    "percent"
+    "percent",
   );
   const [keywordsBidValue, setKeywordsBidValue] = useState<string>("");
   const [keywordsBidUpperLimit, setKeywordsBidUpperLimit] =
@@ -244,7 +244,7 @@ export const CampaignDetail: React.FC = () => {
     "increase" | "decrease" | "set"
   >("increase");
   const [adGroupsBidUnit, setAdGroupsBidUnit] = useState<"percent" | "amount">(
-    "percent"
+    "percent",
   );
   const [adGroupsBidValue, setAdGroupsBidValue] = useState<string>("");
   const [adGroupsBidUpperLimit, setAdGroupsBidUpperLimit] =
@@ -263,7 +263,7 @@ export const CampaignDetail: React.FC = () => {
   const [productadsLoading, setProductadsLoading] = useState(false);
   const [createProductAdLoading, setCreateProductAdLoading] = useState(false);
   const [selectedProductAdIds, setSelectedProductAdIds] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [productadsCurrentPage, setProductadsCurrentPage] = useState(1);
   const [productadsTotalPages, setProductadsTotalPages] = useState(0);
@@ -280,7 +280,7 @@ export const CampaignDetail: React.FC = () => {
   const [sbAdsLoading, setSbAdsLoading] = useState(false);
   const [createSBAdLoading, setCreateSBAdLoading] = useState(false);
   const [selectedSBAdIds, setSelectedSBAdIds] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [sbAdsCurrentPage, setSbAdsCurrentPage] = useState(1);
   const [sbAdsTotalPages, setSbAdsTotalPages] = useState(0);
@@ -316,7 +316,7 @@ export const CampaignDetail: React.FC = () => {
   } | null>(null);
   const [editedSBAdValue, setEditedSBAdValue] = useState<string>("");
   const [sbAdEditLoading, setSbAdEditLoading] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [pendingSBAdChange, setPendingSBAdChange] = useState<{
     id: number;
@@ -330,13 +330,13 @@ export const CampaignDetail: React.FC = () => {
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [createAssetLoading, setCreateAssetLoading] = useState(false);
   const [selectedAssetIds, setSelectedAssetIds] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [assetsCurrentPage, setAssetsCurrentPage] = useState(1);
   const [assetsTotalPages, setAssetsTotalPages] = useState(0);
   const [assetsSortBy, setAssetsSortBy] = useState<string>("creationTime");
   const [assetsSortOrder, setAssetsSortOrder] = useState<"asc" | "desc">(
-    "desc"
+    "desc",
   );
   const [isAssetsFilterPanelOpen, setIsAssetsFilterPanelOpen] = useState(false);
   const [assetsFilters, setAssetsFilters] = useState<FilterValues>([]);
@@ -351,18 +351,18 @@ export const CampaignDetail: React.FC = () => {
   const [creativesLoading, setCreativesLoading] = useState(false);
   const [createCreativeLoading, setCreateCreativeLoading] = useState(false);
   const [selectedCreativeIds, setSelectedCreativeIds] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [creativesCurrentPage, setCreativesCurrentPage] = useState(1);
   const [creativesTotalPages, setCreativesTotalPages] = useState(0);
   const [creativesSortBy, setCreativesSortBy] = useState<string>("id");
   const [creativesSortOrder, setCreativesSortOrder] = useState<"asc" | "desc">(
-    "asc"
+    "asc",
   );
   const [isCreateCreativePanelOpen, setIsCreateCreativePanelOpen] =
     useState(false);
   const [createCreativeError, setCreateCreativeError] = useState<string | null>(
-    null
+    null,
   );
   const [editingCreative, setEditingCreative] = useState<Creative | null>(null);
 
@@ -374,19 +374,19 @@ export const CampaignDetail: React.FC = () => {
   >(null);
   const [assetPreviewLoading, setAssetPreviewLoading] = useState(false);
   const [assetPreviewError, setAssetPreviewError] = useState<string | null>(
-    null
+    null,
   );
 
   const [targets, setTargets] = useState<Target[]>([]);
   const [targetsLoading, setTargetsLoading] = useState(false);
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [targetsCurrentPage, setTargetsCurrentPage] = useState(1);
   const [targetsTotalPages, setTargetsTotalPages] = useState(0);
   const [targetsSortBy, setTargetsSortBy] = useState<string>("id");
   const [targetsSortOrder, setTargetsSortOrder] = useState<"asc" | "desc">(
-    "asc"
+    "asc",
   );
   // Track if AUTO campaign has keywords or targets
   const [autoCampaignHasKeywords, setAutoCampaignHasKeywords] = useState(false);
@@ -473,7 +473,7 @@ export const CampaignDetail: React.FC = () => {
   }>({ isOpen: false, message: "" });
   const [createAdGroupLoading, setCreateAdGroupLoading] = useState(false);
   const [createAdGroupError, setCreateAdGroupError] = useState<string | null>(
-    null
+    null,
   );
   const [createAdGroupFieldErrors, setCreateAdGroupFieldErrors] = useState<
     Record<string, string>
@@ -489,7 +489,7 @@ export const CampaignDetail: React.FC = () => {
   } | null>(null);
   const [editedAdGroupValue, setEditedAdGroupValue] = useState<string>("");
   const [adGroupEditLoading, setAdGroupEditLoading] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [pendingAdGroupChange, setPendingAdGroupChange] = useState<{
     id: number;
@@ -511,7 +511,7 @@ export const CampaignDetail: React.FC = () => {
     oldValue: string;
   } | null>(null);
   const [keywordEditLoading, setKeywordEditLoading] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
 
   // Target inline edit state
@@ -527,7 +527,7 @@ export const CampaignDetail: React.FC = () => {
     oldValue: string;
   } | null>(null);
   const [targetEditLoading, setTargetEditLoading] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [showTargetsConfirmationModal, setShowTargetsConfirmationModal] =
     useState(false);
@@ -568,7 +568,7 @@ export const CampaignDetail: React.FC = () => {
     oldValue: string;
   } | null>(null);
   const [productAdEditLoading, setProductAdEditLoading] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [showProductAdsConfirmationModal, setShowProductAdsConfirmationModal] =
     useState(false);
@@ -606,7 +606,7 @@ export const CampaignDetail: React.FC = () => {
   const [createNegativeTargetFieldErrors, setCreateNegativeTargetFieldErrors] =
     useState<Record<string, string>>({});
   const [createdNegativeTargets, setCreatedNegativeTargets] = useState<any[]>(
-    []
+    [],
   );
   const [failedNegativeTargetCount, setFailedNegativeTargetCount] = useState(0);
   const [failedNegativeTargets, setFailedNegativeTargets] = useState<any[]>([]);
@@ -681,7 +681,7 @@ export const CampaignDetail: React.FC = () => {
       filteredTabs = filteredTabs.filter((tab) => tab !== "Product Ads");
     } else if (campaignType === "SP") {
       filteredTabs = filteredTabs.filter(
-        (tab) => tab !== "Ads Collection" && tab !== "Assets"
+        (tab) => tab !== "Ads Collection" && tab !== "Assets",
       );
     } else {
       // SD campaigns - hide Ads Collection, but show Product Ads and Assets
@@ -692,7 +692,7 @@ export const CampaignDetail: React.FC = () => {
     // But show Negative Keywords and Negative Targets before Logs
     if (campaignType === "SP" && isAutoCampaign) {
       filteredTabs = filteredTabs.filter(
-        (tab) => tab !== "Keywords" && tab !== "Targets" && tab !== "Creatives"
+        (tab) => tab !== "Keywords" && tab !== "Targets" && tab !== "Creatives",
       );
       // Ensure Negative Keywords and Negative Targets appear before Logs
       // They should only show for auto campaigns
@@ -706,7 +706,7 @@ export const CampaignDetail: React.FC = () => {
           filteredTabs.splice(
             filteredTabs.indexOf("Negative Keywords") + 1,
             0,
-            "Negative Targets"
+            "Negative Targets",
           );
         }
       }
@@ -747,7 +747,7 @@ export const CampaignDetail: React.FC = () => {
         (tab) =>
           tab !== "Negative Keywords" &&
           tab !== "Negative Targets" &&
-          tab !== "Creatives"
+          tab !== "Creatives",
       );
     }
 
@@ -852,7 +852,7 @@ export const CampaignDetail: React.FC = () => {
               page: 1,
               page_size: 1,
               type: campaignType || undefined,
-            }
+            },
           );
 
           // Load first page of targets to check if any exist
@@ -865,20 +865,20 @@ export const CampaignDetail: React.FC = () => {
               page: 1,
               page_size: 1,
               type: campaignType || undefined,
-            }
+            },
           );
 
           // Update state to reflect existence
           setAutoCampaignHasKeywords(
-            keywordsData.keywords && keywordsData.keywords.length > 0
+            keywordsData.keywords && keywordsData.keywords.length > 0,
           );
           setAutoCampaignHasTargets(
-            targetsData.targets && targetsData.targets.length > 0
+            targetsData.targets && targetsData.targets.length > 0,
           );
         } catch (error) {
           console.error(
             "Failed to check keywords/targets for AUTO campaign:",
-            error
+            error,
           );
         }
       };
@@ -907,11 +907,11 @@ export const CampaignDetail: React.FC = () => {
   // Memoize date strings to prevent unnecessary re-renders
   const startDateStr = useMemo(
     () => startDate.toISOString().split("T")[0],
-    [startDate]
+    [startDate],
   );
   const endDateStr = useMemo(
     () => endDate.toISOString().split("T")[0],
-    [endDate]
+    [endDate],
   );
 
   // Reset pagination when date range or tab changes (but NOT filters - that's handled in onApply)
@@ -1425,13 +1425,13 @@ export const CampaignDetail: React.FC = () => {
           order: creativesSortOrder,
           page: creativesCurrentPage,
           page_size: 10,
-        }
+        },
       );
 
       // Log raw response from API
       console.log(
         "[loadCreatives] Raw response from API:",
-        JSON.stringify(response, null, 2)
+        JSON.stringify(response, null, 2),
       );
       console.log("[loadCreatives] Raw creatives array:", response.creatives);
       if (response.creatives && response.creatives.length > 0) {
@@ -1483,7 +1483,7 @@ export const CampaignDetail: React.FC = () => {
               originalType: originalCreativeIdType,
               after: creative.creativeId,
               afterType: typeof creative.creativeId,
-            }
+            },
           );
         }
 
@@ -1493,7 +1493,7 @@ export const CampaignDetail: React.FC = () => {
       // Log final creatives
       console.log(
         "[loadCreatives] Final creatives after transformation:",
-        creatives
+        creatives,
       );
       creatives.forEach((c: any, idx: number) => {
         console.log(`[loadCreatives] Final Creative ${idx + 1}:`, {
@@ -1667,7 +1667,7 @@ export const CampaignDetail: React.FC = () => {
         campaignId!,
         startDate.toISOString().split("T")[0],
         endDate.toISOString().split("T")[0],
-        campaignType || undefined
+        campaignType || undefined,
       );
 
       setCampaignDetail(data);
@@ -1713,7 +1713,7 @@ export const CampaignDetail: React.FC = () => {
           order: adgroupsSortOrder,
           type: campaignType || undefined, // Pass campaign type to API
           ...buildAdGroupsFilterParams(adgroupsFilters),
-        }
+        },
       );
 
       // Check if request was aborted before updating state
@@ -1767,7 +1767,7 @@ export const CampaignDetail: React.FC = () => {
             sort_by: "name",
             order: "asc",
             type: campaignType || undefined,
-          }
+          },
         );
 
         const adgroups = data.adgroups || [];
@@ -1784,7 +1784,7 @@ export const CampaignDetail: React.FC = () => {
 
       setAllAdgroups(allAdgroupsList);
       console.log(
-        `[loadAllAdGroups] Loaded ${allAdgroupsList.length} adgroups for dropdown`
+        `[loadAllAdGroups] Loaded ${allAdgroupsList.length} adgroups for dropdown`,
       );
     } catch (error) {
       console.error("Failed to load all ad groups:", error);
@@ -1834,7 +1834,7 @@ export const CampaignDetail: React.FC = () => {
       const response = await campaignsService.createAdGroups(
         accountIdNum,
         campaignId,
-        payload
+        payload,
       );
 
       // Check for partial success
@@ -1903,7 +1903,7 @@ export const CampaignDetail: React.FC = () => {
           Object.keys(response.field_errors).length === 0
         ) {
           setCreateAdGroupError(
-            response.errors[0] || "Failed to create some ad groups."
+            response.errors[0] || "Failed to create some ad groups.",
           );
         }
       }
@@ -1940,7 +1940,7 @@ export const CampaignDetail: React.FC = () => {
 
   const [createKeywordLoading, setCreateKeywordLoading] = useState(false);
   const [createKeywordError, setCreateKeywordError] = useState<string | null>(
-    null
+    null,
   );
   const [createKeywordFieldErrors, setCreateKeywordFieldErrors] = useState<
     Record<string, string>
@@ -1960,7 +1960,7 @@ export const CampaignDetail: React.FC = () => {
     if (!keywords || keywords.length === 0) {
       console.error("No keywords provided");
       setCreateKeywordError(
-        "Please add at least one keyword before submitting"
+        "Please add at least one keyword before submitting",
       );
       setCreateKeywordLoading(false);
       return;
@@ -1990,7 +1990,7 @@ export const CampaignDetail: React.FC = () => {
             bid: kw.bid,
             state: kw.state,
           })),
-        }
+        },
       );
 
       // Check for partial success
@@ -2123,7 +2123,7 @@ export const CampaignDetail: React.FC = () => {
 
   const [createTargetLoading, setCreateTargetLoading] = useState(false);
   const [createTargetError, setCreateTargetError] = useState<string | null>(
-    null
+    null,
   );
   const [createTargetFieldErrors, setCreateTargetFieldErrors] = useState<
     Record<string, string>
@@ -2254,7 +2254,7 @@ export const CampaignDetail: React.FC = () => {
         campaignId,
         {
           targets: formattedTargets,
-        }
+        },
       );
 
       // Check for partial success
@@ -2323,7 +2323,7 @@ export const CampaignDetail: React.FC = () => {
           Object.keys(response.field_errors).length === 0
         ) {
           setCreateTargetError(
-            response.errors[0] || "Failed to create some targets."
+            response.errors[0] || "Failed to create some targets.",
           );
         }
       }
@@ -2380,7 +2380,7 @@ export const CampaignDetail: React.FC = () => {
   };
 
   const handleCreateNegativeKeywords = async (
-    negativeKeywords: NegativeKeywordInput[]
+    negativeKeywords: NegativeKeywordInput[],
   ) => {
     if (
       !accountId ||
@@ -2414,7 +2414,7 @@ export const CampaignDetail: React.FC = () => {
             nativeLanguageLocale: nkw.nativeLanguageLocale,
             state: nkw.state,
           })),
-        }
+        },
       );
 
       // Check for partial success
@@ -2483,7 +2483,7 @@ export const CampaignDetail: React.FC = () => {
           Object.keys(response.field_errors).length === 0
         ) {
           setCreateNegativeKeywordError(
-            response.errors[0] || "Failed to create some negative keywords."
+            response.errors[0] || "Failed to create some negative keywords.",
           );
         }
       }
@@ -2548,7 +2548,7 @@ export const CampaignDetail: React.FC = () => {
               }),
               ...(pa.adName && { adName: pa.adName }),
             })),
-          }
+          },
         );
       } else {
         // Use SP/SB endpoint
@@ -2568,7 +2568,7 @@ export const CampaignDetail: React.FC = () => {
                 : undefined,
               state: pa.state as "ENABLED" | "PAUSED",
             })),
-          }
+          },
         );
       }
 
@@ -2666,7 +2666,7 @@ export const CampaignDetail: React.FC = () => {
         // First, try to get the first field error
         if (error.response.data.field_errors) {
           const fieldErrorEntries = Object.entries(
-            error.response.data.field_errors
+            error.response.data.field_errors,
           );
           if (fieldErrorEntries.length > 0) {
             const [firstFieldKey, firstFieldValue] = fieldErrorEntries[0];
@@ -2815,7 +2815,7 @@ export const CampaignDetail: React.FC = () => {
           order: keywordsSortOrder,
           type: campaignType || undefined, // Pass campaign type to API
           ...buildKeywordsFilterParams(keywordsFilters),
-        }
+        },
       );
 
       setKeywords(data.keywords);
@@ -2936,7 +2936,7 @@ export const CampaignDetail: React.FC = () => {
           order: productadsSortOrder,
           type: campaignType || undefined, // Pass campaign type to API
           ...buildProductAdsFilterParams(productadsFilters),
-        }
+        },
       );
 
       setProductads(data.productads);
@@ -3007,7 +3007,7 @@ export const CampaignDetail: React.FC = () => {
           order: sbAdsSortOrder,
           type: "SB", // Force SB type for SB ads
           ...buildSBAdsFilterParams(sbAdsFilters),
-        }
+        },
       );
 
       setSbAds(data.productads as SBAd[]);
@@ -3159,7 +3159,7 @@ export const CampaignDetail: React.FC = () => {
 
   const handleCreateCreative = async (
     creatives: CreativeInput[],
-    adGroupId?: number
+    adGroupId?: number,
   ) => {
     if (!accountId || !campaignId) return;
 
@@ -3222,17 +3222,32 @@ export const CampaignDetail: React.FC = () => {
       console.log("[handleCreateCreative] Amazon API Response:", response);
 
       if (response.success && response.success.length > 0) {
-        console.log("[handleCreateCreative] Success - Created creatives:", response.success);
+        console.log(
+          "[handleCreateCreative] Success - Created creatives:",
+          response.success,
+        );
         // Close panel and reload creatives
         setIsCreateCreativePanelOpen(false);
         setEditingCreative(null);
+        setCreateCreativeError(null);
         await loadCreatives();
+        // Show success popup
+        const count = response.success.length;
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `${count} creative${count === 1 ? "" : "s"} created successfully!`,
+          isSuccess: true,
+        });
       } else if (response.error && response.error.length > 0) {
-        console.error("[handleCreateCreative] Error - Failed to create creatives:", response.error);
+        console.error(
+          "[handleCreateCreative] Error - Failed to create creatives:",
+          response.error,
+        );
         // Extract error messages
         const errorMessages = response.error
           .map(
-            (e: any) => e.description || e.details || e.code || "Unknown error"
+            (e: any) => e.description || e.details || e.code || "Unknown error",
           )
           .filter((msg: string) => msg);
 
@@ -3252,8 +3267,14 @@ export const CampaignDetail: React.FC = () => {
         setCreateCreativeError(errorMessages.join(", "));
       }
     } catch (error: any) {
-      console.error("[handleCreateCreative] Exception - Failed to create creatives:", error);
-      console.error("[handleCreateCreative] Error response:", error?.response?.data);
+      console.error(
+        "[handleCreateCreative] Exception - Failed to create creatives:",
+        error,
+      );
+      console.error(
+        "[handleCreateCreative] Error response:",
+        error?.response?.data,
+      );
 
       // Extract error message
       let errorMessage = "Failed to create creatives. Please try again.";
@@ -3274,7 +3295,7 @@ export const CampaignDetail: React.FC = () => {
           Array.isArray(error.response.data.error)
         ) {
           genericErrors = error.response.data.error.map(
-            (e: any) => e.description || e.details || e.code || "Unknown error"
+            (e: any) => e.description || e.details || e.code || "Unknown error",
           );
           errorMessage = genericErrors.join("\n");
         }
@@ -3318,7 +3339,7 @@ export const CampaignDetail: React.FC = () => {
   const handleUpdateCreative = async (
     creative: CreativeInput,
     adGroupId: number,
-    creativeId: number | string
+    creativeId: number | string,
   ) => {
     if (!accountId) return;
 
@@ -3340,7 +3361,7 @@ export const CampaignDetail: React.FC = () => {
           creativeId: creativeId,
           creativeIdType: typeof creativeId,
           creativeIdValue: String(creativeId),
-        }
+        },
       );
 
       // Send creativeId as string to preserve precision
@@ -3406,7 +3427,7 @@ export const CampaignDetail: React.FC = () => {
         // Extract error messages
         const errorMessages = response.error
           .map(
-            (e: any) => e.description || e.details || e.code || "Unknown error"
+            (e: any) => e.description || e.details || e.code || "Unknown error",
           )
           .filter((msg: string) => msg);
 
@@ -3447,7 +3468,7 @@ export const CampaignDetail: React.FC = () => {
           Array.isArray(error.response.data.error)
         ) {
           genericErrors = error.response.data.error.map(
-            (e: any) => e.description || e.details || e.code || "Unknown error"
+            (e: any) => e.description || e.details || e.code || "Unknown error",
           );
           errorMessage = genericErrors.join("\n");
         }
@@ -3512,12 +3533,12 @@ export const CampaignDetail: React.FC = () => {
       if (asset.versionInfo) {
         formData.append(
           "versionInfo[linkedAssetId]",
-          asset.versionInfo.linkedAssetId
+          asset.versionInfo.linkedAssetId,
         );
         if (asset.versionInfo.versionNotes) {
           formData.append(
             "versionInfo[versionNotes]",
-            asset.versionInfo.versionNotes
+            asset.versionInfo.versionNotes,
           );
         }
       }
@@ -3526,7 +3547,7 @@ export const CampaignDetail: React.FC = () => {
         formData.append(
           "registrationContext[associatedPrograms][0][programName]",
           asset.registrationContext.associatedPrograms[0]?.programName ||
-            "A_PLUS"
+            "A_PLUS",
         );
         if (
           asset.registrationContext.associatedPrograms[0]?.metadata
@@ -3535,7 +3556,7 @@ export const CampaignDetail: React.FC = () => {
           formData.append(
             "registrationContext[associatedPrograms][0][metadata][dspAdvertiserId]",
             asset.registrationContext.associatedPrograms[0].metadata
-              .dspAdvertiserId
+              .dspAdvertiserId,
           );
         }
       }
@@ -3543,7 +3564,7 @@ export const CampaignDetail: React.FC = () => {
       if (asset.skipAssetSubTypesDetection !== undefined) {
         formData.append(
           "skipAssetSubTypesDetection",
-          asset.skipAssetSubTypesDetection.toString()
+          asset.skipAssetSubTypesDetection.toString(),
         );
       }
 
@@ -3562,7 +3583,7 @@ export const CampaignDetail: React.FC = () => {
 
       const response = await campaignsService.createAsset(
         accountIdNum,
-        formData
+        formData,
       );
 
       setIsCreateAssetPanelOpen(false);
@@ -3648,7 +3669,7 @@ export const CampaignDetail: React.FC = () => {
       const response = await campaignsService.getAssetPreview(
         accountIdNum,
         assetId,
-        profileId
+        profileId,
       );
 
       setAssetPreviewUrl(response.previewUrl);
@@ -3689,7 +3710,7 @@ export const CampaignDetail: React.FC = () => {
         const imageResponse = await campaignsService.createSBAds(
           accountIdNum,
           campaignId,
-          { ads: imageAds }
+          { ads: imageAds },
         );
         response.created += imageResponse.created || 0;
         response.failed += imageResponse.failed || 0;
@@ -3705,7 +3726,7 @@ export const CampaignDetail: React.FC = () => {
         const videoResponse = await campaignsService.createSBVideoAds(
           accountIdNum,
           campaignId,
-          { ads: videoAds }
+          { ads: videoAds },
         );
         response.created += videoResponse.created || 0;
         response.failed += videoResponse.failed || 0;
@@ -3837,7 +3858,7 @@ export const CampaignDetail: React.FC = () => {
     if (!accountId || !campaignId || !ad.adId) return;
 
     const confirmed = window.confirm(
-      `Are you sure you want to delete ad "${ad.name || ad.adId}"?`
+      `Are you sure you want to delete ad "${ad.name || ad.adId}"?`,
     );
 
     if (!confirmed) return;
@@ -3877,7 +3898,7 @@ export const CampaignDetail: React.FC = () => {
   const handleSBAdEditStart = (
     id: number,
     field: "status" | "name",
-    currentValue: string
+    currentValue: string,
   ) => {
     setEditingSBAdField({ id, field });
     setEditedSBAdValue(currentValue);
@@ -4033,7 +4054,7 @@ export const CampaignDetail: React.FC = () => {
     try {
       setSbAdsDeleteLoading(true); // Reuse this loading state for bulk operations
       const selectedSBAdsData = sbAds.filter((ad) =>
-        selectedSBAdIds.has(ad.id)
+        selectedSBAdIds.has(ad.id),
       );
 
       // Map status values to uppercase
@@ -4102,7 +4123,7 @@ export const CampaignDetail: React.FC = () => {
           order: targetsSortOrder,
           type: campaignType || undefined, // Pass campaign type to API
           ...buildTargetsFilterParams(targetsFilters),
-        }
+        },
       );
 
       setTargets(data.targets);
@@ -4148,7 +4169,7 @@ export const CampaignDetail: React.FC = () => {
   const handleSelectAllNegativeKeywords = (checked: boolean) => {
     if (checked) {
       setSelectedNegativeKeywordIds(
-        new Set(negativeKeywords.map((nkw) => nkw.id))
+        new Set(negativeKeywords.map((nkw) => nkw.id)),
       );
     } else {
       setSelectedNegativeKeywordIds(new Set());
@@ -4170,7 +4191,7 @@ export const CampaignDetail: React.FC = () => {
   const handleSelectAllNegativeTargets = (checked: boolean) => {
     if (checked) {
       setSelectedNegativeTargetIds(
-        new Set(negativeTargets.map((ntg) => ntg.id))
+        new Set(negativeTargets.map((ntg) => ntg.id)),
       );
     } else {
       setSelectedNegativeTargetIds(new Set());
@@ -4191,7 +4212,7 @@ export const CampaignDetail: React.FC = () => {
 
   // Negative target bulk action handlers
   const handleBulkNegativeTargetsStatus = async (
-    statusValue: "enable" | "pause" | "archive"
+    statusValue: "enable" | "pause" | "archive",
   ) => {
     if (!accountId || selectedNegativeTargetIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -4200,7 +4221,7 @@ export const CampaignDetail: React.FC = () => {
     try {
       setNegativeTargetsBulkLoading(true);
       const selectedNegativeTargetIdsArray = Array.from(
-        selectedNegativeTargetIds
+        selectedNegativeTargetIds,
       ).map((id) => {
         const negativeTarget = negativeTargets.find((ntg) => ntg.id === id);
         return negativeTarget?.targetId
@@ -4281,7 +4302,7 @@ export const CampaignDetail: React.FC = () => {
           order: negativeKeywordsSortOrder,
           type: campaignType,
           ...buildNegativeKeywordsFilterParams(negativeKeywordsFilters),
-        }
+        },
       );
 
       setNegativeKeywords(data.negative_keywords || []);
@@ -4315,7 +4336,7 @@ export const CampaignDetail: React.FC = () => {
           order: negativeTargetsSortOrder,
           type: campaignType,
           ...buildNegativeTargetsFilterParams(negativeTargetsFilters),
-        }
+        },
       );
 
       setNegativeTargets(data.negative_targets || []);
@@ -4332,7 +4353,7 @@ export const CampaignDetail: React.FC = () => {
   const handleNegativeKeywordsSort = (column: string) => {
     if (negativeKeywordsSortBy === column) {
       setNegativeKeywordsSortOrder(
-        negativeKeywordsSortOrder === "asc" ? "desc" : "asc"
+        negativeKeywordsSortOrder === "asc" ? "desc" : "asc",
       );
     } else {
       setNegativeKeywordsSortBy(column);
@@ -4348,7 +4369,7 @@ export const CampaignDetail: React.FC = () => {
   const handleNegativeTargetsSort = (column: string) => {
     if (negativeTargetsSortBy === column) {
       setNegativeTargetsSortOrder(
-        negativeTargetsSortOrder === "asc" ? "desc" : "asc"
+        negativeTargetsSortOrder === "asc" ? "desc" : "asc",
       );
     } else {
       setNegativeTargetsSortBy(column);
@@ -4369,7 +4390,7 @@ export const CampaignDetail: React.FC = () => {
       | "clicks"
       | "orders"
       | "acos"
-      | "roas"
+      | "roas",
   ) => {
     setChartToggles((prev) => ({
       ...prev,
@@ -4427,7 +4448,7 @@ export const CampaignDetail: React.FC = () => {
   const handleAdGroupEditStart = (
     id: number,
     field: "status" | "default_bid" | "name",
-    currentValue: string
+    currentValue: string,
   ) => {
     setEditingAdGroupField({ id, field });
     setEditedAdGroupValue(currentValue);
@@ -4468,8 +4489,8 @@ export const CampaignDetail: React.FC = () => {
         statusLower === "enable" || statusLower === "enabled"
           ? "enabled"
           : statusLower === "paused"
-          ? "paused"
-          : "archived";
+            ? "paused"
+            : "archived";
       oldValue = currentStatus;
       hasChanged = valueToCompare !== currentStatus;
     } else if (fieldToUse === "default_bid") {
@@ -4535,7 +4556,7 @@ export const CampaignDetail: React.FC = () => {
         ) {
           await campaignsService.archiveSdAdGroup(
             accountIdNum,
-            adgroup.adGroupId
+            adgroup.adGroupId,
           );
         } else {
           // Map status values to uppercase
@@ -4614,7 +4635,7 @@ export const CampaignDetail: React.FC = () => {
   const handleKeywordEditStart = (
     id: number,
     field: "status" | "bid",
-    currentValue: string
+    currentValue: string,
   ) => {
     setEditingKeywordField({ id, field });
     setEditedKeywordValue(currentValue);
@@ -4768,7 +4789,7 @@ export const CampaignDetail: React.FC = () => {
   const handleProductAdEditStart = (
     id: number,
     field: "status",
-    currentValue: string
+    currentValue: string,
   ) => {
     setEditingProductAdField({ id, field });
     setEditedProductAdValue(currentValue);
@@ -4782,7 +4803,7 @@ export const CampaignDetail: React.FC = () => {
   const handleProductAdEditEnd = (newValue?: string) => {
     if (!editingProductAdField) return;
     const productad = productads.find(
-      (pa) => pa.id === editingProductAdField.id
+      (pa) => pa.id === editingProductAdField.id,
     );
     if (!productad) {
       setEditingProductAdField(null);
@@ -4820,7 +4841,7 @@ export const CampaignDetail: React.FC = () => {
     if (!pendingProductAdChange || !accountId || !campaignId) return;
 
     const productad = productads.find(
-      (pa) => pa.id === pendingProductAdChange.id
+      (pa) => pa.id === pendingProductAdChange.id,
     );
     if (!productad || !productad.adId) {
       alert("Product Ad ID not found");
@@ -4829,7 +4850,7 @@ export const CampaignDetail: React.FC = () => {
     }
 
     setProductAdEditLoading((prev) =>
-      new Set(prev).add(pendingProductAdChange.id)
+      new Set(prev).add(pendingProductAdChange.id),
     );
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -4846,7 +4867,7 @@ export const CampaignDetail: React.FC = () => {
         // Use archive endpoint for SD product ads
         await campaignsService.archiveSdProductAd(
           accountIdNum,
-          String(productad.adId)
+          String(productad.adId),
         );
         await loadProductAds();
         setPendingProductAdChange(null);
@@ -4895,7 +4916,7 @@ export const CampaignDetail: React.FC = () => {
               state: statusValue,
             },
           ],
-        }
+        },
       );
 
       // Check if there were any failures
@@ -4974,7 +4995,7 @@ export const CampaignDetail: React.FC = () => {
         // First, try to get the first field error
         if (error.response.data.field_errors) {
           const fieldErrorEntries = Object.entries(
-            error.response.data.field_errors
+            error.response.data.field_errors,
           );
           if (fieldErrorEntries.length > 0) {
             const [firstFieldKey, firstFieldValue] = fieldErrorEntries[0];
@@ -5050,7 +5071,7 @@ export const CampaignDetail: React.FC = () => {
   const handleTargetEditStart = (
     id: number,
     field: "status" | "bid",
-    currentValue: string
+    currentValue: string,
   ) => {
     console.log("handleTargetEditStart:", { id, field, currentValue });
     setEditingTargetField({ id, field });
@@ -5118,7 +5139,7 @@ export const CampaignDetail: React.FC = () => {
 
     if (hasChanged) {
       console.log(
-        "handleTargetEditEnd: Value changed, showing confirmation modal"
+        "handleTargetEditEnd: Value changed, showing confirmation modal",
       );
       setPendingTargetChange({
         id: editingTargetField.id,
@@ -5142,7 +5163,7 @@ export const CampaignDetail: React.FC = () => {
         {
           pendingTargetChange,
           accountId,
-        }
+        },
       );
       return;
     }
@@ -5189,7 +5210,7 @@ export const CampaignDetail: React.FC = () => {
 
           await campaignsService.archiveSdTarget(
             accountIdNum,
-            String(target.targetId)
+            String(target.targetId),
           );
         } else {
           // Map status values for enable/pause
@@ -5214,7 +5235,7 @@ export const CampaignDetail: React.FC = () => {
         // Extract numeric value - clean any formatting
         const cleanedValue = pendingTargetChange.newValue.replace(
           /[^0-9.]/g,
-          ""
+          "",
         );
         const bidValue = parseFloat(cleanedValue);
         if (isNaN(bidValue) || bidValue < 0) {
@@ -5277,7 +5298,7 @@ export const CampaignDetail: React.FC = () => {
 
   // Negative keyword bulk action handlers
   const handleBulkNegativeKeywordsStatus = async (
-    statusValue: "enable" | "pause"
+    statusValue: "enable" | "pause",
   ) => {
     if (!accountId || selectedNegativeKeywordIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -5286,7 +5307,7 @@ export const CampaignDetail: React.FC = () => {
     try {
       setNegativeKeywordsBulkLoading(true);
       const selectedNegativeKeywordIdsArray = Array.from(
-        selectedNegativeKeywordIds
+        selectedNegativeKeywordIds,
       ).map((id) => {
         const negativeKeyword = negativeKeywords.find((nkw) => nkw.id === id);
         return negativeKeyword?.keywordId
@@ -5322,7 +5343,7 @@ export const CampaignDetail: React.FC = () => {
   const handleNegativeKeywordEditStart = (
     id: number,
     field: "status",
-    currentValue: string
+    currentValue: string,
   ) => {
     setEditingNegativeKeywordField({ id, field });
     setEditedNegativeKeywordValue(currentValue);
@@ -5336,7 +5357,7 @@ export const CampaignDetail: React.FC = () => {
   const handleNegativeKeywordEditEnd = (newValue?: string) => {
     if (!editingNegativeKeywordField) return;
     const negativeKeyword = negativeKeywords.find(
-      (nkw) => nkw.id === editingNegativeKeywordField.id
+      (nkw) => nkw.id === editingNegativeKeywordField.id,
     );
     if (!negativeKeyword) {
       setEditingNegativeKeywordField(null);
@@ -5380,7 +5401,7 @@ export const CampaignDetail: React.FC = () => {
     if (!pendingNegativeKeywordChange || !accountId) return;
 
     const negativeKeyword = negativeKeywords.find(
-      (nkw) => nkw.id === pendingNegativeKeywordChange.id
+      (nkw) => nkw.id === pendingNegativeKeywordChange.id,
     );
     if (!negativeKeyword || !negativeKeyword.keywordId) {
       alert("Negative keyword ID not found");
@@ -5389,7 +5410,7 @@ export const CampaignDetail: React.FC = () => {
     }
 
     setNegativeKeywordEditLoading((prev) =>
-      new Set(prev).add(pendingNegativeKeywordChange.id)
+      new Set(prev).add(pendingNegativeKeywordChange.id),
     );
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -5457,7 +5478,7 @@ export const CampaignDetail: React.FC = () => {
   const handleNegativeTargetEditStart = (
     id: number,
     field: "status",
-    currentValue: string
+    currentValue: string,
   ) => {
     setEditingNegativeTargetField({ id, field });
     setEditedNegativeTargetValue(currentValue);
@@ -5471,7 +5492,7 @@ export const CampaignDetail: React.FC = () => {
   const handleNegativeTargetEditEnd = (newValue?: string) => {
     if (!editingNegativeTargetField) return;
     const negativeTarget = negativeTargets.find(
-      (ntg) => ntg.id === editingNegativeTargetField.id
+      (ntg) => ntg.id === editingNegativeTargetField.id,
     );
     if (!negativeTarget) {
       setEditingNegativeTargetField(null);
@@ -5499,10 +5520,10 @@ export const CampaignDetail: React.FC = () => {
           statusLower === "enable" || statusLower === "enabled"
             ? "enabled"
             : statusLower === "pause" || statusLower === "paused"
-            ? "paused"
-            : statusLower === "archived" || statusLower === "archive"
-            ? "archived"
-            : "enabled";
+              ? "paused"
+              : statusLower === "archived" || statusLower === "archive"
+                ? "archived"
+                : "enabled";
       } else {
         currentStatus =
           statusLower === "enable" || statusLower === "enabled"
@@ -5534,7 +5555,7 @@ export const CampaignDetail: React.FC = () => {
     if (!pendingNegativeTargetChange || !accountId) return;
 
     const negativeTarget = negativeTargets.find(
-      (ntg) => ntg.id === pendingNegativeTargetChange.id
+      (ntg) => ntg.id === pendingNegativeTargetChange.id,
     );
     if (!negativeTarget || !negativeTarget.targetId) {
       alert("Negative target ID not found");
@@ -5543,7 +5564,7 @@ export const CampaignDetail: React.FC = () => {
     }
 
     setNegativeTargetEditLoading((prev) =>
-      new Set(prev).add(pendingNegativeTargetChange.id)
+      new Set(prev).add(pendingNegativeTargetChange.id),
     );
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -5559,7 +5580,7 @@ export const CampaignDetail: React.FC = () => {
           // For SD, archive uses the dedicated DELETE endpoint
           await campaignsService.archiveSdNegativeTarget(
             accountIdNum,
-            String(negativeTarget.targetId)
+            String(negativeTarget.targetId),
           );
         } else {
           // Map status values
@@ -5625,7 +5646,7 @@ export const CampaignDetail: React.FC = () => {
       expressions?: Array<{ type: string; value: string }>;
       state?: "ENABLED" | "PAUSED" | "enabled" | "paused" | "archived";
       expressionType?: "manual" | "auto";
-    }>
+    }>,
   ) => {
     if (
       !accountId ||
@@ -5678,7 +5699,7 @@ export const CampaignDetail: React.FC = () => {
         campaignId,
         {
           negativeTargetingClauses: formattedNegativeTargets,
-        }
+        },
       );
 
       // Check for partial success
@@ -5791,7 +5812,7 @@ export const CampaignDetail: React.FC = () => {
                 return failed.errors
                   .map(
                     (err: any) =>
-                      err.message || err.details || JSON.stringify(err)
+                      err.message || err.details || JSON.stringify(err),
                   )
                   .join("; ");
               }
@@ -5846,7 +5867,7 @@ export const CampaignDetail: React.FC = () => {
 
   // Bulk action handlers for Targets
   const handleBulkTargetsStatus = async (
-    statusValue: "enable" | "pause" | "archive"
+    statusValue: "enable" | "pause" | "archive",
   ) => {
     if (!accountId || selectedTargetIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -5906,7 +5927,7 @@ export const CampaignDetail: React.FC = () => {
       setTargetsBulkLoading(true);
 
       const selectedTargetsData = targets.filter((tgt) =>
-        selectedTargetIds.has(tgt.id)
+        selectedTargetIds.has(tgt.id),
       );
       const updates: Array<{ targetId: string | number; newBid: number }> = [];
 
@@ -5914,7 +5935,7 @@ export const CampaignDetail: React.FC = () => {
         if (!target.targetId) continue;
 
         const currentBid = parseFloat(
-          (target.bid || "$0.00").replace(/[^0-9.]/g, "")
+          (target.bid || "$0.00").replace(/[^0-9.]/g, ""),
         );
         let newBid = currentBid;
 
@@ -5997,7 +6018,7 @@ export const CampaignDetail: React.FC = () => {
         (id) => {
           const keyword = keywords.find((kw) => kw.id === id);
           return keyword?.keywordId || id;
-        }
+        },
       );
 
       await campaignsService.bulkUpdateKeywords(accountIdNum, {
@@ -6038,7 +6059,7 @@ export const CampaignDetail: React.FC = () => {
       setKeywordsBulkLoading(true);
 
       const selectedKeywordsData = keywords.filter((kw) =>
-        selectedKeywordIds.has(kw.id)
+        selectedKeywordIds.has(kw.id),
       );
       const updates: Array<{ keywordId: string | number; newBid: number }> = [];
 
@@ -6046,7 +6067,7 @@ export const CampaignDetail: React.FC = () => {
         if (!keyword.keywordId) continue;
 
         const currentBid = parseFloat(
-          (keyword.bid || "$0.00").replace(/[^0-9.]/g, "")
+          (keyword.bid || "$0.00").replace(/[^0-9.]/g, ""),
         );
         let newBid = currentBid;
 
@@ -6124,7 +6145,7 @@ export const CampaignDetail: React.FC = () => {
     try {
       setKeywordsDeleteLoading(true);
       const selectedKeywordsData = keywords.filter((kw) =>
-        selectedKeywordIds.has(kw.id)
+        selectedKeywordIds.has(kw.id),
       );
       const keywordIds = selectedKeywordsData
         .map((k) => k.keywordId || k.id)
@@ -6220,7 +6241,7 @@ export const CampaignDetail: React.FC = () => {
   };
 
   const handleBulkProductAdsStatus = async (
-    statusValue: "enable" | "pause" | "archive"
+    statusValue: "enable" | "pause" | "archive",
   ) => {
     if (!accountId || selectedProductAdIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -6229,7 +6250,7 @@ export const CampaignDetail: React.FC = () => {
     try {
       setProductAdsBulkLoading(true);
       const selectedProductAdsData = productads.filter((pa) =>
-        selectedProductAdIds.has(pa.id)
+        selectedProductAdIds.has(pa.id),
       );
       const adIds = selectedProductAdsData
         .map((pa) => pa.adId || pa.id)
@@ -6242,7 +6263,7 @@ export const CampaignDetail: React.FC = () => {
           try {
             await campaignsService.archiveSdProductAd(
               accountIdNum,
-              String(adId)
+              String(adId),
             );
           } catch (error: any) {
             console.error(`Failed to archive product ad ${adId}:`, error);
@@ -6271,7 +6292,7 @@ export const CampaignDetail: React.FC = () => {
               adId: String(adId),
               state: stateValue,
             })),
-          }
+          },
         );
       }
 
@@ -6301,7 +6322,7 @@ export const CampaignDetail: React.FC = () => {
     try {
       setProductAdsDeleteLoading(true);
       const selectedProductAdsData = productads.filter((pa) =>
-        selectedProductAdIds.has(pa.id)
+        selectedProductAdIds.has(pa.id),
       );
       const adIds = selectedProductAdsData
         .map((pa) => pa.adId || pa.id)
@@ -6313,7 +6334,7 @@ export const CampaignDetail: React.FC = () => {
           adIdFilter: {
             include: adIds,
           },
-        }
+        },
       );
 
       // Handle response with success/error arrays
@@ -6394,7 +6415,7 @@ export const CampaignDetail: React.FC = () => {
       if (adGroupIds.length === 0 && selectedAdGroupIds.size > 0) {
         // Use the selected IDs directly as they might already be adGroupIds
         const directIds = Array.from(selectedAdGroupIds).filter(
-          (id): id is string | number => id !== undefined && id !== null
+          (id): id is string | number => id !== undefined && id !== null,
         );
         adGroupIds.push(...directIds);
       }
@@ -6469,7 +6490,7 @@ export const CampaignDetail: React.FC = () => {
     try {
       setTargetsDeleteLoading(true);
       const selectedTargetsData = targets.filter((t) =>
-        selectedTargetIds.has(t.id)
+        selectedTargetIds.has(t.id),
       );
       const targetIds = selectedTargetsData
         .map((t) => t.targetId || t.id)
@@ -6539,7 +6560,7 @@ export const CampaignDetail: React.FC = () => {
     try {
       setNegativeKeywordsDeleteLoading(true);
       const selectedNegativeKeywordsData = negativeKeywords.filter((nk) =>
-        selectedNegativeKeywordIds.has(nk.id)
+        selectedNegativeKeywordIds.has(nk.id),
       );
       const negativeKeywordIds = selectedNegativeKeywordsData
         .map((nk) => nk.keywordId || nk.id)
@@ -6553,7 +6574,7 @@ export const CampaignDetail: React.FC = () => {
           },
           ...(campaignType && { campaignType }),
           ...(campaignId && { campaignId }),
-        }
+        },
       );
 
       // Handle response with success/error arrays
@@ -6615,7 +6636,7 @@ export const CampaignDetail: React.FC = () => {
     try {
       setNegativeTargetsDeleteLoading(true);
       const selectedNegativeTargetsData = negativeTargets.filter((nt) =>
-        selectedNegativeTargetIds.has(nt.id)
+        selectedNegativeTargetIds.has(nt.id),
       );
       const negativeTargetIds = selectedNegativeTargetsData
         .map((nt) => nt.targetId || nt.id)
@@ -6627,7 +6648,7 @@ export const CampaignDetail: React.FC = () => {
           negativeTargetIdFilter: {
             include: negativeTargetIds,
           },
-        }
+        },
       );
 
       // Handle response with success/error arrays
@@ -6683,7 +6704,7 @@ export const CampaignDetail: React.FC = () => {
 
   // Bulk action handlers for Ad Groups
   const handleBulkAdGroupsStatus = async (
-    statusValue: "enable" | "pause" | "archive"
+    statusValue: "enable" | "pause" | "archive",
   ) => {
     if (!accountId || selectedAdGroupIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -6695,7 +6716,7 @@ export const CampaignDetail: React.FC = () => {
         (id) => {
           const adgroup = adgroups.find((ag) => ag.id === id);
           return adgroup?.adGroupId || id;
-        }
+        },
       );
 
       // For SD campaigns, archive uses bulk delete endpoint
@@ -6795,7 +6816,7 @@ export const CampaignDetail: React.FC = () => {
       setAdGroupsBulkLoading(true);
 
       const selectedAdGroupsData = adgroups.filter((ag) =>
-        selectedAdGroupIds.has(ag.adGroupId || ag.id)
+        selectedAdGroupIds.has(ag.adGroupId || ag.id),
       );
       const updates: Array<{ adgroupId: string | number; newBid: number }> = [];
 
@@ -6803,7 +6824,7 @@ export const CampaignDetail: React.FC = () => {
         if (!adgroup.adGroupId) continue;
 
         const currentBid = parseFloat(
-          (adgroup.default_bid || "$0.00").replace(/[^0-9.]/g, "")
+          (adgroup.default_bid || "$0.00").replace(/[^0-9.]/g, ""),
         );
         const newBid = calculateNewAdGroupBid(currentBid);
 
@@ -6841,6 +6862,8 @@ export const CampaignDetail: React.FC = () => {
       setAdGroupsBulkLoading(false);
     }
   };
+
+  console.log(`negativeKeywordsLoading = ${negativeKeywordsLoading}`);
 
   // Close bulk actions dropdown when clicking outside
   useEffect(() => {
@@ -6924,11 +6947,11 @@ export const CampaignDetail: React.FC = () => {
           {/* Campaign Header - Matching Campaigns page style */}
           <div>
             <h1 className="text-[24px] font-medium text-[#072929] leading-[normal]">
-              {campaignDetail ? (
-                campaignDetail.campaign.name
-              ) : !loading ? (
-                "Campaign Not Found"
-              ) : null}
+              {campaignDetail
+                ? campaignDetail.campaign.name
+                : !loading
+                  ? "Campaign Not Found"
+                  : null}
             </h1>
           </div>
 
@@ -6947,12 +6970,12 @@ export const CampaignDetail: React.FC = () => {
                   statusLower === "enable" || statusLower === "enabled"
                     ? "enabled"
                     : statusLower === "paused"
-                    ? "paused"
-                    : "archived"
+                      ? "paused"
+                      : "archived",
                 );
               } else if (field === "budget" && campaignDetail) {
                 setEditedValue(
-                  (campaignDetail.campaign.budget || 0).toString()
+                  (campaignDetail.campaign.budget || 0).toString(),
                 );
               }
             }}
@@ -6972,7 +6995,7 @@ export const CampaignDetail: React.FC = () => {
                 if (newEditedValue !== currentStatus) {
                   setInlineEditField("status");
                   setInlineEditOldValue(
-                    campaignDetail.campaign.status || "Enabled"
+                    campaignDetail.campaign.status || "Enabled",
                   );
                   setInlineEditNewValue(valueToCompare);
                   setShowInlineEditModal(true);
@@ -7007,7 +7030,9 @@ export const CampaignDetail: React.FC = () => {
                 <div className="flex items-center justify-center py-8">
                   <div className="flex flex-col items-center gap-3">
                     <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#136D6D] border-t-transparent"></div>
-                    <p className="text-[14px] text-[#556179]">Loading campaign data...</p>
+                    <p className="text-[14px] text-[#556179]">
+                      Loading campaign data...
+                    </p>
                   </div>
                 </div>
               </div>
@@ -7073,8 +7098,8 @@ export const CampaignDetail: React.FC = () => {
                       activeTab === tab && !isDisabled
                         ? "border-[#136D6D] text-[#136D6D]"
                         : !isDisabled
-                        ? "border-transparent text-[#556179] hover:text-[#072929]"
-                        : ""
+                          ? "border-transparent text-[#556179] hover:text-[#072929]"
+                          : ""
                     }`}
                   >
                     {tab}
@@ -7142,7 +7167,7 @@ export const CampaignDetail: React.FC = () => {
                       const bOp = b.operator || "";
                       if (aOp !== bOp) return aOp.localeCompare(bOp);
                       return String(a.value).localeCompare(String(b.value));
-                    })
+                    }),
                   );
                   if (lastAppliedFiltersRef.current === filtersStr) {
                     return;
@@ -7433,7 +7458,7 @@ export const CampaignDetail: React.FC = () => {
                                       setShowSBAdsDeleteConfirmation(true);
                                     } else {
                                       setPendingSBAdsStatusAction(
-                                        opt.value as "enable" | "pause"
+                                        opt.value as "enable" | "pause",
                                       );
                                       setShowSBAdsConfirmationModal(true);
                                     }
@@ -7497,7 +7522,9 @@ export const CampaignDetail: React.FC = () => {
                         // Show all non-archived adgroups (ENABLED and PAUSED)
                         const statusValue =
                           (ag as any).status || (ag as any).state || "";
-                        const normalizedStatus = String(statusValue).trim().toUpperCase();
+                        const normalizedStatus = String(statusValue)
+                          .trim()
+                          .toUpperCase();
                         // Exclude ARCHIVED, include ENABLED, ENABLE, PAUSED, PAUSE
                         return normalizedStatus !== "ARCHIVED";
                       })
@@ -7567,7 +7594,7 @@ export const CampaignDetail: React.FC = () => {
                       <button
                         onClick={() =>
                           handleSBAdsPageChange(
-                            Math.max(1, sbAdsCurrentPage - 1)
+                            Math.max(1, sbAdsCurrentPage - 1),
                           )
                         }
                         disabled={sbAdsCurrentPage === 1}
@@ -7601,7 +7628,7 @@ export const CampaignDetail: React.FC = () => {
                               {pageNum}
                             </button>
                           );
-                        }
+                        },
                       )}
                       {sbAdsTotalPages > 5 &&
                         sbAdsCurrentPage < sbAdsTotalPages - 2 && (
@@ -7624,7 +7651,7 @@ export const CampaignDetail: React.FC = () => {
                       <button
                         onClick={() =>
                           handleSBAdsPageChange(
-                            Math.min(sbAdsTotalPages, sbAdsCurrentPage + 1)
+                            Math.min(sbAdsTotalPages, sbAdsCurrentPage + 1),
                           )
                         }
                         disabled={sbAdsCurrentPage === sbAdsTotalPages}
@@ -7733,7 +7760,7 @@ export const CampaignDetail: React.FC = () => {
                                       "archive" as
                                         | "enable"
                                         | "pause"
-                                        | "archive"
+                                        | "archive",
                                     );
                                     setShowProductAdsStatusConfirmation(true);
                                   } else if (
@@ -7741,7 +7768,7 @@ export const CampaignDetail: React.FC = () => {
                                     opt.value === "pause"
                                   ) {
                                     setPendingProductAdsStatusAction(
-                                      opt.value as "enable" | "pause"
+                                      opt.value as "enable" | "pause",
                                     );
                                     setShowProductAdsStatusConfirmation(true);
                                   }
@@ -7759,7 +7786,7 @@ export const CampaignDetail: React.FC = () => {
                     <button
                       onClick={() =>
                         setIsProductAdsFilterPanelOpen(
-                          !isProductAdsFilterPanelOpen
+                          !isProductAdsFilterPanelOpen,
                         )
                       }
                       className="edit-button"
@@ -7875,7 +7902,7 @@ export const CampaignDetail: React.FC = () => {
                         <button
                           onClick={() =>
                             handleProductAdsPageChange(
-                              Math.max(1, productadsCurrentPage - 1)
+                              Math.max(1, productadsCurrentPage - 1),
                             )
                           }
                           disabled={productadsCurrentPage === 1}
@@ -7914,7 +7941,7 @@ export const CampaignDetail: React.FC = () => {
                                 {pageNum}
                               </button>
                             );
-                          }
+                          },
                         )}
                         {productadsTotalPages > 5 &&
                           productadsCurrentPage < productadsTotalPages - 2 && (
@@ -7941,8 +7968,8 @@ export const CampaignDetail: React.FC = () => {
                             handleProductAdsPageChange(
                               Math.min(
                                 productadsTotalPages,
-                                productadsCurrentPage + 1
-                              )
+                                productadsCurrentPage + 1,
+                              ),
                             )
                           }
                           disabled={
@@ -8090,7 +8117,7 @@ export const CampaignDetail: React.FC = () => {
                 isFilterPanelOpen={isNegativeKeywordsFilterPanelOpen}
                 onToggleFilterPanel={() => {
                   setIsNegativeKeywordsFilterPanelOpen(
-                    !isNegativeKeywordsFilterPanelOpen
+                    !isNegativeKeywordsFilterPanelOpen,
                   );
                 }}
                 onCloseFilterPanel={() => {
@@ -8104,7 +8131,7 @@ export const CampaignDetail: React.FC = () => {
                 isCreatePanelOpen={isCreateNegativeKeywordPanelOpen}
                 onToggleCreatePanel={() => {
                   setIsCreateNegativeKeywordPanelOpen(
-                    !isCreateNegativeKeywordPanelOpen
+                    !isCreateNegativeKeywordPanelOpen,
                   );
                 }}
                 onCloseCreatePanel={() => {
@@ -8161,7 +8188,7 @@ export const CampaignDetail: React.FC = () => {
                       <button
                         onClick={() =>
                           setIsCreateNegativeTargetPanelOpen(
-                            !isCreateNegativeTargetPanelOpen
+                            !isCreateNegativeTargetPanelOpen,
                           )
                         }
                         className="create-entity-button"
@@ -8197,7 +8224,7 @@ export const CampaignDetail: React.FC = () => {
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowNegativeTargetsBulkActions(
-                              !showNegativeTargetsBulkActions
+                              !showNegativeTargetsBulkActions,
                             );
                           }}
                         >
@@ -8242,17 +8269,17 @@ export const CampaignDetail: React.FC = () => {
                                       return;
                                     if (opt.value === "delete") {
                                       setShowNegativeTargetsDeleteConfirmation(
-                                        true
+                                        true,
                                       );
                                     } else {
                                       setPendingNegativeTargetsStatusAction(
                                         opt.value as
                                           | "enable"
                                           | "pause"
-                                          | "archive"
+                                          | "archive",
                                       );
                                       setShowNegativeTargetsConfirmationModal(
-                                        true
+                                        true,
                                       );
                                     }
                                     setShowNegativeTargetsBulkActions(false);
@@ -8269,7 +8296,7 @@ export const CampaignDetail: React.FC = () => {
                       <button
                         onClick={() =>
                           setIsNegativeTargetsFilterPanelOpen(
-                            !isNegativeTargetsFilterPanelOpen
+                            !isNegativeTargetsFilterPanelOpen,
                           )
                         }
                         className="edit-button"
@@ -8399,7 +8426,7 @@ export const CampaignDetail: React.FC = () => {
                         <button
                           onClick={() =>
                             handleNegativeTargetsPageChange(
-                              Math.max(1, negativeTargetsCurrentPage - 1)
+                              Math.max(1, negativeTargetsCurrentPage - 1),
                             )
                           }
                           disabled={negativeTargetsCurrentPage === 1}
@@ -8438,7 +8465,7 @@ export const CampaignDetail: React.FC = () => {
                                 {pageNum}
                               </button>
                             );
-                          }
+                          },
                         )}
                         {negativeTargetsTotalPages > 5 &&
                           negativeTargetsCurrentPage <
@@ -8451,7 +8478,7 @@ export const CampaignDetail: React.FC = () => {
                           <button
                             onClick={() =>
                               handleNegativeTargetsPageChange(
-                                negativeTargetsTotalPages
+                                negativeTargetsTotalPages,
                               )
                             }
                             className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
@@ -8469,8 +8496,8 @@ export const CampaignDetail: React.FC = () => {
                             handleNegativeTargetsPageChange(
                               Math.min(
                                 negativeTargetsTotalPages,
-                                negativeTargetsCurrentPage + 1
-                              )
+                                negativeTargetsCurrentPage + 1,
+                              ),
                             )
                           }
                           disabled={
@@ -8630,7 +8657,7 @@ export const CampaignDetail: React.FC = () => {
                         <button
                           onClick={() =>
                             handleAssetsPageChange(
-                              Math.max(1, assetsCurrentPage - 1)
+                              Math.max(1, assetsCurrentPage - 1),
                             )
                           }
                           disabled={assetsCurrentPage === 1}
@@ -8667,7 +8694,7 @@ export const CampaignDetail: React.FC = () => {
                                 {pageNum}
                               </button>
                             );
-                          }
+                          },
                         )}
                         {assetsTotalPages > 5 &&
                           assetsCurrentPage < assetsTotalPages - 2 && (
@@ -8692,7 +8719,7 @@ export const CampaignDetail: React.FC = () => {
                         <button
                           onClick={() =>
                             handleAssetsPageChange(
-                              Math.min(assetsTotalPages, assetsCurrentPage + 1)
+                              Math.min(assetsTotalPages, assetsCurrentPage + 1),
                             )
                           }
                           disabled={assetsCurrentPage === assetsTotalPages}
@@ -8718,7 +8745,7 @@ export const CampaignDetail: React.FC = () => {
                     <button
                       onClick={() => {
                         setIsCreateCreativePanelOpen(
-                          !isCreateCreativePanelOpen
+                          !isCreateCreativePanelOpen,
                         );
                       }}
                       className="create-entity-button text-[10.64px] font-semibold"
@@ -8798,7 +8825,7 @@ export const CampaignDetail: React.FC = () => {
                         <button
                           onClick={() =>
                             handleCreativesPageChange(
-                              Math.max(1, creativesCurrentPage - 1)
+                              Math.max(1, creativesCurrentPage - 1),
                             )
                           }
                           disabled={creativesCurrentPage === 1}
@@ -8837,7 +8864,7 @@ export const CampaignDetail: React.FC = () => {
                                 {pageNum}
                               </button>
                             );
-                          }
+                          },
                         )}
                         {creativesTotalPages > 5 &&
                           creativesCurrentPage < creativesTotalPages - 2 && (
@@ -8864,8 +8891,8 @@ export const CampaignDetail: React.FC = () => {
                             handleCreativesPageChange(
                               Math.min(
                                 creativesTotalPages,
-                                creativesCurrentPage + 1
-                              )
+                                creativesCurrentPage + 1,
+                              ),
                             )
                           }
                           disabled={
@@ -8973,9 +9000,9 @@ export const CampaignDetail: React.FC = () => {
                         {inlineEditField === "status"
                           ? inlineEditNewValue.charAt(0).toUpperCase() +
                             inlineEditNewValue.slice(1)
-                          : `$${parseFloat(
-                              inlineEditNewValue || "0"
-                            ).toFixed(2)}`}
+                          : `$${parseFloat(inlineEditNewValue || "0").toFixed(
+                              2,
+                            )}`}
                       </td>
                     </tr>
                   </tbody>
@@ -9062,7 +9089,7 @@ export const CampaignDetail: React.FC = () => {
                     onClick={async () => {
                       if (pendingKeywordsStatusAction) {
                         await handleBulkKeywordsStatus(
-                          pendingKeywordsStatusAction
+                          pendingKeywordsStatusAction,
                         );
                       } else {
                         await handleBulkKeywordsBid();
@@ -9159,7 +9186,7 @@ export const CampaignDetail: React.FC = () => {
             {/* Product Ads Preview Table */}
             {(() => {
               const selectedProductAdsData = productads.filter((pa) =>
-                selectedProductAdIds.has(pa.id)
+                selectedProductAdIds.has(pa.id),
               );
               const previewCount = Math.min(10, selectedProductAdsData.length);
               const hasMore = selectedProductAdsData.length > 10;
@@ -9548,7 +9575,7 @@ export const CampaignDetail: React.FC = () => {
               {/* Target Preview Table */}
               {(() => {
                 const selectedTargetsData = targets.filter((tgt) =>
-                  selectedTargetIds.has(tgt.id)
+                  selectedTargetIds.has(tgt.id),
                 );
                 const previewCount = Math.min(10, selectedTargetsData.length);
                 const hasMore = selectedTargetsData.length > 10;
@@ -9584,11 +9611,11 @@ export const CampaignDetail: React.FC = () => {
                             .slice(0, previewCount)
                             .map((tgt) => {
                               const oldBid = parseFloat(
-                                (tgt.bid || "$0.00").replace(/[^0-9.]/g, "")
+                                (tgt.bid || "$0.00").replace(/[^0-9.]/g, ""),
                               );
                               const oldStatus = tgt.status || "Enabled";
                               const calculateNewTargetBid = (
-                                currentBid: number
+                                currentBid: number,
                               ) => {
                                 const valueNum = parseFloat(targetsBidValue);
                                 if (isNaN(valueNum)) return currentBid;
@@ -9682,8 +9709,8 @@ export const CampaignDetail: React.FC = () => {
                         {targetsBidAction === "increase"
                           ? "Increase By"
                           : targetsBidAction === "decrease"
-                          ? "Decrease By"
-                          : "Set To"}
+                            ? "Decrease By"
+                            : "Set To"}
                       </span>
                     </div>
 
@@ -9818,11 +9845,11 @@ export const CampaignDetail: React.FC = () => {
               {/* Negative Keywords Preview Table */}
               {(() => {
                 const selectedNegativeKeywordsData = negativeKeywords.filter(
-                  (nk) => selectedNegativeKeywordIds.has(nk.id)
+                  (nk) => selectedNegativeKeywordIds.has(nk.id),
                 );
                 const previewCount = Math.min(
                   10,
-                  selectedNegativeKeywordsData.length
+                  selectedNegativeKeywordsData.length,
                 );
                 const hasMore = selectedNegativeKeywordsData.length > 10;
 
@@ -9922,7 +9949,7 @@ export const CampaignDetail: React.FC = () => {
                   onClick={async () => {
                     if (pendingNegativeKeywordsStatusAction) {
                       await handleBulkNegativeKeywordsStatus(
-                        pendingNegativeKeywordsStatusAction
+                        pendingNegativeKeywordsStatusAction,
                       );
                     }
                   }}
@@ -9970,11 +9997,11 @@ export const CampaignDetail: React.FC = () => {
               {/* Negative Targets Preview Table */}
               {(() => {
                 const selectedNegativeTargetsData = negativeTargets.filter(
-                  (nt) => selectedNegativeTargetIds.has(nt.id)
+                  (nt) => selectedNegativeTargetIds.has(nt.id),
                 );
                 const previewCount = Math.min(
                   10,
-                  selectedNegativeTargetsData.length
+                  selectedNegativeTargetsData.length,
                 );
                 const hasMore = selectedNegativeTargetsData.length > 10;
 
@@ -10017,9 +10044,9 @@ export const CampaignDetail: React.FC = () => {
                                 pendingNegativeTargetsStatusAction === "enable"
                                   ? "Enabled"
                                   : pendingNegativeTargetsStatusAction ===
-                                    "archive"
-                                  ? "Archived"
-                                  : "Paused";
+                                      "archive"
+                                    ? "Archived"
+                                    : "Paused";
 
                               return (
                                 <tr
@@ -10055,8 +10082,8 @@ export const CampaignDetail: React.FC = () => {
                     {pendingNegativeTargetsStatusAction === "enable"
                       ? "Enabled"
                       : pendingNegativeTargetsStatusAction === "archive"
-                      ? "Archived"
-                      : "Paused"}
+                        ? "Archived"
+                        : "Paused"}
                   </span>
                 </div>
               </div>
@@ -10082,7 +10109,7 @@ export const CampaignDetail: React.FC = () => {
                         pendingNegativeTargetsStatusAction as
                           | "enable"
                           | "pause"
-                          | "archive"
+                          | "archive",
                       );
                     }
                   }}
@@ -10131,7 +10158,7 @@ export const CampaignDetail: React.FC = () => {
             {/* AdGroup Preview Table */}
             {(() => {
               const selectedAdGroupsData = adgroups.filter((ag) =>
-                selectedAdGroupIds.has(ag.adGroupId || ag.id)
+                selectedAdGroupIds.has(ag.adGroupId || ag.id),
               );
               const previewCount = Math.min(10, selectedAdGroupsData.length);
               const hasMore = selectedAdGroupsData.length > 10;
@@ -10169,8 +10196,8 @@ export const CampaignDetail: React.FC = () => {
                             const oldBid = parseFloat(
                               (ag.default_bid || "$0.00").replace(
                                 /[^0-9.]/g,
-                                ""
-                              )
+                                "",
+                              ),
                             );
                             const oldStatus = ag.status || "Enabled";
                             const newBid = isAdGroupsBidChange
@@ -10223,8 +10250,8 @@ export const CampaignDetail: React.FC = () => {
                       {adGroupsBidAction === "increase"
                         ? "Increase By"
                         : adGroupsBidAction === "decrease"
-                        ? "Decrease By"
-                        : "Set To"}
+                          ? "Decrease By"
+                          : "Set To"}
                     </span>
                   </div>
 
@@ -10326,15 +10353,15 @@ export const CampaignDetail: React.FC = () => {
       {pendingAdGroupChange &&
         (() => {
           const adgroup = adgroups.find(
-            (ag) => ag.id === pendingAdGroupChange.id
+            (ag) => ag.id === pendingAdGroupChange.id,
           );
           const adgroupName = adgroup?.name || "Unnamed Ad Group";
           const fieldLabel =
             pendingAdGroupChange.field === "status"
               ? "Status"
               : pendingAdGroupChange.field === "default_bid"
-              ? "Default Bid"
-              : "Name";
+                ? "Default Bid"
+                : "Name";
 
           // Format old value
           let oldValueDisplay = "";
@@ -10342,7 +10369,7 @@ export const CampaignDetail: React.FC = () => {
             oldValueDisplay = pendingAdGroupChange.oldValue.startsWith("$")
               ? pendingAdGroupChange.oldValue
               : `$${parseFloat(
-                  pendingAdGroupChange.oldValue || "0"
+                  pendingAdGroupChange.oldValue || "0",
                 ).toLocaleString(undefined, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
@@ -10352,10 +10379,10 @@ export const CampaignDetail: React.FC = () => {
               pendingAdGroupChange.oldValue === "enabled"
                 ? "Enabled"
                 : pendingAdGroupChange.oldValue === "paused"
-                ? "Paused"
-                : pendingAdGroupChange.oldValue === "archived"
-                ? "Archived"
-                : pendingAdGroupChange.oldValue;
+                  ? "Paused"
+                  : pendingAdGroupChange.oldValue === "archived"
+                    ? "Archived"
+                    : pendingAdGroupChange.oldValue;
           } else {
             // name
             oldValueDisplay = pendingAdGroupChange.oldValue || "—";
@@ -10367,7 +10394,7 @@ export const CampaignDetail: React.FC = () => {
             newValueDisplay = pendingAdGroupChange.newValue.startsWith("$")
               ? pendingAdGroupChange.newValue
               : `$${parseFloat(
-                  pendingAdGroupChange.newValue || "0"
+                  pendingAdGroupChange.newValue || "0",
                 ).toLocaleString(undefined, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
@@ -10377,10 +10404,10 @@ export const CampaignDetail: React.FC = () => {
               pendingAdGroupChange.newValue === "enabled"
                 ? "Enabled"
                 : pendingAdGroupChange.newValue === "paused"
-                ? "Paused"
-                : pendingAdGroupChange.newValue === "archived"
-                ? "Archived"
-                : pendingAdGroupChange.newValue;
+                  ? "Paused"
+                  : pendingAdGroupChange.newValue === "archived"
+                    ? "Archived"
+                    : pendingAdGroupChange.newValue;
           } else {
             // name
             newValueDisplay = pendingAdGroupChange.newValue || "—";
@@ -10459,7 +10486,7 @@ export const CampaignDetail: React.FC = () => {
         showKeywordsConfirmationModal &&
         (() => {
           const keyword = keywords.find(
-            (kw) => kw.id === pendingKeywordChange.id
+            (kw) => kw.id === pendingKeywordChange.id,
           );
           const keywordName = keyword?.name || "Unnamed Keyword";
           const fieldLabel =
@@ -10471,7 +10498,7 @@ export const CampaignDetail: React.FC = () => {
             oldValueDisplay = pendingKeywordChange.oldValue.startsWith("$")
               ? pendingKeywordChange.oldValue
               : `$${parseFloat(
-                  pendingKeywordChange.oldValue || "0"
+                  pendingKeywordChange.oldValue || "0",
                 ).toLocaleString(undefined, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
@@ -10481,15 +10508,15 @@ export const CampaignDetail: React.FC = () => {
               pendingKeywordChange.oldValue === "enabled"
                 ? "Enabled"
                 : pendingKeywordChange.oldValue === "paused"
-                ? "Paused"
-                : "Archived";
+                  ? "Paused"
+                  : "Archived";
           }
 
           // Format new value
           let newValueDisplay = "";
           if (pendingKeywordChange.field === "bid") {
             newValueDisplay = `$${parseFloat(
-              pendingKeywordChange.newValue || "0"
+              pendingKeywordChange.newValue || "0",
             ).toLocaleString(undefined, {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
@@ -10500,10 +10527,10 @@ export const CampaignDetail: React.FC = () => {
               newValueLower === "enabled"
                 ? "Enabled"
                 : newValueLower === "paused"
-                ? "Paused"
-                : newValueLower === "archive"
-                ? "Archived"
-                : "Archived";
+                  ? "Paused"
+                  : newValueLower === "archive"
+                    ? "Archived"
+                    : "Archived";
           }
 
           return (
@@ -10579,7 +10606,7 @@ export const CampaignDetail: React.FC = () => {
         showProductAdsConfirmationModal &&
         (() => {
           const productad = productads.find(
-            (pa) => pa.id === pendingProductAdChange.id
+            (pa) => pa.id === pendingProductAdChange.id,
           );
           const productAdName =
             productad?.asin ||
@@ -10654,7 +10681,7 @@ export const CampaignDetail: React.FC = () => {
                   <button
                     onClick={handleProductAdEditCancel}
                     disabled={productAdEditLoading.has(
-                      pendingProductAdChange.id
+                      pendingProductAdChange.id,
                     )}
                     className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                   >
@@ -10663,7 +10690,7 @@ export const CampaignDetail: React.FC = () => {
                   <button
                     onClick={confirmProductAdChange}
                     disabled={productAdEditLoading.has(
-                      pendingProductAdChange.id
+                      pendingProductAdChange.id,
                     )}
                     className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
                   >
@@ -10682,7 +10709,7 @@ export const CampaignDetail: React.FC = () => {
         showNegativeKeywordsConfirmationModal &&
         (() => {
           const negativeKeyword = negativeKeywords.find(
-            (nkw) => nkw.id === pendingNegativeKeywordChange.id
+            (nkw) => nkw.id === pendingNegativeKeywordChange.id,
           );
           const keywordText =
             negativeKeyword?.keywordText || "Unnamed Negative Keyword";
@@ -10713,7 +10740,7 @@ export const CampaignDetail: React.FC = () => {
                 onClick={() => {
                   if (
                     !negativeKeywordEditLoading.has(
-                      pendingNegativeKeywordChange.id
+                      pendingNegativeKeywordChange.id,
                     )
                   ) {
                     cancelNegativeKeywordChange();
@@ -10757,7 +10784,7 @@ export const CampaignDetail: React.FC = () => {
                     <button
                       onClick={cancelNegativeKeywordChange}
                       disabled={negativeKeywordEditLoading.has(
-                        pendingNegativeKeywordChange.id
+                        pendingNegativeKeywordChange.id,
                       )}
                       className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                     >
@@ -10766,12 +10793,12 @@ export const CampaignDetail: React.FC = () => {
                     <button
                       onClick={confirmNegativeKeywordChange}
                       disabled={negativeKeywordEditLoading.has(
-                        pendingNegativeKeywordChange.id
+                        pendingNegativeKeywordChange.id,
                       )}
                       className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
                     >
                       {negativeKeywordEditLoading.has(
-                        pendingNegativeKeywordChange.id
+                        pendingNegativeKeywordChange.id,
                       )
                         ? "Updating..."
                         : "Confirm"}
@@ -10788,7 +10815,7 @@ export const CampaignDetail: React.FC = () => {
         showTargetsConfirmationModal &&
         (() => {
           const target = targets.find(
-            (tgt) => tgt.id === pendingTargetChange.id
+            (tgt) => tgt.id === pendingTargetChange.id,
           );
           const targetName = target?.name || "Unnamed Target";
           const fieldLabel =
@@ -10800,7 +10827,7 @@ export const CampaignDetail: React.FC = () => {
             oldValueDisplay = pendingTargetChange.oldValue.startsWith("$")
               ? pendingTargetChange.oldValue
               : `$${parseFloat(
-                  pendingTargetChange.oldValue || "0"
+                  pendingTargetChange.oldValue || "0",
                 ).toLocaleString(undefined, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
@@ -10814,7 +10841,7 @@ export const CampaignDetail: React.FC = () => {
           let newValueDisplay = "";
           if (pendingTargetChange.field === "bid") {
             newValueDisplay = `$${parseFloat(
-              pendingTargetChange.newValue || "0"
+              pendingTargetChange.newValue || "0",
             ).toLocaleString(undefined, {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
@@ -10897,7 +10924,7 @@ export const CampaignDetail: React.FC = () => {
         showNegativeTargetsConfirmationModal &&
         (() => {
           const negativeTarget = negativeTargets.find(
-            (ntg) => ntg.id === pendingNegativeTargetChange.id
+            (ntg) => ntg.id === pendingNegativeTargetChange.id,
           );
           const targetId =
             negativeTarget?.targetId || "Unnamed Negative Target";
@@ -10970,7 +10997,7 @@ export const CampaignDetail: React.FC = () => {
                   <button
                     onClick={cancelNegativeTargetChange}
                     disabled={negativeTargetEditLoading.has(
-                      pendingNegativeTargetChange.id
+                      pendingNegativeTargetChange.id,
                     )}
                     className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                   >
@@ -10979,12 +11006,12 @@ export const CampaignDetail: React.FC = () => {
                   <button
                     onClick={confirmNegativeTargetChange}
                     disabled={negativeTargetEditLoading.has(
-                      pendingNegativeTargetChange.id
+                      pendingNegativeTargetChange.id,
                     )}
                     className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
                   >
                     {negativeTargetEditLoading.has(
-                      pendingNegativeTargetChange.id
+                      pendingNegativeTargetChange.id,
                     )
                       ? "Updating..."
                       : "Confirm"}

@@ -1,6 +1,8 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+
+const LOGIN_REDIRECT_KEY = 'loginRedirect';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -8,6 +10,7 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -18,7 +21,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    const path = location.pathname + location.search + (location.hash || '');
+    sessionStorage.setItem(LOGIN_REDIRECT_KEY, path);
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return <>{children}</>;

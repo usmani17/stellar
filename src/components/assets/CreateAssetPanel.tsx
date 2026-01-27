@@ -668,9 +668,9 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
             )}
           </div>
 
-          {/* File Upload Section - 70% width, centered */}
-          <div className="flex justify-center">
-            <div className="w-[40%]">
+          {/* File Upload Section - full width */}
+          <div>
+            <div className="w-full">
               <label className="form-label-small">
                 {assetData.assetType === "IMAGE" ? "Image" : "Video"} File *
               </label>
@@ -790,144 +790,6 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
             </div>
           </div>
 
-          {/* Optional Fields Section */}
-          <div className="space-y-4 pt-4 border-t border-gray-200">
-            {/* Tags and ASINs on one line */}
-            <div className="grid grid-cols-2 gap-6">
-              {/* ASIN List - Optional */}
-              <div>
-                <label className="form-label-small">
-                  ASIN List (Optional, Max 100)
-                </label>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={asinInput}
-                      onChange={(e) =>
-                        setAsinInput(e.target.value.toUpperCase())
-                      }
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddAsin();
-                        }
-                      }}
-                      placeholder="Enter ASIN (uppercase alphanumeric)"
-                      className="flex-1 w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] border-gray-200"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddAsin}
-                      disabled={asinList.length >= 100}
-                      className="create-entity-button text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Add
-                    </button>
-                  </div>
-                  {asinList.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {asinList.map((asin) => (
-                        <span
-                          key={asin}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-[10px] text-[#0b0f16]"
-                        >
-                          {asin}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveAsin(asin)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-[10px] text-gray-500">
-                    Used for asset discoverability and Sponsored Brand search.
-                    Max 100 ASINs.
-                  </p>
-                  {errors.asinList && (
-                    <p className="text-[10px] text-red-500">
-                      {errors.asinList}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Tags - Optional */}
-              <div>
-                <label className="form-label-small">Tags (Optional)</label>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddTag();
-                        }
-                      }}
-                      placeholder="Enter tag"
-                      className="flex-1 w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] border-gray-200"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddTag}
-                      className="create-entity-button text-[11.2px]"
-                    >
-                      Add
-                    </button>
-                  </div>
-                  {tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-[10px] text-[#0b0f16]"
-                        >
-                          {tag}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveTag(tag)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* URL - Optional */}
-            <div>
-              <label className="form-label-small">URL (Optional)</label>
-              <input
-                type="text"
-                value={assetData.url || ""}
-                onChange={(e) => handleChange("url", e.target.value)}
-                placeholder="Enter asset URL"
-                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                  errors.url ? "border-red-500" : "border-gray-200"
-                }`}
-              />
-              {errors.url && (
-                <p className="text-[10px] text-red-500 mt-1">{errors.url}</p>
-              )}
-              {fieldErrors.url && (
-                <p className="text-[10px] text-red-500 mt-1">
-                  {fieldErrors.url}
-                </p>
-              )}
-            </div>
-          </div>
-
           {/* Advanced Options - Expandable */}
           <div className="pt-4 border-t border-gray-200">
             <button
@@ -955,6 +817,141 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
 
             {showAdvancedOptions && (
               <div className="space-y-4 pl-4 border-l-2 border-gray-200">
+                {/* ASIN List, Tags, URL - Optional */}
+                <div className="grid grid-cols-2 gap-6">
+                  {/* ASIN List - Optional */}
+                  <div>
+                    <label className="form-label-small">
+                      ASIN List (Optional, Max 100)
+                    </label>
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={asinInput}
+                          onChange={(e) =>
+                            setAsinInput(e.target.value.toUpperCase())
+                          }
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddAsin();
+                            }
+                          }}
+                          placeholder="Enter ASIN (uppercase alphanumeric)"
+                          className="flex-1 w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddAsin}
+                          disabled={asinList.length >= 100}
+                          className="create-entity-button text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Add
+                        </button>
+                      </div>
+                      {asinList.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {asinList.map((asin) => (
+                            <span
+                              key={asin}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-[10px] text-[#0b0f16]"
+                            >
+                              {asin}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveAsin(asin)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-[10px] text-gray-500">
+                        Used for asset discoverability and Sponsored Brand search.
+                        Max 100 ASINs.
+                      </p>
+                      {errors.asinList && (
+                        <p className="text-[10px] text-red-500">
+                          {errors.asinList}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Tags - Optional */}
+                  <div>
+                    <label className="form-label-small">Tags (Optional)</label>
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={tagInput}
+                          onChange={(e) => setTagInput(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddTag();
+                            }
+                          }}
+                          placeholder="Enter tag"
+                          className="flex-1 w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddTag}
+                          className="create-entity-button text-[11.2px]"
+                        >
+                          Add
+                        </button>
+                      </div>
+                      {tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-[10px] text-[#0b0f16]"
+                            >
+                              {tag}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveTag(tag)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* URL - Optional */}
+                <div>
+                  <label className="form-label-small">URL (Optional)</label>
+                  <input
+                    type="text"
+                    value={assetData.url || ""}
+                    onChange={(e) => handleChange("url", e.target.value)}
+                    placeholder="Enter asset URL"
+                    className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                      errors.url ? "border-red-500" : "border-gray-200"
+                    }`}
+                  />
+                  {errors.url && (
+                    <p className="text-[10px] text-red-500 mt-1">{errors.url}</p>
+                  )}
+                  {fieldErrors.url && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {fieldErrors.url}
+                    </p>
+                  )}
+                </div>
+
                 {/* Skip Asset Sub-Type Detection */}
                 <div className="flex items-center space-x-2">
                   <input

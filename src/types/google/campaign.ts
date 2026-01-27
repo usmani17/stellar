@@ -5,7 +5,7 @@ export interface IGoogleCampaign {
     customer_id: string;
     campaign_name: string;
     account_name?: string;
-    status: string;
+    status: "ENABLED" | "PAUSED" | "REMOVED";
     advertising_channel_type: string;
     advertising_channel_sub_type?: string;
     bidding_strategy_type?: string;
@@ -104,7 +104,7 @@ export interface IGoogleCampaignsTableProps {
     onStartInlineEdit: (campaign: IGoogleCampaign, field: "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type") => void;
     onCancelInlineEdit: () => void;
     onInlineEditChange: (value: string) => void;
-    onConfirmInlineEdit: (value: string) => void;
+    onConfirmInlineEdit: (value?: string, field?: string, campaignId?: string | number) => void;
     onConfirmInlineEditDirect?: (value: string, campaignId?: string | number, field?: string) => void;
     formatCurrency: (value: number) => string;
     formatPercentage: (value: number) => string;

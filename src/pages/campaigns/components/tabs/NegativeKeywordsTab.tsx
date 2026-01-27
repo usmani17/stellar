@@ -302,7 +302,7 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
               (ag) => ({
                 adGroupId: (ag as any).adGroupId || String(ag.id),
                 name: ag.name,
-              })
+              }),
             )}
             campaignId={campaignId || ""}
             campaignType={campaignType || undefined}
@@ -347,4 +347,3 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
     </>
   );
 };
-

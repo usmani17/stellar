@@ -531,7 +531,7 @@ export const DashboardHeader: React.FC = () => {
               </svg>
             </button>
             {isDatePickerOpen && (
-              <div className="absolute right-0 top-full mt-2 z-50 px-4">
+              <div className="absolute right-0 top-full mt-2 z-[999999] px-4">
                 <CustomDateRangePicker
                   monthsShown={2}
                   calendarClassName="custom-datepicker"
