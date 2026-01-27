@@ -677,7 +677,7 @@ export const Accounts: React.FC = () => {
                             <td className="table-cell">
                               <div className="flex items-center gap-2 justify-end md:justify-start">
                                 {account.channels_count && account.channels_count > 0 ? (
-                                  // If account has integrations, show "View Integrations" as primary button
+                                  // If account has integrations, show "Integrations" as primary button
                                   <>
                                     <Button
                                       size="sm"
@@ -690,7 +690,7 @@ export const Accounts: React.FC = () => {
                                       className="connect-button"
                                     >
                                       <span className="">
-                                        View Integrations
+                                        Integrations
                                       </span>
                                     </Button>
                                     <div className="relative z-30">

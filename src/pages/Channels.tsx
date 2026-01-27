@@ -568,7 +568,8 @@ export const Channels: React.FC = () => {
                                     if (channel.channel_type === "google") {
                                       // Navigate directly to selection page (loads from database)
                                       navigate(
-                                        `/channels/${channel.id}/select-google-accounts`
+                                        `/channels/${channel.id}/select-google-accounts`,
+                                        { state: { accountId } }
                                       );
                                     } else if (
                                       channel.channel_type === "tiktok"
