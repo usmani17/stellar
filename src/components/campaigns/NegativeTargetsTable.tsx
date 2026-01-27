@@ -50,6 +50,7 @@ interface NegativeTargetsTableProps {
     oldValue: string;
   } | null;
   campaignType?: string; // SP, SB, or SD
+  adgroups?: Array<{ adGroupId: number | string; name?: string }>; // Ad groups to map IDs to names
 }
 
 export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
@@ -58,6 +59,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
   onSelectAll,
   onSelect,
   selectedIds = new Set(),
+  adgroups = [],
   sortBy = "id",
   sortOrder = "asc",
   campaignType,
@@ -208,9 +210,9 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                     </div>
                   </th>
 
-                  {/* Ad Group ID Header */}
+                  {/* Ad Group Header */}
                   <th className="table-header">
-                    Ad Group ID
+                    Ad Group
                   </th>
 
                   {/* Campaign ID Header */}
@@ -331,10 +333,20 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                         )}
                       </td>
 
-                      {/* Ad Group ID */}
+                      {/* Ad Group Name */}
                       <td className="table-cell">
                         <span className="table-text leading-[1.26]">
-                          {target.adGroupId || "—"}
+                          {(() => {
+                            if (!target.adGroupId) return "—";
+                            // Try to find ad group by matching IDs (handle both string and number)
+                            const adgroup = adgroups.find((ag) => {
+                              const agId = String(ag.adGroupId || "");
+                              const targetId = String(target.adGroupId || "");
+                              return agId === targetId;
+                            });
+                            // Return name if found, otherwise fall back to ID
+                            return adgroup?.name || String(target.adGroupId) || "—";
+                          })()}
                         </span>
                       </td>
 

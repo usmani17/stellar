@@ -25,6 +25,7 @@ interface CreativesTableProps {
   sortOrder?: "asc" | "desc";
   onSort?: (column: string) => void;
   onEdit?: (creative: Creative) => void;
+  adgroups?: Array<{ adGroupId: number | string; name?: string }>; // Ad groups to map IDs to names
 }
 
 export const CreativesTable: React.FC<CreativesTableProps> = ({
@@ -37,6 +38,7 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
   sortOrder = "asc",
   onSort,
   onEdit,
+  adgroups = [],
 }) => {
   console.log(creatives);
   const getSortIcon = (column: string) => {
@@ -185,7 +187,7 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                   onClick={() => handleSort("adGroupId")}
                 >
                   <div className="flex items-center">
-                    Ad Group ID
+                    Ad Group
                     {getSortIcon("adGroupId")}
                   </div>
                 </th>
@@ -239,7 +241,12 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                   {creative.creativeId}
                 </td>
                 <td className="table-cell table-text leading-[1.26]">
-                  {creative.adGroupId}
+                  {(() => {
+                    const adgroup = adgroups.find(
+                      (ag) => String(ag.adGroupId) === String(creative.adGroupId)
+                    );
+                    return adgroup?.name || creative.adGroupId;
+                  })()}
                 </td>
                 <td className="table-cell">
                   <StatusBadge
