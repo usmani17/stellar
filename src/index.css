@@ -907,6 +907,9 @@ body input[type="submit"]:disabled {
   color: #9ca3af;
 }
 
+.react-datepicker-wrapper{
+  width: 100% !important;
+}
 /* Search input container - used for search boxes with hover and focus effects */
 .search-input-container {
   border: 1px solid #e8e8e3;
