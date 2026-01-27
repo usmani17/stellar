@@ -56,7 +56,7 @@ export const Channels: React.FC = () => {
 
   // Set page title
   useEffect(() => {
-    setPageTitle("Channels");
+    setPageTitle("Integrations");
     return () => {
       resetPageTitle();
     };
@@ -277,27 +277,6 @@ export const Channels: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="p-8 bg-white">
-          {/* Back to Brands Link */}
-          <button
-            onClick={() => navigate(`/brands`)}
-            className="flex items-center gap-2 text-[#072929] hover:text-[#136D6D] transition-colors mb-4"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            <span className="text-[14px] font-medium">Back to Brands</span>
-          </button>
-
           {successMessage && (
             <Banner
               type="success"
@@ -323,7 +302,7 @@ export const Channels: React.FC = () => {
             {/* Header with Connect Button and Search */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h1 className="text-[22px] sm:text-[24px] font-medium text-[#072929] leading-[normal]">
-                {account ? `${account.name} Channels` : "Channels"}
+                Integrations
               </h1>
               <div className="flex items-center gap-2">
                 {/* Search */}
@@ -445,8 +424,8 @@ export const Channels: React.FC = () => {
                         <td colSpan={5} className="table-cell text-center py-8">
                           <p className="text-[14px] text-[#556179] mb-4">
                             {searchQuery
-                              ? "No channels found"
-                              : "No channels yet"}
+                              ? "No integrations found"
+                              : "No integrations yet"}
                           </p>
                         </td>
                       </tr>

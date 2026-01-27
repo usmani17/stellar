@@ -1269,6 +1269,9 @@ export const campaignsService = {
       tags?: Array<{ key: string; value: string }>;
       siteRestrictions?: string | null;
       dynamicBidding?: any;
+      /** SB campaigns use "bidding" not "dynamicBidding" */
+      bidding?: any;
+      startDate?: string | null;
     }
   ) => {
     const url = `/accounts/${accountId}/campaigns/${campaignId}/update/`;

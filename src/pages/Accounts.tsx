@@ -575,7 +575,7 @@ export const Accounts: React.FC = () => {
                                   <button
                                     onClick={() => {
                                       navigate(
-                                        `/brands/${account.id}/channels`
+                                        `/brands/${account.id}/integrations`
                                       );
                                     }}
                                     className="table-edit-link"
@@ -677,20 +677,20 @@ export const Accounts: React.FC = () => {
                             <td className="table-cell">
                               <div className="flex items-center gap-2 justify-end md:justify-start">
                                 {account.channels_count && account.channels_count > 0 ? (
-                                  // If account has channels, show "View Channels" as primary button
+                                  // If account has integrations, show "View Integrations" as primary button
                                   <>
                                     <Button
                                       size="sm"
                                       disabled={isDeleting}
                                       onClick={() => {
                                         navigate(
-                                          `/brands/${account.id}/channels`
+                                          `/brands/${account.id}/integrations`
                                         );
                                       }}
                                       className="connect-button"
                                     >
                                       <span className="">
-                                        View Channels
+                                        View Integrations
                                       </span>
                                     </Button>
                                     <div className="relative z-30">
