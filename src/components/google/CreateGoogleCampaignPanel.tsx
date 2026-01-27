@@ -1004,15 +1004,46 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
     console.log("Validation passed, proceeding with submit");
 
-    // Filter out empty headlines and descriptions
+    // Filter out empty headlines and descriptions, and align asset ID arrays
+    let filteredHeadlines: string[] | undefined;
+    let filteredHeadlineAssetIds: (string | undefined)[] | undefined;
+    let filteredHeadlineAssetResourceNames: (string | undefined)[] | undefined;
+    
+    if (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN") {
+      const headlines = (formData.headlines || []).filter((h) => h.trim());
+      const headlineAssetIds = formData.headline_asset_ids || [];
+      const headlineAssetResourceNames = formData.headline_asset_resource_names || [];
+      
+      // Filter asset IDs to match filtered headlines (duplicates are prevented at selection time)
+      filteredHeadlines = headlines;
+      filteredHeadlineAssetIds = headlines.map((_, index) => headlineAssetIds[index]);
+      filteredHeadlineAssetResourceNames = headlines.map((_, index) => headlineAssetResourceNames[index]);
+    }
+    
+    let filteredDescriptions: string[] | undefined;
+    let filteredDescriptionAssetIds: (string | undefined)[] | undefined;
+    let filteredDescriptionAssetResourceNames: (string | undefined)[] | undefined;
+    
+    if (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN") {
+      const descriptions = (formData.descriptions || []).filter((d) => d.trim());
+      const descriptionAssetIds = formData.description_asset_ids || [];
+      const descriptionAssetResourceNames = formData.description_asset_resource_names || [];
+      
+      // Filter asset IDs to match filtered descriptions (duplicates are prevented at selection time)
+      filteredDescriptions = descriptions;
+      filteredDescriptionAssetIds = descriptions.map((_, index) => descriptionAssetIds[index]);
+      filteredDescriptionAssetResourceNames = descriptions.map((_, index) => descriptionAssetResourceNames[index]);
+    }
+    
     const payload: CreateGoogleCampaignData = {
       ...formData,
-      headlines: (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN")
-        ? (formData.headlines || []).filter((h) => h.trim())
-        : undefined,
-      descriptions: (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN")
-        ? (formData.descriptions || []).filter((d) => d.trim())
-        : undefined,
+      headlines: filteredHeadlines,
+      descriptions: filteredDescriptions,
+      // Keep arrays aligned with headlines/descriptions
+      headline_asset_ids: filteredHeadlineAssetIds,
+      headline_asset_resource_names: filteredHeadlineAssetResourceNames,
+      description_asset_ids: filteredDescriptionAssetIds,
+      description_asset_resource_names: filteredDescriptionAssetResourceNames,
       // URL options - omit empty values
       tracking_url_template: formData.tracking_url_template?.trim()
         ? formData.tracking_url_template.trim()

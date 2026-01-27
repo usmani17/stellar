@@ -73,6 +73,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
   const [assetSelectorOpen, setAssetSelectorOpen] = useState(false);
   const [assetSelectorType, setAssetSelectorType] = useState<"BUSINESS_NAME" | "LOGO" | "HEADLINE" | "DESCRIPTION" | "LONG_HEADLINE" | "IMAGE" | "SQUARE_IMAGE" | "VIDEO" | "SITELINK" | "CALLOUT" | null>(null);
   const [assetSelectorIndex, setAssetSelectorIndex] = useState<number | null>(null);
+  const [assetSelectorError, setAssetSelectorError] = useState<string | null>(null);
 
   const handleSelectAsset = (asset: Asset) => {
     if (!assetSelectorType || !profileId) return;
@@ -94,6 +95,18 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
         break;
       case "HEADLINE":
         if (asset.type === "TEXT" && "text" in asset && formData.headlines && assetSelectorIndex !== null) {
+          const headlineAssetIds = formData.headline_asset_ids || [];
+          
+          // Check if this asset is already used in another headline - prevent duplicate selection
+          const existingIndex = headlineAssetIds.findIndex((id, idx) => id === asset.id && idx !== assetSelectorIndex);
+          if (existingIndex !== -1) {
+            setAssetSelectorError(`This asset is already used in headline ${existingIndex + 1}. Please select a different asset.`);
+            return; // Don't close modal, let user select a different asset
+          }
+          
+          // Clear any previous error
+          setAssetSelectorError(null);
+          
           const newHeadlines = [...formData.headlines];
           while (newHeadlines.length <= assetSelectorIndex) {
             newHeadlines.push("");
@@ -101,7 +114,6 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
           newHeadlines[assetSelectorIndex] = asset.text;
           onChange("headlines", newHeadlines);
           
-          const headlineAssetIds = formData.headline_asset_ids || [];
           const headlineAssetResourceNames = formData.headline_asset_resource_names || [];
           const newHeadlineAssetIds = [...headlineAssetIds];
           const newHeadlineAssetResourceNames = [...headlineAssetResourceNames];
@@ -109,14 +121,30 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
             newHeadlineAssetIds.push(undefined);
             newHeadlineAssetResourceNames.push(undefined);
           }
+          
           newHeadlineAssetIds[assetSelectorIndex] = asset.id;
           newHeadlineAssetResourceNames[assetSelectorIndex] = asset.resource_name;
           onChange("headline_asset_ids", newHeadlineAssetIds);
           onChange("headline_asset_resource_names", newHeadlineAssetResourceNames);
+          
+          // Clear any previous error
+          setAssetSelectorError(null);
         }
         break;
       case "DESCRIPTION":
         if (asset.type === "TEXT" && "text" in asset && formData.descriptions && assetSelectorIndex !== null) {
+          const descriptionAssetIds = formData.description_asset_ids || [];
+          
+          // Check if this asset is already used in another description - prevent duplicate selection
+          const existingIndex = descriptionAssetIds.findIndex((id, idx) => id === asset.id && idx !== assetSelectorIndex);
+          if (existingIndex !== -1) {
+            setAssetSelectorError(`This asset is already used in description ${existingIndex + 1}. Please select a different asset.`);
+            return; // Don't close modal, let user select a different asset
+          }
+          
+          // Clear any previous error
+          setAssetSelectorError(null);
+          
           const newDescriptions = [...formData.descriptions];
           while (newDescriptions.length <= assetSelectorIndex) {
             newDescriptions.push("");
@@ -124,7 +152,6 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
           newDescriptions[assetSelectorIndex] = asset.text;
           onChange("descriptions", newDescriptions);
           
-          const descriptionAssetIds = formData.description_asset_ids || [];
           const descriptionAssetResourceNames = formData.description_asset_resource_names || [];
           const newDescriptionAssetIds = [...descriptionAssetIds];
           const newDescriptionAssetResourceNames = [...descriptionAssetResourceNames];
@@ -132,14 +159,30 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
             newDescriptionAssetIds.push(undefined);
             newDescriptionAssetResourceNames.push(undefined);
           }
+          
           newDescriptionAssetIds[assetSelectorIndex] = asset.id;
           newDescriptionAssetResourceNames[assetSelectorIndex] = asset.resource_name;
           onChange("description_asset_ids", newDescriptionAssetIds);
           onChange("description_asset_resource_names", newDescriptionAssetResourceNames);
+          
+          // Clear any previous error
+          setAssetSelectorError(null);
         }
         break;
       case "LONG_HEADLINE":
         if (asset.type === "TEXT" && "text" in asset && assetSelectorIndex !== null) {
+          const longHeadlineAssetIds = formData.long_headline_asset_ids || [];
+          
+          // Check if this asset is already used in another long headline - prevent duplicate selection
+          const existingIndex = longHeadlineAssetIds.findIndex((id, idx) => id === asset.id && idx !== assetSelectorIndex);
+          if (existingIndex !== -1) {
+            setAssetSelectorError(`This asset is already used in long headline ${existingIndex + 1}. Please select a different asset.`);
+            return; // Don't close modal, let user select a different asset
+          }
+          
+          // Clear any previous error
+          setAssetSelectorError(null);
+          
           const newLongHeadlines = formData.long_headlines || [];
           while (newLongHeadlines.length <= assetSelectorIndex) {
             newLongHeadlines.push("");
@@ -147,7 +190,6 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
           newLongHeadlines[assetSelectorIndex] = asset.text;
           onChange("long_headlines", newLongHeadlines);
           
-          const longHeadlineAssetIds = formData.long_headline_asset_ids || [];
           const longHeadlineAssetResourceNames = formData.long_headline_asset_resource_names || [];
           const newLongHeadlineAssetIds = [...longHeadlineAssetIds];
           const newLongHeadlineAssetResourceNames = [...longHeadlineAssetResourceNames];
@@ -159,10 +201,39 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
           newLongHeadlineAssetResourceNames[assetSelectorIndex] = asset.resource_name;
           onChange("long_headline_asset_ids", newLongHeadlineAssetIds);
           onChange("long_headline_asset_resource_names", newLongHeadlineAssetResourceNames);
+          
+          // Clear any previous error
+          setAssetSelectorError(null);
         }
         break;
       case "IMAGE":
         if (asset.type === "IMAGE" && "image_url" in asset) {
+          // Validate marketing image dimensions
+          // Marketing Image: 1.91:1 aspect ratio (recommended: 1200x628, minimum: 600x314)
+          if (asset.width && asset.height) {
+            const aspectRatio = asset.width / asset.height;
+            const targetAspectRatio = 1.91;
+            const aspectRatioTolerance = 0.1; // Allow 10% tolerance
+            
+            if (Math.abs(aspectRatio - targetAspectRatio) > aspectRatioTolerance) {
+              setAssetSelectorError(
+                `This image has an aspect ratio of ${aspectRatio.toFixed(2)}:1. Marketing images must be 1.91:1 (landscape). Recommended: 1200x628 pixels, minimum: 600x314 pixels.`
+              );
+              return; // Don't close modal, prevent selection
+            }
+            
+            if (asset.width < 600 || asset.height < 314) {
+              setAssetSelectorError(
+                `This image is ${asset.width}x${asset.height} pixels. Marketing images must be at least 600x314 pixels. Recommended: 1200x628 pixels.`
+              );
+              return; // Don't close modal, prevent selection
+            }
+          }
+          // If dimensions are not available, allow selection - backend will validate
+          
+          // Clear any previous error before successful selection
+          setAssetSelectorError(null);
+          
           onChange("marketing_image_url", asset.image_url || "");
           onChange("marketing_image_asset_resource_name", asset.resource_name);
           onChange("marketing_image_asset_id", asset.id);
@@ -173,6 +244,32 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
         break;
       case "SQUARE_IMAGE":
         if (asset.type === "IMAGE" && "image_url" in asset) {
+          // Validate square marketing image dimensions
+          // Square Marketing Image: 1:1 aspect ratio (recommended: 1200x1200, minimum: 300x300)
+          if (asset.width && asset.height) {
+            const aspectRatio = asset.width / asset.height;
+            const targetAspectRatio = 1.0;
+            const aspectRatioTolerance = 0.05; // Allow 5% tolerance for square images
+            
+            if (Math.abs(aspectRatio - targetAspectRatio) > aspectRatioTolerance) {
+              setAssetSelectorError(
+                `This image has an aspect ratio of ${aspectRatio.toFixed(2)}:1. Square marketing images must be 1:1 (square). Recommended: 1200x1200 pixels, minimum: 300x300 pixels.`
+              );
+              return; // Don't close modal, prevent selection
+            }
+            
+            if (asset.width < 300 || asset.height < 300) {
+              setAssetSelectorError(
+                `This image is ${asset.width}x${asset.height} pixels. Square marketing images must be at least 300x300 pixels. Recommended: 1200x1200 pixels.`
+              );
+              return; // Don't close modal, prevent selection
+            }
+          }
+          // If dimensions are not available, allow selection - backend will validate
+          
+          // Clear any previous error before successful selection
+          setAssetSelectorError(null);
+          
           onChange("square_marketing_image_url", asset.image_url || "");
           onChange("square_marketing_image_asset_resource_name", asset.resource_name);
           onChange("square_marketing_image_asset_id", asset.id);
@@ -1312,12 +1409,33 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
       </div>
 
       {/* Asset Selector Modal */}
+      {assetSelectorError && (
+        <div className="fixed top-4 right-4 z-[60] bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg shadow-lg max-w-md">
+          <div className="flex items-start gap-2">
+            <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1">
+              <p className="text-sm font-medium">{assetSelectorError}</p>
+            </div>
+            <button
+              onClick={() => setAssetSelectorError(null)}
+              className="text-red-600 hover:text-red-800 flex-shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
       {profileId && (
         <AssetSelectorModal
           isOpen={assetSelectorOpen}
           onClose={() => {
             setAssetSelectorOpen(false);
             setAssetSelectorType(null);
+            setAssetSelectorError(null);
           }}
           onSelect={handleSelectAsset}
           profileId={profileId}
