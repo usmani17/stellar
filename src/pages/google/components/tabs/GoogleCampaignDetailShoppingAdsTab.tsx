@@ -6,12 +6,12 @@ import { Banner } from "../../../../components/ui/Banner";
 import { Loader } from "../../../../components/ui/Loader";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
 
-interface GoogleProductGroup {
+interface GoogleListingGroup {
   id: number;
-  product_group_id: number;
+  listing_group_id: number;
   ad_id?: number; // ad_id from ads table (used for API calls)
-  product_group_name?: string;
-  product_group_type?: string;
+  listing_group_name?: string;
+  listing_group_type?: string;
   status?: string;
   cpc_bid_dollars?: number;
   campaign_id?: number;
@@ -23,12 +23,12 @@ interface GoogleProductGroup {
   sales?: number | string;
 }
 
-interface GoogleCampaignDetailProductGroupsTabProps {
-  productGroups: GoogleProductGroup[];
+interface GoogleCampaignDetailShoppingAdsTabProps {
+  listingGroups: GoogleListingGroup[];
   loading: boolean;
-  selectedProductGroupIds: Set<number>;
+  selectedListingGroupIds: Set<number>;
   onSelectAll: (checked: boolean) => void;
-  onSelectProductGroup: (id: number, checked: boolean) => void;
+  onSelectListingGroup: (id: number, checked: boolean) => void;
   sortBy: string;
   sortOrder: "asc" | "desc";
   onSort: (column: string) => void;
@@ -47,16 +47,16 @@ interface GoogleCampaignDetailProductGroupsTabProps {
   getSortIcon: (column: string, currentSortBy: string, currentSortOrder: "asc" | "desc") => React.ReactNode;
   formatCurrency2Decimals: (value: number | string | undefined) => string;
   formatPercentage: (value: number | string | undefined) => string;
-  onUpdateProductGroupStatus?: (productGroupId: number, status: string) => Promise<void>;
+  onUpdateListingGroupStatus?: (listingGroupId: number, status: string) => Promise<void>;
   createButton?: React.ReactNode;
 }
 
-export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetailProductGroupsTabProps> = ({
-  productGroups,
+export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailShoppingAdsTabProps> = ({
+  listingGroups,
   loading,
-  selectedProductGroupIds,
+  selectedListingGroupIds,
   onSelectAll,
-  onSelectProductGroup,
+  onSelectListingGroup,
   sortBy,
   sortOrder,
   onSort,
@@ -75,22 +75,22 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
   getSortIcon,
   formatCurrency2Decimals,
   formatPercentage,
-  onUpdateProductGroupStatus,
+  onUpdateListingGroupStatus,
   createButton,
 }) => {
-  const [editingProductGroupId, setEditingProductGroupId] = useState<number | null>(null);
+  const [editingListingGroupId, setEditingListingGroupId] = useState<number | null>(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
   const [pendingChange, setPendingChange] = useState<{
     id: number;
     newValue: string;
     oldValue: string;
   } | null>(null);
-  const [updatingProductGroupId, setUpdatingProductGroupId] = useState<number | null>(null);
+  const [updatingListingGroupId, setUpdatingListingGroupId] = useState<number | null>(null);
 
-  const handleStatusClick = (productGroup: GoogleProductGroup) => {
-    if (onUpdateProductGroupStatus) {
-      setEditingProductGroupId(productGroup.id);
-      const currentStatus = (productGroup.status || "ENABLED").toUpperCase();
+  const handleStatusClick = (listingGroup: GoogleListingGroup) => {
+    if (onUpdateListingGroupStatus) {
+      setEditingListingGroupId(listingGroup.id);
+      const currentStatus = (listingGroup.status || "ENABLED").toUpperCase();
       const normalizedStatus = currentStatus === "ENABLE" || currentStatus === "ENABLED" 
         ? "ENABLED" 
         : currentStatus === "PAUSE" || currentStatus === "PAUSED"
@@ -100,42 +100,42 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
     }
   };
 
-  const handleStatusChange = (productGroupId: number, newStatus: string) => {
-    const productGroup = productGroups.find((pg) => pg.id === productGroupId);
-    if (!productGroup) return;
+  const handleStatusChange = (listingGroupId: number, newStatus: string) => {
+    const listingGroup = listingGroups.find((lg) => lg.id === listingGroupId);
+    if (!listingGroup) return;
 
-    const oldStatus = (productGroup.status || "ENABLED").toUpperCase();
+    const oldStatus = (listingGroup.status || "ENABLED").toUpperCase();
     const newStatusUpper = newStatus.toUpperCase();
 
     if (newStatusUpper !== oldStatus) {
       setPendingChange({
-        id: productGroupId,
+        id: listingGroupId,
         newValue: newStatusUpper,
         oldValue: oldStatus,
       });
     }
-    setEditingProductGroupId(null);
+    setEditingListingGroupId(null);
     setEditingStatus("");
   };
 
   const confirmChange = async () => {
-    if (!pendingChange || !onUpdateProductGroupStatus) return;
+    if (!pendingChange || !onUpdateListingGroupStatus) return;
 
-    setUpdatingProductGroupId(pendingChange.id);
+    setUpdatingListingGroupId(pendingChange.id);
     try {
-      await onUpdateProductGroupStatus(pendingChange.id, pendingChange.newValue);
+      await onUpdateListingGroupStatus(pendingChange.id, pendingChange.newValue);
       setPendingChange(null);
     } catch (error) {
-      console.error("Failed to update product group status:", error);
-      alert("Failed to update product group status. Please try again.");
+      console.error("Failed to update listing group status:", error);
+      alert("Failed to update listing group status. Please try again.");
     } finally {
-      setUpdatingProductGroupId(null);
+      setUpdatingListingGroupId(null);
     }
   };
 
   const cancelChange = () => {
     setPendingChange(null);
-    setEditingProductGroupId(null);
+    setEditingListingGroupId(null);
     setEditingStatus("");
   };
 
@@ -156,7 +156,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
       {/* Header with Filter Button */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
-          Product Groups
+          Shopping Ads
         </h2>
         <div className="flex items-center gap-2">
           {createButton}
@@ -210,7 +210,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
             }}
             initialFilters={filters}
             filterFields={[
-              { value: "name", label: "Product Group Name" },
+              { value: "name", label: "Shopping Ad Name" },
               { value: "status", label: "Status" },
               { value: "adgroup_name", label: "Ad Group Name" },
             ]}
@@ -218,17 +218,17 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
         </div>
       )}
 
-      {/* Product Groups Table */}
+      {/* Listing Groups Table */}
       <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
         <div className="overflow-x-auto w-full">
           {loading ? (
             <div className="text-center py-8 text-[#556179] text-[13.3px]">
-              Loading product groups...
+              Loading shopping ads...
             </div>
-          ) : productGroups.length === 0 ? (
+          ) : listingGroups.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-[13.3px] text-[#556179] mb-4">
-                No product groups found
+                No shopping ads found
               </p>
             </div>
           ) : (
@@ -238,7 +238,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                   <th className="table-header w-[35px]">
                     <div className="flex items-center justify-center">
                       <Checkbox
-                        checked={productGroups.length > 0 && productGroups.every((pg) => selectedProductGroupIds.has(pg.id))}
+                        checked={listingGroups.length > 0 && listingGroups.every((lg) => selectedListingGroupIds.has(lg.id))}
                         onChange={onSelectAll}
                         size="small"
                       />
@@ -246,11 +246,11 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                   </th>
                   <th
                     className="table-header"
-                    onClick={() => onSort("product_group_name")}
+                    onClick={() => onSort("listing_group_name")}
                   >
                     <div className="flex items-center gap-1">
-                      Product Group
-                      {getSortIcon("product_group_name", sortBy, sortOrder)}
+                      Listing Groups
+                      {getSortIcon("listing_group_name", sortBy, sortOrder)}
                     </div>
                   </th>
                   <th className="table-header hidden lg:table-cell">
@@ -266,16 +266,34 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
                   </th>
+                  <th
+                    className="table-header hidden md:table-cell"
+                    onClick={() => onSort("cpc_bid_dollars")}
+                  >
+                    <div className="flex items-center gap-1">
+                      CPC Bid
+                      {getSortIcon("cpc_bid_dollars", sortBy, sortOrder)}
+                    </div>
+                  </th>
+                  <th className="table-header hidden md:table-cell">
+                    CTR
+                  </th>
+                  <th className="table-header hidden md:table-cell">
+                    Cost
+                  </th>
+                  <th className="table-header hidden md:table-cell">
+                    Conv. value
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {productGroups.map((productGroup, index) => {
-                  const isLastRow = index === productGroups.length - 1;
-                  const productGroupStatus = (productGroup.status || "").toUpperCase();
-                  const isRemoved = productGroupStatus === "REMOVED";
+                {listingGroups.map((listingGroup, index) => {
+                  const isLastRow = index === listingGroups.length - 1;
+                  const listingGroupStatus = (listingGroup.status || "").toUpperCase();
+                  const isRemoved = listingGroupStatus === "REMOVED";
                   return (
                     <tr
-                      key={productGroup.id}
+                      key={listingGroup.id}
                       className={`${
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
                       } ${isRemoved ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"} transition-colors`}
@@ -283,8 +301,8 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                       <td className="table-cell">
                         <div className="flex items-center justify-center">
                           <Checkbox
-                            checked={selectedProductGroupIds.has(productGroup.id)}
-                            onChange={(checked) => onSelectProductGroup(productGroup.id, checked)}
+                            checked={selectedListingGroupIds.has(listingGroup.id)}
+                            onChange={(checked) => onSelectListingGroup(listingGroup.id, checked)}
                             size="small"
                           />
                         </div>
@@ -296,17 +314,17 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                       </td>
                       <td className="table-cell hidden lg:table-cell">
                         <span className="table-text leading-[1.26]">
-                          {productGroup.adgroup_name || "—"}
+                          {listingGroup.adgroup_name || "—"}
                         </span>
                       </td>
                       <td className="table-cell hidden md:table-cell w-[140px] max-w-[140px]">
                         <div className="flex items-center gap-2 w-full relative">
-                          {updatingProductGroupId === productGroup.id && pendingChange ? (
+                          {updatingListingGroupId === listingGroup.id && pendingChange ? (
                             <div className="flex items-center gap-2">
                               <StatusBadge status={pendingChange.newValue} />
                               <Loader size="sm" showMessage={false} />
                             </div>
-                          ) : pendingChange?.id === productGroup.id ? (
+                          ) : pendingChange?.id === listingGroup.id ? (
                             <div className="flex items-center gap-2">
                               <StatusBadge status={pendingChange.newValue} />
                               <div className="flex items-center gap-1">
@@ -350,7 +368,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                                 </button>
                               </div>
                             </div>
-                          ) : editingProductGroupId === productGroup.id && onUpdateProductGroupStatus && !isRemoved ? (
+                          ) : editingListingGroupId === listingGroup.id && onUpdateListingGroupStatus && !isRemoved ? (
                             <div className="relative z-[100000] w-full" onClick={(e) => e.stopPropagation()}>
                               <Dropdown
                                 options={[
@@ -360,7 +378,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                                 value={editingStatus}
                                 onChange={(val) => {
                                   const newValue = val as string;
-                                  handleStatusChange(productGroup.id, newValue);
+                                  handleStatusChange(listingGroup.id, newValue);
                                 }}
                                 defaultOpen={true}
                                 closeOnSelect={true}
@@ -371,30 +389,30 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                                 disabled={isRemoved}
                               />
                             </div>
-                          ) : productGroup.status ? (
+                          ) : listingGroup.status ? (
                             <button
                               type="button"
                               className={
-                                onUpdateProductGroupStatus && !isRemoved
+                                onUpdateListingGroupStatus && !isRemoved
                                   ? "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between"
                                   : "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between cursor-default"
                               }
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (!isRemoved) {
-                                  handleStatusClick(productGroup);
+                                  handleStatusClick(listingGroup);
                                 }
                               }}
-                              disabled={!onUpdateProductGroupStatus || isRemoved}
+                              disabled={!onUpdateListingGroupStatus || isRemoved}
                             >
                             <span className="truncate flex-1 min-w-0 text-left">
-                              {productGroup.status === "ENABLED" || productGroup.status === "Enabled" || productGroup.status === "ENABLE"
+                              {listingGroup.status === "ENABLED" || listingGroup.status === "Enabled" || listingGroup.status === "ENABLE"
                                 ? "Enabled"
-                                : productGroup.status === "PAUSED" || productGroup.status === "Paused" || productGroup.status === "PAUSE"
+                                : listingGroup.status === "PAUSED" || listingGroup.status === "Paused" || listingGroup.status === "PAUSE"
                                 ? "Paused"
-                                : productGroup.status || "Enabled"}
+                                : listingGroup.status || "Enabled"}
                             </span>
-                            {onUpdateProductGroupStatus && (
+                            {onUpdateListingGroupStatus && (
                               <svg
                                 className="w-4 h-4 text-[#072929] flex-shrink-0"
                                 fill="none"
@@ -413,6 +431,26 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                         ) : null}
                         </div>
                       </td>
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {formatCurrency2Decimals(listingGroup.cpc_bid_dollars)}
+                        </span>
+                      </td>
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {formatPercentage(listingGroup.ctr)}
+                        </span>
+                      </td>
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {formatCurrency2Decimals(listingGroup.spends)}
+                        </span>
+                      </td>
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
+                          {formatCurrency2Decimals(listingGroup.sales)}
+                        </span>
+                      </td>
                     </tr>
                   );
                 })}
@@ -423,7 +461,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
       </div>
 
       {/* Pagination */}
-      {!loading && productGroups.length > 0 && totalPages > 1 && (
+      {!loading && listingGroups.length > 0 && totalPages > 1 && (
         <div className="flex items-center justify-end mt-4">
           <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
             <button
@@ -488,4 +526,3 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
     </>
   );
 };
-

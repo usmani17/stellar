@@ -760,31 +760,56 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                           )}
                         </div>
                       </td>
-                        <td className="table-cell hidden md:table-cell w-[130px] max-w-[130px] pr-4">
-                          {updatingKeywordId === keyword.id &&
-                            pendingChange?.field === "bid" ? (
-                            <div className="flex items-center gap-2">
-                              <span className="table-text leading-[1.26]">
-                                {parseFloat(pendingChange.newValue).toFixed(2)}
-                              </span>
-                              <Loader size="sm" showMessage={false} />
-                            </div>
-                          ) : editingKeywordId === keyword.id &&
-                            editingField === "bid" &&
-                            onUpdateKeywordBid && !isRemoved ? (
-                            <div className="relative w-full">
+                        <td className="table-cell hidden md:table-cell whitespace-nowrap">
+                          {(() => {
+                            if (updatingKeywordId === keyword.id &&
+                              pendingChange?.field === "bid") {
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className="table-text leading-[1.26]">
+                                    {parseFloat(pendingChange.newValue).toFixed(2)}
+                                  </span>
+                                  <Loader size="sm" showMessage={false} />
+                                </div>
+                              );
+                            }
+
+                            const currentBid = (keyword.cpc_bid_dollars || 0).toString();
+
+                            const bidValue = editingKeywordId === keyword.id &&
+                              editingField === "bid"
+                              ? (editingBid?.replace(/[^0-9.]/g, "") || currentBid)
+                              : currentBid;
+
+                            return (
                               <input
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                value={editingBid.replace(/\$/g, "")}
+                                value={bidValue}
+                                onFocus={() => {
+                                  if (!isRemoved &&
+                                      (editingKeywordId !== keyword.id ||
+                                       editingField !== "bid")) {
+                                    if (onUpdateKeywordBid) {
+                                      handleBidClick(keyword);
+                                    }
+                                  }
+                                }}
                                 onChange={(e) => {
                                   if (isRemoved) return;
-                                  const value = e.target.value.replace(/\$/g, "");
+                                  const value = e.target.value.replace(/[^0-9.]/g, "");
                                   setEditingBid(value);
                                 }}
-                                onBlur={() => handleBidBlur(keyword)}
+                                onBlur={() => {
+                                  if (isRemoved) return;
+                                  if (editingKeywordId === keyword.id &&
+                                      editingField === "bid") {
+                                    handleBidBlur(keyword);
+                                  }
+                                }}
                                 onKeyDown={(e) => {
+                                  if (isRemoved) return;
                                   if (e.key === "Enter") {
                                     e.currentTarget.blur();
                                   } else if (e.key === "Escape") {
@@ -793,30 +818,13 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                                     setEditingBid("");
                                   }
                                 }}
-                                autoFocus
-                                className="inline-edit-input w-full min-w-[130px] max-w-[130px]"
-                                disabled={isRemoved}
+                                disabled={isRemoved || !onUpdateKeywordBid}
+                                className={`inline-edit-input w-24 ${
+                                  isRemoved ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                }`}
                               />
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (onUpdateKeywordBid && !isRemoved) {
-                                  handleBidClick(keyword);
-                                }
-                              }}
-                              disabled={!onUpdateKeywordBid || isRemoved}
-                              className={
-                                onUpdateKeywordBid && !isRemoved
-                                  ? "inline-edit-input w-full min-w-[130px] max-w-[130px] cursor-pointer text-left disabled:cursor-default"
-                                  : "inline-edit-input w-full min-w-[130px] max-w-[130px] cursor-default text-left"
-                              }
-                            >
-                              {(keyword.cpc_bid_dollars || 0).toFixed(2)}
-                            </button>
-                          )}
+                            );
+                          })()}
                         </td>
                         <td className="table-cell hidden md:table-cell w-[150px] max-w-[150px] pl-2">
                           {updatingKeywordId === keyword.id &&
