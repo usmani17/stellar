@@ -114,8 +114,9 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
           value: adgroupId?.toString() || "",
           label: ag.name || ag.adgroup_name || `Ad Group ${adgroupId}`,
           adgroup_id: adgroupId,
+          status: ag.status,
         };
-      }).filter((opt: any) => opt.value && opt.adgroup_id); // Filter out invalid options
+      }).filter((opt: any) => opt.value && opt.adgroup_id && opt.status !== "REMOVED" && opt.status !== "Removed"); // Filter out invalid options and removed adgroups
       
       setAdgroupOptions(options);
       
