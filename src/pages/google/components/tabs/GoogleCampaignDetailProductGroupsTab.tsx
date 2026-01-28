@@ -48,6 +48,7 @@ interface GoogleCampaignDetailProductGroupsTabProps {
   formatCurrency2Decimals: (value: number | string | undefined) => string;
   formatPercentage: (value: number | string | undefined) => string;
   onUpdateProductGroupStatus?: (productGroupId: number, status: string) => Promise<void>;
+  createButton?: React.ReactNode;
 }
 
 export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetailProductGroupsTabProps> = ({
@@ -75,6 +76,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
   formatCurrency2Decimals,
   formatPercentage,
   onUpdateProductGroupStatus,
+  createButton,
 }) => {
   const [editingProductGroupId, setEditingProductGroupId] = useState<number | null>(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
@@ -156,10 +158,11 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
         <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
           Product Groups
         </h2>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {createButton}
           <button
             onClick={onToggleFilterPanel}
-            className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+            className="edit-button"
           >
             <svg
               className="w-5 h-5 text-[#072929]"
@@ -286,6 +289,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                   <th
                     className="table-header hidden md:table-cell"
                     onClick={() => onSort("status")}
+                    style={{ width: '140px', minWidth: '140px', maxWidth: '140px' }}
                   >
                     <div className="flex items-center gap-1">
                       Status
@@ -315,12 +319,14 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
               <tbody>
                 {productGroups.map((productGroup, index) => {
                   const isLastRow = index === productGroups.length - 1;
+                  const productGroupStatus = (productGroup.status || "").toUpperCase();
+                  const isRemoved = productGroupStatus === "REMOVED";
                   return (
                     <tr
                       key={productGroup.id}
                       className={`${
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } hover:bg-gray-50 transition-colors`}
+                      } ${isRemoved ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"} transition-colors`}
                     >
                       <td className="table-cell">
                         <div className="flex items-center justify-center">
@@ -341,87 +347,94 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                           {productGroup.adgroup_name || "—"}
                         </span>
                       </td>
-                      <td className="table-cell hidden md:table-cell">
-                        {updatingProductGroupId === productGroup.id && pendingChange ? (
-                          <div className="flex items-center gap-2">
-                            <StatusBadge status={pendingChange.newValue} />
-                            <Loader size="sm" showMessage={false} />
-                          </div>
-                        ) : pendingChange?.id === productGroup.id ? (
-                          <div className="flex items-center gap-2">
-                            <StatusBadge status={pendingChange.newValue} />
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={confirmChange}
-                                className="p-1 hover:bg-green-50 rounded transition-colors"
-                                title="Confirm"
-                              >
-                                <svg
-                                  className="w-4 h-4 text-green-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={cancelChange}
-                                className="p-1 hover:bg-red-50 rounded transition-colors"
-                                title="Cancel"
-                              >
-                                <svg
-                                  className="w-4 h-4 text-red-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M6 18L18 6M6 6l12 12"
-                                  />
-                                </svg>
-                              </button>
+                      <td className="table-cell hidden md:table-cell w-[140px] max-w-[140px]">
+                        <div className="flex items-center gap-2 w-full relative">
+                          {updatingProductGroupId === productGroup.id && pendingChange ? (
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={pendingChange.newValue} />
+                              <Loader size="sm" showMessage={false} />
                             </div>
-                          </div>
-                        ) : editingProductGroupId === productGroup.id && onUpdateProductGroupStatus ? (
-                          <div className="relative z-[100000]">
-                            <Dropdown
-                              options={[
-                                { value: "ENABLED", label: "Enabled" },
-                                { value: "PAUSED", label: "Paused" },
-                              ]}
-                              value={editingStatus}
-                              onChange={(val) => {
-                                const newValue = val as string;
-                                handleStatusChange(productGroup.id, newValue);
+                          ) : pendingChange?.id === productGroup.id ? (
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={pendingChange.newValue} />
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={confirmChange}
+                                  className="p-1 hover:bg-green-50 rounded transition-colors"
+                                  title="Confirm"
+                                >
+                                  <svg
+                                    className="w-4 h-4 text-green-600"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={cancelChange}
+                                  className="p-1 hover:bg-red-50 rounded transition-colors"
+                                  title="Cancel"
+                                >
+                                  <svg
+                                    className="w-4 h-4 text-red-600"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M6 18L18 6M6 6l12 12"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          ) : editingProductGroupId === productGroup.id && onUpdateProductGroupStatus && !isRemoved ? (
+                            <div className="relative z-[100000] w-full" onClick={(e) => e.stopPropagation()}>
+                              <Dropdown
+                                options={[
+                                  { value: "ENABLED", label: "Enabled" },
+                                  { value: "PAUSED", label: "Paused" },
+                                ]}
+                                value={editingStatus}
+                                onChange={(val) => {
+                                  const newValue = val as string;
+                                  handleStatusChange(productGroup.id, newValue);
+                                }}
+                                defaultOpen={true}
+                                closeOnSelect={true}
+                                buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                width="w-full"
+                                className="w-full"
+                                menuClassName="z-[100000]"
+                                disabled={isRemoved}
+                              />
+                            </div>
+                          ) : productGroup.status ? (
+                            <button
+                              type="button"
+                              className={
+                                onUpdateProductGroupStatus && !isRemoved
+                                  ? "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between"
+                                  : "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between cursor-default"
+                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isRemoved) {
+                                  handleStatusClick(productGroup);
+                                }
                               }}
-                              defaultOpen={false}
-                              closeOnSelect={true}
-                              buttonClassName="w-full text-[13.3px] px-2 py-1"
-                              width="w-[100px]"
-                              className="w-full"
-                              menuClassName="z-[100000]"
-                            />
-                          </div>
-                        ) : productGroup.status ? (
-                          <button
-                            type="button"
-                            className={
-                              onUpdateProductGroupStatus
-                                ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
-                                : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
-                            }
-                            onClick={() => handleStatusClick(productGroup)}
-                            disabled={!onUpdateProductGroupStatus}
-                          >
+                              disabled={!onUpdateProductGroupStatus || isRemoved}
+                            >
                             <span className="truncate flex-1 min-w-0 text-left">
                               {productGroup.status === "ENABLED" || productGroup.status === "Enabled" || productGroup.status === "ENABLE"
                                 ? "Enabled"
@@ -446,6 +459,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                             )}
                           </button>
                         ) : null}
+                        </div>
                       </td>
                       <td className="table-cell hidden md:table-cell">
                         <span className="table-text leading-[1.26]">

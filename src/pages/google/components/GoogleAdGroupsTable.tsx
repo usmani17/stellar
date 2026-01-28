@@ -11,6 +11,7 @@ export interface GoogleAdGroup {
   account_name?: string;
   campaign_id?: number;
   campaign_name?: string;
+  campaign_status?: string;
   status: string;
   cpc_bid_dollars?: number;
   // Performance metrics
@@ -177,7 +178,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     },
     {
       key: "account_name",
-      label: "Brand Name",
+      label: "Profile",
       type: "text",
       sortable: true,
       // Amazon doesn't have this column, but keep it compact

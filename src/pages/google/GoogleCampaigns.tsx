@@ -319,6 +319,16 @@ export const GoogleCampaigns: React.FC = () => {
     }
   }, [inlineEditSuccess]);
 
+  // Auto-hide error message after 2 seconds
+  useEffect(() => {
+    if (inlineEditError) {
+      const timer = setTimeout(() => {
+        setInlineEditError(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [inlineEditError]);
+
   // Default column order (matches GoogleCampaignsTable allColumns order)
   const defaultColumnOrder = useMemo(() => [
     "campaign_name",
@@ -1808,6 +1818,14 @@ export const GoogleCampaigns: React.FC = () => {
       | "end_date"
       | "bidding_strategy_type"
   ) => {
+    // Don't allow editing status, budget, start_date, or end_date if campaign is REMOVED
+    const campaignStatus = getStatusWithDefault(campaign.status).toUpperCase();
+    if (campaignStatus === "REMOVED") {
+      if (field === "status" || field === "budget" || field === "start_date" || field === "end_date") {
+        return; // Silently prevent editing these fields for removed campaigns
+      }
+    }
+
     // Prevent editing start_date if it's in the past - silently do nothing
     if (field === "start_date") {
       const startDateStr = parseDateToYYYYMMDD(campaign.start_date);
@@ -3110,6 +3128,7 @@ export const GoogleCampaigns: React.FC = () => {
                 }))}
                 accountId={accountId}
                 marketplace="google_adwords"
+                entityType="campaigns"
               />
             )}
 

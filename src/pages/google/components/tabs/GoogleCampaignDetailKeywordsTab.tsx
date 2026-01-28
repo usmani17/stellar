@@ -47,6 +47,8 @@ interface GoogleCampaignDetailKeywordsTabProps {
   onUpdateKeywordBid?: (keywordId: number, bid: number) => Promise<void>;
   onStartKeywordTextEdit?: (keyword: GoogleKeyword) => void;
   onStartFinalUrlEdit?: (keyword: GoogleKeyword) => void;
+  createButton?: React.ReactNode;
+  formatCurrency2Decimals?: (value: number | string | undefined) => string;
 }
 
 export const GoogleCampaignDetailKeywordsTab: React.FC<
@@ -80,6 +82,11 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
   onUpdateKeywordBid,
   onStartKeywordTextEdit,
   onStartFinalUrlEdit,
+  createButton,
+  formatCurrency2Decimals = (value: number | string | undefined) => {
+    const num = typeof value === 'string' ? parseFloat(value) : (value || 0);
+    return isNaN(num) ? '0.00' : num.toFixed(2);
+  },
 }) => {
     const [editingKeywordId, setEditingKeywordId] = useState<number | null>(null);
     const [editingField, setEditingField] = useState<
@@ -331,10 +338,11 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
         <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
           Keywords
         </h2>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {createButton}
           <button
             onClick={onToggleFilterPanel}
-            className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+            className="edit-button"
           >
             <svg
               className="w-5 h-5 text-[#072929]"
@@ -449,34 +457,34 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                         {getSortIcon("keyword_text", sortBy, sortOrder)}
                       </div>
                     </th>
-                    <th
-                      className="table-header hidden md:table-cell"
-                      onClick={() => onSort("match_type")}
-                    >
-                      <div className="flex items-center gap-1">
-                        Match Type
-                        {getSortIcon("match_type", sortBy, sortOrder)}
-                      </div>
-                    </th>
                     <th className="table-header hidden lg:table-cell">
                       Ad Group
                     </th>
                     <th
-                      className="table-header hidden md:table-cell"
+                      className="table-header hidden md:table-cell w-[150px] max-w-[150px]"
                       onClick={() => onSort("status")}
                     >
                       <div className="flex items-center gap-1">
-                        State
+                        Status
                         {getSortIcon("status", sortBy, sortOrder)}
                       </div>
                     </th>
                     <th
-                      className="table-header hidden md:table-cell"
+                      className="table-header hidden md:table-cell w-[130px] max-w-[130px]"
                       onClick={() => onSort("cpc_bid_dollars")}
                     >
                       <div className="flex items-center gap-1">
                         Max. CPC
                         {getSortIcon("cpc_bid_dollars", sortBy, sortOrder)}
+                      </div>
+                    </th>
+                    <th
+                      className="table-header hidden md:table-cell w-[150px] max-w-[150px]"
+                      onClick={() => onSort("match_type")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Match Type
+                        {getSortIcon("match_type", sortBy, sortOrder)}
                       </div>
                     </th>
                     <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
@@ -487,11 +495,13 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                 <tbody>
                   {keywords.map((keyword, index) => {
                     const isLastRow = index === keywords.length - 1;
+                    const keywordStatus = (keyword.status || "").toUpperCase();
+                    const isRemoved = keywordStatus === "REMOVED";
                     return (
                       <tr
                         key={keyword.id}
                         className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
-                          } hover:bg-gray-50 transition-colors`}
+                          } ${isRemoved ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"} transition-colors`}
                       >
                         <td className="table-cell">
                           <div className="flex items-center justify-center">
@@ -518,7 +528,190 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                             {keyword.keyword_text || "—"}
                           </span>
                         </td>
-                        <td className="table-cell hidden md:table-cell">
+                        <td className="table-cell hidden lg:table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {keyword.adgroup_name || "—"}
+                          </span>
+                        </td>
+                        <td className="table-cell hidden md:table-cell w-[150px] max-w-[150px]">
+                          <div className="flex items-center gap-2 w-full relative">
+                            {updatingKeywordId === keyword.id &&
+                              pendingChange?.field === "status" ? (
+                              <div className="flex items-center gap-2">
+                                <StatusBadge status={pendingChange.newValue} />
+                                <Loader size="sm" showMessage={false} />
+                              </div>
+                            ) : pendingChange?.id === keyword.id &&
+                              pendingChange?.field === "status" ? (
+                              <div className="flex items-center gap-2">
+                                <StatusBadge status={pendingChange.newValue} />
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={confirmChange}
+                                    className="p-1 hover:bg-green-50 rounded transition-colors"
+                                    title="Confirm"
+                                  >
+                                    <svg
+                                      className="w-4 h-4 text-green-600"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={cancelChange}
+                                    className="p-1 hover:bg-red-50 rounded transition-colors"
+                                    title="Cancel"
+                                  >
+                                    <svg
+                                      className="w-4 h-4 text-red-600"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                      />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            ) : editingKeywordId === keyword.id &&
+                              editingField === "status" &&
+                              onUpdateKeywordStatus && !isRemoved ? (
+                              <div onClick={(e) => e.stopPropagation()} className="w-full relative">
+                                <Dropdown
+                                  options={[
+                                    { value: "ENABLED", label: "Enabled" },
+                                    { value: "PAUSED", label: "Paused" },
+                                    { value: "REMOVED", label: "Remove" },
+                                  ]}
+                                  value={editingStatus}
+                                  onChange={(val) =>
+                                    handleStatusChange(keyword.id, val as string)
+                                  }
+                                  defaultOpen={true}
+                                  closeOnSelect={true}
+                                  showCheckmark={false}
+                                  buttonClassName="inline-edit-dropdown w-full text-[13.3px]"
+                                  width="w-full"
+                                  className="w-full"
+                                  menuClassName="z-[100000]"
+                                />
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className={
+                                  onUpdateKeywordStatus && !isRemoved
+                                    ? "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between"
+                                    : "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between cursor-default"
+                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onUpdateKeywordStatus && !isRemoved) {
+                                    handleStatusClick(keyword);
+                                  }
+                                }}
+                                disabled={!onUpdateKeywordStatus || isRemoved}
+                              >
+                              <span className="truncate flex-1 min-w-0 text-left">
+                                {keyword.status === "ENABLED" || keyword.status === "Enabled" || keyword.status === "ENABLE"
+                                  ? "Enabled"
+                                  : keyword.status === "PAUSED" || keyword.status === "Paused" || keyword.status === "PAUSE"
+                                  ? "Paused"
+                                  : keyword.status === "REMOVED" || keyword.status === "Removed" || keyword.status === "REMOVE"
+                                  ? "Remove"
+                                  : keyword.status || "Enabled"}
+                              </span>
+                              {onUpdateKeywordStatus && (
+                                <svg
+                                  className="w-4 h-4 text-[#072929] flex-shrink-0"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 9l-7 7-7-7"
+                                  />
+                                </svg>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                        <td className="table-cell hidden md:table-cell w-[130px] max-w-[130px]">
+                          {updatingKeywordId === keyword.id &&
+                            pendingChange?.field === "bid" ? (
+                            <div className="flex items-center gap-2">
+                              <span className="table-text leading-[1.26]">
+                                {parseFloat(pendingChange.newValue).toFixed(2)}
+                              </span>
+                              <Loader size="sm" showMessage={false} />
+                            </div>
+                          ) : editingKeywordId === keyword.id &&
+                            editingField === "bid" &&
+                            onUpdateKeywordBid && !isRemoved ? (
+                            <div className="relative w-full">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={editingBid.replace(/\$/g, "")}
+                                onChange={(e) => {
+                                  if (isRemoved) return;
+                                  const value = e.target.value.replace(/\$/g, "");
+                                  setEditingBid(value);
+                                }}
+                                onBlur={() => handleBidBlur(keyword)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.currentTarget.blur();
+                                  } else if (e.key === "Escape") {
+                                    setEditingKeywordId(null);
+                                    setEditingField(null);
+                                    setEditingBid("");
+                                  }
+                                }}
+                                autoFocus
+                                className="inline-edit-input w-full min-w-[130px] max-w-[130px]"
+                                disabled={isRemoved}
+                              />
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onUpdateKeywordBid && !isRemoved) {
+                                  handleBidClick(keyword);
+                                }
+                              }}
+                              disabled={!onUpdateKeywordBid || isRemoved}
+                              className={
+                                onUpdateKeywordBid && !isRemoved
+                                  ? "inline-edit-input w-full min-w-[130px] max-w-[130px] cursor-pointer text-left disabled:cursor-default"
+                                  : "inline-edit-input w-full min-w-[130px] max-w-[130px] cursor-default text-left"
+                              }
+                            >
+                              {(keyword.cpc_bid_dollars || 0).toFixed(2)}
+                            </button>
+                          )}
+                        </td>
+                        <td className="table-cell hidden md:table-cell w-[150px] max-w-[150px]">
                           {updatingKeywordId === keyword.id &&
                             pendingChange?.field === "match_type" ? (
                             <div className="flex items-center gap-2">
@@ -576,38 +769,42 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                             </div>
                           ) : editingKeywordId === keyword.id &&
                             editingField === "match_type" &&
-                            onUpdateKeywordMatchType ? (
-                            <Dropdown
-                              options={[
-                                { value: "EXACT", label: "Exact match" },
-                                { value: "PHRASE", label: "Phrase match" },
-                                { value: "BROAD", label: "Broad match" },
-                              ]}
-                              value={editingMatchType}
-                              onChange={(val) =>
-                                handleMatchTypeChange(keyword.id, val as string)
-                              }
-                              defaultOpen={false}
-                              closeOnSelect={true}
-                              showCheckmark={false}
-                              buttonClassName="inline-edit-dropdown w-full text-[13.3px] min-w-0"
-                              width="w-40"
-                              className="w-full"
-                              menuClassName="z-[100000]"
-                            />
+                            onUpdateKeywordMatchType && !isRemoved ? (
+                            <div className="w-full relative" onClick={(e) => e.stopPropagation()}>
+                              <Dropdown
+                                options={[
+                                  { value: "EXACT", label: "Exact match" },
+                                  { value: "PHRASE", label: "Phrase match" },
+                                  { value: "BROAD", label: "Broad match" },
+                                ]}
+                                value={editingMatchType}
+                                onChange={(val) =>
+                                  handleMatchTypeChange(keyword.id, val as string)
+                                }
+                                defaultOpen={true}
+                                closeOnSelect={true}
+                                showCheckmark={false}
+                                buttonClassName="inline-edit-dropdown w-full text-[13.3px]"
+                                width="w-full"
+                                className="w-full"
+                                menuClassName="z-[100000]"
+                                align="left"
+                                disabled={isRemoved}
+                              />
+                            </div>
                           ) : (
                             <button
                               type="button"
                               className={
-                                onUpdateKeywordMatchType
-                                  ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
-                                  : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
+                                onUpdateKeywordMatchType && !isRemoved
+                                  ? "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between"
+                                  : "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between cursor-default"
                               }
                               onClick={() =>
-                                onUpdateKeywordMatchType &&
+                                onUpdateKeywordMatchType && !isRemoved &&
                                 handleMatchTypeClick(keyword)
                               }
-                              disabled={!onUpdateKeywordMatchType}
+                              disabled={!onUpdateKeywordMatchType || isRemoved}
                             >
                               <span className="truncate flex-1 min-w-0 text-left">
                                 {keyword.match_type === "EXACT" || keyword.match_type === "Exact"
@@ -633,187 +830,6 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                                   />
                                 </svg>
                               )}
-                            </button>
-                          )}
-                        </td>
-                        <td className="table-cell hidden lg:table-cell">
-                          <span className="table-text leading-[1.26]">
-                            {keyword.adgroup_name || "—"}
-                          </span>
-                        </td>
-                        <td className="table-cell hidden md:table-cell">
-                          {updatingKeywordId === keyword.id &&
-                            pendingChange?.field === "status" ? (
-                            <div className="flex items-center gap-2">
-                              <StatusBadge status={pendingChange.newValue} />
-                              <Loader size="sm" showMessage={false} />
-                            </div>
-                          ) : pendingChange?.id === keyword.id &&
-                            pendingChange?.field === "status" ? (
-                            <div className="flex items-center gap-2">
-                              <StatusBadge status={pendingChange.newValue} />
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={confirmChange}
-                                  className="p-1 hover:bg-green-50 rounded transition-colors"
-                                  title="Confirm"
-                                >
-                                  <svg
-                                    className="w-4 h-4 text-green-600"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M5 13l4 4L19 7"
-                                    />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={cancelChange}
-                                  className="p-1 hover:bg-red-50 rounded transition-colors"
-                                  title="Cancel"
-                                >
-                                  <svg
-                                    className="w-4 h-4 text-red-600"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M6 18L18 6M6 6l12 12"
-                                    />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          ) : editingKeywordId === keyword.id &&
-                            editingField === "status" &&
-                            onUpdateKeywordStatus ? (
-                            <Dropdown
-                              options={[
-                                { value: "ENABLED", label: "Enabled" },
-                                { value: "PAUSED", label: "Paused" },
-                                { value: "REMOVED", label: "Remove" },
-                              ]}
-                              value={editingStatus}
-                              onChange={(val) =>
-                                handleStatusChange(keyword.id, val as string)
-                              }
-                              defaultOpen={false}
-                              closeOnSelect={true}
-                              showCheckmark={false}
-                              buttonClassName="inline-edit-dropdown w-full text-[13.3px] min-w-0"
-                              width="w-32"
-                              className="w-full"
-                              menuClassName="z-[100000]"
-                            />
-                          ) : (
-                            <button
-                              type="button"
-                              className={
-                                onUpdateKeywordStatus
-                                  ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
-                                  : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
-                              }
-                              onClick={() =>
-                                onUpdateKeywordStatus &&
-                                handleStatusClick(keyword)
-                              }
-                              disabled={!onUpdateKeywordStatus}
-                            >
-                              <span className="truncate flex-1 min-w-0 text-left">
-                                {keyword.status === "ENABLED" || keyword.status === "Enabled" || keyword.status === "ENABLE"
-                                  ? "Enabled"
-                                  : keyword.status === "PAUSED" || keyword.status === "Paused" || keyword.status === "PAUSE"
-                                  ? "Paused"
-                                  : keyword.status === "REMOVED" || keyword.status === "Removed" || keyword.status === "REMOVE"
-                                  ? "Remove"
-                                  : keyword.status || "Enabled"}
-                              </span>
-                              {onUpdateKeywordStatus && (
-                                <svg
-                                  className="w-4 h-4 text-[#072929] flex-shrink-0"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 9l-7 7-7-7"
-                                  />
-                                </svg>
-                              )}
-                            </button>
-                          )}
-                        </td>
-                        <td className="table-cell hidden md:table-cell">
-                          {updatingKeywordId === keyword.id &&
-                            pendingChange?.field === "bid" ? (
-                            <div className="flex items-center gap-2">
-                              <span className="table-text leading-[1.26]">
-                                ${parseFloat(pendingChange.newValue).toFixed(2)}
-                              </span>
-                              <Loader size="sm" showMessage={false} />
-                            </div>
-                          ) : editingKeywordId === keyword.id &&
-                            editingField === "bid" &&
-                            onUpdateKeywordBid ? (
-                            <div className="relative" style={{ width: "96px" }}>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={editingBid.replace(/\$/g, "")}
-                                onChange={(e) => {
-                                  const value = e.target.value.replace(/\$/g, "");
-                                  setEditingBid(value);
-                                }}
-                                onBlur={() => handleBidBlur(keyword)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.currentTarget.blur();
-                                  } else if (e.key === "Escape") {
-                                    setEditingKeywordId(null);
-                                    setEditingField(null);
-                                    setEditingBid("");
-                                  }
-                                }}
-                                autoFocus
-                                className="inline-edit-input"
-                                style={{ 
-                                  width: "96px", 
-                                  minWidth: "96px", 
-                                  maxWidth: "96px",
-                                  boxSizing: "border-box"
-                                }}
-                              />
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (onUpdateKeywordBid) {
-                                  handleBidClick(keyword);
-                                }
-                              }}
-                              disabled={!onUpdateKeywordBid}
-                              className={
-                                onUpdateKeywordBid
-                                  ? "inline-edit-input w-24 cursor-pointer text-left disabled:cursor-default"
-                                  : "inline-edit-input w-24 cursor-default text-left"
-                              }
-                            >
-                              ${keyword.cpc_bid_dollars?.toFixed(2) || "0.00"}
                             </button>
                           )}
                         </td>
@@ -1086,11 +1102,11 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                     <span className="text-[12.8px] text-[#556179]">Max. CPC:</span>
                     <div className="flex items-center gap-2">
                       <span className="text-[12.8px] text-[#556179]">
-                        ${bidConfirmationData.oldBid.toFixed(2)}
+                        {formatCurrency2Decimals(bidConfirmationData.oldBid)}
                       </span>
                       <span className="text-[12.8px] text-[#556179]">→</span>
                       <span className="text-[12.8px] font-semibold text-[#072929]">
-                        ${bidConfirmationData.newBid.toFixed(2)}
+                        {formatCurrency2Decimals(bidConfirmationData.newBid)}
                       </span>
                     </div>
                   </div>

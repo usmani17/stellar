@@ -4,11 +4,11 @@ import type { CampaignDetail } from "../../../services/campaigns";
 
 interface CampaignInformationProps {
   campaignDetail: CampaignDetail | null;
-  editingField: "budget" | "status" | null;
+  editingField: "budget" | "status" | "startDate" | "endDate" | null;
   editedValue: string;
-  onEditField: (field: "budget" | "status") => void;
+  onEditField: (field: "budget" | "status" | "startDate" | "endDate") => void;
   onEditValueChange: (value: string) => void;
-  onEditEnd: (value?: string, field?: "budget" | "status") => void;
+  onEditEnd: (value?: string, field?: "budget" | "status" | "startDate" | "endDate") => void;
   onEditCancel: () => void;
   loading?: boolean;
 }
@@ -181,9 +181,41 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
             <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
               Start Date
             </label>
-            <div className="table-text leading-[1.26]">
-              {new Date(campaignDetail.campaign.startDate).toLocaleDateString()}
-            </div>
+            <input
+              type="date"
+              value={
+                editingField === "startDate"
+                  ? editedValue
+                  : new Date(campaignDetail.campaign.startDate).toISOString().split("T")[0]
+              }
+              onFocus={() => {
+                if (editingField !== "startDate") {
+                  onEditField("startDate");
+                  onEditValueChange(
+                    new Date(campaignDetail.campaign.startDate).toISOString().split("T")[0],
+                  );
+                }
+              }}
+              onChange={(e) => {
+                onEditValueChange(e.target.value);
+              }}
+              onBlur={() => {
+                if (editingField === "startDate") {
+                  onEditEnd();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                } else if (e.key === "Escape") {
+                  onEditCancel();
+                }
+              }}
+              className="inline-edit-input w-32"
+              style={{
+                width: "150px",
+              }}
+            />
           </div>
         )}
 
@@ -193,9 +225,41 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
             <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
               End Date
             </label>
-            <div className="table-text leading-[1.26]">
-              {new Date(campaignDetail.campaign.endDate).toLocaleDateString()}
-            </div>
+            <input
+              type="date"
+              value={
+                editingField === "endDate"
+                  ? editedValue
+                  : new Date(campaignDetail.campaign.endDate).toISOString().split("T")[0]
+              }
+              onFocus={() => {
+                if (editingField !== "endDate") {
+                  onEditField("endDate");
+                  onEditValueChange(
+                    new Date(campaignDetail.campaign.endDate).toISOString().split("T")[0],
+                  );
+                }
+              }}
+              onChange={(e) => {
+                onEditValueChange(e.target.value);
+              }}
+              onBlur={() => {
+                if (editingField === "endDate") {
+                  onEditEnd();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                } else if (e.key === "Escape") {
+                  onEditCancel();
+                }
+              }}
+              className="inline-edit-input w-32"
+              style={{
+                width: "150px",
+              }}
+            />
           </div>
         )}
 

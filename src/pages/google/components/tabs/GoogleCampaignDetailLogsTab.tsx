@@ -529,7 +529,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
                 {logs.map((log) => (
                   <div
                     key={`old-value-${log.id}`}
-                    className="self-stretch min-h-[60px] px-2 py-1.5 border-b border-[#e8e8e3] flex flex-col justify-center items-start min-w-0"
+                    className="self-stretch h-10 px-2 py-1.5 border-b border-[#e8e8e3] flex flex-col justify-center items-start min-w-0"
                   >
                     {renderLogValue(log.old_value)}
                   </div>
@@ -546,7 +546,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
                 {logs.map((log) => (
                   <div
                     key={`new-value-${log.id}`}
-                    className="self-stretch min-h-[60px] px-2 py-1.5 border-b border-[#e8e8e3] flex flex-col justify-center items-start min-w-0"
+                    className="self-stretch h-10 px-2 py-1.5 border-b border-[#e8e8e3] flex flex-col justify-center items-start min-w-0"
                   >
                     {renderLogValue(log.new_value)}
                   </div>

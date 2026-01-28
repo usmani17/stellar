@@ -232,3 +232,40 @@ export const validateEndDateAfterStart = (endDateStr: string, startDateStr?: str
   
   return { valid: true };
 };
+
+// ============================================================================
+// ERROR PARSING
+// ============================================================================
+
+/**
+ * Parses Google API error messages and extracts the error message for display
+ * Shows the error message as-is from the API response
+ */
+export const parseGoogleApiError = (error: any): { title: string; message: string } => {
+  let errorMessage = "An unexpected error occurred";
+  const title = "Update Failed";
+
+  // Handle Error instance
+  if (error instanceof Error) {
+    errorMessage = error.message;
+  }
+  // Handle API response with errors array
+  else if (error?.response?.data) {
+    if (error.response.data.error) {
+      errorMessage = error.response.data.error;
+    } else if (error.response.data.errors && Array.isArray(error.response.data.errors) && error.response.data.errors.length > 0) {
+      // Just use the first error message as-is
+      errorMessage = error.response.data.errors[0];
+    }
+  }
+  // Handle string errors
+  else if (typeof error === "string") {
+    errorMessage = error;
+  }
+  // Handle object with message property
+  else if (error?.message) {
+    errorMessage = error.message;
+  }
+
+  return { title, message: errorMessage };
+};

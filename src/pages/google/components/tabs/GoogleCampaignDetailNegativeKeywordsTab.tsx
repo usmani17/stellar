@@ -49,6 +49,7 @@ interface GoogleCampaignDetailNegativeKeywordsTabProps {
     keywordText: string
   ) => Promise<void>;
   campaignType?: string;
+  createButton?: React.ReactNode;
 }
 
 export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
@@ -78,6 +79,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
   onUpdateNegativeKeywordMatchType,
   onUpdateNegativeKeywordText,
   campaignType,
+  createButton,
 }) => {
   // Check if this is a Performance Max campaign
   const isPerformanceMax = campaignType?.toUpperCase() === "PERFORMANCE_MAX";
@@ -312,10 +314,11 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
         <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
           Negative Keywords
         </h2>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {createButton}
           <button
             onClick={onToggleFilterPanel}
-            className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+            className="edit-button"
           >
             <svg
               className="w-5 h-5 text-[#072929]"
@@ -434,15 +437,6 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                   </th>
                   <th
                     className="table-header hidden md:table-cell"
-                    onClick={() => onSort("match_type")}
-                  >
-                    <div className="flex items-center gap-1">
-                      Match Type
-                      {getSortIcon("match_type", sortBy, sortOrder)}
-                    </div>
-                  </th>
-                  <th
-                    className="table-header hidden md:table-cell"
                     onClick={() => onSort("level")}
                   >
                     <div className="flex items-center gap-1">
@@ -456,12 +450,21 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                     </th>
                   )}
                   <th
-                    className="table-header hidden md:table-cell"
+                    className="table-header hidden md:table-cell w-[140px] max-w-[140px]"
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">
-                      State
+                      Status
                       {getSortIcon("status", sortBy, sortOrder)}
+                    </div>
+                  </th>
+                  <th
+                    className="table-header hidden md:table-cell w-[140px] max-w-[140px]"
+                    onClick={() => onSort("match_type")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Match Type
+                      {getSortIcon("match_type", sortBy, sortOrder)}
                     </div>
                   </th>
                 </tr>
@@ -469,12 +472,14 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
               <tbody>
                 {negativeKeywords.map((negativeKeyword, index) => {
                   const isLastRow = index === negativeKeywords.length - 1;
+                  const negativeKeywordStatus = (negativeKeyword.status || "").toUpperCase();
+                  const isRemoved = negativeKeywordStatus === "REMOVED";
                   return (
                     <tr
                       key={negativeKeyword.id}
                       className={`${
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } hover:bg-gray-50 transition-colors`}
+                      } ${isRemoved ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"} transition-colors`}
                     >
                       <td className="table-cell">
                         <div className="flex items-center justify-center">
@@ -623,46 +628,49 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                         ) : editingNegativeKeywordId === negativeKeyword.id &&
                           editingField === "match_type" &&
                           onUpdateNegativeKeywordMatchType ? (
-                          <Dropdown
-                            key={`match-type-${negativeKeyword.id}`}
-                            options={[
-                              { value: "EXACT", label: "Exact match" },
-                              { value: "PHRASE", label: "Phrase match" },
-                              { value: "BROAD", label: "Broad match" },
-                            ]}
-                            value={editingMatchType}
-                            onChange={(val) =>
-                              handleMatchTypeChange(
-                                negativeKeyword.id,
-                                negativeKeyword.criterion_id,
-                                val as string
-                              )
-                            }
-                            defaultOpen={false}
-                            closeOnSelect={true}
-                            onClose={() => {
-                              setEditingNegativeKeywordId(null);
-                              setEditingField(null);
-                              setEditingMatchType("");
-                            }}
-                            buttonClassName="inline-edit-dropdown w-full text-[13.3px] min-w-0"
-                            width="w-40"
-                            className="w-full"
-                            menuClassName="z-[100000]"
-                          />
+                          <div className="w-full relative" onClick={(e) => e.stopPropagation()}>
+                            <Dropdown
+                              key={`match-type-${negativeKeyword.id}`}
+                              options={[
+                                { value: "EXACT", label: "Exact match" },
+                                { value: "PHRASE", label: "Phrase match" },
+                                { value: "BROAD", label: "Broad match" },
+                              ]}
+                              value={editingMatchType}
+                              onChange={(val) =>
+                                handleMatchTypeChange(
+                                  negativeKeyword.id,
+                                  negativeKeyword.criterion_id,
+                                  val as string
+                                )
+                              }
+                              defaultOpen={true}
+                              closeOnSelect={true}
+                              onClose={() => {
+                                setEditingNegativeKeywordId(null);
+                                setEditingField(null);
+                                setEditingMatchType("");
+                              }}
+                              buttonClassName="inline-edit-dropdown w-full text-[13.3px]"
+                              width="w-full"
+                              className="w-full"
+                              menuClassName="z-[100000]"
+                              align="left"
+                            />
+                          </div>
                         ) : (
                           <button
                             type="button"
                             className={
-                              onUpdateNegativeKeywordMatchType
-                                ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
-                                : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
+                              onUpdateNegativeKeywordMatchType && !isRemoved
+                                ? "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between"
+                                : "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between cursor-default"
                             }
                             onClick={() =>
-                              onUpdateNegativeKeywordMatchType &&
+                              onUpdateNegativeKeywordMatchType && !isRemoved &&
                               handleMatchTypeClick(negativeKeyword)
                             }
-                            disabled={!onUpdateNegativeKeywordMatchType}
+                            disabled={!onUpdateNegativeKeywordMatchType || isRemoved}
                           >
                             <span className="truncate flex-1 min-w-0 text-left">
                               {negativeKeyword.match_type === "EXACT" || negativeKeyword.match_type === "Exact"
@@ -706,102 +714,108 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                           </span>
                         </td>
                       )}
-                      <td className="table-cell hidden md:table-cell">
-                        {updatingNegativeKeywordId === negativeKeyword.id &&
-                        pendingChange?.field === "status" ? (
-                          <div className="flex items-center gap-2">
-                            <StatusBadge status={pendingChange.newValue} />
-                            <Loader size="sm" showMessage={false} />
-                          </div>
-                        ) : pendingChange?.id === negativeKeyword.id &&
-                          pendingChange?.field === "status" ? (
-                          <div className="flex items-center gap-2">
-                            <StatusBadge status={pendingChange.newValue} />
-                            <div className="flex items-center gap-1">
+                        <td className="table-cell hidden md:table-cell w-[140px] max-w-[140px]">
+                          <div className="flex items-center gap-2 w-full relative">
+                            {updatingNegativeKeywordId === negativeKeyword.id &&
+                              pendingChange?.field === "status" ? (
+                              <div className="flex items-center gap-2">
+                                <StatusBadge status={pendingChange.newValue} />
+                                <Loader size="sm" showMessage={false} />
+                              </div>
+                            ) : pendingChange?.id === negativeKeyword.id &&
+                              pendingChange?.field === "status" ? (
+                              <div className="flex items-center gap-2">
+                                <StatusBadge status={pendingChange.newValue} />
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={confirmChange}
+                                    className="p-1 hover:bg-green-50 rounded transition-colors"
+                                    title="Confirm"
+                                  >
+                                    <svg
+                                      className="w-4 h-4 text-green-600"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={cancelChange}
+                                    className="p-1 hover:bg-red-50 rounded transition-colors"
+                                    title="Cancel"
+                                  >
+                                    <svg
+                                      className="w-4 h-4 text-red-600"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                      />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            ) : editingNegativeKeywordId === negativeKeyword.id &&
+                              editingField === "status" &&
+                              onUpdateNegativeKeywordStatus && !isRemoved ? (
+                              <div onClick={(e) => e.stopPropagation()} className="w-full relative">
+                                <Dropdown
+                                  key={`status-${negativeKeyword.id}-${editingNegativeKeywordId}`}
+                                  options={[
+                                    { value: "ENABLED", label: "Enabled" },
+                                    { value: "PAUSED", label: "Paused" },
+                                    { value: "REMOVED", label: "Remove" },
+                                  ]}
+                                  value={editingStatus}
+                                  onChange={(val) =>
+                                    handleStatusChange(
+                                      negativeKeyword.id,
+                                      negativeKeyword.criterion_id,
+                                      val as string
+                                    )
+                                  }
+                                  defaultOpen={true}
+                                  closeOnSelect={true}
+                                  onClose={() => {
+                                    setEditingNegativeKeywordId(null);
+                                    setEditingField(null);
+                                    setEditingStatus("");
+                                  }}
+                                  buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                  width="w-full"
+                                  className="w-full"
+                                  menuClassName="z-[100000]"
+                                  disabled={isRemoved}
+                                />
+                              </div>
+                            ) : (
                               <button
-                                onClick={confirmChange}
-                                className="p-1 hover:bg-green-50 rounded transition-colors"
-                                title="Confirm"
+                                type="button"
+                                className={
+                                  onUpdateNegativeKeywordStatus && !isRemoved
+                                    ? "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between"
+                                    : "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between cursor-default"
+                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onUpdateNegativeKeywordStatus && !isRemoved) {
+                                    handleStatusClick(negativeKeyword);
+                                  }
+                                }}
+                                disabled={!onUpdateNegativeKeywordStatus || isRemoved}
                               >
-                                <svg
-                                  className="w-4 h-4 text-green-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={cancelChange}
-                                className="p-1 hover:bg-red-50 rounded transition-colors"
-                                title="Cancel"
-                              >
-                                <svg
-                                  className="w-4 h-4 text-red-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M6 18L18 6M6 6l12 12"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        ) : editingNegativeKeywordId === negativeKeyword.id &&
-                          editingField === "status" &&
-                          onUpdateNegativeKeywordStatus ? (
-                          <Dropdown
-                            key={`status-${negativeKeyword.id}-${editingNegativeKeywordId}`}
-                            options={[
-                              { value: "ENABLED", label: "Enabled" },
-                              { value: "PAUSED", label: "Paused" },
-                              { value: "REMOVED", label: "Remove" },
-                            ]}
-                            value={editingStatus}
-                            onChange={(val) =>
-                              handleStatusChange(
-                                negativeKeyword.id,
-                                negativeKeyword.criterion_id,
-                                val as string
-                              )
-                            }
-                            defaultOpen={false}
-                            closeOnSelect={true}
-                            onClose={() => {
-                              setEditingNegativeKeywordId(null);
-                              setEditingField(null);
-                              setEditingStatus("");
-                            }}
-                            buttonClassName="w-full text-[13.3px] px-2 py-1"
-                            width="w-32"
-                            className="w-full"
-                            menuClassName="z-[100000]"
-                          />
-                        ) : (
-                          <button
-                            type="button"
-                            className={
-                              onUpdateNegativeKeywordStatus
-                                ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
-                                : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
-                            }
-                            onClick={() =>
-                              onUpdateNegativeKeywordStatus &&
-                              handleStatusClick(negativeKeyword)
-                            }
-                            disabled={!onUpdateNegativeKeywordStatus}
-                          >
                             <span className="truncate flex-1 min-w-0 text-left">
                               {negativeKeyword.status === "ENABLED" || negativeKeyword.status === "Enabled" || negativeKeyword.status === "ENABLE"
                                 ? "Enabled"
@@ -828,6 +842,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                             )}
                           </button>
                         )}
+                        </div>
                       </td>
                     </tr>
                   );

@@ -30,6 +30,8 @@ interface GoogleCampaignDetailAdsTabProps {
   onRefresh?: () => void;
   getSortIcon: (column: string, currentSortBy: string, currentSortOrder: "asc" | "desc") => React.ReactNode;
   onUpdateAdStatus?: (adId: number, status: string) => Promise<void>;
+  onStartFinalUrlEdit?: (ad: GoogleAd) => void;
+  createButton?: React.ReactNode;
 }
 
 export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProps> = ({
@@ -54,6 +56,8 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
   onRefresh,
   getSortIcon,
   onUpdateAdStatus,
+  onStartFinalUrlEdit,
+  createButton,
 }) => {
   const [editingAdId, setEditingAdId] = useState<number | null>(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
@@ -159,10 +163,11 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
         <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
           Ads
         </h2>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {createButton}
           <button
             onClick={onToggleFilterPanel}
-            className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+            className="edit-button"
           >
             <svg
               className="w-5 h-5 text-[#072929]"
@@ -278,16 +283,13 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                     Ad Group
                   </th>
                   <th
-                    className="table-header hidden md:table-cell"
+                    className="table-header hidden md:table-cell w-[140px] max-w-[140px]"
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">
-                      State
+                      Status
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
-                  </th>
-                  <th className="table-header hidden lg:table-cell">
-                    Headlines
                   </th>
                   <th className="table-header hidden lg:table-cell">
                     Final URLs
@@ -297,12 +299,14 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
               <tbody>
                 {ads.map((ad, index) => {
                   const isLastRow = index === ads.length - 1;
+                  const adStatus = (ad.status || "").toUpperCase();
+                  const isRemoved = adStatus === "REMOVED";
                   return (
                     <tr
                       key={ad.id}
                       className={`${
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } hover:bg-gray-50 transition-colors`}
+                      } ${isRemoved ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"} transition-colors`}
                     >
                       <td className="table-cell">
                         <div className="flex items-center justify-center">
@@ -323,35 +327,44 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                           {ad.adgroup_name || "—"}
                         </span>
                       </td>
-                      <td className="table-cell hidden md:table-cell">
-                        {editingAdId === ad.id && onUpdateAdStatus ? (
-                          <Dropdown
-                            options={[
-                              { value: "ENABLED", label: "Enabled" },
-                              { value: "PAUSED", label: "Paused" },
-                              { value: "REMOVED", label: "Remove" },
-                            ]}
-                            value={editingStatus}
-                            onChange={(val) => handleStatusChange(ad.id, val as string)}
-                            defaultOpen={false}
-                            closeOnSelect={true}
-                            showCheckmark={false}
-                            buttonClassName="w-full text-[13.3px] px-2 py-1"
-                            width="w-32"
-                            className="w-full"
-                            menuClassName="z-[100000]"
-                          />
-                        ) : (
-                          <button
-                            type="button"
-                            className={
-                              onUpdateAdStatus
-                                ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
-                                : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
-                            }
-                            onClick={() => onUpdateAdStatus && handleStatusClick(ad)}
-                            disabled={!onUpdateAdStatus}
-                          >
+                      <td className="table-cell hidden md:table-cell w-[140px] max-w-[140px]">
+                        <div className="w-full relative">
+                          {editingAdId === ad.id && onUpdateAdStatus && !isRemoved ? (
+                            <div onClick={(e) => e.stopPropagation()} className="w-full relative">
+                              <Dropdown
+                                options={[
+                                  { value: "ENABLED", label: "Enabled" },
+                                  { value: "PAUSED", label: "Paused" },
+                                  { value: "REMOVED", label: "Remove" },
+                                ]}
+                                value={editingStatus}
+                                onChange={(val) => handleStatusChange(ad.id, val as string)}
+                                defaultOpen={true}
+                                closeOnSelect={true}
+                                showCheckmark={false}
+                                buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                width="w-full"
+                                className="w-full"
+                                menuClassName="z-[100000]"
+                                disabled={isRemoved}
+                              />
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className={
+                                onUpdateAdStatus && !isRemoved
+                                  ? "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between"
+                                  : "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between cursor-default"
+                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onUpdateAdStatus && !isRemoved) {
+                                  handleStatusClick(ad);
+                                }
+                              }}
+                              disabled={!onUpdateAdStatus || isRemoved}
+                            >
                             <span className="truncate flex-1 min-w-0 text-left">
                               {ad.status === "ENABLED" || ad.status === "Enabled" || ad.status === "ENABLE"
                                 ? "Enabled"
@@ -378,26 +391,41 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                             )}
                           </button>
                         )}
+                        </div>
                       </td>
                       <td className="table-cell hidden lg:table-cell">
-                        {ad.headlines && Array.isArray(ad.headlines) && ad.headlines.length > 0 ? (
-                          <div className="flex flex-col gap-1">
-                            {ad.headlines.map((h: any, index: number) => (
-                              <span key={index} className="table-text leading-[1.26] block">
-                                {h.text || h}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="table-text leading-[1.26]">—</span>
-                        )}
-                      </td>
-                      <td className="table-cell hidden lg:table-cell">
-                        <span className="table-text leading-[1.26] truncate block max-w-[300px]">
-                          {ad.final_urls && Array.isArray(ad.final_urls) && ad.final_urls.length > 0
-                            ? ad.final_urls[0]
-                            : "—"}
-                        </span>
+                        <div className="flex items-center gap-2 group">
+                          <span className="table-text leading-[1.26] truncate flex-1 min-w-0">
+                            {ad.final_urls && Array.isArray(ad.final_urls) && ad.final_urls.length > 0
+                              ? ad.final_urls[0]
+                              : "—"}
+                          </span>
+                          {onStartFinalUrlEdit && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onStartFinalUrlEdit(ad);
+                              }}
+                              className="text-[#136D6D] hover:text-[#0e5a5a] flex-shrink-0"
+                              title="Edit Final URL"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                                />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

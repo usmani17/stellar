@@ -79,6 +79,7 @@ export const GoogleAdGroups: React.FC = () => {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
   const isLoadingRef = useRef(false);
+  const lastRequestParamsRef = useRef<string>(""); // Track last request to prevent duplicate calls
 
   // Chart toggles (visual parity with Amazon Campaigns)
   const [chartToggles, setChartToggles] = useState({
@@ -254,6 +255,16 @@ export const GoogleAdGroups: React.FC = () => {
     }
   }, [inlineEditSuccess]);
 
+  // Auto-hide error message after 2 seconds
+  useEffect(() => {
+    if (inlineEditError) {
+      const timer = setTimeout(() => {
+        setInlineEditError(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [inlineEditError]);
+
   // Removed buildFilterParams - now passing filters array directly to service
 
   const loadAdgroups = useCallback(async (accountId: number) => {
@@ -326,14 +337,28 @@ export const GoogleAdGroups: React.FC = () => {
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
       if (!isNaN(accountIdNum)) {
-        loadAdgroups(accountIdNum);
+        // Create a unique key for this request to prevent duplicate calls
+        const requestKey = JSON.stringify({
+          accountId: accountIdNum,
+          currentPage,
+          filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
+          startDate: startDate ? startDate.toISOString().split("T")[0] : null,
+          endDate: endDate ? endDate.toISOString().split("T")[0] : null,
+        });
+
+        // Only call loadAdgroups if the request parameters have actually changed
+        if (lastRequestParamsRef.current !== requestKey) {
+          lastRequestParamsRef.current = requestKey;
+          loadAdgroups(accountIdNum);
+        }
       } else {
         setLoading(false);
       }
     } else {
       setLoading(false);
     }
-  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadAdgroups, sorting]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
 
 
   // Sync status hook (after loadAdgroups is defined)
@@ -1355,6 +1380,7 @@ export const GoogleAdGroups: React.FC = () => {
                 }))}
                 accountId={accountId}
                 marketplace="google_adwords"
+                entityType="adgroups"
               />
             )}
 

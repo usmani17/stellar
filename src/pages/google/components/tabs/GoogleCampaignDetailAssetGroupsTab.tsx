@@ -50,6 +50,27 @@ interface GoogleCampaignDetailAssetGroupsTabProps {
   onUpdateAssetGroupStatus?: (assetGroupId: number, status: string) => Promise<void>;
   profileId?: number; // Profile ID for asset management
   campaignId?: string | number; // Campaign ID for asset management
+  onViewAssets?: (assetGroup: GoogleAssetGroup) => void;
+  viewAssetsModalOpen?: boolean;
+  viewingAssetGroupName?: string;
+  assetGroupAssets?: {
+    headlines: string[];
+    descriptions: string[];
+    long_headline?: string;
+    marketing_image_url?: string;
+    square_marketing_image_url?: string;
+    logo_url?: string;
+    business_name?: string;
+    final_urls?: string[];
+    video_assets?: Array<{
+      id: number;
+      name?: string;
+      youtube_video_id?: string;
+    }>;
+  } | null;
+  loadingAssets?: boolean;
+  onCloseViewAssetsModal?: () => void;
+  createButton?: React.ReactNode;
 }
 
 export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAssetGroupsTabProps> = ({
@@ -77,6 +98,13 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
   onUpdateAssetGroupStatus,
   profileId,
   campaignId,
+  onViewAssets,
+  viewAssetsModalOpen = false,
+  viewingAssetGroupName = "",
+  assetGroupAssets,
+  loadingAssets = false,
+  onCloseViewAssetsModal,
+  createButton,
 }) => {
   const [editingAssetGroupId, setEditingAssetGroupId] = useState<number | null>(null);
   const [editingField, setEditingField] = useState<"status" | null>(null);
@@ -213,10 +241,11 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
         <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
           Asset Groups
         </h2>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {createButton}
           <button
             onClick={onToggleFilterPanel}
-            className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+            className="edit-button"
           >
             <svg
               className="w-5 h-5 text-[#072929]"
@@ -235,8 +264,9 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
               Add Filter
             </span>
             <svg
-              className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isFilterPanelOpen ? "rotate-180" : ""
-                }`}
+              className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                isFilterPanelOpen ? "rotate-180" : ""
+              }`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -309,16 +339,13 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                     </div>
                   </th>
                   <th
-                    className="table-header hidden md:table-cell"
+                    className="table-header hidden md:table-cell w-[150px] max-w-[150px]"
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">
                       Status
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
-                  </th>
-                  <th className="table-header hidden lg:table-cell">
-                    Final URLs
                   </th>
                   {/* <th className="table-header hidden md:table-cell">
                     CTR
@@ -329,27 +356,21 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                   <th className="table-header hidden md:table-cell">
                     Conv. value
                   </th> */}
-                  <th className="table-header hidden md:table-cell">
-                    Health
+                  <th className="table-header">
+                    Actions
                   </th>
-                  <th className="table-header hidden md:table-cell">
-                    Assets
-                  </th>
-                  {/* {profileId && (
-                    <th className="table-header">
-                      Actions
-                    </th>
-                  )} */}
                 </tr>
               </thead>
               <tbody>
                 {assetGroups.map((assetGroup, index) => {
                   const isLastRow = index === assetGroups.length - 1;
+                  const assetGroupStatus = (assetGroup.status || "").toUpperCase();
+                  const isRemoved = assetGroupStatus === "REMOVED";
                   return (
                     <tr
                       key={assetGroup.id}
                       className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
-                        } hover:bg-gray-50 transition-colors`}
+                        } ${isRemoved ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"} transition-colors`}
                     >
                       <td className="table-cell">
                         <div className="flex items-center justify-center">
@@ -397,8 +418,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                           )}
                         </div>
                       </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <div className="flex items-center gap-2">
+                      <td className="table-cell hidden md:table-cell w-[150px] max-w-[150px]">
+                        <div className="flex items-center gap-2 w-full relative">
                           {updatingAssetGroupId === assetGroup.id ? (
                             <div className="flex items-center gap-2">
                               <StatusBadge status={assetGroup.status} />
@@ -406,36 +427,42 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                             </div>
                           ) : editingAssetGroupId === assetGroup.id &&
                             editingField === "status" &&
-                            onUpdateAssetGroupStatus ? (
-                            <Dropdown<string>
-                              options={[
-                                { value: "ENABLED", label: "Enabled" },
-                                { value: "PAUSED", label: "Paused" },
-                                { value: "REMOVED", label: "Remove" },
-                              ]}
-                              value={editingValue}
-                              onChange={(val) => {
-                                handleStatusChange(assetGroup.id, val as string);
-                              }}
-                              defaultOpen={false}
-                              closeOnSelect={true}
-                              buttonClassName="w-full text-[13.3px] px-2 py-1"
-                              width="w-32"
-                              className="w-full"
-                              menuClassName="z-[100000]"
-                            />
+                            onUpdateAssetGroupStatus && !isRemoved ? (
+                            <div onClick={(e) => e.stopPropagation()} className="w-full relative">
+                              <Dropdown<string>
+                                options={[
+                                  { value: "ENABLED", label: "Enabled" },
+                                  { value: "PAUSED", label: "Paused" },
+                                  { value: "REMOVED", label: "Remove" },
+                                ]}
+                                value={editingValue}
+                                onChange={(val) => {
+                                  handleStatusChange(assetGroup.id, val as string);
+                                }}
+                                defaultOpen={true}
+                                closeOnSelect={true}
+                                buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                width="w-full"
+                                className="w-full"
+                                menuClassName="z-[100000]"
+                                disabled={isRemoved}
+                              />
+                            </div>
                           ) : (
                             <button
                               type="button"
                               className={
-                                onUpdateAssetGroupStatus
-                                  ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
-                                  : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
+                                onUpdateAssetGroupStatus && !isRemoved
+                                  ? "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between"
+                                  : "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between cursor-default"
                               }
-                              onClick={() =>
-                                onUpdateAssetGroupStatus && handleStatusClick(assetGroup)
-                              }
-                              disabled={!onUpdateAssetGroupStatus}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onUpdateAssetGroupStatus && !isRemoved) {
+                                  handleStatusClick(assetGroup);
+                                }
+                              }}
+                              disabled={!onUpdateAssetGroupStatus || isRemoved}
                             >
                               <span className="truncate flex-1 min-w-0 text-left">
                                 {assetGroup.status === "ENABLED" || assetGroup.status === "Enabled" || assetGroup.status === "ENABLE"
@@ -463,15 +490,6 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                           )}
                         </div>
                       </td>
-                      <td className="table-cell hidden lg:table-cell">
-                        <span className="table-text leading-[1.26] truncate block max-w-[300px]">
-                          {assetGroup.final_urls && Array.isArray(assetGroup.final_urls) && assetGroup.final_urls.length > 0
-                            ? assetGroup.final_urls[0]
-                            : assetGroup.final_urls && typeof assetGroup.final_urls === 'string'
-                              ? assetGroup.final_urls
-                              : "—"}
-                        </span>
-                      </td>
                       {/* <td className="table-cell hidden md:table-cell">
                         <span className="table-text leading-[1.26]">
                           {formatPercentage(assetGroup.ctr)}
@@ -487,49 +505,40 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                           {formatCurrency2Decimals(assetGroup.sales)}
                         </span>
                       </td> */}
-                      <td className="table-cell hidden md:table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {assetGroup.health ? (
-                            <span className={`inline-flex items-center px-2 py-1 rounded text-[11px] font-medium ${
-                              assetGroup.health.toLowerCase() === 'good' || assetGroup.health.toLowerCase() === 'healthy'
-                                ? 'bg-green-50 text-green-700'
-                                : assetGroup.health.toLowerCase() === 'warning' || assetGroup.health.toLowerCase() === 'needs attention'
-                                ? 'bg-yellow-50 text-yellow-700'
-                                : 'bg-red-50 text-red-700'
-                            }`}>
-                              {assetGroup.health}
-                            </span>
-                          ) : "—"}
-                        </span>
-                      </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {(() => {
-                            const counts = [];
-                            if (assetGroup.headline_count !== undefined) counts.push(`${assetGroup.headline_count}H`);
-                            if (assetGroup.image_count !== undefined) counts.push(`${assetGroup.image_count}I`);
-                            if (assetGroup.video_count !== undefined) counts.push(`${assetGroup.video_count}V`);
-                            if (assetGroup.description_count !== undefined) counts.push(`${assetGroup.description_count}D`);
-                            return counts.length > 0 ? counts.join(", ") : "—";
-                          })()}
-                        </span>
-                      </td>
-                      {/* <td className="table-cell">
-                        {profileId && assetGroup.asset_group_id && (
+                      <td className="table-cell">
+                        {onViewAssets && assetGroup.asset_group_id && (
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedAssetGroupIdForManagement(String(assetGroup.asset_group_id));
-                              setAssetManagementPanelOpen(true);
+                              onViewAssets(assetGroup);
                             }}
-                            className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1"
-                            title="Manage Assets"
+                            className="text-xs text-[#136D6D] hover:text-[#0d5252] font-medium px-2 py-1 flex items-center gap-1 transition-colors"
+                            title="View Assets"
                           >
-                            Manage Assets
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
+                            </svg>
+                            View Assets
                           </button>
                         )}
-                      </td> */}
+                      </td>
                     </tr>
                   );
                 })}
@@ -612,6 +621,292 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
             >
               Next
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* View Assets Modal */}
+      {viewAssetsModalOpen && onCloseViewAssetsModal && (
+        <div
+          className="fixed inset-0 z-[999999] flex items-center justify-center"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              onCloseViewAssetsModal();
+            }
+          }}
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 transition-opacity"
+            onClick={onCloseViewAssetsModal}
+          />
+          
+          {/* Modal */}
+          <div
+            className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] border border-[#E8E8E3] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-[#E8E8E3]">
+              <h3 className="text-[20px] font-semibold text-[#072929]">
+                View Assets - {viewingAssetGroupName}
+              </h3>
+              <button
+                onClick={onCloseViewAssetsModal}
+                className="text-[#556179] hover:text-[#072929] transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingAssets ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader size="lg" message="Loading assets..." />
+                </div>
+              ) : assetGroupAssets ? (
+                <div className="space-y-4">
+                  {/* Basic Info - Compact Grid */}
+                  {(assetGroupAssets.business_name || (assetGroupAssets.final_urls && assetGroupAssets.final_urls.length > 0)) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {assetGroupAssets.business_name && (
+                        <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-lg p-3">
+                          <h4 className="text-[12px] font-semibold text-[#072929] mb-1.5">Business Name</h4>
+                          <p className="text-[13px] text-[#556179]">{assetGroupAssets.business_name}</p>
+                        </div>
+                      )}
+                      {assetGroupAssets.final_urls && assetGroupAssets.final_urls.length > 0 && (
+                        <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-lg p-3">
+                          <h4 className="text-[12px] font-semibold text-[#072929] mb-1.5">Final URLs ({assetGroupAssets.final_urls.length})</h4>
+                          <div className="space-y-1">
+                            {assetGroupAssets.final_urls.slice(0, 2).map((url, index) => (
+                              <a
+                                key={index}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[12px] text-[#136D6D] hover:text-[#0d5252] hover:underline block truncate"
+                                title={url}
+                              >
+                                {url}
+                              </a>
+                            ))}
+                            {assetGroupAssets.final_urls.length > 2 && (
+                              <p className="text-[11px] text-[#556179]">+{assetGroupAssets.final_urls.length - 2} more</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Text Assets - Compact Group */}
+                  {(assetGroupAssets.headlines && assetGroupAssets.headlines.filter(h => h && h.trim()).length > 0) ||
+                   (assetGroupAssets.descriptions && assetGroupAssets.descriptions.filter(d => d && d.trim()).length > 0) ||
+                   assetGroupAssets.long_headline ? (
+                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-lg p-4">
+                      <h4 className="text-[13px] font-semibold text-[#072929] mb-3">Text Assets</h4>
+                      <div className="space-y-3">
+                        {/* Headlines */}
+                        {assetGroupAssets.headlines && assetGroupAssets.headlines.filter(h => h && h.trim()).length > 0 && (
+                          <div>
+                            <p className="text-[11px] font-medium text-[#556179] mb-1.5">
+                              Headlines ({assetGroupAssets.headlines.filter(h => h && h.trim()).length})
+                            </p>
+                            <div className="space-y-1.5">
+                              {assetGroupAssets.headlines.filter(h => h && h.trim()).map((headline, index) => (
+                                <p key={index} className="text-[12.5px] text-[#556179] pl-2 border-l-2 border-[#e8e8e3]">
+                                  {headline}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Long Headline */}
+                        {assetGroupAssets.long_headline && (
+                          <div>
+                            <p className="text-[11px] font-medium text-[#556179] mb-1.5">Long Headline</p>
+                            <p className="text-[12.5px] text-[#556179] pl-2 border-l-2 border-[#e8e8e3]">
+                              {assetGroupAssets.long_headline}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Descriptions */}
+                        {assetGroupAssets.descriptions && assetGroupAssets.descriptions.filter(d => d && d.trim()).length > 0 && (
+                          <div>
+                            <p className="text-[11px] font-medium text-[#556179] mb-1.5">
+                              Descriptions ({assetGroupAssets.descriptions.filter(d => d && d.trim()).length})
+                            </p>
+                            <div className="space-y-1.5">
+                              {assetGroupAssets.descriptions.filter(d => d && d.trim()).map((description, index) => (
+                                <p key={index} className="text-[12.5px] text-[#556179] pl-2 border-l-2 border-[#e8e8e3]">
+                                  {description}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Media Assets - Images and Videos in Grid */}
+                  {(assetGroupAssets.marketing_image_url || assetGroupAssets.square_marketing_image_url || assetGroupAssets.logo_url || (assetGroupAssets.video_assets && assetGroupAssets.video_assets.length > 0)) && (
+                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-lg p-4">
+                      <h4 className="text-[13px] font-semibold text-[#072929] mb-3">Media Assets</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {/* Marketing Image */}
+                        {assetGroupAssets.marketing_image_url && (
+                          <div className="border border-[#e8e8e3] rounded-lg overflow-hidden bg-gray-50">
+                            <div className="aspect-video bg-gray-100 flex items-center justify-center">
+                              <img
+                                src={assetGroupAssets.marketing_image_url}
+                                alt="Marketing Image"
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            </div>
+                            <div className="p-2 bg-white border-t border-[#e8e8e3]">
+                              <p className="text-[11px] font-medium text-[#556179] mb-1">Marketing Image</p>
+                              <a
+                                href={assetGroupAssets.marketing_image_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] text-[#136D6D] hover:text-[#0d5252] hover:underline"
+                              >
+                                View Full
+                              </a>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Square Marketing Image */}
+                        {assetGroupAssets.square_marketing_image_url && (
+                          <div className="border border-[#e8e8e3] rounded-lg overflow-hidden bg-gray-50">
+                            <div className="aspect-square bg-gray-100 flex items-center justify-center">
+                              <img
+                                src={assetGroupAssets.square_marketing_image_url}
+                                alt="Square Marketing Image"
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            </div>
+                            <div className="p-2 bg-white border-t border-[#e8e8e3]">
+                              <p className="text-[11px] font-medium text-[#556179] mb-1">Square Marketing Image</p>
+                              <a
+                                href={assetGroupAssets.square_marketing_image_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] text-[#136D6D] hover:text-[#0d5252] hover:underline"
+                              >
+                                View Full
+                              </a>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Logo */}
+                        {assetGroupAssets.logo_url && (
+                          <div className="border border-[#e8e8e3] rounded-lg overflow-hidden bg-gray-50">
+                            <div className="aspect-square bg-gray-100 flex items-center justify-center">
+                              <img
+                                src={assetGroupAssets.logo_url}
+                                alt="Logo"
+                                className="w-full h-full object-contain p-4"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            </div>
+                            <div className="p-2 bg-white border-t border-[#e8e8e3]">
+                              <p className="text-[11px] font-medium text-[#556179] mb-1">Logo</p>
+                              <a
+                                href={assetGroupAssets.logo_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] text-[#136D6D] hover:text-[#0d5252] hover:underline"
+                              >
+                                View Full
+                              </a>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* YouTube Videos */}
+                        {assetGroupAssets.video_assets && assetGroupAssets.video_assets.length > 0 && assetGroupAssets.video_assets.map((video: any, index: number) => {
+                          if (!video.youtube_video_id) return null;
+                          return (
+                            <div key={index} className="border border-[#e8e8e3] rounded-lg overflow-hidden bg-gray-50">
+                              <div className="aspect-video bg-gray-900 flex items-center justify-center">
+                                <iframe
+                                  className="w-full h-full"
+                                  src={`https://www.youtube.com/embed/${video.youtube_video_id}`}
+                                  title={video.name || `Video ${index + 1}`}
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                  allowFullScreen
+                                />
+                              </div>
+                              <div className="p-2 bg-white border-t border-[#e8e8e3]">
+                                <p className="text-[11px] font-medium text-[#556179] mb-1">
+                                  {video.name || `YouTube Video`}
+                                </p>
+                                <a
+                                  href={`https://www.youtube.com/watch?v=${video.youtube_video_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-[#136D6D] hover:text-[#0d5252] hover:underline"
+                                >
+                                  Watch on YouTube
+                                </a>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty State */}
+                  {(!assetGroupAssets.headlines || assetGroupAssets.headlines.filter(h => h && h.trim()).length === 0) &&
+                   (!assetGroupAssets.descriptions || assetGroupAssets.descriptions.filter(d => d && d.trim()).length === 0) &&
+                   !assetGroupAssets.long_headline &&
+                   !assetGroupAssets.marketing_image_url &&
+                   !assetGroupAssets.square_marketing_image_url &&
+                   !assetGroupAssets.logo_url &&
+                   (!assetGroupAssets.video_assets || assetGroupAssets.video_assets.length === 0) &&
+                   (!assetGroupAssets.final_urls || assetGroupAssets.final_urls.length === 0) &&
+                   !assetGroupAssets.business_name && (
+                    <div className="text-center py-12">
+                      <p className="text-[13.3px] text-[#556179]">No assets available for this asset group.</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-[13.3px] text-[#556179]">Failed to load assets.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end p-6 border-t border-[#E8E8E3]">
+              <button
+                type="button"
+                onClick={onCloseViewAssetsModal}
+                className="px-4 py-2 bg-[#fefefb] border border-[#e8e8e3] text-[#072929] rounded-lg hover:bg-gray-50 transition-colors text-[13.3px] font-medium"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

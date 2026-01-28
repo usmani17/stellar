@@ -24,15 +24,19 @@ export interface FilterOption {
  * 
  * @param accountId - Account ID
  * @param marketplace - Marketplace identifier (e.g., "google_adwords", "amazon", "tiktok")
+ * @param entityType - Optional entity type (e.g., "campaigns", "adgroups", "ads", "keywords")
  * @returns Promise resolving to array of filter field definitions
  */
 export const getFilterFields = async (
   accountId: string | number,
-  marketplace: string
+  marketplace: string,
+  entityType?: string
 ): Promise<FilterField[]> => {
   try {
+    const params = entityType ? { entity_type: entityType } : {};
     const response = await api.get<FilterField[]>(
-      `/accounts/${accountId}/filters/${marketplace}/`
+      `/accounts/${accountId}/filters/${marketplace}/`,
+      { params }
     );
     return response.data;
   } catch (error) {

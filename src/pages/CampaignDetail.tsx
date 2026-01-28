@@ -101,14 +101,14 @@ export const CampaignDetail: React.FC = () => {
   );
 
   // Inline edit state
-  const [editingField, setEditingField] = useState<"budget" | "status" | null>(
+  const [editingField, setEditingField] = useState<"budget" | "status" | "startDate" | "endDate" | null>(
     null,
   );
   const [editedValue, setEditedValue] = useState<string>("");
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
   const [inlineEditField, setInlineEditField] = useState<
-    "budget" | "status" | null
+    "budget" | "status" | "startDate" | "endDate" | null
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
@@ -2772,6 +2772,18 @@ export const CampaignDetail: React.FC = () => {
           budgetAction: "set",
           unit: "amount",
           value: budgetValue,
+        });
+      } else if (inlineEditField === "startDate") {
+        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
+          campaignIds: [campaignDetail.campaign.campaignId || campaignId!],
+          action: "startDate",
+          startDate: inlineEditNewValue,
+        });
+      } else if (inlineEditField === "endDate") {
+        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
+          campaignIds: [campaignDetail.campaign.campaignId || campaignId!],
+          action: "endDate",
+          endDate: inlineEditNewValue,
         });
       }
 
@@ -6977,6 +6989,18 @@ export const CampaignDetail: React.FC = () => {
                 setEditedValue(
                   (campaignDetail.campaign.budget || 0).toString(),
                 );
+              } else if (field === "startDate" && campaignDetail) {
+                setEditedValue(
+                  campaignDetail.campaign.startDate
+                    ? new Date(campaignDetail.campaign.startDate).toISOString().split("T")[0]
+                    : "",
+                );
+              } else if (field === "endDate" && campaignDetail) {
+                setEditedValue(
+                  campaignDetail.campaign.endDate
+                    ? new Date(campaignDetail.campaign.endDate).toISOString().split("T")[0]
+                    : "",
+                );
               }
             }}
             onEditValueChange={setEditedValue}
@@ -7019,6 +7043,42 @@ export const CampaignDetail: React.FC = () => {
                   setInlineEditField("budget");
                   setInlineEditOldValue(`$${oldBudget.toLocaleString()}`);
                   setInlineEditNewValue(valueToCompare);
+                  setShowInlineEditModal(true);
+                } else {
+                  setEditingField(null);
+                  setEditedValue("");
+                }
+              } else if (fieldToUse === "startDate") {
+                const oldStartDate = campaignDetail.campaign.startDate
+                  ? new Date(campaignDetail.campaign.startDate).toISOString().split("T")[0]
+                  : "";
+                const newStartDate = String(valueToCompare ?? "").trim();
+                if (newStartDate && newStartDate !== oldStartDate) {
+                  setInlineEditField("startDate");
+                  setInlineEditOldValue(
+                    oldStartDate
+                      ? new Date(oldStartDate).toLocaleDateString()
+                      : "—"
+                  );
+                  setInlineEditNewValue(newStartDate);
+                  setShowInlineEditModal(true);
+                } else {
+                  setEditingField(null);
+                  setEditedValue("");
+                }
+              } else if (fieldToUse === "endDate") {
+                const oldEndDate = campaignDetail.campaign.endDate
+                  ? new Date(campaignDetail.campaign.endDate).toISOString().split("T")[0]
+                  : "";
+                const newEndDate = String(valueToCompare ?? "").trim();
+                if (newEndDate && newEndDate !== oldEndDate) {
+                  setInlineEditField("endDate");
+                  setInlineEditOldValue(
+                    oldEndDate
+                      ? new Date(oldEndDate).toLocaleDateString()
+                      : "—"
+                  );
+                  setInlineEditNewValue(newEndDate);
                   setShowInlineEditModal(true);
                 } else {
                   setEditingField(null);
@@ -8968,7 +9028,11 @@ export const CampaignDetail: React.FC = () => {
             <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
               {inlineEditField === "status"
                 ? "Confirm Status Changes"
-                : "Confirm Budget Changes"}
+                : inlineEditField === "budget"
+                  ? "Confirm Budget Changes"
+                  : inlineEditField === "startDate"
+                    ? "Confirm Start Date Changes"
+                    : "Confirm End Date Changes"}
             </h3>
 
             {/* Summary */}
@@ -8978,7 +9042,13 @@ export const CampaignDetail: React.FC = () => {
                   1 campaign will be updated:
                 </span>
                 <span className="text-[12.16px] font-semibold text-[#072929]">
-                  {inlineEditField === "status" ? "Status" : "Budget"} change
+                  {inlineEditField === "status"
+                    ? "Status"
+                    : inlineEditField === "budget"
+                      ? "Budget"
+                      : inlineEditField === "startDate"
+                        ? "Start Date"
+                        : "End Date"} change
                 </span>
               </div>
             </div>
@@ -9017,9 +9087,11 @@ export const CampaignDetail: React.FC = () => {
                         {inlineEditField === "status"
                           ? inlineEditNewValue.charAt(0).toUpperCase() +
                             inlineEditNewValue.slice(1)
-                          : `$${parseFloat(inlineEditNewValue || "0").toFixed(
-                              2,
-                            )}`}
+                          : inlineEditField === "budget"
+                            ? `$${parseFloat(inlineEditNewValue || "0").toFixed(2)}`
+                            : inlineEditField === "startDate" || inlineEditField === "endDate"
+                              ? new Date(inlineEditNewValue).toLocaleDateString()
+                              : `$${parseFloat(inlineEditNewValue || "0").toFixed(2)}`}
                       </td>
                     </tr>
                   </tbody>

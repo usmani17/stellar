@@ -318,6 +318,20 @@ export function GoogleAdsTable<T = any>({
     const isError = inlineEditError?.itemId === itemId && inlineEditError?.field === column.key;
     const updatingMessage = isUpdating ? getUpdatingMessage(column, updatingField?.newValue) : "Updating...";
     
+    // Check if entity is removed or if parent entity is removed
+    const rowStatus = (row as any).status?.toUpperCase();
+    const campaignStatus = (row as any).campaign_status?.toUpperCase();
+    const adgroupStatus = (row as any).adgroup_status?.toUpperCase();
+    
+    // Entity is removed if:
+    // 1. Its own status is REMOVED, OR
+    // 2. For adgroups: campaign status is REMOVED, OR
+    // 3. For keywords/ads: campaign status is REMOVED OR adgroup status is REMOVED
+    const isRemoved = 
+      rowStatus === "REMOVED" ||
+      campaignStatus === "REMOVED" ||
+      adgroupStatus === "REMOVED";
+    
     // Use editedValue if actively editing, otherwise use current value from row
     const displayValue = isEditing ? editedValue : (value !== undefined && value !== null ? value : "");
     
@@ -405,14 +419,41 @@ export function GoogleAdsTable<T = any>({
             options={options}
             value={dropdownValue}
             onChange={(val) => {
+              if (isRemoved) return; // Disable editing for removed adgroups
               const newValue = val as string;
-              if (!isEditing) {
-                onStartInlineEdit(row, column.key);
+              
+              // Get the original value for comparison
+              let originalValue: string = "";
+              if (column.key === "bidding_strategy_type") {
+                // For bidding_strategy_type, compare with the raw enum value
+                originalValue = (row as any).bidding_strategy_type || "";
+              } else if (column.key === "match_type") {
+                // For match_type, normalize to uppercase for comparison
+                const rawValue = (row as any).match_type || "";
+                originalValue = rawValue.toUpperCase();
+              } else {
+                // For status, use the current value
+                originalValue = (value !== undefined && value !== null ? String(value) : "").toUpperCase();
               }
-              onInlineEditChange(newValue);
-              // For status and bidding_strategy_type dropdowns, use direct confirmation immediately (skip modal)
-              // Pass itemId (campaign ID) and field directly to avoid state timing issues
-              onConfirmInlineEdit(newValue, column.key, itemId);
+              
+              // Normalize new value for comparison
+              const newValueNormalized = newValue.toUpperCase();
+              
+              // Only confirm if value has actually changed
+              if (newValueNormalized !== originalValue.toUpperCase()) {
+                if (!isEditing) {
+                  onStartInlineEdit(row, column.key);
+                }
+                onInlineEditChange(newValue);
+                // For status and bidding_strategy_type dropdowns, use direct confirmation immediately (skip modal)
+                // Pass itemId (campaign ID) and field directly to avoid state timing issues
+                onConfirmInlineEdit(newValue, column.key, itemId);
+              } else {
+                // No change, just cancel if we were editing
+                if (isEditing) {
+                  onCancelInlineEdit();
+                }
+              }
             }}
             defaultOpen={isEditing}
             closeOnSelect={true}
@@ -421,6 +462,7 @@ export function GoogleAdsTable<T = any>({
             align="left"
             className="w-full"
             menuClassName="z-[100000]"
+            disabled={isRemoved}
             onClose={() => {
               // Don't cancel if we're updating or if there's a pending change
               if (isUpdating) return;
@@ -469,16 +511,31 @@ export function GoogleAdsTable<T = any>({
               ]}
               value={displayValue}
               onChange={(val) => {
-                // Mark that a selection was made for this item (matches Amazon pattern)
-                statusSelectionMadeRef.current = itemId;
+                if (isRemoved) return; // Disable editing for removed adgroups
+                
                 const newValue = val as string;
-                if (!isEditing) {
-                  onStartInlineEdit(row, column.key);
+                
+                // Get the original status value for comparison
+                const originalValue = (value !== undefined && value !== null ? String(value) : "").toUpperCase();
+                const newValueNormalized = newValue.toUpperCase();
+                
+                // Only confirm if value has actually changed
+                if (newValueNormalized !== originalValue) {
+                  // Mark that a selection was made for this item (matches Amazon pattern)
+                  statusSelectionMadeRef.current = itemId;
+                  if (!isEditing) {
+                    onStartInlineEdit(row, column.key);
+                  }
+                  onInlineEditChange(newValue);
+                  // For status and bidding_strategy_type, use direct confirmation immediately (skip modal)
+                  // Pass itemId (campaign ID) and field directly to avoid state timing issues
+                  onConfirmInlineEdit(newValue, column.key, itemId);
+                } else {
+                  // No change, just cancel if we were editing
+                  if (isEditing) {
+                    onCancelInlineEdit();
+                  }
                 }
-                onInlineEditChange(newValue);
-                // For status and bidding_strategy_type, use direct confirmation immediately (skip modal)
-                // Pass itemId (campaign ID) and field directly to avoid state timing issues
-                onConfirmInlineEdit(newValue, column.key, itemId);
               }}
               defaultOpen={isEditing}
               closeOnSelect={true}
@@ -487,6 +544,7 @@ export function GoogleAdsTable<T = any>({
               align="left"
               className="w-full"
               menuClassName="z-[100000]"
+              disabled={isRemoved}
               onClose={() => {
                 // Don't cancel if we're updating or if there's a pending change
                 if (isUpdating) return;
@@ -533,20 +591,34 @@ export function GoogleAdsTable<T = any>({
           return (
             <div className="relative w-full">
               <input
+                key={`text-${itemId}-${column.key}`}
                 type="text"
                 value={textValue}
                 onFocus={() => {
+                  if (isRemoved) return; // Disable editing for removed adgroups
                   if (!isEditing && isTextEditable) {
                     onStartInlineEdit(row, column.key);
                   }
                 }}
                 onChange={(e) => {
-                  onInlineEditChange(e.target.value);
+                  if (isRemoved) return; // Disable editing for removed adgroups
+                  // Only update editedValue if this specific row is being edited
+                  // Double-check by verifying editingCell matches this row's itemId and field
+                  if (editingCell?.itemId === itemId && editingCell?.field === column.key) {
+                    onInlineEditChange(e.target.value);
+                  }
                 }}
                 onBlur={(e) => {
                   if (isEditing && isTextEditable) {
-                    const inputValue = e.target.value;
-                    onConfirmInlineEdit(inputValue, column.key, itemId);
+                    const inputValue = e.target.value.trim();
+                    const originalValue = (value !== undefined && value !== null ? String(value) : "").trim();
+                    // Only confirm if value has actually changed
+                    if (inputValue !== originalValue && inputValue !== "") {
+                      onConfirmInlineEdit(inputValue, column.key, itemId);
+                    } else {
+                      // No change, just cancel the edit
+                      onCancelInlineEdit();
+                    }
                   }
                 }}
                 onKeyDown={(e) => {
@@ -558,7 +630,7 @@ export function GoogleAdsTable<T = any>({
                 }}
                 autoFocus={isEditing}
                 className="inline-edit-input w-full min-w-[150px]"
-                disabled={!isTextEditable}
+                disabled={!isTextEditable || isRemoved}
               />
               {(isUpdating || isSuccess || isError) && (
                 <div className="absolute top-full left-0 mt-1 z-10">
@@ -592,20 +664,30 @@ export function GoogleAdsTable<T = any>({
           ? column.editable(row) 
           : column.editable === true;
         const budgetValue = isEditing ? editedValue : (value || 0).toString();
+        // Include adgroup_id in key for budget inputs if available (for keywords with same keyword_id in different adgroups)
+        const adgroupId = (row as any).adgroup_id;
+        const budgetKey = adgroupId ? `budget-${itemId}-${adgroupId}-${column.key}` : `budget-${itemId}-${column.key}`;
         return (
           <div className="relative w-full">
             <input
+              key={budgetKey}
               type="number"
               step="0.01"
               min="0"
               value={budgetValue}
               onFocus={() => {
+                if (isRemoved) return; // Disable editing for removed adgroups
                 if (!isEditing && isBudgetEditable) {
                   onStartInlineEdit(row, column.key);
                 }
               }}
               onChange={(e) => {
-                onInlineEditChange(e.target.value);
+                if (isRemoved) return; // Disable editing for removed adgroups
+                // Only update editedValue if this specific row is being edited
+                // Double-check by verifying editingCell matches this row's itemId and field
+                if (editingCell?.itemId === itemId && editingCell?.field === column.key) {
+                  onInlineEditChange(e.target.value);
+                }
               }}
               onBlur={(e) => {
                 if (isEditing && isBudgetEditable) {
@@ -616,15 +698,23 @@ export function GoogleAdsTable<T = any>({
                   const inputValue = inputElement.value;
                   const inputValueAsNumber = inputElement.valueAsNumber;
                   
-                  console.log("[GoogleAdsTable onBlur] Column:", column.key, "Input value:", inputValue, "Value as number:", inputValueAsNumber, "ItemId:", itemId);
+                  // Get the original value for comparison
+                  const originalValue = value !== undefined && value !== null ? (typeof value === 'number' ? value : parseFloat(String(value)) || 0) : 0;
                   
-                  // For number inputs, ensure we capture the value even if it's "0" or "0.00"
-                  // Only trigger confirmation if there's a value (not empty string)
+                  // Only trigger confirmation if there's a value (not empty string) AND it has changed
                   if (inputValue !== undefined && inputValue !== null && inputValue !== "") {
-                    console.log("[GoogleAdsTable onBlur] Calling onConfirmInlineEdit with:", inputValue);
-                    onConfirmInlineEdit(inputValue, column.key, itemId);
+                    // Check if the value has actually changed (use a small threshold for floating point comparison)
+                    const newValueNum = isNaN(inputValueAsNumber) ? parseFloat(inputValue) || 0 : inputValueAsNumber;
+                    const hasChanged = Math.abs(newValueNum - originalValue) > 0.001;
+                    
+                    if (hasChanged) {
+                      onConfirmInlineEdit(inputValue, column.key, itemId);
+                    } else {
+                      // No change, just cancel the edit
+                      onCancelInlineEdit();
+                    }
                   } else {
-                    console.log("[GoogleAdsTable onBlur] Input value is empty, canceling");
+                    // Empty value, cancel the edit
                     onCancelInlineEdit();
                   }
                 }
@@ -638,7 +728,7 @@ export function GoogleAdsTable<T = any>({
               }}
               autoFocus={isEditing}
               className="inline-edit-input w-full min-w-[120px]"
-              disabled={!isBudgetEditable}
+              disabled={!isBudgetEditable || isRemoved}
             />
             {(isUpdating || isSuccess || isError) && (
               <div className="absolute top-full left-0 mt-1 z-10">
@@ -706,21 +796,34 @@ export function GoogleAdsTable<T = any>({
         return (
           <div className="relative w-full">
             <input
+              key={`date-${itemId}-${column.key}`}
               type="date"
               value={dateValue}
               min={minDate}
               onFocus={() => {
+                if (isRemoved) return; // Disable editing for removed adgroups
                 if (!isEditing && isDateEditable) {
                   onStartInlineEdit(row, column.key);
                 }
               }}
               onChange={(e) => {
-                if (isEditing && isDateEditable) {
+                if (isRemoved) return; // Disable editing for removed adgroups
+                // Only update if this specific row is being edited
+                // Double-check by verifying editingCell matches this row's itemId and field
+                if (editingCell?.itemId === itemId && editingCell?.field === column.key && isDateEditable) {
                   const inputValue = e.target.value;
-                  // Update the edited value
-                  onInlineEditChange(inputValue);
-                  // Immediately trigger confirmation modal on date change
-                  onConfirmInlineEdit(inputValue, column.key, itemId);
+                  // Get the original date value for comparison
+                  const originalDateValue = value ? parseDateToYYYYMMDD(value) : "";
+                  // Only confirm if date has actually changed
+                  if (inputValue !== originalDateValue && inputValue !== "") {
+                    // Update the edited value
+                    onInlineEditChange(inputValue);
+                    // Immediately trigger confirmation modal on date change
+                    onConfirmInlineEdit(inputValue, column.key, itemId);
+                  } else {
+                    // No change, just cancel the edit
+                    onCancelInlineEdit();
+                  }
                 }
               }}
               onBlur={(e) => {
@@ -738,7 +841,7 @@ export function GoogleAdsTable<T = any>({
               }}
               autoFocus={isEditing}
               className="inline-edit-input w-full min-w-[140px]"
-              disabled={!isDateEditable}
+              disabled={!isDateEditable || isRemoved}
             />
             {(isUpdating || isSuccess || isError) && (
               <div className="absolute top-full left-0 mt-1 z-10">
@@ -974,10 +1077,24 @@ export function GoogleAdsTable<T = any>({
                   // Use combination of itemId and index to ensure unique keys
                   const uniqueKey = `${itemId}-${index}`;
                   
+                  // Check if entity is removed or if parent entity is removed
+                  const rowStatus = (row as any).status?.toUpperCase();
+                  const campaignStatus = (row as any).campaign_status?.toUpperCase();
+                  const adgroupStatus = (row as any).adgroup_status?.toUpperCase();
+                  
+                  // Entity is removed if:
+                  // 1. Its own status is REMOVED, OR
+                  // 2. For adgroups: campaign status is REMOVED, OR
+                  // 3. For keywords/ads: campaign status is REMOVED OR adgroup status is REMOVED
+                  const isRemoved = 
+                    rowStatus === "REMOVED" ||
+                    campaignStatus === "REMOVED" ||
+                    adgroupStatus === "REMOVED";
+                  
                   return (
                     <tr
                       key={uniqueKey}
-                      className="table-row group"
+                      className={`table-row group ${isRemoved ? "bg-gray-100 opacity-60" : ""}`}
                     >
                       {/* Checkbox */}
                       <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
@@ -986,6 +1103,7 @@ export function GoogleAdsTable<T = any>({
                             checked={selectedItems.has(itemId)}
                             onChange={(checked) => onSelectItem(itemId, checked)}
                             size="small"
+                            disabled={isRemoved}
                           />
                         </div>
                       </td>
