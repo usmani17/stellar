@@ -1356,7 +1356,12 @@ export const Targets: React.FC = () => {
                   }
                 }}
               >
-                <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
+                  {bulkLoading && (
+                    <div className="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10 rounded-xl backdrop-blur-sm">
+                      <Loader size="md" message="Updating targets..." />
+                    </div>
+                  )}
                   <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
                     {isBidChange
                       ? "Confirm Bid Changes"

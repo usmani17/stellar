@@ -171,242 +171,261 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
             </div>
           </div>
         ) : (
-          <div className="max-h-[600px] overflow-y-auto">
-            <table className="min-w-full">
-              <thead className="sticky top-0 bg-[#fefefb] z-10">
-                <tr className="border-b border-[#e8e8e3]">
-                  {/* Checkbox Header */}
-                  {onSelectAll && (
-                    <th className="table-header w-[50px]">
-                      <Checkbox
-                        checked={allSelected}
-                        indeterminate={someSelected && !allSelected}
-                        onChange={(checked) => onSelectAll(checked)}
-                      />
-                    </th>
-                  )}
+          <div className="relative" style={{ overflow: "visible" }}>
+            <div
+              className="max-h-[600px] overflow-y-auto"
+              style={{ overflowX: "visible" }}
+            >
+              <table className="min-w-full" style={{ position: "relative" }}>
+                <thead className="sticky top-0 bg-[#fefefb] z-10">
+                  <tr className="border-b border-[#e8e8e3]">
+                    {/* Checkbox Header */}
+                    {onSelectAll && (
+                      <th className="table-header w-[50px]">
+                        <Checkbox
+                          checked={allSelected}
+                          indeterminate={someSelected && !allSelected}
+                          onChange={(checked) => onSelectAll(checked)}
+                        />
+                      </th>
+                    )}
 
-                  {/* Profile ID Header */}
-                  <th className="table-header">Profile ID</th>
+                    {/* Profile ID Header */}
+                    <th className="table-header">Profile ID</th>
 
-                  {/* Expression Header */}
-                  <th className="table-header">Expression</th>
+                    {/* Expression Header */}
+                    <th className="table-header">Expression</th>
 
-                  {/* Resolved Expression Header */}
-                  <th className="table-header">Resolved Expression</th>
+                    {/* Resolved Expression Header */}
+                    <th className="table-header">Resolved Expression</th>
 
-                  {/* State Header */}
-                  <th
-                    className={`table-header min-w-[250px] ${
-                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
-                    onClick={() => onSort?.("state")}
-                  >
-                    <div className="flex items-center gap-1">
-                      State
-                      {getSortIcon("state")}
-                    </div>
-                  </th>
-
-                  {/* Ad Group Header */}
-                  <th className="table-header">Ad Group</th>
-
-                  {/* Campaign ID Header */}
-                  <th className="table-header">Campaign ID</th>
-                </tr>
-              </thead>
-              <tbody>
-                {negativeTargets.map((target, index) => {
-                  const isLastRow = index === negativeTargets.length - 1;
-                  const expression =
-                    target.expression ||
-                    target.expressions ||
-                    target.name ||
-                    "";
-                  const resolvedExpression =
-                    target.resolvedExpression ||
-                    target.resolvedExpressions ||
-                    "";
-                  const statusValue =
-                    target.status || target.state || "ENABLED";
-                  const isArchived = statusValue?.toLowerCase() === "archived";
-                  return (
-                    <tr
-                      key={target.id}
-                      className={`${
-                        !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
+                    {/* State Header */}
+                    <th
+                      className={`table-header min-w-[250px] ${
+                        onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                      }`}
+                      onClick={() => onSort?.("state")}
                     >
-                      {/* Checkbox */}
-                      {onSelect && (
-                        <td className="table-cell w-[50px]">
-                          <Checkbox
-                            checked={selectedIds.has(target.id)}
-                            onChange={(checked) => onSelect(target.id, checked)}
-                          />
-                        </td>
-                      )}
+                      <div className="flex items-center gap-1">
+                        State
+                        {getSortIcon("state")}
+                      </div>
+                    </th>
 
-                      {/* Profile ID */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {target.profileId || "—"}
-                        </span>
-                      </td>
+                    {/* Ad Group Header */}
+                    <th className="table-header">Ad Group</th>
 
-                      {/* Expression */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {expression || "—"}
-                        </span>
-                      </td>
-
-                      {/* Resolved Expression */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {resolvedExpression || "—"}
-                        </span>
-                      </td>
-
-                      {/* State */}
-                      <td className="table-cell min-w-[250px]">
-                        {inlineEditLoading.has(target.id) ? (
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
-                            <span className="table-text leading-[1.26]">
-                              Updating...
-                            </span>
-                          </div>
-                        ) : pendingChange?.id === target.id &&
-                          pendingChange?.field === "status" ? (
-                          <div className="flex items-center gap-2">
-                            <span className="table-text leading-[1.26]">
-                              {pendingChange.newValue === "enabled" ||
-                              pendingChange.newValue === "ENABLED"
-                                ? campaignType === "SD"
-                                  ? "Enabled"
-                                  : "ENABLED"
-                                : pendingChange.newValue === "paused" ||
-                                    pendingChange.newValue === "PAUSED"
-                                  ? campaignType === "SD"
-                                    ? "Paused"
-                                    : "PAUSED"
-                                  : "Archived"}
-                            </span>
-                          </div>
-                        ) : isArchived ? (
-                          <div className="opacity-60">
-                            <StatusBadge
-                              status={statusValue}
-                              uppercase={campaignType !== "SD"}
+                    {/* Campaign ID Header */}
+                    <th className="table-header">Campaign ID</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {negativeTargets.map((target, index) => {
+                    const isLastRow = index === negativeTargets.length - 1;
+                    const expression =
+                      target.expression ||
+                      target.expressions ||
+                      target.name ||
+                      "";
+                    const resolvedExpression =
+                      target.resolvedExpression ||
+                      target.resolvedExpressions ||
+                      "";
+                    const statusValue =
+                      target.status || target.state || "ENABLED";
+                    const isArchived =
+                      statusValue?.toLowerCase() === "archived";
+                    return (
+                      <tr
+                        key={target.id}
+                        className={`${
+                          !isLastRow ? "border-b border-[#e8e8e3]" : ""
+                        } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
+                      >
+                        {/* Checkbox */}
+                        {onSelect && (
+                          <td className="table-cell w-[50px]">
+                            <Checkbox
+                              checked={selectedIds.has(target.id)}
+                              onChange={(checked) =>
+                                onSelect(target.id, checked)
+                              }
                             />
-                          </div>
-                        ) : (
-                          <div className="w-[120px]">
-                            <Dropdown
-                              options={[
-                                ...(campaignType === "SD"
-                                  ? [
-                                      { value: "enabled", label: "Enabled" },
-                                      { value: "paused", label: "Paused" },
-                                      {
-                                        value: "archived",
-                                        label: "Archived",
-                                      },
-                                    ]
-                                  : [
-                                      { value: "ENABLED", label: "ENABLED" },
-                                      { value: "PAUSED", label: "PAUSED" },
-                                    ]),
-                              ]}
-                              value={(() => {
-                                const raw =
-                                  target.status || target.state || "ENABLED";
-                                const lower = raw?.toLowerCase() || "enabled";
-                                const normalized =
-                                  campaignType === "SD"
-                                    ? lower === "enable" || lower === "enabled"
-                                      ? "enabled"
-                                      : lower === "paused"
-                                        ? "paused"
-                                        : lower === "archived" ||
-                                            lower === "archive"
-                                          ? "archived"
-                                          : "enabled"
-                                    : lower === "enable" || lower === "enabled"
-                                      ? "ENABLED"
-                                      : "PAUSED";
-                                return editingField?.id === target.id &&
-                                  editingField?.field === "status"
-                                  ? editedValue
-                                  : normalized;
-                              })()}
-                              onChange={(value) => {
-                                const raw =
-                                  target.status || target.state || "ENABLED";
-                                const lower = raw?.toLowerCase() || "enabled";
-                                const currentStatus =
-                                  campaignType === "SD"
-                                    ? lower === "enable" || lower === "enabled"
-                                      ? "enabled"
-                                      : lower === "paused"
-                                        ? "paused"
-                                        : "archived"
-                                    : lower === "enable" || lower === "enabled"
-                                      ? "ENABLED"
-                                      : "PAUSED";
-                                const wasEditing =
-                                  editingField?.id === target.id &&
-                                  editingField?.field === "status";
-
-                                if (!wasEditing) {
-                                  onEditStart?.(
-                                    target.id,
-                                    "status",
-                                    currentStatus,
-                                  );
-                                }
-                                onEditChange?.(value);
-                                onEditEnd?.(value, target.id, "status");
-                              }}
-                              buttonClassName="inline-edit-dropdown"
-                              width="w-full"
-                              align="center"
-                            />
-                          </div>
+                          </td>
                         )}
-                      </td>
 
-                      {/* Ad Group Name */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {(() => {
-                            if (!target.adGroupId) return "—";
-                            // Try to find ad group by matching IDs (handle both string and number)
-                            const adgroup = adgroups.find((ag) => {
-                              const agId = String(ag.adGroupId || "");
-                              const targetId = String(target.adGroupId || "");
-                              return agId === targetId;
-                            });
-                            // Return name if found, otherwise fall back to ID
-                            return (
-                              adgroup?.name || String(target.adGroupId) || "—"
-                            );
-                          })()}
-                        </span>
-                      </td>
+                        {/* Profile ID */}
+                        <td className="table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {target.profileId || "—"}
+                          </span>
+                        </td>
 
-                      {/* Campaign ID */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {target.campaignId || "—"}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        {/* Expression */}
+                        <td className="table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {expression || "—"}
+                          </span>
+                        </td>
+
+                        {/* Resolved Expression */}
+                        <td className="table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {resolvedExpression || "—"}
+                          </span>
+                        </td>
+
+                        {/* State */}
+                        <td
+                          className="table-cell min-w-[250px]"
+                          style={{
+                            overflow: "visible",
+                            position: "relative",
+                            zIndex: 1,
+                          }}
+                        >
+                          {inlineEditLoading.has(target.id) ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
+                              <span className="table-text leading-[1.26]">
+                                Updating...
+                              </span>
+                            </div>
+                          ) : pendingChange?.id === target.id &&
+                            pendingChange?.field === "status" ? (
+                            <div className="flex items-center gap-2">
+                              <span className="table-text leading-[1.26]">
+                                {pendingChange.newValue === "enabled" ||
+                                pendingChange.newValue === "ENABLED"
+                                  ? campaignType === "SD"
+                                    ? "Enabled"
+                                    : "ENABLED"
+                                  : pendingChange.newValue === "paused" ||
+                                      pendingChange.newValue === "PAUSED"
+                                    ? campaignType === "SD"
+                                      ? "Paused"
+                                      : "PAUSED"
+                                    : "Archived"}
+                              </span>
+                            </div>
+                          ) : isArchived ? (
+                            <div className="opacity-60">
+                              <StatusBadge
+                                status={statusValue}
+                                uppercase={campaignType !== "SD"}
+                              />
+                            </div>
+                          ) : (
+                            <div
+                              className="w-[120px]"
+                              style={{ position: "relative", zIndex: 1000 }}
+                            >
+                              <Dropdown
+                                options={[
+                                  ...(campaignType === "SD" ||
+                                  campaignType === "SB"
+                                    ? [
+                                        { value: "enabled", label: "Enabled" },
+                                        { value: "paused", label: "Paused" },
+                                      ]
+                                    : [
+                                        { value: "ENABLED", label: "ENABLED" },
+                                        { value: "PAUSED", label: "PAUSED" },
+                                      ]),
+                                ]}
+                                value={(() => {
+                                  const raw =
+                                    target.status || target.state || "ENABLED";
+                                  const lower = raw?.toLowerCase() || "enabled";
+                                  const normalized =
+                                    campaignType === "SD" ||
+                                    campaignType === "SB"
+                                      ? lower === "enable" ||
+                                        lower === "enabled"
+                                        ? "enabled"
+                                        : lower === "paused"
+                                          ? "paused"
+                                          : "enabled"
+                                      : lower === "enable" ||
+                                          lower === "enabled"
+                                        ? "ENABLED"
+                                        : "PAUSED";
+                                  return editingField?.id === target.id &&
+                                    editingField?.field === "status"
+                                    ? editedValue
+                                    : normalized;
+                                })()}
+                                onChange={(value) => {
+                                  const raw =
+                                    target.status || target.state || "ENABLED";
+                                  const lower = raw?.toLowerCase() || "enabled";
+                                  console.log(`lower ${`${lower}`}`);
+                                  const currentStatus =
+                                    campaignType === "SD" ||
+                                    campaignType === "SB"
+                                      ? lower === "enable" ||
+                                        lower === "enabled"
+                                        ? "enabled"
+                                        : lower === "paused"
+                                          ? "paused"
+                                          : "enabled"
+                                      : lower === "enable" ||
+                                          lower === "enabled"
+                                        ? "ENABLED"
+                                        : "PAUSED";
+                                  const wasEditing =
+                                    editingField?.id === target.id &&
+                                    editingField?.field === "status";
+
+                                  if (!wasEditing) {
+                                    onEditStart?.(
+                                      target.id,
+                                      "status",
+                                      currentStatus,
+                                    );
+                                  }
+                                  onEditChange?.(value);
+                                  onEditEnd?.(value, target.id, "status");
+                                }}
+                                buttonClassName="inline-edit-dropdown"
+                                width="w-full"
+                                align="center"
+                              />
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Ad Group Name */}
+                        <td className="table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {(() => {
+                              if (!target.adGroupId) return "—";
+                              // Try to find ad group by matching IDs (handle both string and number)
+                              const adgroup = adgroups.find((ag) => {
+                                const agId = String(ag.adGroupId || "");
+                                const targetId = String(target.adGroupId || "");
+                                return agId === targetId;
+                              });
+                              // Return name if found, otherwise fall back to ID
+                              return (
+                                adgroup?.name || String(target.adGroupId) || "—"
+                              );
+                            })()}
+                          </span>
+                        </td>
+
+                        {/* Campaign ID */}
+                        <td className="table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {target.campaignId || "—"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

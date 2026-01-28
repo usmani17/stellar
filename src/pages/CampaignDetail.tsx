@@ -61,6 +61,7 @@ import { ErrorModal } from "../components/ui/ErrorModal";
 import { Tooltip } from "../components/ui/Tooltip";
 import { Button } from "../components/ui";
 import { Dropdown } from "../components/ui/Dropdown";
+import { Loader } from "../components/ui/Loader";
 import {
   OverviewTab,
   AdGroupsTab,
@@ -4223,7 +4224,7 @@ export const CampaignDetail: React.FC = () => {
 
   // Negative target bulk action handlers
   const handleBulkNegativeTargetsStatus = async (
-    statusValue: "enable" | "pause" | "archive",
+    statusValue: "enable" | "pause",
   ) => {
     if (!accountId || selectedNegativeTargetIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -4240,26 +4241,19 @@ export const CampaignDetail: React.FC = () => {
           : String(id);
       });
 
-      if (statusValue === "archive" && campaignType === "SD") {
-        // For SD negative targets, archive uses the dedicated DELETE endpoint
-        for (const id of selectedNegativeTargetIdsArray) {
-          await campaignsService.archiveSdNegativeTarget(accountIdNum, id);
-        }
-      } else {
-        // For non-SD or enable/pause actions, use bulk update
-        const statusMap: Record<string, "enable" | "pause"> = {
-          enable: "enable",
-          pause: "pause",
-          enabled: "enable",
-          paused: "pause",
-        };
-        const apiStatus = statusMap[statusValue.toLowerCase()] || "enable";
-        await campaignsService.bulkUpdateNegativeTargets(accountIdNum, {
-          targetIds: selectedNegativeTargetIdsArray,
-          action: "status",
-          status: apiStatus,
-        });
-      }
+      // For SB and SD negative targets, only enabled/paused are allowed
+      const statusMap: Record<string, "enabled" | "paused"> = {
+        enable: "enabled",
+        pause: "paused",
+        enabled: "enabled",
+        paused: "paused",
+      };
+      const apiStatus = statusMap[statusValue.toLowerCase()] || "enabled";
+      await campaignsService.bulkUpdateNegativeTargets(accountIdNum, {
+        targetIds: selectedNegativeTargetIdsArray,
+        action: "status",
+        status: apiStatus,
+      });
 
       await loadNegativeTargets();
       setSelectedNegativeTargetIds(new Set());
@@ -5518,15 +5512,13 @@ export const CampaignDetail: React.FC = () => {
         negativeTarget.state?.toLowerCase() ||
         "enabled";
       let currentStatus: string;
-      if (campaignType === "SD") {
+      if (campaignType === "SD" || campaignType === "SB") {
         currentStatus =
           statusLower === "enable" || statusLower === "enabled"
             ? "enabled"
             : statusLower === "pause" || statusLower === "paused"
               ? "paused"
-              : statusLower === "archived" || statusLower === "archive"
-                ? "archived"
-                : "enabled";
+              : "enabled";
       } else {
         currentStatus =
           statusLower === "enable" || statusLower === "enabled"
@@ -5576,31 +5568,22 @@ export const CampaignDetail: React.FC = () => {
       }
 
       if (pendingNegativeTargetChange.field === "status") {
-        if (
-          campaignType === "SD" &&
-          pendingNegativeTargetChange.newValue.toLowerCase() === "archived"
-        ) {
-          // For SD, archive uses the dedicated DELETE endpoint
-          await campaignsService.archiveSdNegativeTarget(
-            accountIdNum,
-            String(negativeTarget.targetId),
-          );
-        } else {
-          // Map status values
-          const statusMap: Record<string, "enable" | "pause"> = {
-            enabled: "enable",
-            paused: "pause",
-          };
-          const statusValue =
-            statusMap[pendingNegativeTargetChange.newValue.toLowerCase()] ||
-            "enable";
+        // Map status values - only enabled/paused for SB and SD negative targets
+        const statusMap: Record<string, "enabled" | "paused"> = {
+          enable: "enabled",
+          pause: "paused",
+          enabled: "enabled",
+          paused: "paused",
+        };
+        const statusValue =
+          statusMap[pendingNegativeTargetChange.newValue.toLowerCase()] ||
+          "enabled";
 
-          await campaignsService.bulkUpdateNegativeTargets(accountIdNum, {
-            targetIds: [String(negativeTarget.targetId)],
-            action: "status",
-            status: statusValue,
-          });
-        }
+        await campaignsService.bulkUpdateNegativeTargets(accountIdNum, {
+          targetIds: [String(negativeTarget.targetId)],
+          action: "status",
+          status: statusValue,
+        });
       }
 
       // Reload negative targets
@@ -8311,9 +8294,6 @@ export const CampaignDetail: React.FC = () => {
                               {[
                                 { value: "enable", label: "Enabled" },
                                 { value: "pause", label: "Paused" },
-                                ...(campaignType === "SD"
-                                  ? [{ value: "archive", label: "Archive" }]
-                                  : []),
                                 { value: "delete", label: "Delete" },
                               ].map((opt) => (
                                 <button
@@ -8335,8 +8315,7 @@ export const CampaignDetail: React.FC = () => {
                                       setPendingNegativeTargetsStatusAction(
                                         opt.value as
                                           | "enable"
-                                          | "pause"
-                                          | "archive",
+                                          | "pause",
                                       );
                                       setShowNegativeTargetsConfirmationModal(
                                         true,
@@ -9632,7 +9611,12 @@ export const CampaignDetail: React.FC = () => {
               }
             }}
           >
-            <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
+              {targetsBulkLoading && (
+                <div className="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10 rounded-xl backdrop-blur-sm">
+                  <Loader size="md" message="Updating targets..." />
+                </div>
+              )}
               <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
                 {isTargetsBidChange
                   ? "Confirm Bid Changes"
@@ -10215,7 +10199,12 @@ export const CampaignDetail: React.FC = () => {
             }
           }}
         >
-          <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
+            {adGroupsBulkLoading && (
+              <div className="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10 rounded-xl backdrop-blur-sm">
+                <Loader size="md" message="Updating adgroups..." />
+              </div>
+            )}
             <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
               {isAdGroupsBidChange
                 ? "Confirm Default Bid Changes"

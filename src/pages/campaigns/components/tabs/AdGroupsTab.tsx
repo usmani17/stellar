@@ -226,7 +226,7 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
                   {[
                     { value: "enable", label: "Enabled" },
                     { value: "pause", label: "Paused" },
-                    ...(campaignType !== "SB"
+                    ...(campaignType !== "SB" && campaignType !== "SD"
                       ? [
                           { value: "edit_bid", label: "Edit Default Bid" },
                         ]

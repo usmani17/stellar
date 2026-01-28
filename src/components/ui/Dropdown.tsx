@@ -72,8 +72,64 @@ export const Dropdown = <T extends string | number = string>({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; width?: number } | null>(null);
 
   const selectedOption = options.find((opt) => opt.value === value) || null;
+
+  // Detect if dropdown is in a scrollable container and calculate fixed position
+  useEffect(() => {
+    if (isOpen && dropdownRef.current) {
+      const updatePosition = () => {
+        if (!dropdownRef.current) return;
+        
+        const buttonRect = dropdownRef.current.getBoundingClientRect();
+        const scrollableParent = (() => {
+          let parent = dropdownRef.current?.parentElement;
+          while (parent) {
+            const style = window.getComputedStyle(parent);
+            if (style.overflow === 'auto' || style.overflow === 'scroll' || 
+                style.overflowY === 'auto' || style.overflowY === 'scroll' ||
+                style.overflowX === 'auto' || style.overflowX === 'scroll') {
+              return parent;
+            }
+            parent = parent.parentElement;
+          }
+          return null;
+        })();
+
+        if (scrollableParent) {
+          // Use fixed positioning to escape overflow container
+          const menuHeight = menuRef.current?.offsetHeight || 200;
+          const top = position === 'top' 
+            ? buttonRect.top - menuHeight - 8
+            : buttonRect.bottom + 8;
+          const left = align === 'center'
+            ? buttonRect.left + buttonRect.width / 2
+            : align === 'right'
+            ? buttonRect.right
+            : buttonRect.left;
+          
+          setMenuPosition({ top, left, width: buttonRect.width });
+        } else {
+          setMenuPosition(null);
+        }
+      };
+
+      // Calculate position after a short delay to ensure menu is rendered
+      const timeoutId = setTimeout(updatePosition, 0);
+      // Also update on window resize/scroll
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+
+      return () => {
+        clearTimeout(timeoutId);
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+      };
+    } else {
+      setMenuPosition(null);
+    }
+  }, [isOpen, align, position]);
 
   // Open dropdown if defaultOpen is true
   useEffect(() => {
@@ -224,17 +280,31 @@ export const Dropdown = <T extends string | number = string>({
   const renderMenu = () => {
     if (!isOpen) return null;
 
+    const useFixedPosition = menuPosition !== null;
+    const positionStyle = useFixedPosition
+      ? {
+          position: 'fixed' as const,
+          top: `${menuPosition.top}px`,
+          left: align === 'center' ? `${menuPosition.left}px` : `${menuPosition.left}px`,
+          transform: align === 'center' ? 'translateX(-50%)' : 'none',
+          width: menuPosition.width ? `${menuPosition.width}px` : undefined,
+          minWidth: menuPosition.width ? `${menuPosition.width}px` : undefined,
+        }
+      : {};
+
     return (
       <div
         ref={menuRef}
         className={cn(
-          "absolute z-[999999] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden",
-          alignClasses[align],
-          positionClasses[position],
+          useFixedPosition ? "fixed" : "absolute",
+          "z-[999999] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden",
+          !useFixedPosition && alignClasses[align],
+          !useFixedPosition && positionClasses[position],
           width,
           maxHeight,
           menuClassName
         )}
+        style={positionStyle}
       >
         {/* Search Input */}
         {searchable && (
