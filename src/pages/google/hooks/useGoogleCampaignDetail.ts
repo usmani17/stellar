@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { googleAdwordsCampaignsService } from "../../../services/googleAdwords/googleAdwordsCampaigns";
+import { toLocalDateString } from "../../../utils/dateHelpers";
 
 interface GoogleCampaignDetail {
   campaign: {
@@ -90,8 +91,8 @@ export const useGoogleCampaignDetail = ({
       const data = await googleAdwordsCampaignsService.getGoogleCampaignDetail(
         accountIdNum,
         campaignIdNum,
-        startDate ? startDate.toISOString().split("T")[0] : undefined,
-        endDate ? endDate.toISOString().split("T")[0] : undefined
+        startDate ? toLocalDateString(startDate) : undefined,
+        endDate ? toLocalDateString(endDate) : undefined
       );
 
       // Only set data if we're still on the same campaign (check for race conditions)

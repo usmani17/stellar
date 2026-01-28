@@ -34,7 +34,7 @@ import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
 export const AdGroups: React.FC = () => {
   const navigate = useNavigate();
   const { accountId } = useParams<{ accountId: string }>();
-  const { startDate, endDate } = useDateRange();
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
   const [adgroups, setAdgroups] = useState<AdGroup[]>([]);
   const [summary, setSummary] = useState<{
@@ -117,7 +117,7 @@ export const AdGroups: React.FC = () => {
       key: "roas",
       label: "ROAS",
       color: "#059669",
-      tooltipFormatter: (v) => `${v.toFixed(2)} x`,
+      tooltipFormatter: (v) => `${v.toFixed(2)}`,
     },
   ];
   const [currentPage, setCurrentPage] = useState(1);
@@ -376,8 +376,8 @@ export const AdGroups: React.FC = () => {
       const params: any = {
         sort_by: sortBy,
         order: sortOrder,
-        start_date: startDate.toISOString().split("T")[0],
-        end_date: endDate.toISOString().split("T")[0],
+        start_date: startDateStr,
+        end_date: endDateStr,
         ...buildFilterParams(filters),
       };
 
@@ -430,8 +430,6 @@ export const AdGroups: React.FC = () => {
     try {
       loadingRef.current = true;
       setLoading(true);
-      const startDateStr = startDate?.toISOString().split("T")[0];
-      const endDateStr = endDate?.toISOString().split("T")[0];
 
       console.log("AdGroups - Date range:", {
         startDate: startDateStr,
@@ -498,8 +496,8 @@ export const AdGroups: React.FC = () => {
         order: sortOrder,
         page: 1, // Always reset to first page when applying filters
         page_size: itemsPerPage,
-        start_date: startDate?.toISOString().split("T")[0],
-        end_date: endDate?.toISOString().split("T")[0],
+        start_date: startDateStr,
+        end_date: endDateStr,
         ...buildFilterParams(filterList),
       };
 

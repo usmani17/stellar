@@ -16,7 +16,7 @@ import { ErrorModal } from "../../components/ui/ErrorModal";
 
 export const TikTokAds: React.FC = () => {
     const { accountId } = useParams<{ accountId: string }>();
-    const { startDate, endDate } = useDateRange();
+    const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
     const { sidebarWidth } = useSidebar();
 
     const [ads, setAds] = useState<TikTokAd[]>([]);
@@ -202,8 +202,8 @@ export const TikTokAds: React.FC = () => {
                 page_size: itemsPerPage,
                 sort_by: sortBy,
                 order: sortOrder,
-                start_date: startDate.toISOString().split("T")[0],
-                end_date: endDate.toISOString().split("T")[0],
+                start_date: startDateStr,
+                end_date: endDateStr,
                 filters: filterParams,
             };
 
@@ -285,8 +285,8 @@ export const TikTokAds: React.FC = () => {
             const baseParams: any = {
                 sort_by: sortBy,
                 order: sortOrder,
-                start_date: startDate.toISOString().split("T")[0],
-                end_date: endDate.toISOString().split("T")[0],
+                start_date: startDateStr,
+                end_date: endDateStr,
                 filters: buildFilterParams(filters),
             };
 

@@ -452,7 +452,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                             {summary.avg_acos.toFixed(2)}%
                           </td>
                           <td className="table-cell table-text leading-[1.26]">
-                            {summary.avg_roas.toFixed(2)} x
+                            {summary.avg_roas.toFixed(2)}
                           </td>
                         </>
                       )}
@@ -848,8 +848,8 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                               {adgroup.roas
                                 ? `${parseFloat(String(adgroup.roas)).toFixed(
                                     2
-                                  )} x`
-                                : "0.00 x"}
+                                  )}`
+                                : "0.00"}
                             </span>
                           </td>
                         )}

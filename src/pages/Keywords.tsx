@@ -28,7 +28,7 @@ import { logsService } from "../services/logs";
 export const Keywords: React.FC = () => {
   const navigate = useNavigate();
   const { accountId } = useParams<{ accountId: string }>();
-  const { startDate, endDate } = useDateRange();
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [summary, setSummary] = useState<{
@@ -111,7 +111,7 @@ export const Keywords: React.FC = () => {
       key: "roas",
       label: "ROAS",
       color: "#059669",
-      tooltipFormatter: (v) => `${v.toFixed(2)} x`,
+      tooltipFormatter: (v) => `${v.toFixed(2)}`,
     },
   ];
   const [currentPage, setCurrentPage] = useState(1);
@@ -371,8 +371,8 @@ export const Keywords: React.FC = () => {
       const params: any = {
         sort_by: sortBy,
         order: sortOrder,
-        start_date: startDate.toISOString().split("T")[0],
-        end_date: endDate.toISOString().split("T")[0],
+        start_date: startDateStr,
+        end_date: endDateStr,
         ...buildFilterParams(filters),
       };
 
@@ -425,8 +425,6 @@ export const Keywords: React.FC = () => {
     try {
       loadingRef.current = true;
       setLoading(true);
-      const startDateStr = startDate?.toISOString().split("T")[0];
-      const endDateStr = endDate?.toISOString().split("T")[0];
 
       console.log("Keywords - Date range:", {
         startDate: startDateStr,
@@ -493,8 +491,8 @@ export const Keywords: React.FC = () => {
         order: sortOrder,
         page: 1, // Always reset to first page when applying filters
         page_size: itemsPerPage,
-        start_date: startDate?.toISOString().split("T")[0],
-        end_date: endDate?.toISOString().split("T")[0],
+        start_date: startDateStr,
+        end_date: endDateStr,
         ...buildFilterParams(filterList),
       };
 
@@ -1966,7 +1964,7 @@ export const Keywords: React.FC = () => {
                                 {summary.avg_acos.toFixed(2)}%
                               </td>
                               <td className="table-cell table-text leading-[1.26]">
-                                {summary.avg_roas.toFixed(2)}x
+                                {summary.avg_roas.toFixed(2)}
                               </td>
                             </tr>
                           )}
@@ -2266,8 +2264,8 @@ export const Keywords: React.FC = () => {
                                     {keyword.roas
                                       ? `${parseFloat(keyword.roas).toFixed(
                                           2
-                                        )} x`
-                                      : "0.00 x"}
+                                        )}`
+                                      : "0.00"}
                                   </span>
                                 </td>
 

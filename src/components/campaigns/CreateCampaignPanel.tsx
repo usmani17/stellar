@@ -4,6 +4,7 @@ import { Checkbox } from "../ui/Checkbox";
 import { SingleDatePicker } from "../ui/SingleDatePicker";
 import { Loader } from "../ui/Loader";
 import { accountsService } from "../../services/accounts";
+import { toLocalDateString } from "../../utils/dateHelpers";
 
 interface CreateCampaignPanelProps {
   isOpen: boolean;
@@ -220,12 +221,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     const budgetType =
       campaignType === "SB" || campaignType === "SD" ? "LIFETIME" : "DAILY";
 
-    // Calculate dates
-    const startDate = new Date().toISOString().split("T")[0];
+    // Calculate dates (local YYYY-MM-DD to avoid timezone shift)
+    const startDate = toLocalDateString(new Date());
     // If LIFETIME budget, ensure end date is provided (30 days from now)
-    const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0];
+    const endDate = toLocalDateString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
 
     // Base fake data common to all campaign types
     // Note: bidOptimization is true, so bidAdjustmentsByPlacement should NOT be included
