@@ -67,14 +67,8 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
   onToggleFilterPanel,
   filters,
   onApplyFilters,
-  syncing,
-  onSync,
-  syncingAnalytics,
-  onSyncAnalytics,
   syncMessage,
   getSortIcon,
-  formatCurrency2Decimals,
-  formatPercentage,
   onUpdateListingGroupStatus,
   createButton,
 }) => {
@@ -218,7 +212,7 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
         </div>
       )}
 
-      {/* Listing Groups Table */}
+      {/* Shopping Ads Table */}
       <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
         <div className="overflow-x-auto w-full">
           {loading ? (
@@ -246,11 +240,11 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
                   </th>
                   <th
                     className="table-header"
-                    onClick={() => onSort("listing_group_name")}
+                    onClick={() => onSort("id")}
                   >
                     <div className="flex items-center gap-1">
-                      Listing Groups
-                      {getSortIcon("listing_group_name", sortBy, sortOrder)}
+                      Shopping Ad
+                      {getSortIcon("id", sortBy, sortOrder)}
                     </div>
                   </th>
                   <th className="table-header hidden lg:table-cell">
@@ -265,24 +259,6 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
                       Status
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
-                  </th>
-                  <th
-                    className="table-header hidden md:table-cell"
-                    onClick={() => onSort("cpc_bid_dollars")}
-                  >
-                    <div className="flex items-center gap-1">
-                      CPC Bid
-                      {getSortIcon("cpc_bid_dollars", sortBy, sortOrder)}
-                    </div>
-                  </th>
-                  <th className="table-header hidden md:table-cell">
-                    CTR
-                  </th>
-                  <th className="table-header hidden md:table-cell">
-                    Cost
-                  </th>
-                  <th className="table-header hidden md:table-cell">
-                    Conv. value
                   </th>
                 </tr>
               </thead>
@@ -308,8 +284,8 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
                         </div>
                       </td>
                       <td className="table-cell">
-                        <span className="table-text leading-[1.26] underline cursor-pointer">
-                          All products
+                        <span className="table-text leading-[1.26]">
+                          {listingGroup.ad_id || listingGroup.id || "—"}
                         </span>
                       </td>
                       <td className="table-cell hidden lg:table-cell">
@@ -430,26 +406,6 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
                           </button>
                         ) : null}
                         </div>
-                      </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatCurrency2Decimals(listingGroup.cpc_bid_dollars)}
-                        </span>
-                      </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatPercentage(listingGroup.ctr)}
-                        </span>
-                      </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatCurrency2Decimals(listingGroup.spends)}
-                        </span>
-                      </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatCurrency2Decimals(listingGroup.sales)}
-                        </span>
                       </td>
                     </tr>
                   );
