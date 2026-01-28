@@ -160,21 +160,29 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
         accounts
       );
 
-      // Show setup message if provided
-      if (response.setup_message) {
-        setSetupMessage(response.setup_message);
-        // Show message for 2 seconds before navigating
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
+      // Store success message for integrations page (same as Amazon/TikTok)
+      const message =
+        response.message ||
+        response.setup_message ||
+        `${selectedIds.length} Google Ads account${selectedIds.length !== 1 ? "s" : ""} saved successfully.`;
+      localStorage.setItem(
+        "profiles_saved_success",
+        JSON.stringify({
+          message,
+          type: "success",
+        })
+      );
 
       // Refresh accounts to show the new channel
       await refreshAccounts();
 
-      // Small delay to ensure state is updated before navigation
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Redirect to accounts page
-      navigate("/brands", { replace: true });
+      // Redirect to integrations page for this brand (same as Amazon profiles)
+      navigate(
+        accountIdForBack != null
+          ? `/brands/${accountIdForBack}/integrations`
+          : "/brands",
+        { replace: true }
+      );
     } catch (err: any) {
       console.error("Failed to save Google Ads accounts:", err);
       setError(

@@ -223,18 +223,19 @@ export const SelectTikTokProfiles: React.FC = () => {
       console.log("Save profiles result:", result);
 
       if (result && result.message) {
-        // Store success message in localStorage to show on next page
-        const profileCount = selectedProfileIds.size;
-        localStorage.setItem('profiles_saved_success', JSON.stringify({
-          message: `${profileCount} profile${profileCount !== 1 ? 's' : ''} connected successfully!`,
-          type: 'success'
-        }));
-        // Success - navigate back to channels page
+        // Store success message in localStorage to show on integrations page (same as Amazon)
+        const message =
+          result.message ||
+          `${selectedProfileIds.size} profile${selectedProfileIds.size !== 1 ? "s" : ""} connected successfully!`;
+        localStorage.setItem(
+          "profiles_saved_success",
+          JSON.stringify({ message, type: "success" })
+        );
+        // Success - navigate back to integrations page for this brand
         if (accountId) {
-          navigate(`/brands/${accountId}/channels`);
+          navigate(`/brands/${accountId}/integrations`, { replace: true });
         } else {
-          // Fallback to accounts page if accountId not found
-          navigate("/brands");
+          navigate("/brands", { replace: true });
         }
       } else {
         setError("Profiles saved but no confirmation received");
@@ -458,7 +459,7 @@ export const SelectTikTokProfiles: React.FC = () => {
                   <Button
                     onClick={() => {
                       if (accountId) {
-                        navigate(`/brands/${accountId}/channels`);
+                        navigate(`/brands/${accountId}/integrations`);
                       } else {
                         navigate("/brands");
                       }
