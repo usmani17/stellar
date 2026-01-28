@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { cn } from "../../lib/cn";
 
 export interface DropdownOption<T = string> {
@@ -70,11 +69,6 @@ export const Dropdown = <T extends string | number = string>({
 }: DropdownProps<T>) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [searchQuery, setSearchQuery] = useState("");
-  const [menuPosition, setMenuPosition] = useState<{
-    top: number;
-    left: number;
-    width?: number;
-  } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -96,50 +90,6 @@ export const Dropdown = <T extends string | number = string>({
         opt.label.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : options;
-
-  // Calculate menu position for portal rendering when dropdown is open
-  useEffect(() => {
-    if (isOpen && dropdownRef.current) {
-      const triggerRect = dropdownRef.current.getBoundingClientRect();
-      // Use the trigger width for the menu width when width is "w-full"
-      const menuWidth = width === "w-full" ? triggerRect.width : 200;
-      const menuHeight = Math.min(
-        filteredOptions.length * 40 + (searchable ? 50 : 0),
-        400
-      );
-
-      let top = triggerRect.bottom + 8; // mt-2 = 8px
-      let left = triggerRect.left;
-
-      if (position === "top") {
-        top = triggerRect.top - menuHeight - 8; // mb-2 = 8px
-      }
-
-      if (align === "right") {
-        left = triggerRect.right - menuWidth;
-      } else if (align === "center") {
-        left = triggerRect.left + triggerRect.width / 2 - menuWidth / 2;
-      }
-
-      // Ensure menu stays within viewport
-      if (left + menuWidth > window.innerWidth) {
-        left = window.innerWidth - menuWidth - 8;
-      }
-      if (left < 8) {
-        left = 8;
-      }
-      if (top + menuHeight > window.innerHeight) {
-        top = window.innerHeight - menuHeight - 8;
-      }
-      if (top < 8) {
-        top = 8;
-      }
-
-      setMenuPosition({ top, left, width: menuWidth });
-    } else {
-      setMenuPosition(null);
-    }
-  }, [isOpen, filteredOptions.length, searchable, align, position, width]);
 
   // Handle click outside
   useEffect(() => {
@@ -278,23 +228,13 @@ export const Dropdown = <T extends string | number = string>({
       <div
         ref={menuRef}
         className={cn(
-          "z-[999999] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col",
+          "absolute z-[999999] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden",
+          alignClasses[align],
+          positionClasses[position],
+          width,
           maxHeight,
           menuClassName
         )}
-        style={
-          menuPosition
-            ? {
-                zIndex: 999999,
-                position: "fixed",
-                top: `${menuPosition.top}px`,
-                left: `${menuPosition.left}px`,
-                width: menuPosition.width
-                  ? `${menuPosition.width}px`
-                  : undefined,
-              }
-            : { zIndex: 999999 }
-        }
       >
         {/* Search Input */}
         {searchable && (
@@ -356,13 +296,11 @@ export const Dropdown = <T extends string | number = string>({
   };
 
   return (
-    <>
-      <div ref={dropdownRef} className={cn("relative", width === "w-full" ? "w-full" : "", className)}>
-        {renderButton
-          ? renderButton(selectedOption, isOpen, toggleDropdown)
-          : defaultRenderButton(selectedOption, isOpen)}
-      </div>
-      {menuPosition && isOpen && createPortal(renderMenu(), document.body)}
-    </>
+    <div ref={dropdownRef} className={cn("relative", width === "w-full" ? "w-full" : "", className)}>
+      {renderButton
+        ? renderButton(selectedOption, isOpen, toggleDropdown)
+        : defaultRenderButton(selectedOption, isOpen)}
+      {renderMenu()}
+    </div>
   );
 };

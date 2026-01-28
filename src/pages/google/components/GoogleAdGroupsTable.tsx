@@ -11,6 +11,7 @@ export interface GoogleAdGroup {
   account_name?: string;
   campaign_id?: number;
   campaign_name?: string;
+  campaign_status?: string;
   status: string;
   cpc_bid_dollars?: number;
   // Performance metrics
@@ -177,7 +178,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     },
     {
       key: "account_name",
-      label: "Brand Name",
+      label: "Profile",
       type: "text",
       sortable: true,
       // Amazon doesn't have this column, but keep it compact
@@ -196,6 +197,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
         { value: "PAUSED", label: "Paused" },
+        { value: "REMOVED", label: "Remove" },
       ],
       getValue: (row: GoogleAdGroup) => row.status || "ENABLED",
     },
@@ -299,8 +301,25 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     },
   ], [accountId]);
 
-  // Handle confirm inline edit - route to appropriate handler
+  // Handle confirm inline edit - route to parent handler
   const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
+    // Use the field parameter if provided, otherwise fall back to editingCell
+    const fieldToUse = field || editingCell?.field;
+    if (!fieldToUse) {
+      return;
+    }
+
+    // For REMOVED status, close the dropdown and let parent handle the modal
+    if (fieldToUse === "status" && value === "REMOVED") {
+      // Close the dropdown immediately when modal appears
+      if (onCancelInlineEdit) {
+        onCancelInlineEdit();
+      }
+      // Pass to parent - it will handle showing the confirmation modal
+      onConfirmInlineEdit(value, field, itemIdParam);
+      return;
+    }
+
     // Pass all parameters to parent handler
     onConfirmInlineEdit(value, field, itemIdParam);
   };
@@ -308,6 +327,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
   // pendingChanges is now passed as a prop
 
   return (
+    <>
     <GoogleAdsTable
       data={adgroups}
       loading={loading}
@@ -354,6 +374,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       getStatusBadge={getStatusBadge}
       getSortIcon={getSortIcon}
     />
+  </>
   );
 };
 

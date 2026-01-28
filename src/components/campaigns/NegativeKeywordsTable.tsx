@@ -3,6 +3,7 @@ import { StatusBadge } from "../ui/StatusBadge";
 import { Tooltip } from "../ui/Tooltip";
 import { Dropdown } from "../ui/Dropdown";
 import { Checkbox } from "../ui/Checkbox";
+import { Loader } from "../ui";
 
 interface NegativeKeyword {
   id: number;
@@ -15,6 +16,7 @@ interface NegativeKeyword {
   state?: string;
   status?: string; // For backward compatibility
   adGroupId?: number;
+  adgroup_name?: string;
   campaignId?: string | number;
   creationDateTime?: string;
   lastUpdateDateTime?: string;
@@ -47,6 +49,7 @@ interface NegativeKeywordsTableProps {
     newValue: string;
     oldValue: string;
   } | null;
+  adgroups?: Array<{ adGroupId: number | string; name?: string }>; // Ad groups to map IDs to names
 }
 
 export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
@@ -66,6 +69,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
   onEditCancel,
   inlineEditLoading = new Set(),
   pendingChange = null,
+  adgroups = [],
 }) => {
   const statusSelectionMadeRef = useRef<number | null>(null);
   const allSelected =
@@ -130,17 +134,44 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
   };
 
   return (
-    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+    <div
+      className="table-container"
+      style={{ position: "relative", minHeight: loading ? "400px" : "auto" }}
+    >
       <div className="overflow-x-auto w-full">
         {loading ? (
           <div className="text-center py-8 text-[#556179] text-[13.3px]">
             Loading negative keywords...
           </div>
         ) : negativeKeywords.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-[13.3px] text-[#556179] mb-4">
-              No negative keywords found
-            </p>
+          <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
+            <div className="flex flex-col items-center justify-center max-w-md">
+              {/* Icon */}
+              <div className="mb-6 w-20 h-20 rounded-full bg-[#F5F5F0] flex items-center justify-center">
+                <svg
+                  className="w-10 h-10 text-[#556179]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+              {/* Title */}
+              <h3 className="text-lg font-medium text-teal-950 mb-2">
+                No Negative Keywords Found
+              </h3>
+              {/* Description */}
+              <p className="text-sm text-[#556179] text-center leading-relaxed">
+                There are no negative keywords for this campaign yet. Negative
+                keywords will appear here when they are created.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="max-h-[600px] overflow-y-auto">
@@ -159,14 +190,10 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                   )}
 
                   {/* Profile ID Header */}
-                  <th className="table-header">
-                    Profile ID
-                  </th>
+                  <th className="table-header">Profile ID</th>
 
                   {/* Keyword ID Header */}
-                  <th className="table-header">
-                    Keyword ID
-                  </th>
+                  <th className="table-header">Keyword ID</th>
 
                   {/* Keyword Text Header */}
                   <th
@@ -207,22 +234,18 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                     </div>
                   </th>
 
-                  {/* Ad Group ID Header */}
-                  <th className="table-header">
-                    Ad Group ID
-                  </th>
+                  {/* Ad Group Header */}
+                  <th className="table-header">Ad Group</th>
 
                   {/* Campaign ID Header */}
-                  <th className="table-header">
-                    Campaign ID
-                  </th>
-
+                  <th className="table-header">Campaign ID</th>
                 </tr>
               </thead>
               <tbody>
                 {negativeKeywords.map((keyword, index) => {
                   const isLastRow = index === negativeKeywords.length - 1;
-                  const statusValue = keyword.status || keyword.state || "Enabled";
+                  const statusValue =
+                    keyword.status || keyword.state || "Enabled";
                   const isArchived = statusValue?.toLowerCase() === "archived";
                   return (
                     <tr
@@ -273,9 +296,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                             </div>
                           </Tooltip>
                         ) : (
-                          <span className="table-text leading-[1.26]">
-                            —
-                          </span>
+                          <span className="table-text leading-[1.26]">—</span>
                         )}
                       </td>
 
@@ -296,8 +317,8 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                                   ? pendingChange.newValue === "enabled"
                                     ? "Enabled"
                                     : pendingChange.newValue === "paused"
-                                    ? "Paused"
-                                    : "Archived"
+                                      ? "Paused"
+                                      : "Archived"
                                   : statusValue
                               }
                             />
@@ -311,8 +332,8 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                                 pendingChange.newValue === "enabled"
                                   ? "Enabled"
                                   : pendingChange.newValue === "paused"
-                                  ? "Paused"
-                                  : "Archived"
+                                    ? "Paused"
+                                    : "Archived"
                               }
                             />
                           </div>
@@ -385,7 +406,11 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                                   statusLower === "enabled"
                                     ? "enabled"
                                     : "paused";
-                                onEditStart?.(keyword.id, "status", editStatusValue);
+                                onEditStart?.(
+                                  keyword.id,
+                                  "status",
+                                  editStatusValue,
+                                );
                               }
                             }}
                           >
@@ -397,10 +422,17 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                         )}
                       </td>
 
-                      {/* Ad Group ID */}
+                      {/* Ad Group Name */}
                       <td className="table-cell">
                         <span className="table-text leading-[1.26]">
-                          {keyword.adGroupId || "—"}
+                          {(() => {
+                            const adgroup = adgroups.find(
+                              (ag) =>
+                                String(ag.adGroupId) ===
+                                String(keyword.adGroupId),
+                            );
+                            return adgroup?.name || keyword.adGroupId || "—";
+                          })()}
                         </span>
                       </td>
 
@@ -410,7 +442,6 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                           {keyword.campaignId || "—"}
                         </span>
                       </td>
-
                     </tr>
                   );
                 })}
@@ -419,6 +450,23 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
           </div>
         )}
       </div>
+
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-overlay-content">
+            <Loader size="md" message="Loading negative keywords..." />
+          </div>
+        </div>
+      )}
+      {/* {negativeKeywords.length === 0 && (
+        <div className="text-center py-8">
+          <Loader
+            message="No negative keywords found"
+            showMessage={false}
+            size="md"
+          />
+        </div>
+      )} */}
     </div>
   );
 };

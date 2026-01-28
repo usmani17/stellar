@@ -23,7 +23,7 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     // Try to get token from Auth0 first, fallback to localStorage
-    let token = localStorage.getItem("accessToken");
+    const token = localStorage.getItem("accessToken");
 
     // If no token in localStorage, try to get it from Auth0
     if (!token) {
@@ -102,6 +102,10 @@ api.interceptors.response.use(
           localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
+          const path = window.location.pathname + window.location.search + (window.location.hash || "");
+          if (path && path !== "/login") {
+            sessionStorage.setItem("loginRedirect", path);
+          }
           window.location.href = "/login";
           return Promise.reject(refreshError);
         }
@@ -131,6 +135,10 @@ api.interceptors.response.use(
           localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
+          const path = window.location.pathname + window.location.search + (window.location.hash || "");
+          if (path && path !== "/login") {
+            sessionStorage.setItem("loginRedirect", path);
+          }
           window.location.href = "/login";
           return Promise.reject(auth0Error);
         }

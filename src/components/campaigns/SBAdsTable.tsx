@@ -11,6 +11,7 @@ export interface SBAd {
   state?: string;
   status?: string;
   adGroupId?: string | number;
+  adgroup_name?: string;
   campaignId?: string | number;
   landingPage?: string | any; // Can be JSON string or object
   creative?: string | any; // Can be JSON string or object
@@ -144,8 +145,33 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
             Loading ads...
           </div>
         ) : ads.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-[13.3px] text-[#556179] mb-4">No ads found</p>
+          <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
+            <div className="flex flex-col items-center justify-center max-w-md">
+              {/* Icon */}
+              <div className="mb-6 w-20 h-20 rounded-full bg-[#F5F5F0] flex items-center justify-center">
+                <svg
+                  className="w-10 h-10 text-[#556179]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+              {/* Title */}
+              <h3 className="text-lg font-medium text-teal-950 mb-2">
+                No Ads Found
+              </h3>
+              {/* Description */}
+              <p className="text-sm text-[#556179] text-center leading-relaxed">
+                There are no ads for this campaign yet. Ads will appear here when they are created.
+              </p>
+            </div>
           </div>
         ) : (
           <table className="w-full border-collapse">
@@ -187,26 +213,29 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                     {getSortIcon("status")}
                   </div>
                 </th>
-                <th
-                  className="table-header"
-                  onClick={() => onSort?.("adGroupId")}
-                >
-                  <div className="flex items-center">
-                    Ad Group ID
-                    {getSortIcon("adGroupId")}
-                  </div>
-                </th>
-                <th
-                  className="table-header"
-                  onClick={() => onSort?.("campaignId")}
-                >
-                  <div className="flex items-center">
-                    Campaign ID
-                    {getSortIcon("campaignId")}
-                  </div>
+                <th className="table-header">
+                  Ad Group Name
                 </th>
                 <th className="table-header">
                   Serving Status
+                </th>
+                <th
+                  className="table-header"
+                  onClick={() => onSort?.("creationDateTime")}
+                >
+                  <div className="flex items-center">
+                    Creation Date
+                    {getSortIcon("creationDateTime")}
+                  </div>
+                </th>
+                <th
+                  className="table-header"
+                  onClick={() => onSort?.("lastUpdateDateTime")}
+                >
+                  <div className="flex items-center">
+                    Last Update Date
+                    {getSortIcon("lastUpdateDateTime")}
+                  </div>
                 </th>
               </tr>
             </thead>
@@ -264,9 +293,8 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                 return (
                   <tr
                     key={ad.id}
-                    className={`table-row group ${
-                      isArchived ? "bg-gray-100 opacity-60" : ""
-                    }`}
+                    className={`table-row group ${isArchived ? "bg-gray-100 opacity-60" : ""
+                      }`}
                   >
                     {onSelect && (
                       <td className="table-cell">
@@ -303,7 +331,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                             type="text"
                             value={editedValue}
                             onChange={(e) => onEditChange?.(e.target.value)}
-                            className="inline-edit-input min-w-[150px] max-w-[200px]"
+                            className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
                             autoFocus
                             onBlur={() => onEditEnd?.()}
                             onKeyDown={(e) => {
@@ -315,11 +343,10 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                         </div>
                       ) : (
                         <div
-                          className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${
-                            isArchived
+                          className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${isArchived
                               ? "text-gray-400 cursor-not-allowed"
                               : "text-[#0b0f16] cursor-pointer hover:underline"
-                          }`}
+                            }`}
                           onClick={() => {
                             if (!isArchived) {
                               onEditStart?.(
@@ -396,7 +423,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                               // If a selection was made, statusSelectionMadeRef will be set
                               if (
                                 statusSelectionMadeRef.current !==
-                                  ad.id &&
+                                ad.id &&
                                 editingField?.id === ad.id
                               ) {
                                 onEditCancel?.();
@@ -411,18 +438,17 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                         </div>
                       ) : (
                         <div
-                          className={`text-[13.3px] leading-[1.26] ${
-                            isArchived
+                          className={`text-[13.3px] leading-[1.26] ${isArchived
                               ? "cursor-not-allowed opacity-60"
                               : "cursor-pointer hover:underline"
-                          }`}
+                            }`}
                           onClick={() => {
                             if (!isArchived) {
                               const statusLower =
                                 statusValue?.toLowerCase() || "enabled";
                               const statusValueNormalized =
                                 statusLower === "enable" ||
-                                statusLower === "enabled"
+                                  statusLower === "enabled"
                                   ? "enabled"
                                   : "paused";
                               onEditStart?.(
@@ -438,17 +464,16 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                       )}
                     </td>
                     <td className="table-cell table-text leading-[1.26]">
-                      {ad.adGroupId != null && ad.adGroupId !== ""
-                        ? String(ad.adGroupId)
-                        : "—"}
-                    </td>
-                    <td className="table-cell table-text leading-[1.26]">
-                      {ad.campaignId != null && ad.campaignId !== ""
-                        ? String(ad.campaignId)
-                        : "—"}
+                      {ad.adgroup_name || "—"}
                     </td>
                     <td className="table-cell table-text leading-[1.26]">
                       {ad.servingStatus || "—"}
+                    </td>
+                    <td className="table-cell table-text leading-[1.26]">
+                      {formatDate(ad.creationDateTime)}
+                    </td>
+                    <td className="table-cell table-text leading-[1.26]">
+                      {formatDate(ad.lastUpdateDateTime)}
                     </td>
                   </tr>
                 );

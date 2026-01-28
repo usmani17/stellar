@@ -355,6 +355,10 @@ export const Campaigns: React.FC = () => {
   const [editLoadingCampaignId, setEditLoadingCampaignId] = useState<
     string | number | null
   >(null);
+  // Loading campaign details when opening edit panel (row spinner); submit loading uses editLoadingCampaignId
+  const [loadingEditCampaignId, setLoadingEditCampaignId] = useState<
+    string | number | null
+  >(null);
   const [campaignId, setCampaignId] = useState<string | number | undefined>(
     undefined
   );
@@ -689,10 +693,16 @@ export const Campaigns: React.FC = () => {
       const newValue = valueToCheck.trim().toUpperCase();
       hasChanged = newValue !== oldValue;
     } else if (fieldToUse === "status") {
-      // Normalize status values for comparison
-      const oldValue = (campaign.status || "Enabled").trim();
-      const newValue = valueToCheck.trim();
-      hasChanged = newValue !== oldValue;
+      // Normalize status so ENABLED/Enabled/enabled etc. are treated as same
+      const norm = (s: string) => {
+        const v = (s || "").trim().toLowerCase();
+        if (v === "enable" || v === "enabled" || v === "active") return "enabled";
+        if (v === "pause" || v === "paused" || v === "inactive") return "paused";
+        if (v === "archive" || v === "archived") return "archived";
+        return v || "enabled";
+      };
+      hasChanged =
+        norm(campaign.status || "Enabled") !== norm(valueToCheck);
     }
 
     if (!hasChanged) {
@@ -1043,6 +1053,16 @@ export const Campaigns: React.FC = () => {
       // Build update payload with all changed fields
       const updatePayload: any = {};
 
+      /** Backend requires bidAdjustmentsByPlacement to be omitted when bidOptimization is true */
+      const sanitizeBiddingForApi = (b: any) => {
+        if (!b || typeof b !== "object") return b;
+        if (b.bidOptimization) {
+          const { bidAdjustmentsByPlacement: _drop, ...rest } = b;
+          return rest;
+        }
+        return b;
+      };
+
       // 1. Check if name changed
       if (
         data.campaign_name !== original.campaign_name &&
@@ -1147,7 +1167,7 @@ export const Campaigns: React.FC = () => {
         updatePayload.portfolioId = newPortfolioIdStr || null;
       }
 
-      // 7. Check if targetingType changed (for SP campaigns)
+      // 7. Check if targetingType changed (for SP campaigns only)
       if (data.type === "SP") {
         const originalTargetingType = original.targetingType || "";
         const newTargetingType = data.targetingType || "";
@@ -1170,8 +1190,10 @@ export const Campaigns: React.FC = () => {
               | "MANUAL";
           }
         }
+      }
 
-        // 8. Check if tags changed
+      // 8. Check if tags changed (SP and SB)
+      if (data.type === "SP" || data.type === "SB") {
         const normalizeTags = (tags: any): string[] => {
           if (!tags) return [];
           if (Array.isArray(tags)) {
@@ -1233,11 +1255,11 @@ export const Campaigns: React.FC = () => {
             newBidding.bidAdjustmentsByPlacement.length > 0
           ) {
             // Original empty but new has placements - there's a change
-            updatePayload.dynamicBidding = newBidding;
+            (updatePayload as any)[data.type === "SB" ? "bidding" : "dynamicBidding"] = sanitizeBiddingForApi(newBidding);
           }
         } else if (!newBidding || Object.keys(newBidding).length === 0) {
           // Original has data but new is empty - there's a change
-          updatePayload.dynamicBidding = newBidding;
+          (updatePayload as any)[data.type === "SB" ? "bidding" : "dynamicBidding"] = sanitizeBiddingForApi(newBidding);
         } else {
           // Both have data, normalize and compare
           // Normalize bidding objects for comparison
@@ -1384,7 +1406,7 @@ export const Campaigns: React.FC = () => {
             placementsChanged || strategyChanged || cohortsChanged;
 
           if (biddingChanged) {
-            updatePayload.dynamicBidding = newBidding;
+            (updatePayload as any)[data.type === "SB" ? "bidding" : "dynamicBidding"] = sanitizeBiddingForApi(newBidding);
           }
         }
       }
@@ -1448,11 +1470,11 @@ export const Campaigns: React.FC = () => {
             newBidding.bidAdjustmentsByPlacement.length > 0
           ) {
             // Original empty but new has placements - there's a change
-            updatePayload.bidding = newBidding;
+            updatePayload.bidding = sanitizeBiddingForApi(newBidding);
           }
         } else if (!newBidding || Object.keys(newBidding).length === 0) {
           // Original has data but new is empty - there's a change
-          updatePayload.bidding = newBidding;
+          updatePayload.bidding = sanitizeBiddingForApi(newBidding);
         } else {
           // Both have data, normalize and compare
           // Normalize bidding objects for comparison (same logic as SP)
@@ -1593,7 +1615,7 @@ export const Campaigns: React.FC = () => {
             placementsChanged || bidOptimizationChanged || cohortsChanged;
 
           if (biddingChanged) {
-            updatePayload.bidding = newBidding;
+            updatePayload.bidding = sanitizeBiddingForApi(newBidding);
           }
         }
 
@@ -1709,7 +1731,11 @@ export const Campaigns: React.FC = () => {
     if (!accountId) return;
 
     try {
-      setEditLoadingCampaignId(row.campaignId);
+      // Clear previous edit state so the panel re-initializes when data loads
+      setInitialCampaignData(null);
+      setOriginalCampaignDataSnapshot(null);
+      setCampaignId(undefined);
+      setLoadingEditCampaignId(row.campaignId);
       setCampaignFormMode("edit");
       setIsCreateCampaignPanelOpen(true);
 
@@ -1934,6 +1960,16 @@ export const Campaigns: React.FC = () => {
           brandEntityId: (campaign as any).brandEntityId || undefined,
           goal: (campaign as any).goal || "PAGE_VISIT",
           productLocation: (campaign as any).productLocation || "",
+          costType:
+            (campaign as any).costType || (row as any).costType || undefined,
+          targetedPGDealId:
+            (campaign as any).targetedPGDealId ??
+            (campaign as any).targeted_pg_deal_id ??
+            undefined,
+          smartDefault:
+            (campaign as any).smartDefault ??
+            (campaign as any).smart_default ??
+            undefined,
         }),
         // SD-specific fields
         ...(campaignTypeUpper === "SD" && {
@@ -1998,10 +2034,10 @@ export const Campaigns: React.FC = () => {
       window.requestAnimationFrame(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });
       });
-      setEditLoadingCampaignId(null);
+      setLoadingEditCampaignId(null);
     } catch (error) {
       console.error("Failed to load campaign for edit:", error);
-      setEditLoadingCampaignId(null);
+      setLoadingEditCampaignId(null);
     }
   };
 
@@ -2266,13 +2302,20 @@ export const Campaigns: React.FC = () => {
                     setCampaignFormMode("create");
                     setCampaignId(undefined);
                     setEditLoadingCampaignId(null);
+                    setLoadingEditCampaignId(null);
                   }}
                   onSubmit={handleCampaignPanelSubmit}
                   accountId={accountId}
                   profiles={profileOptions}
                   loading={
                     createCampaignLoading ||
-                    editLoadingCampaignId === campaignId
+                    editLoadingCampaignId === campaignId ||
+                    loadingEditCampaignId !== null
+                  }
+                  loadingMessage={
+                    loadingEditCampaignId !== null
+                      ? "Loading campaign..."
+                      : undefined
                   }
                   submitError={createCampaignError}
                   mode={campaignFormMode}
@@ -2398,7 +2441,7 @@ export const Campaigns: React.FC = () => {
                       />
                     </svg>
                     <span className="text-[10.64px] text-[#072929] font-normal">
-                      Edit
+                      Bulk Actions
                     </span>
                   </Button>
                   {showBulkActions && (
@@ -3051,10 +3094,33 @@ export const Campaigns: React.FC = () => {
               <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
               <div className="overflow-x-auto w-full">
                   {campaigns.length === 0 && !loading ? (
-                    <div className="text-center py-8">
-                      <p className="text-[13.3px] text-[#556179] mb-4">
-                        No campaigns found
-                      </p>
+                    <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
+                      <div className="flex flex-col items-center justify-center max-w-md">
+                        {/* Icon */}
+                        <div className="mb-6 w-20 h-20 rounded-full bg-[#F5F5F0] flex items-center justify-center">
+                          <svg
+                            className="w-10 h-10 text-[#556179]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                        </div>
+                        {/* Title */}
+                        <h3 className="text-lg font-medium text-teal-950 mb-2">
+                          No Campaigns Found
+                        </h3>
+                        {/* Description */}
+                        <p className="text-sm text-[#556179] text-center leading-relaxed">
+                          There are no campaigns for this account yet. Campaigns will appear here when they are created.
+                        </p>
+                      </div>
                     </div>
                   ) : (
                     <table className="min-w-[1200px] w-full">
@@ -3258,36 +3324,32 @@ export const Campaigns: React.FC = () => {
                           ))
                         ) : (
                           <>
-                            {/* Summary Row */}
+                            {/* Summary Row - "Total (n)" spans Campaign Name through Start Date (9 cols) so numeric totals align with their columns */}
                             {summary && (
                               <tr className="table-summary-row">
                                 <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
-                                <td className="table-cell table-sticky-first-column">
+                                <td
+                                  className="table-cell table-sticky-first-column"
+                                  colSpan={9}
+                                >
                                   Total ({summary.total_campaigns})
                                 </td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-right">
                                   {formatCurrency(summary.total_spends)}
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-right">
                                   {formatCurrency(summary.total_sales)}
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-right">
                                   {summary.total_impressions.toLocaleString()}
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-right">
                                   {summary.total_clicks.toLocaleString()}
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-right">
                                   {summary.avg_acos.toFixed(2)}%
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-right">
                                   {summary.avg_roas.toFixed(2)}x
                                 </td>
                               </tr>
@@ -3348,11 +3410,11 @@ export const Campaigns: React.FC = () => {
                                         className="table-edit-icon"
                                         title="Edit campaign"
                                         disabled={
-                                          editLoadingCampaignId ===
+                                          loadingEditCampaignId ===
                                           campaign.campaignId
                                         }
                                       >
-                                        {editLoadingCampaignId ===
+                                        {loadingEditCampaignId ===
                                         campaign.campaignId ? (
                                           // Small spinner while campaign details load
                                           <Loader size="sm" />

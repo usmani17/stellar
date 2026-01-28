@@ -1,4 +1,5 @@
 import api from "./api";
+import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../components/google/CreateGooglePmaxAssetGroupPanel";
 
 export interface Campaign {
   id: number; // Database ID (for internal use)
@@ -148,6 +149,7 @@ export interface AdGroup {
   impressions?: number;
   acos?: string;
   roas?: string;
+  creativeType?: string | null; // SD only: IMAGE or VIDEO
 }
 
 export interface AdGroupsSummary {
@@ -337,6 +339,7 @@ export interface ProductAd {
   sku?: string;
   status: string;
   adGroupId?: string;
+  adgroup_name?: string;
 }
 
 export interface ProductAdsResponse {
@@ -1268,6 +1271,9 @@ export const campaignsService = {
       tags?: Array<{ key: string; value: string }>;
       siteRestrictions?: string | null;
       dynamicBidding?: any;
+      /** SB campaigns use "bidding" not "dynamicBidding" */
+      bidding?: any;
+      startDate?: string | null;
     }
   ) => {
     const url = `/accounts/${accountId}/campaigns/${campaignId}/update/`;
@@ -3141,7 +3147,10 @@ export const campaignsService = {
     };
   }> => {
     const url = `/google-adwords/${accountId}/campaigns/${campaignId}/refresh/`;
-    const response = await api.post(url);
+    // Send the constant to API so it can decide whether to fetch asset groups
+    const response = await api.post(url, {
+      should_fetch_asset_groups: SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION,
+    });
     return response.data;
   },
 

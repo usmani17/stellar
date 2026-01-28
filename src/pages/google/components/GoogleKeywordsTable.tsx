@@ -1,7 +1,9 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { GoogleAdsTable } from "./GoogleAdsTable";
+import { ConfirmationModal } from "../../../components/ui/ConfirmationModal";
+import { TrashIcon } from "lucide-react";
 import type { IColumnDefinition } from "../../../types/google";
 
 export interface GoogleKeyword {
@@ -13,8 +15,10 @@ export interface GoogleKeyword {
   cpc_bid_dollars?: number;
   campaign_id?: number;
   campaign_name?: string;
+  campaign_status?: string;
   adgroup_id?: number;
   adgroup_name?: string;
+  adgroup_status?: string;
   // Final URLs
   final_urls?: string[] | string;
   final_mobile_urls?: string[] | string;
@@ -233,6 +237,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
         { value: "PAUSED", label: "Paused" },
+        { value: "REMOVED", label: "Remove" },
       ],
       getValue: (row: GoogleKeyword) => row.status || "",
     },
@@ -242,7 +247,11 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       type: "budget",
       sortable: true,
       editable: true,
-      getValue: (row: GoogleKeyword) => row.cpc_bid_dollars || 0,
+      getValue: (row: GoogleKeyword) => {
+        // Handle null/undefined properly - only default to 0 if truly missing
+        const bid = row.cpc_bid_dollars;
+        return bid !== undefined && bid !== null ? bid : 0;
+      },
     },
     {
       key: "match_type",
@@ -445,10 +454,60 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
     },
   ], [currentAccountId, navigate, onStartFinalUrlEdit]);
 
+  const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
+  const [pendingRemoveChange, setPendingRemoveChange] = useState<{
+    value: string;
+    keywordId: string | number;
+    field: string;
+  } | null>(null);
+
   // Handle confirm inline edit - route to appropriate handler
   const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
+    // Use the field parameter if provided, otherwise fall back to editingCell
+    const fieldToUse = field || editingCell?.field;
+    if (!fieldToUse) {
+      return;
+    }
+
+    // Use itemIdParam if provided, otherwise fall back to editingCell
+    const keywordIdToUse = itemIdParam || editingCell?.keywordId;
+
+    // Check if status is being changed to REMOVED - show confirmation modal
+    if (fieldToUse === "status" && value === "REMOVED") {
+      // Close the dropdown immediately when modal appears (matches ENABLED/PAUSED behavior)
+      if (onCancelInlineEdit) {
+        onCancelInlineEdit();
+      }
+      setPendingRemoveChange({ value: "REMOVED", keywordId: keywordIdToUse!, field: fieldToUse });
+      setShowRemoveConfirmation(true);
+      return;
+    }
+
     // Pass all parameters to parent handler
     onConfirmInlineEdit(value, field, itemIdParam);
+  };
+
+  // Handle confirmation for REMOVED status change
+  const handleConfirmRemove = () => {
+    if (pendingRemoveChange && onConfirmInlineEdit) {
+      onConfirmInlineEdit(
+        "REMOVED",
+        "status",
+        pendingRemoveChange.keywordId
+      );
+    }
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+  };
+
+  // Handle cancel for REMOVED status change
+  const handleCancelRemove = () => {
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+    // Cancel the inline edit
+    if (onCancelInlineEdit) {
+      onCancelInlineEdit();
+    }
   };
 
   // Handle confirm change - route to parent handler
@@ -466,6 +525,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
   };
 
   return (
+    <>
     <GoogleAdsTable
       data={keywords}
       loading={loading}
@@ -485,7 +545,14 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       inlineEditSuccess={sharedInlineEditSuccess}
       inlineEditError={sharedInlineEditError}
       columns={columns}
-      getId={(row: GoogleKeyword) => row.keyword_id}
+      getId={(row: GoogleKeyword) => {
+        // Use composite key (keyword_id:adgroup_id) to ensure uniqueness
+        // when same keyword_id exists in different adgroups
+        if (row.adgroup_id) {
+          return `${row.keyword_id}:${row.adgroup_id}`;
+        }
+        return row.keyword_id;
+      }}
       getItemName={(row: GoogleKeyword) => row.keyword_text || "Unnamed Keyword"}
       emptyMessage='No keywords found. Click "Sync Keywords from Google Ads" to fetch keywords.'
       loadingMessage="Loading keywords..."
@@ -505,6 +572,17 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       getStatusBadge={getStatusBadge}
       getSortIcon={getSortIcon}
     />
+    <ConfirmationModal
+      isOpen={showRemoveConfirmation}
+      onClose={handleCancelRemove}
+      onConfirm={handleConfirmRemove}
+      title="Are you sure you want to remove this keyword?"
+      message="This action cannot be undone. All data associated with this keyword will be permanently removed."
+      type="danger"
+      size="sm"
+      icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+    />
+  </>
   );
 };
 

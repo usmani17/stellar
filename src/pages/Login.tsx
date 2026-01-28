@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { queryClient } from "../lib/queryClient";
 import { accountsService } from "../services/accounts";
@@ -14,6 +14,13 @@ import {
 } from "../components/ui";
 import auth0Icon from "../assets/images/auth0.svg";
 
+const LOGIN_REDIRECT_KEY = "loginRedirect";
+
+function getRedirectPath(from: { pathname: string; search?: string; hash?: string } | undefined): string {
+  if (!from) return "/brands";
+  return from.pathname + (from.search ?? "") + (from.hash ?? "");
+}
+
 export const Login: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,6 +29,8 @@ export const Login: React.FC = () => {
   const [auth0Loading, setAuth0Loading] = useState(false);
   const { login, loginWithAuth0 } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: { pathname: string; search?: string; hash?: string } } | null)?.from;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +54,9 @@ export const Login: React.FC = () => {
         console.warn("Failed to prefetch accounts:", prefetchError);
       }
       
-      navigate("/brands");
+      const redirectTo = from ? getRedirectPath(from) : (sessionStorage.getItem(LOGIN_REDIRECT_KEY) || "/brands");
+      sessionStorage.removeItem(LOGIN_REDIRECT_KEY);
+      navigate(redirectTo, { replace: true });
     } catch (err: any) {
       // Better error handling - check for axios error structure
       const errorMessage = 
@@ -61,6 +72,10 @@ export const Login: React.FC = () => {
   const handleAuth0Login = async () => {
     setAuth0Loading(true);
     try {
+      const redirectPath = getRedirectPath(from) || sessionStorage.getItem(LOGIN_REDIRECT_KEY);
+      if (redirectPath) {
+        sessionStorage.setItem(LOGIN_REDIRECT_KEY, redirectPath);
+      }
       await loginWithAuth0();
       // Note: We don't set loading to false here because the page will redirect
       // If there's an error, it will be caught and we'll reset the loading state

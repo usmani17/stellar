@@ -26,17 +26,17 @@ export const GoogleTrackingTemplateForm: React.FC<GoogleTrackingTemplateFormProp
   showTitle = true,
 }) => {
   return (
-    <div className="mt-6">
+    <>
       {showTitle && (
         <h3 className="text-[15px] font-bold text-[#072929] mb-3">
           {title}
         </h3>
       )}
 
-      <div className="bg-gray-50 rounded-lg border border-gray-200 p-5 space-y-5">
+      <div className="space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+          <label className="form-label">
             Tracking template
           </label>
           <input
@@ -51,7 +51,7 @@ export const GoogleTrackingTemplateForm: React.FC<GoogleTrackingTemplateFormProp
           </p>
         </div>
         <div>
-          <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+          <label className="form-label">
             Final URL suffix
           </label>
           <input
@@ -68,7 +68,7 @@ export const GoogleTrackingTemplateForm: React.FC<GoogleTrackingTemplateFormProp
       </div>
 
       <div>
-        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+        <label className="form-label">
           Custom parameters (optional)
         </label>
         {urlCustomParameters && urlCustomParameters.length > 0 ? (
@@ -142,6 +142,6 @@ export const GoogleTrackingTemplateForm: React.FC<GoogleTrackingTemplateFormProp
         </button>
       </div>
       </div>
-    </div>
+    </>
   );
 };

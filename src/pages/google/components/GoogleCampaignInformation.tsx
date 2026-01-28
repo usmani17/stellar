@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
 import { formatCurrency2Decimals } from "../utils/campaignDetailHelpers";
+import { getStatusWithDefault } from "../utils/googleAdsUtils";
 
 interface GoogleCampaignDetail {
   campaign: {
@@ -74,6 +75,10 @@ export const GoogleCampaignInformation: React.FC<
 
   if (!campaignDetail) return null;
 
+  // Check if campaign is REMOVED
+  const campaignStatus = getStatusWithDefault(campaignDetail.campaign.status).toUpperCase();
+  const isRemoved = campaignStatus === "REMOVED";
+
   return (
     <>
       <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6">
@@ -122,16 +127,17 @@ export const GoogleCampaignInformation: React.FC<
                 <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                   Budget
                 </label>
-                <button
-                  onClick={() => {
-                    setEditingField("budget");
-                    setEditedValue(
-                      (campaignDetail.campaign.daily_budget || 0).toString()
-                    );
-                  }}
-                  className="p-1 hover:bg-gray-100 rounded"
-                  title="Edit budget"
-                >
+                {!isRemoved && (
+                  <button
+                    onClick={() => {
+                      setEditingField("budget");
+                      setEditedValue(
+                        (campaignDetail.campaign.daily_budget || 0).toString()
+                      );
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded"
+                    title="Edit budget"
+                  >
                   <svg
                     className="w-4 h-4 text-[#556179]"
                     fill="none"
@@ -145,7 +151,8 @@ export const GoogleCampaignInformation: React.FC<
                       d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                     />
                   </svg>
-                </button>
+                  </button>
+                )}
               </div>
               {editingField === "budget" ? (
                 <div className="flex items-center gap-2">
@@ -211,16 +218,17 @@ export const GoogleCampaignInformation: React.FC<
                 <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                   State
                 </label>
-                <button
-                  onClick={() => {
-                    setEditingField("status");
-                    setEditedValue(
-                      campaignDetail.campaign.status || "ENABLED"
-                    );
-                  }}
-                  className="p-1 hover:bg-gray-100 rounded"
-                  title="Edit state"
-                >
+                {!isRemoved && (
+                  <button
+                    onClick={() => {
+                      setEditingField("status");
+                      setEditedValue(
+                        campaignDetail.campaign.status || "ENABLED"
+                      );
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded"
+                    title="Edit state"
+                  >
                   <svg
                     className="w-4 h-4 text-[#556179]"
                     fill="none"
@@ -234,7 +242,8 @@ export const GoogleCampaignInformation: React.FC<
                       d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                     />
                   </svg>
-                </button>
+                  </button>
+                )}
               </div>
               {editingField === "status" ? (
                 <div className="flex items-center gap-2">
@@ -343,15 +352,17 @@ export const GoogleCampaignInformation: React.FC<
                 </div>
               ) : (
                 <div
-                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                  className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${!isRemoved ? "cursor-pointer hover:underline" : ""}`}
                   onClick={() => {
-                    setEditingField("start_date");
-                    const startDate = campaignDetail.campaign.start_date
-                      ? new Date(campaignDetail.campaign.start_date)
-                        .toISOString()
-                        .split("T")[0]
-                      : "";
-                    setEditedValue(startDate);
+                    if (!isRemoved) {
+                      setEditingField("start_date");
+                      const startDate = campaignDetail.campaign.start_date
+                        ? new Date(campaignDetail.campaign.start_date)
+                          .toISOString()
+                          .split("T")[0]
+                        : "";
+                      setEditedValue(startDate);
+                    }
                   }}
                 >
                   {campaignDetail.campaign.start_date
@@ -420,15 +431,17 @@ export const GoogleCampaignInformation: React.FC<
                 </div>
               ) : (
                 <div
-                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                  className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${!isRemoved ? "cursor-pointer hover:underline" : ""}`}
                   onClick={() => {
-                    setEditingField("end_date");
-                    const endDate = campaignDetail.campaign.end_date
-                      ? new Date(campaignDetail.campaign.end_date)
-                        .toISOString()
-                        .split("T")[0]
-                      : "";
-                    setEditedValue(endDate);
+                    if (!isRemoved) {
+                      setEditingField("end_date");
+                      const endDate = campaignDetail.campaign.end_date
+                        ? new Date(campaignDetail.campaign.end_date)
+                          .toISOString()
+                          .split("T")[0]
+                        : "";
+                      setEditedValue(endDate);
+                    }
                   }}
                 >
                   {campaignDetail.campaign.end_date

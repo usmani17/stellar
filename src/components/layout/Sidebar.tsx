@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   getCurrentAccountId,
   buildMarketplaceRoute,
+  buildAccountRoute,
   getMarketplaceFromUrl,
 } from "../../utils/urlHelpers";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../../contexts/SidebarContext";
+import { useAccounts } from "../../contexts/AccountsContext";
+import { useChannels } from "../../hooks/queries/useChannels";
+import { ConfirmationModal } from "../ui/ConfirmationModal";
 import StellarLogo from "../../assets/images/stellar-logo-v2 1.svg";
 import InstacartIcon from "../../assets/images/cib_instacart.svg";
 import CampaignIcon from "../../assets/images/campaign-svgrepo-com 1.svg";
@@ -14,7 +19,7 @@ import CampaignWhiteIcon from "../../assets/campaign-white.svg";
 import AdGroupIcon from "../../assets/images/adgroups.svg";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
-import AmazonIcon from "../../assets/images/ri_amazon-fill.svg";
+import AmazonIcon from "../../assets/images/ri_amazon-fill-1.svg";
 import WalmartIcon from "../../assets/images/cbi_walmart.svg";
 import TopKeywordsIcon from "../../assets/images/cbi_walmart.svg";
 import TopProductsIcon from "../../assets/images/cib_instacart.svg";
@@ -24,7 +29,9 @@ import KeywordsIcon from "../../assets/images/keywords.svg";
 import KeywordsWhiteIcon from "../../assets/images/keywords-white.svg";
 import TargetsIcon from "../../assets/images/targets.svg";
 import TargetsWhiteIcon from "../../assets/images/targets-white.svg";
+import ChartPieSliceIcon from "../../assets/images/ChartPieSlice.svg";
 
+const BRANDS_SECTION_STORAGE_KEY = "brands-section-collapsed";
 const AMAZON_SECTION_STORAGE_KEY = "amazon-section-collapsed";
 const GOOGLE_SECTION_STORAGE_KEY = "google-section-collapsed";
 const TIKTOK_SECTION_STORAGE_KEY = "tiktok-section-collapsed";
@@ -34,6 +41,21 @@ export const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const accountId = getCurrentAccountId(location.pathname);
   const { isCollapsed, toggleSidebar, sidebarWidth } = useSidebar();
+  const { getAccountById } = useAccounts();
+  const accountIdNum = accountId !== null ? accountId : undefined;
+  const currentAccount = accountIdNum != null ? getAccountById(accountIdNum) : null;
+  const { data: channelsFromApi = [] } = useChannels(accountIdNum);
+  const channels = currentAccount?.channels?.length
+    ? currentAccount.channels
+    : channelsFromApi;
+  const hasAmazonChannel = channels.some((c) => c.channel_type === "amazon");
+  const hasGoogleChannel = channels.some((c) => c.channel_type === "google");
+  const hasTikTokChannel = channels.some((c) => c.channel_type === "tiktok");
+
+  const [channelRequiredModal, setChannelRequiredModal] = useState<
+    "amazon" | "google" | "tiktok" | null
+  >(null);
+
   const [isAmazonSectionCollapsed, setIsAmazonSectionCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(AMAZON_SECTION_STORAGE_KEY);
@@ -49,12 +71,25 @@ export const Sidebar: React.FC = () => {
       const saved = localStorage.getItem(TIKTOK_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
+  const [isBrandsSectionCollapsed, setIsBrandsSectionCollapsed] =
+    useState<boolean>(() => {
+      const saved = localStorage.getItem(BRANDS_SECTION_STORAGE_KEY);
+      return saved === "true" || saved === null; // Default to collapsed
+    });
 
   // Auto-expand/collapse sections based on current page
   useEffect(() => {
     const marketplace = getMarketplaceFromUrl(location.pathname);
+    const isBrandsArea =
+      location.pathname === "/brands" ||
+      /^\/brands\/\d+\/integrations$/.test(location.pathname) ||
+      /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
+      /^\/brands\/\d+\/users$/.test(location.pathname);
 
-    // If on brands page, collapse all sections
+    if (isBrandsArea) {
+      setIsBrandsSectionCollapsed(false);
+    }
+    // If on brands page, collapse all marketplace sections
     if (location.pathname === "/brands") {
       setIsAmazonSectionCollapsed(true);
       setIsGoogleSectionCollapsed(true);
@@ -72,18 +107,24 @@ export const Sidebar: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem(
+      BRANDS_SECTION_STORAGE_KEY,
+      String(isBrandsSectionCollapsed),
+    );
+  }, [isBrandsSectionCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem(
       AMAZON_SECTION_STORAGE_KEY,
-      String(isAmazonSectionCollapsed)
+      String(isAmazonSectionCollapsed),
     );
   }, [isAmazonSectionCollapsed]);
 
   useEffect(() => {
     localStorage.setItem(
       GOOGLE_SECTION_STORAGE_KEY,
-      String(isGoogleSectionCollapsed)
+      String(isGoogleSectionCollapsed),
     );
   }, [isGoogleSectionCollapsed]);
-
 
   const toggleAmazonSection = () => {
     setIsAmazonSectionCollapsed((prev) => !prev);
@@ -97,8 +138,18 @@ export const Sidebar: React.FC = () => {
     setIsTikTokSectionCollapsed((prev) => !prev);
   };
 
+  const toggleBrandsSection = () => {
+    setIsBrandsSectionCollapsed((prev) => !prev);
+  };
 
   const isActive = (path: string) => {
+    if (path === "/brands") return location.pathname === "/brands";
+    if (path === "/brands/integrations")
+      return /^\/brands\/\d+\/integrations$/.test(location.pathname);
+    if (path === "/brands/profiles")
+      return /^\/brands\/\d+\/profiles$/.test(location.pathname);
+    if (path === "/brands/users")
+      return /^\/brands\/\d+\/users$/.test(location.pathname);
     if (path === "/campaigns") {
       return (
         location.pathname.includes("/campaigns") &&
@@ -194,7 +245,7 @@ export const Sidebar: React.FC = () => {
 
   const handleAccountRequiredClick = (
     e: React.MouseEvent<HTMLAnchorElement>,
-    buildRoute: () => string | null
+    buildRoute: () => string | null,
   ) => {
     if (!accountId) {
       e.preventDefault();
@@ -204,6 +255,37 @@ export const Sidebar: React.FC = () => {
       } else {
         navigate("/brands");
       }
+    }
+  };
+
+  const handleAmazonNavClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    buildRoute: () => string | null,
+  ) => {
+    if (!accountId) {
+      handleAccountRequiredClick(e, buildRoute);
+      return;
+    }
+    if (!hasAmazonChannel) {
+      e.preventDefault();
+      setChannelRequiredModal("amazon");
+    }
+  };
+
+  const handleMarketplaceClick = (
+    marketplace: "google" | "tiktok",
+    e: React.MouseEvent<HTMLAnchorElement>,
+    buildRoute: () => string | null,
+  ) => {
+    if (!accountId) {
+      handleAccountRequiredClick(e, buildRoute);
+      return;
+    }
+    const hasChannel =
+      marketplace === "google" ? hasGoogleChannel : hasTikTokChannel;
+    if (!hasChannel) {
+      e.preventDefault();
+      setChannelRequiredModal(marketplace);
     }
   };
 
@@ -252,49 +334,160 @@ export const Sidebar: React.FC = () => {
           </button>
         </div>
 
-        {/* Accounts Section */}
+        {/* Brands Section - sub-nav: Brands, Channels, Profiles, Users */}
         <div className="mb-6">
-          <div className="space-y-1">
+          {!isCollapsed ? (
+            <>
+              <div className="mb-3 flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                <h2
+                  className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide"
+                  onClick={toggleBrandsSection}
+                >
+                  Brands
+                </h2>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleBrandsSection();
+                  }}
+                  className="p-1 rounded hover:bg-gray-100 transition-colors"
+                  aria-label={
+                    isBrandsSectionCollapsed
+                      ? "Expand Brands section"
+                      : "Collapse Brands section"
+                  }
+                >
+                  <svg
+                    className={`w-4 h-4 text-gray-600 transition-transform ${
+                      isBrandsSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
+                    }`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </div>
+              {!isBrandsSectionCollapsed && (
+                <div className="space-y-1 ml-[15px]">
+                  <Link
+                    to="/brands"
+                    className={`flex items-center p-2 rounded-xl gap-2 ${
+                      isActive("/brands")
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                    }`}
+                    title="Brands"
+                  >
+                    <span className="text-[12.32px] font-normal leading-[16px]">
+                      Brands
+                    </span>
+                  </Link>
+                  <Link
+                    to={
+                      accountId
+                        ? buildAccountRoute(accountId, "integrations")
+                        : "/brands"
+                    }
+                    onClick={(e) =>
+                      handleAccountRequiredClick(e, () =>
+                        accountId
+                          ? buildAccountRoute(accountId, "integrations")
+                          : "/brands",
+                      )
+                    }
+                    className={`flex items-center p-2 rounded-xl gap-2 ${
+                      isActive("/brands/integrations")
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                    }`}
+                    title="Integrations"
+                  >
+                    <span className="text-[12.32px] font-normal leading-[16px]">
+                      Integrations
+                    </span>
+                  </Link>
+                  <Link
+                    to={
+                      accountId
+                        ? buildAccountRoute(accountId, "profiles")
+                        : "/brands"
+                    }
+                    onClick={(e) =>
+                      handleAccountRequiredClick(e, () =>
+                        accountId
+                          ? buildAccountRoute(accountId, "profiles")
+                          : "/brands",
+                      )
+                    }
+                    className={`flex items-center p-2 rounded-xl gap-2 ${
+                      isActive("/brands/profiles")
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                    }`}
+                    title="Profiles"
+                  >
+                    <span className="text-[12.32px] font-normal leading-[16px]">
+                      Profiles
+                    </span>
+                  </Link>
+                  <Link
+                    to={
+                      accountId
+                        ? buildAccountRoute(accountId, "users")
+                        : "/brands"
+                    }
+                    onClick={(e) =>
+                      handleAccountRequiredClick(e, () =>
+                        accountId
+                          ? buildAccountRoute(accountId, "users")
+                          : "/brands",
+                      )
+                    }
+                    className={`flex items-center p-2 rounded-xl gap-2 ${
+                      isActive("/brands/users")
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                    }`}
+                    title="Users"
+                  >
+                    <span className="text-[12.32px] font-normal leading-[16px]">
+                      Users
+                    </span>
+                  </Link>
+                </div>
+              )}
+            </>
+          ) : (
             <Link
               to="/brands"
-              className={`flex items-center p-2 rounded-xl ${
-                isActive("/brands") ? "" : "transition-colors"
-              } ${isCollapsed ? "justify-center" : "gap-2"} ${
+              className={`flex items-center justify-center p-2 rounded-xl ${
                 isActive("/brands")
                   ? "w-full bg-forest-f60 !text-white hover:!text-white"
                   : "text-black hover:bg-transparent"
-                }`}
-              title={isCollapsed ? "Accounts" : undefined}
+              }`}
+              title="Brands"
             >
-              {isCollapsed ? (
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                  />
-                </svg>
-              ) : (
-                <span
-                  className={`text-[12.32px] font-normal leading-[16px] ${
-                    isActive("/brands") ? "!text-white" : ""
-                    }`}
-                >
-                  Brands
-                </span>
-              )}
+              <img
+                src={ChartPieSliceIcon}
+                alt=""
+                className={`w-5 h-5 shrink-0 ${
+                  isActive("/brands") ? "brightness-0 invert" : ""
+                }`}
+              />
             </Link>
-          </div>
+          )}
         </div>
 
         {/* Amazon Section */}
-        <div className="mb-6">
+        <div>
           {!isCollapsed && (
             <div className="mb-3">
               <Link
@@ -304,17 +497,20 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) => {
-                  handleAccountRequiredClick(e, () =>
+                  handleAmazonNavClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "amazon", "campaigns")
-                      : "/brands/1/amazon/campaigns"
+                      : "/brands/1/amazon/campaigns",
                   );
                 }}
                 className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
               >
-                <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
-                  Amazon
-                </h2>
+                <div className="flex items-center gap-2">
+                  <img src={AmazonIcon} alt="Amazon" className="w-4 h-4" />
+                  <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
+                    Amazon
+                  </h2>
+                </div>
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -331,7 +527,7 @@ export const Sidebar: React.FC = () => {
                   <svg
                     className={`w-4 h-4 text-gray-600 transition-transform ${
                       isAmazonSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
-                      }`}
+                    }`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -348,7 +544,7 @@ export const Sidebar: React.FC = () => {
             </div>
           )}
           {(isCollapsed || !isAmazonSectionCollapsed) && (
-            <div className="space-y-1">
+            <div className={`space-y-1 ${!isCollapsed ? "ml-[15px]" : ""}`}>
               <Link
                 to={
                   accountId
@@ -356,10 +552,10 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleAmazonNavClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "amazon", "campaigns")
-                      : "/brands/1/amazon/campaigns"
+                      : "/brands/1/amazon/campaigns",
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -368,7 +564,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/campaigns")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                  }`}
+                }`}
                 title={isCollapsed ? "Campaigns" : undefined}
               >
                 <img
@@ -384,7 +580,7 @@ export const Sidebar: React.FC = () => {
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/campaigns") ? "!text-white" : ""
-                      }`}
+                    }`}
                   >
                     Campaigns
                   </span>
@@ -397,10 +593,10 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleAmazonNavClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "amazon", "adgroups")
-                      : "/brands/1/amazon/adgroups"
+                      : "/brands/1/amazon/adgroups",
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -409,7 +605,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/adgroups")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                  }`}
+                }`}
                 title={isCollapsed ? "Ad Groups" : undefined}
               >
                 <img
@@ -417,13 +613,13 @@ export const Sidebar: React.FC = () => {
                   alt=""
                   className={`w-5 h-5 ${
                     isActive("/adgroups") ? "brightness-0 invert" : ""
-                    }`}
+                  }`}
                 />
                 {!isCollapsed && (
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/adgroups") ? "!text-white" : ""
-                      }`}
+                    }`}
                   >
                     Ad Groups
                   </span>
@@ -436,10 +632,10 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleAmazonNavClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "amazon", "keywords")
-                      : "/brands/1/amazon/keywords"
+                      : "/brands/1/amazon/keywords",
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -448,7 +644,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/keywords")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                  }`}
+                }`}
                 title={isCollapsed ? "Keywords" : undefined}
               >
                 <img
@@ -456,13 +652,13 @@ export const Sidebar: React.FC = () => {
                   alt=""
                   className={`w-5 h-5 ${
                     isActive("/keywords") ? "brightness-0 invert" : ""
-                    }`}
+                  }`}
                 />
                 {!isCollapsed && (
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/keywords") ? "!text-white" : ""
-                      }`}
+                    }`}
                   >
                     Keywords
                   </span>
@@ -475,10 +671,10 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleAmazonNavClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "amazon", "targets")
-                      : "/brands/1/amazon/targets"
+                      : "/brands/1/amazon/targets",
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -487,7 +683,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/targets")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                  }`}
+                }`}
                 title={isCollapsed ? "Targets" : undefined}
               >
                 <img
@@ -495,29 +691,25 @@ export const Sidebar: React.FC = () => {
                   alt=""
                   className={`w-5 h-5 ${
                     isActive("/targets") ? "brightness-0 invert" : ""
-                    }`}
+                  }`}
                 />
                 {!isCollapsed && (
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/targets") ? "!text-white" : ""
-                      }`}
+                    }`}
                   >
                     Targets
                   </span>
                 )}
               </Link>
               <Link
-                to={
-                  accountId
-                    ? `/brands/${accountId}/amazon/logs`
-                    : "/brands"
-                }
+                to={accountId ? `/brands/${accountId}/amazon/logs` : "/brands"}
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleAmazonNavClick(e, () =>
                     accountId
                       ? `/brands/${accountId}/amazon/logs`
-                      : "/brands/1/amazon/logs"
+                      : "/brands/1/amazon/logs",
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -559,7 +751,7 @@ export const Sidebar: React.FC = () => {
         </div>
 
         {/* Google Section */}
-        <div className="mb-6">
+        <div>
           {!isCollapsed && (
             <div className="mb-3">
               <Link
@@ -569,17 +761,20 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) => {
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("google", e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "campaigns")
-                      : "/brands/1/google/campaigns"
+                      : "/brands/1/google/campaigns",
                   );
                 }}
                 className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
               >
-                <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
-                  Google
-                </h2>
+                <div className="flex items-center gap-2">
+                  <img src={GoogleIcon} alt="Google" className="w-4 h-4" />
+                  <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
+                    Google
+                  </h2>
+                </div>
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -596,7 +791,7 @@ export const Sidebar: React.FC = () => {
                   <svg
                     className={`w-4 h-4 text-gray-600 transition-transform ${
                       isGoogleSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
-                      }`}
+                    }`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -613,7 +808,7 @@ export const Sidebar: React.FC = () => {
             </div>
           )}
           {(isCollapsed || !isGoogleSectionCollapsed) && (
-            <div className="space-y-1">
+            <div className={`space-y-1 ${!isCollapsed ? "ml-[15px]" : ""}`}>
               <Link
                 to={
                   accountId
@@ -621,10 +816,10 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("google", e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "campaigns")
-                      : "/brands/1/google/campaigns"
+                      : "/brands/1/google/campaigns",
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -633,7 +828,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/google/campaigns")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                  }`}
+                }`}
                 title={isCollapsed ? "Campaign" : undefined}
               >
                 <img
@@ -649,7 +844,7 @@ export const Sidebar: React.FC = () => {
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/google/campaigns") ? "!text-white" : ""
-                      }`}
+                    }`}
                   >
                     Campaign
                   </span>
@@ -662,10 +857,10 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("google", e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "adgroups")
-                      : "/brands/1/google/adgroups"
+                      : "/brands/1/google/adgroups",
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -674,7 +869,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/google/adgroups")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                  }`}
+                }`}
                 title={isCollapsed ? "Ad Group" : undefined}
               >
                 <img
@@ -688,7 +883,7 @@ export const Sidebar: React.FC = () => {
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/google/adgroups") ? "!text-white" : ""
-                      }`}
+                    }`}
                   >
                     Ad Group
                   </span>
@@ -701,10 +896,10 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("google", e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "keywords")
-                      : "/brands/1/google/keywords"
+                      : "/brands/1/google/keywords",
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -713,7 +908,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/google/keywords")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                  }`}
+                }`}
                 title={isCollapsed ? "Keyword" : undefined}
               >
                 <svg
@@ -733,7 +928,7 @@ export const Sidebar: React.FC = () => {
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/google/keywords") ? "!text-white" : ""
-                      }`}
+                    }`}
                   >
                     Keyword
                   </span>
@@ -746,10 +941,10 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("google", e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "ads")
-                      : "/brands/1/google/ads"
+                      : "/brands/1/google/ads",
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -758,7 +953,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/google/ads")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                  }`}
+                }`}
                 title={isCollapsed ? "Ads" : undefined}
               >
                 <img src={ProductTargetIcon} alt="" className="w-5 h-5" />
@@ -766,23 +961,19 @@ export const Sidebar: React.FC = () => {
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/google/ads") ? "!text-white" : ""
-                      }`}
+                    }`}
                   >
                     Ads
                   </span>
                 )}
               </Link>
               <Link
-                to={
-                  accountId
-                    ? `/brands/${accountId}/google/logs`
-                    : "/brands"
-                }
+                to={accountId ? `/brands/${accountId}/google/logs` : "/brands"}
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("google", e, () =>
                     accountId
                       ? `/brands/${accountId}/google/logs`
-                      : "/brands/1/google/logs"
+                      : "/brands/1/google/logs",
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -824,7 +1015,7 @@ export const Sidebar: React.FC = () => {
         </div>
 
         {/* TikTok Section */}
-        <div className="mb-6">
+        <div>
           {!isCollapsed && (
             <div className="mb-3">
               <Link
@@ -834,15 +1025,24 @@ export const Sidebar: React.FC = () => {
                     : "/brands"
                 }
                 onClick={(e) => {
-                  handleAccountRequiredClick(e, () =>
-                    accountId ? `/brands/${accountId}/tiktok/campaigns` : null
+                  handleMarketplaceClick("tiktok", e, () =>
+                    accountId ? `/brands/${accountId}/tiktok/campaigns` : null,
                   );
                 }}
                 className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
               >
-                <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
-                  TikTok
-                </h2>
+                <div className="flex items-center gap-2">
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7.41a4.85 4.85 0 0 0 3.77 1.52v-3.4a1 1 0 0 0-1.04-1.09z" />
+                  </svg>
+                  <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
+                    TikTok
+                  </h2>
+                </div>
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -859,7 +1059,7 @@ export const Sidebar: React.FC = () => {
                   <svg
                     className={`w-4 h-4 text-gray-600 transition-transform ${
                       isTikTokSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
-                      }`}
+                    }`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -877,16 +1077,18 @@ export const Sidebar: React.FC = () => {
           )}
 
           {(isCollapsed || !isTikTokSectionCollapsed) && (
-            <div className="space-y-1">
+            <div className={`space-y-1 ${!isCollapsed ? "ml-[15px]" : ""}`}>
               <Link
                 to={
                   accountId
-                    ? `/accounts/${accountId}/tiktok/campaigns`
+                    ? `/brands/${accountId}/tiktok/campaigns`
                     : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
-                    accountId ? `/accounts/${accountId}/tiktok/campaigns` : null
+                  handleMarketplaceClick("tiktok", e, () =>
+                    accountId
+                      ? `/brands/${accountId}/tiktok/campaigns`
+                      : null,
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -895,7 +1097,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/tiktok/campaigns")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                  }`}
+                }`}
                 title={isCollapsed ? "TikTok Campaigns" : undefined}
               >
                 <img
@@ -911,7 +1113,7 @@ export const Sidebar: React.FC = () => {
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/tiktok/campaigns") ? "!text-white" : ""
-                      }`}
+                    }`}
                   >
                     Campaigns
                   </span>
@@ -919,13 +1121,11 @@ export const Sidebar: React.FC = () => {
               </Link>
               <Link
                 to={
-                  accountId
-                    ? `/brands/${accountId}/tiktok/adgroups`
-                    : "/brands"
+                  accountId ? `/brands/${accountId}/tiktok/adgroups` : "/brands"
                 }
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
-                    accountId ? `/brands/${accountId}/tiktok/adgroups` : null
+                  handleMarketplaceClick("tiktok", e, () =>
+                    accountId ? `/brands/${accountId}/tiktok/adgroups` : null,
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -934,7 +1134,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/tiktok/adgroups")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                  }`}
+                }`}
                 title={isCollapsed ? "TikTok Ad Groups" : undefined}
               >
                 <img
@@ -942,25 +1142,23 @@ export const Sidebar: React.FC = () => {
                   alt=""
                   className={`w-5 h-5 ${
                     isActive("/tiktok/adgroups") ? "brightness-0 invert" : ""
-                    }`}
+                  }`}
                 />
                 {!isCollapsed && (
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/tiktok/adgroups") ? "!text-white" : ""
-                      }`}
+                    }`}
                   >
                     Ad Groups
                   </span>
                 )}
               </Link>
               <Link
-                to={
-                  accountId ? `/brands/${accountId}/tiktok/ads` : "/brands"
-                }
+                to={accountId ? `/brands/${accountId}/tiktok/ads` : "/brands"}
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
-                    accountId ? `/brands/${accountId}/tiktok/ads` : null
+                  handleMarketplaceClick("tiktok", e, () =>
+                    accountId ? `/brands/${accountId}/tiktok/ads` : null,
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -969,7 +1167,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/tiktok/ads")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                  }`}
+                }`}
                 title={isCollapsed ? "TikTok Ads" : undefined}
               >
                 <img
@@ -977,29 +1175,25 @@ export const Sidebar: React.FC = () => {
                   alt=""
                   className={`w-5 h-5 ${
                     isActive("/tiktok/ads") ? "brightness-0 invert" : ""
-                    }`}
+                  }`}
                 />
                 {!isCollapsed && (
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/tiktok/ads") ? "!text-white" : ""
-                      }`}
+                    }`}
                   >
                     Ads
                   </span>
                 )}
               </Link>
               <Link
-                to={
-                  accountId
-                    ? `/brands/${accountId}/tiktok/logs`
-                    : "/brands"
-                }
+                to={accountId ? `/brands/${accountId}/tiktok/logs` : "/brands"}
                 onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
+                  handleMarketplaceClick("tiktok", e, () =>
                     accountId
                       ? `/brands/${accountId}/tiktok/logs`
-                      : "/brands/1/tiktok/logs"
+                      : "/brands/1/tiktok/logs",
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -1039,8 +1233,36 @@ export const Sidebar: React.FC = () => {
             </div>
           )}
         </div>
-
       </div>
+
+      {channelRequiredModal !== null &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <ConfirmationModal
+            isOpen
+            onClose={() => setChannelRequiredModal(null)}
+            onConfirm={() => {
+              if (accountId) {
+                navigate(`/brands/${accountId}/integrations`);
+              }
+              setChannelRequiredModal(null);
+            }}
+            title={
+              channelRequiredModal === "amazon"
+                ? "No Amazon Integration"
+                : `Connect ${channelRequiredModal === "google" ? "Google" : "TikTok"}`
+            }
+            message={
+              channelRequiredModal === "amazon"
+                ? "This account does not have Amazon Integration."
+                : `This brand does not have ${channelRequiredModal === "google" ? "Google" : "TikTok"} integration. Want to connect?`
+            }
+            confirmButtonLabel="Go to Integrations"
+            cancelButtonLabel="Cancel"
+            type="info"
+          />,
+          document.body,
+        )}
     </div>
   );
 };

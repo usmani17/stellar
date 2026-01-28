@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { Checkbox } from "../../../../components/ui/Checkbox";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
@@ -47,6 +47,7 @@ interface GoogleCampaignDetailAdGroupsTabProps {
   onStartNameEdit?: (adgroup: GoogleAdGroup) => void;
   accountId?: string;
   onBulkUpdateComplete?: () => void;
+  createButton?: React.ReactNode;
 }
 
 export const GoogleCampaignDetailAdGroupsTab: React.FC<
@@ -79,6 +80,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
   onStartNameEdit,
   accountId,
   onBulkUpdateComplete,
+  createButton,
 }) => {
   const [editingAdGroupId, setEditingAdGroupId] = useState<number | null>(null);
   const [editingField, setEditingField] = useState<"status" | "bid" | null>(
@@ -94,17 +96,6 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
   const [updatingAdGroupId, setUpdatingAdGroupId] = useState<number | null>(
     null
   );
-  const [showBulkActions, setShowBulkActions] = useState(false);
-  const [pendingStatusAction, setPendingStatusAction] = useState<
-    "ENABLED" | "PAUSED" | null
-  >(null);
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  const [bulkLoading, setBulkLoading] = useState(false);
-  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
-    updated: number;
-    failed: number;
-    errors: string[];
-  } | null>(null);
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
   const [inlineEditAdGroup, setInlineEditAdGroup] = useState<GoogleAdGroup | null>(null);
@@ -118,28 +109,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
     newBid: number;
   } | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const statusSelectionMadeRef = useRef<number | null>(null);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowBulkActions(false);
-      }
-    };
-
-    if (showBulkActions) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showBulkActions]);
 
   const handleStatusClick = (adgroup: GoogleAdGroup) => {
     if (onUpdateAdGroupStatus) {
@@ -245,8 +215,10 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
       const statusDisplayMap: Record<string, string> = {
         ENABLED: "Enabled",
         PAUSED: "Paused",
+        REMOVED: "Remove",
         Enabled: "Enabled",
         Paused: "Paused",
+        Removed: "Remove",
       };
       const oldValue = statusDisplayMap[oldStatusRaw] || oldStatusRaw;
       const newValue = statusDisplayMap[newStatusRaw] || newStatusRaw;
@@ -385,61 +357,6 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
     setEditingValue("");
   };
 
-  const handleBulkStatusUpdate = async (status: "ENABLED" | "PAUSED") => {
-    if (!accountId || selectedAdGroupIds.size === 0) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setBulkLoading(true);
-      const selectedAdGroupIdsArray = Array.from(selectedAdGroupIds).map(
-        (id) => {
-          const adgroup = adgroups.find((ag) => ag.id === id);
-          return adgroup?.adgroup_id || id;
-        }
-      );
-
-      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(
-        accountIdNum,
-        {
-          adgroupIds: selectedAdGroupIdsArray,
-          action: "status",
-          status: status,
-        }
-      );
-
-      // Store results
-      setBulkUpdateResults({
-        updated: response.updated || 0,
-        failed: response.failed || 0,
-        errors: response.errors || [],
-      });
-
-      // Refresh data if callback provided
-      if (onBulkUpdateComplete) {
-        onBulkUpdateComplete();
-      } else if (onRefresh) {
-        onRefresh();
-      }
-
-      // Clear selection - use onSelectAll to clear all
-      onSelectAll(false);
-    } catch (error: any) {
-      console.error("Failed to bulk update ad groups:", error);
-      const errorMessage =
-        error?.response?.data?.error ||
-        error?.message ||
-        "Failed to update ad groups. Please try again.";
-      alert(errorMessage);
-      setBulkUpdateResults({
-        updated: 0,
-        failed: selectedAdGroupIds.size,
-        errors: [errorMessage],
-      });
-    } finally {
-      setBulkLoading(false);
-    }
-  };
   return (
     <>
       {/* Sync Message */}
@@ -464,63 +381,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
           Ad Groups
         </h2>
         <div className="flex items-center gap-2">
-          <div
-            className="relative inline-flex justify-end"
-            ref={dropdownRef}
-          >
-            <Button
-              type="button"
-              variant="ghost"
-              className="edit-button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowBulkActions((prev) => !prev);
-              }}
-            >
-              <svg
-                className="w-5 h-5 text-[#072929]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                />
-              </svg>
-              <span className="text-[10.64px] text-[#072929] font-normal">
-                Edit
-              </span>
-            </Button>
-            {showBulkActions && (
-              <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                <div className="overflow-y-auto">
-                  {[
-                    { value: "ENABLED", label: "Enabled" },
-                    { value: "PAUSED", label: "Pause" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                      disabled={selectedAdGroupIds.size === 0}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (selectedAdGroupIds.size === 0) return;
-                        setPendingStatusAction(opt.value as "ENABLED" | "PAUSED");
-                        setShowConfirmationModal(true);
-                        setShowBulkActions(false);
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          {createButton}
           <button
             onClick={onToggleFilterPanel}
             className="edit-button"
@@ -656,13 +517,13 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                       {getSortIcon("name", sortBy, sortOrder)}
                     </div>
                   </th>
-                  <th className="table-header" onClick={() => onSort("status")}>
+                  <th className="table-header hidden md:table-cell w-[150px] max-w-[150px]" onClick={() => onSort("status")}>
                     <div className="flex items-center gap-1">
-                      State
+                      Status
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
                   </th>
-                  <th className="table-header hidden md:table-cell" onClick={() => onSort("cpc_bid_dollars")}>
+                  <th className="table-header hidden md:table-cell w-[130px] max-w-[130px]" onClick={() => onSort("cpc_bid_dollars")}>
                     <div className="flex items-center gap-1">
                       Default max. CPC
                       {getSortIcon("cpc_bid_dollars", sortBy, sortOrder)}
@@ -745,12 +606,14 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
               <tbody>
                 {adgroups.map((adgroup, index) => {
                   const isLastRow = index === adgroups.length - 1;
+                  const adgroupStatus = (adgroup.status || "").toUpperCase();
+                  const isRemoved = adgroupStatus === "REMOVED";
                   return (
                     <tr
                       key={adgroup.id}
                       className={`${
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } hover:bg-gray-50 transition-colors`}
+                      } ${isRemoved ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"} transition-colors`}
                     >
                       <td className="table-cell">
                         <div className="flex items-center justify-center">
@@ -777,7 +640,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                           {adgroup.adgroup_name || adgroup.name || "—"}
                         </span>
                       </td>
-                      <td className="table-cell hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell w-[150px] max-w-[150px]">
                         <div className="relative w-full">
                           {updatingAdGroupId === adgroup.id &&
                           pendingChange?.field === "status" ? (
@@ -832,19 +695,28 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                             </div>
                           ) : editingAdGroupId === adgroup.id &&
                             editingField === "status" &&
-                            onUpdateAdGroupStatus ? (
-                            <div className="flex items-center gap-2">
+                            onUpdateAdGroupStatus && !isRemoved ? (
+                            <div className="flex items-center gap-2 w-full relative" onClick={(e) => e.stopPropagation()}>
                               <Dropdown
                                 options={[
                                   { value: "ENABLED", label: "Enabled" },
                                   { value: "PAUSED", label: "Paused" },
+                                  { value: "REMOVED", label: "Remove" },
                                 ]}
                                 value={editingValue}
+                                disabled={isRemoved}
                                 onChange={(val) => {
                                   // Mark that a selection was made (matches Google campaign table pattern)
                                   statusSelectionMadeRef.current = adgroup.id;
                                   const newValue = val as string;
                                   setEditingValue(newValue);
+                                  
+                                  // Close dropdown immediately when REMOVED is selected
+                                  if (newValue === "REMOVED") {
+                                    setEditingAdGroupId(null);
+                                    setEditingField(null);
+                                  }
+                                  
                                   // Call confirmInlineEdit immediately when a value is selected
                                   // This will trigger the modal confirmation (matches Google campaign table pattern)
                                   confirmInlineEdit(newValue);
@@ -881,20 +753,24 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                               type="button"
                               className={
                                 onUpdateAdGroupStatus
-                                  ? "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between"
-                                  : "inline-edit-dropdown w-full text-[13.3px] min-w-0 flex items-center justify-between cursor-default"
+                                  ? "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between"
+                                  : "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between cursor-default"
                               }
-                              onClick={() =>
-                                onUpdateAdGroupStatus &&
-                                handleStatusClick(adgroup)
-                              }
-                              disabled={!onUpdateAdGroupStatus}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onUpdateAdGroupStatus && !isRemoved) {
+                                  handleStatusClick(adgroup);
+                                }
+                              }}
+                              disabled={!onUpdateAdGroupStatus || isRemoved}
                             >
                               <span className="truncate flex-1 min-w-0 text-left">
                                 {adgroup.status === "ENABLED" || adgroup.status === "Enabled" || adgroup.status === "ENABLE"
                                   ? "Enabled"
                                   : adgroup.status === "PAUSED" || adgroup.status === "Paused" || adgroup.status === "PAUSE"
                                   ? "Paused"
+                                  : adgroup.status === "REMOVED" || adgroup.status === "Removed" || adgroup.status === "REMOVE"
+                                  ? "Remove"
                                   : adgroup.status || "Enabled"}
                               </span>
                               {onUpdateAdGroupStatus && (
@@ -916,14 +792,12 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                           )}
                         </div>
                       </td>
-                      <td className="table-cell hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell w-[130px] max-w-[130px]">
                         {updatingAdGroupId === adgroup.id &&
                         pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
                             <span className="table-text leading-[1.26]">
-                              {formatCurrency2Decimals(
-                                parseFloat(pendingChange.newValue)
-                              )}
+                              {parseFloat(pendingChange.newValue).toFixed(2)}
                             </span>
                             <Loader size="sm" showMessage={false} />
                           </div>
@@ -931,9 +805,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                           pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
                             <span className="table-text leading-[1.26]">
-                              {formatCurrency2Decimals(
-                                parseFloat(pendingChange.newValue)
-                              )}
+                              {parseFloat(pendingChange.newValue).toFixed(2)}
                             </span>
                             <div className="flex items-center gap-1">
                               <button
@@ -979,7 +851,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                         ) : editingAdGroupId === adgroup.id &&
                           editingField === "bid" &&
                           onUpdateAdGroupBid ? (
-                          <div className="relative" style={{ width: "96px" }}>
+                          <div className="relative w-full">
                             <input
                               type="number"
                               step="0.01"
@@ -1000,13 +872,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                 }
                               }}
                               autoFocus
-                              className="inline-edit-input"
-                              style={{ 
-                                width: "96px", 
-                                minWidth: "96px", 
-                                maxWidth: "96px",
-                                boxSizing: "border-box"
-                              }}
+                              className="inline-edit-input w-full min-w-[130px] max-w-[130px]"
                             />
                           </div>
                         ) : (
@@ -1021,11 +887,11 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                             disabled={!onUpdateAdGroupBid}
                             className={
                               onUpdateAdGroupBid
-                                ? "inline-edit-input w-24 cursor-pointer text-left disabled:cursor-default"
-                                : "inline-edit-input w-24 cursor-default text-left"
+                                ? "inline-edit-input w-full min-w-[120px] max-w-[120px] cursor-pointer text-left disabled:cursor-default"
+                                : "inline-edit-input w-full min-w-[120px] max-w-[120px] cursor-default text-left"
                             }
                           >
-                            {formatCurrency2Decimals(adgroup.cpc_bid_dollars)}
+                            {(adgroup.cpc_bid_dollars || 0).toFixed(2)}
                           </button>
                         )}
                       </td>
@@ -1166,111 +1032,6 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
             >
               Next
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Bulk Status Update Confirmation Modal */}
-      {showConfirmationModal && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !bulkLoading) {
-              setShowConfirmationModal(false);
-              setPendingStatusAction(null);
-            }
-          }}
-        >
-          <div
-            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-              Confirm Status Change
-            </h3>
-
-            <div className="mb-4">
-              <p className="text-[12.16px] text-[#556179] mb-2">
-                {selectedAdGroupIds.size} ad group
-                {selectedAdGroupIds.size !== 1 ? "s" : ""} will be updated
-              </p>
-              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-[12.16px] text-[#556179]">
-                    New Status:
-                  </span>
-                  <span className="text-[12.16px] font-semibold text-[#072929]">
-                    {pendingStatusAction
-                      ? pendingStatusAction.charAt(0) +
-                        pendingStatusAction.slice(1).toLowerCase()
-                      : ""}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {bulkUpdateResults && (
-              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                <p className="text-[12.16px] text-[#556179] mb-1">
-                  Updated: {bulkUpdateResults.updated} | Failed:{" "}
-                  {bulkUpdateResults.failed}
-                </p>
-                {bulkUpdateResults.errors.length > 0 && (
-                  <div className="mt-2">
-                    {bulkUpdateResults.errors.map((error, idx) => (
-                      <p
-                        key={idx}
-                        className="text-[11px] text-red-600 mt-1"
-                      >
-                        {error}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3">
-              {bulkUpdateResults ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowConfirmationModal(false);
-                    setShowBulkActions(false);
-                    setPendingStatusAction(null);
-                    setBulkUpdateResults(null);
-                  }}
-                  className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
-                >
-                  Close
-                </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowConfirmationModal(false);
-                      setPendingStatusAction(null);
-                    }}
-                    className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (pendingStatusAction) {
-                        await handleBulkStatusUpdate(pendingStatusAction);
-                      }
-                    }}
-                    disabled={bulkLoading}
-                    className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {bulkLoading ? "Updating..." : "Confirm"}
-                  </button>
-                </>
-              )}
-            </div>
           </div>
         </div>
       )}

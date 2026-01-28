@@ -1,4 +1,9 @@
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
+import {
+  getStatusWithDefault,
+  formatStatusForDisplay,
+  convertStatusToApi,
+} from "./utils/googleAdsUtils";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
@@ -18,6 +23,8 @@ import { useChartCollapse } from "../../hooks/useChartCollapse";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { GoogleAdsListTable } from "./components/GoogleAdsListTable";
 import { Loader } from "../../components/ui/Loader";
+import { ConfirmationModal } from "../../components/ui/ConfirmationModal";
+import { TrashIcon } from "lucide-react";
 import type { GoogleAd } from "./components/tabs/GoogleTypes";
 
 export const GoogleAds: React.FC = () => {
@@ -53,21 +60,20 @@ export const GoogleAds: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(true);
   const [sorting, setSorting] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const [syncingAnalytics, setSyncingAnalytics] = useState(false);
   const [analyticsSyncMessage, setAnalyticsSyncMessage] = useState<
     string | null
   >(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
-  const [total, setTotal] = useState(0);
+  const [, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<string>("sales");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
   const isLoadingRef = useRef(false);
+  const lastRequestParamsRef = useRef<string>(""); // Track last request to prevent duplicate calls
 
   // Chart toggles
   const [chartToggles, setChartToggles] = useState({
@@ -107,7 +113,7 @@ export const GoogleAds: React.FC = () => {
     field: "status";
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
-  const [isCancelling, setIsCancelling] = useState(false);
+  const isCancellingRef = useRef(false);
   const [updatingField, setUpdatingField] = useState<{
     adId: string | number;
     field: "status";
@@ -131,6 +137,10 @@ export const GoogleAds: React.FC = () => {
   const [exportLoading, setExportLoading] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
+  const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
+  const [pendingRemoveChange, setPendingRemoveChange] = useState<{
+    adId: string | number;
+  } | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -199,6 +209,26 @@ export const GoogleAds: React.FC = () => {
       resetPageTitle();
     };
   }, []);
+
+  // Auto-hide success message after 2 seconds
+  useEffect(() => {
+    if (inlineEditSuccess) {
+      const timer = setTimeout(() => {
+        setInlineEditSuccess(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [inlineEditSuccess]);
+
+  // Auto-hide error message after 2 seconds
+  useEffect(() => {
+    if (inlineEditError) {
+      const timer = setTimeout(() => {
+        setInlineEditError(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [inlineEditError]);
 
   // Removed buildFilterParams - now passing filters array directly to service
 
@@ -282,7 +312,7 @@ export const GoogleAds: React.FC = () => {
   }, [filters, sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString()]);
 
   // Sync status hook (after loadAds is defined)
-  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+  const { SyncStatusBanner } = useGoogleSyncStatus({
     accountId,
     entityType: "ads",
     currentData: ads,
@@ -295,178 +325,31 @@ export const GoogleAds: React.FC = () => {
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
       if (!isNaN(accountIdNum)) {
-        loadAds(accountIdNum);
+        // Create a unique key for this request to prevent duplicate calls
+        const requestKey = JSON.stringify({
+          accountId: accountIdNum,
+          currentPage,
+          filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
+          startDate: startDate ? startDate.toISOString().split("T")[0] : null,
+          endDate: endDate ? endDate.toISOString().split("T")[0] : null,
+        });
+
+        // Only call loadAds if the request parameters have actually changed
+        if (lastRequestParamsRef.current !== requestKey) {
+          lastRequestParamsRef.current = requestKey;
+          loadAds(accountIdNum);
+        }
       } else {
         setLoading(false);
       }
     } else {
       setLoading(false);
     }
-  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadAds, sorting]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
 
-  const loadAdsWithFilters = async (
-    accountId: number,
-    filterList: FilterValues
-  ) => {
-    try {
-      setLoading(true);
-      const params: any = {
-        filters: filterList, // Pass filters array directly
-        sort_by: sortBy,
-        order: sortOrder,
-        page: 1,
-        page_size: itemsPerPage,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-      };
 
-      const response = await googleAdwordsAdsService.getGoogleAds(
-        accountId,
-        undefined,
-        undefined,
-        params
-      );
-      setAds(Array.isArray(response.ads) ? response.ads : []);
-      setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
-      // Store chart data from API if available
-      const responseWithChart = response as any;
-      if (
-        responseWithChart.chart_data &&
-        Array.isArray(responseWithChart.chart_data)
-      ) {
-        setChartDataFromApi(responseWithChart.chart_data);
-      } else {
-        setChartDataFromApi([]);
-      }
-          if (responseWithChart.summary) {
-            setSummary(responseWithChart.summary);
-          } else {
-            setSummary(null);
-          }
-          setSelectedAds(new Set());
-    } catch (error) {
-      console.error("Failed to load Google ads:", error);
-      setAds([]);
-      setTotalPages(0);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleSync = async () => {
-    if (!accountId) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setSyncing(true);
-      setSyncMessage(null);
-      const result = await googleAdwordsAdsService.syncGoogleAds(accountIdNum);
-      let message =
-        result.message || `Successfully synced ${result.synced} ads`;
-
-      if (result.errors && result.errors.length > 0) {
-        const errorDetails = (result as any).error_details || result.errors;
-        const errorText = errorDetails.slice(0, 3).join("; ");
-        message += ` Errors: ${errorText}`;
-        if (result.errors.length > 3) {
-          message += ` (and ${result.errors.length - 3} more)`;
-        }
-      }
-
-      setSyncMessage(message);
-
-      // Check sync status immediately after triggering sync
-      await checkSyncStatus();
-
-      if (result.synced > 0) {
-        setCurrentPage(1);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-      await loadAds(accountIdNum);
-
-      if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage(null), 5000);
-      } else if (result.errors) {
-        setTimeout(() => setSyncMessage(null), 15000);
-      }
-    } catch (error: any) {
-      console.error("Failed to sync ads:", error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.message ||
-        "Failed to sync ads from Google Ads";
-      setSyncMessage(errorMessage);
-      setTimeout(() => setSyncMessage(null), 8000);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleSyncAnalytics = async () => {
-    if (!accountId) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setSyncingAnalytics(true);
-      setAnalyticsSyncMessage(null);
-
-      // Always use 1 year date range for analytics sync (365 days)
-      const today = new Date();
-      const oneYearAgo = new Date();
-      oneYearAgo.setDate(oneYearAgo.getDate() - 365);
-      
-      const result = await googleAdwordsAdsService.syncGoogleAdAnalytics(
-        accountIdNum,
-        oneYearAgo.toISOString().split("T")[0],
-        today.toISOString().split("T")[0]
-      );
-
-      let message =
-        result.message ||
-        `Successfully synced analytics: ${
-          result.rows_inserted || 0
-        } inserted, ${result.rows_updated || 0} updated`;
-
-      if (result.errors && result.errors.length > 0) {
-        const errorDetails = (result as any).error_details || result.errors;
-        const errorText = errorDetails.slice(0, 3).join("; ");
-        message += ` Errors: ${errorText}`;
-        if (result.errors.length > 3) {
-          message += ` (and ${result.errors.length - 3} more)`;
-        }
-      }
-
-      setAnalyticsSyncMessage(message);
-
-      if ((result.rows_inserted || 0) > 0 || (result.rows_updated || 0) > 0) {
-        setCurrentPage(1);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        await loadAds(accountIdNum);
-      }
-
-      if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        setTimeout(() => setAnalyticsSyncMessage(null), 5000);
-      } else if (result.errors) {
-        setTimeout(() => setAnalyticsSyncMessage(null), 15000);
-      }
-    } catch (error: any) {
-      console.error("Failed to sync analytics:", error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.message ||
-        "Failed to sync ad analytics from Google Ads";
-      setAnalyticsSyncMessage(errorMessage);
-      setTimeout(() => setAnalyticsSyncMessage(null), 8000);
-    } finally {
-      setSyncingAnalytics(false);
-    }
-  };
 
   const handleSort = async (column: string) => {
     if (sorting) return;
@@ -607,17 +490,16 @@ export const GoogleAds: React.FC = () => {
   const startInlineEdit = (ad: GoogleAd, field: "status") => {
     setEditingCell({ adId: ad.ad_id || ad.id, field });
     if (field === "status") {
-      setEditedValue(ad.status || "ENABLED");
+      setEditedValue(getStatusWithDefault(ad.status));
     }
   };
 
   const cancelInlineEdit = () => {
-    setIsCancelling(true);
+    isCancellingRef.current = true;
     setEditingCell(null);
     setEditedValue("");
-    setTimeout(() => {
-      setIsCancelling(false);
-    }, 100);
+    // Reset immediately after state updates
+    isCancellingRef.current = false;
   };
 
   const handleInlineEditChange = (value: string) => {
@@ -633,14 +515,14 @@ export const GoogleAds: React.FC = () => {
     const adIdToUse = adIdOverride || editingCell?.adId;
     const fieldToUse = (field || editingCell?.field) as "status" | undefined;
     
-    if (!adIdToUse || !fieldToUse || fieldToUse !== "status" || !accountId || isCancelling) return;
+    if (!adIdToUse || !fieldToUse || fieldToUse !== "status" || !accountId || isCancellingRef.current) return;
 
     const ad = ads.find((a) => (a.ad_id || a.id) === adIdToUse);
     if (!ad) return;
 
     const valueToCheck =
       newValueOverride !== undefined ? newValueOverride : editedValue;
-    const oldValue = (ad.status || "ENABLED").trim();
+    const oldValue = getStatusWithDefault(ad.status).trim();
     const newValue = valueToCheck.trim();
     const hasChanged = newValue !== oldValue;
 
@@ -649,49 +531,41 @@ export const GoogleAds: React.FC = () => {
       return;
     }
 
-    // Clear any previous errors
-    setInlineEditError(null);
-
-    // Set updating field immediately to show loading in the correct row
-    setUpdatingField({
-      adId: adIdToUse,
-      field: "status",
-      newValue: newValue,
-    });
-
-    // Clear editingCell if it matches the current update
-    if (!editingCell || (editingCell.adId === adIdToUse && editingCell.field === fieldToUse)) {
-      setEditingCell(null);
+    // Check if status is being changed to REMOVED - show remove confirmation modal
+    if (newValue.toUpperCase() === "REMOVED") {
+      cancelInlineEdit();
+      setPendingRemoveChange({ adId: adIdToUse });
+      setShowRemoveConfirmation(true);
+      return;
     }
 
-    // Directly call runInlineEditDirect for status updates (skip modal)
-    runInlineEditDirect(ad, "status", newValue);
+    // Show modal for confirmation
+    setInlineEditAd(ad);
+    setInlineEditField("status");
+    setInlineEditOldValue(oldValue);
+    setInlineEditNewValue(newValue);
+    setShowInlineEditModal(true);
+    setEditingCell(null);
   };
 
-  // Direct version that accepts parameters to avoid state timing issues
-  const runInlineEditDirect = async (ad: GoogleAd, field: string, newValue: string) => {
-    if (!ad || !field || !accountId) return;
 
+  // Original runInlineEdit for modal-based updates (if needed in future)
+  const runInlineEdit = async () => {
+    if (!inlineEditAd || !inlineEditField || !accountId) return;
+
+    setInlineEditLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) {
         throw new Error("Invalid account ID");
       }
 
-      if (field === "status") {
-        // Map status values: Google API uses "ENABLED" | "PAUSED" | "REMOVED" (uppercase)
-        const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
-          ENABLED: "ENABLED",
-          PAUSED: "PAUSED",
-          REMOVED: "REMOVED",
-          Enabled: "ENABLED",
-          Paused: "PAUSED",
-          Removed: "REMOVED",
-        };
-        const statusValue = statusMap[newValue] || "ENABLED";
+      if (inlineEditField === "status") {
+        // Convert display status to API format
+        const statusValue = convertStatusToApi(inlineEditNewValue);
 
         const response = await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
-          adIds: [ad.ad_id || ad.id],
+          adIds: [inlineEditAd.ad_id || inlineEditAd.id],
           action: "status",
           status: statusValue,
         });
@@ -703,26 +577,91 @@ export const GoogleAds: React.FC = () => {
 
       await loadAds(accountIdNum);
       
+      setShowInlineEditModal(false);
+      setInlineEditAd(null);
+      setInlineEditField(null);
+      setInlineEditOldValue("");
+      setInlineEditNewValue("");
+      
       // Clear any previous errors
       setInlineEditError(null);
       
       // Show success feedback
       setInlineEditSuccess({
-        adId: ad.ad_id || ad.id,
-        field: field,
+        adId: inlineEditAd.ad_id || inlineEditAd.id,
+        field: inlineEditField,
       });
-      // Clear success feedback after 3 seconds
-      setTimeout(() => {
-        setInlineEditSuccess(null);
-      }, 3000);
     } catch (error: any) {
       console.error("Error updating ad:", error);
-
+      
       // Clear any previous success
       setInlineEditSuccess(null);
-
-      // Set error state for inline feedback
+      
+      // Set error state
       let errorMessage = "Failed to update ad. Please try again.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error?.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (
+          error.response.data.errors &&
+          Array.isArray(error.response.data.errors) &&
+          error.response.data.errors.length > 0
+        ) {
+          errorMessage = error.response.data.errors[0];
+        }
+      }
+      
+      setInlineEditError({
+        adId: inlineEditAd.ad_id || inlineEditAd.id,
+        field: inlineEditField || "status",
+        message: errorMessage,
+      });
+    } finally {
+      setInlineEditLoading(false);
+    }
+  };
+
+  // Handle confirmation for REMOVED status change
+  const handleConfirmRemove = async () => {
+    if (!pendingRemoveChange || !accountId) return;
+
+    setInlineEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const statusValue = convertStatusToApi("REMOVED");
+      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
+        adIds: [pendingRemoveChange.adId],
+        action: "status",
+        status: statusValue,
+      });
+
+      await loadAds(accountIdNum);
+      
+      setShowRemoveConfirmation(false);
+      setPendingRemoveChange(null);
+      
+      // Clear any previous errors
+      setInlineEditError(null);
+      
+      // Show success feedback
+      setInlineEditSuccess({
+        adId: pendingRemoveChange.adId,
+        field: "status",
+      });
+    } catch (error: any) {
+      console.error("Failed to remove ad:", error);
+      
+      // Clear any previous success
+      setInlineEditSuccess(null);
+      
+      // Set error state for inline feedback
+      let errorMessage = "Failed to remove ad. Please try again.";
       
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -737,68 +676,23 @@ export const GoogleAds: React.FC = () => {
           errorMessage = error.response.data.errors[0];
         }
       }
-
+      
       setInlineEditError({
-        adId: ad.ad_id || ad.id,
-        field: field,
+        adId: pendingRemoveChange.adId,
+        field: "status",
         message: errorMessage,
       });
-
-      // Auto-dismiss error after 5 seconds
-      setTimeout(() => {
-        setInlineEditError(null);
-      }, 5000);
-    } finally {
-      setUpdatingField(null);
-    }
-  };
-
-  // Original runInlineEdit for modal-based updates (if needed in future)
-  const runInlineEdit = async () => {
-    if (!inlineEditAd || !inlineEditField || !accountId) return;
-
-    setInlineEditLoading(true);
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      if (inlineEditField === "status") {
-        // Map status values: Google API uses "ENABLED" | "PAUSED" | "REMOVED" (uppercase)
-        const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
-          ENABLED: "ENABLED",
-          PAUSED: "PAUSED",
-          REMOVED: "REMOVED",
-          Enabled: "ENABLED",
-          Paused: "PAUSED",
-          Removed: "REMOVED",
-        };
-        const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
-
-        const response = await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
-          adIds: [inlineEditAd.ad_id || inlineEditAd.id],
-          action: "status",
-          status: statusValue,
-        });
-
-        if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0]);
-        }
-      }
-
-      await loadAds(accountIdNum);
-      setShowInlineEditModal(false);
-      setInlineEditAd(null);
-      setInlineEditField(null);
-      setInlineEditOldValue("");
-      setInlineEditNewValue("");
-    } catch (error) {
-      console.error("Error updating ad:", error);
-      alert("Failed to update ad. Please try again.");
     } finally {
       setInlineEditLoading(false);
     }
+  };
+
+  // Handle cancel for REMOVED status change
+  const handleCancelRemove = () => {
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+    // Cancel the inline edit
+    cancelInlineEdit();
   };
 
   const runBulkStatus = async (
@@ -942,12 +836,7 @@ export const GoogleAds: React.FC = () => {
   ], [selectedAds.size]);
 
   const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, string> = {
-      ENABLED: "Enable",
-      PAUSED: "Paused",
-      REMOVED: "Removed",
-    };
-    const statusLabel = statusMap[status.toUpperCase()] || "Paused";
+    const statusLabel = formatStatusForDisplay(status) || "Paused";
     return <StatusBadge status={statusLabel} />;
   };
 
@@ -976,7 +865,7 @@ export const GoogleAds: React.FC = () => {
                 day: "numeric",
               });
             }
-          } catch (e) {
+          } catch {
             formattedDate = item.date;
           }
         }
@@ -1124,6 +1013,7 @@ export const GoogleAds: React.FC = () => {
                 }))}
                 accountId={accountId}
                 marketplace="google_adwords"
+                entityType="ads"
               />
             )}
 
@@ -1452,7 +1342,7 @@ export const GoogleAds: React.FC = () => {
                               </thead>
                               <tbody>
                                 {selectedAdsData.slice(0, 10).map((ad) => {
-                                  const oldStatus = ad.status || "ENABLED";
+                                  const oldStatus = getStatusWithDefault(ad.status);
                                   const newStatus = pendingStatusAction
                                     ? pendingStatusAction
                                     : oldStatus;
@@ -1560,11 +1450,11 @@ export const GoogleAds: React.FC = () => {
                   }}
                 >
                   <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
-                    <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
                       Confirm Status Change
                     </h3>
                     <div className="mb-4">
-                      <p className="text-[12.8px] text-[#556179] mb-2">
+                      <p className="text-[12.16px] text-[#556179] mb-2">
                         Ad ID:{" "}
                         <span className="font-semibold text-[#072929]">
                           {inlineEditAd.ad_id || inlineEditAd.id}
@@ -1572,17 +1462,17 @@ export const GoogleAds: React.FC = () => {
                       </p>
                       <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
                         <div className="flex justify-between items-center">
-                          <span className="text-[12.8px] text-[#556179]">
+                          <span className="text-[12.16px] text-[#556179]">
                             Status:
                           </span>
                           <div className="flex items-center gap-2">
-                            <span className="text-[12.8px] text-[#556179]">
+                            <span className="text-[12.16px] text-[#556179]">
                               {inlineEditOldValue}
                             </span>
-                            <span className="text-[12.8px] text-[#556179]">
+                            <span className="text-[12.16px] text-[#556179]">
                               →
                             </span>
-                            <span className="text-[12.8px] font-semibold text-[#072929]">
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
                               {inlineEditNewValue}
                             </span>
                           </div>
@@ -1631,7 +1521,7 @@ export const GoogleAds: React.FC = () => {
                     sortOrder={sortOrder}
                     editingCell={editingCell}
                     editedValue={editedValue}
-                    isCancelling={isCancelling}
+                    isCancelling={isCancellingRef.current}
                     updatingField={updatingField}
                     pendingStatusChange={null}
                     summary={summary}
@@ -1734,6 +1624,17 @@ export const GoogleAds: React.FC = () => {
           </div>
         </div>
       </div>
+      <ConfirmationModal
+        isOpen={showRemoveConfirmation}
+        onClose={handleCancelRemove}
+        onConfirm={handleConfirmRemove}
+        title="Are you sure you want to remove this ad?"
+        message="This action cannot be undone. All data associated with this ad will be permanently removed."
+        type="danger"
+        size="sm"
+        isLoading={inlineEditLoading}
+        icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+      />
     </div>
   );
 };

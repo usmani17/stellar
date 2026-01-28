@@ -194,7 +194,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
         { value: "PAUSED", label: "Paused" },
-        { value: "REMOVED", label: "Removed" },
+        { value: "REMOVED", label: "Remove" },
       ],
       getValue: (row: GoogleAd) => row.status || "ENABLED",
     },
@@ -299,6 +299,16 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
 
   const handleConfirmInlineEdit = (value: string, field?: string, itemId?: string | number) => {
     if (field === "status") {
+      // For REMOVED status, close the dropdown and let parent handle the modal
+      if (value === "REMOVED") {
+        // Close the dropdown immediately when modal appears
+        if (onCancelInlineEdit) {
+          onCancelInlineEdit();
+        }
+        // Pass to parent - it will handle showing the confirmation modal
+        onConfirmInlineEdit(value, field, itemId);
+        return;
+      }
       onConfirmInlineEdit(value, field, itemId);
     }
   };
@@ -316,6 +326,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
   };
 
   return (
+    <>
     <GoogleAdsTable
       data={ads}
       loading={loading}
@@ -357,6 +368,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       getStatusBadge={getStatusBadge}
       getSortIcon={getSortIcon}
     />
+  </>
   );
 };
 

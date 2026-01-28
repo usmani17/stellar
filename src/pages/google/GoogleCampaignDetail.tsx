@@ -7,6 +7,7 @@ import { KPICard } from "../../components/ui/KPICard";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
+import { accountsService } from "../../services/accounts";
 import type { FilterValues } from "../../components/filters/FilterPanel";
 import { GoogleOverviewTab } from "./components/tabs/GoogleOverviewTab";
 import { GoogleCampaignDetailAdGroupsTab } from "./components/tabs/GoogleCampaignDetailAdGroupsTab";
@@ -17,6 +18,7 @@ import { GoogleCampaignDetailAssetGroupsTab } from "./components/tabs/GoogleCamp
 import { GoogleCampaignDetailProductGroupsTab } from "./components/tabs/GoogleCampaignDetailProductGroupsTab";
 import { GoogleCampaignDetailLogsTab } from "./components/tabs/GoogleCampaignDetailLogsTab";
 import { GoogleCampaignInformation } from "./components/GoogleCampaignInformation";
+import { GoogleAssetManagementPanel } from "../../components/google/GoogleAssetManagementPanel";
 import {
   CreateGoogleAdGroupPanel,
 } from "../../components/google/CreateGoogleAdGroupPanel";
@@ -101,6 +103,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate } = useDateRange();
   const [activeTab, setActiveTab] = useState("Overview");
+  const [campaignAssetPanelOpen, setCampaignAssetPanelOpen] = useState(false);
 
   // Use campaign detail hook
   const {
@@ -116,6 +119,50 @@ export const GoogleCampaignDetail: React.FC = () => {
     startDate,
     endDate,
   });
+
+  // Get profileId for asset management (using customer_id to find profile)
+  const [profileId, setProfileId] = useState<number | null>(null);
+  
+  useEffect(() => {
+    const fetchProfileId = async () => {
+      if (!accountId || !campaignDetail?.campaign.customer_id) return;
+      
+      try {
+        const accountIdNum = parseInt(accountId, 10);
+        // Get channels for the account
+        const channels = await accountsService.getAccountChannels(accountIdNum);
+        // Find Google channel
+        const googleChannel = channels.find(c => c.channel_type === "google");
+        if (googleChannel?.id) {
+          const profilesData = await accountsService.getGoogleProfiles(googleChannel.id, true);
+          const profiles = profilesData.profiles || [];
+          // Find profile matching customer_id
+          const matchingProfile = profiles.find((p: any) => {
+            const profileCustomerId = p.customer_id_raw || p.customer_id?.replace(/-/g, '');
+            const campaignCustomerId = campaignDetail.campaign.customer_id?.replace(/-/g, '');
+            return profileCustomerId === campaignCustomerId;
+          });
+          if (matchingProfile?.id) {
+            setProfileId(matchingProfile.id);
+          } else {
+            // Fallback: use first profile or default to 21 for testing
+            setProfileId(profiles[0]?.id || 21);
+          }
+        } else {
+          // Default to 21 for testing if no channel found
+          setProfileId(21);
+        }
+      } catch (err) {
+        console.error("Failed to fetch profile ID:", err);
+        // Default to 21 for testing
+        setProfileId(21);
+      }
+    };
+    
+    if (campaignDetail?.campaign.customer_id) {
+      fetchProfileId();
+    }
+  }, [accountId, campaignDetail?.campaign.customer_id]);
 
   // Use Negative Keywords hook
   const negativeKeywordsHook = useGoogleCampaignDetailNegativeKeywords({
@@ -217,7 +264,7 @@ export const GoogleCampaignDetail: React.FC = () => {
       campaignDetail.campaign.advertising_channel_type.toUpperCase();
 
     if (channelType === "PERFORMANCE_MAX") {
-      return ["Overview", "Asset Groups", "Negative Keywords", "Logs"];
+      return ["Overview", "Asset Groups", "Audience Signal", "Negative Keywords", "Logs"];
     } else if (channelType === "SHOPPING") {
       return ["Overview", "Ad Groups", "Product Groups", "Logs"];
     } else {
@@ -344,6 +391,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     isCreateSearchEntitiesPanelOpen,
     setIsCreateSearchEntitiesPanelOpen,
     createSearchEntitiesLoading,
+    setCreateSearchEntitiesLoading,
     setCreateSearchEntitiesError,
     isCreateShoppingEntitiesPanelOpen,
     setIsCreateShoppingEntitiesPanelOpen,
@@ -501,6 +549,12 @@ export const GoogleCampaignDetail: React.FC = () => {
     handleUpdateAssetGroupStatus,
     handleUpdateAssetGroup,
     handleCloseEditPanel,
+    handleViewAssets,
+    handleCloseViewAssetsModal,
+    viewAssetsModalOpen,
+    viewingAssetGroupName,
+    assetGroupAssets,
+    loadingAssets,
   } = assetGroupsHook;
 
   // Use Product Groups hook
@@ -556,12 +610,12 @@ export const GoogleCampaignDetail: React.FC = () => {
 
   // handleCreateAdGroup is now in useGoogleCampaignDetailAdGroups hook
 
-  // Handler for creating Ad (ad group + ad)
+  // Handler for creating Ad (using existing adgroup)
   const handleCreateAd = async (entity: AdInput) => {
     if (!accountId || !campaignId) return;
 
-    setIsCreateSearchEntitiesPanelOpen(true);
-    // Note: createSearchEntitiesLoading is managed by the hook
+    setCreateSearchEntitiesLoading(true);
+    setCreateSearchEntitiesError(null);
 
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -581,17 +635,13 @@ export const GoogleCampaignDetail: React.FC = () => {
       );
 
       // Build summary message - only count entities that were actually created
-      const adgroupCount = response.adgroup ? 1 : 0;
+      // Note: We don't create adgroups anymore, only use existing ones
       const adCount = response.ad ? 1 : 0;
       const keywordCount = response.keywords ? response.keywords.length : 0;
       const errorCount = response.errors ? response.errors.length : 0;
 
       // Only count entities that exist in response
       const createdEntities: string[] = [];
-      if (adgroupCount > 0)
-        createdEntities.push(
-          `${adgroupCount} ad group${adgroupCount !== 1 ? "s" : ""}`
-        );
       if (adCount > 0)
         createdEntities.push(`${adCount} ad${adCount !== 1 ? "s" : ""}`);
       if (keywordCount > 0)
@@ -599,7 +649,7 @@ export const GoogleCampaignDetail: React.FC = () => {
           `${keywordCount} keyword${keywordCount !== 1 ? "s" : ""}`
         );
 
-      const totalCreated = adgroupCount + adCount + keywordCount;
+      const totalCreated = adCount + keywordCount;
 
         // Check for errors in response
         if (response.errors && response.errors.length > 0) {
@@ -633,8 +683,10 @@ export const GoogleCampaignDetail: React.FC = () => {
       } else {
         // Success - close panel and show success message
         setIsCreateSearchEntitiesPanelOpen(false);
-        const successMessage = `Successfully created ${totalCreated} ${totalCreated !== 1 ? "entities" : "entity"
-          }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`;
+        const successMessage = totalCreated > 0
+          ? `Successfully created ${totalCreated} ${totalCreated !== 1 ? "entities" : "entity"
+            }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`
+          : "Ad created successfully!";
         setErrorModal({
           isOpen: true,
           title: "Success",
@@ -660,15 +712,17 @@ export const GoogleCampaignDetail: React.FC = () => {
         message: errorMessage,
         isSuccess: false,
       });
+    } finally {
+      setCreateSearchEntitiesLoading(false);
     }
   };
 
-  // Handler for creating Keywords (ad group + minimal ad + keywords)
+  // Handler for creating Keywords (using existing adgroup)
   const handleCreateKeywords = async (entity: KeywordInput) => {
     if (!accountId || !campaignId) return;
 
-    setIsCreateSearchEntitiesPanelOpen(true);
-    // Note: createSearchEntitiesLoading is managed by the hook
+    setCreateSearchEntitiesLoading(true);
+    setCreateSearchEntitiesError(null);
 
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -688,17 +742,13 @@ export const GoogleCampaignDetail: React.FC = () => {
       );
 
       // Build summary message - only count entities that were actually created
-      const adgroupCount = response.adgroup ? 1 : 0;
+      // Note: We don't create adgroups anymore, only use existing ones
       const adCount = response.ad ? 1 : 0;
       const keywordCount = response.keywords ? response.keywords.length : 0;
       const errorCount = response.errors ? response.errors.length : 0;
 
       // Only count entities that exist in response
       const createdEntities: string[] = [];
-      if (adgroupCount > 0)
-        createdEntities.push(
-          `${adgroupCount} ad group${adgroupCount !== 1 ? "s" : ""}`
-        );
       if (adCount > 0)
         createdEntities.push(`${adCount} ad${adCount !== 1 ? "s" : ""}`);
       if (keywordCount > 0)
@@ -706,7 +756,7 @@ export const GoogleCampaignDetail: React.FC = () => {
           `${keywordCount} keyword${keywordCount !== 1 ? "s" : ""}`
         );
 
-      const totalCreated = adgroupCount + adCount + keywordCount;
+      const totalCreated = adCount + keywordCount;
 
         // Check for errors in response
         if (response.errors && response.errors.length > 0) {
@@ -741,8 +791,10 @@ export const GoogleCampaignDetail: React.FC = () => {
       } else {
         // Success - close panel and show success message
         setIsCreateSearchEntitiesPanelOpen(false);
-        const successMessage = `Successfully created ${totalCreated} ${totalCreated !== 1 ? "entities" : "entity"
-          }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`;
+        const successMessage = totalCreated > 0
+          ? `Successfully created ${totalCreated} ${totalCreated !== 1 ? "entities" : "entity"
+            }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`
+          : "Keywords created successfully!";
         setErrorModal({
           isOpen: true,
           title: "Success",
@@ -768,6 +820,8 @@ export const GoogleCampaignDetail: React.FC = () => {
         message: errorMessage,
         isSuccess: false,
       });
+    } finally {
+      setCreateSearchEntitiesLoading(false);
     }
   };
 
@@ -864,34 +918,45 @@ export const GoogleCampaignDetail: React.FC = () => {
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
           <div className="space-y-6">
             {/* Campaign Header - Matching Campaigns page style */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() =>
-                  navigate(`/brands/${accountId}/google-campaigns`)
-                }
-                className="flex items-center gap-2 text-[#072929] hover:text-[#136D6D] transition-colors"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() =>
+                    navigate(`/brands/${accountId}/google-campaigns`)
+                  }
+                  className="flex items-center gap-2 text-[#072929] hover:text-[#136D6D] transition-colors"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-              </button>
-              <h1 className="text-[24px] font-medium text-[#072929] leading-[normal]">
-                {loading
-                  ? "Loading..."
-                  : campaignDetail
-                    ? campaignDetail.campaign.name
-                    : "Campaign Not Found"}
-              </h1>
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                </button>
+                <h1 className="text-[24px] font-medium text-[#072929] leading-[normal]">
+                  {loading
+                    ? "Loading..."
+                    : campaignDetail
+                      ? campaignDetail.campaign.name
+                      : "Campaign Not Found"}
+                </h1>
+              </div>
+              {/* View Campaign Assets Button - Only for PERFORMANCE_MAX campaigns */}
+              {campaignDetail?.campaign.advertising_channel_type === "PERFORMANCE_MAX" && profileId && campaignId && (
+                <button
+                  onClick={() => setCampaignAssetPanelOpen(true)}
+                  className="px-4 py-2 bg-forest-f40 text-white rounded-lg hover:bg-forest-f50 transition-colors text-sm font-medium"
+                >
+                  View Campaign Assets
+                </button>
+              )}
             </div>
 
             {/* Campaign Entity Information Card */}
@@ -995,21 +1060,6 @@ export const GoogleCampaignDetail: React.FC = () => {
                   {campaignDetail?.campaign.advertising_channel_type ===
                     "PERFORMANCE_MAX" && (
                       <>
-                        <div className="mb-4 flex justify-end">
-                          <CreateGooglePmaxAssetGroupSection
-                            isOpen={isCreatePmaxAssetGroupPanelOpen}
-                            onToggle={() => {
-                              setIsCreatePmaxAssetGroupPanelOpen(
-                                !isCreatePmaxAssetGroupPanelOpen
-                              );
-                              setIsAssetGroupsFilterPanelOpen(false);
-                              // Close edit panel when opening create panel
-                              if (!isCreatePmaxAssetGroupPanelOpen) {
-                                handleCloseEditPanel();
-                              }
-                            }}
-                          />
-                        </div>
                         {isCreatePmaxAssetGroupPanelOpen && campaignId && (
                           <CreateGooglePmaxAssetGroupPanel
                             isOpen={isCreatePmaxAssetGroupPanelOpen}
@@ -1021,6 +1071,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                             campaignId={campaignId}
                             loading={createPmaxAssetGroupLoading}
                             submitError={createPmaxAssetGroupError}
+                            profileId={profileId}
                           />
                         )}
                         {isEditAssetGroupPanelOpen &&
@@ -1038,6 +1089,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                                 initialData={editingAssetGroupData}
                                 assetGroupId={editingAssetGroupId}
                                 refreshMessage={refreshAssetGroupMessage}
+                                profileId={profileId}
                               />
                             </div>
                           )}
@@ -1066,15 +1118,6 @@ export const GoogleCampaignDetail: React.FC = () => {
                       setAssetGroupsFilters(newFilters);
                       setAssetGroupsCurrentPage(1);
                     }}
-                    syncing={syncingAssetGroups}
-                    onSync={handleSyncAssetGroups}
-                    syncingAnalytics={false}
-                    onSyncAnalytics={async () => {
-                      // TODO: Implement asset groups analytics sync
-                      console.log(
-                        "Sync asset groups analytics not yet implemented"
-                      );
-                    }}
                     syncMessage={
                       syncMessage.type === "assetgroups"
                         ? syncMessage.message
@@ -1086,8 +1129,47 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onEditAssetGroup={handleEditAssetGroup}
                     editLoadingAssetGroupId={editLoadingAssetGroupId}
                     onUpdateAssetGroupStatus={handleUpdateAssetGroupStatus}
+                    profileId={profileId || undefined}
+                    campaignId={campaignId}
+                    onViewAssets={handleViewAssets}
+                    viewAssetsModalOpen={viewAssetsModalOpen}
+                    viewingAssetGroupName={viewingAssetGroupName}
+                    assetGroupAssets={assetGroupAssets}
+                    loadingAssets={loadingAssets}
+                    onCloseViewAssetsModal={handleCloseViewAssetsModal}
+                    createButton={
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "PERFORMANCE_MAX" ? (
+                        <CreateGooglePmaxAssetGroupSection
+                          isOpen={isCreatePmaxAssetGroupPanelOpen}
+                          onToggle={() => {
+                            setIsCreatePmaxAssetGroupPanelOpen(
+                              !isCreatePmaxAssetGroupPanelOpen
+                            );
+                            setIsAssetGroupsFilterPanelOpen(false);
+                            // Close edit panel when opening create panel
+                            if (!isCreatePmaxAssetGroupPanelOpen) {
+                              handleCloseEditPanel();
+                            }
+                          }}
+                        />
+                      ) : undefined
+                    }
                   />
                 </>
+              )}
+
+              {activeTab === "Audience Signal" && (
+                <div className="flex items-center justify-center py-16">
+                  <div className="text-center">
+                    <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                      Coming Soon
+                    </h3>
+                    <p className="text-[14px] text-[#556179]">
+                      Audience Signal functionality will be available soon.
+                    </p>
+                  </div>
+                </div>
               )}
 
               {activeTab === "Ad Groups" && (
@@ -1098,31 +1180,6 @@ export const GoogleCampaignDetail: React.FC = () => {
                     campaignDetail?.campaign.advertising_channel_type ===
                     "SHOPPING") && (
                       <>
-                        <div className="mb-4 flex justify-end">
-                          <CreateGoogleAdGroupSection
-                            isOpen={
-                              campaignDetail?.campaign
-                                .advertising_channel_type === "SEARCH"
-                                ? isCreateSearchEntitiesPanelOpen
-                                : isCreateShoppingEntitiesPanelOpen
-                            }
-                            onToggle={() => {
-                              if (
-                                campaignDetail?.campaign
-                                  .advertising_channel_type === "SEARCH"
-                              ) {
-                                setIsCreateSearchEntitiesPanelOpen(
-                                  !isCreateSearchEntitiesPanelOpen
-                                );
-                              } else {
-                                setIsCreateShoppingEntitiesPanelOpen(
-                                  !isCreateShoppingEntitiesPanelOpen
-                                );
-                              }
-                              setIsAdGroupsFilterPanelOpen(false);
-                            }}
-                          />
-                        </div>
                         {campaignDetail?.campaign.advertising_channel_type ===
                           "SEARCH" &&
                           isCreateSearchEntitiesPanelOpen &&
@@ -1197,6 +1254,36 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onStartNameEdit={handleStartAdGroupNameEdit}
                     accountId={accountId}
                     onBulkUpdateComplete={loadAdGroups}
+                    createButton={
+                      (campaignDetail?.campaign.advertising_channel_type ===
+                        "SEARCH" ||
+                        campaignDetail?.campaign.advertising_channel_type ===
+                        "SHOPPING") ? (
+                        <CreateGoogleAdGroupSection
+                          isOpen={
+                            campaignDetail?.campaign
+                              .advertising_channel_type === "SEARCH"
+                              ? isCreateSearchEntitiesPanelOpen
+                              : isCreateShoppingEntitiesPanelOpen
+                          }
+                          onToggle={() => {
+                            if (
+                              campaignDetail?.campaign
+                                .advertising_channel_type === "SEARCH"
+                            ) {
+                              setIsCreateSearchEntitiesPanelOpen(
+                                !isCreateSearchEntitiesPanelOpen
+                              );
+                            } else {
+                              setIsCreateShoppingEntitiesPanelOpen(
+                                !isCreateShoppingEntitiesPanelOpen
+                              );
+                            }
+                            setIsAdGroupsFilterPanelOpen(false);
+                          }}
+                        />
+                      ) : undefined
+                    }
                   />
                 </>
               )}
@@ -1209,17 +1296,6 @@ export const GoogleCampaignDetail: React.FC = () => {
                     {campaignDetail?.campaign.advertising_channel_type ===
                       "SEARCH" && (
                         <>
-                          <div className="mb-4 flex justify-end">
-                            <CreateGoogleAdSection
-                              isOpen={isCreateSearchEntitiesPanelOpen}
-                              onToggle={() => {
-                                setIsCreateSearchEntitiesPanelOpen(
-                                  !isCreateSearchEntitiesPanelOpen
-                                );
-                                setIsAdsFilterPanelOpen(false);
-                              }}
-                            />
-                          </div>
                           {isCreateSearchEntitiesPanelOpen && campaignId && (
                             <CreateGoogleAdPanel
                               isOpen={isCreateSearchEntitiesPanelOpen}
@@ -1240,17 +1316,6 @@ export const GoogleCampaignDetail: React.FC = () => {
                     {campaignDetail?.campaign.advertising_channel_type ===
                       "SHOPPING" && (
                         <>
-                          <div className="mb-4 flex justify-end">
-                            <CreateGoogleShoppingEntitiesSection
-                              isOpen={isCreateShoppingEntitiesPanelOpen}
-                              onToggle={() => {
-                                setIsCreateShoppingEntitiesPanelOpen(
-                                  !isCreateShoppingEntitiesPanelOpen
-                                );
-                                setIsAdsFilterPanelOpen(false);
-                              }}
-                            />
-                          </div>
                           {isCreateShoppingEntitiesPanelOpen &&
                             campaignId &&
                             accountId && (
@@ -1299,6 +1364,33 @@ export const GoogleCampaignDetail: React.FC = () => {
                       }
                       getSortIcon={getSortIcon}
                       onUpdateAdStatus={handleUpdateAdStatus}
+                      formatCurrency={formatCurrency2Decimals}
+                      formatPercentage={formatPercentage}
+                      createButton={
+                        campaignDetail?.campaign.advertising_channel_type ===
+                          "SEARCH" ? (
+                          <CreateGoogleAdSection
+                            isOpen={isCreateSearchEntitiesPanelOpen}
+                            onToggle={() => {
+                              setIsCreateSearchEntitiesPanelOpen(
+                                !isCreateSearchEntitiesPanelOpen
+                              );
+                              setIsAdsFilterPanelOpen(false);
+                            }}
+                          />
+                        ) : campaignDetail?.campaign.advertising_channel_type ===
+                          "SHOPPING" ? (
+                          <CreateGoogleShoppingEntitiesSection
+                            isOpen={isCreateShoppingEntitiesPanelOpen}
+                            onToggle={() => {
+                              setIsCreateShoppingEntitiesPanelOpen(
+                                !isCreateShoppingEntitiesPanelOpen
+                              );
+                              setIsAdsFilterPanelOpen(false);
+                            }}
+                          />
+                        ) : undefined
+                      }
                     />
                   </>
                 )}
@@ -1309,17 +1401,6 @@ export const GoogleCampaignDetail: React.FC = () => {
                   {campaignDetail?.campaign.advertising_channel_type ===
                     "SEARCH" && (
                       <>
-                        <div className="mb-4 flex justify-end">
-                          <CreateGoogleKeywordSection
-                            isOpen={isCreateSearchEntitiesPanelOpen}
-                            onToggle={() => {
-                              setIsCreateSearchEntitiesPanelOpen(
-                                !isCreateSearchEntitiesPanelOpen
-                              );
-                              setIsKeywordsFilterPanelOpen(false);
-                            }}
-                          />
-                        </div>
                         {isCreateSearchEntitiesPanelOpen &&
                           campaignId &&
                           accountId && (
@@ -1382,6 +1463,21 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onUpdateKeywordMatchType={handleUpdateKeywordMatchType}
                     onStartKeywordTextEdit={handleStartKeywordTextEdit}
                     onStartFinalUrlEdit={handleStartFinalUrlEdit}
+                    formatCurrency2Decimals={formatCurrency2Decimals}
+                    createButton={
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "SEARCH" ? (
+                        <CreateGoogleKeywordSection
+                          isOpen={isCreateSearchEntitiesPanelOpen}
+                          onToggle={() => {
+                            setIsCreateSearchEntitiesPanelOpen(
+                              !isCreateSearchEntitiesPanelOpen
+                            );
+                            setIsKeywordsFilterPanelOpen(false);
+                          }}
+                        />
+                      ) : undefined
+                    }
                   />
                 </>
               )}
@@ -1389,17 +1485,6 @@ export const GoogleCampaignDetail: React.FC = () => {
               {activeTab === "Negative Keywords" && (
                 <>
                   {/* Create Negative Keywords Panel */}
-                  <div className="mb-4 flex justify-end">
-                    <CreateGoogleNegativeKeywordSection
-                      isOpen={isCreateNegativeKeywordPanelOpen}
-                      onToggle={() => {
-                        setIsCreateNegativeKeywordPanelOpen(
-                          !isCreateNegativeKeywordPanelOpen
-                        );
-                        setIsNegativeKeywordsFilterPanelOpen(false);
-                      }}
-                    />
-                  </div>
                   {isCreateNegativeKeywordPanelOpen &&
                     campaignId &&
                     accountId && (
@@ -1459,6 +1544,17 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onUpdateNegativeKeywordMatchType={handleUpdateNegativeKeywordMatchType}
                     onUpdateNegativeKeywordText={handleUpdateNegativeKeywordText}
                     campaignType={campaignDetail?.campaign?.advertising_channel_type}
+                    createButton={
+                      <CreateGoogleNegativeKeywordSection
+                        isOpen={isCreateNegativeKeywordPanelOpen}
+                        onToggle={() => {
+                          setIsCreateNegativeKeywordPanelOpen(
+                            !isCreateNegativeKeywordPanelOpen
+                          );
+                          setIsNegativeKeywordsFilterPanelOpen(false);
+                        }}
+                      />
+                    }
                   />
                 </>
               )}
@@ -1469,17 +1565,6 @@ export const GoogleCampaignDetail: React.FC = () => {
                   {campaignDetail?.campaign.advertising_channel_type ===
                     "SHOPPING" && (
                       <>
-                        <div className="mb-4 flex justify-end">
-                          <CreateGoogleShoppingEntitiesSection
-                            isOpen={isCreateShoppingEntitiesPanelOpen}
-                            onToggle={() => {
-                              setIsCreateShoppingEntitiesPanelOpen(
-                                !isCreateShoppingEntitiesPanelOpen
-                              );
-                              // Close filter panel if exists
-                            }}
-                          />
-                        </div>
                         {isCreateShoppingEntitiesPanelOpen &&
                           campaignId &&
                           accountId && (
@@ -1532,6 +1617,20 @@ export const GoogleCampaignDetail: React.FC = () => {
                     formatCurrency2Decimals={formatCurrency2Decimals}
                     formatPercentage={formatPercentage}
                     onUpdateProductGroupStatus={handleUpdateProductGroupStatus}
+                    createButton={
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "SHOPPING" ? (
+                        <CreateGoogleShoppingEntitiesSection
+                          isOpen={isCreateShoppingEntitiesPanelOpen}
+                          onToggle={() => {
+                            setIsCreateShoppingEntitiesPanelOpen(
+                              !isCreateShoppingEntitiesPanelOpen
+                            );
+                            // Close filter panel if exists
+                          }}
+                        />
+                      ) : undefined
+                    }
                   />
                 </>
               )}
@@ -1812,6 +1911,17 @@ export const GoogleCampaignDetail: React.FC = () => {
         isSuccess={errorModal.isSuccess}
         errorDetails={errorModal.errorDetails}
       />
+
+      {/* Campaign Asset Management Panel */}
+      {profileId && campaignId && (
+        <GoogleAssetManagementPanel
+          isOpen={campaignAssetPanelOpen}
+          onClose={() => setCampaignAssetPanelOpen(false)}
+          profileId={profileId}
+          campaignId={campaignId}
+          mode="campaign"
+        />
+      )}
     </div>
   );
 };

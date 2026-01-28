@@ -195,7 +195,7 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                   />
                 </svg>
                 <span className="text-[10.64px] text-[#072929] font-normal">
-                  Edit
+                  Bulk Actions
                 </span>
               </Button>
               {showBulkActions && (
@@ -302,7 +302,7 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
               (ag) => ({
                 adGroupId: (ag as any).adGroupId || String(ag.id),
                 name: ag.name,
-              })
+              }),
             )}
             campaignId={campaignId || ""}
             campaignType={campaignType || undefined}
@@ -327,6 +327,12 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
             onSort={onSort}
             editingField={editingField}
             editedValue={editedValue}
+            adgroups={(allAdgroups.length > 0 ? allAdgroups : adgroups)
+              .filter(ag => ag.adGroupId != null)
+              .map(ag => ({
+                adGroupId: ag.adGroupId!,
+                name: ag.name
+              }))}
             onEditStart={onEditStart}
             onEditChange={onEditChange}
             onEditEnd={onEditEnd}
@@ -347,4 +353,3 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
     </>
   );
 };
-

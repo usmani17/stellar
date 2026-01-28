@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { Button } from "../ui";
 import { Dropdown } from "../ui/Dropdown";
+import { Loader } from "../ui/Loader";
 import { logsService } from "../../services/logs";
 
 interface LogsTableProps {
@@ -360,13 +361,9 @@ export const LogsTable: React.FC<LogsTableProps> = ({
             </div>
           )}
           {/* Table Container - White card container */}
-          <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+          <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
             <div className="overflow-x-auto w-full">
-              {loading ? (
-                <div className="flex items-center justify-center h-64 w-full">
-                  <div className="text-[#556179] text-[13.3px]">Loading...</div>
-                </div>
-              ) : logs.length === 0 ? (
+              {logs.length === 0 && !loading ? (
                 <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
                   <div className="flex flex-col items-center justify-center max-w-md">
                     {/* Icon */}
@@ -394,8 +391,8 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                       {campaignId
                         ? "There are no log entries for this campaign yet. Logs will appear here when changes are made."
                         : marketplace
-                        ? `There are no log entries for ${marketplace} marketplace. Logs will appear here when changes are made.`
-                        : "There are no log entries for the selected filters. Try adjusting your date range or filters."}
+                          ? `There are no log entries for ${marketplace} marketplace. Logs will appear here when changes are made.`
+                          : "There are no log entries for the selected filters. Try adjusting your date range or filters."}
                     </p>
                   </div>
                 </div>
@@ -424,9 +421,8 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                       return (
                         <tr
                           key={log.id}
-                          className={`hover:bg-gray-50 transition-colors ${
-                            !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                          }`}
+                          className={`hover:bg-gray-50 transition-colors ${!isLastRow ? "border-b border-[#e8e8e3]" : ""
+                            }`}
                         >
                           <td className="table-cell">
                             <span className="table-text">{log.id}</span>
@@ -436,7 +432,7 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                               <span className="table-text">
                                 {log.marketplace
                                   ? log.marketplace.charAt(0).toUpperCase() +
-                                    log.marketplace.slice(1)
+                                  log.marketplace.slice(1)
                                   : "—"}
                               </span>
                             </td>
@@ -481,6 +477,15 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                 </table>
               )}
             </div>
+
+            {/* Loading overlay for table - scoped to table container */}
+            {loading && (
+              <div className="loading-overlay">
+                <div className="loading-overlay-content">
+                  <Loader size="md" message="Loading logs..." />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Pagination */}
@@ -522,11 +527,10 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                     <button
                       key={pageNum}
                       onClick={() => handlePageChange(pageNum)}
-                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                        currentPage === pageNum
+                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
                           ? "bg-white text-[#136D6D] font-semibold"
                           : "text-black hover:bg-gray-50"
-                      }`}
+                        }`}
                     >
                       {pageNum}
                     </button>
@@ -540,11 +544,10 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                 {totalPages > 5 && (
                   <button
                     onClick={() => handlePageChange(totalPages)}
-                    className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                      currentPage === totalPages
+                    className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
                         ? "bg-white text-[#136D6D] font-semibold"
                         : "text-black hover:bg-gray-50"
-                    }`}
+                      }`}
                   >
                     {totalPages}
                   </button>
@@ -679,13 +682,9 @@ export const LogsTable: React.FC<LogsTableProps> = ({
             </div>
           )}
           {/* Table Container - No outer container when showHeader is false */}
-          <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+          <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
             <div className="overflow-x-auto w-full">
-              {loading ? (
-                <div className="flex items-center justify-center h-64 w-full">
-                  <div className="text-[#556179] text-[13.3px]">Loading...</div>
-                </div>
-              ) : logs.length === 0 ? (
+              {logs.length === 0 && !loading ? (
                 <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
                   <div className="flex flex-col items-center justify-center max-w-md">
                     {/* Icon */}
@@ -713,8 +712,8 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                       {campaignId
                         ? "There are no log entries for this campaign yet. Logs will appear here when changes are made."
                         : marketplace
-                        ? `There are no log entries for ${marketplace} marketplace. Logs will appear here when changes are made.`
-                        : "There are no log entries for the selected filters. Try adjusting your date range or filters."}
+                          ? `There are no log entries for ${marketplace} marketplace. Logs will appear here when changes are made.`
+                          : "There are no log entries for the selected filters. Try adjusting your date range or filters."}
                     </p>
                   </div>
                 </div>
@@ -743,9 +742,8 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                       return (
                         <tr
                           key={log.id}
-                          className={`hover:bg-gray-50 transition-colors ${
-                            !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                          }`}
+                          className={`hover:bg-gray-50 transition-colors ${!isLastRow ? "border-b border-[#e8e8e3]" : ""
+                            }`}
                         >
                           <td className="table-cell">
                             <span className="table-text">{log.id}</span>
@@ -755,7 +753,7 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                               <span className="table-text">
                                 {log.marketplace
                                   ? log.marketplace.charAt(0).toUpperCase() +
-                                    log.marketplace.slice(1)
+                                  log.marketplace.slice(1)
                                   : "—"}
                               </span>
                             </td>
@@ -800,6 +798,15 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                 </table>
               )}
             </div>
+
+            {/* Loading overlay for table - scoped to table container */}
+            {loading && (
+              <div className="loading-overlay">
+                <div className="loading-overlay-content">
+                  <Loader size="md" message="Loading logs..." />
+                </div>
+              </div>
+            )}
           </div>
           {/* Pagination */}
           {!loading && logs.length > 0 && (
@@ -840,11 +847,10 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                     <button
                       key={pageNum}
                       onClick={() => handlePageChange(pageNum)}
-                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                        currentPage === pageNum
+                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
                           ? "bg-white text-[#136D6D] font-semibold"
                           : "text-black hover:bg-gray-50"
-                      }`}
+                        }`}
                     >
                       {pageNum}
                     </button>
@@ -858,11 +864,10 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                 {totalPages > 5 && (
                   <button
                     onClick={() => handlePageChange(totalPages)}
-                    className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                      currentPage === totalPages
+                    className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
                         ? "bg-white text-[#136D6D] font-semibold"
                         : "text-black hover:bg-gray-50"
-                    }`}
+                      }`}
                   >
                     {totalPages}
                   </button>

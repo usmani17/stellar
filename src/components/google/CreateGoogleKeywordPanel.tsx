@@ -3,11 +3,7 @@ import { Dropdown } from "../ui/Dropdown";
 import { campaignsService } from "../../services/campaigns";
 
 export interface KeywordInput {
-  adgroup_id?: number; // Optional: use existing adgroup
-  adgroup?: {
-    name: string;
-    cpc_bid?: number;
-  };
+  adgroup_id: number; // Required: always use existing adgroup
   keywords: Array<{
     text: string;
     match_type: "EXACT" | "PHRASE" | "BROAD";
@@ -42,23 +38,7 @@ export const CreateGoogleKeywordPanel: React.FC<
   loading = false,
   submitError = null,
 }) => {
-  const generateDefaultAdGroupName = (): string => {
-    const now = new Date();
-    const day = String(now.getDate()).padStart(2, "0");
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const year = now.getFullYear();
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const seconds = String(now.getSeconds()).padStart(2, "0");
-    const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
-    const dateTime = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}.${milliseconds}`;
-    return `Ad Group - ${dateTime}`;
-  };
-
-  const [useExistingAdGroup, setUseExistingAdGroup] = useState(true);
   const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>("");
-  const [newAdGroupName, setNewAdGroupName] = useState(generateDefaultAdGroupName());
-  const [adGroupBid, setAdGroupBid] = useState<number | undefined>(undefined);
   const [keywords, setKeywords] = useState<
     Array<{ text: string; match_type: "EXACT" | "PHRASE" | "BROAD"; cpc_bid?: number }>
   >([]);
@@ -74,6 +54,7 @@ export const CreateGoogleKeywordPanel: React.FC<
   const [adgroupOptions, setAdgroupOptions] = useState<Array<{ value: string; label: string; adgroup_id: number }>>([]);
   const [loadingAdgroups, setLoadingAdgroups] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasFetchedAdgroupsRef = useRef(false);
   
   // Fetch adgroups from API with debounced search
   const fetchAdgroups = useCallback(async (searchQuery: string = "") => {
@@ -128,19 +109,27 @@ export const CreateGoogleKeywordPanel: React.FC<
     }
   }, [accountId, campaignId, selectedAdGroupId]);
 
-  // Debounced search effect
+  // Fetch adgroups once when panel opens
   useEffect(() => {
-    if (!useExistingAdGroup || !isOpen) return;
+    if (!isOpen) {
+      hasFetchedAdgroupsRef.current = false;
+      return;
+    }
+    
+    // Only fetch once when panel opens
+    if (!hasFetchedAdgroupsRef.current) {
+      hasFetchedAdgroupsRef.current = true;
+      fetchAdgroups("");
+    }
+  }, [isOpen, fetchAdgroups]);
+
+  // Debounced search effect - only for search queries
+  useEffect(() => {
+    if (!isOpen || adgroupSearchQuery === "") return;
     
     // Clear previous timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
-    }
-    
-    // Fetch initial adgroups when dropdown opens
-    if (adgroupSearchQuery === "") {
-      fetchAdgroups("");
-      return;
     }
     
     // Debounce search query
@@ -153,27 +142,18 @@ export const CreateGoogleKeywordPanel: React.FC<
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [adgroupSearchQuery, useExistingAdGroup, isOpen, fetchAdgroups]);
-
-  // Fetch adgroups when switching to existing adgroup mode
-  useEffect(() => {
-    if (useExistingAdGroup && isOpen) {
-      fetchAdgroups("");
-    }
-  }, [useExistingAdGroup, isOpen, fetchAdgroups]);
+  }, [adgroupSearchQuery, isOpen, fetchAdgroups]);
 
   // Reset form when panel closes
   useEffect(() => {
     if (!isOpen) {
-      setUseExistingAdGroup(true);
       setSelectedAdGroupId("");
-      setNewAdGroupName(generateDefaultAdGroupName());
-      setAdGroupBid(undefined);
       setKeywords([]);
       setCurrentKeyword({ text: "", match_type: "BROAD", cpc_bid: undefined });
       setErrors({});
       setAdgroupSearchQuery("");
       setAdgroupOptions([]);
+      hasFetchedAdgroupsRef.current = false;
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
@@ -185,15 +165,13 @@ export const CreateGoogleKeywordPanel: React.FC<
   useEffect(() => {
     if (prevLoadingRef.current === true && loading === false && isOpen) {
       // Successful submission - reset form
-      setUseExistingAdGroup(true);
       setSelectedAdGroupId("");
-      setNewAdGroupName(generateDefaultAdGroupName());
-      setAdGroupBid(undefined);
       setKeywords([]);
       setCurrentKeyword({ text: "", match_type: "BROAD", cpc_bid: undefined });
       setErrors({});
       setAdgroupSearchQuery("");
       setAdgroupOptions([]);
+      hasFetchedAdgroupsRef.current = false;
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
@@ -204,14 +182,8 @@ export const CreateGoogleKeywordPanel: React.FC<
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (useExistingAdGroup) {
-      if (!selectedAdGroupId) {
-        newErrors.adGroup = "Please select an ad group";
-      }
-    } else {
-      if (!newAdGroupName.trim()) {
-        newErrors.adGroupName = "Ad Group name is required";
-      }
+    if (!selectedAdGroupId) {
+      newErrors.adGroup = "Please select an ad group";
     }
 
     if (keywords.length === 0) {
@@ -260,32 +232,20 @@ export const CreateGoogleKeywordPanel: React.FC<
 
     const entity: KeywordInput = {
       keywords: keywords,
+      adgroup_id: parseInt(selectedAdGroupId, 10),
     };
-
-    if (useExistingAdGroup && selectedAdGroupId) {
-      // Use existing adgroup - send adgroup_id
-      entity.adgroup_id = parseInt(selectedAdGroupId, 10);
-    } else {
-      // Create new adgroup - send adgroup data
-      entity.adgroup = {
-        name: newAdGroupName.trim(),
-        ...(adGroupBid !== undefined && adGroupBid > 0 && { cpc_bid: adGroupBid }),
-      };
-    }
 
     onSubmit(entity);
   };
 
   const handleCancel = () => {
-    setUseExistingAdGroup(true);
     setSelectedAdGroupId("");
-    setNewAdGroupName(generateDefaultAdGroupName());
-    setAdGroupBid(undefined);
     setKeywords([]);
     setCurrentKeyword({ text: "", match_type: "BROAD", cpc_bid: undefined });
     setErrors({});
     setAdgroupSearchQuery("");
     setAdgroupOptions([]);
+    hasFetchedAdgroupsRef.current = false;
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
@@ -308,139 +268,43 @@ export const CreateGoogleKeywordPanel: React.FC<
             Ad Group
           </h3>
           <div className="mb-3">
-            <div className="flex items-center gap-4 mb-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={!useExistingAdGroup}
-                  onChange={() => {
-                    setUseExistingAdGroup(false);
-                    setSelectedAdGroupId("");
-                    if (errors.adGroup) {
-                      setErrors((prev) => {
-                        const newErrors = { ...prev };
-                        delete newErrors.adGroup;
-                        return newErrors;
-                      });
-                    }
-                  }}
-                  className="text-[#136D6D]"
-                />
-                <span className="text-[11.2px] text-[#556179]">
-                  Create New Ad Group
-                </span>
+            <div>
+              <label className="form-label-small">
+                Select Ad Group *
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={useExistingAdGroup}
-                  onChange={() => {
-                    setUseExistingAdGroup(true);
-                    setNewAdGroupName(generateDefaultAdGroupName());
-                    if (errors.adGroupName) {
-                      setErrors((prev) => {
-                        const newErrors = { ...prev };
-                        delete newErrors.adGroupName;
-                        return newErrors;
-                      });
-                    }
-                  }}
-                  className="text-[#136D6D]"
-                />
-                <span className="text-[11.2px] text-[#556179]">
-                  Use Existing Ad Group
-                </span>
-              </label>
+              <Dropdown<string>
+                options={adgroupOptions}
+                value={selectedAdGroupId}
+                onChange={(value) => {
+                  setSelectedAdGroupId(value);
+                  if (errors.adGroup) {
+                    setErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.adGroup;
+                      return newErrors;
+                    });
+                  }
+                }}
+                placeholder={loadingAdgroups ? "Loading adgroups..." : "Search and select an ad group"}
+                buttonClassName="w-full"
+                searchable={true}
+                searchPlaceholder="Search adgroups..."
+                emptyMessage={loadingAdgroups ? "Loading..." : "No adgroups found. Try a different search."}
+                onSearchChange={(query: string) => {
+                  setAdgroupSearchQuery(query);
+                }}
+              />
+              {errors.adGroup && (
+                <p className="text-[10px] text-red-500 mt-1">
+                  {errors.adGroup}
+                </p>
+              )}
+              {!loadingAdgroups && adgroupOptions.length === 0 && adgroupSearchQuery === "" && (
+                <p className="text-[10px] text-gray-500 mt-1">
+                  No ad groups available. Please create an ad group first.
+                </p>
+              )}
             </div>
-
-            {!useExistingAdGroup ? (
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="flex-1 min-w-[200px]">
-                  <label className="form-label-small">
-                    Ad Group Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={newAdGroupName}
-                    onChange={(e) => {
-                      setNewAdGroupName(e.target.value);
-                      if (errors.adGroupName) {
-                        setErrors((prev) => {
-                          const newErrors = { ...prev };
-                          delete newErrors.adGroupName;
-                          return newErrors;
-                        });
-                      }
-                    }}
-                    placeholder="Enter ad group name"
-                    className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                      errors.adGroupName ? "border-red-500" : "border-gray-200"
-                    }`}
-                  />
-                  {errors.adGroupName && (
-                    <p className="text-[10px] text-red-500 mt-1">
-                      {errors.adGroupName}
-                    </p>
-                  )}
-                </div>
-                <div className="w-[140px]">
-                  <label className="form-label-small">
-                    CPC Bid (Optional)
-                  </label>
-                  <input
-                    type="number"
-                    value={adGroupBid || ""}
-                    onChange={(e) =>
-                      setAdGroupBid(
-                        e.target.value ? parseFloat(e.target.value) : undefined
-                      )
-                    }
-                    placeholder="0.10"
-                    min="0"
-                    step="0.01"
-                    className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div>
-                <label className="form-label-small">
-                  Select Ad Group *
-                </label>
-                <Dropdown<string>
-                  options={adgroupOptions}
-                  value={selectedAdGroupId}
-                  onChange={(value) => {
-                    setSelectedAdGroupId(value);
-                    if (errors.adGroup) {
-                      setErrors((prev) => {
-                        const newErrors = { ...prev };
-                        delete newErrors.adGroup;
-                        return newErrors;
-                      });
-                    }
-                  }}
-                  placeholder={loadingAdgroups ? "Loading adgroups..." : "Search and select an ad group"}
-                  buttonClassName="w-full"
-                  searchable={true}
-                  searchPlaceholder="Search adgroups..."
-                  emptyMessage={loadingAdgroups ? "Loading..." : "No adgroups found. Try a different search."}
-                  onSearchChange={(query: string) => {
-                    setAdgroupSearchQuery(query);
-                  }}
-                />
-                {errors.adGroup && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.adGroup}
-                  </p>
-                )}
-                {!loadingAdgroups && adgroupOptions.length === 0 && adgroupSearchQuery === "" && (
-                  <p className="text-[10px] text-gray-500 mt-1">
-                    No ad groups available. Please create a new ad group.
-                  </p>
-                )}
-              </div>
-            )}
           </div>
         </div>
 

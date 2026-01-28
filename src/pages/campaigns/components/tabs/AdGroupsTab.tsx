@@ -217,7 +217,7 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
                 />
               </svg>
               <span className="text-[10.64px] text-[#072929] font-normal">
-                Edit
+                Bulk Actions
               </span>
             </Button>
             {showBulkActions && (

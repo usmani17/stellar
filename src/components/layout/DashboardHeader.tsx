@@ -8,7 +8,9 @@ import { useDateRange } from "../../contexts/DateRangeContext";
 import {
   buildMarketplaceRoute,
   getMarketplaceFromUrl,
+  getEntityFromUrl,
 } from "../../utils/urlHelpers";
+import { SyncStatusIndicator } from "../google/SyncStatusIndicator";
 import { type Account, accountsService } from "../../services/accounts";
 import CustomDateRangePicker from "../ui/CustomDateRangePicker";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
@@ -244,16 +246,24 @@ export const DashboardHeader: React.FC = () => {
 
   // Get current marketplace/channel from URL
   const currentMarketplace = getMarketplaceFromUrl(location.pathname);
+  const currentEntity = getEntityFromUrl(location.pathname);
 
-  // Hide date picker and account dropdown on profile page, channels page, and account selection pages
+  // Check if we're on a Google page with a valid entity type
+  const isGooglePage = currentMarketplace === "google";
+  const validEntityTypes = ["campaigns", "adgroups", "ads", "keywords"];
+  const entityType = validEntityTypes.includes(currentEntity || "")
+    ? (currentEntity as "campaigns" | "adgroups" | "ads" | "keywords")
+    : null;
+
+  // Hide date picker and account dropdown on profile page, integrations page, and account selection pages
   const isProfilePage = location.pathname === "/profile";
-  const isChannelsPage = /^\/brands\/\d+\/channels$/.test(location.pathname);
+  const isIntegrationsPage = /^\/brands\/\d+\/integrations$/.test(location.pathname);
   const isAccountSelectionPage =
     /^\/channels\/\d+\/(select-google-accounts|select-tiktok-profiles|list-profiles)$/.test(
       location.pathname,
     );
   const shouldHideDatePicker =
-    isProfilePage || isChannelsPage || isAccountSelectionPage;
+    isProfilePage || isIntegrationsPage || isAccountSelectionPage;
 
   // Use channels from accounts data if available, otherwise fall back to API call
   // This avoids unnecessary API calls when channels are already included in accounts response
@@ -423,7 +433,9 @@ export const DashboardHeader: React.FC = () => {
                             }, 150);
                           }}
                           onClick={() => {
-                            setSelectedAccount(account);
+                            navigate(`/brands/${account.id}/integrations`);
+                            setIsAccountDropdownOpen(false);
+                            setExpandedAccountId(null);
                           }}
                           className={`w-full flex items-center gap-2 px-3 py-2 text-[12.32px] text-left ${
                             expandedAccountId === account.id
@@ -493,69 +505,77 @@ export const DashboardHeader: React.FC = () => {
       {/* RIGHT */}
       <div className="flex items-center gap-5 ml-auto">
         {!shouldHideDatePicker && (
-          <div className="relative" ref={datePickerRef}>
-            <button
-              onClick={() => setIsDatePickerOpen((p) => !p)}
-              className="account-dropdown-button"
-            >
-              <svg
-                className="w-5 h-5 text-[#072929]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              <span className="text-[13.2px] text-[#072929]">
-                {formatDateRange()}
-              </span>
-              <svg
-                className={`w-4 h-4 text-[#556179] transition-transform ${
-                  isDatePickerOpen ? "rotate-180" : ""
-                }`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-            {isDatePickerOpen && (
-              <div className="absolute right-0 top-full mt-2 z-50 px-4">
-                <CustomDateRangePicker
-                  monthsShown={2}
-                  calendarClassName="custom-datepicker"
-                  className="custom-datepicker-cls"
-                  startDate={startDate}
-                  endDate={endDate}
-                  onChange={(dates) => {
-                    const [start, end] = dates;
-                    if (start && end) {
-                      setDateRange(start, end);
-                    }
-                  }}
-                  onApply={(dates) => {
-                    const [start, end] = dates;
-                    if (start && end) {
-                      setDateRange(start, end);
-                      setIsDatePickerOpen(false);
-                    }
-                  }}
-                  onCancel={() => setIsDatePickerOpen(false)}
-                />
+          <>
+            {/* Sync Status Indicator - Only show on Google pages */}
+            {isGooglePage && entityType && (
+              <div className="flex items-center">
+                <SyncStatusIndicator entityType={entityType} />
               </div>
             )}
-          </div>
+            <div className="relative" ref={datePickerRef}>
+              <button
+                onClick={() => setIsDatePickerOpen((p) => !p)}
+                className="account-dropdown-button"
+              >
+                <svg
+                  className="w-5 h-5 text-[#072929]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <span className="text-[13.2px] text-[#072929]">
+                  {formatDateRange()}
+                </span>
+                <svg
+                  className={`w-4 h-4 text-[#556179] transition-transform ${
+                    isDatePickerOpen ? "rotate-180" : ""
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+              {isDatePickerOpen && (
+                <div className="absolute right-0 top-full mt-2 z-[999999] px-4">
+                  <CustomDateRangePicker
+                    monthsShown={2}
+                    calendarClassName="custom-datepicker"
+                    className="custom-datepicker-cls"
+                    startDate={startDate}
+                    endDate={endDate}
+                    onChange={(dates) => {
+                      const [start, end] = dates;
+                      if (start && end) {
+                        setDateRange(start, end);
+                      }
+                    }}
+                    onApply={(dates) => {
+                      const [start, end] = dates;
+                      if (start && end) {
+                        setDateRange(start, end);
+                        setIsDatePickerOpen(false);
+                      }
+                    }}
+                    onCancel={() => setIsDatePickerOpen(false)}
+                  />
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
 

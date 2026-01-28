@@ -463,12 +463,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     };
 
     const updatedFilters = [...activeFilters, newFilter];
+    // Apply filters immediately when a filter is added (before local state update)
+    onApply(updatedFilters);
     setActiveFilters(updatedFilters);
-    
-    // Apply filters immediately for Amazon pages
-    if (channelType === "amazon") {
-      onApply(updatedFilters);
-    }
 
     // Auto-select next available filter
     const nextField = getNextAvailableField();
@@ -540,11 +537,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     setActiveFilters(updatedFilters);
     // Automatically apply the updated filters to refresh data
     onApply(updatedFilters);
-  };
-
-  const handleApply = () => {
-    onApply(activeFilters);
-    // Don't auto-close - let user toggle with button
   };
 
   const handleClearAll = () => {
@@ -1093,11 +1085,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         <button onClick={handleClearAll} className="cancel-button">
           Clear All
         </button>
-        {channelType !== "amazon" && (
-          <button type="button" onClick={handleApply} className="apply-button">
-            Apply Filters
-          </button>
-        )}
       </div>
     </div>
   );

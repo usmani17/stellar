@@ -1,8 +1,8 @@
-import React, { useRef } from "react";
+import React from "react";
 import { Checkbox } from "../ui/Checkbox";
-import { StatusBadge } from "../ui/StatusBadge";
 import { Dropdown } from "../ui/Dropdown";
 import type { ProductAd } from "../../services/campaigns";
+import { Loader } from "../ui/Loader";
 
 interface ProductAdsTableProps {
   productads: ProductAd[];
@@ -20,7 +20,7 @@ interface ProductAdsTableProps {
   editedValue?: string;
   onEditStart?: (id: number, field: "status", currentValue: string) => void;
   onEditChange?: (value: string) => void;
-  onEditEnd?: (value?: string) => void;
+  onEditEnd?: (value?: string, adId?: number, field?: "status") => void;
   onEditCancel?: () => void;
   editLoading?: Set<number>;
   pendingChange?: {
@@ -51,8 +51,6 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
   pendingChange,
   campaignType,
 }) => {
-  const statusSelectionMadeRef = useRef<number | null>(null);
-
   const getSortIcon = (column: string) => {
     if (sortBy !== column || !onSort) {
       return (
@@ -114,20 +112,44 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
   };
 
   return (
-    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full relative">
+    <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
+
       <div className="overflow-x-auto w-full">
         {productads.length === 0 && !loading ? (
-          <div className="text-center py-8">
-            <p className="text-[13.3px] text-[#556179] mb-4">
-              No product ads found
-            </p>
+          <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
+            <div className="flex flex-col items-center justify-center max-w-md">
+              {/* Icon */}
+              <div className="mb-6 w-20 h-20 rounded-full bg-[#F5F5F0] flex items-center justify-center">
+                <svg
+                  className="w-10 h-10 text-[#556179]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+              {/* Title */}
+              <h3 className="text-lg font-medium text-teal-950 mb-2">
+                No Product Ads Found
+              </h3>
+              {/* Description */}
+              <p className="text-sm text-[#556179] text-center leading-relaxed">
+                There are no product ads for this campaign yet. Product ads will appear here when they are created.
+              </p>
+            </div>
           </div>
         ) : (
-          <table className="w-full border-collapse">
+          <table className="w-full min-w-max">
             <thead>
-              <tr className="bg-[#f5f5f0] border-b border-[#e8e8e3]">
+              <tr className="sticky top-0 bg-[#fefefb] z-10">
                 {onSelectAll && (
-                  <th className="table-cell text-left">
+                  <th className="table-header w-[35px]">
                     <Checkbox
                       checked={allSelected}
                       indeterminate={someSelected && !allSelected}
@@ -136,7 +158,8 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   </th>
                 )}
                 <th
-                  className="table-header"
+                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
                   onClick={() => onSort?.("adId")}
                 >
                   <div className="flex items-center">
@@ -145,7 +168,8 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header"
+                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
                   onClick={() => onSort?.("asin")}
                 >
                   <div className="flex items-center">
@@ -154,7 +178,8 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header"
+                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
                   onClick={() => onSort?.("sku")}
                 >
                   <div className="flex items-center">
@@ -163,7 +188,8 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header"
+                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
                   onClick={() => onSort?.("status")}
                 >
                   <div className="flex items-center">
@@ -171,14 +197,8 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                     {getSortIcon("status")}
                   </div>
                 </th>
-                <th
-                  className="table-header"
-                  onClick={() => onSort?.("adGroupId")}
-                >
-                  <div className="flex items-center">
-                    Ad Group ID
-                    {getSortIcon("adGroupId")}
-                  </div>
+                <th className="table-header">
+                  Ad Group Name
                 </th>
               </tr>
             </thead>
@@ -228,84 +248,63 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                           <div className="flex items-center gap-2">
                             <span className="table-text leading-[1.26]">
                               {pendingChange.newValue === "enabled" ||
-                              pendingChange.newValue === "ENABLED"
+                                pendingChange.newValue === "ENABLED"
                                 ? "Enabled"
                                 : "Paused"}
                             </span>
                           </div>
-                        ) : editingField?.id === productad.id &&
-                          editingField?.field === "status" ? (
-                          <div className="flex items-center gap-2">
+                        ) : (
+                          <div className="w-[120px]">
                             <Dropdown
                               options={[
                                 { value: "enabled", label: "Enabled" },
                                 { value: "paused", label: "Paused" },
                               ]}
                               value={(() => {
-                                if (editedValue) return editedValue;
                                 const statusLower =
                                   productad.status?.toLowerCase() || "enabled";
-                                return statusLower === "enable" ||
+                                const statusValue =
+                                  statusLower === "enable" ||
                                   statusLower === "enabled"
-                                  ? "enabled"
-                                  : "paused";
+                                    ? "enabled"
+                                    : "paused";
+                                return editingField?.id === productad.id &&
+                                  editingField?.field === "status"
+                                  ? editedValue
+                                  : statusValue;
                               })()}
                               onChange={(val) => {
-                                // Mark that a selection was made for this product ad
-                                statusSelectionMadeRef.current = productad.id;
                                 const newValue = val as string;
-                                onEditChange?.(newValue);
-                                // Call onEditEnd with the new value immediately when a value is selected
-                                onEditEnd?.(newValue);
-                                // Clear the ref after a short delay to allow onClose to check it
-                                setTimeout(() => {
-                                  if (
-                                    statusSelectionMadeRef.current ===
-                                    productad.id
-                                  ) {
-                                    statusSelectionMadeRef.current = null;
-                                  }
-                                }, 200);
-                              }}
-                              onClose={() => {
-                                // Only cancel if no selection was made (clicked outside)
-                                if (
-                                  statusSelectionMadeRef.current !==
-                                  productad.id
-                                ) {
-                                  onEditCancel?.();
+                                const statusLower =
+                                  productad.status?.toLowerCase() || "enabled";
+                                const statusValue =
+                                  statusLower === "enable" ||
+                                  statusLower === "enabled"
+                                    ? "enabled"
+                                    : "paused";
+                                const wasEditing =
+                                  editingField?.id === productad.id &&
+                                  editingField?.field === "status";
+
+                                if (!wasEditing) {
+                                  onEditStart?.(
+                                    productad.id,
+                                    "status",
+                                    statusValue
+                                  );
                                 }
-                                statusSelectionMadeRef.current = null;
+                                onEditChange?.(newValue);
+                                onEditEnd?.(newValue, productad.id, "status");
                               }}
-                              defaultOpen={true}
                               buttonClassName="inline-edit-dropdown"
                               width="w-full"
+                              align="center"
                             />
-                          </div>
-                        ) : (
-                          <div
-                            onClick={() => {
-                              const statusLower =
-                                productad.status?.toLowerCase() || "enabled";
-                              const currentStatus =
-                                statusLower === "enable" ||
-                                statusLower === "enabled"
-                                  ? "enabled"
-                                  : "paused";
-                              onEditStart?.(
-                                productad.id,
-                                "status",
-                                currentStatus
-                              );
-                            }}
-                            className="cursor-pointer"
-                          >
-                            <StatusBadge status={productad.status} />
                           </div>
                         )}
                       </td>
                       <td className="table-cell table-text leading-[1.26]">
-                        {productad.adGroupId || "—"}
+                        {productad.adgroup_name || "—"}
                       </td>
                     </tr>
                   ))}
@@ -319,25 +318,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
       {loading && (
         <div className="loading-overlay">
           <div className="loading-overlay-content">
-            <svg
-              className="loading-spinner"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            <p className="loading-message">Loading product ads...</p>
+            <Loader size="md" message="Loading product ads..." />
           </div>
         </div>
       )}

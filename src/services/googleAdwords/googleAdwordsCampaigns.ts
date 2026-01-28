@@ -1,4 +1,5 @@
 import api from "../api";
+import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../../components/google/CreateGooglePmaxAssetGroupPanel";
 
 export const googleAdwordsCampaignsService = {
   createGoogleCampaign: async (
@@ -126,6 +127,12 @@ export const googleAdwordsCampaignsService = {
         headlines: string[]; // Min 3, max 15
         descriptions: string[]; // Min 2, max 4
         long_headline: string; // Required
+        marketing_image_url?: string;
+        square_marketing_image_url?: string;
+        business_name?: string;
+        logo_url?: string;
+        video_asset_resource_names?: string[];
+        sitelink_asset_resource_names?: string[];
       };
     }
   ): Promise<{
@@ -419,7 +426,10 @@ export const googleAdwordsCampaignsService = {
     };
   }> => {
     const url = `/google-adwords/${accountId}/campaigns/${campaignId}/refresh/`;
-    const response = await api.post(url);
+    // Send the constant to API so it can decide whether to fetch asset groups
+    const response = await api.post(url, {
+      should_fetch_asset_groups: SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION,
+    });
     return response.data;
   },
 

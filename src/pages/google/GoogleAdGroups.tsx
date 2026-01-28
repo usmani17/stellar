@@ -23,6 +23,13 @@ import {
   type GoogleAdGroup,
 } from "./components/GoogleAdGroupsTable";
 import { Loader } from "../../components/ui/Loader";
+import { ConfirmationModal } from "../../components/ui/ConfirmationModal";
+import { TrashIcon } from "lucide-react";
+import {
+  getStatusWithDefault,
+  formatStatusForDisplay,
+  convertStatusToApi,
+} from "./utils/googleAdsUtils";
 
 // GoogleAdGroup interface is now imported from GoogleAdGroupsTable
 
@@ -59,21 +66,20 @@ export const GoogleAdGroups: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(true);
   const [sorting, setSorting] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const [syncingAnalytics, setSyncingAnalytics] = useState(false);
   const [analyticsSyncMessage, setAnalyticsSyncMessage] = useState<
     string | null
   >(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
-  const [total, setTotal] = useState(0);
+  const [, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<string>("sales");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
   const isLoadingRef = useRef(false);
+  const lastRequestParamsRef = useRef<string>(""); // Track last request to prevent duplicate calls
 
   // Chart toggles (visual parity with Amazon Campaigns)
   const [chartToggles, setChartToggles] = useState({
@@ -108,6 +114,12 @@ export const GoogleAdGroups: React.FC = () => {
   const [pendingStatusAction, setPendingStatusAction] = useState<
     "ENABLED" | "PAUSED" | null
   >(null);
+  const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
+  const [pendingRemoveChange, setPendingRemoveChange] = useState<{
+    value: string;
+    adgroupId: string | number;
+    field: string;
+  } | null>(null);
   const [isBidChange, setIsBidChange] = useState(false);
   const [bulkUpdateResults, setBulkUpdateResults] = useState<{
     updated: number;
@@ -122,7 +134,13 @@ export const GoogleAdGroups: React.FC = () => {
     field: "bid" | "status" | "name" | "adgroup_name";
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
-  const [isCancelling, setIsCancelling] = useState(false);
+  const isCancellingRef = useRef(false);
+  const [showInlineEditModal, setShowInlineEditModal] = useState(false);
+  const [inlineEditLoading, setInlineEditLoading] = useState(false);
+  const [inlineEditAdGroup, setInlineEditAdGroup] = useState<GoogleAdGroup | null>(null);
+  const [inlineEditField, setInlineEditField] = useState<"bid" | "status" | "name" | "adgroup_name" | null>(null);
+  const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
+  const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
   const [updatingField, setUpdatingField] = useState<{
     adgroupId: string | number;
     field: "bid" | "status" | "name" | "adgroup_name";
@@ -227,6 +245,26 @@ export const GoogleAdGroups: React.FC = () => {
     };
   }, []);
 
+  // Auto-hide success message after 2 seconds
+  useEffect(() => {
+    if (inlineEditSuccess) {
+      const timer = setTimeout(() => {
+        setInlineEditSuccess(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [inlineEditSuccess]);
+
+  // Auto-hide error message after 2 seconds
+  useEffect(() => {
+    if (inlineEditError) {
+      const timer = setTimeout(() => {
+        setInlineEditError(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [inlineEditError]);
+
   // Removed buildFilterParams - now passing filters array directly to service
 
   const loadAdgroups = useCallback(async (accountId: number) => {
@@ -262,7 +300,11 @@ export const GoogleAdGroups: React.FC = () => {
       setTotalPages(response.total_pages || 0);
       setTotal(response.total || 0);
       if (response.summary) {
-        setSummary(response.summary);
+        // Map IGoogleCampaignsSummary to adgroups summary format
+        setSummary({
+          ...response.summary,
+          total_adgroups: response.summary.total_campaigns || 0,
+        } as any);
       }
       // Store chart data from API if available
       const responseWithChart = response as any;
@@ -295,186 +337,39 @@ export const GoogleAdGroups: React.FC = () => {
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
       if (!isNaN(accountIdNum)) {
-        loadAdgroups(accountIdNum);
+        // Create a unique key for this request to prevent duplicate calls
+        const requestKey = JSON.stringify({
+          accountId: accountIdNum,
+          currentPage,
+          filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
+          startDate: startDate ? startDate.toISOString().split("T")[0] : null,
+          endDate: endDate ? endDate.toISOString().split("T")[0] : null,
+        });
+
+        // Only call loadAdgroups if the request parameters have actually changed
+        if (lastRequestParamsRef.current !== requestKey) {
+          lastRequestParamsRef.current = requestKey;
+          loadAdgroups(accountIdNum);
+        }
       } else {
         setLoading(false);
       }
     } else {
       setLoading(false);
     }
-  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadAdgroups, sorting]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
 
-  const loadAdgroupsWithFilters = async (
-    accountId: number,
-    filterList: FilterValues
-  ) => {
-    try {
-      setLoading(true);
-      const params: any = {
-        filters: filterList, // Pass filters array directly
-        sort_by: sortBy,
-        order: sortOrder,
-        page: 1,
-        page_size: itemsPerPage,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-      };
-
-      const response = await googleAdwordsAdGroupsService.getGoogleAdGroups(
-        accountId,
-        undefined,
-        params
-      );
-      setAdgroups(Array.isArray(response.adgroups) ? response.adgroups : []);
-      setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
-      if (response.summary) {
-        setSummary(response.summary);
-      }
-      // Store chart data from API if available
-      const responseWithChart = response as any;
-      if (
-        responseWithChart.chart_data &&
-        Array.isArray(responseWithChart.chart_data)
-      ) {
-        setChartDataFromApi(responseWithChart.chart_data);
-      } else {
-        setChartDataFromApi([]);
-      }
-      setSelectedAdgroups(new Set());
-    } catch (error) {
-      console.error("Failed to load Google adgroups:", error);
-      setAdgroups([]);
-      setTotalPages(0);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Sync status hook (after loadAdgroups is defined)
-  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+  const { SyncStatusBanner } = useGoogleSyncStatus({
     accountId,
     entityType: "adgroups",
     currentData: adgroups,
     loadFunction: loadAdgroups,
   });
 
-  const handleSync = async () => {
-    if (!accountId) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
 
-    try {
-      setSyncing(true);
-      setSyncMessage(null);
-      const result = await googleAdwordsAdGroupsService.syncGoogleAdGroups(accountIdNum);
-      let message =
-        result.message || `Successfully synced ${result.synced} adgroups`;
-
-      if (result.errors && result.errors.length > 0) {
-        const errorDetails = (result as any).error_details || result.errors;
-        const errorText = errorDetails.slice(0, 3).join("; ");
-        message += ` Errors: ${errorText}`;
-        if (result.errors.length > 3) {
-          message += ` (and ${result.errors.length - 3} more)`;
-        }
-      }
-
-      setSyncMessage(message);
-
-      // Check sync status immediately after triggering sync
-      await checkSyncStatus();
-
-      // Reset to first page and reload adgroups after sync
-      if (result.synced > 0) {
-        setCurrentPage(1);
-        // Small delay to ensure database is updated
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-      await loadAdgroups(accountIdNum);
-
-      if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage(null), 5000);
-      } else if (result.errors) {
-        setTimeout(() => setSyncMessage(null), 15000);
-      }
-    } catch (error: any) {
-      console.error("Failed to sync campaigns:", error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.message ||
-        "Failed to sync adgroups from Google Ads";
-      setSyncMessage(errorMessage);
-      setTimeout(() => setSyncMessage(null), 8000);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleSyncAnalytics = async () => {
-    if (!accountId) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setSyncingAnalytics(true);
-      setAnalyticsSyncMessage(null);
-
-      // Always use 1 year date range for analytics sync (365 days)
-      const today = new Date();
-      const oneYearAgo = new Date();
-      oneYearAgo.setDate(oneYearAgo.getDate() - 365);
-      
-      const result = await googleAdwordsAdGroupsService.syncGoogleAdGroupAnalytics(
-        accountIdNum,
-        oneYearAgo.toISOString().split("T")[0],
-        today.toISOString().split("T")[0]
-      );
-
-      let message =
-        result.message ||
-        `Successfully synced analytics: ${
-          result.rows_inserted || 0
-        } inserted, ${result.rows_updated || 0} updated`;
-
-      if (result.errors && result.errors.length > 0) {
-        const errorDetails = (result as any).error_details || result.errors;
-        const errorText = errorDetails.slice(0, 3).join("; ");
-        message += ` Errors: ${errorText}`;
-        if (result.errors.length > 3) {
-          message += ` (and ${result.errors.length - 3} more)`;
-        }
-      }
-
-      setAnalyticsSyncMessage(message);
-
-      // Reload adgroups to show updated analytics
-      if ((result.rows_inserted || 0) > 0 || (result.rows_updated || 0) > 0) {
-        setCurrentPage(1);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        await loadAdgroups(accountIdNum);
-      }
-
-      if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        setTimeout(() => setAnalyticsSyncMessage(null), 5000);
-      } else if (result.errors) {
-        setTimeout(() => setAnalyticsSyncMessage(null), 15000);
-      }
-    } catch (error: any) {
-      console.error("Failed to sync analytics:", error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.message ||
-        "Failed to sync adgroup analytics from Google Ads";
-      setAnalyticsSyncMessage(errorMessage);
-      setTimeout(() => setAnalyticsSyncMessage(null), 8000);
-    } finally {
-      setSyncingAnalytics(false);
-    }
-  };
 
   const handleSort = async (column: string) => {
     if (sorting) return; // Prevent multiple simultaneous sorts
@@ -519,7 +414,11 @@ export const GoogleAdGroups: React.FC = () => {
           setTotalPages(response.total_pages || 0);
           setTotal(response.total || 0);
           if (response.summary) {
-            setSummary(response.summary);
+            // Map IGoogleCampaignsSummary to adgroups summary format
+            setSummary({
+              ...response.summary,
+              total_adgroups: response.summary.total_campaigns || 0,
+            } as any);
           }
           // Update chart data if available
           const responseWithChart = response as any;
@@ -625,20 +524,18 @@ export const GoogleAdGroups: React.FC = () => {
     if (field === "bid") {
       setEditedValue((adgroup.cpc_bid_dollars || 0).toString());
     } else if (field === "status") {
-      setEditedValue(adgroup.status || "ENABLED");
+      setEditedValue(getStatusWithDefault(adgroup.status));
     } else if (field === "name" || field === "adgroup_name") {
       setEditedValue(adgroup.adgroup_name || adgroup.name || "");
     }
   };
 
   const cancelInlineEdit = () => {
-    setIsCancelling(true);
+    isCancellingRef.current = true;
     setEditingCell(null);
     setEditedValue("");
-    // Reset cancel flag after a short delay to allow onBlur to check it
-    setTimeout(() => {
-      setIsCancelling(false);
-    }, 100);
+    // Reset immediately after state updates
+    isCancellingRef.current = false;
   };
 
   const handleInlineEditChange = (value: string) => {
@@ -650,13 +547,48 @@ export const GoogleAdGroups: React.FC = () => {
     fieldKey?: string,
     adgroupIdParam?: string | number
   ) => {
-    // If adgroupIdParam and fieldKey are provided, use direct confirmation
-    if (adgroupIdParam && fieldKey && (fieldKey === "bid" || fieldKey === "adgroup_name" || fieldKey === "status")) {
-      confirmInlineEditDirect(newValueOverride || editedValue, adgroupIdParam, fieldKey);
+    // If adgroupIdParam and fieldKey are provided, show modal for confirmation
+    if (adgroupIdParam && fieldKey && (fieldKey === "bid" || fieldKey === "adgroup_name" || fieldKey === "status" || fieldKey === "name")) {
+      const adgroup = adgroups.find((a) => a.adgroup_id === adgroupIdParam);
+      if (!adgroup) return;
+      
+      const valueToCheck = newValueOverride !== undefined ? newValueOverride : editedValue;
+      let oldValue = "";
+      let newValue = valueToCheck.trim();
+      
+      if (fieldKey === "bid") {
+        const newBid = parseFloat(valueToCheck) || 0;
+        const oldBid = adgroup.cpc_bid_dollars || 0;
+        oldValue = formatCurrency(oldBid);
+        newValue = formatCurrency(newBid);
+      } else if (fieldKey === "status") {
+        oldValue = formatStatusForDisplay(adgroup.status);
+        const newStatusRaw = valueToCheck.trim();
+        newValue = formatStatusForDisplay(newStatusRaw);
+        
+        // Check if status is being changed to REMOVED - show confirmation modal
+        if (newStatusRaw.toUpperCase() === "REMOVED") {
+          // Close the dropdown immediately when modal appears
+          cancelInlineEdit();
+          setPendingRemoveChange({ value: "REMOVED", adgroupId: adgroupIdParam!, field: fieldKey });
+          setShowRemoveConfirmation(true);
+          return;
+        }
+      } else if (fieldKey === "name" || fieldKey === "adgroup_name") {
+        oldValue = adgroup.adgroup_name || adgroup.name || "";
+        newValue = valueToCheck.trim();
+      }
+      
+      setInlineEditAdGroup(adgroup);
+      setInlineEditField(fieldKey === "adgroup_name" ? "name" : fieldKey);
+      setInlineEditOldValue(oldValue);
+      setInlineEditNewValue(newValue);
+      setShowInlineEditModal(true);
+      setEditingCell(null);
       return;
     }
 
-    if (!editingCell || !accountId || isCancelling) return;
+    if (!editingCell || !accountId || isCancellingRef.current) return;
 
     const adgroup = adgroups.find(
       (a) => a.adgroup_id === editingCell.adgroupId
@@ -665,7 +597,6 @@ export const GoogleAdGroups: React.FC = () => {
 
     const valueToCheck =
       newValueOverride !== undefined ? newValueOverride : editedValue;
-    const field = fieldKey || editingCell.field;
     let hasChanged = false;
 
     if (editingCell.field === "bid") {
@@ -679,30 +610,31 @@ export const GoogleAdGroups: React.FC = () => {
       // Use a smaller threshold (0.001) to detect small bid changes like 0.02 to 0.03
       hasChanged = Math.abs(newBid - oldBid) > 0.001;
     } else if (editingCell.field === "status") {
-      const oldValue = (adgroup.status || "ENABLED").trim();
+      const oldValue = getStatusWithDefault(adgroup.status).trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
       
-      // For status changes, show confirmation modal (match TikTok/Amazon pattern)
+      // For status changes, show modal
       if (hasChanged) {
-        // Format status values for display
-        const statusDisplayMap: Record<string, string> = {
-          ENABLED: "Enabled",
-          PAUSED: "Paused",
-          Enabled: "Enabled",
-          Paused: "Paused",
-        };
-        const oldValueDisplay = statusDisplayMap[oldValue] || oldValue;
-        const newValueDisplay = statusDisplayMap[newValue] || newValue;
+        // Check if status is being changed to REMOVED - show confirmation modal
+        if (newValue.toUpperCase() === "REMOVED") {
+          // Close the dropdown immediately when modal appears
+          cancelInlineEdit();
+          setPendingRemoveChange({ value: "REMOVED", adgroupId: editingCell.adgroupId, field: "status" });
+          setShowRemoveConfirmation(true);
+          return;
+        }
         
-        setStatusEditData({
-          adgroup,
-          oldValue: oldValueDisplay,
-          newValue: newValueDisplay,
-        });
-        setShowStatusEditModal(true);
+        // Format status values for display
+        const oldValueDisplay = formatStatusForDisplay(oldValue);
+        const newValueDisplay = formatStatusForDisplay(newValue);
+        
+        setInlineEditAdGroup(adgroup);
+        setInlineEditField("status");
+        setInlineEditOldValue(oldValueDisplay);
+        setInlineEditNewValue(newValueDisplay);
+        setShowInlineEditModal(true);
         setEditingCell(null);
-        setEditedValue("");
         return;
       }
     } else if (editingCell.field === "name" || editingCell.field === "adgroup_name") {
@@ -716,106 +648,164 @@ export const GoogleAdGroups: React.FC = () => {
       return;
     }
 
-    // For non-status fields, create pending change (inline confirm/cancel buttons)
-    setPendingChanges((prev) => ({
-      ...prev,
-      [field]: {
-        itemId: adgroup.adgroup_id,
-        newValue: valueToCheck.trim(),
-      },
-    }));
-    setEditingCell(null);
-    setEditedValue("");
-  };
-
-  // Direct confirmation handler for bid and adgroup_name (no pending changes, immediate update)
-  const confirmInlineEditDirect = async (newValue: string, adgroupIdParam: string | number, fieldParam: string) => {
-    if (!accountId || isCancelling) return;
-
-    const adgroupIdToUse = adgroupIdParam;
-    const fieldToUse = fieldParam;
-
-    if (!adgroupIdToUse || !fieldToUse) return;
-
-    const adgroup = adgroups.find((a) => a.adgroup_id === adgroupIdToUse);
-    if (!adgroup) return;
-
-    // Only allow direct confirmation for bid, adgroup_name, and status fields
-    if (fieldToUse !== "bid" && fieldToUse !== "adgroup_name" && fieldToUse !== "status") {
-      // Fall back to regular confirmation for other fields
-      confirmInlineEdit(newValue, fieldToUse);
+    // For bid and name fields, show modal
+    if (editingCell.field === "bid") {
+      const newBid = parseFloat(valueToCheck) || 0;
+      const oldBid = adgroup.cpc_bid_dollars || 0;
+      
+      setInlineEditAdGroup(adgroup);
+      setInlineEditField("bid");
+      setInlineEditOldValue(formatCurrency(oldBid));
+      setInlineEditNewValue(formatCurrency(newBid));
+      setShowInlineEditModal(true);
+      setEditingCell(null);
+      return;
+    } else if (editingCell.field === "name" || editingCell.field === "adgroup_name") {
+      const oldValue = (adgroup.adgroup_name || adgroup.name || "").trim();
+      const newValue = valueToCheck.trim();
+      
+      setInlineEditAdGroup(adgroup);
+      setInlineEditField("name");
+      setInlineEditOldValue(oldValue);
+      setInlineEditNewValue(newValue);
+      setShowInlineEditModal(true);
+      setEditingCell(null);
       return;
     }
+  };
 
-    // Set updating field immediately to show loading
-    setUpdatingField({
-      adgroupId: adgroupIdToUse,
-      field: fieldToUse as any,
-      newValue: newValue.trim(),
-    });
+  // Handle confirmation for REMOVED status change
+  const handleConfirmRemove = async () => {
+    if (!pendingRemoveChange || !accountId) return;
 
-    // Clear editingCell if it matches
-    if (!editingCell || (editingCell.adgroupId === adgroupIdToUse && editingCell.field === fieldToUse)) {
-      setEditingCell(null);
-      setEditedValue("");
-    }
-
-    // Directly call handleConfirmChange
+    setInlineEditLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) {
         throw new Error("Invalid account ID");
       }
 
-      if (fieldToUse === "bid") {
-        const bidValue = parseFloat(newValue.replace(/[^0-9.]/g, ""));
-        if (isNaN(bidValue) || bidValue <= 0) {
-          throw new Error("Invalid bid value");
-        }
-        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
-          adgroupIds: [adgroupIdToUse],
-          action: "bid",
-          bid: bidValue,
-        });
-      } else if (fieldToUse === "adgroup_name") {
-        const trimmedName = newValue.trim();
-        if (!trimmedName) {
-          throw new Error("Ad group name cannot be empty");
-        }
-        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
-          adgroupIds: [adgroupIdToUse],
-          action: "name",
-          name: trimmedName,
-        });
-      } else if (fieldToUse === "status") {
-        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-          ENABLED: "ENABLED",
-          PAUSED: "PAUSED",
-          Enabled: "ENABLED",
-          Paused: "PAUSED",
-        };
-        const statusValue = statusMap[newValue] || "ENABLED";
-        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
-          adgroupIds: [adgroupIdToUse],
-          action: "status",
-          status: statusValue,
-        });
-      }
+      const statusValue = convertStatusToApi("REMOVED");
+      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        adgroupIds: [pendingRemoveChange.adgroupId],
+        action: "status",
+        status: statusValue,
+      });
 
       await loadAdgroups(accountIdNum);
+      
+      setShowRemoveConfirmation(false);
+      setPendingRemoveChange(null);
       
       // Clear any previous errors
       setInlineEditError(null);
       
       // Show success feedback
       setInlineEditSuccess({
-        adgroupId: adgroupIdToUse,
-        field: fieldToUse as any,
+        adgroupId: pendingRemoveChange.adgroupId,
+        field: "status",
+      });
+    } catch (error: any) {
+      console.error("Failed to remove adgroup:", error);
+      
+      // Clear any previous success
+      setInlineEditSuccess(null);
+      
+      // Set error state for inline feedback
+      let errorMessage = "Failed to remove adgroup. Please try again.";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error?.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (
+          error.response.data.errors &&
+          Array.isArray(error.response.data.errors) &&
+          error.response.data.errors.length > 0
+        ) {
+          errorMessage = error.response.data.errors[0].replace(/^AdGroup\s+\d+:\s*/i, "");
+        }
+      }
+      
+      setInlineEditError({
+        adgroupId: pendingRemoveChange.adgroupId,
+        field: "status",
+        message: errorMessage,
+      });
+    } finally {
+      setInlineEditLoading(false);
+    }
+  };
+
+  // Handle cancel for REMOVED status change
+  const handleCancelRemove = () => {
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+    // Cancel the inline edit
+    cancelInlineEdit();
+  };
+
+  // Run inline edit from modal confirmation
+  const runInlineEdit = async () => {
+    if (!inlineEditAdGroup || !inlineEditField || !accountId) return;
+
+    setInlineEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      if (inlineEditField === "bid") {
+        // Extract numeric value from formatted string
+        const bidValue = parseFloat(
+          inlineEditNewValue.replace(/[^0-9.]/g, "")
+        );
+        if (isNaN(bidValue) || bidValue <= 0) {
+          throw new Error("Invalid bid value");
+        }
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          adgroupIds: [inlineEditAdGroup.adgroup_id],
+          action: "bid",
+          bid: bidValue,
+        });
+      } else if (inlineEditField === "status") {
+        const statusValue = convertStatusToApi(inlineEditNewValue);
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          adgroupIds: [inlineEditAdGroup.adgroup_id],
+          action: "status",
+          status: statusValue,
+        });
+      } else if (inlineEditField === "name") {
+        const trimmedName = inlineEditNewValue.trim();
+        if (!trimmedName) {
+          throw new Error("Ad group name cannot be empty");
+        }
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          adgroupIds: [inlineEditAdGroup.adgroup_id],
+          action: "name",
+          name: trimmedName,
+        });
+      }
+
+      await loadAdgroups(accountIdNum);
+      
+      setShowInlineEditModal(false);
+      setInlineEditAdGroup(null);
+      setInlineEditField(null);
+      setInlineEditOldValue("");
+      setInlineEditNewValue("");
+      
+      // Clear any previous errors
+      setInlineEditError(null);
+      
+      // Show success feedback
+      setInlineEditSuccess({
+        adgroupId: inlineEditAdGroup.adgroup_id,
+        field: inlineEditField,
       });
       // Clear success feedback after 3 seconds
-      setTimeout(() => {
-        setInlineEditSuccess(null);
-      }, 3000);
     } catch (error: any) {
       console.error("Failed to update adgroup:", error);
       
@@ -835,25 +825,20 @@ export const GoogleAdGroups: React.FC = () => {
           Array.isArray(error.response.data.errors) &&
           error.response.data.errors.length > 0
         ) {
-          // Clean up error messages - remove "AdGroup {id}:" prefix if present
           errorMessage = error.response.data.errors[0].replace(/^AdGroup\s+\d+:\s*/i, "");
         }
       }
       
       setInlineEditError({
-        adgroupId: adgroupIdToUse,
-        field: fieldToUse as any,
+        adgroupId: inlineEditAdGroup.adgroup_id,
+        field: inlineEditField,
         message: errorMessage,
       });
-      
-      // Auto-dismiss error after 5 seconds
-      setTimeout(() => {
-        setInlineEditError(null);
-      }, 5000);
     } finally {
-      setUpdatingField(null);
+      setInlineEditLoading(false);
     }
   };
+
 
   // Handler for confirming a pending change (clicking the checkmark)
   const handleConfirmChange = async (itemId: string | number, fieldKey: string, newValue: string) => {
@@ -872,13 +857,7 @@ export const GoogleAdGroups: React.FC = () => {
 
       if (fieldKey === "status" || fieldKey === "adgroup_name" || fieldKey === "name") {
         if (fieldKey === "status") {
-          const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-            ENABLED: "ENABLED",
-            PAUSED: "PAUSED",
-            Enabled: "ENABLED",
-            Paused: "PAUSED",
-          };
-          const statusValue = statusMap[newValue] || "ENABLED";
+          const statusValue = convertStatusToApi(newValue);
           await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
             adgroupIds: [itemId],
             action: "status",
@@ -952,12 +931,6 @@ export const GoogleAdGroups: React.FC = () => {
     }
   };
 
-  // Handler for opening edit ad group name modal (triggered by pencil icon)
-  const handleEditAdGroup = (adgroup: GoogleAdGroup) => {
-    setNameEditAdgroup(adgroup);
-    setNameEditValue(adgroup.adgroup_name || adgroup.name || "");
-    setShowNameEditModal(true);
-  };
 
   const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
     if (!accountId || selectedAdgroups.size === 0) return;
@@ -1197,12 +1170,7 @@ export const GoogleAdGroups: React.FC = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, string> = {
-      ENABLED: "Enable",
-      PAUSED: "Paused",
-      REMOVED: "Removed",
-    };
-    const statusLabel = statusMap[status.toUpperCase()] || "Paused";
+    const statusLabel = formatStatusForDisplay(status) || "Paused";
     return <StatusBadge status={statusLabel} />;
   };
 
@@ -1252,7 +1220,7 @@ export const GoogleAdGroups: React.FC = () => {
                 day: "numeric",
               });
             }
-          } catch (e) {
+          } catch {
             // Keep original date if parsing fails
             formattedDate = item.date;
           }
@@ -1412,6 +1380,7 @@ export const GoogleAdGroups: React.FC = () => {
                 }))}
                 accountId={accountId}
                 marketplace="google_adwords"
+                entityType="adgroups"
               />
             )}
 
@@ -1890,7 +1859,7 @@ export const GoogleAdGroups: React.FC = () => {
                                   .map((adgroup) => {
                                     const oldBid = adgroup.cpc_bid_dollars || 0;
                                     const oldStatus =
-                                      adgroup.status || "ENABLED";
+                                      getStatusWithDefault(adgroup.status);
                                     const newBid = isBidChange
                                       ? calculateNewBid(oldBid)
                                       : oldBid;
@@ -2126,13 +2095,7 @@ export const GoogleAdGroups: React.FC = () => {
                             }
 
                             // Map status values: Google API uses "ENABLED" | "PAUSED" (uppercase)
-                            const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-                              ENABLED: "ENABLED",
-                              PAUSED: "PAUSED",
-                              Enabled: "ENABLED",
-                              Paused: "PAUSED",
-                            };
-                            const statusValue = statusMap[statusEditData.newValue] || "ENABLED";
+                            const statusValue = convertStatusToApi(statusEditData.newValue);
 
                             const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
                               adgroupIds: [statusEditData.adgroup.adgroup_id],
@@ -2235,6 +2198,86 @@ export const GoogleAdGroups: React.FC = () => {
                 document.body
               )}
 
+              {/* Inline Edit Confirmation Modal */}
+              {showInlineEditModal && inlineEditAdGroup && inlineEditField && (
+                <div
+                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget) {
+                      setShowInlineEditModal(false);
+                    }
+                  }}
+                >
+                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                      Confirm{" "}
+                      {inlineEditField === "bid"
+                        ? "Bid"
+                        : inlineEditField === "status"
+                        ? "Status"
+                        : "Name"}{" "}
+                      Change
+                    </h3>
+                    <div className="mb-4">
+                      <p className="text-[12.16px] text-[#556179] mb-2">
+                        Ad Group:{" "}
+                        <span className="font-semibold text-[#072929]">
+                          {inlineEditAdGroup.adgroup_name ||
+                            inlineEditAdGroup.name ||
+                            "Unnamed Ad Group"}
+                        </span>
+                      </p>
+                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[12.16px] text-[#556179]">
+                            {inlineEditField === "bid"
+                              ? "Bid"
+                              : inlineEditField === "status"
+                              ? "Status"
+                              : "Name"}
+                            :
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[12.16px] text-[#556179]">
+                              {inlineEditOldValue}
+                            </span>
+                            <span className="text-[12.16px] text-[#556179]">
+                              →
+                            </span>
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                              {inlineEditNewValue}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowInlineEditModal(false);
+                          setInlineEditAdGroup(null);
+                          setInlineEditField(null);
+                          setInlineEditOldValue("");
+                          setInlineEditNewValue("");
+                        }}
+                        className="cancel-button"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={runInlineEdit}
+                        disabled={inlineEditLoading}
+                        className="create-entity-button btn-sm"
+                      >
+                        {inlineEditLoading ? "Updating..." : "Confirm"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Table */}
               <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
                 <div className="overflow-x-auto w-full">
@@ -2250,7 +2293,7 @@ export const GoogleAdGroups: React.FC = () => {
                     sortOrder={sortOrder}
                     editingCell={editingCell}
                     editedValue={editedValue}
-                    isCancelling={isCancelling}
+                    isCancelling={isCancellingRef.current}
                     updatingField={updatingField}
                     inlineEditSuccess={inlineEditSuccess}
                     inlineEditError={inlineEditError}
@@ -2370,6 +2413,17 @@ export const GoogleAdGroups: React.FC = () => {
           </div>
         </div>
       </div>
+      <ConfirmationModal
+        isOpen={showRemoveConfirmation}
+        onClose={handleCancelRemove}
+        onConfirm={handleConfirmRemove}
+        title="Are you sure you want to remove this ad group?"
+        message="This action cannot be undone. All data associated with this ad group will be permanently removed."
+        type="danger"
+        size="sm"
+        isLoading={inlineEditLoading}
+        icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+      />
     </div>
   );
 };
