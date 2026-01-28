@@ -1873,19 +1873,46 @@ export const GoogleCampaigns: React.FC = () => {
     fieldOverride?: string,
     campaignIdOverride?: string | number
   ) => {
+    console.log("[confirmInlineEdit] Called with:", {
+      newValueOverride,
+      fieldOverride,
+      campaignIdOverride,
+      editingCell,
+      editedValue,
+      accountId,
+      isCancelling: isCancellingRef.current,
+    });
+    
     // Use override parameters if provided, otherwise fall back to editingCell state
     const campaignIdToUse = campaignIdOverride || editingCell?.campaignId;
     const fieldToUse = fieldOverride || editingCell?.field;
     
-    if (!campaignIdToUse || !fieldToUse || !accountId || isCancellingRef.current) return;
+    if (!campaignIdToUse || !fieldToUse || !accountId || isCancellingRef.current) {
+      console.log("[confirmInlineEdit] Early return:", {
+        campaignIdToUse: !!campaignIdToUse,
+        fieldToUse: !!fieldToUse,
+        accountId: !!accountId,
+        isCancelling: isCancellingRef.current,
+      });
+      return;
+    }
 
     const campaign = campaigns.find(
       (c) => String(c.campaign_id) === String(campaignIdToUse)
     );
-    if (!campaign) return;
+    if (!campaign) {
+      console.log("[confirmInlineEdit] Campaign not found:", campaignIdToUse);
+      return;
+    }
 
     const valueToCheck =
       newValueOverride !== undefined ? newValueOverride : editedValue;
+    console.log("[confirmInlineEdit] Resolved values:", {
+      valueToCheck,
+      fieldToUse,
+      campaignId: campaign.campaign_id,
+    });
+    
     let hasChanged = false;
     let validationError = "";
 
@@ -1897,16 +1924,31 @@ export const GoogleCampaigns: React.FC = () => {
         cancelInlineEdit();
         return;
       }
-      hasChanged = Math.abs(newBudget - oldBudget) > 0.01;
+      // Round to 2 decimal places to avoid floating point precision issues
+      const roundedNew = Math.round(newBudget * 100) / 100;
+      const roundedOld = Math.round(oldBudget * 100) / 100;
+      // Use same threshold as table component (0.001) to ensure consistency
+      // This ensures that if the table component detects a change, we will too
+      hasChanged = Math.abs(roundedNew - roundedOld) > 0.001;
+      console.log("[budget] Budget comparison:", {
+        campaignId: campaignIdToUse,
+        newBudgetStr,
+        newBudget,
+        roundedNew,
+        oldBudget,
+        roundedOld,
+        difference: Math.abs(roundedNew - roundedOld),
+        hasChanged,
+      });
     } else if (fieldToUse === "status") {
       const oldValue = getStatusWithDefault(campaign.status).trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
     } else if (fieldToUse === "start_date") {
       // Normalize dates to YYYY-MM-DD format for comparison using utility function
-      const oldValue = parseDateToYYYYMMDD(campaign.start_date);
+      const oldValue = parseDateToYYYYMMDD(campaign.start_date) || "";
       const newValue = valueToCheck.trim();
-      hasChanged = newValue !== oldValue;
+      hasChanged = newValue !== "" && newValue !== oldValue;
 
       console.log("[start_date] Date comparison:", {
         campaignId: campaignIdToUse,
@@ -1914,6 +1956,7 @@ export const GoogleCampaigns: React.FC = () => {
         newValue,
         hasChanged,
         rawStartDate: campaign.start_date,
+        valueToCheck,
       });
 
       // Validate: start date cannot be in the past
@@ -1928,9 +1971,9 @@ export const GoogleCampaigns: React.FC = () => {
       }
     } else if (fieldToUse === "end_date") {
       // Normalize dates to YYYY-MM-DD format for comparison using utility function
-      const oldValue = parseDateToYYYYMMDD(campaign.end_date);
+      const oldValue = parseDateToYYYYMMDD(campaign.end_date) || "";
       const newValue = valueToCheck.trim();
-      hasChanged = newValue !== oldValue;
+      hasChanged = newValue !== "" && newValue !== oldValue;
 
       console.log("[end_date] Date comparison:", {
         campaignId: campaignIdToUse,
@@ -1938,6 +1981,7 @@ export const GoogleCampaigns: React.FC = () => {
         newValue,
         hasChanged,
         rawEndDate: campaign.end_date,
+        valueToCheck,
       });
 
       // Validate: end date cannot be in the past
@@ -1968,7 +2012,14 @@ export const GoogleCampaigns: React.FC = () => {
       hasChanged = newValue !== oldValue;
     }
 
+    console.log("[confirmInlineEdit] hasChanged check:", {
+      fieldToUse,
+      hasChanged,
+      valueToCheck,
+    });
+    
     if (!hasChanged) {
+      console.log("[confirmInlineEdit] No change detected, cancelling");
       cancelInlineEdit();
       return;
     }
@@ -1995,6 +2046,13 @@ export const GoogleCampaigns: React.FC = () => {
     if (fieldToUse === "budget") {
       const newBudget = parseFloat(valueToCheck) || 0;
       const oldBudget = campaign.daily_budget || 0;
+
+      console.log("[confirmInlineEdit] Opening budget modal:", {
+        newBudget,
+        oldBudget,
+        formattedNew: formatCurrency(newBudget),
+        formattedOld: formatCurrency(oldBudget),
+      });
 
       setInlineEditCampaign(campaign);
       setInlineEditField(fieldToUse);
@@ -2035,6 +2093,13 @@ export const GoogleCampaigns: React.FC = () => {
       // Format dates for display
       const oldDateStr = parseDateToYYYYMMDD(campaign[fieldToUse]);
       const newDateStr = valueToCheck.trim();
+
+      console.log("[confirmInlineEdit] Opening date modal:", {
+        fieldToUse,
+        oldDateStr,
+        newDateStr,
+        rawDate: campaign[fieldToUse],
+      });
 
       // Store formatted values for display in modal
       const oldValue = formatDateForDisplayUtil(oldDateStr);
@@ -2462,7 +2527,7 @@ export const GoogleCampaigns: React.FC = () => {
     }
   };
 
-  // Original runInlineEdit for modal-based updates (status, bidding_strategy_type)
+  // Original runInlineEdit for modal-based updates (status, bidding_strategy_type, budget, dates)
   const runInlineEdit = async () => {
     if (!inlineEditCampaign || !inlineEditField || !accountId) return;
 
@@ -2473,7 +2538,66 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      if (inlineEditField === "status") {
+      if (inlineEditField === "budget") {
+        const budgetValue = parseFloat(
+          inlineEditNewValue.replace(/[^0-9.]/g, "")
+        );
+        if (isNaN(budgetValue)) {
+          throw new Error("Invalid budget value");
+        }
+
+        console.log("Calling bulkUpdateGoogleCampaigns for budget:", {
+          accountIdNum,
+          campaignId: inlineEditCampaign.campaign_id,
+          action: "budget",
+          budgetAction: "set",
+          unit: "amount",
+          value: budgetValue,
+        });
+
+        const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
+          accountIdNum,
+          {
+            campaignIds: [inlineEditCampaign.campaign_id],
+            action: "budget",
+            budgetAction: "set",
+            unit: "amount",
+            value: budgetValue,
+          }
+        );
+
+        console.log("Budget update response:", response);
+
+        if (response.errors && response.errors.length > 0) {
+          const error = new Error(response.errors[0]);
+          (error as any).response = { data: { errors: response.errors } };
+          throw error;
+        }
+      } else if (
+        inlineEditField === "start_date" ||
+        inlineEditField === "end_date"
+      ) {
+        // inlineEditNewValue should already be in YYYY-MM-DD format from the date input
+        let dateValue = inlineEditNewValue.trim();
+        if (!dateValue || dateValue === "—") {
+          dateValue = "";
+        }
+
+        const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
+          accountIdNum,
+          {
+            campaignIds: [inlineEditCampaign.campaign_id],
+            action: inlineEditField,
+            [inlineEditField]: dateValue || undefined,
+          }
+        );
+
+        if (response.errors && response.errors.length > 0) {
+          const error = new Error(response.errors[0]);
+          (error as any).response = { data: { errors: response.errors } };
+          throw error;
+        }
+      } else if (inlineEditField === "status") {
         const statusValue = convertStatusToApi(inlineEditNewValue);
 
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
