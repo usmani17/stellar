@@ -5,7 +5,7 @@ import React, {
   useRef,
   useCallback,
 } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -3436,10 +3436,11 @@ export const Campaigns: React.FC = () => {
                                       <button
                                         type="button"
                                         onClick={(e) => {
+                                          e.preventDefault();
                                           e.stopPropagation();
                                           handleOpenEditCampaign(campaign);
                                         }}
-                                        className="table-edit-icon"
+                                        className="table-edit-icon flex-shrink-0"
                                         title="Edit campaign"
                                         disabled={
                                           loadingEditCampaignId ===
@@ -3466,26 +3467,25 @@ export const Campaigns: React.FC = () => {
                                           </svg>
                                         )}
                                       </button>
-                                      <button
-                                        onClick={() => {
-                                          if (accountId) {
-                                            navigate(
-                                              buildMarketplaceRoute(
-                                                parseInt(accountId),
-                                                channelId ?? 0,
-                                                "amazon",
-                                                "campaigns",
-                                                `${campaign.type.toLowerCase()}_${campaign.campaignId
-                                                }`
-                                              )
-                                            );
-                                          }
-                                        }}
-                                        className="table-edit-link"
-                                      >
-                                        {campaign.campaign_name ||
-                                          "Unnamed Campaign"}
-                                      </button>
+                                      {accountId ? (
+                                        <Link
+                                          to={buildMarketplaceRoute(
+                                            parseInt(accountId),
+                                            "amazon",
+                                            "campaigns",
+                                            `${campaign.type.toLowerCase()}_${campaign.campaignId}`
+                                          )}
+                                          className="table-edit-link"
+                                        >
+                                          {campaign.campaign_name ||
+                                            "Unnamed Campaign"}
+                                        </Link>
+                                      ) : (
+                                        <span className="table-edit-link">
+                                          {campaign.campaign_name ||
+                                            "Unnamed Campaign"}
+                                        </span>
+                                      )}
                                     </div>
                                   </td>
 

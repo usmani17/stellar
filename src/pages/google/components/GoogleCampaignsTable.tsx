@@ -116,16 +116,20 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
                 )}
               </button>
             )}
-            <button
-              type="button"
+            <a
+              href={navPath}
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(navPath);
+                // Only prevent default for regular clicks (not Ctrl/Cmd/middle click)
+                if (!e.metaKey && !e.ctrlKey && e.button !== 1) {
+                  e.preventDefault();
+                  navigate(navPath);
+                }
               }}
               className="table-edit-link"
             >
               {value}
-            </button>
+            </a>
           </div>
         );
       },

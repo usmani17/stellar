@@ -10,6 +10,8 @@ import {
   type FilterValues,
 } from "../../../../components/filters/FilterPanel";
 import type { GoogleNegativeKeyword } from "./GoogleTypes";
+import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal";
+import { TrashIcon } from "lucide-react";
 
 interface GoogleCampaignDetailNegativeKeywordsTabProps {
   negativeKeywords: GoogleNegativeKeyword[];
@@ -111,6 +113,13 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
     useState<GoogleNegativeKeyword | null>(null);
   const [keywordTextEditValue, setKeywordTextEditValue] = useState<string>("");
   const [keywordTextEditLoading, setKeywordTextEditLoading] = useState(false);
+  const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
+  const [pendingRemoveChange, setPendingRemoveChange] = useState<{
+    value: string;
+    negativeKeywordId: number;
+    criterionId: string;
+    field: string;
+  } | null>(null);
 
   const handleStatusClick = (negativeKeyword: GoogleNegativeKeyword) => {
     if (onUpdateNegativeKeywordStatus) {
@@ -142,6 +151,21 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
     const newStatusUpper = newStatus.toUpperCase();
 
     if (newStatusUpper !== oldStatus) {
+      // Check if status is being changed to REMOVED - show confirmation modal
+      if (newStatusUpper === "REMOVED") {
+        setEditingNegativeKeywordId(null);
+        setEditingField(null);
+        setEditingStatus("");
+        setPendingRemoveChange({ 
+          value: "REMOVED", 
+          negativeKeywordId: negativeKeyword.id,
+          criterionId: criterionId,
+          field: "status" 
+        });
+        setShowRemoveConfirmation(true);
+        return;
+      }
+      
       // Show confirmation modal immediately - matches KeywordsTab pattern
       const statusDisplayMap: Record<string, string> = {
         ENABLED: "Enabled",
@@ -282,6 +306,39 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
     setInlineEditOldValue("");
     setInlineEditNewValue("");
     setInlineEditCriterionId("");
+  };
+
+  // Handle confirmation for REMOVED status change
+  const handleConfirmRemove = async () => {
+    if (!pendingRemoveChange || !onUpdateNegativeKeywordStatus) return;
+
+    setInlineEditLoading(true);
+    try {
+      await onUpdateNegativeKeywordStatus(
+        pendingRemoveChange.criterionId,
+        "REMOVED"
+      );
+      
+      setShowRemoveConfirmation(false);
+      setPendingRemoveChange(null);
+    } catch (error: any) {
+      console.error("Failed to remove negative keyword:", error);
+      alert(
+        error?.response?.data?.error ||
+          "Failed to remove negative keyword. Please try again."
+      );
+    } finally {
+      setInlineEditLoading(false);
+    }
+  };
+
+  // Handle cancel for REMOVED status change
+  const handleCancelRemove = () => {
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+    setEditingNegativeKeywordId(null);
+    setEditingField(null);
+    setEditingStatus("");
   };
 
   // Keyword text edit modal handlers
@@ -906,6 +963,19 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
           </div>
         </div>
       )}
+
+      {/* Remove Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showRemoveConfirmation}
+        onClose={handleCancelRemove}
+        onConfirm={handleConfirmRemove}
+        title="Are you sure you want to remove this negative keyword?"
+        message="This action cannot be undone. All data associated with this negative keyword will be permanently removed."
+        type="danger"
+        size="sm"
+        isLoading={inlineEditLoading}
+        icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+      />
     </>
   );
 };

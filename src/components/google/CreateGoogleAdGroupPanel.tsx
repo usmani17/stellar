@@ -46,7 +46,7 @@ export const CreateGoogleAdGroupPanel: React.FC<
       return `Ad Group - ${dateTime}`;
     }, [campaignName]);
 
-    const [adgroupName, setAdgroupName] = useState(generateDefaultAdGroupName());
+    const [adgroupName, setAdgroupName] = useState("");
     const [adgroupBid, setAdgroupBid] = useState<number | undefined>(undefined);
     const [trackingUrlTemplate, setTrackingUrlTemplate] = useState<string>("");
     const [finalUrlSuffix, setFinalUrlSuffix] = useState<string>("");
@@ -56,21 +56,21 @@ export const CreateGoogleAdGroupPanel: React.FC<
     // Reset form when panel closes
     useEffect(() => {
       if (!isOpen) {
-        setAdgroupName(generateDefaultAdGroupName());
+        setAdgroupName("");
         setAdgroupBid(undefined);
         setTrackingUrlTemplate("");
         setFinalUrlSuffix("");
         setUrlCustomParameters([]);
         setErrors({});
       }
-    }, [isOpen, generateDefaultAdGroupName]);
+    }, [isOpen]);
 
     // Reset form after successful submission (when loading goes from true to false while panel is open)
     const prevLoadingRef = useRef(loading);
     useEffect(() => {
       if (prevLoadingRef.current === true && loading === false && isOpen) {
         // Successful submission - reset form
-        setAdgroupName(generateDefaultAdGroupName());
+        setAdgroupName("");
         setAdgroupBid(undefined);
         setTrackingUrlTemplate("");
         setFinalUrlSuffix("");
@@ -78,7 +78,7 @@ export const CreateGoogleAdGroupPanel: React.FC<
         setErrors({});
       }
       prevLoadingRef.current = loading;
-    }, [loading, isOpen, generateDefaultAdGroupName]);
+    }, [loading, isOpen]);
 
     const validate = (): boolean => {
       const newErrors: Record<string, string> = {};
@@ -113,7 +113,7 @@ export const CreateGoogleAdGroupPanel: React.FC<
     };
 
     const handleCancel = () => {
-      setAdgroupName(generateDefaultAdGroupName());
+      setAdgroupName("");
       setAdgroupBid(undefined);
       setTrackingUrlTemplate("");
       setFinalUrlSuffix("");

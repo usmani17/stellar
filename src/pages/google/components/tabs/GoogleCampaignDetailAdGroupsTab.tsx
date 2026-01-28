@@ -16,6 +16,8 @@ import {
   convertStatusToApi,
   STATUS_DROPDOWN_OPTIONS,
 } from "../../utils/googleAdsUtils";
+import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal";
+import { TrashIcon } from "lucide-react";
 
 interface GoogleCampaignDetailAdGroupsTabProps {
   adgroups: GoogleAdGroup[];
@@ -116,6 +118,12 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
     newName: string;
   } | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
+  const [pendingRemoveChange, setPendingRemoveChange] = useState<{
+    value: string;
+    adgroupId: string | number;
+    field: string;
+  } | null>(null);
 
   const handleStatusClick = (adgroup: GoogleAdGroup) => {
     if (onUpdateAdGroupStatus) {
@@ -167,7 +175,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
     const valueToCheck =
       newValueOverride !== undefined ? newValueOverride : editingValue;
 
-    if (editingField === "status") {
+      if (editingField === "status") {
       // Status uses modal confirmation (matches Google campaign table pattern)
       const oldStatusRaw = (adgroup.status || "ENABLED").trim();
       const newStatusRaw = valueToCheck.trim();
@@ -175,6 +183,18 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
 
       if (!hasChanged) {
         cancelInlineEdit();
+        return;
+      }
+
+      // Check if status is being changed to REMOVED - show confirmation modal
+      if (newStatusRaw.toUpperCase() === "REMOVED") {
+        cancelInlineEdit();
+        setPendingRemoveChange({ 
+          value: "REMOVED", 
+          adgroupId: adgroup.adgroup_id, 
+          field: "status" 
+        });
+        setShowRemoveConfirmation(true);
         return;
       }
 
@@ -227,27 +247,28 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
         // Convert display status to API format using utility function
         const statusValue = convertStatusToApi(inlineEditNewValue);
 
-        // REMOVED status cannot be set via API - it's a read-only status
-        // Show error message if user tries to set REMOVED
-        if (statusValue === "REMOVED") {
-          alert("Cannot set ad group status to 'Remove'. Removed status is read-only. To remove an ad group, please use the delete action.");
-          setShowInlineEditModal(false);
-          setInlineEditAdGroup(null);
-          setInlineEditField(null);
-          setInlineEditOldValue("");
-          setInlineEditNewValue("");
-          setEditingAdGroupId(null);
-          setEditingField(null);
-          setEditingValue("");
-          return;
-        }
-
         // Find the adgroup to get adgroup_id
         const adgroup = adgroups.find(
           (ag) => ag.id === inlineEditAdGroup.id
         );
         if (!adgroup || !adgroup.adgroup_id) {
           alert("Ad group not found");
+          return;
+        }
+
+        // REMOVED status - show confirmation modal
+        if (statusValue === "REMOVED") {
+          setShowInlineEditModal(false);
+          setInlineEditAdGroup(null);
+          setInlineEditField(null);
+          setInlineEditOldValue("");
+          setInlineEditNewValue("");
+          setPendingRemoveChange({ 
+            value: "REMOVED", 
+            adgroupId: adgroup.adgroup_id, 
+            field: "status" 
+          });
+          setShowRemoveConfirmation(true);
           return;
         }
 
@@ -308,6 +329,52 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
     setEditingAdGroupId(null);
     setEditingField(null);
     setEditingValue("");
+  };
+
+  // Handle confirmation for REMOVED status change
+  const handleConfirmRemove = async () => {
+    if (!pendingRemoveChange || !accountId) return;
+
+    setInlineEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const statusValue = convertStatusToApi("REMOVED");
+      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        adgroupIds: [pendingRemoveChange.adgroupId],
+        action: "status",
+        status: statusValue as "ENABLED" | "PAUSED",
+      });
+
+      // Refresh data if callback provided
+      if (onBulkUpdateComplete) {
+        onBulkUpdateComplete();
+      } else if (onRefresh) {
+        onRefresh();
+      }
+      
+      setShowRemoveConfirmation(false);
+      setPendingRemoveChange(null);
+    } catch (error: any) {
+      console.error("Failed to remove adgroup:", error);
+      alert(
+        error?.response?.data?.error ||
+          "Failed to remove ad group. Please try again."
+      );
+    } finally {
+      setInlineEditLoading(false);
+    }
+  };
+
+  // Handle cancel for REMOVED status change
+  const handleCancelRemove = () => {
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+    // Cancel the inline edit
+    cancelInlineEdit();
   };
 
 
@@ -730,7 +797,18 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                   const hasChanged = newStatusRawUpper !== oldStatusRaw;
 
                                   if (hasChanged) {
-                                    confirmInlineEdit(newValue);
+                                    // Check if status is being changed to REMOVED - show confirmation modal
+                                    if (newStatusRawUpper === "REMOVED") {
+                                      cancelInlineEdit();
+                                      setPendingRemoveChange({ 
+                                        value: "REMOVED", 
+                                        adgroupId: adgroup.adgroup_id, 
+                                        field: "status" 
+                                      });
+                                      setShowRemoveConfirmation(true);
+                                    } else {
+                                      confirmInlineEdit(newValue);
+                                    }
                                   } else {
                                     cancelInlineEdit();
                                   }
@@ -1229,6 +1307,19 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
           </div>
         </div>
       )}
+
+      {/* Remove Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showRemoveConfirmation}
+        onClose={handleCancelRemove}
+        onConfirm={handleConfirmRemove}
+        title="Are you sure you want to remove this ad group?"
+        message="This action cannot be undone. All data associated with this ad group will be permanently removed."
+        type="danger"
+        size="sm"
+        isLoading={inlineEditLoading}
+        icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+      />
     </>
   );
 };
