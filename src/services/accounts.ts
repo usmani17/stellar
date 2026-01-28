@@ -223,7 +223,21 @@ export const accountsService = {
     return response.data;
   },
 
-  // Amazon Profiles (now using channel_id)
+  /**
+   * Fetch all profiles for all integrations/channels within this brand (account).
+   * Uses account_id (not channel_id). Each profile includes channel_id, channel_name, channel_type.
+   */
+  getAccountProfiles: async (
+    accountId: number
+  ): Promise<{ profiles: any[]; total: number }> => {
+    const response = await api.get<{
+      profiles: any[];
+      total: number;
+    }>(`/accounts/${accountId}/profiles/`);
+    return response.data;
+  },
+
+  // Amazon Profiles (per channel; for channel-specific screens)
   getProfiles: async (
     channelId: number
   ): Promise<{ profiles: any[]; total: number; selected: number }> => {

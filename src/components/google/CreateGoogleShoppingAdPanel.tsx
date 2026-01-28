@@ -75,8 +75,9 @@ export const CreateGoogleShoppingAdPanel: React.FC<
           value: adgroupId?.toString() || "",
           label: ag.name || ag.adgroup_name || `Ad Group ${adgroupId}`,
           adgroup_id: adgroupId,
+          status: ag.status,
         };
-      }).filter((opt: any) => opt.value && opt.adgroup_id);
+      }).filter((opt: any) => opt.value && opt.adgroup_id && opt.status !== "REMOVED" && opt.status !== "Removed");
       
       setAdgroupOptions(options);
       

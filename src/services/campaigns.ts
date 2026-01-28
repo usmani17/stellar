@@ -3310,7 +3310,7 @@ export const campaignsService = {
       campaign_id?: string | number;
       adgroup_name?: string;
       adgroup_name__icontains?: string;
-      status?: string;
+      status?: "ENABLED" | "PAUSED" | "REMOVED";
       type?: string;
       bid?: number | string;
       bid__lt?: number | string;

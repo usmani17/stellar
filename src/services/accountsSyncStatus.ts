@@ -4,7 +4,25 @@ import type { GoogleSyncStatusResponse } from "./googleAdwords/googleAdwordsSync
 /** Same response shape as Google sync status. */
 export type PlatformSyncStatusResponse = GoogleSyncStatusResponse;
 
+/** Combined entity sync status: one call returns all platforms. */
+export type EntitySyncStatusResponse = {
+  google?: PlatformSyncStatusResponse;
+  amazon?: PlatformSyncStatusResponse;
+  tiktok?: PlatformSyncStatusResponse;
+};
+
 export const accountsSyncStatusService = {
+  /** Single endpoint for all platforms (Profiles page). */
+  getEntitySyncStatus: async (
+    accountId: number
+  ): Promise<EntitySyncStatusResponse> => {
+    const t = new Date().getTime();
+    const res = await api.get<EntitySyncStatusResponse>(
+      `/accounts/${accountId}/entity-sync-status/?_t=${t}`
+    );
+    return res.data;
+  },
+
   getAmazonSyncStatus: async (
     accountId: number
   ): Promise<PlatformSyncStatusResponse> => {
