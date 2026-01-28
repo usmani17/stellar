@@ -34,7 +34,7 @@ import {
 // GoogleAdGroup interface is now imported from GoogleAdGroupsTable
 
 export const GoogleAdGroups: React.FC = () => {
-  const { accountId } = useParams<{ accountId: string }>();
+  const { accountId, channelId } = useParams<{ accountId: string; channelId: string }>();
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const [adgroups, setAdgroups] = useState<GoogleAdGroup[]>([]);
@@ -267,7 +267,12 @@ export const GoogleAdGroups: React.FC = () => {
 
   // Removed buildFilterParams - now passing filters array directly to service
 
-  const loadAdgroups = useCallback(async (accountId: number) => {
+  const loadAdgroups = useCallback(async (accountId: number, channelId: number) => {
+    // Validate channelId before making API call
+    if (!channelId || isNaN(channelId)) {
+      throw new Error(`Invalid channelId: ${channelId}. channelId must be a valid number.`);
+    }
+    
     // Prevent duplicate concurrent calls
     if (isLoadingRef.current) {
       return;
@@ -290,6 +295,7 @@ export const GoogleAdGroups: React.FC = () => {
 
       const response = await googleAdwordsAdGroupsService.getGoogleAdGroups(
         accountId,
+        channelId,
         undefined,
         params
       );
@@ -349,7 +355,10 @@ export const GoogleAdGroups: React.FC = () => {
         // Only call loadAdgroups if the request parameters have actually changed
         if (lastRequestParamsRef.current !== requestKey) {
           lastRequestParamsRef.current = requestKey;
-          loadAdgroups(accountIdNum);
+          const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+          if (channelIdNum && !isNaN(channelIdNum)) {
+            loadAdgroups(accountIdNum, channelIdNum);
+          }
         }
       } else {
         setLoading(false);
@@ -361,12 +370,20 @@ export const GoogleAdGroups: React.FC = () => {
   }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
 
 
+  // Wrapper function for useGoogleSyncStatus hook (it expects only accountId)
+  const loadAdgroupsWrapper = useCallback(async (accountId: number) => {
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    if (channelIdNum && !isNaN(channelIdNum)) {
+      await loadAdgroups(accountId, channelIdNum);
+    }
+  }, [channelId, loadAdgroups]);
+
   // Sync status hook (after loadAdgroups is defined)
   const { SyncStatusBanner } = useGoogleSyncStatus({
     accountId,
     entityType: "adgroups",
     currentData: adgroups,
-    loadFunction: loadAdgroups,
+    loadFunction: loadAdgroupsWrapper,
   });
 
 
@@ -403,8 +420,13 @@ export const GoogleAdGroups: React.FC = () => {
             filters: filters, // Pass filters array directly
           };
 
+          const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+          if (!channelIdNum || isNaN(channelIdNum)) {
+            throw new Error("Channel ID is required");
+          }
           const response = await googleAdwordsAdGroupsService.getGoogleAdGroups(
             accountIdNum,
+            channelIdNum,
             undefined,
             params
           );
@@ -686,13 +708,19 @@ export const GoogleAdGroups: React.FC = () => {
       }
 
       const statusValue = convertStatusToApi("REMOVED");
-      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
         adgroupIds: [pendingRemoveChange.adgroupId],
         action: "status",
         status: statusValue,
       });
 
-      await loadAdgroups(accountIdNum);
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadAdgroups(accountIdNum, channelIdNum);
+      }
       
       setShowRemoveConfirmation(false);
       setPendingRemoveChange(null);
@@ -765,14 +793,22 @@ export const GoogleAdGroups: React.FC = () => {
         if (isNaN(bidValue) || bidValue <= 0) {
           throw new Error("Invalid bid value");
         }
-        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
           adgroupIds: [inlineEditAdGroup.adgroup_id],
           action: "bid",
           bid: bidValue,
         });
       } else if (inlineEditField === "status") {
         const statusValue = convertStatusToApi(inlineEditNewValue);
-        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
           adgroupIds: [inlineEditAdGroup.adgroup_id],
           action: "status",
           status: statusValue,
@@ -782,14 +818,21 @@ export const GoogleAdGroups: React.FC = () => {
         if (!trimmedName) {
           throw new Error("Ad group name cannot be empty");
         }
-        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
           adgroupIds: [inlineEditAdGroup.adgroup_id],
           action: "name",
           name: trimmedName,
         });
       }
 
-      await loadAdgroups(accountIdNum);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadAdgroups(accountIdNum, channelIdNum);
+      }
       
       setShowInlineEditModal(false);
       setInlineEditAdGroup(null);
@@ -858,13 +901,21 @@ export const GoogleAdGroups: React.FC = () => {
       if (fieldKey === "status" || fieldKey === "adgroup_name" || fieldKey === "name") {
         if (fieldKey === "status") {
           const statusValue = convertStatusToApi(newValue);
-          await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
             adgroupIds: [itemId],
             action: "status",
             status: statusValue,
           });
         } else if (fieldKey === "adgroup_name" || fieldKey === "name") {
-          await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
             adgroupIds: [itemId],
             action: "name",
             name: newValue,
@@ -875,7 +926,11 @@ export const GoogleAdGroups: React.FC = () => {
         if (isNaN(bidValue)) {
           throw new Error("Invalid bid value");
         }
-        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
           adgroupIds: [itemId],
           action: "bid",
           bid: bidValue,
@@ -888,7 +943,10 @@ export const GoogleAdGroups: React.FC = () => {
         delete updated[fieldKey];
         return updated;
       });
-      await loadAdgroups(accountIdNum);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadAdgroups(accountIdNum, channelIdNum);
+      }
     } catch (error) {
       console.error("Failed to update adgroup:", error);
       alert("Failed to update adgroup. Please try again.");
@@ -942,7 +1000,12 @@ export const GoogleAdGroups: React.FC = () => {
       setBulkLoading(true);
       setBulkUpdateResults(null);
 
-      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+
+      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
         adgroupIds: Array.from(selectedAdgroups),
         action: "status",
         status: statusValue,
@@ -957,7 +1020,9 @@ export const GoogleAdGroups: React.FC = () => {
 
       // Reload adgroups with loading state
       setSorting(true); // Show loading overlay
-      await loadAdgroups(accountIdNum);
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadAdgroups(accountIdNum, channelIdNum);
+      }
       // Hide loading overlay after a short delay
       setTimeout(() => {
         setSorting(false);
@@ -1047,10 +1112,15 @@ export const GoogleAdGroups: React.FC = () => {
       let totalFailed = 0;
       const allErrors: string[] = [];
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+
       // Update each adgroup individually (bulk update doesn't support increase/decrease)
       for (const update of updates) {
         try {
-          const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
             adgroupIds: [update.adgroupId],
             action: "bid",
             bid: update.newBid,
@@ -1080,7 +1150,9 @@ export const GoogleAdGroups: React.FC = () => {
 
       // Reload adgroups with loading state
       setSorting(true); // Show loading overlay
-      await loadAdgroups(accountIdNum);
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadAdgroups(accountIdNum, channelIdNum);
+      }
       // Hide loading overlay after a short delay
       setTimeout(() => {
         setSorting(false);
@@ -1134,8 +1206,13 @@ export const GoogleAdGroups: React.FC = () => {
         params.adgroup_ids = Array.from(selectedAdgroups);
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
       await googleAdwordsAdGroupsService.exportGoogleAdGroups(
         accountIdNum,
+        channelIdNum,
         params,
         exportType
       );
@@ -2055,7 +2132,12 @@ export const GoogleAdGroups: React.FC = () => {
                             // Map status values: Google API uses "ENABLED" | "PAUSED" (uppercase)
                             const statusValue = convertStatusToApi(statusEditData.newValue);
 
-                            const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+                            const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+                            if (!channelIdNum || isNaN(channelIdNum)) {
+                              throw new Error("Channel ID is required");
+                            }
+
+                            const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
                               adgroupIds: [statusEditData.adgroup.adgroup_id],
                               action: "status",
                               status: statusValue,
@@ -2065,7 +2147,7 @@ export const GoogleAdGroups: React.FC = () => {
                               throw new Error(response.errors[0]);
                             }
 
-                            await loadAdgroups(accountIdNum);
+                            await loadAdgroups(accountIdNum, channelIdNum);
                             setShowStatusEditModal(false);
                             setStatusEditData(null);
                           } catch (error) {
@@ -2244,6 +2326,7 @@ export const GoogleAdGroups: React.FC = () => {
                     loading={loading}
                     sorting={sorting}
                     accountId={accountId || ""}
+                    channelId={channelId}
                     selectedAdgroups={selectedAdgroups}
                     allSelected={allSelected}
                     someSelected={someSelected}

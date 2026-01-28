@@ -64,6 +64,7 @@ export interface BulkDeleteNegativeKeywordsRequest {
 export const googleAdwordsNegativeKeywordsService = {
   getGoogleNegativeKeywords: async (
     accountId: number,
+    channelId: number,
     params?: GoogleNegativeKeywordsQueryParams
   ): Promise<GoogleNegativeKeywordsResponse> => {
     // Send filters array and params directly to backend - let backend handle conversion
@@ -79,31 +80,34 @@ export const googleAdwordsNegativeKeywordsService = {
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
     if (params?.adgroup_id) payload.adgroup_id = params.adgroup_id;
     
-    const url = `/google-adwords/${accountId}/negative-keywords/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/negative-keywords/`;
     const response = await api.post<GoogleNegativeKeywordsResponse>(url, payload);
     return response.data;
   },
 
   syncGoogleNegativeKeywords: async (
-    accountId: number
+    accountId: number,
+    channelId: number
   ): Promise<{ synced: number; errors: string[]; total_errors: number }> => {
-    const url = `/google-adwords/${accountId}/negative-keywords/sync/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/negative-keywords/sync/`;
     const response = await api.post<{ synced: number; errors: string[]; total_errors: number }>(url);
     return response.data;
   },
 
   createGoogleNegativeKeywords: async (
     accountId: number,
+    channelId: number,
     campaignId: string,
     data: CreateNegativeKeywordsRequest
   ): Promise<{ created: number; negative_keywords: GoogleNegativeKeyword[] }> => {
-    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/negative-keywords/create/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/negative-keywords/create/`;
     const response = await api.post<{ created: number; negative_keywords: GoogleNegativeKeyword[] }>(url, data);
     return response.data;
   },
 
   bulkUpdateGoogleNegativeKeywords: async (
     accountId: number,
+    channelId: number,
     data: BulkUpdateNegativeKeywordsRequest
   ): Promise<{
     updated: number;
@@ -115,20 +119,21 @@ export const googleAdwordsNegativeKeywordsService = {
       [key: string]: any;
     }>;
   }> => {
-    const url = `/google-adwords/${accountId}/negative-keywords/bulk-update/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/negative-keywords/bulk-update/`;
     const response = await api.post(url, data);
     return response.data;
   },
 
   bulkDeleteGoogleNegativeKeywords: async (
     accountId: number,
+    channelId: number,
     data: BulkDeleteNegativeKeywordsRequest
   ): Promise<{
     deleted: number;
     failed: number;
     errors: string[];
   }> => {
-    const url = `/google-adwords/${accountId}/negative-keywords/bulk-delete/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/negative-keywords/bulk-delete/`;
     const response = await api.post(url, data);
     return response.data;
   },

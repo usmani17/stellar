@@ -500,7 +500,7 @@ export const Channels: React.FC = () => {
                                         channel.channel_type === "google"
                                       ) {
                                         navigate(
-                                          `/brands/${accountId}/google-campaigns`
+                                          `/brands/${accountId}/${channel.id}/google/campaigns`
                                         );
                                       } else if (
                                         channel.channel_type === "tiktok"

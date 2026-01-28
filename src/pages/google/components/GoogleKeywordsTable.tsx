@@ -1,9 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { GoogleAdsTable } from "./GoogleAdsTable";
-import { ConfirmationModal } from "../../../components/ui/ConfirmationModal";
-import { TrashIcon } from "lucide-react";
 import type { IColumnDefinition } from "../../../types/google";
 
 export interface GoogleKeyword {
@@ -36,6 +34,7 @@ interface GoogleKeywordsTableProps {
   loading: boolean;
   sorting: boolean;
   accountId: string;
+  channelId?: string;
   selectedKeywords: Set<string | number>;
   allSelected: boolean;
   someSelected: boolean;
@@ -99,6 +98,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
   loading,
   sorting,
   accountId,
+  channelId,
   selectedKeywords,
   allSelected,
   someSelected,
@@ -217,7 +217,10 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/brands/${currentAccountId}/google-campaigns/${campaignId}`);
+              const navPath = channelId 
+                ? `/brands/${currentAccountId}/${channelId}/google/campaigns/${campaignId}`
+                : `/brands/${currentAccountId}/google-campaigns/${campaignId}`;
+              navigate(navPath);
             }}
             className="table-edit-link text-left truncate"
             title={`View campaign: ${campaignName}`}
@@ -258,7 +261,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       label: "Match Type",
       type: "status",
       sortable: true,
-      editable: true,
+      editable: false, // Disabled: Google Ads API doesn't allow updating keyword match type
       width: "w-[140px]",
       maxWidth: "max-w-[140px]",
       statusOptions: [
@@ -454,13 +457,6 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
     },
   ], [currentAccountId, navigate, onStartFinalUrlEdit]);
 
-  const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
-  const [pendingRemoveChange, setPendingRemoveChange] = useState<{
-    value: string;
-    keywordId: string | number;
-    field: string;
-  } | null>(null);
-
   // Handle confirm inline edit - route to appropriate handler
   const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
     // Use the field parameter if provided, otherwise fall back to editingCell
@@ -471,43 +467,23 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
 
     // Use itemIdParam if provided, otherwise fall back to editingCell
     const keywordIdToUse = itemIdParam || editingCell?.keywordId;
+    if (!keywordIdToUse) {
+      return;
+    }
 
-    // Check if status is being changed to REMOVED - show confirmation modal
-    if (fieldToUse === "status" && value === "REMOVED") {
-      // Close the dropdown immediately when modal appears (matches ENABLED/PAUSED behavior)
+    // For REMOVED status, close the dropdown and let parent handle the modal
+    if (fieldToUse === "status" && value && value.toUpperCase() === "REMOVED") {
+      // Close the dropdown immediately when modal appears
       if (onCancelInlineEdit) {
         onCancelInlineEdit();
       }
-      setPendingRemoveChange({ value: "REMOVED", keywordId: keywordIdToUse!, field: fieldToUse });
-      setShowRemoveConfirmation(true);
+      // Pass to parent - it will handle showing the confirmation modal
+      onConfirmInlineEdit(value, fieldToUse, keywordIdToUse);
       return;
     }
 
     // Pass all parameters to parent handler
-    onConfirmInlineEdit(value, field, itemIdParam);
-  };
-
-  // Handle confirmation for REMOVED status change
-  const handleConfirmRemove = () => {
-    if (pendingRemoveChange && onConfirmInlineEdit) {
-      onConfirmInlineEdit(
-        "REMOVED",
-        "status",
-        pendingRemoveChange.keywordId
-      );
-    }
-    setShowRemoveConfirmation(false);
-    setPendingRemoveChange(null);
-  };
-
-  // Handle cancel for REMOVED status change
-  const handleCancelRemove = () => {
-    setShowRemoveConfirmation(false);
-    setPendingRemoveChange(null);
-    // Cancel the inline edit
-    if (onCancelInlineEdit) {
-      onCancelInlineEdit();
-    }
+    onConfirmInlineEdit(value, fieldToUse, keywordIdToUse);
   };
 
   // Handle confirm change - route to parent handler
@@ -571,16 +547,6 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       formatPercentage={formatPercentage}
       getStatusBadge={getStatusBadge}
       getSortIcon={getSortIcon}
-    />
-    <ConfirmationModal
-      isOpen={showRemoveConfirmation}
-      onClose={handleCancelRemove}
-      onConfirm={handleConfirmRemove}
-      title="Are you sure you want to remove this keyword?"
-      message="This action cannot be undone. All data associated with this keyword will be permanently removed."
-      type="danger"
-      size="sm"
-      icon={<TrashIcon className="w-6 h-6 text-red-600" />}
     />
   </>
   );

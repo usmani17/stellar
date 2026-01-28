@@ -4,6 +4,7 @@ import type { FilterValues } from "../../../components/filters/FilterPanel";
 
 interface UseGoogleCampaignDetailShoppingAdsParams {
   accountId: string | undefined;
+  channelId: string | undefined;
   campaignId: string | undefined;
   startDate: Date | null;
   endDate: Date | null;
@@ -13,6 +14,7 @@ interface UseGoogleCampaignDetailShoppingAdsParams {
 
 export const useGoogleCampaignDetailShoppingAds = ({
   accountId,
+  channelId,
   campaignId,
   startDate,
   endDate,
@@ -56,8 +58,13 @@ export const useGoogleCampaignDetailShoppingAds = ({
         // If not supported, we may need to filter on the frontend after fetching
       ];
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
       const data = await googleAdwordsAdsService.getGoogleAds(
         accountIdNum,
+        channelIdNum,
         parseInt(campaignId, 10),
         undefined,
         {
@@ -92,6 +99,7 @@ export const useGoogleCampaignDetailShoppingAds = ({
     }
   }, [
     accountId,
+    channelId,
     campaignId,
     listingGroupsCurrentPage,
     listingGroupsSortBy,
@@ -103,11 +111,12 @@ export const useGoogleCampaignDetailShoppingAds = ({
 
   // Load shopping ads when dependencies change
   useEffect(() => {
-    if (accountId && campaignId && activeTab === "Shopping Ads") {
+    if (accountId && channelId && campaignId && activeTab === "Shopping Ads") {
       loadListingGroups();
     }
   }, [
     accountId,
+    channelId,
     campaignId,
     activeTab,
     startDate,
@@ -165,11 +174,12 @@ export const useGoogleCampaignDetailShoppingAds = ({
 
   // Update handler
   const handleUpdateListingGroupStatus = useCallback(async (listingGroupId: number, status: string) => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
 
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) return;
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
 
       // Find the listing group to get ad_id
       // Listing groups are stored in the ads table, so they have ad_id
@@ -209,7 +219,7 @@ export const useGoogleCampaignDetailShoppingAds = ({
 
       // Call API - listing groups use the same bulkUpdateGoogleAds endpoint
       // Include campaignId and adGroupId to only update this specific instance
-      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
+      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, channelIdNum, {
         adIds: [adId],
         action: "status",
         status: status as "ENABLED" | "PAUSED" | "REMOVED",
@@ -245,7 +255,7 @@ export const useGoogleCampaignDetailShoppingAds = ({
       }
       throw error;
     }
-  }, [accountId, listingGroups, loadListingGroups, onError]);
+  }, [accountId, channelId, listingGroups, loadListingGroups, onError]);
 
   return {
     // Data

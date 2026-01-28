@@ -17,6 +17,7 @@ interface CreateGoogleKeywordPanelProps {
   onSubmit: (entity: KeywordInput) => void;
   campaignId: string;
   accountId: string;
+  channelId?: string;
   loading?: boolean;
   submitError?: string | null;
 }
@@ -35,6 +36,7 @@ export const CreateGoogleKeywordPanel: React.FC<
   onSubmit,
   campaignId,
   accountId,
+  channelId,
   loading = false,
   submitError = null,
 }) => {
@@ -58,12 +60,17 @@ export const CreateGoogleKeywordPanel: React.FC<
   
   // Fetch adgroups from API with debounced search
   const fetchAdgroups = useCallback(async (searchQuery: string = "") => {
-    if (!accountId || !campaignId) return;
+    if (!accountId || !channelId || !campaignId) return;
     
     setLoadingAdgroups(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = parseInt(channelId, 10);
       const campaignIdNum = parseInt(campaignId, 10);
+      
+      if (isNaN(accountIdNum) || isNaN(channelIdNum) || isNaN(campaignIdNum)) {
+        throw new Error("Invalid account ID, channel ID, or campaign ID");
+      }
       
       const params: any = {
         page: 1,
@@ -78,8 +85,8 @@ export const CreateGoogleKeywordPanel: React.FC<
         params.adgroup_name__icontains = searchQuery.trim();
       }
       
-      // Pass campaignId as second parameter to ensure proper filtering
-      const response = await campaignsService.getGoogleAdGroups(accountIdNum, campaignIdNum, {
+      // Pass channelId as second parameter, campaignId as third
+      const response = await campaignsService.getGoogleAdGroups(accountIdNum, channelIdNum, campaignIdNum, {
         ...params,
         campaign_id: campaignIdNum, // Explicitly set in params as well
       });
@@ -107,7 +114,7 @@ export const CreateGoogleKeywordPanel: React.FC<
     } finally {
       setLoadingAdgroups(false);
     }
-  }, [accountId, campaignId, selectedAdGroupId]);
+  }, [accountId, channelId, campaignId, selectedAdGroupId]);
 
   // Fetch adgroups once when panel opens
   useEffect(() => {

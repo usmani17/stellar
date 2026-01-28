@@ -52,6 +52,7 @@ interface GoogleCampaignDetailAdGroupsTabProps {
   onUpdateAdGroupBid?: (adgroupId: number, bid: number) => Promise<void>;
   onUpdateAdGroupName?: (adgroupId: number, name: string) => Promise<void>;
   accountId?: string;
+  channelId?: string;
   onBulkUpdateComplete?: () => void;
   createButton?: React.ReactNode;
 }
@@ -85,6 +86,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
   onUpdateAdGroupBid,
   onUpdateAdGroupName,
   accountId,
+  channelId,
   onBulkUpdateComplete,
   createButton,
 }) => {
@@ -163,19 +165,34 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
   };
 
 
-  const confirmInlineEdit = (newValueOverride?: string) => {
-    if (!editingAdGroupId || !editingField || isCancelling) return;
+  const confirmInlineEdit = (newValueOverride?: string, adgroupOverride?: GoogleAdGroup) => {
+    // Use adgroupOverride if provided, otherwise try to find from state
+    let adgroup: GoogleAdGroup | undefined;
+    let field: "status" | "bid" | "name" | null = null;
+    let valueToCheck: string;
 
-    const adgroup = adgroups.find((ag) => ag.id === editingAdGroupId);
-    if (!adgroup) {
-      cancelInlineEdit();
-      return;
+    if (adgroupOverride) {
+      // Direct adgroup provided - use it
+      adgroup = adgroupOverride;
+      field = "status"; // Assume status when adgroup is provided directly
+      valueToCheck = newValueOverride || "";
+    } else {
+      // Fallback to state-based lookup
+      if (!editingAdGroupId || !editingField || isCancelling) {
+        return;
+      }
+
+      adgroup = adgroups.find((ag) => ag.id === editingAdGroupId);
+      field = editingField;
+      valueToCheck = newValueOverride !== undefined ? newValueOverride : editingValue;
+      
+      if (!adgroup) {
+        cancelInlineEdit();
+        return;
+      }
     }
 
-    const valueToCheck =
-      newValueOverride !== undefined ? newValueOverride : editingValue;
-
-      if (editingField === "status") {
+      if (field === "status") {
       // Status uses modal confirmation (matches Google campaign table pattern)
       const oldStatusRaw = (adgroup.status || "ENABLED").trim();
       const newStatusRaw = valueToCheck.trim();
@@ -211,7 +228,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
       setEditingField(null);
       setEditingValue("");
       return;
-    } else if (editingField === "bid") {
+    } else if (field === "bid") {
       // Bid uses confirmation modal
       const bidValue = parseFloat(editingValue);
       const oldBid = adgroup.cpc_bid_dollars || 0;
@@ -236,9 +253,10 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
   };
 
   const runInlineEdit = async () => {
-    if (!inlineEditAdGroup || !inlineEditField || !accountId) return;
+    if (!inlineEditAdGroup || !inlineEditField || !accountId || !channelId) return;
     const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
+    const channelIdNum = parseInt(channelId, 10);
+    if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
 
     try {
       setInlineEditLoading(true);
@@ -278,6 +296,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
         
         await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(
           accountIdNum,
+          channelIdNum,
           {
             adgroupIds: [adgroup.adgroup_id],
             action: "status",
@@ -333,17 +352,18 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
 
   // Handle confirmation for REMOVED status change
   const handleConfirmRemove = async () => {
-    if (!pendingRemoveChange || !accountId) return;
+    if (!pendingRemoveChange || !accountId || !channelId) return;
 
     setInlineEditLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+        throw new Error("Invalid account ID or channel ID");
       }
 
       const statusValue = convertStatusToApi("REMOVED");
-      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
         adgroupIds: [pendingRemoveChange.adgroupId],
         action: "status",
         status: statusValue as "ENABLED" | "PAUSED",
@@ -807,7 +827,8 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                       });
                                       setShowRemoveConfirmation(true);
                                     } else {
-                                      confirmInlineEdit(newValue);
+                                      // Pass adgroup directly to avoid state timing issues
+                                      confirmInlineEdit(newValue, adgroup);
                                     }
                                   } else {
                                     cancelInlineEdit();

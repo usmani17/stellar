@@ -25,15 +25,32 @@ export interface FilterOption {
  * @param accountId - Account ID
  * @param marketplace - Marketplace identifier (e.g., "google_adwords", "amazon", "tiktok")
  * @param entityType - Optional entity type (e.g., "campaigns", "adgroups", "ads", "keywords")
+ * @param channelId - Optional channel ID (required for Google AdWords)
  * @returns Promise resolving to array of filter field definitions
  */
 export const getFilterFields = async (
   accountId: string | number,
   marketplace: string,
-  entityType?: string
+  entityType?: string,
+  channelId?: string | number
 ): Promise<FilterField[]> => {
   try {
-    const params = entityType ? { entity_type: entityType } : {};
+    const params: Record<string, string> = {};
+    if (entityType) {
+      params.entity_type = entityType;
+    }
+    // For Google AdWords, include channelId in the URL path
+    if (marketplace === "google_adwords" && channelId) {
+      const channelIdNum = typeof channelId === "number" ? channelId : parseInt(channelId, 10);
+      if (!isNaN(channelIdNum)) {
+        const response = await api.get<FilterField[]>(
+          `/accounts/${accountId}/channels/${channelIdNum}/filters/${marketplace}/`,
+          { params }
+        );
+        return response.data;
+      }
+    }
+    // For other marketplaces or when channelId is not provided, use the original URL
     const response = await api.get<FilterField[]>(
       `/accounts/${accountId}/filters/${marketplace}/`,
       { params }

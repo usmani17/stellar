@@ -28,6 +28,7 @@ interface GoogleAdGroupsTableProps {
   loading: boolean;
   sorting: boolean;
   accountId: string;
+  channelId?: string;
   selectedAdgroups: Set<string | number>;
   allSelected: boolean;
   someSelected: boolean;
@@ -89,6 +90,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
   loading,
   sorting,
   accountId,
+  channelId,
   selectedAdgroups,
   allSelected,
   someSelected,
@@ -171,7 +173,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       getValue: (row: GoogleAdGroup) => row.campaign_name || "—",
       navigateTo: (row: GoogleAdGroup, accountId: string) => {
         if (row.campaign_id) {
-          return `/brands/${accountId}/google-campaigns/${row.campaign_id}`;
+          return channelId ? `/brands/${accountId}/${channelId}/google/campaigns/${row.campaign_id}` : `/brands/${accountId}/google-campaigns/${row.campaign_id}`;
         }
         return null;
       },
@@ -299,7 +301,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       sortable: true,
       getValue: (row: GoogleAdGroup) => (row as any).interaction_rate || 0,
     },
-  ], [accountId]);
+  ], [accountId, channelId]);
 
   // Handle confirm inline edit - route to parent handler
   const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {

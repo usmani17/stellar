@@ -2,7 +2,6 @@ import { Route } from "react-router-dom";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import { AccountRequiredRoute } from "../components/auth/AccountRequiredRoute";
 import { GoogleSyncStatusWrapper } from "../components/google/GoogleSyncStatusWrapper";
-import { LegacyRedirect } from "../components/auth/LegacyRedirect";
 import { Layout } from "../components/layout/Layout";
 import { GoogleCampaigns } from "../pages/google/GoogleCampaigns";
 import { GoogleCampaignDetail } from "../pages/google/GoogleCampaignDetail";
@@ -14,8 +13,9 @@ import { LogHistory } from "../pages/LogHistory";
 function GoogleRoutes() {
     return (
         <>
+            {/* Routes with channelId */}
             <Route
-                path="/brands/:accountId/google/campaigns"
+                path="/brands/:accountId/:channelId/google/campaigns"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -29,7 +29,7 @@ function GoogleRoutes() {
                 }
             />
             <Route
-                path="/brands/:accountId/google/campaigns/:campaignId"
+                path="/brands/:accountId/:channelId/google/campaigns/:campaignId"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -43,7 +43,7 @@ function GoogleRoutes() {
                 }
             />
             <Route
-                path="/brands/:accountId/google/adgroups"
+                path="/brands/:accountId/:channelId/google/adgroups"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -57,7 +57,7 @@ function GoogleRoutes() {
                 }
             />
             <Route
-                path="/brands/:accountId/google/ads"
+                path="/brands/:accountId/:channelId/google/ads"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -71,7 +71,7 @@ function GoogleRoutes() {
                 }
             />
             <Route
-                path="/brands/:accountId/google/keywords"
+                path="/brands/:accountId/:channelId/google/keywords"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -85,7 +85,7 @@ function GoogleRoutes() {
                 }
             />
             <Route
-                path="/brands/:accountId/google/logs"
+                path="/brands/:accountId/:channelId/google/logs"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -97,7 +97,7 @@ function GoogleRoutes() {
                 }
             />
             <Route
-                path="/brands/:accountId/google/log-history"
+                path="/brands/:accountId/:channelId/google/log-history"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -105,23 +105,6 @@ function GoogleRoutes() {
                                 <LogHistory />
                             </Layout>
                         </AccountRequiredRoute>
-                    </ProtectedRoute>
-                }
-            />
-            {/* Legacy routes for backward compatibility */}
-            <Route
-                path="/brands/:accountId/google-campaigns"
-                element={
-                    <ProtectedRoute>
-                        <LegacyRedirect pattern="google/campaigns" />
-                    </ProtectedRoute>
-                }
-            />
-            <Route
-                path="/brands/:accountId/google-campaigns/:campaignId"
-                element={
-                    <ProtectedRoute>
-                        <LegacyRedirect pattern="google/campaigns/:campaignId" />
                     </ProtectedRoute>
                 }
             />

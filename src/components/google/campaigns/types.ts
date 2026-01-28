@@ -13,6 +13,7 @@ export interface CreateGoogleCampaignPanelProps {
   onClose: () => void;
   onSubmit: (data: CreateGoogleCampaignData) => Promise<void>;
   accountId?: string;
+  channelId?: string;
   loading?: boolean;
   submitError?: string | null;
   mode?: "create" | "edit";

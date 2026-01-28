@@ -92,7 +92,8 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
     "status" | "match_type" | null
   >(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
-  const [editingMatchType, setEditingMatchType] = useState<string>("");
+  // Disabled: Google Ads API doesn't allow updating negative keyword match type
+  // const [editingMatchType, setEditingMatchType] = useState<string>("");
   const [updatingNegativeKeywordId, setUpdatingNegativeKeywordId] = useState<
     number | null
   >(null);
@@ -187,68 +188,71 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
     setEditingStatus("");
   };
 
-  const handleMatchTypeClick = (negativeKeyword: GoogleNegativeKeyword) => {
-    if (onUpdateNegativeKeywordMatchType) {
-      // Close any other open dropdowns first
-      if (
-        editingNegativeKeywordId !== null &&
-        editingNegativeKeywordId !== negativeKeyword.id
-      ) {
-        setEditingNegativeKeywordId(null);
-        setEditingField(null);
-      }
-      setEditingNegativeKeywordId(negativeKeyword.id);
-      setEditingField("match_type");
-      const currentMatchType = (
-        negativeKeyword.match_type || "BROAD"
-      ).toUpperCase();
-      setEditingMatchType(currentMatchType);
-    }
-  };
+  // Disabled: Google Ads API doesn't allow updating negative keyword match type
+  // const handleMatchTypeClick = (negativeKeyword: GoogleNegativeKeyword) => {
+  //   if (onUpdateNegativeKeywordMatchType) {
+  //     // Close any other open dropdowns first
+  //     if (
+  //       editingNegativeKeywordId !== null &&
+  //       editingNegativeKeywordId !== negativeKeyword.id
+  //     ) {
+  //       setEditingNegativeKeywordId(null);
+  //       setEditingField(null);
+  //     }
+  //     setEditingNegativeKeywordId(negativeKeyword.id);
+  //     setEditingField("match_type");
+  //     const currentMatchType = (
+  //       negativeKeyword.match_type || "BROAD"
+  //     ).toUpperCase();
+  //     setEditingMatchType(currentMatchType);
+  //   }
+  // };
 
-  const handleKeywordTextClick = (negativeKeyword: GoogleNegativeKeyword) => {
-    if (onUpdateNegativeKeywordText) {
-      // Show modal instead of inline editing
-      setKeywordTextEditNegativeKeyword(negativeKeyword);
-      setKeywordTextEditValue(negativeKeyword.keyword_text || "");
-      setShowKeywordTextEditModal(true);
-    }
-  };
+  // Disabled: Google Ads API doesn't allow updating negative keyword text
+  // const handleKeywordTextClick = (negativeKeyword: GoogleNegativeKeyword) => {
+  //   if (onUpdateNegativeKeywordText) {
+  //     // Show modal instead of inline editing
+  //     setKeywordTextEditNegativeKeyword(negativeKeyword);
+  //     setKeywordTextEditValue(negativeKeyword.keyword_text || "");
+  //     setShowKeywordTextEditModal(true);
+  //   }
+  // };
 
-  const handleMatchTypeChange = (
-    negativeKeywordId: number,
-    criterionId: string,
-    newMatchType: string
-  ) => {
-    const negativeKeyword = negativeKeywords.find(
-      (nkw) => nkw.id === negativeKeywordId
-    );
-    if (!negativeKeyword) return;
+  // Disabled: Google Ads API doesn't allow updating negative keyword match type
+  // const handleMatchTypeChange = (
+  //   negativeKeywordId: number,
+  //   criterionId: string,
+  //   newMatchType: string
+  // ) => {
+  //   const negativeKeyword = negativeKeywords.find(
+  //     (nkw) => nkw.id === negativeKeywordId
+  //   );
+  //   if (!negativeKeyword) return;
 
-    const oldMatchType = (negativeKeyword.match_type || "BROAD").toUpperCase();
-    const newMatchTypeUpper = newMatchType.toUpperCase();
+  //   const oldMatchType = (negativeKeyword.match_type || "BROAD").toUpperCase();
+  //   const newMatchTypeUpper = newMatchType.toUpperCase();
 
-    if (newMatchTypeUpper !== oldMatchType) {
-      // Show confirmation modal immediately - matches KeywordsTab pattern
-      const matchTypeDisplayMap: Record<string, string> = {
-        EXACT: "Exact",
-        PHRASE: "Phrase",
-        BROAD: "Broad",
-        Exact: "Exact",
-        Phrase: "Phrase",
-        Broad: "Broad",
-      };
-      setInlineEditNegativeKeyword(negativeKeyword);
-      setInlineEditField("match_type");
-      setInlineEditOldValue(matchTypeDisplayMap[oldMatchType] || oldMatchType);
-      setInlineEditNewValue(matchTypeDisplayMap[newMatchTypeUpper] || newMatchTypeUpper);
-      setInlineEditCriterionId(criterionId);
-      setShowInlineEditModal(true);
-    }
-    setEditingNegativeKeywordId(null);
-    setEditingField(null);
-    setEditingMatchType("");
-  };
+  //   if (newMatchTypeUpper !== oldMatchType) {
+  //     // Show confirmation modal immediately - matches KeywordsTab pattern
+  //     const matchTypeDisplayMap: Record<string, string> = {
+  //       EXACT: "Exact",
+  //       PHRASE: "Phrase",
+  //       BROAD: "Broad",
+  //       Exact: "Exact",
+  //       Phrase: "Phrase",
+  //       Broad: "Broad",
+  //     };
+  //     setInlineEditNegativeKeyword(negativeKeyword);
+  //     setInlineEditField("match_type");
+  //     setInlineEditOldValue(matchTypeDisplayMap[oldMatchType] || oldMatchType);
+  //     setInlineEditNewValue(matchTypeDisplayMap[newMatchTypeUpper] || newMatchTypeUpper);
+  //     setInlineEditCriterionId(criterionId);
+  //     setShowInlineEditModal(true);
+  //   }
+  //   setEditingNegativeKeywordId(null);
+  //   setEditingField(null);
+  //   setEditingMatchType("");
+  // };
 
   const runInlineEdit = async () => {
     if (!inlineEditNegativeKeyword || !inlineEditField || !inlineEditCriterionId) return;
@@ -268,19 +272,21 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
         };
         const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
         await onUpdateNegativeKeywordStatus(inlineEditCriterionId, statusValue);
-      } else if (inlineEditField === "match_type" && onUpdateNegativeKeywordMatchType) {
-        // Map display values back to API values
-        const matchTypeMap: Record<string, "EXACT" | "PHRASE" | "BROAD"> = {
-          Exact: "EXACT",
-          EXACT: "EXACT",
-          Phrase: "PHRASE",
-          PHRASE: "PHRASE",
-          Broad: "BROAD",
-          BROAD: "BROAD",
-        };
-        const matchTypeValue = matchTypeMap[inlineEditNewValue] || "EXACT";
-        await onUpdateNegativeKeywordMatchType(inlineEditCriterionId, matchTypeValue);
-      }
+      } 
+      // Disabled: Google Ads API doesn't allow updating negative keyword match type
+      // else if (inlineEditField === "match_type" && onUpdateNegativeKeywordMatchType) {
+      //   // Map display values back to API values
+      //   const matchTypeMap: Record<string, "EXACT" | "PHRASE" | "BROAD"> = {
+      //     Exact: "EXACT",
+      //     EXACT: "EXACT",
+      //     Phrase: "PHRASE",
+      //     PHRASE: "PHRASE",
+      //     Broad: "BROAD",
+      //     BROAD: "BROAD",
+      //   };
+      //   const matchTypeValue = matchTypeMap[inlineEditNewValue] || "EXACT";
+      //   await onUpdateNegativeKeywordMatchType(inlineEditCriterionId, matchTypeValue);
+      // }
 
       setShowInlineEditModal(false);
       setInlineEditNegativeKeyword(null);
@@ -586,15 +592,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                       </td>
                       <td className="table-cell">
                         <span
-                          className={`table-text leading-[1.26] ${
-                            onUpdateNegativeKeywordText
-                              ? "cursor-pointer hover:underline"
-                              : ""
-                          }`}
-                          onClick={() =>
-                            onUpdateNegativeKeywordText &&
-                            handleKeywordTextClick(negativeKeyword)
-                          }
+                          className="table-text leading-[1.26]"
                         >
                           {negativeKeyword.keyword_text || "—"}
                         </span>
@@ -700,88 +698,15 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                         </div>
                       </td>
                       <td className="table-cell hidden md:table-cell w-[140px] max-w-[140px]">
-                        {updatingNegativeKeywordId === negativeKeyword.id ? (
-                          <div className="flex items-center gap-2">
-                            <span className="table-text leading-[1.26]">
-                              {negativeKeyword.match_type || "—"}
-                            </span>
-                            <Loader size="sm" showMessage={false} />
-                          </div>
-                        ) : editingNegativeKeywordId === negativeKeyword.id &&
-                          editingField === "match_type" &&
-                          onUpdateNegativeKeywordMatchType && !isRemoved ? (
-                          <div className="w-full relative" onClick={(e) => e.stopPropagation()}>
-                            <Dropdown
-                              key={`match-type-${negativeKeyword.id}`}
-                              options={[
-                                { value: "EXACT", label: "Exact match" },
-                                { value: "PHRASE", label: "Phrase match" },
-                                { value: "BROAD", label: "Broad match" },
-                              ]}
-                              value={editingMatchType}
-                              onChange={(val) =>
-                                handleMatchTypeChange(
-                                  negativeKeyword.id,
-                                  negativeKeyword.criterion_id,
-                                  val as string
-                                )
-                              }
-                              defaultOpen={true}
-                              closeOnSelect={true}
-                              showCheckmark={false}
-                              onClose={() => {
-                                setEditingNegativeKeywordId(null);
-                                setEditingField(null);
-                                setEditingMatchType("");
-                              }}
-                              buttonClassName="inline-edit-dropdown w-full text-[13.3px]"
-                              width="w-full"
-                              className="w-full"
-                              menuClassName="z-[100000]"
-                              align="left"
-                              disabled={isRemoved}
-                            />
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className={
-                              onUpdateNegativeKeywordMatchType && !isRemoved
-                                ? "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between"
-                                : "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between cursor-default"
-                            }
-                            onClick={() =>
-                              onUpdateNegativeKeywordMatchType && !isRemoved &&
-                              handleMatchTypeClick(negativeKeyword)
-                            }
-                            disabled={!onUpdateNegativeKeywordMatchType || isRemoved}
-                          >
-                            <span className="truncate flex-1 min-w-0 text-left">
-                              {negativeKeyword.match_type === "EXACT" || negativeKeyword.match_type === "Exact"
-                                ? "Exact"
-                                : negativeKeyword.match_type === "PHRASE" || negativeKeyword.match_type === "Phrase"
-                                ? "Phrase"
-                                : negativeKeyword.match_type === "BROAD" || negativeKeyword.match_type === "Broad"
-                                ? "Broad"
-                                : negativeKeyword.match_type || "—"}
-                            </span>
-                            {onUpdateNegativeKeywordMatchType && (
-                              <svg
-                                className="w-4 h-4 text-[#072929] flex-shrink-0"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 9l-7 7-7-7"
-                                />
-                              </svg>
-                            )}
-                          </button>
-                        )}
+                        <span className="table-text leading-[1.26]">
+                          {negativeKeyword.match_type === "EXACT" || negativeKeyword.match_type === "Exact"
+                            ? "Exact"
+                            : negativeKeyword.match_type === "PHRASE" || negativeKeyword.match_type === "Phrase"
+                            ? "Phrase"
+                            : negativeKeyword.match_type === "BROAD" || negativeKeyword.match_type === "Broad"
+                            ? "Broad"
+                            : negativeKeyword.match_type || "—"}
+                        </span>
                       </td>
                     </tr>
                   );

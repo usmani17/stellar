@@ -28,7 +28,7 @@ import { TrashIcon } from "lucide-react";
 import type { GoogleAd } from "./components/tabs/GoogleTypes";
 
 export const GoogleAds: React.FC = () => {
-  const { accountId } = useParams<{ accountId: string }>();
+  const { accountId, channelId } = useParams<{ accountId: string; channelId: string }>();
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const [ads, setAds] = useState<GoogleAd[]>([]);
@@ -232,7 +232,7 @@ export const GoogleAds: React.FC = () => {
 
   // Removed buildFilterParams - now passing filters array directly to service
 
-  const loadAds = useCallback(async (accountId: number) => {
+  const loadAds = useCallback(async (accountId: number, channelId: number) => {
     // Prevent duplicate concurrent calls
     if (isLoadingRef.current) {
       return;
@@ -255,6 +255,7 @@ export const GoogleAds: React.FC = () => {
 
       const response = await googleAdwordsAdsService.getGoogleAds(
         accountId,
+        channelId,
         undefined,
         undefined,
         params
@@ -311,23 +312,33 @@ export const GoogleAds: React.FC = () => {
     }
   }, [filters, sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString()]);
 
+  // Wrapper function for useGoogleSyncStatus hook (it expects only accountId)
+  const loadAdsWrapper = useCallback(async (accountId: number) => {
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    if (channelIdNum && !isNaN(channelIdNum)) {
+      await loadAds(accountId, channelIdNum);
+    }
+  }, [channelId, loadAds]);
+
   // Sync status hook (after loadAds is defined)
   const { SyncStatusBanner } = useGoogleSyncStatus({
     accountId,
     entityType: "ads",
     currentData: ads,
-    loadFunction: loadAds,
+    loadFunction: loadAdsWrapper,
   });
 
   useEffect(() => {
     if (sorting) return;
 
-    if (accountId) {
+    if (accountId && channelId) {
       const accountIdNum = parseInt(accountId, 10);
-      if (!isNaN(accountIdNum)) {
+      const channelIdNum = parseInt(channelId, 10);
+      if (!isNaN(accountIdNum) && !isNaN(channelIdNum)) {
         // Create a unique key for this request to prevent duplicate calls
         const requestKey = JSON.stringify({
           accountId: accountIdNum,
+          channelId: channelIdNum,
           currentPage,
           filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
           startDate: startDate ? startDateStr : null,
@@ -337,7 +348,7 @@ export const GoogleAds: React.FC = () => {
         // Only call loadAds if the request parameters have actually changed
         if (lastRequestParamsRef.current !== requestKey) {
           lastRequestParamsRef.current = requestKey;
-          loadAds(accountIdNum);
+          loadAds(accountIdNum, channelIdNum);
         }
       } else {
         setLoading(false);
@@ -346,7 +357,7 @@ export const GoogleAds: React.FC = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
+  }, [accountId, channelId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
 
 
 
@@ -379,8 +390,13 @@ export const GoogleAds: React.FC = () => {
             filters: filters, // Pass filters array directly
           };
 
+          const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+          if (!channelIdNum || isNaN(channelIdNum)) {
+            throw new Error("Channel ID is required");
+          }
           const response = await googleAdwordsAdsService.getGoogleAds(
             accountIdNum,
+            channelIdNum,
             undefined,
             undefined,
             params
@@ -564,7 +580,12 @@ export const GoogleAds: React.FC = () => {
         // Convert display status to API format
         const statusValue = convertStatusToApi(inlineEditNewValue);
 
-        const response = await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
+
+        const response = await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, channelIdNum, {
           adIds: [inlineEditAd.ad_id || inlineEditAd.id],
           action: "status",
           status: statusValue,
@@ -575,7 +596,10 @@ export const GoogleAds: React.FC = () => {
         }
       }
 
-      await loadAds(accountIdNum);
+      const channelIdNumForReload = channelId ? parseInt(channelId, 10) : undefined;
+      if (channelIdNumForReload && !isNaN(channelIdNumForReload)) {
+        await loadAds(accountIdNum, channelIdNumForReload);
+      }
       
       setShowInlineEditModal(false);
       setInlineEditAd(null);
@@ -635,13 +659,18 @@ export const GoogleAds: React.FC = () => {
       }
 
       const statusValue = convertStatusToApi("REMOVED");
-      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+
+      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, channelIdNum, {
         adIds: [pendingRemoveChange.adId],
         action: "status",
         status: statusValue,
       });
 
-      await loadAds(accountIdNum);
+      await loadAds(accountIdNum, channelIdNum);
       
       setShowRemoveConfirmation(false);
       setPendingRemoveChange(null);
@@ -702,11 +731,16 @@ export const GoogleAds: React.FC = () => {
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    if (!channelIdNum || isNaN(channelIdNum)) {
+      throw new Error("Channel ID is required");
+    }
+
     try {
       setBulkLoading(true);
       setBulkUpdateResults(null);
 
-      const response = await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
+      const response = await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, channelIdNum, {
         adIds: Array.from(selectedAds),
         action: "status",
         status: statusValue,
@@ -721,7 +755,7 @@ export const GoogleAds: React.FC = () => {
 
       // Reload ads after successful update
       setSorting(true); // Show loading overlay on table
-      await loadAds(accountIdNum);
+      await loadAds(accountIdNum, channelIdNum);
       // Hide loading overlay after a short delay
       setTimeout(() => {
         setSorting(false);
@@ -779,7 +813,11 @@ export const GoogleAds: React.FC = () => {
         params.ad_ids = Array.from(selectedAds);
       }
 
-      const result = await googleAdwordsAdsService.exportGoogleAds(accountIdNum, params, exportType);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const result = await googleAdwordsAdsService.exportGoogleAds(accountIdNum, channelIdNum, params, exportType);
       
       // Automatically download the file if result has url
       if (result?.url) {
@@ -1472,6 +1510,7 @@ export const GoogleAds: React.FC = () => {
                     loading={loading}
                     sorting={sorting}
                     accountId={accountId || ""}
+                    channelId={channelId}
                     selectedAds={selectedAds}
                     allSelected={allSelected}
                     someSelected={someSelected}

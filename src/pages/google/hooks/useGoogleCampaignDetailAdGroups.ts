@@ -8,6 +8,7 @@ import type { ShoppingEntityInput } from "../../../components/google/CreateGoogl
 
 interface UseGoogleCampaignDetailAdGroupsParams {
   accountId: string | undefined;
+  channelId: string | undefined;
   campaignId: string | undefined;
   startDate: Date | null;
   endDate: Date | null;
@@ -18,6 +19,7 @@ interface UseGoogleCampaignDetailAdGroupsParams {
 
 export const useGoogleCampaignDetailAdGroups = ({
   accountId,
+  channelId,
   campaignId,
   startDate,
   endDate,
@@ -90,8 +92,13 @@ export const useGoogleCampaignDetailAdGroups = ({
         return;
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
       const data = await googleAdwordsAdGroupsService.getGoogleAdGroups(
         accountIdNum,
+        channelIdNum,
         parseInt(campaignId, 10),
         {
           filters: adgroupsFilters,
@@ -174,14 +181,19 @@ export const useGoogleCampaignDetailAdGroups = ({
 
   // Sync handlers
   const handleSyncAdGroups = useCallback(async () => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    if (!channelIdNum || isNaN(channelIdNum)) {
+      throw new Error("Channel ID is required");
+    }
 
     try {
       setSyncingAdGroups(true);
       setSyncMessage({ type: null, message: null });
-      const result = await googleAdwordsAdGroupsService.syncGoogleAdGroups(accountIdNum);
+      const result = await googleAdwordsAdGroupsService.syncGoogleAdGroups(accountIdNum, channelIdNum);
       let message =
         result.message || `Successfully synced ${result.synced} ad groups`;
 
@@ -218,18 +230,24 @@ export const useGoogleCampaignDetailAdGroups = ({
     } finally {
       setSyncingAdGroups(false);
     }
-  }, [accountId, loadAdGroups]);
+  }, [accountId, channelId, loadAdGroups]);
 
   const handleSyncAdGroupsAnalytics = useCallback(async () => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    if (!channelIdNum || isNaN(channelIdNum)) {
+      throw new Error("Channel ID is required");
+    }
 
     try {
       setSyncingAdGroupsAnalytics(true);
       setSyncMessage({ type: null, message: null });
       const result = await googleAdwordsAdGroupsService.syncGoogleAdGroupAnalytics(
         accountIdNum,
+        channelIdNum,
         startDate ? startDate.toISOString() : undefined,
         endDate ? endDate.toISOString() : undefined
       );
@@ -271,11 +289,11 @@ export const useGoogleCampaignDetailAdGroups = ({
     } finally {
       setSyncingAdGroupsAnalytics(false);
     }
-  }, [accountId, startDate, endDate, loadAdGroups]);
+  }, [accountId, channelId, startDate, endDate, loadAdGroups]);
 
   // Create handlers
   const handleCreateAdGroup = useCallback(async (entity: AdGroupInput) => {
-    if (!accountId || !campaignId) return;
+    if (!accountId || !campaignId || !channelId) return;
 
     setCreateSearchEntitiesLoading(true);
     setCreateSearchEntitiesError(null);
@@ -286,6 +304,11 @@ export const useGoogleCampaignDetailAdGroups = ({
         throw new Error("Invalid account ID");
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Invalid channel ID");
+      }
+
       const campaignIdNum = parseInt(campaignId, 10);
       if (isNaN(campaignIdNum)) {
         throw new Error("Invalid campaign ID");
@@ -293,6 +316,7 @@ export const useGoogleCampaignDetailAdGroups = ({
 
       const response = await googleAdwordsCampaignsService.createGoogleSearchEntities(
         accountIdNum,
+        channelIdNum,
         campaignIdNum,
         entity
       );
@@ -391,10 +415,10 @@ export const useGoogleCampaignDetailAdGroups = ({
     } finally {
       setCreateSearchEntitiesLoading(false);
     }
-  }, [accountId, campaignId, loadAdGroups, onError, onReloadAds]);
+  }, [accountId, channelId, campaignId, loadAdGroups, onError, onReloadAds]);
 
   const handleCreateShoppingAdGroup = useCallback(async (entity: AdGroupInput) => {
-    if (!accountId || !campaignId) return;
+    if (!accountId || !campaignId || !channelId) return;
 
     setCreateShoppingEntitiesLoading(true);
     setCreateShoppingEntitiesError(null);
@@ -403,6 +427,11 @@ export const useGoogleCampaignDetailAdGroups = ({
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) {
         throw new Error("Invalid account ID");
+      }
+
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Invalid channel ID");
       }
 
       const campaignIdNum = parseInt(campaignId, 10);
@@ -420,6 +449,7 @@ export const useGoogleCampaignDetailAdGroups = ({
 
       const response = await googleAdwordsCampaignsService.createGoogleShoppingEntities(
         accountIdNum,
+        channelIdNum,
         campaignIdNum,
         shoppingEntity
       );
@@ -472,7 +502,7 @@ export const useGoogleCampaignDetailAdGroups = ({
     } finally {
       setCreateShoppingEntitiesLoading(false);
     }
-  }, [accountId, campaignId, loadAdGroups, onError]);
+  }, [accountId, channelId, campaignId, loadAdGroups, onError]);
 
   // Name edit handlers
   const handleStartAdGroupNameEdit = useCallback((adgroup: GoogleAdGroup) => {
@@ -510,7 +540,11 @@ export const useGoogleCampaignDetailAdGroups = ({
         throw new Error("Invalid account ID");
       }
 
-      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
         adgroupIds: [nameEditAdGroup.adgroup_id],
         action: "name",
         name: trimmedName,
@@ -547,6 +581,11 @@ export const useGoogleCampaignDetailAdGroups = ({
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) return;
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+
       // Find the adgroup to get adgroup_id
       const adgroup = adgroups.find((ag) => ag.id === adgroupId);
       if (!adgroup || !adgroup.adgroup_id) {
@@ -560,7 +599,7 @@ export const useGoogleCampaignDetailAdGroups = ({
       }
 
       // Call API
-      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
         adgroupIds: [adgroup.adgroup_id],
         action: "status",
         status: status as "ENABLED" | "PAUSED",
@@ -589,7 +628,7 @@ export const useGoogleCampaignDetailAdGroups = ({
       }
       throw error;
     }
-  }, [accountId, adgroups, loadAdGroups, onError]);
+  }, [accountId, channelId, adgroups, loadAdGroups, onError]);
 
   const handleUpdateAdGroupBid = useCallback(async (adgroupId: number, bid: number) => {
     if (!accountId) return;
@@ -597,6 +636,11 @@ export const useGoogleCampaignDetailAdGroups = ({
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) return;
+
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
 
       // Find the adgroup to get adgroup_id
       const adgroup = adgroups.find((ag) => ag.id === adgroupId);
@@ -611,7 +655,7 @@ export const useGoogleCampaignDetailAdGroups = ({
       }
 
       // Call API
-      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
         adgroupIds: [adgroup.adgroup_id],
         action: "bid",
         bid: bid,
@@ -642,7 +686,7 @@ export const useGoogleCampaignDetailAdGroups = ({
       }
       throw error;
     }
-  }, [accountId, adgroups, loadAdGroups, onError]);
+  }, [accountId, channelId, adgroups, loadAdGroups, onError]);
 
   return {
     // Data

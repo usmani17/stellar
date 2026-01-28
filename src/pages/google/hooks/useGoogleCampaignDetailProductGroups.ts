@@ -5,6 +5,7 @@ import { toLocalDateString } from "../../../utils/dateHelpers";
 
 interface UseGoogleCampaignDetailProductGroupsParams {
   accountId: string | undefined;
+  channelId: string | undefined;
   campaignId: string | undefined;
   startDate: Date | null;
   endDate: Date | null;
@@ -14,6 +15,7 @@ interface UseGoogleCampaignDetailProductGroupsParams {
 
 export const useGoogleCampaignDetailProductGroups = ({
   accountId,
+  channelId,
   campaignId,
   startDate,
   endDate,
@@ -40,8 +42,9 @@ export const useGoogleCampaignDetailProductGroups = ({
     try {
       setProductGroupsLoading(true);
       const accountIdNum = parseInt(accountId!, 10);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
 
-      if (isNaN(accountIdNum) || !campaignId) {
+      if (isNaN(accountIdNum) || !channelIdNum || !campaignId) {
         setProductGroupsLoading(false);
         return;
       }
@@ -56,6 +59,7 @@ export const useGoogleCampaignDetailProductGroups = ({
 
       const data = await googleAdwordsAdsService.getGoogleAds(
         accountIdNum,
+        channelIdNum,
         parseInt(campaignId, 10),
         undefined,
         {
@@ -88,6 +92,7 @@ export const useGoogleCampaignDetailProductGroups = ({
     }
   }, [
     accountId,
+    channelId,
     campaignId,
     productGroupsCurrentPage,
     productGroupsSortBy,
@@ -99,11 +104,12 @@ export const useGoogleCampaignDetailProductGroups = ({
 
   // Load product groups when dependencies change
   useEffect(() => {
-    if (accountId && campaignId && activeTab === "Product Groups") {
+    if (accountId && channelId && campaignId && activeTab === "Product Groups") {
       loadProductGroups();
     }
   }, [
     accountId,
+    channelId,
     campaignId,
     activeTab,
     startDate,
@@ -161,11 +167,12 @@ export const useGoogleCampaignDetailProductGroups = ({
 
   // Update handler
   const handleUpdateProductGroupStatus = useCallback(async (productGroupId: number, status: string) => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
 
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) return;
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
 
       // Find the product group to get ad_id
       // Product groups are stored in the ads table, so they have ad_id
@@ -205,7 +212,7 @@ export const useGoogleCampaignDetailProductGroups = ({
 
       // Call API - product groups use the same bulkUpdateGoogleAds endpoint
       // Include campaignId and adGroupId to only update this specific instance
-      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
+      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, channelIdNum, {
         adIds: [adId],
         action: "status",
         status: status as "ENABLED" | "PAUSED" | "REMOVED",
@@ -241,7 +248,7 @@ export const useGoogleCampaignDetailProductGroups = ({
       }
       throw error;
     }
-  }, [accountId, productGroups, loadProductGroups, onError]);
+  }, [accountId, channelId, productGroups, loadProductGroups, onError]);
 
   return {
     // Data

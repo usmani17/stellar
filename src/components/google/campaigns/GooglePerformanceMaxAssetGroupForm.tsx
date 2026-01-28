@@ -84,7 +84,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
     if (tabId === "images") {
       return !!(errors.marketing_image_url || errors.square_marketing_image_url);
     } else if (tabId === "text") {
-      return !!(errors.headlines || errors.descriptions);
+      return !!(errors.headlines || errors.descriptions || errors.long_headlines);
     }
     return false;
   };
@@ -967,7 +967,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="form-label mb-0">
-                      Long Headlines (Optional)
+                      Long Headlines * <span className="text-[10px] text-[#556179] font-normal">(at least 1 required, max 90 characters)</span>
                     </label>
                   </div>
                   <div className="space-y-2" data-long-headlines-section>
@@ -1035,24 +1035,25 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                               ×
                             </button>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (longHeadlineAssetId) {
-                                const newLongHeadlineAssetIds = [...(formData.long_headline_asset_ids || [])];
-                                const newLongHeadlineAssetResourceNames = [...(formData.long_headline_asset_resource_names || [])];
-                                newLongHeadlineAssetIds.splice(index, 1);
-                                newLongHeadlineAssetResourceNames.splice(index, 1);
-                                onChange("long_headline_asset_ids", newLongHeadlineAssetIds);
-                                onChange("long_headline_asset_resource_names", newLongHeadlineAssetResourceNames);
-                              }
-                              const newLongHeadlines = [...(formData.long_headlines || [])];
-                              newLongHeadlines.splice(index, 1);
-                              onChange("long_headlines", newLongHeadlines);
-                            }}
-                            className="p-2 hover:bg-red-50 rounded transition-colors"
-                            title="Remove long headline"
-                          >
+                          {(formData.long_headlines?.length || 0) > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (longHeadlineAssetId) {
+                                  const newLongHeadlineAssetIds = [...(formData.long_headline_asset_ids || [])];
+                                  const newLongHeadlineAssetResourceNames = [...(formData.long_headline_asset_resource_names || [])];
+                                  newLongHeadlineAssetIds.splice(index, 1);
+                                  newLongHeadlineAssetResourceNames.splice(index, 1);
+                                  onChange("long_headline_asset_ids", newLongHeadlineAssetIds);
+                                  onChange("long_headline_asset_resource_names", newLongHeadlineAssetResourceNames);
+                                }
+                                const newLongHeadlines = [...(formData.long_headlines || [])];
+                                newLongHeadlines.splice(index, 1);
+                                onChange("long_headlines", newLongHeadlines);
+                              }}
+                              className="p-2 hover:bg-red-50 rounded transition-colors"
+                              title="Remove long headline"
+                            >
                             <svg
                               className="w-5 h-5 text-red-600"
                               fill="none"
@@ -1066,20 +1067,22 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                                 d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                               />
                             </svg>
-                          </button>
+                            </button>
+                          )}
                         </div>
                       );
                     })}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newLongHeadlines = [...(formData.long_headlines || []), ""];
-                        onChange("long_headlines", newLongHeadlines);
-                      }}
-                      className="edit-button"
-                    >
-                      + Add Long Headline
-                    </button>
+                    {(formData.long_headlines?.length || 0) === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onChange("long_headlines", [""]);
+                        }}
+                        className="edit-button"
+                      >
+                        + Add Long Headline
+                      </button>
+                    )}
                   </div>
                   {errors.long_headlines && (
                     <p className="text-[10px] text-red-500 mt-1">

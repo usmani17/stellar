@@ -4,6 +4,7 @@ import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../../components/goo
 export const googleAdwordsCampaignsService = {
   createGoogleCampaign: async (
     accountId: number,
+    channelId: number,
     payload: {
       campaign_type: "PERFORMANCE_MAX" | "SHOPPING" | "SEARCH" | "DEMAND_GEN";
       customer_id?: string; // Optional - for selecting specific profile
@@ -54,13 +55,14 @@ export const googleAdwordsCampaignsService = {
       invalid_languages: string[];
     };
   }> => {
-    const url = `/google-adwords/${accountId}/campaigns/create/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },
 
   createGoogleSearchEntities: async (
     accountId: number,
+    channelId: number,
     campaignId: number,
     payload: {
       adgroup_id?: number; // Optional: use existing adgroup
@@ -127,13 +129,14 @@ export const googleAdwordsCampaignsService = {
       user_message?: string;
     }>;
   }> => {
-    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/search-entities/create/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/search-entities/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },
 
   createGooglePmaxAssetGroup: async (
     accountId: number,
+    channelId: number,
     campaignId: number,
     payload: {
       asset_group: {
@@ -165,13 +168,14 @@ export const googleAdwordsCampaignsService = {
     };
     error?: string;
   }> => {
-    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/pmax-asset-group/create/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/pmax-asset-group/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },
 
   createGoogleShoppingEntities: async (
     accountId: number,
+    channelId: number,
     campaignId: number,
     payload: {
       adgroup_id?: number; // Optional: use existing adgroup
@@ -194,13 +198,14 @@ export const googleAdwordsCampaignsService = {
     };
     error?: string;
   }> => {
-    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/shopping-entities/create/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/shopping-entities/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },
 
   createGoogleShoppingAd: async (
     accountId: number,
+    channelId: number,
     campaignId: number,
     payload: {
       adgroup_id: number; // Required: use existing adgroup
@@ -217,23 +222,25 @@ export const googleAdwordsCampaignsService = {
     };
     error?: string;
   }> => {
-    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/shopping-ads/create/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/shopping-ads/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },
 
   // Google Campaigns
   syncGoogleCampaigns: async (
-    accountId: number
+    accountId: number,
+    channelId: number
   ): Promise<{ synced: number; errors?: string[]; message?: string }> => {
     const response = await api.post(
-      `/google-adwords/${accountId}/campaigns/sync/`
+      `/google-adwords/${accountId}/channels/${channelId}/campaigns/sync/`
     );
     return response.data;
   },
 
   syncGoogleCampaignAnalytics: async (
     accountId: number,
+    channelId: number,
     startDate?: string,
     endDate?: string
   ): Promise<{
@@ -250,7 +257,7 @@ export const googleAdwordsCampaignsService = {
     if (startDate) payload.start_date = startDate;
     if (endDate) payload.end_date = endDate;
     const response = await api.post(
-      `/google-adwords/${accountId}/campaigns/analytics-sync/`,
+      `/google-adwords/${accountId}/channels/${channelId}/campaigns/analytics-sync/`,
       payload
     );
     return response.data;
@@ -258,6 +265,7 @@ export const googleAdwordsCampaignsService = {
 
   getGoogleCampaigns: async (
     accountId: number,
+    channelId: number,
     params?: {
       filters?: Array<{ field: string; operator?: string; value: any }>; // Dynamic filters from DynamicFilterPanel
       sort_by?: string;
@@ -318,8 +326,13 @@ export const googleAdwordsCampaignsService = {
 
     console.log("🔍 [SERVICE DEBUG] Payload being sent to backend:", payload);
 
+    // Validate channelId before constructing URL
+    if (!channelId || isNaN(channelId)) {
+      throw new Error(`Invalid channelId: ${channelId}. channelId must be a valid number.`);
+    }
+
     const response = await api.post(
-      `/google-adwords/${accountId}/campaigns/`,
+      `/google-adwords/${accountId}/channels/${channelId}/campaigns/`,
       payload
     );
     return response.data;
@@ -327,6 +340,7 @@ export const googleAdwordsCampaignsService = {
 
   bulkUpdateGoogleCampaigns: async (
     accountId: number,
+    channelId: number,
     payload: {
       campaignIds: Array<string | number>;
       action: "name" | "status" | "budget" | "start_date" | "end_date" | "bidding_strategy";
@@ -348,13 +362,14 @@ export const googleAdwordsCampaignsService = {
       lowerLimit?: number;
     }
   ) => {
-    const url = `/google-adwords/${accountId}/campaigns/bulk-update/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },
 
   updateGooglePmaxAssetGroup: async (
     accountId: number,
+    channelId: number,
     campaignId: string | number,
     assetData: {
       asset_group_name?: string;
@@ -368,13 +383,14 @@ export const googleAdwordsCampaignsService = {
       logo_url?: string;
     }
   ) => {
-    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/update-asset-group/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/update-asset-group/`;
     const response = await api.post(url, assetData);
     return response.data;
   },
 
   exportGoogleCampaigns: async (
     accountId: number,
+    channelId: number,
     params?: {
       filters?: Array<{ field: string; operator?: string; value: any }>; // Dynamic filters from DynamicFilterPanel
       sort_by?: string;
@@ -404,7 +420,7 @@ export const googleAdwordsCampaignsService = {
       payload.campaign_ids = params.campaign_ids;
     }
 
-    const url = `/google-adwords/${accountId}/campaigns/export/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/export/`;
     const response = await api.post<{ url: string; filename: string }>(url, payload);
     return response.data;
   },
@@ -412,6 +428,7 @@ export const googleAdwordsCampaignsService = {
   // Google Campaign Detail
   getGoogleCampaignDetail: async (
     accountId: number,
+    channelId: number,
     campaignId: string | number,
     startDate?: string,
     endDate?: string
@@ -420,7 +437,7 @@ export const googleAdwordsCampaignsService = {
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
     const queryString = params.toString();
-    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/${queryString ? `?${queryString}` : ""
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/${queryString ? `?${queryString}` : ""
       }`;
     const response = await api.get(url);
     return response.data;
@@ -429,6 +446,7 @@ export const googleAdwordsCampaignsService = {
   // Refresh Google Campaign from API
   refreshGoogleCampaignFromAPI: async (
     accountId: number,
+    channelId: number,
     campaignId: string | number
   ): Promise<{
     success: boolean;
@@ -465,7 +483,7 @@ export const googleAdwordsCampaignsService = {
       enable_local?: boolean;
     };
   }> => {
-    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/refresh/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/refresh/`;
     // Send the constant to API so it can decide whether to fetch asset groups
     const response = await api.post(url, {
       should_fetch_asset_groups: SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION,
@@ -474,7 +492,9 @@ export const googleAdwordsCampaignsService = {
   },
 
   getGoogleBudgets: async (
-    accountId: number
+    accountId: number,
+    channelId: number,
+    profileId: string | number
   ): Promise<
     Array<{
       id: string | number;
@@ -486,7 +506,11 @@ export const googleAdwordsCampaignsService = {
       explicitly_shared: boolean;
     }>
   > => {
-    const url = `/google-adwords/${accountId}/budgets/`;
+    // Validate channelId before constructing URL
+    if (!channelId || isNaN(channelId)) {
+      throw new Error(`Invalid channelId: ${channelId}. channelId must be a valid number.`);
+    }
+    const url = `/google-adwords/${accountId}/channels/${channelId}/budgets/?profile_id=${profileId}`;
     const response = await api.get(url);
     return response.data;
   },

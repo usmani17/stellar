@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useParams } from "react-router-dom";
 import { Dropdown } from "../ui/Dropdown";
 import { Chip } from "../ui/Chip";
 import { Checkbox } from "../ui/Checkbox";
@@ -116,6 +117,10 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   marketplace,
   entityType,
 }) => {
+  // Get channelId from URL params for Google AdWords
+  const params = useParams<{ channelId?: string }>();
+  const channelId = params.channelId;
+  
   const [activeFilters, setActiveFilters] = useState<FilterValues>(initialFilters);
   const [filterFields, setFilterFields] = useState<FilterField[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
@@ -149,8 +154,8 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
       return;
     }
 
-    // Create a unique key for this accountId+marketplace+entityType combination
-    const cacheKey = `${accountId}-${marketplace}-${entityType || 'default'}`;
+    // Create a unique key for this accountId+marketplace+entityType+channelId combination
+    const cacheKey = `${accountId}-${marketplace}-${entityType || 'default'}-${channelId || 'no-channel'}`;
     
     // Skip if already loading or already loaded for this combination
     if (loadingFieldsRef.current || fieldsLoadedRef.current === cacheKey) {
@@ -160,7 +165,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
     loadingFieldsRef.current = true;
     setLoadingFields(true);
     
-    getFilterFields(accountId, marketplace, entityType)
+    getFilterFields(accountId, marketplace, entityType, channelId)
       .then((fields) => {
         // Double-check we're still supposed to be loading (prevent race conditions)
         if (loadingFieldsRef.current && fieldsLoadedRef.current !== cacheKey) {

@@ -4,6 +4,7 @@ import api from "../api";
 export const googleAdwordsAdGroupsService = {
   getGoogleAdGroups: async (
     accountId: number,
+    channelId: number,
     campaignId?: string | number,
     params?: {
       filters?: Array<{ field: string; operator?: string; value: any }>; // Dynamic filters from DynamicFilterPanel
@@ -30,6 +31,11 @@ export const googleAdwordsAdGroupsService = {
     page_size: number;
     total_pages: number;
   }> => {
+    // Validate channelId before constructing URL
+    if (!channelId || isNaN(channelId)) {
+      throw new Error(`Invalid channelId: ${channelId}. channelId must be a valid number.`);
+    }
+    
     // Send filters array and params directly to backend - let backend handle conversion
     const payload: any = {
       filters: params?.filters || [],
@@ -45,12 +51,13 @@ export const googleAdwordsAdGroupsService = {
     if (campaignId) payload.campaign_id = campaignId;
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
 
-    const response = await api.post(`/google-adwords/${accountId}/adgroups/`, payload);
+    const response = await api.post(`/google-adwords/${accountId}/channels/${channelId}/adgroups/`, payload);
     return response.data;
   },
 
   syncGoogleAdGroupAnalytics: async (
     accountId: number,
+    channelId: number,
     startDate?: string,
     endDate?: string
   ): Promise<{
@@ -67,7 +74,7 @@ export const googleAdwordsAdGroupsService = {
     if (startDate) payload.start_date = startDate;
     if (endDate) payload.end_date = endDate;
     const response = await api.post(
-      `/google-adwords/${accountId}/adgroups/analytics-sync/`,
+      `/google-adwords/${accountId}/channels/${channelId}/adgroups/analytics-sync/`,
       payload
     );
     return response.data;
@@ -75,6 +82,7 @@ export const googleAdwordsAdGroupsService = {
 
   exportGoogleAdGroups: async (
     accountId: number,
+    channelId: number,
     params?: {
       filters?: Array<{ field: string; operator?: string; value: any }>; // Dynamic filters from DynamicFilterPanel
       sort_by?: string;
@@ -110,7 +118,7 @@ export const googleAdwordsAdGroupsService = {
 
     // Make request with responseType blob to handle CSV file
     const response = await api.post(
-      `/google-adwords/${accountId}/adgroups/export/`,
+      `/google-adwords/${accountId}/channels/${channelId}/adgroups/export/`,
       payload,
       {
         responseType: "blob",
@@ -141,16 +149,18 @@ export const googleAdwordsAdGroupsService = {
   },
 
   syncGoogleAdGroups: async (
-    accountId: number
+    accountId: number,
+    channelId: number
   ): Promise<{ synced: number; errors?: string[]; message?: string }> => {
     const response = await api.post(
-      `/google-adwords/${accountId}/adgroups/sync/`
+      `/google-adwords/${accountId}/channels/${channelId}/adgroups/sync/`
     );
     return response.data;
   },
 
   bulkUpdateGoogleAdGroups: async (
     accountId: number,
+    channelId: number,
     payload: {
       adgroupIds: Array<string | number>;
       action: "status" | "bid" | "name";
@@ -159,7 +169,7 @@ export const googleAdwordsAdGroupsService = {
       name?: string;
     }
   ) => {
-    const url = `/google-adwords/${accountId}/adgroups/bulk-update/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/adgroups/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },

@@ -32,6 +32,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   onClose,
   onSubmit,
   accountId,
+  channelId,
   loading = false,
   submitError = null,
   mode = "create",
@@ -188,7 +189,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   // Fetch Google profiles when panel opens
   useEffect(() => {
     const fetchProfiles = async () => {
-      if (!isOpen || !accountId) {
+      if (!isOpen || !accountId || !channelId) {
         return;
       }
 
@@ -197,18 +198,15 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
       try {
         const accountIdNum = parseInt(accountId, 10);
-        // Get channels for the account
-        const channels = await accountsService.getAccountChannels(accountIdNum);
-        const googleChannel = channels.find(ch => ch.channel_type === "google");
-        
-        if (!googleChannel) {
-          setProfilesError("No Google channel found for this account");
+        const channelIdNum = parseInt(channelId, 10);
+        if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+          setProfilesError("Invalid account ID or channel ID");
           setLoadingProfiles(false);
           return;
         }
 
-        // Get profiles for the Google channel - backend filters to only selected profiles
-        const profilesData = await accountsService.getGoogleProfiles(googleChannel.id, true);
+        // Get profiles for the specified Google channel - backend filters to only selected profiles
+        const profilesData = await accountsService.getGoogleProfiles(channelIdNum, true);
         const allProfiles = profilesData.profiles || [];
         
         const profiles = allProfiles.map((profile: any) => {
@@ -217,11 +215,11 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           const profileName = profile.name || customerIdFormatted;
           
           return {
-            value: customerIdRaw,
+            value: String(profile.id), // Use profile.id as value (backend expects profile_id)
             label: `${profileName} (${customerIdFormatted})${profile.is_manager ? ' - Manager' : ''}`,
             customer_id: customerIdFormatted,
             customer_id_raw: customerIdRaw,
-            profile_id: profile.id, // Include profile ID for asset API calls
+            profile_id: profile.id, // Include profile ID for API calls
           };
         }).filter((p: any) => p.value);
 
@@ -259,11 +257,11 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     };
 
     fetchProfiles();
-  }, [isOpen, accountId, selectedProfileId]);
+  }, [isOpen, accountId, channelId, selectedProfileId]);
 
   // Function to fetch budgets
   const fetchBudgets = useCallback(async () => {
-    if (!accountId) {
+    if (!accountId || !channelId || !selectedProfileId) {
       setBudgetOptions([]);
       return;
     }
@@ -271,7 +269,11 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     setLoadingBudgets(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
-      const budgets = await googleAdwordsCampaignsService.getGoogleBudgets(accountIdNum);
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+        throw new Error("Invalid accountId or channelId");
+      }
+      const budgets = await googleAdwordsCampaignsService.getGoogleBudgets(accountIdNum, channelIdNum, selectedProfileId);
       
       // Format budgets for dropdown
       const options = budgets.map((budget) => ({
@@ -291,14 +293,14 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     } finally {
       setLoadingBudgets(false);
     }
-  }, [accountId]);
+  }, [accountId, channelId, selectedProfileId]);
 
-  // Fetch budgets when account is available
+  // Fetch budgets when account, channel, and profile are available
   useEffect(() => {
-    if (isOpen && accountId) {
+    if (isOpen && accountId && channelId && selectedProfileId) {
       fetchBudgets();
     }
-  }, [isOpen, accountId, fetchBudgets]);
+  }, [isOpen, accountId, channelId, selectedProfileId, fetchBudgets]);
 
   // Function to fetch merchant accounts (can be called manually or automatically)
   const fetchMerchantAccounts = useCallback(async () => {
@@ -317,8 +319,12 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
     try {
       const accountIdNum = parseInt(accountId, 10);
-      // Use selected profile's customer_id to fetch merchant accounts
-      const accounts = await campaignsService.getGoogleMerchantAccounts(accountIdNum, selectedProfileId);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      // Use selected profile's profile_id to fetch merchant accounts
+      const accounts = await campaignsService.getGoogleMerchantAccounts(accountIdNum, channelIdNum, selectedProfileId);
       setMerchantAccountOptions(accounts);
       
       if (accounts.length === 0) {
@@ -344,7 +350,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     } finally {
       setLoadingMerchantAccounts(false);
     }
-  }, [accountId, formData.campaign_type, selectedProfileId]);
+  }, [accountId, channelId, formData.campaign_type, selectedProfileId]);
 
   // Fetch merchant accounts when Shopping campaign type is selected and profile is selected
   useEffect(() => {
@@ -424,15 +430,20 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
     try {
       const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
       // For SEARCH campaigns, use undefined country code (or could use a default like "US")
       // For SHOPPING campaigns, use sales_country
       const countryCode = formData.campaign_type === "SHOPPING" ? (formData.sales_country || undefined) : undefined;
       // Load up to 200 locations initially - Dropdown will filter them client-side
       const locations = await campaignsService.getGoogleGeoTargetConstants(
         accountIdNum,
+        channelIdNum,
+        selectedProfileId,
         undefined, // No search query - load common locations
-        countryCode,
-        selectedProfileId
+        countryCode
       );
       
       const formattedLocations = locations.map((loc) => ({
@@ -450,7 +461,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     } finally {
       setLoadingLocations(false);
     }
-  }, [accountId, formData.campaign_type, formData.sales_country, selectedProfileId]);
+  }, [accountId, channelId, formData.campaign_type, formData.sales_country, selectedProfileId]);
 
   // Fetch locations when Shopping / Search / Performance Max campaign is selected
   useEffect(() => {
@@ -487,8 +498,13 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
     try {
       const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
       const languages = await campaignsService.getGoogleLanguageConstants(
         accountIdNum,
+        channelIdNum,
         selectedProfileId
       );
       
@@ -505,7 +521,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     } finally {
       setLoadingLanguages(false);
     }
-  }, [accountId, formData.campaign_type, selectedProfileId]);
+  }, [accountId, channelId, formData.campaign_type, selectedProfileId]);
 
   // Fetch languages when SEARCH / PERFORMANCE_MAX / SHOPPING campaign is selected
   useEffect(() => {
@@ -854,26 +870,27 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
       // Language targeting is optional for PERFORMANCE_MAX campaigns
 
+      // Brand Guidelines requires business_name and logo_url (square logo) for Performance Max campaigns
+      if (!formData.business_name?.trim()) {
+        newErrors.business_name = "Business name is required for Performance Max campaigns with Brand Guidelines enabled";
+      }
+
+      if (!formData.logo_url?.trim() || formData.logo_url === 'https://example.com') {
+        newErrors.logo_url = "Square logo URL is required for Performance Max campaigns with Brand Guidelines enabled. Must be 1:1 aspect ratio.";
+      } else if (!/^https?:\/\/.+/.test(formData.logo_url)) {
+        newErrors.logo_url = "Logo URL must be a valid URL (http:// or https://)";
+      }
+
+      if (!formData.final_url?.trim()) {
+        newErrors.final_url = "Final URL is required";
+      } else if (!/^https?:\/\/.+/.test(formData.final_url)) {
+        newErrors.final_url = "Final URL must be a valid URL (http:// or https://)";
+      }
+
       // Only validate asset group fields if SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION is true
       if (SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION) {
         if (!formData.asset_group_name?.trim()) {
           newErrors.asset_group_name = "Asset Group Name is required";
-        }
-
-        if (!formData.final_url?.trim()) {
-          newErrors.final_url = "Final URL is required";
-        } else if (!/^https?:\/\/.+/.test(formData.final_url)) {
-          newErrors.final_url = "Final URL must be a valid URL (http:// or https://)";
-        }
-
-        if (!formData.business_name?.trim()) {
-          newErrors.business_name = "Business name is required";
-        }
-
-        if (!formData.logo_url?.trim() || formData.logo_url === 'https://example.com') {
-          newErrors.logo_url = "Logo URL is required. Please provide a logo URL or upload a logo.";
-        } else if (!/^https?:\/\/.+/.test(formData.logo_url)) {
-          newErrors.logo_url = "Logo URL must be a valid URL (http:// or https://)";
         }
 
         const validHeadlines = (formData.headlines || []).filter((h) => h.trim());
@@ -1109,6 +1126,15 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         : (formData.campaign_type === "SEARCH" || formData.campaign_type === "DISPLAY") && formData.network_settings
         ? formData.network_settings
         : undefined,
+      // Brand Guidelines required fields for Performance Max campaigns - always include if campaign type is PERFORMANCE_MAX
+      ...(formData.campaign_type === "PERFORMANCE_MAX" ? {
+        business_name: formData.business_name?.trim() || formData.business_name,
+        business_name_asset_id: formData.business_name_asset_id,
+        business_name_asset_resource_name: formData.business_name_asset_resource_name,
+        logo_url: formData.logo_url && formData.logo_url !== 'https://example.com' ? formData.logo_url.trim() : formData.logo_url,
+        logo_asset_resource_name: formData.logo_asset_resource_name,
+        logo_asset_id: formData.logo_asset_id,
+      } : {}),
       // language_codes is kept for backward compatibility but language_ids is the primary field
       language_codes: formData.campaign_type === "SEARCH" && formData.language_ids && formData.language_ids.length > 0 ? undefined : formData.language_codes,
       conversion_action_ids: formData.campaign_type === "SEARCH" && formData.conversion_action_ids?.length ? formData.conversion_action_ids : undefined,
@@ -1118,7 +1144,6 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     };
 
     try {
-      console.log("Calling onSubmit with payload", payload);
       await onSubmit(payload);
       console.log("onSubmit completed successfully");
       resetForm();

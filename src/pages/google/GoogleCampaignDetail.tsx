@@ -103,8 +103,9 @@ interface GoogleCampaignDetail {
 // Types are now imported from ./components/tabs/GoogleTypes
 
 export const GoogleCampaignDetail: React.FC = () => {
-  const { accountId, campaignId } = useParams<{
+  const { accountId, channelId, campaignId } = useParams<{
     accountId: string;
+    channelId: string;
     campaignId: string;
   }>();
   const navigate = useNavigate();
@@ -136,6 +137,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     handleUpdateCampaign,
   } = useGoogleCampaignDetail({
     accountId,
+    channelId,
     campaignId,
     startDate,
     endDate,
@@ -188,6 +190,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Use Negative Keywords hook
   const negativeKeywordsHook = useGoogleCampaignDetailNegativeKeywords({
     accountId,
+    channelId,
     campaignId,
     startDate,
     endDate,
@@ -346,6 +349,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Use Ads hook (after loadAds is defined - but we'll use the hook's loadAds)
   const adsHook = useGoogleCampaignDetailAds({
     accountId,
+    channelId,
     campaignId,
     startDate,
     endDate,
@@ -384,6 +388,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Use AdGroups hook (after loadAds is defined)
   const adGroupsHook = useGoogleCampaignDetailAdGroups({
     accountId,
+    channelId,
     campaignId,
     startDate,
     endDate,
@@ -451,6 +456,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Use Keywords hook
   const keywordsHook = useGoogleCampaignDetailKeywords({
     accountId,
+    channelId,
     campaignId,
     startDate,
     endDate,
@@ -523,6 +529,8 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Use Asset Groups hook
   const assetGroupsHook = useGoogleCampaignDetailAssetGroups({
     accountId,
+    channelId,
+    profileId,
     campaignId,
     startDate,
     endDate,
@@ -588,6 +596,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Use Product Groups hook
   const productGroupsHook = useGoogleCampaignDetailProductGroups({
     accountId,
+    channelId,
     campaignId,
     startDate,
     endDate,
@@ -627,6 +636,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Use Shopping Ads hook
   const shoppingAdsHook = useGoogleCampaignDetailShoppingAds({
     accountId,
+    channelId,
     campaignId,
     startDate,
     endDate,
@@ -690,6 +700,11 @@ export const GoogleCampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Invalid channel ID");
+      }
+
       const campaignIdNum = parseInt(campaignId, 10);
       if (isNaN(campaignIdNum)) {
         throw new Error("Invalid campaign ID");
@@ -697,6 +712,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       const response = await googleAdwordsCampaignsService.createGoogleSearchEntities(
         accountIdNum,
+        channelIdNum,
         campaignIdNum,
         entity
       );
@@ -797,6 +813,11 @@ export const GoogleCampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Invalid channel ID");
+      }
+
       const campaignIdNum = parseInt(campaignId, 10);
       if (isNaN(campaignIdNum)) {
         throw new Error("Invalid campaign ID");
@@ -804,6 +825,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       const response = await googleAdwordsCampaignsService.createGoogleSearchEntities(
         accountIdNum,
+        channelIdNum,
         campaignIdNum,
         entity
       );
@@ -909,6 +931,11 @@ export const GoogleCampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Invalid channel ID");
+      }
+
       const campaignIdNum = parseInt(campaignId, 10);
       if (isNaN(campaignIdNum)) {
         throw new Error("Invalid campaign ID");
@@ -916,6 +943,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       const response = await googleAdwordsCampaignsService.createGoogleShoppingEntities(
         accountIdNum,
+        channelIdNum,
         campaignIdNum,
         entity
       );
@@ -987,6 +1015,11 @@ export const GoogleCampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Invalid channel ID");
+      }
+
       const campaignIdNum = parseInt(campaignId, 10);
       if (isNaN(campaignIdNum)) {
         throw new Error("Invalid campaign ID");
@@ -994,6 +1027,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       const response = await googleAdwordsCampaignsService.createGoogleShoppingAd(
         accountIdNum,
+        channelIdNum,
         campaignIdNum,
         entity
       );
@@ -1065,9 +1099,12 @@ export const GoogleCampaignDetail: React.FC = () => {
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <button
-                  onClick={() =>
-                    navigate(`/brands/${accountId}/google-campaigns`)
-                  }
+                  onClick={() => {
+                    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+                    if (channelIdNum) {
+                      navigate(`/brands/${accountId}/${channelIdNum}/google/campaigns`)
+                    }
+                  }}
                   className="flex items-center gap-2 text-[#072929] hover:text-[#136D6D] transition-colors"
                 >
                   <svg
@@ -1504,10 +1541,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onUpdateAdGroupStatus={handleUpdateAdGroupStatus}
                     onUpdateAdGroupBid={handleUpdateAdGroupBid}
                     onUpdateAdGroupName={async (adgroupId: number, name: string) => {
-                      if (!accountId) return;
+                      if (!accountId || !channelId) return;
                       const accountIdNum = parseInt(accountId, 10);
-                      if (isNaN(accountIdNum)) {
-                        throw new Error("Invalid account ID");
+                      const channelIdNum = parseInt(channelId, 10);
+                      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+                        throw new Error("Invalid account ID or channel ID");
                       }
                       
                       // Find the adgroup to get adgroup_id
@@ -1521,7 +1559,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                         throw new Error("Name cannot be empty");
                       }
                       
-                      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+                      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
                         adgroupIds: [adgroup.adgroup_id],
                         action: "name",
                         name: trimmedName,
@@ -1537,6 +1575,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       }
                     }}
                     accountId={accountId}
+                    channelId={channelId}
                     onBulkUpdateComplete={loadAdGroups}
                     createButton={
                       (campaignDetail?.campaign.advertising_channel_type ===
@@ -1590,6 +1629,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                               onSubmit={handleCreateAd}
                               campaignId={campaignId}
                               accountId={accountId || ""}
+                              channelId={channelId}
                               profileId={profileId}
                               loading={createSearchEntitiesLoading}
                               submitError={null}
@@ -1613,6 +1653,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                                 onSubmit={handleCreateShoppingEntities}
                                 campaignId={campaignId}
                                 accountId={accountId}
+                                channelId={channelId}
                                 loading={createShoppingEntitiesLoading}
                                 submitError={createShoppingEntitiesError}
                               />
@@ -1698,6 +1739,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                               onSubmit={handleCreateKeywords}
                               campaignId={campaignId}
                               accountId={accountId}
+                              channelId={channelId}
                               loading={createSearchEntitiesLoading}
                               submitError={null}
                             />
@@ -1862,6 +1904,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                               onSubmit={handleCreateShoppingEntities}
                               campaignId={campaignId}
                               accountId={accountId}
+                              channelId={channelId}
                               loading={createShoppingEntitiesLoading}
                               submitError={createShoppingEntitiesError}
                             />
@@ -1936,6 +1979,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                               onSubmit={handleCreateShoppingAd}
                               campaignId={campaignId}
                               accountId={accountId}
+                              channelId={channelId}
                               loading={createShoppingAdLoading}
                               submitError={createShoppingAdError}
                             />
@@ -1995,6 +2039,7 @@ export const GoogleCampaignDetail: React.FC = () => {
               {activeTab === "Logs" && accountId && (
                 <GoogleCampaignDetailLogsTab
                   accountId={accountId}
+                  channelId={channelId}
                   campaignId={campaignId}
                 />
               )}
