@@ -417,31 +417,38 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="form-label mb-0">
-                Logo (URL) * <span className="text-[10px] text-[#556179] font-normal">(1:1 aspect ratio, min 128x128px)</span>
-              </label>
-              {profileId && (
-                <button
-                  type="button"
-                  onClick={() => openAssetSelector("LOGO")}
-                  className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium"
-                >
-                  Select Asset
-                </button>
-              )}
-            </div>
+            <label className="form-label mb-1">
+              Logo (URL) * <span className="text-[10px] text-[#556179] font-normal">(1:1 aspect ratio, min 128x128px)</span>
+            </label>
             <div className="space-y-2">
               {formData.logo_asset_id ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 relative group">
+                <div className="space-y-2">
+                  <div className="relative group">
                     <input
                       type="url"
                       value={formData.logo_url || ""}
                       disabled
                       readOnly
-                      className="campaign-input w-full bg-gray-50 border-gray-200 cursor-not-allowed"
+                      className="campaign-input w-full pr-28 bg-gray-50 border-gray-200 cursor-not-allowed"
                     />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                      <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
+                        From Asset
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onChange("logo_url", "");
+                          onChange("logo_asset_id", undefined);
+                          onChange("logo_asset_resource_name", undefined);
+                          _setLogoPreview(null);
+                        }}
+                        className="text-red-500 hover:text-red-700 text-sm font-medium"
+                        title="Remove selected asset"
+                      >
+                        ×
+                      </button>
+                    </div>
                     {formData.logo_url && (formData.logo_url.startsWith("http://") || formData.logo_url.startsWith("https://")) && (
                       <div className="absolute left-0 top-full mt-2 hidden group-hover:block z-50">
                         <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-2">
@@ -458,53 +465,53 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                     )}
                   </div>
                   {formData.logo_url && (formData.logo_url.startsWith("http://") || formData.logo_url.startsWith("https://")) && (
-                    <div className="relative">
-                      <img
-                        src={formData.logo_url}
-                        alt="Logo preview"
-                        className="w-12 h-12 object-contain border border-gray-200 rounded bg-white"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
+                    <div>
+                      <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
+                      <div className="inline-block border border-gray-200 rounded p-1 bg-white">
+                        <img
+                          src={formData.logo_url}
+                          alt="Logo preview"
+                          className="w-12 h-12 object-contain rounded"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      </div>
                     </div>
                   )}
-                  <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
-                    From Asset
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onChange("logo_url", "");
-                      onChange("logo_asset_id", undefined);
-                      onChange("logo_asset_resource_name", undefined);
-                      _setLogoPreview(null);
-                    }}
-                    className="text-red-500 hover:text-red-700 text-sm font-medium"
-                    title="Remove selected asset"
-                  >
-                    ×
-                  </button>
                 </div>
               ) : (
-                <>
-                  <input
-                    type="url"
-                    value={formData.logo_url || ""}
-                    onChange={(e) => {
-                      onChange("logo_url", e.target.value);
-                      const urlValue = e.target.value.trim();
-                      if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
-                        _setLogoPreview(urlValue);
-                      } else {
-                        _setLogoPreview(null);
-                      }
-                    }}
-                    className={`campaign-input w-full ${
-                      errors.logo_url ? "border-red-500" : ""
-                    }`}
-                    placeholder="https://example.com/logo.png"
-                  />
+                <div className="space-y-2">
+                  <div className="relative">
+                    <input
+                      type="url"
+                      value={formData.logo_url || ""}
+                      onChange={(e) => {
+                        onChange("logo_url", e.target.value);
+                        const urlValue = e.target.value.trim();
+                        if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
+                          _setLogoPreview(urlValue);
+                        } else {
+                          _setLogoPreview(null);
+                        }
+                      }}
+                      className={`campaign-input w-full pr-28 ${
+                        errors.logo_url ? "border-red-500" : ""
+                      }`}
+                      placeholder="https://example.com/logo.png"
+                    />
+                    {profileId && (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                        <button
+                          type="button"
+                          onClick={() => openAssetSelector("LOGO")}
+                          className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
+                        >
+                          Select Asset
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   {_logoPreview && (
                     <div>
                       <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
@@ -521,7 +528,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                       </div>
                     </div>
                   )}
-                </>
+                </div>
               )}
               {errors.logo_url && (
                 <p className="text-[10px] text-red-500 mt-1">
@@ -629,7 +636,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                       const headlineAssetId = formData.headline_asset_ids?.[index];
                       return (
                         <div key={index} className="flex gap-2 items-center">
-                          <div className="flex-1 flex items-center gap-2">
+                          <div className="flex-1 relative">
                             <input
                               type="text"
                               value={headline}
@@ -647,7 +654,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                               disabled={!!headlineAssetId}
                               readOnly={!!headlineAssetId}
                               maxLength={30}
-                              className={`campaign-input w-full ${
+                              className={`campaign-input w-full pr-28 ${
                                 errors.headlines ? "border-red-500" : ""
                               } ${headlineAssetId ? "bg-gray-50 border-gray-200 cursor-not-allowed" : ""}`}
                               placeholder={`Headline ${index + 1} (max 30 characters)`}
@@ -678,39 +685,41 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                                 }
                               }}
                             />
-                            {headlineAssetId && (
-                              <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
-                                From Asset
-                              </span>
-                            )}
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                              {headlineAssetId && (
+                                <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
+                                  From Asset
+                                </span>
+                              )}
+                              {profileId && !headlineAssetId && (
+                                <button
+                                  type="button"
+                                  onClick={() => openAssetSelector("HEADLINE", index)}
+                                  className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
+                                >
+                                  Select Asset
+                                </button>
+                              )}
+                              {headlineAssetId && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newHeadlineAssetIds = [...(formData.headline_asset_ids || [])];
+                                    const newHeadlineAssetResourceNames = [...(formData.headline_asset_resource_names || [])];
+                                    newHeadlineAssetIds[index] = undefined;
+                                    newHeadlineAssetResourceNames[index] = undefined;
+                                    onChange("headline_asset_ids", newHeadlineAssetIds);
+                                    onChange("headline_asset_resource_names", newHeadlineAssetResourceNames);
+                                    onUpdateHeadline(index, "");
+                                  }}
+                                  className="text-red-500 hover:text-red-700 text-sm font-medium"
+                                  title="Remove selected asset"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          {profileId && !headlineAssetId && (
-                            <button
-                              type="button"
-                              onClick={() => openAssetSelector("HEADLINE", index)}
-                              className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
-                            >
-                              Select Asset
-                            </button>
-                          )}
-                          {headlineAssetId && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newHeadlineAssetIds = [...(formData.headline_asset_ids || [])];
-                                const newHeadlineAssetResourceNames = [...(formData.headline_asset_resource_names || [])];
-                                newHeadlineAssetIds[index] = undefined;
-                                newHeadlineAssetResourceNames[index] = undefined;
-                                onChange("headline_asset_ids", newHeadlineAssetIds);
-                                onChange("headline_asset_resource_names", newHeadlineAssetResourceNames);
-                                onUpdateHeadline(index, "");
-                              }}
-                              className="text-red-500 hover:text-red-700 text-sm font-medium"
-                              title="Remove selected asset"
-                            >
-                              ×
-                            </button>
-                          )}
                           {formData.headlines && formData.headlines.length > minHeadlines && (
                             <button
                               type="button"
@@ -778,7 +787,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                       const descriptionAssetId = formData.description_asset_ids?.[index];
                       return (
                         <div key={index} className="flex gap-2 items-start">
-                          <div className="flex-1 flex items-start gap-2">
+                          <div className="flex-1 relative">
                             <textarea
                               value={description}
                               onChange={(e) => {
@@ -822,44 +831,46 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                                 }
                               }}
                               rows={2}
-                              className={`campaign-input w-full ${
+                              className={`campaign-input w-full pr-28 ${
                                 errors.descriptions ? "border-red-500" : ""
                               } ${descriptionAssetId ? "bg-gray-50 border-gray-200 cursor-not-allowed" : ""}`}
                               placeholder={`Description ${index + 1} (max 90 characters)`}
                             />
-                            {descriptionAssetId && (
-                              <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap mt-1">
-                                From Asset
-                              </span>
-                            )}
+                            <div className="absolute right-2 top-2 flex items-center gap-2">
+                              {descriptionAssetId && (
+                                <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
+                                  From Asset
+                                </span>
+                              )}
+                              {profileId && !descriptionAssetId && (
+                                <button
+                                  type="button"
+                                  onClick={() => openAssetSelector("DESCRIPTION", index)}
+                                  className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
+                                >
+                                  Select Asset
+                                </button>
+                              )}
+                              {descriptionAssetId && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newDescriptionAssetIds = [...(formData.description_asset_ids || [])];
+                                    const newDescriptionAssetResourceNames = [...(formData.description_asset_resource_names || [])];
+                                    newDescriptionAssetIds[index] = undefined;
+                                    newDescriptionAssetResourceNames[index] = undefined;
+                                    onChange("description_asset_ids", newDescriptionAssetIds);
+                                    onChange("description_asset_resource_names", newDescriptionAssetResourceNames);
+                                    onUpdateDescription(index, "");
+                                  }}
+                                  className="text-red-500 hover:text-red-700 text-sm font-medium"
+                                  title="Remove selected asset"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          {profileId && !descriptionAssetId && (
-                            <button
-                              type="button"
-                              onClick={() => openAssetSelector("DESCRIPTION", index)}
-                              className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap mt-1"
-                            >
-                              Select Asset
-                            </button>
-                          )}
-                          {descriptionAssetId && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newDescriptionAssetIds = [...(formData.description_asset_ids || [])];
-                                const newDescriptionAssetResourceNames = [...(formData.description_asset_resource_names || [])];
-                                newDescriptionAssetIds[index] = undefined;
-                                newDescriptionAssetResourceNames[index] = undefined;
-                                onChange("description_asset_ids", newDescriptionAssetIds);
-                                onChange("description_asset_resource_names", newDescriptionAssetResourceNames);
-                                onUpdateDescription(index, "");
-                              }}
-                              className="text-red-500 hover:text-red-700 text-sm font-medium mt-1"
-                              title="Remove selected asset"
-                            >
-                              ×
-                            </button>
-                          )}
                           {formData.descriptions && formData.descriptions.length > minDescriptions && (
                             <button
                               type="button"
@@ -1045,47 +1056,37 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
             <div className="p-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="form-label mb-0">
-                      Marketing Image URL * <span className="text-[10px] text-[#556179] font-normal">(1.91:1 aspect ratio, min 600x314px)</span>
-                    </label>
-                    {profileId && (
-                      <button
-                        type="button"
-                        onClick={() => openAssetSelector("IMAGE")}
-                        className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium"
-                      >
-                        Select Asset
-                      </button>
-                    )}
-                  </div>
+                  <label className="form-label mb-1">
+                    Marketing Image URL * <span className="text-[10px] text-[#556179] font-normal">(1.91:1 aspect ratio, min 600x314px)</span>
+                  </label>
                   {formData.marketing_image_asset_id ? (
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
+                      <div className="relative">
                         <input
                           type="url"
                           value={formData.marketing_image_url || ""}
                           disabled
                           readOnly
-                          className="campaign-input w-full bg-gray-50 border-gray-200 cursor-not-allowed"
-                          onClick={() => openAssetSelector("IMAGE")}
+                          className="campaign-input w-full pr-28 bg-gray-50 border-gray-200 cursor-not-allowed"
                         />
-                        <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
-                          From Asset
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onChange("marketing_image_url", "");
-                            onChange("marketing_image_asset_id", undefined);
-                            onChange("marketing_image_asset_resource_name", undefined);
-                            setMarketingImagePreview(null);
-                          }}
-                          className="text-red-500 hover:text-red-700 text-sm font-medium"
-                          title="Remove selected asset"
-                        >
-                          ×
-                        </button>
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                          <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
+                            From Asset
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onChange("marketing_image_url", "");
+                              onChange("marketing_image_asset_id", undefined);
+                              onChange("marketing_image_asset_resource_name", undefined);
+                              setMarketingImagePreview(null);
+                            }}
+                            className="text-red-500 hover:text-red-700 text-sm font-medium"
+                            title="Remove selected asset"
+                          >
+                            ×
+                          </button>
+                        </div>
                       </div>
                       {marketingImagePreview && (
                         <div>
@@ -1107,23 +1108,36 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <input
-                        type="url"
-                        value={formData.marketing_image_url || ""}
-                        onChange={(e) => {
-                          onChange("marketing_image_url", e.target.value);
-                          const urlValue = e.target.value.trim();
-                          if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
-                            setMarketingImagePreview(urlValue);
-                          } else {
-                            setMarketingImagePreview(null);
-                          }
-                        }}
-                        className={`campaign-input w-full ${
-                          errors.marketing_image_url ? "border-red-500" : ""
-                        }`}
-                        placeholder="https://example.com/image.png"
-                      />
+                      <div className="relative">
+                        <input
+                          type="url"
+                          value={formData.marketing_image_url || ""}
+                          onChange={(e) => {
+                            onChange("marketing_image_url", e.target.value);
+                            const urlValue = e.target.value.trim();
+                            if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
+                              setMarketingImagePreview(urlValue);
+                            } else {
+                              setMarketingImagePreview(null);
+                            }
+                          }}
+                          className={`campaign-input w-full pr-28 ${
+                            errors.marketing_image_url ? "border-red-500" : ""
+                          }`}
+                          placeholder="https://example.com/image.png"
+                        />
+                        {profileId && (
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                            <button
+                              type="button"
+                              onClick={() => openAssetSelector("IMAGE")}
+                              className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
+                            >
+                              Select Asset
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       {marketingImagePreview && (
                         <div>
                           <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
@@ -1154,47 +1168,37 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="form-label mb-0">
-                      Square Marketing Image URL * <span className="text-[10px] text-[#556179] font-normal">(1:1 aspect ratio, min 300x300px)</span>
-                    </label>
-                    {profileId && (
-                      <button
-                        type="button"
-                        onClick={() => openAssetSelector("SQUARE_IMAGE")}
-                        className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium"
-                      >
-                        Select Asset
-                      </button>
-                    )}
-                  </div>
+                  <label className="form-label mb-1">
+                    Square Marketing Image URL * <span className="text-[10px] text-[#556179] font-normal">(1:1 aspect ratio, min 300x300px)</span>
+                  </label>
                   {formData.square_marketing_image_asset_id ? (
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
+                      <div className="relative">
                         <input
                           type="url"
                           value={formData.square_marketing_image_url || ""}
                           disabled
                           readOnly
-                          className="campaign-input w-full bg-gray-50 border-gray-200 cursor-not-allowed"
-                          onClick={() => openAssetSelector("SQUARE_IMAGE")}
+                          className="campaign-input w-full pr-28 bg-gray-50 border-gray-200 cursor-not-allowed"
                         />
-                        <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
-                          From Asset
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onChange("square_marketing_image_url", "");
-                            onChange("square_marketing_image_asset_id", undefined);
-                            onChange("square_marketing_image_asset_resource_name", undefined);
-                            setSquareMarketingImagePreview(null);
-                          }}
-                          className="text-red-500 hover:text-red-700 text-sm font-medium"
-                          title="Remove selected asset"
-                        >
-                          ×
-                        </button>
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                          <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
+                            From Asset
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onChange("square_marketing_image_url", "");
+                              onChange("square_marketing_image_asset_id", undefined);
+                              onChange("square_marketing_image_asset_resource_name", undefined);
+                              setSquareMarketingImagePreview(null);
+                            }}
+                            className="text-red-500 hover:text-red-700 text-sm font-medium"
+                            title="Remove selected asset"
+                          >
+                            ×
+                          </button>
+                        </div>
                       </div>
                       {squareMarketingImagePreview && (
                         <div>
@@ -1216,23 +1220,36 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <input
-                        type="url"
-                        value={formData.square_marketing_image_url || ""}
-                        onChange={(e) => {
-                          onChange("square_marketing_image_url", e.target.value);
-                          const urlValue = e.target.value.trim();
-                          if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
-                            setSquareMarketingImagePreview(urlValue);
-                          } else {
-                            setSquareMarketingImagePreview(null);
-                          }
-                        }}
-                        className={`campaign-input w-full ${
-                          errors.square_marketing_image_url ? "border-red-500" : ""
-                        }`}
-                        placeholder="https://example.com/square-image.png"
-                      />
+                      <div className="relative">
+                        <input
+                          type="url"
+                          value={formData.square_marketing_image_url || ""}
+                          onChange={(e) => {
+                            onChange("square_marketing_image_url", e.target.value);
+                            const urlValue = e.target.value.trim();
+                            if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
+                              setSquareMarketingImagePreview(urlValue);
+                            } else {
+                              setSquareMarketingImagePreview(null);
+                            }
+                          }}
+                          className={`campaign-input w-full pr-28 ${
+                            errors.square_marketing_image_url ? "border-red-500" : ""
+                          }`}
+                          placeholder="https://example.com/square-image.png"
+                        />
+                        {profileId && (
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                            <button
+                              type="button"
+                              onClick={() => openAssetSelector("SQUARE_IMAGE")}
+                              className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
+                            >
+                              Select Asset
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       {squareMarketingImagePreview && (
                         <div>
                           <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>

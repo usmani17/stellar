@@ -11,6 +11,8 @@ import {
 } from "../../../../components/filters/FilterPanel";
 import type { GoogleKeyword } from "./GoogleTypes";
 import { formatCurrency2Decimals as formatCurrency2DecimalsUtil, formatPercentage as formatPercentageUtil } from "../../utils/campaignDetailHelpers";
+import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal";
+import { TrashIcon } from "lucide-react";
 
 interface GoogleCampaignDetailKeywordsTabProps {
   keywords: GoogleKeyword[];
@@ -116,6 +118,12 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
       oldBid: number;
       newBid: number;
     } | null>(null);
+    const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
+    const [pendingRemoveChange, setPendingRemoveChange] = useState<{
+      value: string;
+      keywordId: number;
+      field: string;
+    } | null>(null);
 
     const handleStatusClick = (keyword: GoogleKeyword) => {
       if (onUpdateKeywordStatus) {
@@ -187,6 +195,20 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
       const newStatusUpper = newStatus.toUpperCase();
 
       if (newStatusUpper !== oldStatus) {
+        // Check if status is being changed to REMOVED - show confirmation modal
+        if (newStatusUpper === "REMOVED") {
+          setEditingKeywordId(null);
+          setEditingField(null);
+          setEditingStatus("");
+          setPendingRemoveChange({ 
+            value: "REMOVED", 
+            keywordId: keyword.id, 
+            field: "status" 
+          });
+          setShowRemoveConfirmation(true);
+          return;
+        }
+        
         // Show confirmation modal immediately - matches Amazon pattern
         const statusDisplayMap: Record<string, string> = {
           ENABLED: "Enabled",
@@ -313,6 +335,41 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
       setEditingStatus("");
       setEditingMatchType("");
       setEditingBid("");
+    };
+
+    // Handle confirmation for REMOVED status change
+    const handleConfirmRemove = async () => {
+      if (!pendingRemoveChange || !onUpdateKeywordStatus) return;
+
+      setInlineEditLoading(true);
+      try {
+        const keyword = keywords.find((k) => k.id === pendingRemoveChange.keywordId);
+        if (!keyword) {
+          throw new Error("Keyword not found");
+        }
+
+        await onUpdateKeywordStatus(keyword.id, "REMOVED");
+        
+        setShowRemoveConfirmation(false);
+        setPendingRemoveChange(null);
+      } catch (error: any) {
+        console.error("Failed to remove keyword:", error);
+        alert(
+          error?.response?.data?.error ||
+            "Failed to remove keyword. Please try again."
+        );
+      } finally {
+        setInlineEditLoading(false);
+      }
+    };
+
+    // Handle cancel for REMOVED status change
+    const handleCancelRemove = () => {
+      setShowRemoveConfirmation(false);
+      setPendingRemoveChange(null);
+      setEditingKeywordId(null);
+      setEditingField(null);
+      setEditingStatus("");
     };
     return (
       <>
@@ -1330,6 +1387,19 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
             </div>
           </div>
         )}
+
+        {/* Remove Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showRemoveConfirmation}
+          onClose={handleCancelRemove}
+          onConfirm={handleConfirmRemove}
+          title="Are you sure you want to remove this keyword?"
+          message="This action cannot be undone. All data associated with this keyword will be permanently removed."
+          type="danger"
+          size="sm"
+          isLoading={inlineEditLoading}
+          icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+        />
       </>
     );
   };

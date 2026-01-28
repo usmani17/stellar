@@ -16,6 +16,45 @@ const animationStyles = `
       transform: translateY(0);
     }
   }
+  
+  @keyframes dotPulse {
+    0%, 100% {
+      opacity: 0.3;
+      transform: scale(0.8);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  @keyframes syncingDots {
+    0%, 20% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0.3;
+    }
+  }
+  
+  .syncing-dot {
+    animation: syncingDots 1.4s ease-in-out infinite;
+  }
+  
+  .syncing-dot:nth-child(1) {
+    animation-delay: 0s;
+  }
+  
+  .syncing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  
+  .syncing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
 `;
 
 interface SyncStatusIndicatorProps {
@@ -23,13 +62,13 @@ interface SyncStatusIndicatorProps {
 }
 
 const getStatusBadge = (status: string, size: "sm" | "md" = "sm") => {
-  const sizeClasses = size === "sm" ? "px-1 py-0.5 text-[9px]" : "px-2.5 py-1 text-xs";
+  const sizeClasses = size === "sm" ? "px-1.5 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs";
   
   switch (status) {
     case "syncing":
       return (
-        <span className={`inline-flex items-center gap-1 ${sizeClasses} rounded-full font-medium bg-sandstorm-s10 text-forest-f60 border border-sandstorm-s40`}>
-          <div className="w-1 h-1 rounded-full bg-forest-f60 animate-pulse"></div>
+        <span className={`inline-flex items-center gap-1 ${sizeClasses} rounded-full font-medium bg-forest-f0 text-forest-f60 border border-forest-f20 animate-pulse`}>
+          <div className="w-1.5 h-1.5 rounded-full bg-forest-f60"></div>
           Syncing
         </span>
       );
@@ -183,6 +222,33 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
     keywords: "Keywords",
   };
 
+  // Get status text with time
+  const getStatusText = () => {
+    if (status.status === "syncing") {
+      return (
+        <span className="inline-flex items-center gap-1">
+          <span>syncing</span>
+          <span className="flex items-center gap-0.5">
+            <span className="syncing-dot w-1 h-1 rounded-full bg-forest-f60"></span>
+            <span className="syncing-dot w-1 h-1 rounded-full bg-forest-f60"></span>
+            <span className="syncing-dot w-1 h-1 rounded-full bg-forest-f60"></span>
+          </span>
+        </span>
+      );
+    }
+    
+    if (status.status === "completed" && status.last_synced_at) {
+      const timeAgo = status.last_synced_before || formatTimeAgo(status.last_synced_at);
+      return `synced ${timeAgo}`;
+    }
+    
+    if (status.status === "error") {
+      return "error";
+    }
+    
+    return "idle";
+  };
+
   return (
     <>
       <style>{animationStyles}</style>
@@ -201,12 +267,14 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
             setIsHovered(false);
           }, 100);
         }}
-        className="flex items-center gap-2.5 cursor-default group px-4 py-2 h-10 bg-[#FEFEFB] border border-[#e5e7eb] rounded-xl transition-all hover:border-forest-f40 hover:bg-sandstorm-s20"
+        className="flex items-center gap-2 cursor-default group px-3 py-1.5 h-8 bg-[#FEFEFB] border border-[#e5e7eb] rounded-lg transition-all hover:border-forest-f40 hover:bg-sandstorm-s20"
       >
         {/* Sync Icon */}
         <svg
-          className={`w-4 h-4 text-forest-f30 flex-shrink-0 ${
-            status.status === "syncing" ? "animate-spin" : ""
+          className={`w-3.5 h-3.5 flex-shrink-0 ${
+            status.status === "syncing" 
+              ? "text-forest-f60 animate-spin" 
+              : "text-forest-f30"
           }`}
           fill="none"
           viewBox="0 0 24 24"
@@ -219,18 +287,13 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
             d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
           />
         </svg>
-        <div className="flex flex-col gap-0 min-w-0 items-start justify-center">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-forest-f60 font-medium whitespace-nowrap leading-tight">
-              Status
-            </span>
-            {getStatusBadge(status.status, "sm")}
-          </div>
-          {status.last_synced_at && (
-            <span className={`text-[9px] font-normal ${getStatusColor(status.status)} transition-opacity group-hover:opacity-70 whitespace-nowrap leading-tight`}>
-              Last synced {status.last_synced_before || formatTimeAgo(status.last_synced_at)}
-            </span>
-          )}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[11px] text-forest-f60 font-medium whitespace-nowrap">
+            Status:
+          </span>
+          <span className={`text-[11px] font-medium whitespace-nowrap ${getStatusColor(status.status)}`}>
+            {getStatusText()}
+          </span>
         </div>
       </div>
 
