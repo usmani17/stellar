@@ -118,7 +118,11 @@ interface CreateCreativePanelProps {
     adGroupId: number,
     creativeId: number | string,
   ) => void;
-  adgroups: Array<{ adGroupId: string | number; name: string }>;
+  adgroups: Array<{
+    adGroupId: string | number;
+    name: string;
+    creativeType?: string | null;
+  }>;
   loading?: boolean;
   editCreative?: {
     id: number;
@@ -131,11 +135,6 @@ interface CreateCreativePanelProps {
   accountId?: string;
   profileId?: string;
 }
-
-const CREATIVE_TYPE_OPTIONS = [
-  { value: "IMAGE", label: "IMAGE" },
-  { value: "VIDEO", label: "VIDEO" },
-];
 
 const PROPERTY_TYPE_OPTIONS_IMAGE = [
   { value: "headline", label: "Headline" },
@@ -395,12 +394,42 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
         setAddedPropertyTypes(new Set(["headline"])); // IMAGE default: Headline tab open with content
         setActivePropertyTab("headline");
         setAddedCreatives([]);
-        setSelectedAdGroupId(
-          adgroups.length > 0 ? String(adgroups[0].adGroupId) : "",
-        );
+        const firstAdGroupId =
+          adgroups.length > 0 ? String(adgroups[0].adGroupId) : "";
+        setSelectedAdGroupId(firstAdGroupId);
+        // Set creativeType based on first adgroup's creativeType
+        if (firstAdGroupId && adgroups.length > 0) {
+          const firstAdGroup = adgroups[0];
+          const adgroupCreativeType = (firstAdGroup.creativeType || "IMAGE") as
+            | "IMAGE"
+            | "VIDEO";
+          setCurrentCreative((prev) => ({
+            ...prev,
+            creativeType: adgroupCreativeType,
+          }));
+        }
       }
     }
   }, [editCreative, adgroups, isOpen]);
+
+  // Sync creativeType when selectedAdGroupId changes programmatically (e.g., when adgroups list updates)
+  // Note: User selection is handled by onChange handler which calls handleChange
+  useEffect(() => {
+    if (selectedAdGroupId && adgroups.length > 0 && !editCreative) {
+      const selectedAdGroup = adgroups.find(
+        (ag) => String(ag.adGroupId) === selectedAdGroupId,
+      );
+      if (selectedAdGroup) {
+        const adgroupCreativeType = (selectedAdGroup.creativeType ||
+          "IMAGE") as "IMAGE" | "VIDEO";
+        // Only update if creativeType doesn't match - use handleChange to ensure proper initialization
+        if (currentCreative.creativeType !== adgroupCreativeType) {
+          handleChange("creativeType", adgroupCreativeType);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAdGroupId, adgroups, editCreative]);
 
   // Ensure main video object is always present when video property type is selected
   useEffect(() => {
@@ -571,17 +600,154 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
     }));
   };
 
+  // Reset handler for Brand Logo tab
+  const handleResetBrandLogo = () => {
+    setCurrentCreative((prev) => {
+      const newProperties = { ...prev.properties };
+      delete newProperties.brandLogo;
+      return {
+        ...prev,
+        properties: newProperties,
+      };
+    });
+    // Clear any brandLogo-related errors
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      Object.keys(newErrors).forEach((key) => {
+        if (key.startsWith("properties.brandLogo")) {
+          delete newErrors[key];
+        }
+      });
+      return newErrors;
+    });
+  };
+
+  // Reset handler for Custom Image tab
+  const handleResetCustomImage = () => {
+    setCurrentCreative((prev) => {
+      const newProperties = { ...prev.properties };
+      delete newProperties.customImage;
+      return {
+        ...prev,
+        properties: newProperties,
+      };
+    });
+    // Clear any customImage-related errors
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      Object.keys(newErrors).forEach((key) => {
+        if (key.startsWith("properties.customImage")) {
+          delete newErrors[key];
+        }
+      });
+      return newErrors;
+    });
+  };
+
   /** Keep only properties the user added; omit others so backend is not sent empty/required fields (e.g. headline). */
   const pickAddedProperties = (
     props: Record<string, unknown> | undefined,
-    added: Set<string>
+    added: Set<string>,
   ): Record<string, unknown> => {
     const out: Record<string, unknown> = {};
     if (!props) return out;
     added.forEach((k) => {
-      if (k in props && props[k] != null) out[k] = props[k];
+      if (k in props && props[k] != null) {
+        // Exclude headline if it's empty (no actual content)
+        if (k === "headline") {
+          const headline = props[k] as
+            | {
+                headline?: string;
+                hasTermsAndConditions?: boolean;
+                originalHeadline?: string;
+              }
+            | undefined;
+          // Only include headline if it has actual content
+          if (headline && headline.headline && headline.headline.trim()) {
+            out[k] = props[k];
+          }
+          // If headline is empty, don't include it in the output
+        } else {
+          out[k] = props[k];
+        }
+      }
     });
     return out;
+  };
+
+  // Helper function to check if a tab has filled data (based on mandatory fields)
+  const isTabFilled = (tabType: string): boolean => {
+    if (currentCreative.creativeType === "IMAGE") {
+      switch (tabType) {
+        case "headline":
+          // Headline is optional, so it's considered filled if it exists and has content
+          return !!currentCreative.properties.headline?.headline?.trim();
+        case "brandLogo":
+          return !!(
+            currentCreative.properties.brandLogo?.assetId &&
+            currentCreative.properties.brandLogo?.assetVersion
+          );
+        case "customImage":
+          // Check if rectCustomImage has required fields
+          return !!(
+            currentCreative.properties.customImage?.rectCustomImage?.assetId &&
+            currentCreative.properties.customImage?.rectCustomImage
+              ?.assetVersion
+          );
+        case "background":
+          return !!(
+            currentCreative.properties.background?.backgrounds &&
+            currentCreative.properties.background.backgrounds.length > 0 &&
+            currentCreative.properties.background.backgrounds.some(
+              (bg) => bg.color && /^#[0-9A-Fa-f]{6}$/.test(bg.color),
+            )
+          );
+        default:
+          return false;
+      }
+    } else if (currentCreative.creativeType === "VIDEO") {
+      if (tabType === "video") {
+        return !!(
+          currentCreative.properties.video?.video?.assetId &&
+          currentCreative.properties.video?.video?.assetVersion
+        );
+      }
+    }
+    return false;
+  };
+
+  // Helper function to check if a tab has errors
+  const hasTabErrors = (tabType: string): boolean => {
+    const errorKeys = Object.keys(errors);
+    return errorKeys.some((key) => {
+      if (tabType === "headline") {
+        return key.startsWith("properties.headline");
+      } else if (tabType === "brandLogo") {
+        return key.startsWith("properties.brandLogo");
+      } else if (tabType === "customImage") {
+        return key.startsWith("properties.customImage");
+      } else if (tabType === "background") {
+        return key.startsWith("properties.background");
+      } else if (tabType === "video") {
+        return key.startsWith("properties.video");
+      }
+      return false;
+    });
+  };
+
+  // Helper function to check if at least one tab has filled data
+  const hasAtLeastOneFilledTab = (): boolean => {
+    if (currentCreative.creativeType === "IMAGE") {
+      return (
+        isTabFilled("headline") ||
+        isTabFilled("brandLogo") ||
+        isTabFilled("customImage") ||
+        isTabFilled("background")
+      );
+    } else if (currentCreative.creativeType === "VIDEO") {
+      return isTabFilled("video");
+    }
+    return false;
   };
 
   const validate = (): boolean => {
@@ -592,12 +758,17 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
     }
 
     if (currentCreative.creativeType === "IMAGE") {
-      if (addedPropertyTypes.size === 0) {
+      // Check if at least one tab has filled data
+      if (!hasAtLeastOneFilledTab()) {
         newErrors.properties =
-          "At least one property type must be added for IMAGE creatives";
+          "At least one property type (Headline, Brand Logo, Custom Image, or Background) must be filled";
       }
 
-      if (addedPropertyTypes.has("headline")) {
+      // Only validate tabs that have been filled (have data)
+      // Don't validate tabs that are added but empty
+
+      // Validate headline only if it has been filled
+      if (isTabFilled("headline")) {
         const headline = currentCreative.properties.headline;
         // Headline is optional, but if provided, it must be <= 50 characters
         if (headline && headline.headline && headline.headline.length > 50) {
@@ -606,7 +777,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
         }
       }
 
-      if (addedPropertyTypes.has("brandLogo")) {
+      // Validate brandLogo only if it has been filled
+      if (isTabFilled("brandLogo")) {
         const brandLogo = currentCreative.properties.brandLogo;
         if (!brandLogo || !brandLogo.assetId || !brandLogo.assetVersion) {
           newErrors["properties.brandLogo"] =
@@ -631,7 +803,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
         }
       }
 
-      if (addedPropertyTypes.has("customImage")) {
+      // Validate customImage only if it has been filled
+      if (isTabFilled("customImage")) {
         const customImage = currentCreative.properties.customImage;
         // Both rectCustomImage and squareCustomImage are REQUIRED
         if (
@@ -661,7 +834,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
         }
       }
 
-      if (addedPropertyTypes.has("background")) {
+      // Validate background only if it has been filled
+      if (isTabFilled("background")) {
         const background = currentCreative.properties.background;
         if (
           !background ||
@@ -727,7 +901,13 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
     if (isValid) {
       // Check if a creative with the same adGroupId already exists
-      if (addedCreatives.length > 0) {
+      const existingCreativeForAdGroup = addedCreatives.find(
+        (creative) =>
+          (creative as CreativeInput & { adGroupId?: string }).adGroupId ===
+          selectedAdGroupId,
+      );
+
+      if (existingCreativeForAdGroup) {
         setErrors({
           submit:
             "Only one creative can be added per ad group. Please submit the current creative or remove the existing one before adding another.",
@@ -741,17 +921,26 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
           ...currentCreative,
           properties: pickAddedProperties(
             currentCreative.properties as Record<string, unknown>,
-            addedPropertyTypes
+            addedPropertyTypes,
           ),
-        },
+          // Store adGroupId with the creative to track which ad group it belongs to
+          adGroupId: selectedAdGroupId,
+        } as CreativeInput & { adGroupId: string },
       ]);
       setCurrentCreative({
         creativeType: "IMAGE",
-        properties: {},
+        properties: {
+          headline: {
+            headline: "",
+            hasTermsAndConditions: false,
+            originalHeadline: "",
+          },
+        },
         consentToTranslate: false,
       });
       setSelectedPropertyType("");
-      setAddedPropertyTypes(new Set());
+      setAddedPropertyTypes(new Set(["headline"]));
+      setActivePropertyTab("headline");
       setErrors({});
     } else {
       console.log("[handleAdd] Validation failed, errors:", errors);
@@ -793,23 +982,92 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
           ...currentCreative,
           properties: pickAddedProperties(
             currentCreative.properties as Record<string, unknown>,
-            addedPropertyTypes
+            addedPropertyTypes,
           ),
         },
         parseInt(selectedAdGroupId, 10),
-        creativeId
+        creativeId,
       );
     } else {
       // Create mode: submit added creatives
-      if (addedCreatives.length === 0) {
-        setErrors({ submit: "Please add at least one creative" });
-        return;
-      }
       if (!selectedAdGroupId) {
         setErrors({ adGroupId: "Please select an ad group" });
         return;
       }
-      onSubmit(addedCreatives, parseInt(selectedAdGroupId, 10));
+
+      // Filter creatives for the currently selected ad group
+      const creativesForCurrentAdGroup = addedCreatives.filter(
+        (creative) =>
+          (creative as CreativeInput & { adGroupId?: string }).adGroupId ===
+          selectedAdGroupId,
+      );
+
+      // If no creatives in the list for this ad group but form has data, add current creative first
+      let creativesToSubmit: CreativeInput[] = creativesForCurrentAdGroup;
+      if (creativesForCurrentAdGroup.length === 0 && hasAtLeastOneFilledTab()) {
+        // Validate current creative before adding
+        const isValid = validate();
+        if (!isValid) {
+          // Errors are already set by validate(), just return
+          return;
+        }
+
+        // Add current creative to the list
+        creativesToSubmit = [
+          {
+            ...currentCreative,
+            properties: pickAddedProperties(
+              currentCreative.properties as Record<string, unknown>,
+              addedPropertyTypes,
+            ),
+          },
+        ];
+      }
+
+      if (creativesToSubmit.length === 0) {
+        setErrors({ submit: "Please add at least one creative" });
+        return;
+      }
+
+      // Remove adGroupId property before submitting (it's not part of CreativeInput interface)
+      const creativesToSubmitClean: CreativeInput[] = creativesToSubmit.map(
+        (creative) => {
+          const creativeWithAdGroup = creative as CreativeInput & {
+            adGroupId?: string;
+          };
+          const { adGroupId: _adGroupId, ...cleanCreative } =
+            creativeWithAdGroup;
+          return cleanCreative as CreativeInput;
+        },
+      );
+
+      onSubmit(creativesToSubmitClean, parseInt(selectedAdGroupId, 10));
+
+      // Remove only the creatives for the submitted ad group, keep others
+      setAddedCreatives((prev) =>
+        prev.filter(
+          (creative) =>
+            (creative as CreativeInput & { adGroupId?: string }).adGroupId !==
+            selectedAdGroupId,
+        ),
+      );
+
+      // Reset form and switch to headline tab after submission
+      setCurrentCreative({
+        creativeType: "IMAGE",
+        properties: {
+          headline: {
+            headline: "",
+            hasTermsAndConditions: false,
+            originalHeadline: "",
+          },
+        },
+        consentToTranslate: false,
+      });
+      setSelectedPropertyType("");
+      setAddedPropertyTypes(new Set(["headline"]));
+      setActivePropertyTab("headline");
+      setErrors({});
     }
   };
 
@@ -950,21 +1208,71 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
         </div>
 
         <div>
-          {/* Ad Group and Creative Type - Inline */}
-          <div className="mb-6 flex gap-4">
-            {/* Ad Group Selection */}
+          {/* Ad Group Selection */}
+          <div className="mb-6">
             <div className="flex-1">
               <label className="form-label-small">Ad Group *</label>
               <Dropdown
-                options={adgroups.map((ag) => ({
-                  value: String(ag.adGroupId),
-                  label: `${ag.name || "Ad Group"} (${ag.adGroupId})`,
-                }))}
+                options={adgroups.map((ag) => {
+                  const creativeType = ag.creativeType || "IMAGE";
+                  return {
+                    value: String(ag.adGroupId),
+                    label: `${ag.name || "Ad Group"} - ${creativeType} (${ag.adGroupId})`,
+                  };
+                })}
                 value={selectedAdGroupId}
                 onChange={(value) => {
                   setSelectedAdGroupId(value);
-                  if (errors.adGroupId) {
-                    setErrors((prev) => ({ ...prev, adGroupId: undefined }));
+                  // Clear errors when ad group changes
+                  setErrors((prev) => {
+                    const newErrors = { ...prev };
+                    // Clear adGroupId error if it exists
+                    if (newErrors.adGroupId) {
+                      delete newErrors.adGroupId;
+                    }
+                    // Clear submit error when ad group changes (e.g., "Only one creative per ad group")
+                    if (newErrors.submit) {
+                      delete newErrors.submit;
+                    }
+                    return newErrors;
+                  });
+                  // Auto-set creativeType based on selected adgroup (only if different)
+                  const selectedAdGroup = adgroups.find(
+                    (ag) => String(ag.adGroupId) === value,
+                  );
+                  if (selectedAdGroup) {
+                    const adgroupCreativeType = (selectedAdGroup.creativeType ||
+                      "IMAGE") as "IMAGE" | "VIDEO";
+                    // Only update creativeType if it's different from current
+                    // If same, preserve all form data - just update the adGroupId (which is already done above)
+                    if (currentCreative.creativeType !== adgroupCreativeType) {
+                      // Update creativeType but preserve existing properties
+                      setCurrentCreative((prev) => ({
+                        ...prev,
+                        creativeType: adgroupCreativeType,
+                        // Preserve all existing properties
+                        properties: prev.properties,
+                      }));
+
+                      // If switching to VIDEO and video property doesn't exist, add it
+                      if (
+                        adgroupCreativeType === "VIDEO" &&
+                        !addedPropertyTypes.has("video")
+                      ) {
+                        handleAddPropertyType("video");
+                        setActivePropertyTab("video");
+                      }
+                      // If switching to IMAGE and no properties exist, add headline tab
+                      else if (
+                        adgroupCreativeType === "IMAGE" &&
+                        addedPropertyTypes.size === 0
+                      ) {
+                        setAddedPropertyTypes(new Set(["headline"]));
+                        setActivePropertyTab("headline");
+                      }
+                    }
+                    // If creativeType is the same, don't reset anything - just keep the form as is
+                    // The adGroupId is already updated above, so we're done
                   }
                 }}
                 placeholder={
@@ -977,24 +1285,6 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
               />
               {errors.adGroupId && (
                 <p className="text-red-500 text-xs mt-1">{errors.adGroupId}</p>
-              )}
-            </div>
-
-            {/* Creative Type */}
-            <div className="flex-1">
-              <label className="form-label-small">Creative Type *</label>
-              <Dropdown
-                options={CREATIVE_TYPE_OPTIONS}
-                value={currentCreative.creativeType}
-                onChange={(value) => {
-                  handleChange("creativeType", value);
-                }}
-                buttonClassName="edit-button w-full"
-              />
-              {errors.creativeType && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.creativeType}
-                </p>
               )}
             </div>
           </div>
@@ -1013,6 +1303,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                   PROPERTY_TYPE_OPTIONS_IMAGE.map((option) => {
                     const isActive = activePropertyTab === option.value;
                     const isAdded = addedPropertyTypes.has(option.value);
+                    const isFilled = isTabFilled(option.value);
+                    const hasErrors = hasTabErrors(option.value);
                     return (
                       <button
                         key={option.value}
@@ -1023,9 +1315,30 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                             handleAddPropertyType(option.value);
                           }
                         }}
-                        className={`px-4 py-2 text-[14px] transition-colors ${isActive ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]" : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"}`}
+                        className={`px-4 py-2 text-[14px] transition-colors flex items-center gap-2 ${
+                          hasErrors
+                            ? "border-b-2 border-red-500"
+                            : isActive
+                              ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                              : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                        }`}
                       >
-                        {option.label}
+                        <span>{option.label}</span>
+                        {isFilled && !hasErrors && (
+                          <svg
+                            className="w-4 h-4 text-[#136D6D]"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        )}
                       </button>
                     );
                   })}
@@ -1034,6 +1347,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                   PROPERTY_TYPE_OPTIONS_VIDEO.map((option) => {
                     const isActive = activePropertyTab === option.value;
                     const isAdded = addedPropertyTypes.has(option.value);
+                    const isFilled = isTabFilled(option.value);
+                    const hasErrors = hasTabErrors(option.value);
                     return (
                       <button
                         key={option.value}
@@ -1044,9 +1359,30 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                             handleAddPropertyType(option.value);
                           }
                         }}
-                        className={`px-4 py-2 text-[14px] transition-colors ${isActive ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]" : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"}`}
+                        className={`px-4 py-2 text-[14px] transition-colors flex items-center gap-2 ${
+                          hasErrors
+                            ? "border-b-2 border-red-500"
+                            : isActive
+                              ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                              : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                        }`}
                       >
-                        {option.label}
+                        <span>{option.label}</span>
+                        {isFilled && !hasErrors && (
+                          <svg
+                            className="w-4 h-4 text-[#136D6D]"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        )}
                       </button>
                     );
                   })}
@@ -1060,13 +1396,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
                         Headline Creative Properties
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePropertyType("headline")}
-                        className="text-red-500 hover:text-red-700 text-sm"
-                      >
-                        Remove
-                      </button>
+                      {/* Remove button hidden per requirements */}
                     </div>
 
                     {/* Headline Field */}
@@ -1173,10 +1503,11 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       </label>
                       <button
                         type="button"
-                        onClick={() => handleRemovePropertyType("brandLogo")}
-                        className="text-red-500 hover:text-red-700 text-sm"
+                        onClick={handleResetBrandLogo}
+                        className="text-[#136D6D] hover:text-[#0f5555] text-sm font-medium"
+                        title="Reset Brand Logo form"
                       >
-                        Remove
+                        Reset
                       </button>
                     </div>
 
@@ -1493,57 +1824,311 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       </label>
                       <button
                         type="button"
-                        onClick={() => handleRemovePropertyType("customImage")}
-                        className="text-red-500 hover:text-red-700 text-sm"
+                        onClick={handleResetCustomImage}
+                        className="text-[#136D6D] hover:text-[#0f5555] text-sm font-medium"
+                        title="Reset Custom Image form"
                       >
-                        Remove
+                        Reset
                       </button>
                     </div>
 
                     <div className="space-y-6">
-                      {/* Rect Custom Image */}
-                      <div>
-                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2">
-                          Rectangular Custom Image{" "}
-                          <span className="text-red-500">*</span>
-                        </label>
-                        <div className="grid grid-cols-2 gap-2 mb-2">
-                          <Dropdown<string>
-                            options={assets
-                              .filter((asset) => {
-                                if (!asset.assetId) return false;
-                                // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
-                                const isImageByAssetType =
-                                  asset.assetType === "IMAGE";
-                                const isImageByContentType = asset.contentType
-                                  ?.toLowerCase()
-                                  .startsWith("image/");
-                                const isImageByFileMetadata =
-                                  asset.fileMetadata?.contentType
+                      {/* Rect Custom Image (Main Image) */}
+                      {currentCreative.properties.customImage
+                        ?.rectCustomImage ? (
+                        <div>
+                          <label className="block text-[11.2px] font-semibold text-[#556179] mb-2">
+                            Rectangular Custom Image{" "}
+                            <span className="text-red-500">*</span>
+                          </label>
+                          <div className="grid grid-cols-2 gap-2 mb-2">
+                            <Dropdown<string>
+                              options={assets
+                                .filter((asset) => {
+                                  if (!asset.assetId) return false;
+                                  // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
+                                  const isImageByAssetType =
+                                    asset.assetType === "IMAGE";
+                                  const isImageByContentType = asset.contentType
                                     ?.toLowerCase()
                                     .startsWith("image/");
-                                // Fallback to old schema for backward compatibility
-                                const isImageByMediaType =
-                                  asset.mediaType?.toLowerCase() === "image";
-                                return (
-                                  isImageByAssetType ||
-                                  isImageByContentType ||
-                                  isImageByFileMetadata ||
-                                  isImageByMediaType
-                                );
-                              })
-                              .map((asset) => ({
-                                value: asset.assetId || "",
-                                label:
-                                  asset.name || asset.fileName
-                                    ? `${asset.name || asset.fileName} (${asset.assetId})`
-                                    : asset.assetId || `Asset ${asset.id}`,
-                              }))}
-                            value={
-                              currentCreative.properties.customImage
-                                ?.rectCustomImage?.assetId || ""
-                            }
-                            onChange={(value) => {
+                                  const isImageByFileMetadata =
+                                    asset.fileMetadata?.contentType
+                                      ?.toLowerCase()
+                                      .startsWith("image/");
+                                  // Fallback to old schema for backward compatibility
+                                  const isImageByMediaType =
+                                    asset.mediaType?.toLowerCase() === "image";
+                                  return (
+                                    isImageByAssetType ||
+                                    isImageByContentType ||
+                                    isImageByFileMetadata ||
+                                    isImageByMediaType
+                                  );
+                                })
+                                .map((asset) => ({
+                                  value: asset.assetId || "",
+                                  label:
+                                    asset.name || asset.fileName
+                                      ? `${asset.name || asset.fileName} (${asset.assetId})`
+                                      : asset.assetId || `Asset ${asset.id}`,
+                                }))}
+                              value={
+                                currentCreative.properties.customImage
+                                  ?.rectCustomImage?.assetId || ""
+                              }
+                              onChange={(value) => {
+                                setCurrentCreative((prev) => ({
+                                  ...prev,
+                                  properties: {
+                                    ...prev.properties,
+                                    customImage: {
+                                      ...prev.properties.customImage,
+                                      rectCustomImage: {
+                                        ...prev.properties.customImage
+                                          ?.rectCustomImage,
+                                        assetId: value || "",
+                                        assetVersion: value
+                                          ? "version_v1"
+                                          : prev.properties.customImage
+                                              ?.rectCustomImage?.assetVersion ||
+                                            "",
+                                      },
+                                    },
+                                  },
+                                }));
+                              }}
+                              placeholder={
+                                assetsLoading ? "Loading..." : "Select Asset ID"
+                              }
+                              buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                              disabled={assetsLoading}
+                            />
+                            <input
+                              type="text"
+                              value={
+                                currentCreative.properties.customImage
+                                  ?.rectCustomImage?.assetVersion || ""
+                              }
+                              onChange={(e) => {
+                                setCurrentCreative((prev) => ({
+                                  ...prev,
+                                  properties: {
+                                    ...prev.properties,
+                                    customImage: {
+                                      ...prev.properties.customImage,
+                                      rectCustomImage: {
+                                        ...prev.properties.customImage
+                                          ?.rectCustomImage,
+                                        assetVersion: e.target.value,
+                                      },
+                                    },
+                                  },
+                                }));
+                              }}
+                              className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                              placeholder="Asset Version *"
+                            />
+                          </div>
+                          {/* Cropping Coordinates for Rect */}
+                          <div className="grid grid-cols-4 gap-2">
+                            <div>
+                              <label className="block text-[10px] text-gray-500 mb-1">
+                                Top
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={
+                                  currentCreative.properties.customImage
+                                    ?.rectCustomImage?.croppingCoordinates
+                                    ?.top ?? ""
+                                }
+                                onChange={(e) => {
+                                  const value =
+                                    e.target.value === ""
+                                      ? undefined
+                                      : parseInt(e.target.value, 10);
+                                  const currentCrop =
+                                    currentCreative.properties.customImage
+                                      ?.rectCustomImage?.croppingCoordinates ||
+                                    {};
+                                  const newCrop = { ...currentCrop };
+                                  if (value !== undefined && !isNaN(value)) {
+                                    newCrop.top = value;
+                                  } else {
+                                    delete newCrop.top;
+                                  }
+                                  handleChange("properties.customImage", {
+                                    ...currentCreative.properties.customImage,
+                                    rectCustomImage: {
+                                      ...currentCreative.properties.customImage
+                                        ?.rectCustomImage,
+                                      croppingCoordinates:
+                                        Object.keys(newCrop).length > 0
+                                          ? newCrop
+                                          : undefined,
+                                    },
+                                  });
+                                }}
+                                className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
+                                placeholder="0"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-500 mb-1">
+                                Left
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={
+                                  currentCreative.properties.customImage
+                                    ?.rectCustomImage?.croppingCoordinates
+                                    ?.left ?? ""
+                                }
+                                onChange={(e) => {
+                                  const value =
+                                    e.target.value === ""
+                                      ? undefined
+                                      : parseInt(e.target.value, 10);
+                                  const currentCrop =
+                                    currentCreative.properties.customImage
+                                      ?.rectCustomImage?.croppingCoordinates ||
+                                    {};
+                                  const newCrop = { ...currentCrop };
+                                  if (value !== undefined && !isNaN(value)) {
+                                    newCrop.left = value;
+                                  } else {
+                                    delete newCrop.left;
+                                  }
+                                  handleChange("properties.customImage", {
+                                    ...currentCreative.properties.customImage,
+                                    rectCustomImage: {
+                                      ...currentCreative.properties.customImage
+                                        ?.rectCustomImage,
+                                      croppingCoordinates:
+                                        Object.keys(newCrop).length > 0
+                                          ? newCrop
+                                          : undefined,
+                                    },
+                                  });
+                                }}
+                                className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
+                                placeholder="0"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-500 mb-1">
+                                Width
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={
+                                  currentCreative.properties.customImage
+                                    ?.rectCustomImage?.croppingCoordinates
+                                    ?.width ?? ""
+                                }
+                                onChange={(e) => {
+                                  const value =
+                                    e.target.value === ""
+                                      ? undefined
+                                      : parseInt(e.target.value, 10);
+                                  const currentCrop =
+                                    currentCreative.properties.customImage
+                                      ?.rectCustomImage?.croppingCoordinates ||
+                                    {};
+                                  const newCrop = { ...currentCrop };
+                                  if (value !== undefined && !isNaN(value)) {
+                                    newCrop.width = value;
+                                  } else {
+                                    delete newCrop.width;
+                                  }
+                                  handleChange("properties.customImage", {
+                                    ...currentCreative.properties.customImage,
+                                    rectCustomImage: {
+                                      ...currentCreative.properties.customImage
+                                        ?.rectCustomImage,
+                                      croppingCoordinates:
+                                        Object.keys(newCrop).length > 0
+                                          ? newCrop
+                                          : undefined,
+                                    },
+                                  });
+                                }}
+                                className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
+                                placeholder="0"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-500 mb-1">
+                                Height
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={
+                                  currentCreative.properties.customImage
+                                    ?.rectCustomImage?.croppingCoordinates
+                                    ?.height ?? ""
+                                }
+                                onChange={(e) => {
+                                  const value =
+                                    e.target.value === ""
+                                      ? undefined
+                                      : parseInt(e.target.value, 10);
+                                  const currentCrop =
+                                    currentCreative.properties.customImage
+                                      ?.rectCustomImage?.croppingCoordinates ||
+                                    {};
+                                  const newCrop = { ...currentCrop };
+                                  if (value !== undefined && !isNaN(value)) {
+                                    newCrop.height = value;
+                                  } else {
+                                    delete newCrop.height;
+                                  }
+                                  handleChange("properties.customImage", {
+                                    ...currentCreative.properties.customImage,
+                                    rectCustomImage: {
+                                      ...currentCreative.properties.customImage
+                                        ?.rectCustomImage,
+                                      croppingCoordinates:
+                                        Object.keys(newCrop).length > 0
+                                          ? newCrop
+                                          : undefined,
+                                    },
+                                  });
+                                }}
+                                className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
+                                placeholder="0"
+                              />
+                            </div>
+                          </div>
+                          {errors["properties.customImage.rectCustomImage"] && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors["properties.customImage.rectCustomImage"]}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="block text-[11.2px] font-semibold text-[#556179] mb-2">
+                            Rectangular Custom Image{" "}
+                            <span className="text-red-500">*</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // Ensure customImage property type is added
+                              if (!addedPropertyTypes.has("customImage")) {
+                                handleAddPropertyType("customImage");
+                              }
+                              // Initialize customImage if it doesn't exist, then set rectCustomImage
                               setCurrentCreative((prev) => ({
                                 ...prev,
                                 properties: {
@@ -1551,236 +2136,19 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                   customImage: {
                                     ...prev.properties.customImage,
                                     rectCustomImage: {
-                                      ...prev.properties.customImage
-                                        ?.rectCustomImage,
-                                      assetId: value || "",
-                                      assetVersion: value
-                                        ? "version_v1"
-                                        : prev.properties.customImage
-                                            ?.rectCustomImage?.assetVersion ||
-                                          "",
+                                      assetId: "",
+                                      assetVersion: "",
                                     },
                                   },
                                 },
                               }));
                             }}
-                            placeholder={
-                              assetsLoading ? "Loading..." : "Select Asset ID"
-                            }
-                            buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                            disabled={assetsLoading}
-                          />
-                          <input
-                            type="text"
-                            value={
-                              currentCreative.properties.customImage
-                                ?.rectCustomImage?.assetVersion || ""
-                            }
-                            onChange={(e) => {
-                              setCurrentCreative((prev) => ({
-                                ...prev,
-                                properties: {
-                                  ...prev.properties,
-                                  customImage: {
-                                    ...prev.properties.customImage,
-                                    rectCustomImage: {
-                                      ...prev.properties.customImage
-                                        ?.rectCustomImage,
-                                      assetVersion: e.target.value,
-                                    },
-                                  },
-                                },
-                              }));
-                            }}
-                            className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                            placeholder="Asset Version *"
-                          />
+                            className="text-[#136D6D] hover:text-[#0f5555] text-[12px] font-medium"
+                          >
+                            + Add Main Image
+                          </button>
                         </div>
-                        {/* Cropping Coordinates for Rect */}
-                        <div className="grid grid-cols-4 gap-2">
-                          <div>
-                            <label className="block text-[10px] text-gray-500 mb-1">
-                              Top
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              step="1"
-                              value={
-                                currentCreative.properties.customImage
-                                  ?.rectCustomImage?.croppingCoordinates?.top ??
-                                ""
-                              }
-                              onChange={(e) => {
-                                const value =
-                                  e.target.value === ""
-                                    ? undefined
-                                    : parseInt(e.target.value, 10);
-                                const currentCrop =
-                                  currentCreative.properties.customImage
-                                    ?.rectCustomImage?.croppingCoordinates ||
-                                  {};
-                                const newCrop = { ...currentCrop };
-                                if (value !== undefined && !isNaN(value)) {
-                                  newCrop.top = value;
-                                } else {
-                                  delete newCrop.top;
-                                }
-                                handleChange("properties.customImage", {
-                                  ...currentCreative.properties.customImage,
-                                  rectCustomImage: {
-                                    ...currentCreative.properties.customImage
-                                      ?.rectCustomImage,
-                                    croppingCoordinates:
-                                      Object.keys(newCrop).length > 0
-                                        ? newCrop
-                                        : undefined,
-                                  },
-                                });
-                              }}
-                              className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                              placeholder="0"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] text-gray-500 mb-1">
-                              Left
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              step="1"
-                              value={
-                                currentCreative.properties.customImage
-                                  ?.rectCustomImage?.croppingCoordinates
-                                  ?.left ?? ""
-                              }
-                              onChange={(e) => {
-                                const value =
-                                  e.target.value === ""
-                                    ? undefined
-                                    : parseInt(e.target.value, 10);
-                                const currentCrop =
-                                  currentCreative.properties.customImage
-                                    ?.rectCustomImage?.croppingCoordinates ||
-                                  {};
-                                const newCrop = { ...currentCrop };
-                                if (value !== undefined && !isNaN(value)) {
-                                  newCrop.left = value;
-                                } else {
-                                  delete newCrop.left;
-                                }
-                                handleChange("properties.customImage", {
-                                  ...currentCreative.properties.customImage,
-                                  rectCustomImage: {
-                                    ...currentCreative.properties.customImage
-                                      ?.rectCustomImage,
-                                    croppingCoordinates:
-                                      Object.keys(newCrop).length > 0
-                                        ? newCrop
-                                        : undefined,
-                                  },
-                                });
-                              }}
-                              className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                              placeholder="0"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] text-gray-500 mb-1">
-                              Width
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              step="1"
-                              value={
-                                currentCreative.properties.customImage
-                                  ?.rectCustomImage?.croppingCoordinates
-                                  ?.width ?? ""
-                              }
-                              onChange={(e) => {
-                                const value =
-                                  e.target.value === ""
-                                    ? undefined
-                                    : parseInt(e.target.value, 10);
-                                const currentCrop =
-                                  currentCreative.properties.customImage
-                                    ?.rectCustomImage?.croppingCoordinates ||
-                                  {};
-                                const newCrop = { ...currentCrop };
-                                if (value !== undefined && !isNaN(value)) {
-                                  newCrop.width = value;
-                                } else {
-                                  delete newCrop.width;
-                                }
-                                handleChange("properties.customImage", {
-                                  ...currentCreative.properties.customImage,
-                                  rectCustomImage: {
-                                    ...currentCreative.properties.customImage
-                                      ?.rectCustomImage,
-                                    croppingCoordinates:
-                                      Object.keys(newCrop).length > 0
-                                        ? newCrop
-                                        : undefined,
-                                  },
-                                });
-                              }}
-                              className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                              placeholder="0"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] text-gray-500 mb-1">
-                              Height
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              step="1"
-                              value={
-                                currentCreative.properties.customImage
-                                  ?.rectCustomImage?.croppingCoordinates
-                                  ?.height ?? ""
-                              }
-                              onChange={(e) => {
-                                const value =
-                                  e.target.value === ""
-                                    ? undefined
-                                    : parseInt(e.target.value, 10);
-                                const currentCrop =
-                                  currentCreative.properties.customImage
-                                    ?.rectCustomImage?.croppingCoordinates ||
-                                  {};
-                                const newCrop = { ...currentCrop };
-                                if (value !== undefined && !isNaN(value)) {
-                                  newCrop.height = value;
-                                } else {
-                                  delete newCrop.height;
-                                }
-                                handleChange("properties.customImage", {
-                                  ...currentCreative.properties.customImage,
-                                  rectCustomImage: {
-                                    ...currentCreative.properties.customImage
-                                      ?.rectCustomImage,
-                                    croppingCoordinates:
-                                      Object.keys(newCrop).length > 0
-                                        ? newCrop
-                                        : undefined,
-                                  },
-                                });
-                              }}
-                              className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                              placeholder="0"
-                            />
-                          </div>
-                        </div>
-                        {errors["properties.customImage.rectCustomImage"] && (
-                          <p className="text-red-500 text-xs mt-1">
-                            {errors["properties.customImage.rectCustomImage"]}
-                          </p>
-                        )}
-                      </div>
+                      )}
 
                       {/* Square Custom Image */}
                       <div>
@@ -2141,14 +2509,49 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                     </button>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2 mb-2">
-                                    <input
-                                      type="text"
+                                    <Dropdown<string>
+                                      options={assets
+                                        .filter((asset) => {
+                                          if (!asset.assetId) return false;
+                                          // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
+                                          const isImageByAssetType =
+                                            asset.assetType === "IMAGE";
+                                          const isImageByContentType =
+                                            asset.contentType
+                                              ?.toLowerCase()
+                                              .startsWith("image/");
+                                          const isImageByFileMetadata =
+                                            asset.fileMetadata?.contentType
+                                              ?.toLowerCase()
+                                              .startsWith("image/");
+                                          // Fallback to old schema for backward compatibility
+                                          const isImageByMediaType =
+                                            asset.mediaType?.toLowerCase() ===
+                                            "image";
+                                          return (
+                                            isImageByAssetType ||
+                                            isImageByContentType ||
+                                            isImageByFileMetadata ||
+                                            isImageByMediaType
+                                          );
+                                        })
+                                        .map((asset) => ({
+                                          value: asset.assetId || "",
+                                          label:
+                                            asset.name || asset.fileName
+                                              ? `${asset.name || asset.fileName} (${asset.assetId})`
+                                              : asset.assetId ||
+                                                `Asset ${asset.id}`,
+                                        }))}
                                       value={img.assetId || ""}
-                                      onChange={(e) => {
+                                      onChange={(value) => {
                                         const newImages = [...images];
                                         newImages[idx] = {
                                           ...img,
-                                          assetId: e.target.value,
+                                          assetId: value || "",
+                                          assetVersion: value
+                                            ? "version_v1"
+                                            : img.assetVersion || "",
                                         };
                                         handleChange("properties.customImage", {
                                           ...currentCreative.properties
@@ -2156,8 +2559,13 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                           [arrayKey]: newImages,
                                         });
                                       }}
-                                      className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
-                                      placeholder="Asset ID *"
+                                      placeholder={
+                                        assetsLoading
+                                          ? "Loading..."
+                                          : "Select Asset ID"
+                                      }
+                                      buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                                      disabled={assetsLoading}
                                     />
                                     <input
                                       type="text"
@@ -2410,167 +2818,190 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
                         Background Colors
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePropertyType("background")}
-                        className="text-red-500 hover:text-red-700 text-sm"
-                      >
-                        Remove
-                      </button>
+                      {/* Remove button hidden per requirements */}
                     </div>
                     <div className="space-y-2">
                       {(
                         currentCreative.properties.background?.backgrounds || []
-                      ).map((bg, idx) => {
-                        const errorKey = `properties.background.backgrounds[${idx}].color`;
-                        const hasError = !!errors[errorKey];
-                        return (
-                          <div key={idx} className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="color"
-                                value={bg.color || "#000000"}
-                                onChange={(e) => {
-                                  setCurrentCreative((prev) => {
-                                    const currentBackgrounds =
-                                      prev.properties.background?.backgrounds ||
-                                      [];
-                                    const newBackgrounds = [
-                                      ...currentBackgrounds,
-                                    ];
-                                    newBackgrounds[idx] = {
-                                      color: e.target.value,
-                                    };
-                                    return {
-                                      ...prev,
-                                      properties: {
-                                        ...prev.properties,
-                                        background: {
-                                          backgrounds: newBackgrounds,
+                      ).length > 0 ? (
+                        (
+                          currentCreative.properties.background?.backgrounds ||
+                          []
+                        ).map((bg, idx) => {
+                          const errorKey = `properties.background.backgrounds[${idx}].color`;
+                          const hasError = !!errors[errorKey];
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="color"
+                                  value={bg.color || "#000000"}
+                                  onChange={(e) => {
+                                    setCurrentCreative((prev) => {
+                                      const currentBackgrounds =
+                                        prev.properties.background
+                                          ?.backgrounds || [];
+                                      const newBackgrounds = [
+                                        ...currentBackgrounds,
+                                      ];
+                                      newBackgrounds[idx] = {
+                                        color: e.target.value,
+                                      };
+                                      return {
+                                        ...prev,
+                                        properties: {
+                                          ...prev.properties,
+                                          background: {
+                                            backgrounds: newBackgrounds,
+                                          },
                                         },
-                                      },
-                                    };
-                                  });
-                                  // Clear error when user types
-                                  if (errors[errorKey]) {
-                                    setErrors((prev) => {
-                                      const newErrors = { ...prev };
-                                      delete newErrors[errorKey];
-                                      return newErrors;
+                                      };
                                     });
-                                  }
-                                }}
-                                className="w-12 h-10 border border-[#EBEBEB] rounded bg-white"
-                              />
-                              <input
-                                type="text"
-                                value={bg.color || ""}
-                                onChange={(e) => {
-                                  setCurrentCreative((prev) => {
-                                    const currentBackgrounds =
-                                      prev.properties.background?.backgrounds ||
-                                      [];
-                                    const newBackgrounds = [
-                                      ...currentBackgrounds,
-                                    ];
-                                    newBackgrounds[idx] = {
-                                      color: e.target.value,
-                                    };
-                                    return {
-                                      ...prev,
-                                      properties: {
-                                        ...prev.properties,
-                                        background: {
-                                          backgrounds: newBackgrounds,
+                                    // Clear error when user types
+                                    if (errors[errorKey]) {
+                                      setErrors((prev) => {
+                                        const newErrors = { ...prev };
+                                        delete newErrors[errorKey];
+                                        return newErrors;
+                                      });
+                                    }
+                                  }}
+                                  className="w-12 h-10 border border-[#EBEBEB] rounded bg-white"
+                                />
+                                <input
+                                  type="text"
+                                  value={bg.color || ""}
+                                  onChange={(e) => {
+                                    setCurrentCreative((prev) => {
+                                      const currentBackgrounds =
+                                        prev.properties.background
+                                          ?.backgrounds || [];
+                                      const newBackgrounds = [
+                                        ...currentBackgrounds,
+                                      ];
+                                      newBackgrounds[idx] = {
+                                        color: e.target.value,
+                                      };
+                                      return {
+                                        ...prev,
+                                        properties: {
+                                          ...prev.properties,
+                                          background: {
+                                            backgrounds: newBackgrounds,
+                                          },
                                         },
-                                      },
-                                    };
-                                  });
-                                  // Clear error when user types
-                                  if (errors[errorKey]) {
-                                    setErrors((prev) => {
-                                      const newErrors = { ...prev };
-                                      delete newErrors[errorKey];
-                                      return newErrors;
+                                      };
                                     });
-                                  }
-                                }}
-                                className={`flex-1 px-3 py-2 border rounded-lg text-[13.44px] bg-white ${
-                                  hasError
-                                    ? "border-red-500"
-                                    : "border-[#EBEBEB]"
-                                }`}
-                                placeholder="#RRGGBB"
-                                pattern="^#[0-9A-Fa-f]{6}$"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCurrentCreative((prev) => {
-                                    const currentBackgrounds =
-                                      prev.properties.background?.backgrounds ||
-                                      [];
-                                    const newBackgrounds =
-                                      currentBackgrounds.filter(
-                                        (_, i) => i !== idx,
-                                      );
-                                    return {
-                                      ...prev,
-                                      properties: {
-                                        ...prev.properties,
-                                        background: {
-                                          backgrounds: newBackgrounds,
+                                    // Clear error when user types
+                                    if (errors[errorKey]) {
+                                      setErrors((prev) => {
+                                        const newErrors = { ...prev };
+                                        delete newErrors[errorKey];
+                                        return newErrors;
+                                      });
+                                    }
+                                  }}
+                                  className={`flex-1 px-3 py-2 border rounded-lg text-[13.44px] bg-white ${
+                                    hasError
+                                      ? "border-red-500"
+                                      : "border-[#EBEBEB]"
+                                  }`}
+                                  placeholder="#RRGGBB"
+                                  pattern="^#[0-9A-Fa-f]{6}$"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCurrentCreative((prev) => {
+                                      const currentBackgrounds =
+                                        prev.properties.background
+                                          ?.backgrounds || [];
+                                      const newBackgrounds =
+                                        currentBackgrounds.filter(
+                                          (_, i) => i !== idx,
+                                        );
+                                      return {
+                                        ...prev,
+                                        properties: {
+                                          ...prev.properties,
+                                          background: {
+                                            backgrounds: newBackgrounds,
+                                          },
                                         },
-                                      },
-                                    };
-                                  });
-                                  // Clear error when removing
-                                  if (errors[errorKey]) {
-                                    setErrors((prev) => {
-                                      const newErrors = { ...prev };
-                                      delete newErrors[errorKey];
-                                      return newErrors;
+                                      };
                                     });
-                                  }
-                                }}
-                                className="text-red-500 hover:text-red-700 text-sm"
-                              >
-                                Remove
-                              </button>
+                                    // Clear error when removing
+                                    if (errors[errorKey]) {
+                                      setErrors((prev) => {
+                                        const newErrors = { ...prev };
+                                        delete newErrors[errorKey];
+                                        return newErrors;
+                                      });
+                                    }
+                                  }}
+                                  className="text-red-500 hover:text-red-700 text-sm"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                              {hasError && (
+                                <p className="text-red-500 text-xs ml-14">
+                                  {errors[errorKey]}
+                                </p>
+                              )}
                             </div>
-                            {hasError && (
-                              <p className="text-red-500 text-xs ml-14">
-                                {errors[errorKey]}
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCurrentCreative((prev) => {
-                            const currentBackgrounds =
-                              prev.properties.background?.backgrounds || [];
-                            const newBackgrounds = [
-                              ...currentBackgrounds,
-                              { color: "#000000" },
-                            ];
-                            return {
-                              ...prev,
-                              properties: {
-                                ...prev.properties,
-                                background: {
-                                  backgrounds: newBackgrounds,
+                          );
+                        })
+                      ) : (
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCurrentCreative((prev) => ({
+                                ...prev,
+                                properties: {
+                                  ...prev.properties,
+                                  background: {
+                                    backgrounds: [{ color: "#000000" }],
+                                  },
                                 },
-                              },
-                            };
-                          });
-                        }}
-                        className="text-[#136D6D] hover:text-[#0f5555] text-[13.44px]"
-                      >
-                        + Add Background Color
-                      </button>
+                              }));
+                            }}
+                            className="text-[#136D6D] hover:text-[#0f5555] text-[12px] font-medium"
+                          >
+                            + Add Background Color
+                          </button>
+                        </div>
+                      )}
+                      {(
+                        currentCreative.properties.background?.backgrounds || []
+                      ).length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCurrentCreative((prev) => {
+                              const currentBackgrounds =
+                                prev.properties.background?.backgrounds || [];
+                              const newBackgrounds = [
+                                ...currentBackgrounds,
+                                { color: "#000000" },
+                              ];
+                              return {
+                                ...prev,
+                                properties: {
+                                  ...prev.properties,
+                                  background: {
+                                    backgrounds: newBackgrounds,
+                                  },
+                                },
+                              };
+                            });
+                          }}
+                          className="text-[#136D6D] hover:text-[#0f5555] text-[13.44px]"
+                        >
+                          + Add Background Color
+                        </button>
+                      )}
                     </div>
                     {errors["properties.background"] && (
                       <p className="text-red-500 text-xs mt-1">
@@ -2995,16 +3426,12 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
               <p className="text-red-500 text-xs mb-4">{errors.properties}</p>
             )}
 
-            {errors.submit && (
-              <p className="text-red-500 text-xs mb-4">{errors.submit}</p>
-            )}
-
             {!editCreative && (
               <div className="flex justify-end">
                 <button
                   type="button"
                   onClick={handleAdd}
-                  disabled={addedCreatives.length > 0}
+                  // disabled={addedCreatives.length > 0}
                   className="max-w-[300px] py-2 px-4 bg-[#136D6D] text-white rounded-lg hover:bg-[#0f5555] disabled:opacity-50 disabled:cursor-not-allowed text-[13.44px] font-medium"
                 >
                   Add Creative
@@ -3020,26 +3447,40 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                 Added Creatives ({addedCreatives.length})
               </h3>
               <div className="space-y-2 max-h-60 overflow-y-auto">
-                {addedCreatives.map((creative, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3  rounded-lg border border-[#EBEBEB]"
-                  >
-                    <div>
-                      <span className="text-[13.44px] font-medium text-[#222124]">
-                        {creative.creativeType} -{" "}
-                        {Object.keys(creative.properties).join(", ")}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(idx)}
-                      className="text-red-500 hover:text-red-700 text-[13.44px]"
+                {addedCreatives.map((creative, idx) => {
+                  const creativeAdGroupId = (
+                    creative as CreativeInput & { adGroupId?: string }
+                  ).adGroupId;
+                  const adGroupName =
+                    adgroups.find(
+                      (ag) => String(ag.adGroupId) === creativeAdGroupId,
+                    )?.name || creativeAdGroupId;
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-3  rounded-lg border border-[#EBEBEB]"
                     >
-                      Remove
-                    </button>
-                  </div>
-                ))}
+                      <div>
+                        <span className="text-[13.44px] font-medium text-[#222124]">
+                          {creative.creativeType} -{" "}
+                          {Object.keys(creative.properties).join(", ")}
+                          {creativeAdGroupId && (
+                            <span className="text-[11.2px] text-gray-500 ml-2">
+                              (Ad Group: {adGroupName})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(idx)}
+                        className="text-red-500 hover:text-red-700 text-[13.44px]"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -3061,7 +3502,10 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
               type="button"
               onClick={handleSubmit}
               disabled={
-                loading || (editCreative ? false : addedCreatives.length === 0)
+                loading ||
+                (editCreative
+                  ? false
+                  : addedCreatives.length === 0 && !hasAtLeastOneFilledTab())
               }
               className="apply-button"
             >

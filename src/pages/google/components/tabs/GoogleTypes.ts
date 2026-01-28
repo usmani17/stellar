@@ -10,6 +10,7 @@ export interface GoogleAdGroup {
   sales?: number | string;
   campaign_id?: number;
   campaign_name?: string;
+  campaign_status?: string;
   headlines?: any[];
   final_urls?: string[];
 }
@@ -24,8 +25,10 @@ export interface GoogleAd {
   final_urls?: string[];
   campaign_id?: number;
   campaign_name?: string;
+  campaign_status?: string;
   adgroup_id?: number;
   adgroup_name?: string;
+  adgroup_status?: string;
 }
 
 export interface GoogleKeyword {
@@ -37,8 +40,10 @@ export interface GoogleKeyword {
   cpc_bid_dollars?: number;
   campaign_id?: number;
   campaign_name?: string;
+  campaign_status?: string;
   adgroup_id?: number;
   adgroup_name?: string;
+  adgroup_status?: string;
 }
 
 export interface GoogleNegativeKeyword {

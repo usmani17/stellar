@@ -94,7 +94,9 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
   const [asinList, setAsinList] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState<string>("");
   const [tags, setTags] = useState<string[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [enableVersioning, setEnableVersioning] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -171,6 +173,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleAddAsin = () => {
     const asin = asinInput.trim().toUpperCase();
     if (asin && asin.match(/^[A-Z0-9]+$/) && !asinList.includes(asin)) {
@@ -198,10 +201,12 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleRemoveAsin = (asin: string) => {
     setAsinList(asinList.filter((a) => a !== asin));
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleAddTag = () => {
     const tag = tagInput.trim();
     if (tag && !tags.includes(tag)) {
@@ -210,10 +215,12 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleRemoveTag = (tag: string) => {
     setTags(tags.filter((t) => t !== tag));
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleVersionInfoChange = (
     field: "linkedAssetId" | "versionNotes",
     value: string,
@@ -383,7 +390,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     }
   };
 
-  const handleDragAreaClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleDragAreaClick = (_e: React.MouseEvent<HTMLDivElement>) => {
     // Trigger file dialog when clicking the drag area
     // Stop propagation is handled on child elements (preview, buttons) to prevent triggering
     fileInputRef.current?.click();
@@ -609,7 +616,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
           {/* Asset Sub Type - Required, Dynamic */}
           <div>
             <label className="form-label-small">
-              Asset Sub Type * (1-10 items)
+              Asset Sub Type *
             </label>
             <div className="flex flex-wrap gap-3">
               {(assetData.assetType === "IMAGE"
@@ -632,21 +639,16 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                           ]);
                         }
                       } else {
-                        // Prevent unchecking if it's the only item remaining
-                        if (assetData.assetSubTypeList.length > 1) {
-                          handleAssetSubTypeChange(
-                            assetData.assetSubTypeList.filter(
-                              (v) => v !== option.value,
-                            ),
-                          );
-                        }
+                        handleAssetSubTypeChange(
+                          assetData.assetSubTypeList.filter(
+                            (v) => v !== option.value,
+                          ),
+                        );
                       }
                     }}
                     disabled={
-                      (assetData.assetSubTypeList.includes(option.value) &&
-                        assetData.assetSubTypeList.length === 1) ||
-                      (!assetData.assetSubTypeList.includes(option.value) &&
-                        assetData.assetSubTypeList.length >= 10)
+                      !assetData.assetSubTypeList.includes(option.value) &&
+                      assetData.assetSubTypeList.length >= 10
                     }
                     className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
                   />
@@ -791,7 +793,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
           </div>
 
           {/* Advanced Options - Expandable */}
-          <div className="pt-4 border-t border-gray-200">
+          {/* <div className="pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
@@ -818,9 +820,9 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
             {showAdvancedOptions && (
               <div className="space-y-4 pl-4 border-l-2 border-gray-200">
                 {/* ASIN List, Tags, URL - Optional */}
-                <div className="grid grid-cols-2 gap-6">
+                {/* <div className="grid grid-cols-2 gap-6">
                   {/* ASIN List - Optional */}
-                  <div>
+                  {/* <div>
                     <label className="form-label-small">
                       ASIN List (Optional, Max 100)
                     </label>
@@ -882,7 +884,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                   </div>
 
                   {/* Tags - Optional */}
-                  <div>
+                  {/* <div>
                     <label className="form-label-small">Tags (Optional)</label>
                     <div className="space-y-2">
                       <div className="flex gap-2">
@@ -931,7 +933,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                 </div>
 
                 {/* URL - Optional */}
-                <div>
+                {/* <div>
                   <label className="form-label-small">URL (Optional)</label>
                   <input
                     type="text"
@@ -953,7 +955,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                 </div>
 
                 {/* Skip Asset Sub-Type Detection */}
-                <div className="flex items-center space-x-2">
+                {/* <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
                     checked={assetData.skipAssetSubTypesDetection || false}
@@ -971,7 +973,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                 </div>
 
                 {/* Version Existing Asset */}
-                <div>
+                {/* <div>
                   <div className="flex items-center space-x-2 mb-2">
                     <input
                       type="checkbox"
@@ -1056,7 +1058,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                 </div>
               </div>
             )}
-          </div>
+          </div> */}
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import api from "../api";
+import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../../components/google/CreateGooglePmaxAssetGroupPanel";
 
 export const googleAdwordsCampaignsService = {
   createGoogleCampaign: async (
@@ -67,10 +68,27 @@ export const googleAdwordsCampaignsService = {
         name: string;
         cpc_bid?: number; // Optional, in dollars
       };
+      ad_type?: "RESPONSIVE_SEARCH_AD" | "RESPONSIVE_DISPLAY_AD";
       ad?: {
+        // RSA fields
         headlines: string[]; // Min 3, max 15
         descriptions: string[]; // Min 2, max 4
-        final_url?: string; // Optional
+        path1?: string;
+        path2?: string;
+        headline_pins?: string[]; // HEADLINE_1, HEADLINE_2, etc.
+        description_pins?: string[]; // DESCRIPTION_1, etc.
+        headline_asset_resource_names?: string[];
+        description_asset_resource_names?: string[];
+        // RDA fields
+        marketing_image_urls?: string[];
+        square_marketing_image_urls?: string[];
+        marketing_image_asset_resource_names?: string[];
+        square_marketing_image_asset_resource_names?: string[];
+        long_headline?: string;
+        long_headline_asset_resource_name?: string;
+        business_name?: string;
+        // Common
+        final_url?: string;
       };
       keywords?: Array<{
         text: string;
@@ -126,6 +144,12 @@ export const googleAdwordsCampaignsService = {
         headlines: string[]; // Min 3, max 15
         descriptions: string[]; // Min 2, max 4
         long_headline: string; // Required
+        marketing_image_url?: string;
+        square_marketing_image_url?: string;
+        business_name?: string;
+        logo_url?: string;
+        video_asset_resource_names?: string[];
+        sitelink_asset_resource_names?: string[];
       };
     }
   ): Promise<{
@@ -171,6 +195,29 @@ export const googleAdwordsCampaignsService = {
     error?: string;
   }> => {
     const url = `/google-adwords/${accountId}/campaigns/${campaignId}/shopping-entities/create/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  createGoogleShoppingAd: async (
+    accountId: number,
+    campaignId: number,
+    payload: {
+      adgroup_id: number; // Required: use existing adgroup
+    }
+  ): Promise<{
+    ad?: {
+      id: string;
+      resource_name: string;
+    };
+    adgroup?: {
+      id: string;
+      resource_name: string;
+      name: string;
+    };
+    error?: string;
+  }> => {
+    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/shopping-ads/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },
@@ -419,7 +466,10 @@ export const googleAdwordsCampaignsService = {
     };
   }> => {
     const url = `/google-adwords/${accountId}/campaigns/${campaignId}/refresh/`;
-    const response = await api.post(url);
+    // Send the constant to API so it can decide whether to fetch asset groups
+    const response = await api.post(url, {
+      should_fetch_asset_groups: SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION,
+    });
     return response.data;
   },
 

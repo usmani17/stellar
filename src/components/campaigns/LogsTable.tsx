@@ -20,7 +20,7 @@ export const LogsTable: React.FC<LogsTableProps> = ({
   showHeader = true,
   showExport = true,
 }) => {
-  const { startDate, endDate } = useDateRange();
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const [logs, setLogs] = useState<
     Array<{
       id: number;
@@ -63,10 +63,8 @@ export const LogsTable: React.FC<LogsTableProps> = ({
         marketplace: marketplace,
         page: currentPage,
         page_size: pageSize,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        start_date: startDateStr,
+        end_date: endDateStr,
       });
 
       // Transform API response to match component format
@@ -123,8 +121,8 @@ export const LogsTable: React.FC<LogsTableProps> = ({
     accountId,
     campaignId,
     marketplace,
-    startDate,
-    endDate,
+    startDateStr,
+    endDateStr,
     currentPage,
     pageSize,
   ]);
@@ -183,10 +181,8 @@ export const LogsTable: React.FC<LogsTableProps> = ({
 
       // Build params from current filters and date range
       const params: any = {
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        start_date: startDateStr,
+        end_date: endDateStr,
       };
 
       // Add campaign_id if provided

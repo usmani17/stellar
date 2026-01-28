@@ -6,6 +6,7 @@ import {
   getMatchTypeWithDefault,
   formatMatchTypeForDisplay,
   convertMatchTypeToApi,
+  parseGoogleApiError,
 } from "./utils/googleAdsUtils";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
@@ -37,7 +38,7 @@ import { TrashIcon } from "lucide-react";
 export const GoogleKeywords: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const { sidebarWidth } = useSidebar();
-  const { startDate, endDate } = useDateRange();
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const [keywords, setKeywords] = useState<GoogleKeyword[]>([]);
   const [summary, setSummary] = useState<{
     total_keywords: number;
@@ -80,6 +81,7 @@ export const GoogleKeywords: React.FC = () => {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
   const isLoadingRef = useRef(false);
+  const lastRequestParamsRef = useRef<string>(""); // Track last request to prevent duplicate calls
 
   // Chart toggles
   const [chartToggles, setChartToggles] = useState({
@@ -260,6 +262,26 @@ export const GoogleKeywords: React.FC = () => {
     };
   }, []);
 
+  // Auto-hide success message after 2 seconds
+  useEffect(() => {
+    if (inlineEditSuccess) {
+      const timer = setTimeout(() => {
+        setInlineEditSuccess(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [inlineEditSuccess]);
+
+  // Auto-hide error message after 2 seconds
+  useEffect(() => {
+    if (inlineEditError) {
+      const timer = setTimeout(() => {
+        setInlineEditError(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [inlineEditError]);
+
   // Removed buildFilterParams - now passing filters array directly to service
 
   const loadKeywords = useCallback(async (accountId: number) => {
@@ -277,9 +299,9 @@ export const GoogleKeywords: React.FC = () => {
         page: currentPage,
         page_size: itemsPerPage,
         start_date: startDate
-          ? startDate.toISOString().split("T")[0]
+          ? startDateStr
           : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        end_date: endDate ? endDateStr : undefined,
         filters: filters, // Pass filters array directly
       };
 
@@ -337,14 +359,28 @@ export const GoogleKeywords: React.FC = () => {
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
       if (!isNaN(accountIdNum)) {
-        loadKeywords(accountIdNum);
+        // Create a unique key for this request to prevent duplicate calls
+        const requestKey = JSON.stringify({
+          accountId: accountIdNum,
+          currentPage,
+          filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
+          startDate: startDate ? startDateStr : null,
+          endDate: endDate ? endDateStr : null,
+        });
+
+        // Only call loadKeywords if the request parameters have actually changed
+        if (lastRequestParamsRef.current !== requestKey) {
+          lastRequestParamsRef.current = requestKey;
+          loadKeywords(accountIdNum);
+        }
       } else {
         setLoading(false);
       }
     } else {
       setLoading(false);
     }
-  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadKeywords, sorting]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
 
 
   // Sync status hook (after loadKeywords is defined)
@@ -382,9 +418,9 @@ export const GoogleKeywords: React.FC = () => {
             page: 1,
             page_size: itemsPerPage,
             start_date: startDate
-              ? startDate.toISOString().split("T")[0]
+              ? startDateStr
               : undefined,
-            end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+            end_date: endDate ? endDateStr : undefined,
             filters: filters, // Pass filters array directly
           };
 
@@ -498,12 +534,44 @@ export const GoogleKeywords: React.FC = () => {
     setSelectedKeywords(newSelected);
   };
 
+  // Helper function to create composite key from keyword_id and adgroup_id
+  const getKeywordCompositeId = (keyword: GoogleKeyword): string => {
+    if (keyword.adgroup_id) {
+      return `${keyword.keyword_id}:${keyword.adgroup_id}`;
+    }
+    return String(keyword.keyword_id);
+  };
+
+  // Helper function to parse composite key back to keyword_id and adgroup_id
+  const parseKeywordCompositeId = (compositeId: string | number): { keywordId: string | number; adgroupId?: number } => {
+    const idStr = String(compositeId);
+    if (idStr.includes(':')) {
+      const [keywordId, adgroupId] = idStr.split(':');
+      return { keywordId, adgroupId: Number(adgroupId) };
+    }
+    return { keywordId: idStr };
+  };
+
+  // Helper function to find keyword by composite ID
+  const findKeywordByCompositeId = (compositeId: string | number): GoogleKeyword | undefined => {
+    const { keywordId, adgroupId } = parseKeywordCompositeId(compositeId);
+    if (adgroupId !== undefined) {
+      return keywords.find((k) => k.keyword_id === keywordId && k.adgroup_id === adgroupId);
+    }
+    return keywords.find((k) => k.keyword_id === keywordId);
+  };
+
   // Inline edit handlers
   const startInlineEdit = (
     keyword: GoogleKeyword,
     field: "bid" | "status" | "match_type" | "keyword_text"
   ) => {
-    setEditingCell({ keywordId: keyword.keyword_id, field });
+    // Cancel any previous edit first to ensure clean state
+    if (editingCell) {
+      cancelInlineEdit();
+    }
+    const compositeId = getKeywordCompositeId(keyword);
+    setEditingCell({ keywordId: compositeId, field });
     if (field === "bid") {
       setEditedValue((keyword.cpc_bid_dollars || 0).toString());
     } else if (field === "status") {
@@ -741,7 +809,8 @@ export const GoogleKeywords: React.FC = () => {
   ) => {
     // If keywordIdParam and fieldKey are provided (called from dropdown), handle directly
     if (keywordIdParam && fieldKey) {
-      const keyword = keywords.find((k) => k.keyword_id === keywordIdParam);
+      // Use composite ID to find keyword (handles keyword_id:adgroup_id format)
+      const keyword = findKeywordByCompositeId(keywordIdParam);
       if (!keyword) return;
       
       // Prioritize newValueOverride (from blur/enter event) over editedValue state
@@ -752,7 +821,7 @@ export const GoogleKeywords: React.FC = () => {
       
       // For status, show modal
       if (fieldKey === "status") {
-        const keyword = keywords.find((k) => k.keyword_id === keywordIdParam);
+        const keyword = findKeywordByCompositeId(keywordIdParam);
         if (!keyword) return;
         
         const oldStatusRaw = getStatusWithDefault(keyword.status);
@@ -782,7 +851,7 @@ export const GoogleKeywords: React.FC = () => {
       
       // For match_type, show modal
       if (fieldKey === "match_type") {
-        const keyword = keywords.find((k) => k.keyword_id === keywordIdParam);
+        const keyword = findKeywordByCompositeId(keywordIdParam);
         if (!keyword) return;
         
         const oldValue = getMatchTypeWithDefault(keyword.match_type).trim();
@@ -799,7 +868,7 @@ export const GoogleKeywords: React.FC = () => {
       
       // For bid, show modal
       if (fieldKey === "bid") {
-        const keyword = keywords.find((k) => k.keyword_id === keywordIdParam);
+        const keyword = findKeywordByCompositeId(keywordIdParam);
         if (!keyword) {
           console.log("[GoogleKeywords confirmInlineEdit] Bid: Keyword not found");
           return;
@@ -879,7 +948,7 @@ export const GoogleKeywords: React.FC = () => {
       
       // For keyword_text, show modal
       if (fieldKey === "keyword_text") {
-        const keyword = keywords.find((k) => k.keyword_id === keywordIdParam);
+        const keyword = findKeywordByCompositeId(keywordIdParam);
         if (!keyword) return;
         
         const oldValue = (keyword.keyword_text || "").trim();
@@ -897,9 +966,8 @@ export const GoogleKeywords: React.FC = () => {
 
     if (!editingCell || !accountId || isCancellingRef.current) return;
 
-    const keyword = keywords.find(
-      (k) => k.keyword_id === editingCell.keywordId
-    );
+    // Use composite ID to find keyword (handles keyword_id:adgroup_id format)
+    const keyword = findKeywordByCompositeId(editingCell.keywordId);
     if (!keyword) return;
 
     // Prioritize newValueOverride (from blur/enter event) over editedValue state
@@ -1064,12 +1132,13 @@ export const GoogleKeywords: React.FC = () => {
     // For keyword_text, create pending change and immediately confirm (make API call)
     if (editingCell.field === "keyword_text") {
       const valueToStore = valueToCheck.trim();
+      const compositeId = getKeywordCompositeId(keyword);
       
       // Create pending change
       setPendingChanges((prev) => ({
         ...prev,
         [field]: {
-          itemId: keyword.keyword_id,
+          itemId: compositeId,
           newValue: valueToStore,
         },
       }));
@@ -1077,7 +1146,7 @@ export const GoogleKeywords: React.FC = () => {
       setEditedValue("");
       
       // Immediately call handleConfirmChange to make API call
-      handleConfirmChange(keyword.keyword_id, field, valueToStore);
+      handleConfirmChange(compositeId, field, valueToStore);
       return;
     }
   };
@@ -1086,11 +1155,15 @@ export const GoogleKeywords: React.FC = () => {
   const handleConfirmChange = async (itemId: string | number, fieldKey: string, newValue: string) => {
     if (!accountId) return;
 
-    const keyword = keywords.find((k) => k.keyword_id === itemId);
+    // Parse composite key to find keyword
+    const keyword = findKeywordByCompositeId(itemId);
     if (!keyword) return;
 
+    // Parse composite key to extract keyword_id and adgroup_id for API call
+    const { keywordId, adgroupId } = parseKeywordCompositeId(itemId);
+
     setUpdatingField({ 
-      keywordId: itemId, 
+      keywordId: itemId, // Keep composite key for state tracking
       field: fieldKey as any,
       newValue: newValue,
     });
@@ -1107,9 +1180,10 @@ export const GoogleKeywords: React.FC = () => {
           throw new Error("Invalid bid value");
         }
         await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
-          keywordIds: [itemId],
+          keywordIds: [keywordId],
           action: "bid",
           bid: bidValue,
+          adgroupIds: adgroupId ? [adgroupId] : undefined,
         });
       } else if (fieldKey === "keyword_text") {
         const trimmedText = newValue.trim();
@@ -1117,10 +1191,10 @@ export const GoogleKeywords: React.FC = () => {
           throw new Error("Keyword text cannot be empty");
         }
         await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
-          keywordIds: [itemId],
+          keywordIds: [keywordId],
           action: "keyword_text",
           keyword_text: trimmedText,
-          adgroupIds: keyword.adgroup_id ? [keyword.adgroup_id] : undefined,
+          adgroupIds: adgroupId || keyword.adgroup_id ? [adgroupId || keyword.adgroup_id!] : undefined,
         });
       }
 
@@ -1196,11 +1270,14 @@ export const GoogleKeywords: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      // Parse composite key to extract keyword_id and adgroup_id
+      const { keywordId, adgroupId } = parseKeywordCompositeId(pendingRemoveChange.keywordId);
       const statusValue = convertStatusToApi("REMOVED");
       await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
-        keywordIds: [pendingRemoveChange.keywordId],
+        keywordIds: [keywordId],
         action: "status",
-        status: statusValue,
+        status: statusValue as any, // REMOVED is a valid status for deletion
+        adgroupIds: adgroupId ? [adgroupId] : undefined,
       });
 
       await loadKeywords(accountIdNum);
@@ -1281,10 +1358,11 @@ export const GoogleKeywords: React.FC = () => {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "status",
           status: validStatus,
+          adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
         });
 
         if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0]);
+          throw { response: { data: response } };
         }
       } else if (inlineEditField === "bid") {
         // inlineEditNewValue is stored as raw numeric string
@@ -1297,10 +1375,11 @@ export const GoogleKeywords: React.FC = () => {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "bid",
           bid: bidValue,
+          adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
         });
 
         if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0]);
+          throw { response: { data: response } };
         }
       } else if (inlineEditField === "match_type") {
         // Convert display match type to API format
@@ -1310,10 +1389,11 @@ export const GoogleKeywords: React.FC = () => {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "match_type",
           match_type: matchTypeValue,
+          adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
         });
         
         if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0]);
+          throw { response: { data: response } };
         }
       } else if (inlineEditField === "keyword_text") {
         // Update keyword text
@@ -1326,10 +1406,11 @@ export const GoogleKeywords: React.FC = () => {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "keyword_text",
           keyword_text: newKeywordText,
+          adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
         });
         
         if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0]);
+          throw { response: { data: response } };
         }
       }
 
@@ -1339,9 +1420,34 @@ export const GoogleKeywords: React.FC = () => {
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
-    } catch (error) {
+      
+      // Clear any previous errors
+      setInlineEditError(null);
+      
+      // Show success feedback (use composite key)
+      const compositeId = getKeywordCompositeId(inlineEditKeyword);
+      setInlineEditSuccess({
+        keywordId: compositeId,
+        field: inlineEditField,
+      });
+    } catch (error: any) {
       console.error("Error updating keyword:", error);
-      alert("Failed to update keyword. Please try again.");
+      
+      // Parse error and show in modal
+      const { title, message } = parseGoogleApiError(error);
+      
+      setErrorModal({
+        isOpen: true,
+        title,
+        message,
+      });
+      
+      // Also set inline error for visual feedback
+      setInlineEditError({
+        keywordId: inlineEditKeyword.keyword_id,
+        field: inlineEditField,
+        message,
+      });
     } finally {
       setInlineEditLoading(false);
     }
@@ -1583,9 +1689,9 @@ export const GoogleKeywords: React.FC = () => {
         sort_by: sortBy,
         order: sortOrder,
         start_date: startDate
-          ? startDate.toISOString().split("T")[0]
+          ? startDateStr
           : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        end_date: endDate ? endDateStr : undefined,
         filters: filters, // Pass filters array directly
       };
 
@@ -1853,6 +1959,7 @@ export const GoogleKeywords: React.FC = () => {
                 }))}
                 accountId={accountId}
                 marketplace="google_adwords"
+                entityType="keywords"
               />
             )}
 
@@ -2877,7 +2984,17 @@ export const GoogleKeywords: React.FC = () => {
       {/* Error Modal */}
       <ErrorModal
         isOpen={errorModal.isOpen}
-        onClose={() => setErrorModal({ isOpen: false, title: "Error", message: "" })}
+        onClose={() => {
+          setErrorModal({ isOpen: false, title: "Error", message: "" });
+          // Also close the inline edit confirmation modal if it's open
+          if (showInlineEditModal) {
+            setShowInlineEditModal(false);
+            setInlineEditKeyword(null);
+            setInlineEditField(null);
+            setInlineEditOldValue("");
+            setInlineEditNewValue("");
+          }
+        }}
         title={errorModal.title}
         message={errorModal.message}
       />

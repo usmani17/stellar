@@ -15,8 +15,10 @@ export interface GoogleKeyword {
   cpc_bid_dollars?: number;
   campaign_id?: number;
   campaign_name?: string;
+  campaign_status?: string;
   adgroup_id?: number;
   adgroup_name?: string;
+  adgroup_status?: string;
   // Final URLs
   final_urls?: string[] | string;
   final_mobile_urls?: string[] | string;
@@ -543,7 +545,14 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       inlineEditSuccess={sharedInlineEditSuccess}
       inlineEditError={sharedInlineEditError}
       columns={columns}
-      getId={(row: GoogleKeyword) => row.keyword_id}
+      getId={(row: GoogleKeyword) => {
+        // Use composite key (keyword_id:adgroup_id) to ensure uniqueness
+        // when same keyword_id exists in different adgroups
+        if (row.adgroup_id) {
+          return `${row.keyword_id}:${row.adgroup_id}`;
+        }
+        return row.keyword_id;
+      }}
       getItemName={(row: GoogleKeyword) => row.keyword_text || "Unnamed Keyword"}
       emptyMessage='No keywords found. Click "Sync Keywords from Google Ads" to fetch keywords.'
       loadingMessage="Loading keywords..."

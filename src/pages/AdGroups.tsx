@@ -33,8 +33,11 @@ import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
 
 export const AdGroups: React.FC = () => {
   const navigate = useNavigate();
-  const { accountId } = useParams<{ accountId: string }>();
-  const { startDate, endDate } = useDateRange();
+  const { accountId, channelId } = useParams<{
+    accountId: string;
+    channelId?: string;
+  }>();
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
   const [adgroups, setAdgroups] = useState<AdGroup[]>([]);
   const [summary, setSummary] = useState<{
@@ -117,7 +120,7 @@ export const AdGroups: React.FC = () => {
       key: "roas",
       label: "ROAS",
       color: "#059669",
-      tooltipFormatter: (v) => `${v.toFixed(2)} x`,
+      tooltipFormatter: (v) => `${v.toFixed(2)}`,
     },
   ];
   const [currentPage, setCurrentPage] = useState(1);
@@ -376,8 +379,8 @@ export const AdGroups: React.FC = () => {
       const params: any = {
         sort_by: sortBy,
         order: sortOrder,
-        start_date: startDate.toISOString().split("T")[0],
-        end_date: endDate.toISOString().split("T")[0],
+        start_date: startDateStr,
+        end_date: endDateStr,
         ...buildFilterParams(filters),
       };
 
@@ -387,11 +390,13 @@ export const AdGroups: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
-      // Call export API
-      const result = await campaignsService.exportAdGroups(accountIdNum, {
-        ...params,
-        export_type: exportType,
-      });
+      // Call export API (channelId from route for /brands/:accountId/:channelId/amazon/adgroups)
+      const result = await campaignsService.exportAdGroups(
+        accountIdNum,
+        { ...params, export_type: exportType },
+        channelId ?? undefined,
+        undefined
+      );
 
       // Automatically download the file
       const link = document.createElement("a");
@@ -430,8 +435,6 @@ export const AdGroups: React.FC = () => {
     try {
       loadingRef.current = true;
       setLoading(true);
-      const startDateStr = startDate?.toISOString().split("T")[0];
-      const endDateStr = endDate?.toISOString().split("T")[0];
 
       console.log("AdGroups - Date range:", {
         startDate: startDateStr,
@@ -450,7 +453,9 @@ export const AdGroups: React.FC = () => {
 
       const response = await campaignsService.getAdGroupsList(
         accountId,
-        params
+        params,
+        channelId ?? undefined,
+        undefined
       );
 
       console.log(
@@ -498,14 +503,16 @@ export const AdGroups: React.FC = () => {
         order: sortOrder,
         page: 1, // Always reset to first page when applying filters
         page_size: itemsPerPage,
-        start_date: startDate?.toISOString().split("T")[0],
-        end_date: endDate?.toISOString().split("T")[0],
+        start_date: startDateStr,
+        end_date: endDateStr,
         ...buildFilterParams(filterList),
       };
 
       const response = await campaignsService.getAdGroupsList(
         accountId,
-        params
+        params,
+        channelId ?? undefined,
+        undefined
       );
       setAdgroups(Array.isArray(response.adgroups) ? response.adgroups : []);
       setTotalPages(response.total_pages || 0);
@@ -1321,7 +1328,7 @@ export const AdGroups: React.FC = () => {
                     />
                   </svg>
                   <span className="text-[10.64px] text-[#072929] font-normal">
-                    Edit
+                    Bulk Actions
                   </span>
                 </Button>
                 {showBulkActions && (

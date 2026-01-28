@@ -2,6 +2,11 @@ import React, { useState, useEffect, useCallback } from "react";
 import { GooglePerformanceMaxAssetGroupForm } from "./campaigns/GooglePerformanceMaxAssetGroupForm";
 import type { CreateGoogleCampaignData } from "./campaigns/types";
 
+// Feature flag: Controls whether asset groups are automatically created when creating a PMAX campaign
+// When false, asset group fields are filtered out from the campaign creation payload
+// This prevents the backend from automatically creating an asset group during campaign creation
+export const SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION = false;
+
 export interface PmaxAssetGroupInput {
   asset_group: {
     name: string;
@@ -15,6 +20,8 @@ export interface PmaxAssetGroupInput {
     square_marketing_image_url?: string;
     business_name?: string;
     logo_url?: string;
+    video_asset_resource_names?: string[];
+    sitelink_asset_resource_names?: string[];
   };
 }
 
@@ -276,6 +283,12 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
           ...(formData.square_marketing_image_url?.trim() && { square_marketing_image_url: formData.square_marketing_image_url.trim() }),
           ...(formData.business_name?.trim() && { business_name: formData.business_name.trim() }),
           ...(formData.logo_url?.trim() && { logo_url: formData.logo_url.trim() }),
+          ...(formData.video_asset_resource_names && formData.video_asset_resource_names.length > 0 && { 
+            video_asset_resource_names: formData.video_asset_resource_names 
+          }),
+          ...(formData.sitelink_asset_resource_names && formData.sitelink_asset_resource_names.length > 0 && { 
+            sitelink_asset_resource_names: formData.sitelink_asset_resource_names 
+          }),
         },
       };
 

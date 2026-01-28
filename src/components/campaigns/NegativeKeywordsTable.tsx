@@ -16,6 +16,7 @@ interface NegativeKeyword {
   state?: string;
   status?: string; // For backward compatibility
   adGroupId?: number;
+  adgroup_name?: string;
   campaignId?: string | number;
   creationDateTime?: string;
   lastUpdateDateTime?: string;
@@ -48,6 +49,7 @@ interface NegativeKeywordsTableProps {
     newValue: string;
     oldValue: string;
   } | null;
+  adgroups?: Array<{ adGroupId: number | string; name?: string }>; // Ad groups to map IDs to names
 }
 
 export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
@@ -67,6 +69,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
   onEditCancel,
   inlineEditLoading = new Set(),
   pendingChange = null,
+  adgroups = [],
 }) => {
   const statusSelectionMadeRef = useRef<number | null>(null);
   const allSelected =
@@ -231,8 +234,8 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                     </div>
                   </th>
 
-                  {/* Ad Group ID Header */}
-                  <th className="table-header">Ad Group ID</th>
+                  {/* Ad Group Header */}
+                  <th className="table-header">Ad Group</th>
 
                   {/* Campaign ID Header */}
                   <th className="table-header">Campaign ID</th>
@@ -419,10 +422,17 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                         )}
                       </td>
 
-                      {/* Ad Group ID */}
+                      {/* Ad Group Name */}
                       <td className="table-cell">
                         <span className="table-text leading-[1.26]">
-                          {keyword.adGroupId || "—"}
+                          {(() => {
+                            const adgroup = adgroups.find(
+                              (ag) =>
+                                String(ag.adGroupId) ===
+                                String(keyword.adGroupId),
+                            );
+                            return adgroup?.name || keyword.adGroupId || "—";
+                          })()}
                         </span>
                       </td>
 

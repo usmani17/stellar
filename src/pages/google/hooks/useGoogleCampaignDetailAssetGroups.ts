@@ -583,6 +583,84 @@ export const useGoogleCampaignDetailAssetGroups = ({
     setEditLoadingAssetGroupId(null);
   }, []);
 
+  // View assets modal state
+  const [viewAssetsModalOpen, setViewAssetsModalOpen] = useState(false);
+  const [viewingAssetGroupId, setViewingAssetGroupId] = useState<number | null>(null);
+  const [viewingAssetGroupName, setViewingAssetGroupName] = useState<string>("");
+  const [assetGroupAssets, setAssetGroupAssets] = useState<{
+    headlines: string[];
+    descriptions: string[];
+    long_headline?: string;
+    marketing_image_url?: string;
+    square_marketing_image_url?: string;
+    logo_url?: string;
+    business_name?: string;
+    final_urls?: string[];
+    video_assets?: Array<{
+      id: number;
+      name?: string;
+      youtube_video_id?: string;
+    }>;
+  } | null>(null);
+  const [loadingAssets, setLoadingAssets] = useState(false);
+
+  // Handler to view assets
+  const handleViewAssets = useCallback(async (assetGroup: any) => {
+    if (!accountId || !assetGroup.asset_group_id) return;
+
+    setViewingAssetGroupId(assetGroup.asset_group_id);
+    setViewingAssetGroupName(assetGroup.name || "Unnamed Asset Group");
+    setViewAssetsModalOpen(true);
+    setLoadingAssets(true);
+    setAssetGroupAssets(null);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const campaignIdNum = campaignId ? parseInt(campaignId, 10) : undefined;
+      if (campaignIdNum && !isNaN(campaignIdNum)) {
+        const assets = await googleAdwordsAssetGroupsService.getGoogleAssetGroupAssets(
+          accountIdNum,
+          assetGroup.asset_group_id,
+          campaignIdNum
+        );
+        // Backend now transforms the response to match frontend expectations
+        setAssetGroupAssets({
+          headlines: assets.headlines || [],
+          descriptions: assets.descriptions || [],
+          long_headline: assets.long_headline,
+          marketing_image_url: assets.marketing_image_url,
+          square_marketing_image_url: assets.square_marketing_image_url,
+          logo_url: assets.logo_url,
+          business_name: assets.business_name,
+          final_urls: assets.final_urls || [],
+          video_assets: assets.video_assets || [],
+        });
+      }
+    } catch (error: any) {
+      console.error("Failed to load asset group assets:", error);
+      setAssetGroupAssets({
+        headlines: [],
+        descriptions: [],
+        final_urls: [],
+      });
+    } finally {
+      setLoadingAssets(false);
+    }
+  }, [accountId, campaignId]);
+
+  // Handler to close view assets modal
+  const handleCloseViewAssetsModal = useCallback(() => {
+    setViewAssetsModalOpen(false);
+    setViewingAssetGroupId(null);
+    setViewingAssetGroupName("");
+    setAssetGroupAssets(null);
+    setLoadingAssets(false);
+  }, []);
+
   return {
     // Data
     assetGroups,
@@ -634,5 +712,12 @@ export const useGoogleCampaignDetailAssetGroups = ({
     handleUpdateAssetGroupStatus,
     handleUpdateAssetGroup,
     handleCloseEditPanel,
+    handleViewAssets,
+    handleCloseViewAssetsModal,
+    viewAssetsModalOpen,
+    viewingAssetGroupId,
+    viewingAssetGroupName,
+    assetGroupAssets,
+    loadingAssets,
   };
 };

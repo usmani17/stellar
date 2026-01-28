@@ -1,4 +1,6 @@
 import api from "./api";
+import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../components/google/CreateGooglePmaxAssetGroupPanel";
+import { toLocalDateString } from "../utils/dateHelpers";
 
 export interface Campaign {
   id: number; // Database ID (for internal use)
@@ -148,6 +150,7 @@ export interface AdGroup {
   impressions?: number;
   acos?: string;
   roas?: string;
+  creativeType?: string | null; // SD only: IMAGE or VIDEO
 }
 
 export interface AdGroupsSummary {
@@ -337,6 +340,7 @@ export interface ProductAd {
   sku?: string;
   status: string;
   adGroupId?: string;
+  adgroup_name?: string;
 }
 
 export interface ProductAdsResponse {
@@ -408,10 +412,32 @@ export interface TargetsResponse {
   total_pages: number;
 }
 
+/** Build base path for Amazon API: with channelId use /accounts/:id/channels/:channelId, else /accounts/:id */
+function buildAmazonBasePath(
+  accountId: number,
+  channelId?: number | string | null
+): string {
+  return channelId != null && channelId !== ""
+    ? `/accounts/${accountId}/channels/${channelId}`
+    : `/accounts/${accountId}`;
+}
+
+/** Append optional profile_id to URL query string */
+function appendProfileId(
+  url: string,
+  profileId?: string | number | null
+): string {
+  if (profileId == null || profileId === "") return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}profile_id=${encodeURIComponent(String(profileId))}`;
+}
+
 export const campaignsService = {
   getCampaigns: async (
     accountId: number,
-    params?: CampaignsQueryParams
+    params?: CampaignsQueryParams,
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<CampaignsResponse> => {
     // Build filters object for POST request body
     const filters: any = {};
@@ -489,9 +515,13 @@ export const campaignsService = {
     if (params?.profile_name__not_icontains) {
       filters.profile_name__not_icontains = params.profile_name__not_icontains;
     }
+    if (profileId != null && profileId !== "") {
+      filters.profile_id = String(profileId);
+    }
 
     // Send POST request with filters in body
-    const url = `/accounts/${accountId}/campaigns/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = appendProfileId(`${base}/campaigns/`, profileId);
     const response = await api.post<CampaignsResponse>(url, { filters });
     return response.data;
   },
@@ -500,7 +530,9 @@ export const campaignsService = {
     accountId: number,
     params?: CampaignsQueryParams & {
       export_type?: "all_data" | "current_view";
-    }
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<{ url: string; filename: string }> => {
     // Build filters object for POST request body
     const filters: any = {};
@@ -572,9 +604,13 @@ export const campaignsService = {
     if (params?.profile_name__not_icontains) {
       filters.profile_name__not_icontains = params.profile_name__not_icontains;
     }
+    if (profileId != null && profileId !== "") {
+      filters.profile_id = String(profileId);
+    }
 
     // Send POST request with filters and export_type in body
-    const url = `/accounts/${accountId}/campaigns/export/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = appendProfileId(`${base}/campaigns/export/`, profileId);
     const response = await api.post<{ url: string; filename: string }>(url, {
       filters,
       export_type: params?.export_type || "all_data",
@@ -628,7 +664,9 @@ export const campaignsService = {
       ctr__gt?: number | string;
       ctr__lte?: number | string;
       ctr__gte?: number | string;
-    }
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<AdGroupsListResponse> => {
     // Build filters object for POST request body
     const filters: any = {};
@@ -751,8 +789,12 @@ export const campaignsService = {
     if (params?.ctr__gte !== undefined) {
       filters.ctr__gte = params.ctr__gte;
     }
+    if (profileId != null && profileId !== "") {
+      filters.profile_id = String(profileId);
+    }
 
-    const url = `/accounts/${accountId}/adgroups/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = appendProfileId(`${base}/adgroups/`, profileId);
     const response = await api.post<AdGroupsListResponse>(url, { filters });
     return response.data;
   },
@@ -804,7 +846,9 @@ export const campaignsService = {
       ctr__gt?: number | string;
       ctr__lte?: number | string;
       ctr__gte?: number | string;
-    }
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<{ url: string; filename: string }> => {
     // Build filters object for POST request body
     const filters: any = {};
@@ -927,9 +971,13 @@ export const campaignsService = {
     if (params?.ctr__gte !== undefined) {
       filters.ctr__gte = params.ctr__gte;
     }
+    if (profileId != null && profileId !== "") {
+      filters.profile_id = String(profileId);
+    }
 
     // Send POST request with filters and export_type in body
-    const url = `/accounts/${accountId}/adgroups/export/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = appendProfileId(`${base}/adgroups/export/`, profileId);
     const response = await api.post<{ url: string; filename: string }>(url, {
       filters,
       export_type: params?.export_type || "all_data",
@@ -942,7 +990,9 @@ export const campaignsService = {
     campaignId: string | number,
     startDate?: string,
     endDate?: string,
-    campaignType?: string
+    campaignType?: string,
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<CampaignDetail> => {
     const params = new URLSearchParams();
     if (startDate) {
@@ -954,9 +1004,12 @@ export const campaignsService = {
     if (campaignType) {
       params.append("type", campaignType);
     }
+    if (profileId != null && profileId !== "") {
+      params.set("profile_id", String(profileId));
+    }
 
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/${params.toString() ? `?${params.toString()}` : ""
-      }`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/campaigns/${campaignId}/${params.toString() ? `?${params.toString()}` : ""}`;
     const response = await api.get<CampaignDetail>(url);
     return response.data;
   },
@@ -974,7 +1027,9 @@ export const campaignsService = {
       type?: string; // Campaign type (SP, SB, SD)
       // Filter parameters (flat object format expected by backend)
       [key: string]: any;
-    }
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<AdGroupsResponse> => {
     // Build filters object for POST request
     const filters: any = {
@@ -986,15 +1041,21 @@ export const campaignsService = {
     if (endDate) {
       filters.end_date = endDate;
     }
+    if (profileId != null && profileId !== "") {
+      filters.profile_id = String(profileId);
+    }
 
-    // Build URL with type query parameter if provided
+    // Build URL with type and profile_id query parameters if provided
     const queryParams = new URLSearchParams();
     if (params?.type) {
       queryParams.append("type", params.type);
     }
+    if (profileId != null && profileId !== "") {
+      queryParams.set("profile_id", String(profileId));
+    }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/${queryString ? `?${queryString}` : ""
-      }`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/campaigns/${campaignId}/adgroups/${queryString ? `?${queryString}` : ""}`;
     const response = await api.post<AdGroupsResponse>(url, { filters });
     return response.data;
   },
@@ -1012,7 +1073,9 @@ export const campaignsService = {
       type?: string; // Campaign type (SP, SB, SD)
       // Filter parameters (flat object format expected by backend)
       [key: string]: any;
-    }
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<KeywordsResponse> => {
     // Build filters object for POST request
     const filters: any = {
@@ -1024,15 +1087,20 @@ export const campaignsService = {
     if (endDate) {
       filters.end_date = endDate;
     }
+    if (profileId != null && profileId !== "") {
+      filters.profile_id = String(profileId);
+    }
 
-    // Build URL with type query parameter if provided
     const queryParams = new URLSearchParams();
     if (params?.type) {
       queryParams.append("type", params.type);
     }
+    if (profileId != null && profileId !== "") {
+      queryParams.set("profile_id", String(profileId));
+    }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/${queryString ? `?${queryString}` : ""
-      }`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/campaigns/${campaignId}/keywords/${queryString ? `?${queryString}` : ""}`;
     const response = await api.post<KeywordsResponse>(url, { filters });
     return response.data;
   },
@@ -1050,27 +1118,21 @@ export const campaignsService = {
       type?: string; // Campaign type (SP, SB, SD)
       // Filter parameters (flat object format expected by backend)
       [key: string]: any;
-    }
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<ProductAdsResponse> => {
-    // Build filters object for POST request
-    const filters: any = {
-      ...params,
-    };
-    if (startDate) {
-      filters.start_date = startDate;
-    }
-    if (endDate) {
-      filters.end_date = endDate;
-    }
+    const filters: any = { ...params };
+    if (startDate) filters.start_date = startDate;
+    if (endDate) filters.end_date = endDate;
+    if (profileId != null && profileId !== "") filters.profile_id = String(profileId);
 
-    // Build URL with type query parameter if provided
     const queryParams = new URLSearchParams();
-    if (params?.type) {
-      queryParams.append("type", params.type);
-    }
+    if (params?.type) queryParams.append("type", params.type);
+    if (profileId != null && profileId !== "") queryParams.set("profile_id", String(profileId));
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/${queryString ? `?${queryString}` : ""
-      }`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/campaigns/${campaignId}/productads/${queryString ? `?${queryString}` : ""}`;
     const response = await api.post<ProductAdsResponse>(url, { filters });
     return response.data;
   },
@@ -1088,27 +1150,21 @@ export const campaignsService = {
       type?: string; // Campaign type (SP, SB, SD)
       // Filter parameters (flat object format expected by backend)
       [key: string]: any;
-    }
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<TargetsResponse> => {
-    // Build filters object for POST request
-    const filters: any = {
-      ...params,
-    };
-    if (startDate) {
-      filters.start_date = startDate;
-    }
-    if (endDate) {
-      filters.end_date = endDate;
-    }
+    const filters: any = { ...params };
+    if (startDate) filters.start_date = startDate;
+    if (endDate) filters.end_date = endDate;
+    if (profileId != null && profileId !== "") filters.profile_id = String(profileId);
 
-    // Build URL with type query parameter if provided
     const queryParams = new URLSearchParams();
-    if (params?.type) {
-      queryParams.append("type", params.type);
-    }
+    if (params?.type) queryParams.append("type", params.type);
+    if (profileId != null && profileId !== "") queryParams.set("profile_id", String(profileId));
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/${queryString ? `?${queryString}` : ""
-      }`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/campaigns/${campaignId}/targets/${queryString ? `?${queryString}` : ""}`;
     const response = await api.post<TargetsResponse>(url, { filters });
     return response.data;
   },
@@ -1124,7 +1180,9 @@ export const campaignsService = {
       type?: string; // Campaign type (SP, SB, SD) - required
       // Filter parameters
       [key: string]: any;
-    }
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<{
     negative_keywords: Array<{
       id: number;
@@ -1144,19 +1202,15 @@ export const campaignsService = {
     page_size: number;
     total_pages: number;
   }> => {
-    // Build filters object for POST request
-    const filters: any = {
-      ...params,
-    };
+    const filters: any = { ...params };
+    if (profileId != null && profileId !== "") filters.profile_id = String(profileId);
 
-    // Build URL with type query parameter (required)
     const queryParams = new URLSearchParams();
-    if (params?.type) {
-      queryParams.append("type", params.type);
-    }
+    if (params?.type) queryParams.append("type", params.type);
+    if (profileId != null && profileId !== "") queryParams.set("profile_id", String(profileId));
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-keywords/${queryString ? `?${queryString}` : ""
-      }`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/campaigns/${campaignId}/negative-keywords/${queryString ? `?${queryString}` : ""}`;
     const response = await api.post(url, { filters });
     return response.data;
   },
@@ -1172,7 +1226,9 @@ export const campaignsService = {
       type?: string; // Campaign type (SP, SB, SD) - required
       // Filter parameters
       [key: string]: any;
-    }
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<{
     negative_targets: Array<{
       id: number;
@@ -1193,19 +1249,15 @@ export const campaignsService = {
     page_size: number;
     total_pages: number;
   }> => {
-    // Build filters object for POST request
-    const filters: any = {
-      ...params,
-    };
+    const filters: any = { ...params };
+    if (profileId != null && profileId !== "") filters.profile_id = String(profileId);
 
-    // Build URL with type query parameter (required)
     const queryParams = new URLSearchParams();
-    if (params?.type) {
-      queryParams.append("type", params.type);
-    }
+    if (params?.type) queryParams.append("type", params.type);
+    if (profileId != null && profileId !== "") queryParams.set("profile_id", String(profileId));
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/${queryString ? `?${queryString}` : ""
-      }`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/campaigns/${campaignId}/negative-targets/${queryString ? `?${queryString}` : ""}`;
     const response = await api.post(url, { filters });
     return response.data;
   },
@@ -1236,9 +1288,12 @@ export const campaignsService = {
       tags?: Array<{ key: string; value: string }>;
       siteRestrictions?: string | null;
       dynamicBidding?: any;
-    }
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ) => {
-    const url = `/accounts/${accountId}/campaigns/bulk-update/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = appendProfileId(`${base}/campaigns/bulk-update/`, profileId);
     const response = await api.post(url, payload);
     return response.data;
   },
@@ -1247,9 +1302,12 @@ export const campaignsService = {
     accountId: number,
     payload: {
       campaignIds: Array<string | number>;
-    }
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ) => {
-    const url = `/accounts/${accountId}/campaigns/bulk-delete/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = appendProfileId(`${base}/campaigns/bulk-delete/`, profileId);
     const response = await api.post(url, payload);
     return response.data;
   },
@@ -1268,9 +1326,15 @@ export const campaignsService = {
       tags?: Array<{ key: string; value: string }>;
       siteRestrictions?: string | null;
       dynamicBidding?: any;
-    }
+      /** SB campaigns use "bidding" not "dynamicBidding" */
+      bidding?: any;
+      startDate?: string | null;
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ) => {
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/update/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = appendProfileId(`${base}/campaigns/${campaignId}/update/`, profileId);
     const response = await api.put(url, payload);
     return response.data;
   },
@@ -1292,7 +1356,9 @@ export const campaignsService = {
 
   getKeywordsList: async (
     accountId: number,
-    params?: KeywordsQueryParams
+    params?: KeywordsQueryParams,
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<KeywordsResponse> => {
     // Build filters object for POST request body
     const filters: any = {};
@@ -1425,9 +1491,13 @@ export const campaignsService = {
     if (params?.ctr__gte !== undefined) {
       filters.ctr__gte = params.ctr__gte;
     }
+    if (profileId != null && profileId !== "") {
+      filters.profile_id = String(profileId);
+    }
 
     // Send POST request with filters in body
-    const url = `/accounts/${accountId}/keywords/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = appendProfileId(`${base}/keywords/`, profileId);
     const response = await api.post<KeywordsResponse>(url, { filters });
     return response.data;
   },
@@ -1436,7 +1506,9 @@ export const campaignsService = {
     accountId: number,
     params?: KeywordsQueryParams & {
       export_type?: "all_data" | "current_view";
-    }
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<{ url: string; filename: string }> => {
     // Build filters object for POST request body
     const filters: any = {};
@@ -1569,9 +1641,13 @@ export const campaignsService = {
     if (params?.ctr__gte !== undefined) {
       filters.ctr__gte = params.ctr__gte;
     }
+    if (profileId != null && profileId !== "") {
+      filters.profile_id = String(profileId);
+    }
 
     // Send POST request with filters and export_type in body
-    const url = `/accounts/${accountId}/keywords/export/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = appendProfileId(`${base}/keywords/export/`, profileId);
     const response = await api.post<{ url: string; filename: string }>(url, {
       filters,
       export_type: params?.export_type || "all_data",
@@ -1984,16 +2060,21 @@ export const campaignsService = {
       tactic?: string;
       // SP specific fields
       targetingType?: "AUTO" | "MANUAL";
-    }
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ) => {
-    const url = `/accounts/${accountId}/campaigns/create/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = appendProfileId(`${base}/campaigns/create/`, profileId);
     const response = await api.post(url, payload);
     return response.data;
   },
 
   getTargetsList: async (
     accountId: number,
-    params?: TargetsQueryParams
+    params?: TargetsQueryParams,
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<TargetsListResponse> => {
     // Build filters object for POST request body
     const filters: any = {};
@@ -2126,9 +2207,13 @@ export const campaignsService = {
     if (params?.ctr__gte !== undefined) {
       filters.ctr__gte = params.ctr__gte;
     }
+    if (profileId != null && profileId !== "") {
+      filters.profile_id = String(profileId);
+    }
 
     // Send POST request with filters in body
-    const url = `/accounts/${accountId}/targets/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = appendProfileId(`${base}/targets/`, profileId);
     const response = await api.post<TargetsListResponse>(url, { filters });
     return response.data;
   },
@@ -2137,7 +2222,9 @@ export const campaignsService = {
     accountId: number,
     params?: TargetsQueryParams & {
       export_type?: "all_data" | "current_view";
-    }
+    },
+    channelId?: number | string | null,
+    profileId?: string | number | null
   ): Promise<{ url: string; filename: string }> => {
     // Build filters object for POST request body
     const filters: any = {};
@@ -2270,9 +2357,13 @@ export const campaignsService = {
     if (params?.ctr__gte !== undefined) {
       filters.ctr__gte = params.ctr__gte;
     }
+    if (profileId != null && profileId !== "") {
+      filters.profile_id = String(profileId);
+    }
 
     // Send POST request with filters and export_type in body
-    const url = `/accounts/${accountId}/targets/export/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = appendProfileId(`${base}/targets/export/`, profileId);
     const response = await api.post<{ url: string; filename: string }>(url, {
       filters,
       export_type: params?.export_type || "all_data",
@@ -2722,7 +2813,7 @@ export const campaignsService = {
     link.href = url;
     link.setAttribute(
       "download",
-      `google-ads-${new Date().toISOString().split("T")[0]}.csv`
+      `google-ads-${toLocalDateString(new Date())}.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -3141,7 +3232,10 @@ export const campaignsService = {
     };
   }> => {
     const url = `/google-adwords/${accountId}/campaigns/${campaignId}/refresh/`;
-    const response = await api.post(url);
+    // Send the constant to API so it can decide whether to fetch asset groups
+    const response = await api.post(url, {
+      should_fetch_asset_groups: SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION,
+    });
     return response.data;
   },
 

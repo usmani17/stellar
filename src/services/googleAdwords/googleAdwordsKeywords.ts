@@ -1,4 +1,5 @@
 import api from "../api";
+import { toLocalDateString } from "../../utils/dateHelpers";
 
 export const googleAdwordsKeywordsService = {
   getGoogleKeywords: async (
@@ -139,7 +140,7 @@ export const googleAdwordsKeywordsService = {
     link.href = url;
     link.setAttribute(
       "download",
-      `google-keywords-${new Date().toISOString().split("T")[0]}.csv`
+      `google-keywords-${toLocalDateString(new Date())}.csv`
     );
     document.body.appendChild(link);
     link.click();

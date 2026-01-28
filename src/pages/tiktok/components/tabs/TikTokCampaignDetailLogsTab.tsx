@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDateRange } from "../../../../contexts/DateRangeContext";
+import { toLocalDateString } from "../../../../utils/dateHelpers";
 import { Button } from "../../../../components/ui";
 import { tiktokLogsService } from "../../../../services/tiktok/tiktokLogs";
 import type { TikTokLogEntry } from "../../../../services/tiktok/tiktokLogs";
@@ -13,7 +14,7 @@ export const TikTokCampaignDetailLogsTab: React.FC<TikTokCampaignDetailLogsTabPr
     accountId,
     campaignId,
 }) => {
-    const { startDate, endDate } = useDateRange();
+    const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
     const [logs, setLogs] = useState<TikTokLogEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -51,10 +52,8 @@ export const TikTokCampaignDetailLogsTab: React.FC<TikTokCampaignDetailLogsTabPr
                 page: currentPage,
                 page_size: pageSize,
                 search: search || undefined,
-                start_date: startDate
-                    ? startDate.toISOString().split("T")[0]
-                    : undefined,
-                end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+                start_date: startDateStr,
+                end_date: endDateStr,
             });
 
             setLogs(response.logs);
@@ -74,7 +73,7 @@ export const TikTokCampaignDetailLogsTab: React.FC<TikTokCampaignDetailLogsTabPr
         } finally {
             isLoadingRef.current = false;
         }
-    }, [accountId, campaignId, startDate?.toISOString(), endDate?.toISOString(), currentPage, pageSize, search]);
+    }, [accountId, campaignId, startDateStr, endDateStr, currentPage, pageSize, search]);
 
     // Initial load and reload when filters or page change
     useEffect(() => {
@@ -84,7 +83,7 @@ export const TikTokCampaignDetailLogsTab: React.FC<TikTokCampaignDetailLogsTabPr
     // Reset to page 1 when search changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [search, startDate?.toISOString(), endDate?.toISOString()]);
+    }, [search, startDateStr, endDateStr]);
 
     const handlePageChange = (page: number) => {
         setCurrentPage(page);
@@ -122,10 +121,8 @@ export const TikTokCampaignDetailLogsTab: React.FC<TikTokCampaignDetailLogsTabPr
             }
 
             const params: any = {
-                start_date: startDate
-                    ? startDate.toISOString().split("T")[0]
-                    : undefined,
-                end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+                start_date: startDateStr,
+                end_date: endDateStr,
                 export_type: exportType,
             };
 
@@ -147,7 +144,7 @@ export const TikTokCampaignDetailLogsTab: React.FC<TikTokCampaignDetailLogsTabPr
             // Automatically download the file
             const link = document.createElement("a");
             link.href = result.url;
-            link.download = result.filename || `tiktok_logs_${new Date().toISOString().split("T")[0]}.csv`;
+            link.download = result.filename || `tiktok_logs_${toLocalDateString(new Date())}.csv`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

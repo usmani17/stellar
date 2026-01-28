@@ -16,7 +16,7 @@ import { ErrorModal } from "../../components/ui/ErrorModal";
 
 export const TikTokAds: React.FC = () => {
     const { accountId } = useParams<{ accountId: string }>();
-    const { startDate, endDate } = useDateRange();
+    const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
     const { sidebarWidth } = useSidebar();
 
     const [ads, setAds] = useState<TikTokAd[]>([]);
@@ -202,8 +202,8 @@ export const TikTokAds: React.FC = () => {
                 page_size: itemsPerPage,
                 sort_by: sortBy,
                 order: sortOrder,
-                start_date: startDate.toISOString().split("T")[0],
-                end_date: endDate.toISOString().split("T")[0],
+                start_date: startDateStr,
+                end_date: endDateStr,
                 filters: filterParams,
             };
 
@@ -285,8 +285,8 @@ export const TikTokAds: React.FC = () => {
             const baseParams: any = {
                 sort_by: sortBy,
                 order: sortOrder,
-                start_date: startDate.toISOString().split("T")[0],
-                end_date: endDate.toISOString().split("T")[0],
+                start_date: startDateStr,
+                end_date: endDateStr,
                 filters: buildFilterParams(filters),
             };
 
@@ -553,7 +553,7 @@ export const TikTokAds: React.FC = () => {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z" />
                                     </svg>
                                     <span className="text-[10.64px] text-[#072929] font-normal">
-                                        {statusUpdateLoading ? "Updating..." : "Edit"}
+                                        {statusUpdateLoading ? "Updating..." : "Bulk Actions"}
                                     </span>
                                 </Button>
                                 {showBulkActions && (

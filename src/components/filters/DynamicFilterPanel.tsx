@@ -20,6 +20,7 @@ interface DynamicFilterPanelProps {
   initialFilters?: FilterValues;
   accountId: string;
   marketplace: string; // e.g., "google_adwords", "amazon", "tiktok"
+  entityType?: string; // e.g., "campaigns", "adgroups", "ads", "keywords"
 }
 
 const STRING_OPERATORS = [
@@ -113,6 +114,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   initialFilters = [],
   accountId,
   marketplace,
+  entityType,
 }) => {
   const [activeFilters, setActiveFilters] = useState<FilterValues>(initialFilters);
   const [filterFields, setFilterFields] = useState<FilterField[]>([]);
@@ -147,8 +149,8 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
       return;
     }
 
-    // Create a unique key for this accountId+marketplace combination
-    const cacheKey = `${accountId}-${marketplace}`;
+    // Create a unique key for this accountId+marketplace+entityType combination
+    const cacheKey = `${accountId}-${marketplace}-${entityType || 'default'}`;
     
     // Skip if already loading or already loaded for this combination
     if (loadingFieldsRef.current || fieldsLoadedRef.current === cacheKey) {
@@ -158,7 +160,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
     loadingFieldsRef.current = true;
     setLoadingFields(true);
     
-    getFilterFields(accountId, marketplace)
+    getFilterFields(accountId, marketplace, entityType)
       .then((fields) => {
         // Double-check we're still supposed to be loading (prevent race conditions)
         if (loadingFieldsRef.current && fieldsLoadedRef.current !== cacheKey) {
@@ -373,16 +375,21 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
       value: valueToStore,
     };
 
+    let updatedFilters: FilterValues;
     if (editingFilterId) {
       // Replace existing filter
-      const updatedFilters = activeFilters.map((f) =>
+      updatedFilters = activeFilters.map((f) =>
         f.id === editingFilterId ? filterToAdd : f
       );
       setActiveFilters(updatedFilters);
     } else {
       // Add new filter
-      setActiveFilters([...activeFilters, filterToAdd]);
+      updatedFilters = [...activeFilters, filterToAdd];
+      setActiveFilters(updatedFilters);
     }
+
+    // Apply filters immediately when a filter is added/edited
+    onApply(updatedFilters);
 
     // Clear validation error and reset form
     setValidationError(null);
@@ -402,7 +409,8 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   const handleRemoveFilter = (filterId: string) => {
     const updatedFilters = activeFilters.filter((f) => f.id !== filterId);
     setActiveFilters(updatedFilters);
-    // Filters will auto-apply via useEffect
+    // Apply filters immediately when a filter is removed
+    onApply(updatedFilters);
     // If we were editing this filter, cancel edit mode
     if (editingFilterId === filterId) {
       setEditingFilterId(null);

@@ -23,12 +23,14 @@ import { useChartCollapse } from "../../hooks/useChartCollapse";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { GoogleAdsListTable } from "./components/GoogleAdsListTable";
 import { Loader } from "../../components/ui/Loader";
+import { ConfirmationModal } from "../../components/ui/ConfirmationModal";
+import { TrashIcon } from "lucide-react";
 import type { GoogleAd } from "./components/tabs/GoogleTypes";
 
 export const GoogleAds: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const { sidebarWidth } = useSidebar();
-  const { startDate, endDate } = useDateRange();
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const [ads, setAds] = useState<GoogleAd[]>([]);
   const [summary, setSummary] = useState<{
     total_ads: number;
@@ -71,6 +73,7 @@ export const GoogleAds: React.FC = () => {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
   const isLoadingRef = useRef(false);
+  const lastRequestParamsRef = useRef<string>(""); // Track last request to prevent duplicate calls
 
   // Chart toggles
   const [chartToggles, setChartToggles] = useState({
@@ -134,6 +137,10 @@ export const GoogleAds: React.FC = () => {
   const [exportLoading, setExportLoading] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
+  const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
+  const [pendingRemoveChange, setPendingRemoveChange] = useState<{
+    adId: string | number;
+  } | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -203,6 +210,26 @@ export const GoogleAds: React.FC = () => {
     };
   }, []);
 
+  // Auto-hide success message after 2 seconds
+  useEffect(() => {
+    if (inlineEditSuccess) {
+      const timer = setTimeout(() => {
+        setInlineEditSuccess(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [inlineEditSuccess]);
+
+  // Auto-hide error message after 2 seconds
+  useEffect(() => {
+    if (inlineEditError) {
+      const timer = setTimeout(() => {
+        setInlineEditError(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [inlineEditError]);
+
   // Removed buildFilterParams - now passing filters array directly to service
 
   const loadAds = useCallback(async (accountId: number) => {
@@ -221,9 +248,9 @@ export const GoogleAds: React.FC = () => {
         page: currentPage,
         page_size: itemsPerPage,
         start_date: startDate
-          ? startDate.toISOString().split("T")[0]
+          ? startDateStr
           : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        end_date: endDate ? endDateStr : undefined,
       };
 
       const response = await googleAdwordsAdsService.getGoogleAds(
@@ -298,14 +325,28 @@ export const GoogleAds: React.FC = () => {
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
       if (!isNaN(accountIdNum)) {
-        loadAds(accountIdNum);
+        // Create a unique key for this request to prevent duplicate calls
+        const requestKey = JSON.stringify({
+          accountId: accountIdNum,
+          currentPage,
+          filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
+          startDate: startDate ? startDateStr : null,
+          endDate: endDate ? endDateStr : null,
+        });
+
+        // Only call loadAds if the request parameters have actually changed
+        if (lastRequestParamsRef.current !== requestKey) {
+          lastRequestParamsRef.current = requestKey;
+          loadAds(accountIdNum);
+        }
       } else {
         setLoading(false);
       }
     } else {
       setLoading(false);
     }
-  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadAds, sorting]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
 
 
 
@@ -332,9 +373,9 @@ export const GoogleAds: React.FC = () => {
             page: 1,
             page_size: itemsPerPage,
             start_date: startDate
-              ? startDate.toISOString().split("T")[0]
+              ? startDateStr
               : undefined,
-            end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+            end_date: endDate ? endDateStr : undefined,
             filters: filters, // Pass filters array directly
           };
 
@@ -490,9 +531,12 @@ export const GoogleAds: React.FC = () => {
       return;
     }
 
-    // Check if status is being changed to REMOVED - close dropdown immediately
+    // Check if status is being changed to REMOVED - show remove confirmation modal
     if (newValue.toUpperCase() === "REMOVED") {
       cancelInlineEdit();
+      setPendingRemoveChange({ adId: adIdToUse });
+      setShowRemoveConfirmation(true);
+      return;
     }
 
     // Show modal for confirmation
@@ -547,10 +591,6 @@ export const GoogleAds: React.FC = () => {
         adId: inlineEditAd.ad_id || inlineEditAd.id,
         field: inlineEditField,
       });
-      // Clear success feedback after 3 seconds
-      setTimeout(() => {
-        setInlineEditSuccess(null);
-      }, 3000);
     } catch (error: any) {
       console.error("Error updating ad:", error);
       
@@ -578,14 +618,81 @@ export const GoogleAds: React.FC = () => {
         field: inlineEditField || "status",
         message: errorMessage,
       });
-      
-      // Auto-dismiss error after 5 seconds
-      setTimeout(() => {
-        setInlineEditError(null);
-      }, 5000);
     } finally {
       setInlineEditLoading(false);
     }
+  };
+
+  // Handle confirmation for REMOVED status change
+  const handleConfirmRemove = async () => {
+    if (!pendingRemoveChange || !accountId) return;
+
+    setInlineEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const statusValue = convertStatusToApi("REMOVED");
+      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
+        adIds: [pendingRemoveChange.adId],
+        action: "status",
+        status: statusValue,
+      });
+
+      await loadAds(accountIdNum);
+      
+      setShowRemoveConfirmation(false);
+      setPendingRemoveChange(null);
+      
+      // Clear any previous errors
+      setInlineEditError(null);
+      
+      // Show success feedback
+      setInlineEditSuccess({
+        adId: pendingRemoveChange.adId,
+        field: "status",
+      });
+    } catch (error: any) {
+      console.error("Failed to remove ad:", error);
+      
+      // Clear any previous success
+      setInlineEditSuccess(null);
+      
+      // Set error state for inline feedback
+      let errorMessage = "Failed to remove ad. Please try again.";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error?.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (
+          error.response.data.errors &&
+          Array.isArray(error.response.data.errors) &&
+          error.response.data.errors.length > 0
+        ) {
+          errorMessage = error.response.data.errors[0];
+        }
+      }
+      
+      setInlineEditError({
+        adId: pendingRemoveChange.adId,
+        field: "status",
+        message: errorMessage,
+      });
+    } finally {
+      setInlineEditLoading(false);
+    }
+  };
+
+  // Handle cancel for REMOVED status change
+  const handleCancelRemove = () => {
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+    // Cancel the inline edit
+    cancelInlineEdit();
   };
 
   const runBulkStatus = async (
@@ -655,9 +762,9 @@ export const GoogleAds: React.FC = () => {
         sort_by: sortBy,
         order: sortOrder,
         start_date: startDate
-          ? startDate.toISOString().split("T")[0]
+          ? startDateStr
           : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        end_date: endDate ? endDateStr : undefined,
         filters: filters, // Pass filters array directly
       };
 
@@ -906,6 +1013,7 @@ export const GoogleAds: React.FC = () => {
                 }))}
                 accountId={accountId}
                 marketplace="google_adwords"
+                entityType="ads"
               />
             )}
 
@@ -1516,6 +1624,17 @@ export const GoogleAds: React.FC = () => {
           </div>
         </div>
       </div>
+      <ConfirmationModal
+        isOpen={showRemoveConfirmation}
+        onClose={handleCancelRemove}
+        onConfirm={handleConfirmRemove}
+        title="Are you sure you want to remove this ad?"
+        message="This action cannot be undone. All data associated with this ad will be permanently removed."
+        type="danger"
+        size="sm"
+        isLoading={inlineEditLoading}
+        icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+      />
     </div>
   );
 };

@@ -2,28 +2,22 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { campaignsService } from "../../services/campaigns";
 
-export interface ShoppingEntityInput {
-  adgroup_id?: number; // Optional: use existing adgroup
-  adgroup?: {
-    name: string;
-  };
-  product_group: {
-    cpc_bid?: number;
-  };
+export interface ShoppingAdInput {
+  adgroup_id: number; // Required: use existing adgroup
 }
 
-interface CreateGoogleShoppingEntitiesPanelProps {
+interface CreateGoogleShoppingAdPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (entity: ShoppingEntityInput) => void;
+  onSubmit: (entity: ShoppingAdInput) => void;
   campaignId: string;
   accountId: string;
   loading?: boolean;
   submitError?: string | null;
 }
 
-export const CreateGoogleShoppingEntitiesPanel: React.FC<
-  CreateGoogleShoppingEntitiesPanelProps
+export const CreateGoogleShoppingAdPanel: React.FC<
+  CreateGoogleShoppingAdPanelProps
 > = ({
   isOpen,
   onClose,
@@ -35,9 +29,6 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
 }) => {
 
   const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>("");
-  const [productGroupBid, setProductGroupBid] = useState<number | undefined>(
-    0.01
-  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   // Adgroup search state
@@ -121,7 +112,7 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
     };
   }, [adgroupSearchQuery, isOpen, fetchAdgroups]);
 
-  // Fetch adgroups when panel opens (always use existing adgroup for listing groups)
+  // Fetch adgroups when panel opens
   useEffect(() => {
     if (isOpen) {
       fetchAdgroups("");
@@ -131,14 +122,9 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    // For listing groups, we always require an existing ad group
+    // Ad group is required
     if (!selectedAdGroupId) {
       newErrors.adGroup = "Please select an ad group";
-    }
-
-    // Listing Group is now required
-    if (productGroupBid === undefined || productGroupBid <= 0) {
-      newErrors.productGroupBid = "Listing Group Max CPC bid is required";
     }
 
     setErrors(newErrors);
@@ -150,22 +136,14 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
       return;
     }
 
-    const entity: ShoppingEntityInput = {
-      product_group: {
-        cpc_bid: productGroupBid || 0.01,
-      },
+    const entity: ShoppingAdInput = {
+      adgroup_id: parseInt(selectedAdGroupId, 10),
     };
-
-    // For listing groups, always use existing adgroup
-    if (selectedAdGroupId) {
-      entity.adgroup_id = parseInt(selectedAdGroupId, 10);
-    }
 
     onSubmit(entity);
   };
 
   const handleCancel = () => {
-    setProductGroupBid(0.01);
     setSelectedAdGroupId("");
     setErrors({});
     onClose();
@@ -174,7 +152,6 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
   // Reset form when panel closes
   useEffect(() => {
     if (!isOpen) {
-      setProductGroupBid(0.01);
       setSelectedAdGroupId("");
       setErrors({});
     }
@@ -187,7 +164,7 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
       {/* Form */}
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-[16px] font-semibold text-[#072929] mb-4">
-          Create Listing Group
+          Create Shopping Ad
         </h2>
 
         {/* Ad Group Section */}
@@ -233,49 +210,6 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
             )}
           </div>
         </div>
-
-        {/* Listing Group Section */}
-        <div className="mb-4">
-          <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
-            Listing Group *
-          </h3>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="w-[200px]">
-              <label className="form-label-small">
-                Max CPC Bid *
-              </label>
-              <input
-                type="number"
-                value={productGroupBid || ""}
-                onChange={(e) => {
-                  const value = e.target.value ? parseFloat(e.target.value) : undefined;
-                  setProductGroupBid(value);
-                  if (errors.productGroupBid) {
-                    setErrors((prev) => {
-                      const newErrors = { ...prev };
-                      delete newErrors.productGroupBid;
-                      return newErrors;
-                    });
-                  }
-                }}
-                placeholder="0.01"
-                min="0"
-                step="0.01"
-                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                  errors.productGroupBid ? "border-red-500" : "border-gray-200"
-                }`}
-              />
-              {errors.productGroupBid && (
-                <p className="text-[10px] text-red-500 mt-1">
-                  {errors.productGroupBid}
-                </p>
-              )}
-              <p className="text-[10px] text-gray-500 mt-1">
-                Minimum: $0.01
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Error Message */}
@@ -300,10 +234,9 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
           disabled={loading}
           className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? "Creating..." : "Create Listing Group"}
+          {loading ? "Creating..." : "Create Shopping Ad"}
         </button>
       </div>
     </div>
   );
 };
-

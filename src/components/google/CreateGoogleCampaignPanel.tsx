@@ -25,6 +25,7 @@ import {
   formatDate,
   formatDateForName,
 } from "./campaigns/utils";
+import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "./CreateGooglePmaxAssetGroupPanel";
 
 export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps> = ({
   isOpen,
@@ -363,6 +364,23 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
     fetchMerchantAccounts();
   }, [isOpen, formData.campaign_type, accountId, selectedProfileId, fetchMerchantAccounts]);
+
+  // Set selectedProfileId from initialData in edit mode when profiles are loaded
+  useEffect(() => {
+    if (mode === "edit" && initialData?.customer_id && googleProfiles.length > 0 && !selectedProfileId) {
+      // Find profile that matches the customer_id from initialData
+      const matchingProfile = googleProfiles.find(p => {
+        // Match by customer_id (formatted) or customer_id_raw
+        return p.customer_id === initialData.customer_id || 
+               p.customer_id_raw === initialData.customer_id?.replace(/-/g, '') ||
+               p.value === initialData.customer_id?.replace(/-/g, '');
+      });
+      
+      if (matchingProfile) {
+        setSelectedProfileId(matchingProfile.value);
+      }
+    }
+  }, [mode, initialData, googleProfiles, selectedProfileId]);
 
   // Update customer_id when profile changes
   useEffect(() => {
@@ -836,51 +854,54 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
       // Language targeting is optional for PERFORMANCE_MAX campaigns
 
-      if (!formData.asset_group_name?.trim()) {
-        newErrors.asset_group_name = "Asset Group Name is required";
-      }
+      // Only validate asset group fields if SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION is true
+      if (SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION) {
+        if (!formData.asset_group_name?.trim()) {
+          newErrors.asset_group_name = "Asset Group Name is required";
+        }
 
-      if (!formData.final_url?.trim()) {
-        newErrors.final_url = "Final URL is required";
-      } else if (!/^https?:\/\/.+/.test(formData.final_url)) {
-        newErrors.final_url = "Final URL must be a valid URL (http:// or https://)";
-      }
+        if (!formData.final_url?.trim()) {
+          newErrors.final_url = "Final URL is required";
+        } else if (!/^https?:\/\/.+/.test(formData.final_url)) {
+          newErrors.final_url = "Final URL must be a valid URL (http:// or https://)";
+        }
 
-      if (!formData.business_name?.trim()) {
-        newErrors.business_name = "Business name is required";
-      }
+        if (!formData.business_name?.trim()) {
+          newErrors.business_name = "Business name is required";
+        }
 
-      if (!formData.logo_url?.trim() || formData.logo_url === 'https://example.com') {
-        newErrors.logo_url = "Logo URL is required. Please provide a logo URL or upload a logo.";
-      } else if (!/^https?:\/\/.+/.test(formData.logo_url)) {
-        newErrors.logo_url = "Logo URL must be a valid URL (http:// or https://)";
-      }
+        if (!formData.logo_url?.trim() || formData.logo_url === 'https://example.com') {
+          newErrors.logo_url = "Logo URL is required. Please provide a logo URL or upload a logo.";
+        } else if (!/^https?:\/\/.+/.test(formData.logo_url)) {
+          newErrors.logo_url = "Logo URL must be a valid URL (http:// or https://)";
+        }
 
-      const validHeadlines = (formData.headlines || []).filter((h) => h.trim());
-      if (validHeadlines.length < 3) {
-        newErrors.headlines = "At least 3 headlines are required";
-      } else if (validHeadlines.length > 15) {
-        newErrors.headlines = "Maximum 15 headlines allowed";
-      }
+        const validHeadlines = (formData.headlines || []).filter((h) => h.trim());
+        if (validHeadlines.length < 3) {
+          newErrors.headlines = "At least 3 headlines are required";
+        } else if (validHeadlines.length > 15) {
+          newErrors.headlines = "Maximum 15 headlines allowed";
+        }
 
-      const validDescriptions = (formData.descriptions || []).filter((d) => d.trim());
-      if (validDescriptions.length < 2) {
-        newErrors.descriptions = "At least 2 descriptions are required";
-      } else if (validDescriptions.length > 4) {
-        newErrors.descriptions = "Maximum 4 descriptions allowed";
-      }
+        const validDescriptions = (formData.descriptions || []).filter((d) => d.trim());
+        if (validDescriptions.length < 2) {
+          newErrors.descriptions = "At least 2 descriptions are required";
+        } else if (validDescriptions.length > 4) {
+          newErrors.descriptions = "Maximum 4 descriptions allowed";
+        }
 
-      // Marketing image URLs are required for Performance Max
-      if (!formData.marketing_image_url?.trim() || formData.marketing_image_url === 'https://example.com') {
-        newErrors.marketing_image_url = "Marketing Image URL is required. Backend will not generate defaults.";
-      } else if (!/^https?:\/\/.+/.test(formData.marketing_image_url)) {
-        newErrors.marketing_image_url = "Marketing Image URL must be a valid URL (http:// or https://)";
-      }
+        // Marketing image URLs are required for Performance Max
+        if (!formData.marketing_image_url?.trim() || formData.marketing_image_url === 'https://example.com') {
+          newErrors.marketing_image_url = "Marketing Image URL is required. Backend will not generate defaults.";
+        } else if (!/^https?:\/\/.+/.test(formData.marketing_image_url)) {
+          newErrors.marketing_image_url = "Marketing Image URL must be a valid URL (http:// or https://)";
+        }
 
-      if (!formData.square_marketing_image_url?.trim() || formData.square_marketing_image_url === 'https://example.com') {
-        newErrors.square_marketing_image_url = "Square Marketing Image URL is required. Backend will not generate defaults.";
-      } else if (!/^https?:\/\/.+/.test(formData.square_marketing_image_url)) {
-        newErrors.square_marketing_image_url = "Square Marketing Image URL must be a valid URL (http:// or https://)";
+        if (!formData.square_marketing_image_url?.trim() || formData.square_marketing_image_url === 'https://example.com') {
+          newErrors.square_marketing_image_url = "Square Marketing Image URL is required. Backend will not generate defaults.";
+        } else if (!/^https?:\/\/.+/.test(formData.square_marketing_image_url)) {
+          newErrors.square_marketing_image_url = "Square Marketing Image URL must be a valid URL (http:// or https://)";
+        }
       }
     } else if (formData.campaign_type === "SHOPPING") {
       if (!selectedProfileId) {
@@ -1066,8 +1087,28 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       adgroup_name: formData.campaign_type === "DISPLAY" ? formData.adgroup_name : formData.campaign_type === "SEARCH" ? formData.adgroup_name : undefined,
       keywords: formData.campaign_type === "SEARCH" ? formData.keywords : undefined,
       match_type: formData.campaign_type === "SEARCH" ? formData.match_type : undefined,
-      location_ids: (formData.campaign_type === "SEARCH" || formData.campaign_type === "PERFORMANCE_MAX") ? formData.location_ids : undefined,
-      language_ids: (formData.campaign_type === "SEARCH" || formData.campaign_type === "PERFORMANCE_MAX") ? formData.language_ids : undefined,
+      // Include location_ids for SEARCH, PERFORMANCE_MAX, and SHOPPING campaigns
+      location_ids: (formData.campaign_type === "SEARCH" || formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "SHOPPING") 
+        ? (formData.location_ids && formData.location_ids.length > 0 ? formData.location_ids : undefined)
+        : undefined,
+      // Include excluded_location_ids for SEARCH, PERFORMANCE_MAX, and SHOPPING campaigns
+      excluded_location_ids: (formData.campaign_type === "SEARCH" || formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "SHOPPING")
+        ? (formData.excluded_location_ids && formData.excluded_location_ids.length > 0 ? formData.excluded_location_ids : undefined)
+        : undefined,
+      // Include language_ids for SEARCH, PERFORMANCE_MAX, and SHOPPING campaigns
+      language_ids: (formData.campaign_type === "SEARCH" || formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "SHOPPING")
+        ? (formData.language_ids && formData.language_ids.length > 0 ? formData.language_ids : undefined)
+        : undefined,
+      // Include device_ids for SEARCH, PERFORMANCE_MAX, and SHOPPING campaigns
+      device_ids: (formData.campaign_type === "SEARCH" || formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "SHOPPING")
+        ? (formData.device_ids && formData.device_ids.length > 0 ? formData.device_ids : undefined)
+        : undefined,
+      // Include network_settings for SHOPPING campaigns
+      network_settings: formData.campaign_type === "SHOPPING" && formData.network_settings
+        ? formData.network_settings
+        : (formData.campaign_type === "SEARCH" || formData.campaign_type === "DISPLAY") && formData.network_settings
+        ? formData.network_settings
+        : undefined,
       // language_codes is kept for backward compatibility but language_ids is the primary field
       language_codes: formData.campaign_type === "SEARCH" && formData.language_ids && formData.language_ids.length > 0 ? undefined : formData.language_codes,
       conversion_action_ids: formData.campaign_type === "SEARCH" && formData.conversion_action_ids?.length ? formData.conversion_action_ids : undefined,
@@ -1547,9 +1588,31 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           </button>
           <button
             type="submit"
-            className="create-entity-button font-semibold text-[11.2px]"
+            className="create-entity-button font-semibold text-[11.2px] flex items-center gap-2"
             disabled={loading}
           >
+            {loading && (
+              <svg
+                className="animate-spin h-4 w-4"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            )}
             {loading ? (mode === "edit" ? "Updating..." : "Creating...") : (mode === "edit" ? "Update Campaign" : "Create Campaign")}
           </button>
         </div>

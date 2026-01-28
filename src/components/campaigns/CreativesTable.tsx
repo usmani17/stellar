@@ -7,6 +7,7 @@ export interface Creative {
   id: number;
   creativeId: number | string; // Can be string to preserve precision for large integers
   adGroupId: number | string; // Can be string to preserve precision for large integers
+  adgroup_name?: string;
   creativeType: "IMAGE" | "VIDEO";
   properties: any; // Full JSON properties object
   moderationStatus?: string;
@@ -25,6 +26,7 @@ interface CreativesTableProps {
   sortOrder?: "asc" | "desc";
   onSort?: (column: string) => void;
   onEdit?: (creative: Creative) => void;
+  adgroups?: Array<{ adGroupId: number | string; name?: string }>; // Ad groups to map IDs to names
 }
 
 export const CreativesTable: React.FC<CreativesTableProps> = ({
@@ -37,6 +39,7 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
   sortOrder = "asc",
   onSort,
   onEdit,
+  adgroups = [],
 }) => {
   console.log(creatives);
   const getSortIcon = (column: string) => {
@@ -99,7 +102,7 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
     creatives.length > 0 &&
     creatives.every((c) => selectedIds.has(Number(c.creativeId)));
   const someSelected = creatives.some((c) =>
-    selectedIds.has(Number(c.creativeId))
+    selectedIds.has(Number(c.creativeId)),
   );
 
   const getPropertySummary = (creative: Creative): string => {
@@ -125,7 +128,10 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
   };
 
   return (
-    <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
+    <div
+      className="table-container"
+      style={{ position: "relative", minHeight: loading ? "400px" : "auto" }}
+    >
       <div className="overflow-x-auto">
         {creatives.length === 0 && !loading ? (
           <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
@@ -152,7 +158,8 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
               </h3>
               {/* Description */}
               <p className="text-sm text-[#556179] text-center leading-relaxed">
-                There are no creatives for this campaign yet. Creatives will appear here when they are created.
+                There are no creatives for this campaign yet. Creatives will
+                appear here when they are created.
               </p>
             </div>
           </div>
@@ -170,8 +177,9 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                   )}
                 </th>
                 <th
-                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
+                  className={`table-header ${
+                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
                   onClick={() => handleSort("creativeId")}
                 >
                   <div className="flex items-center">
@@ -180,30 +188,41 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
+                  className={`table-header ${
+                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
                   onClick={() => handleSort("adGroupId")}
                 >
                   <div className="flex items-center">
-                    Ad Group ID
+                    Ad Group
                     {getSortIcon("adGroupId")}
                   </div>
                 </th>
-                <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                  }`}>
+                <th
+                  className={`table-header ${
+                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
+                >
                   CreativeType
                 </th>
-                <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                  }`}>
+                <th
+                  className={`table-header ${
+                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
+                >
                   Properties (JSON)
                 </th>
-                <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                  }`}>
+                <th
+                  className={`table-header ${
+                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
+                >
                   Moderation Status
                 </th>
                 <th
-                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
+                  className={`table-header ${
+                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
                   onClick={() => handleSort("last_updated")}
                 >
                   <div className="flex items-center">
@@ -212,8 +231,11 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                   </div>
                 </th>
                 {onEdit && (
-                  <th className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}>
+                  <th
+                    className={`table-header ${
+                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
+                  >
                     Actions
                   </th>
                 )}
@@ -221,77 +243,80 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
             </thead>
             <tbody>
               {creatives.map((creative) => (
-              <tr
-                key={creative.creativeId}
-                className="table-row group"
-              >
-                <td className="table-cell">
-                  {onSelect && (
-                    <Checkbox
-                      checked={selectedIds.has(Number(creative.creativeId))}
-                      onChange={(checked) =>
-                        onSelect(Number(creative.creativeId), checked)
-                      }
-                    />
-                  )}
-                </td>
-                <td className="table-cell table-text leading-[1.26]">
-                  {creative.creativeId}
-                </td>
-                <td className="table-cell table-text leading-[1.26]">
-                  {creative.adGroupId}
-                </td>
-                <td className="table-cell">
-                  <StatusBadge
-                    status={creative.creativeType}
-                    uppercase={false}
-                  />
-                </td>
-                <td className="table-cell table-text leading-[1.26]">
-                  {getPropertySummary(creative)}
-                </td>
-                <td className="table-cell">
-                  {creative.moderationStatus ? (
+                <tr key={creative.creativeId} className="table-row group">
+                  <td className="table-cell">
+                    {onSelect && (
+                      <Checkbox
+                        checked={selectedIds.has(Number(creative.creativeId))}
+                        onChange={(checked) =>
+                          onSelect(Number(creative.creativeId), checked)
+                        }
+                      />
+                    )}
+                  </td>
+                  <td className="table-cell table-text leading-[1.26]">
+                    {creative.creativeId}
+                  </td>
+                  <td className="table-cell table-text leading-[1.26]">
+                    {(() => {
+                      const adgroup = adgroups.find(
+                        (ag) =>
+                          String(ag.adGroupId) === String(creative.adGroupId),
+                      );
+                      return adgroup?.name || creative.adGroupId;
+                    })()}
+                  </td>
+                  <td className="table-cell">
                     <StatusBadge
-                      status={creative.moderationStatus}
+                      status={creative.creativeType}
                       uppercase={false}
                     />
-                  ) : (
-                    <span className="text-gray-400 text-[13.44px]">N/A</span>
-                  )}
-                </td>
-                <td className="table-cell table-text leading-[1.26]">
-                  {creative.last_updated
-                    ? new Date(creative.last_updated).toLocaleDateString()
-                    : "N/A"}
-                </td>
-                {onEdit && (
-                  <td className="table-cell">
-                    <button
-                      onClick={() => onEdit(creative)}
-                      className="text-[#136D6D] hover:text-[#0f5555] transition-colors"
-                      title="Edit creative"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        />
-                      </svg>
-                    </button>
                   </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  <td className="table-cell table-text leading-[1.26]">
+                    {getPropertySummary(creative)}
+                  </td>
+                  <td className="table-cell">
+                    {creative.moderationStatus ? (
+                      <StatusBadge
+                        status={creative.moderationStatus}
+                        uppercase={false}
+                      />
+                    ) : (
+                      <span className="text-gray-400 text-[13.44px]">N/A</span>
+                    )}
+                  </td>
+                  <td className="table-cell table-text leading-[1.26]">
+                    {creative.last_updated
+                      ? new Date(creative.last_updated).toLocaleDateString()
+                      : "N/A"}
+                  </td>
+                  {onEdit && (
+                    <td className="table-cell">
+                      <button
+                        onClick={() => onEdit(creative)}
+                        className="text-[#136D6D] hover:text-[#0f5555] transition-colors"
+                        title="Edit creative"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
       {/* Loading overlay for table */}

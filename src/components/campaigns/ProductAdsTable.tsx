@@ -1,6 +1,5 @@
-import React, { useRef } from "react";
+import React from "react";
 import { Checkbox } from "../ui/Checkbox";
-import { StatusBadge } from "../ui/StatusBadge";
 import { Dropdown } from "../ui/Dropdown";
 import type { ProductAd } from "../../services/campaigns";
 import { Loader } from "../ui/Loader";
@@ -21,7 +20,7 @@ interface ProductAdsTableProps {
   editedValue?: string;
   onEditStart?: (id: number, field: "status", currentValue: string) => void;
   onEditChange?: (value: string) => void;
-  onEditEnd?: (value?: string) => void;
+  onEditEnd?: (value?: string, adId?: number, field?: "status") => void;
   onEditCancel?: () => void;
   editLoading?: Set<number>;
   pendingChange?: {
@@ -52,8 +51,6 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
   pendingChange,
   campaignType,
 }) => {
-  const statusSelectionMadeRef = useRef<number | null>(null);
-
   const getSortIcon = (column: string) => {
     if (sortBy !== column || !onSort) {
       return (
@@ -200,15 +197,8 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                     {getSortIcon("status")}
                   </div>
                 </th>
-                <th
-                  className={`table-header ${onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
-                  onClick={() => onSort?.("adGroupId")}
-                >
-                  <div className="flex items-center">
-                    Ad Group ID
-                    {getSortIcon("adGroupId")}
-                  </div>
+                <th className="table-header">
+                  Ad Group Name
                 </th>
               </tr>
             </thead>
@@ -263,79 +253,58 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                                 : "Paused"}
                             </span>
                           </div>
-                        ) : editingField?.id === productad.id &&
-                          editingField?.field === "status" ? (
-                          <div className="flex items-center gap-2">
+                        ) : (
+                          <div className="w-[120px]">
                             <Dropdown
                               options={[
                                 { value: "enabled", label: "Enabled" },
                                 { value: "paused", label: "Paused" },
                               ]}
                               value={(() => {
-                                if (editedValue) return editedValue;
                                 const statusLower =
                                   productad.status?.toLowerCase() || "enabled";
-                                return statusLower === "enable" ||
+                                const statusValue =
+                                  statusLower === "enable" ||
                                   statusLower === "enabled"
-                                  ? "enabled"
-                                  : "paused";
+                                    ? "enabled"
+                                    : "paused";
+                                return editingField?.id === productad.id &&
+                                  editingField?.field === "status"
+                                  ? editedValue
+                                  : statusValue;
                               })()}
                               onChange={(val) => {
-                                // Mark that a selection was made for this product ad
-                                statusSelectionMadeRef.current = productad.id;
                                 const newValue = val as string;
-                                onEditChange?.(newValue);
-                                // Call onEditEnd with the new value immediately when a value is selected
-                                onEditEnd?.(newValue);
-                                // Clear the ref after a short delay to allow onClose to check it
-                                setTimeout(() => {
-                                  if (
-                                    statusSelectionMadeRef.current ===
-                                    productad.id
-                                  ) {
-                                    statusSelectionMadeRef.current = null;
-                                  }
-                                }, 200);
-                              }}
-                              onClose={() => {
-                                // Only cancel if no selection was made (clicked outside)
-                                if (
-                                  statusSelectionMadeRef.current !==
-                                  productad.id
-                                ) {
-                                  onEditCancel?.();
+                                const statusLower =
+                                  productad.status?.toLowerCase() || "enabled";
+                                const statusValue =
+                                  statusLower === "enable" ||
+                                  statusLower === "enabled"
+                                    ? "enabled"
+                                    : "paused";
+                                const wasEditing =
+                                  editingField?.id === productad.id &&
+                                  editingField?.field === "status";
+
+                                if (!wasEditing) {
+                                  onEditStart?.(
+                                    productad.id,
+                                    "status",
+                                    statusValue
+                                  );
                                 }
-                                statusSelectionMadeRef.current = null;
+                                onEditChange?.(newValue);
+                                onEditEnd?.(newValue, productad.id, "status");
                               }}
-                              defaultOpen={true}
                               buttonClassName="inline-edit-dropdown"
                               width="w-full"
+                              align="center"
                             />
-                          </div>
-                        ) : (
-                          <div
-                            onClick={() => {
-                              const statusLower =
-                                productad.status?.toLowerCase() || "enabled";
-                              const currentStatus =
-                                statusLower === "enable" ||
-                                  statusLower === "enabled"
-                                  ? "enabled"
-                                  : "paused";
-                              onEditStart?.(
-                                productad.id,
-                                "status",
-                                currentStatus
-                              );
-                            }}
-                            className="cursor-pointer"
-                          >
-                            <StatusBadge status={productad.status} />
                           </div>
                         )}
                       </td>
                       <td className="table-cell table-text leading-[1.26]">
-                        {productad.adGroupId || "—"}
+                        {productad.adgroup_name || "—"}
                       </td>
                     </tr>
                   ))}

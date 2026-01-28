@@ -55,7 +55,7 @@ export const TikTokCampaignDetail: React.FC = () => {
         accountId: string;
         campaignId: string;
     }>();
-    const { startDate, endDate } = useDateRange();
+    const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
     const { sidebarWidth } = useSidebar();
     const [activeTab, setActiveTab] = useState("Overview");
     const [loading, setLoading] = useState(true);
@@ -207,8 +207,8 @@ export const TikTokCampaignDetail: React.FC = () => {
             const data = await campaignsService.getTikTokCampaignDetail(
                 accountIdNum,
                 campaignId, // Pass as string, not parsed as number
-                startDate?.toISOString().split('T')[0],
-                endDate?.toISOString().split('T')[0]
+                startDateStr,
+                endDateStr
             );
             setCampaignDetail(data);
         } catch (error: any) {
@@ -253,8 +253,8 @@ export const TikTokCampaignDetail: React.FC = () => {
                 page_size: 10,
                 sort_by: adgroupsSortBy,
                 order: adgroupsSortOrder,
-                start_date: startDate?.toISOString().split('T')[0],
-                end_date: endDate?.toISOString().split('T')[0],
+                start_date: startDateStr,
+                end_date: endDateStr,
             };
 
             // Apply filters
@@ -294,8 +294,8 @@ export const TikTokCampaignDetail: React.FC = () => {
                 page_size: 10,
                 sort_by: adsSortBy,
                 order: adsSortOrder,
-                start_date: startDate?.toISOString().split('T')[0],
-                end_date: endDate?.toISOString().split('T')[0],
+                start_date: startDateStr,
+                end_date: endDateStr,
             };
 
             // Apply filters

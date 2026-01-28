@@ -43,14 +43,24 @@ export const GoogleAssetManagementPanel: React.FC<GoogleAssetManagementPanelProp
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-[999999] flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/40 transition-opacity"
+        onClick={onClose}
+      />
+      
+      {/* Modal */}
+      <div
+        className="relative bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] mx-4 border border-[#E8E8E3] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Manage Assets</h2>
+        <div className="flex items-center justify-between p-6 border-b border-[#E8E8E3]">
+          <h2 className="text-[20px] font-semibold text-[#072929]">Manage Assets</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-[#556179] hover:text-[#072929] transition-colors"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -60,16 +70,16 @@ export const GoogleAssetManagementPanel: React.FC<GoogleAssetManagementPanelProp
 
         {/* Tab Navigation */}
         {tabs.length > 1 && (
-          <div className="border-b border-gray-200 px-6">
+          <div className="border-b border-[#E8E8E3] px-6">
             <div className="flex space-x-1">
               {tabs.map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${
+                  className={`px-4 py-2 text-[14px] font-medium transition-colors border-b-2 cursor-pointer ${
                     activeTab === tab
-                      ? "border-blue-600 text-blue-600"
-                      : "border-transparent text-gray-600 hover:text-gray-900"
+                      ? "border-[#136D6D] text-[#136D6D]"
+                      : "border-transparent text-[#556179] hover:text-[#072929]"
                   }`}
                 >
                   {tab}

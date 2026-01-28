@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
-import { parseDateToYYYYMMDD } from "../../utils/dateHelpers";
+import { parseDateToYYYYMMDD, toLocalDateString } from "../../utils/dateHelpers";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
@@ -21,11 +21,11 @@ const ENTITY_TYPE_OPTIONS = [
     { value: "ad", label: "Ad" },
 ];
 
-// Helper to format Date to YYYY-MM-DD string for API calls - moved outside component
+// Helper to format Date to YYYY-MM-DD in local time for API calls
 const formatDateForApi = (date: Date | null | undefined): string | undefined => {
     if (!date) return undefined;
     try {
-        return parseDateToYYYYMMDD(date.toISOString());
+        return toLocalDateString(date);
     } catch {
         return undefined;
     }
@@ -34,7 +34,7 @@ const formatDateForApi = (date: Date | null | undefined): string | undefined => 
 export const TikTokLogs: React.FC = () => {
     const { accountId } = useParams<{ accountId: string }>();
     const { sidebarWidth } = useSidebar();
-    const { startDate, endDate } = useDateRange();
+    const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
 
     // State
     const [logs, setLogs] = useState<TikTokLog[]>([]);
@@ -165,10 +165,8 @@ export const TikTokLogs: React.FC = () => {
             }
 
             const params: TikTokLogsExportParams = {
-                start_date: startDate
-                    ? startDate.toISOString().split("T")[0]
-                    : undefined,
-                end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+                start_date: startDateStr,
+                end_date: endDateStr,
                 export_type: exportType,
             };
 
@@ -190,7 +188,7 @@ export const TikTokLogs: React.FC = () => {
             // Automatically download the file
             const link = document.createElement("a");
             link.href = result.url;
-            link.download = result.filename || `tiktok_logs_${new Date().toISOString().split("T")[0]}.csv`;
+            link.download = result.filename || `tiktok_logs_${toLocalDateString(new Date())}.csv`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

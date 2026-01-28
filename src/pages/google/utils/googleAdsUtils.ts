@@ -12,6 +12,15 @@ export const GOOGLE_STATUS_DEFAULT = "ENABLED" as const;
 export type GoogleStatus = "ENABLED" | "PAUSED" | "REMOVED";
 
 /**
+ * Status dropdown options for Google Ads - reusable across all Google pages
+ */
+export const STATUS_DROPDOWN_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "ENABLED", label: "Enabled" },
+  { value: "PAUSED", label: "Paused" },
+  { value: "REMOVED", label: "Remove" },
+];
+
+/**
  * Maps API status values to display-friendly format
  */
 export const STATUS_DISPLAY_MAP: Record<string, string> = {
@@ -130,18 +139,40 @@ export const formatBiddingStrategy = (strategy?: string | null): string => {
 // ============================================================================
 
 /**
- * Formats date string (YYYY-MM-DD) for display (MM/DD/YYYY)
+ * Formats date string (YYYY-MM-DD or ISO format) for display (MM/DD/YYYY)
  */
 export const formatDateForDisplay = (dateStr?: string | null): string => {
   if (!dateStr) return "—";
   try {
-    const parts = dateStr.split("-");
+    // Handle ISO format (YYYY-MM-DDTHH:mm:ss) by extracting just the date part
+    const dateOnly = dateStr.split("T")[0];
+    const parts = dateOnly.split("-");
     if (parts.length !== 3) {
+      // If not in expected format, try parsing as Date object
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const year = date.getFullYear();
+        return `${month}/${day}/${year}`;
+      }
       return dateStr;
     }
     const [year, month, day] = parts;
     return `${month}/${day}/${year}`;
   } catch {
+    // Fallback: try parsing as Date object
+    try {
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const year = date.getFullYear();
+        return `${month}/${day}/${year}`;
+      }
+    } catch {
+      // Ignore
+    }
     return dateStr;
   }
 };
@@ -231,4 +262,41 @@ export const validateEndDateAfterStart = (endDateStr: string, startDateStr?: str
   }
   
   return { valid: true };
+};
+
+// ============================================================================
+// ERROR PARSING
+// ============================================================================
+
+/**
+ * Parses Google API error messages and extracts the error message for display
+ * Shows the error message as-is from the API response
+ */
+export const parseGoogleApiError = (error: any): { title: string; message: string } => {
+  let errorMessage = "An unexpected error occurred";
+  const title = "Update Failed";
+
+  // Handle Error instance
+  if (error instanceof Error) {
+    errorMessage = error.message;
+  }
+  // Handle API response with errors array
+  else if (error?.response?.data) {
+    if (error.response.data.error) {
+      errorMessage = error.response.data.error;
+    } else if (error.response.data.errors && Array.isArray(error.response.data.errors) && error.response.data.errors.length > 0) {
+      // Just use the first error message as-is
+      errorMessage = error.response.data.errors[0];
+    }
+  }
+  // Handle string errors
+  else if (typeof error === "string") {
+    errorMessage = error;
+  }
+  // Handle object with message property
+  else if (error?.message) {
+    errorMessage = error.message;
+  }
+
+  return { title, message: errorMessage };
 };

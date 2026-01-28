@@ -5,7 +5,7 @@ import React, {
   useRef,
   useCallback,
 } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -52,8 +52,10 @@ import type { FilterDefinition } from "../types/filters";
 
 export const Campaigns: React.FC = () => {
   const navigate = useNavigate();
-  const { accountId } = useParams<{ accountId: string }>();
-  const { startDate, endDate } = useDateRange();
+  const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
+  const [searchParams] = useSearchParams();
+  const profileId = searchParams.get("profile_id") ?? undefined;
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
 
   // Get account ID as number
@@ -143,8 +145,8 @@ export const Campaigns: React.FC = () => {
       order: sortOrder,
       page: currentPage,
       page_size: itemsPerPage,
-      start_date: startDate.toISOString().split("T")[0],
-      end_date: endDate.toISOString().split("T")[0],
+      start_date: startDateStr,
+      end_date: endDateStr,
       ...buildFilterParams(filters),
     };
     return params;
@@ -166,7 +168,7 @@ export const Campaigns: React.FC = () => {
     isLoading: loading,
     error: campaignsError,
     refetch: refetchCampaigns,
-  } = useCampaigns(accountIdNum, queryParams);
+  } = useCampaigns(accountIdNum, queryParams, channelId ?? null, profileId ?? null);
 
   // Extract data from response and apply client-side filtering
   const campaigns = useMemo(() => {
@@ -198,10 +200,26 @@ export const Campaigns: React.FC = () => {
   }, [campaignsResponse]);
 
   // Mutation hooks (only initialize if accountIdNum is valid)
-  const bulkUpdateMutation = useBulkUpdateCampaigns(accountIdNum || 0);
-  const bulkDeleteMutation = useBulkDeleteCampaigns(accountIdNum || 0);
-  const createCampaignMutation = useCreateCampaign(accountIdNum || 0);
-  const updateCampaignMutation = useUpdateCampaign(accountIdNum || 0);
+  const bulkUpdateMutation = useBulkUpdateCampaigns(
+    accountIdNum || 0,
+    channelId ?? null,
+    profileId ?? null
+  );
+  const bulkDeleteMutation = useBulkDeleteCampaigns(
+    accountIdNum || 0,
+    channelId ?? null,
+    profileId ?? null
+  );
+  const createCampaignMutation = useCreateCampaign(
+    accountIdNum || 0,
+    channelId ?? null,
+    profileId ?? null
+  );
+  const updateCampaignMutation = useUpdateCampaign(
+    accountIdNum || 0,
+    channelId ?? null,
+    profileId ?? null
+  );
 
   // Use mutation loading states
   const bulkLoading =
@@ -264,7 +282,7 @@ export const Campaigns: React.FC = () => {
       key: "roas",
       label: "ROAS",
       color: "#059669",
-      tooltipFormatter: (v) => `${v.toFixed(2)} x`,
+      tooltipFormatter: (v) => `${v.toFixed(2)}`,
     },
   ];
   const [, setFilterDefinitions] = useState<FilterDefinition[]>([]);
@@ -353,6 +371,10 @@ export const Campaigns: React.FC = () => {
   const [originalCampaignDataSnapshot, setOriginalCampaignDataSnapshot] =
     useState<Partial<CreateCampaignData> | null>(null);
   const [editLoadingCampaignId, setEditLoadingCampaignId] = useState<
+    string | number | null
+  >(null);
+  // Loading campaign details when opening edit panel (row spinner); submit loading uses editLoadingCampaignId
+  const [loadingEditCampaignId, setLoadingEditCampaignId] = useState<
     string | number | null
   >(null);
   const [campaignId, setCampaignId] = useState<string | number | undefined>(
@@ -485,8 +507,8 @@ export const Campaigns: React.FC = () => {
       const params: any = {
         sort_by: sortBy,
         order: sortOrder,
-        start_date: startDate.toISOString().split("T")[0],
-        end_date: endDate.toISOString().split("T")[0],
+        start_date: startDateStr,
+        end_date: endDateStr,
         ...buildFilterParams(filters),
       };
 
@@ -497,10 +519,12 @@ export const Campaigns: React.FC = () => {
       }
 
       // Call export API
-      const result = await campaignsService.exportCampaigns(accountIdNum, {
-        ...params,
-        export_type: exportType,
-      });
+      const result = await campaignsService.exportCampaigns(
+        accountIdNum,
+        { ...params, export_type: exportType },
+        channelId ?? null,
+        profileId ?? null
+      );
 
       // Automatically download the file
       const link = document.createElement("a");
@@ -638,8 +662,8 @@ export const Campaigns: React.FC = () => {
         statusLower === "enable" || statusLower === "enabled"
           ? "Enabled"
           : statusLower === "paused"
-          ? "Paused"
-          : "Enabled";
+            ? "Paused"
+            : "Enabled";
       setEditedValue(normalizedStatus);
     }
   };
@@ -657,7 +681,7 @@ export const Campaigns: React.FC = () => {
     // Use override parameters if provided, otherwise fall back to editingCell state
     const campaignIdToUse = campaignIdOverride || editingCell?.campaignId;
     const fieldToUse = fieldOverride || editingCell?.field;
-    
+
     if (!campaignIdToUse || !fieldToUse || !accountId) return;
 
     const campaign = campaigns.find(
@@ -689,10 +713,16 @@ export const Campaigns: React.FC = () => {
       const newValue = valueToCheck.trim().toUpperCase();
       hasChanged = newValue !== oldValue;
     } else if (fieldToUse === "status") {
-      // Normalize status values for comparison
-      const oldValue = (campaign.status || "Enabled").trim();
-      const newValue = valueToCheck.trim();
-      hasChanged = newValue !== oldValue;
+      // Normalize status so ENABLED/Enabled/enabled etc. are treated as same
+      const norm = (s: string) => {
+        const v = (s || "").trim().toLowerCase();
+        if (v === "enable" || v === "enabled" || v === "active") return "enabled";
+        if (v === "pause" || v === "paused" || v === "inactive") return "paused";
+        if (v === "archive" || v === "archived") return "archived";
+        return v || "enabled";
+      };
+      hasChanged =
+        norm(campaign.status || "Enabled") !== norm(valueToCheck);
     }
 
     if (!hasChanged) {
@@ -1034,14 +1064,24 @@ export const Campaigns: React.FC = () => {
       const original = originalCampaignDataSnapshot
         ? JSON.parse(JSON.stringify(originalCampaignDataSnapshot))
         : initialCampaignData
-        ? JSON.parse(JSON.stringify(initialCampaignData))
-        : null;
+          ? JSON.parse(JSON.stringify(initialCampaignData))
+          : null;
       if (!original) {
         throw new Error("Original campaign data not available");
       }
 
       // Build update payload with all changed fields
       const updatePayload: any = {};
+
+      /** Backend requires bidAdjustmentsByPlacement to be omitted when bidOptimization is true */
+      const sanitizeBiddingForApi = (b: any) => {
+        if (!b || typeof b !== "object") return b;
+        if (b.bidOptimization) {
+          const { bidAdjustmentsByPlacement: _drop, ...rest } = b;
+          return rest;
+        }
+        return b;
+      };
 
       // 1. Check if name changed
       if (
@@ -1095,7 +1135,7 @@ export const Campaigns: React.FC = () => {
       const normalizeBudgetType = (bt: string) => bt.toLowerCase();
       if (
         normalizeBudgetType(newBudgetType) !==
-          normalizeBudgetType(originalBudgetType) &&
+        normalizeBudgetType(originalBudgetType) &&
         (normalizeBudgetType(newBudgetType) === "daily" ||
           normalizeBudgetType(newBudgetType) === "lifetime")
       ) {
@@ -1147,7 +1187,7 @@ export const Campaigns: React.FC = () => {
         updatePayload.portfolioId = newPortfolioIdStr || null;
       }
 
-      // 7. Check if targetingType changed (for SP campaigns)
+      // 7. Check if targetingType changed (for SP campaigns only)
       if (data.type === "SP") {
         const originalTargetingType = original.targetingType || "";
         const newTargetingType = data.targetingType || "";
@@ -1170,8 +1210,10 @@ export const Campaigns: React.FC = () => {
               | "MANUAL";
           }
         }
+      }
 
-        // 8. Check if tags changed
+      // 8. Check if tags changed (SP and SB)
+      if (data.type === "SP" || data.type === "SB") {
         const normalizeTags = (tags: any): string[] => {
           if (!tags) return [];
           if (Array.isArray(tags)) {
@@ -1233,11 +1275,11 @@ export const Campaigns: React.FC = () => {
             newBidding.bidAdjustmentsByPlacement.length > 0
           ) {
             // Original empty but new has placements - there's a change
-            updatePayload.dynamicBidding = newBidding;
+            (updatePayload as any)[data.type === "SB" ? "bidding" : "dynamicBidding"] = sanitizeBiddingForApi(newBidding);
           }
         } else if (!newBidding || Object.keys(newBidding).length === 0) {
           // Original has data but new is empty - there's a change
-          updatePayload.dynamicBidding = newBidding;
+          (updatePayload as any)[data.type === "SB" ? "bidding" : "dynamicBidding"] = sanitizeBiddingForApi(newBidding);
         } else {
           // Both have data, normalize and compare
           // Normalize bidding objects for comparison
@@ -1384,7 +1426,7 @@ export const Campaigns: React.FC = () => {
             placementsChanged || strategyChanged || cohortsChanged;
 
           if (biddingChanged) {
-            updatePayload.dynamicBidding = newBidding;
+            (updatePayload as any)[data.type === "SB" ? "bidding" : "dynamicBidding"] = sanitizeBiddingForApi(newBidding);
           }
         }
       }
@@ -1448,11 +1490,11 @@ export const Campaigns: React.FC = () => {
             newBidding.bidAdjustmentsByPlacement.length > 0
           ) {
             // Original empty but new has placements - there's a change
-            updatePayload.bidding = newBidding;
+            updatePayload.bidding = sanitizeBiddingForApi(newBidding);
           }
         } else if (!newBidding || Object.keys(newBidding).length === 0) {
           // Original has data but new is empty - there's a change
-          updatePayload.bidding = newBidding;
+          updatePayload.bidding = sanitizeBiddingForApi(newBidding);
         } else {
           // Both have data, normalize and compare
           // Normalize bidding objects for comparison (same logic as SP)
@@ -1593,7 +1635,7 @@ export const Campaigns: React.FC = () => {
             placementsChanged || bidOptimizationChanged || cohortsChanged;
 
           if (biddingChanged) {
-            updatePayload.bidding = newBidding;
+            updatePayload.bidding = sanitizeBiddingForApi(newBidding);
           }
         }
 
@@ -1662,7 +1704,9 @@ export const Campaigns: React.FC = () => {
       const response = await campaignsService.updateCampaign(
         accountIdNum,
         campaignId,
-        updatePayload
+        updatePayload,
+        channelId ?? null,
+        profileId ?? null
       );
 
       // Refetch campaigns to update the data table
@@ -1687,7 +1731,14 @@ export const Campaigns: React.FC = () => {
           onClick: () => {
             setErrorModal({ isOpen: false, message: "" });
             navigate(
-              `/accounts/${accountIdNum}/campaigns/${campaignTypeAndId}`
+              buildMarketplaceRoute(
+                accountIdNum!,
+                channelId ?? 0,
+                "amazon",
+                "campaigns",
+                campaignTypeAndId,
+                profileId ?? undefined
+              )
             );
           },
         },
@@ -1709,7 +1760,11 @@ export const Campaigns: React.FC = () => {
     if (!accountId) return;
 
     try {
-      setEditLoadingCampaignId(row.campaignId);
+      // Clear previous edit state so the panel re-initializes when data loads
+      setInitialCampaignData(null);
+      setOriginalCampaignDataSnapshot(null);
+      setCampaignId(undefined);
+      setLoadingEditCampaignId(row.campaignId);
       setCampaignFormMode("edit");
       setIsCreateCampaignPanelOpen(true);
 
@@ -1719,7 +1774,9 @@ export const Campaigns: React.FC = () => {
         row.campaignId,
         undefined,
         undefined,
-        row.type
+        row.type,
+        channelId ?? null,
+        profileId ?? null
       );
 
       const campaign = detail.campaign;
@@ -1927,13 +1984,23 @@ export const Campaigns: React.FC = () => {
           campaignTypeUpper === "SB"
             ? mapBidding((campaign as any).bidding || (row as any).bidding)
             : mapDynamicBidding(
-                (campaign as any).dynamicBidding || (row as any).dynamicBidding
-              ),
+              (campaign as any).dynamicBidding || (row as any).dynamicBidding
+            ),
         // SB-specific fields
         ...(campaignTypeUpper === "SB" && {
           brandEntityId: (campaign as any).brandEntityId || undefined,
           goal: (campaign as any).goal || "PAGE_VISIT",
           productLocation: (campaign as any).productLocation || "",
+          costType:
+            (campaign as any).costType || (row as any).costType || undefined,
+          targetedPGDealId:
+            (campaign as any).targetedPGDealId ??
+            (campaign as any).targeted_pg_deal_id ??
+            undefined,
+          smartDefault:
+            (campaign as any).smartDefault ??
+            (campaign as any).smart_default ??
+            undefined,
         }),
         // SD-specific fields
         ...(campaignTypeUpper === "SD" && {
@@ -1982,9 +2049,9 @@ export const Campaigns: React.FC = () => {
         // Map siteRestrictions
         siteRestrictions: mapSiteRestrictions(
           (campaign as any).siteRestrictions ||
-            (campaign as any).site_restrictions ||
-            (row as any).siteRestrictions ||
-            (row as any).site_restrictions
+          (campaign as any).site_restrictions ||
+          (row as any).siteRestrictions ||
+          (row as any).site_restrictions
         ),
       };
 
@@ -1998,10 +2065,10 @@ export const Campaigns: React.FC = () => {
       window.requestAnimationFrame(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });
       });
-      setEditLoadingCampaignId(null);
+      setLoadingEditCampaignId(null);
     } catch (error) {
       console.error("Failed to load campaign for edit:", error);
-      setEditLoadingCampaignId(null);
+      setLoadingEditCampaignId(null);
     }
   };
 
@@ -2247,7 +2314,7 @@ export const Campaigns: React.FC = () => {
                     setIsCreateCampaignPanelOpen(false); // Close create panel when opening filter panel
                   }}
                   filters={filters}
-                  onApply={() => {}} // Not used - FilterSectionPanel handles onApply
+                  onApply={() => { }} // Not used - FilterSectionPanel handles onApply
                   filterFields={CAMPAIGN_FILTER_FIELDS}
                   initialFilters={filters}
                 />
@@ -2266,13 +2333,20 @@ export const Campaigns: React.FC = () => {
                     setCampaignFormMode("create");
                     setCampaignId(undefined);
                     setEditLoadingCampaignId(null);
+                    setLoadingEditCampaignId(null);
                   }}
                   onSubmit={handleCampaignPanelSubmit}
                   accountId={accountId}
                   profiles={profileOptions}
                   loading={
                     createCampaignLoading ||
-                    editLoadingCampaignId === campaignId
+                    editLoadingCampaignId === campaignId ||
+                    loadingEditCampaignId !== null
+                  }
+                  loadingMessage={
+                    loadingEditCampaignId !== null
+                      ? "Loading campaign..."
+                      : undefined
                   }
                   submitError={createCampaignError}
                   mode={campaignFormMode}
@@ -2398,7 +2472,7 @@ export const Campaigns: React.FC = () => {
                       />
                     </svg>
                     <span className="text-[10.64px] text-[#072929] font-normal">
-                      Edit
+                      Bulk Actions
                     </span>
                   </Button>
                   {showBulkActions && (
@@ -2587,36 +2661,34 @@ export const Campaigns: React.FC = () => {
                       </div>
                       {(budgetAction === "increase" ||
                         budgetAction === "decrease") && (
-                        <div className="w-[140px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Unit
-                          </label>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                budgetUnit === "percent"
+                          <div className="w-[140px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Unit
+                            </label>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${budgetUnit === "percent"
                                   ? "bg-forest-f40  border-forest-f40"
                                   : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                              }`}
-                              onClick={() => setBudgetUnit("percent")}
-                            >
-                              %
-                            </button>
-                            <button
-                              type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                budgetUnit === "amount"
+                                  }`}
+                                onClick={() => setBudgetUnit("percent")}
+                              >
+                                %
+                              </button>
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${budgetUnit === "amount"
                                   ? "bg-forest-f40  border-forest-f40"
                                   : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                              }`}
-                              onClick={() => setBudgetUnit("amount")}
-                            >
-                              $
-                            </button>
+                                  }`}
+                                onClick={() => setBudgetUnit("amount")}
+                              >
+                                $
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                       <div className="w-[160px]">
                         <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                           Value
@@ -2735,11 +2807,10 @@ export const Campaigns: React.FC = () => {
                             <span className="text-[10.64px] text-[#556179]">
                               {hasMore
                                 ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
-                                : `${selectedCampaignsData.length} campaign${
-                                    selectedCampaignsData.length !== 1
-                                      ? "s"
-                                      : ""
-                                  } selected`}
+                                : `${selectedCampaignsData.length} campaign${selectedCampaignsData.length !== 1
+                                  ? "s"
+                                  : ""
+                                } selected`}
                             </span>
                           </div>
                           <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -2770,9 +2841,9 @@ export const Campaigns: React.FC = () => {
                                       : oldBudget;
                                     const newStatus = pendingStatusAction
                                       ? pendingStatusAction
-                                          .charAt(0)
-                                          .toUpperCase() +
-                                        pendingStatusAction.slice(1)
+                                        .charAt(0)
+                                        .toUpperCase() +
+                                      pendingStatusAction.slice(1)
                                       : oldStatus;
 
                                     return (
@@ -2815,24 +2886,24 @@ export const Campaigns: React.FC = () => {
                               {budgetAction === "increase"
                                 ? "Increase By"
                                 : budgetAction === "decrease"
-                                ? "Decrease By"
-                                : "Set To"}
+                                  ? "Decrease By"
+                                  : "Set To"}
                             </span>
                           </div>
 
                           {(budgetAction === "increase" ||
                             budgetAction === "decrease") && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Unit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {budgetUnit === "percent"
-                                  ? "Percentage (%)"
-                                  : "Amount ($)"}
-                              </span>
-                            </div>
-                          )}
+                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span className="text-[12.16px] text-[#556179]">
+                                  Unit:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                  {budgetUnit === "percent"
+                                    ? "Percentage (%)"
+                                    : "Amount ($)"}
+                                </span>
+                              </div>
+                            )}
 
                           <div className="flex justify-between items-center py-2 border-b border-gray-200">
                             <span className="text-[12.16px] text-[#556179]">
@@ -2874,7 +2945,7 @@ export const Campaigns: React.FC = () => {
                           <span className="text-[12.16px] font-semibold text-[#072929]">
                             {pendingStatusAction
                               ? pendingStatusAction.charAt(0).toUpperCase() +
-                                pendingStatusAction.slice(1)
+                              pendingStatusAction.slice(1)
                               : ""}
                           </span>
                         </div>
@@ -2982,8 +3053,8 @@ export const Campaigns: React.FC = () => {
                       {inlineEditField === "budget"
                         ? "Budget"
                         : inlineEditField === "budgetType"
-                        ? "Budget Type"
-                        : "Status"}{" "}
+                          ? "Budget Type"
+                          : "Status"}{" "}
                       Change
                     </h3>
 
@@ -3001,8 +3072,8 @@ export const Campaigns: React.FC = () => {
                             {inlineEditField === "budget"
                               ? "Budget"
                               : inlineEditField === "budgetType"
-                              ? "Budget Type"
-                              : "Status"}
+                                ? "Budget Type"
+                                : "Status"}
                             :
                           </span>
                           <div className="flex items-center gap-2">
@@ -3049,7 +3120,7 @@ export const Campaigns: React.FC = () => {
 
               {/* Table */}
               <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
-              <div className="overflow-x-auto w-full">
+                <div className="overflow-x-auto w-full">
                   {campaigns.length === 0 && !loading ? (
                     <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
                       <div className="flex flex-col items-center justify-center max-w-md">
@@ -3281,37 +3352,38 @@ export const Campaigns: React.FC = () => {
                           ))
                         ) : (
                           <>
-                            {/* Summary Row */}
+                            {/* Summary Row - one <td> per column so values align with headers */}
                             {summary && (
                               <tr className="table-summary-row">
-                                <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
-                                <td className="table-cell table-sticky-first-column">
+                                <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]" data-summary-col="checkbox" />
+                                <td className="table-cell table-sticky-first-column font-medium" data-summary-col="campaign_name">
                                   Total ({summary.total_campaigns})
                                 </td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26]" data-summary-col="profile">—</td>
+                                <td className="table-cell table-text leading-[1.26]" data-summary-col="country">—</td>
+                                <td className="table-cell table-text leading-[1.26]" data-summary-col="type">—</td>
+                                <td className="table-cell table-text leading-[1.26]" data-summary-col="targeting_type">—</td>
+                                <td className="table-cell table-text leading-[1.26]" data-summary-col="state">—</td>
+                                <td className="table-cell table-text leading-[1.26]" data-summary-col="budget">—</td>
+                                <td className="table-cell table-text leading-[1.26]" data-summary-col="budget_type">—</td>
+                                <td className="table-cell table-text leading-[1.26]" data-summary-col="start_date">—</td>
+                                <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="spends">
                                   {formatCurrency(summary.total_spends)}
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="sales">
                                   {formatCurrency(summary.total_sales)}
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="impressions">
                                   {summary.total_impressions.toLocaleString()}
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="clicks">
                                   {summary.total_clicks.toLocaleString()}
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
+                                <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="acos">
                                   {summary.avg_acos.toFixed(2)}%
                                 </td>
-                                <td className="table-cell table-text leading-[1.26]">
-                                  {summary.avg_roas.toFixed(2)}x
+                                <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="roas">
+                                  {summary.avg_roas.toFixed(2)}
                                 </td>
                               </tr>
                             )}
@@ -3322,9 +3394,8 @@ export const Campaigns: React.FC = () => {
                               return (
                                 <tr
                                   key={campaign.campaignId}
-                                  className={`table-row group ${
-                                    isArchived ? "bg-gray-100 opacity-60" : ""
-                                  }`}
+                                  className={`table-row group ${isArchived ? "bg-gray-100 opacity-60" : ""
+                                    }`}
                                 >
                                   {/* Checkbox */}
                                   <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
@@ -3365,18 +3436,19 @@ export const Campaigns: React.FC = () => {
                                       <button
                                         type="button"
                                         onClick={(e) => {
+                                          e.preventDefault();
                                           e.stopPropagation();
                                           handleOpenEditCampaign(campaign);
                                         }}
-                                        className="table-edit-icon"
+                                        className="table-edit-icon flex-shrink-0"
                                         title="Edit campaign"
                                         disabled={
-                                          editLoadingCampaignId ===
+                                          loadingEditCampaignId ===
                                           campaign.campaignId
                                         }
                                       >
-                                        {editLoadingCampaignId ===
-                                        campaign.campaignId ? (
+                                        {loadingEditCampaignId ===
+                                          campaign.campaignId ? (
                                           // Small spinner while campaign details load
                                           <Loader size="sm" />
                                         ) : (
@@ -3395,26 +3467,25 @@ export const Campaigns: React.FC = () => {
                                           </svg>
                                         )}
                                       </button>
-                                      <button
-                                        onClick={() => {
-                                          if (accountId) {
-                                            navigate(
-                                              buildMarketplaceRoute(
-                                                parseInt(accountId),
-                                                "amazon",
-                                                "campaigns",
-                                                `${campaign.type.toLowerCase()}_${
-                                                  campaign.campaignId
-                                                }`
-                                              )
-                                            );
-                                          }
-                                        }}
-                                        className="table-edit-link"
-                                      >
-                                        {campaign.campaign_name ||
-                                          "Unnamed Campaign"}
-                                      </button>
+                                      {accountId ? (
+                                        <Link
+                                          to={buildMarketplaceRoute(
+                                            parseInt(accountId),
+                                            "amazon",
+                                            "campaigns",
+                                            `${campaign.type.toLowerCase()}_${campaign.campaignId}`
+                                          )}
+                                          className="table-edit-link"
+                                        >
+                                          {campaign.campaign_name ||
+                                            "Unnamed Campaign"}
+                                        </Link>
+                                      ) : (
+                                        <span className="table-edit-link">
+                                          {campaign.campaign_name ||
+                                            "Unnamed Campaign"}
+                                        </span>
+                                      )}
                                     </div>
                                   </td>
 
@@ -3422,7 +3493,7 @@ export const Campaigns: React.FC = () => {
                                   <td className="table-cell min-w-[200px]">
                                     <span className="table-text leading-[1.26] whitespace-nowrap">
                                       {campaign.profile_name &&
-                                      campaign.profile_name.trim() !== ""
+                                        campaign.profile_name.trim() !== ""
                                         ? campaign.profile_name
                                         : "—"}
                                     </span>
@@ -3432,7 +3503,7 @@ export const Campaigns: React.FC = () => {
                                   <td className="table-cell min-w-[100px]">
                                     <span className="table-text leading-[1.26] whitespace-nowrap">
                                       {campaign.profile_country_code &&
-                                      campaign.profile_country_code.trim() !==
+                                        campaign.profile_country_code.trim() !==
                                         ""
                                         ? campaign.profile_country_code
                                         : "—"}
@@ -3451,8 +3522,8 @@ export const Campaigns: React.FC = () => {
                                     <span className="table-text leading-[1.26] whitespace-nowrap">
                                       {campaign.type === "SP"
                                         ? (campaign.targetingType ||
-                                            campaign.targeting_type ||
-                                            "—")
+                                          campaign.targeting_type ||
+                                          "—")
                                         : "—"}
                                     </span>
                                   </td>
@@ -3464,7 +3535,7 @@ export const Campaigns: React.FC = () => {
                                         campaign.status || "Enabled"
                                       ).toUpperCase();
                                       const isArchived = currentStatus === "ARCHIVED";
-                                      
+
                                       if (isArchived) {
                                         return (
                                           <div className="rounded px-2 py-1 opacity-60">
@@ -3474,18 +3545,18 @@ export const Campaigns: React.FC = () => {
                                           </div>
                                         );
                                       }
-                                      
+
                                       const statusLower = (
                                         campaign.status || "Enabled"
                                       ).toLowerCase();
                                       const normalizedStatus =
                                         statusLower === "enable" ||
-                                        statusLower === "enabled"
+                                          statusLower === "enabled"
                                           ? "Enabled"
                                           : statusLower === "paused"
-                                          ? "Paused"
-                                          : "Enabled";
-                                      
+                                            ? "Paused"
+                                            : "Enabled";
+
                                       return (
                                         <Dropdown
                                           options={[
@@ -3501,7 +3572,7 @@ export const Campaigns: React.FC = () => {
                                             const newValue = val as string;
                                             const wasEditing = editingCell?.campaignId === campaign.campaignId &&
                                               editingCell?.field === "status";
-                                            
+
                                             if (!wasEditing) {
                                               startInlineEdit(campaign, "status");
                                               // Pass campaign ID and field directly to avoid state timing issues
@@ -3533,7 +3604,7 @@ export const Campaigns: React.FC = () => {
                                         editingCell?.field === "budget"
                                         ? editedValue
                                         : (campaign.daily_budget || 0).toString();
-                                      
+
                                       return (
                                         <input
                                           type="number"
@@ -3541,7 +3612,7 @@ export const Campaigns: React.FC = () => {
                                           onFocus={() => {
                                             if (isArchived) return;
                                             if (editingCell?.campaignId !== campaign.campaignId ||
-                                                editingCell?.field !== "budget") {
+                                              editingCell?.field !== "budget") {
                                               startInlineEdit(campaign, "budget");
                                             }
                                           }}
@@ -3553,7 +3624,7 @@ export const Campaigns: React.FC = () => {
                                             if (isArchived) return;
                                             const inputValue = e.target.value;
                                             if (editingCell?.campaignId === campaign.campaignId &&
-                                                editingCell?.field === "budget") {
+                                              editingCell?.field === "budget") {
                                               confirmInlineEdit(inputValue);
                                             }
                                           }}
@@ -3566,9 +3637,8 @@ export const Campaigns: React.FC = () => {
                                             }
                                           }}
                                           disabled={isArchived}
-                                          className={`inline-edit-input ${
-                                            isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
-                                          }`}
+                                          className={`inline-edit-input ${isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                            }`}
                                           title={
                                             isArchived
                                               ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
@@ -3587,7 +3657,7 @@ export const Campaigns: React.FC = () => {
                                       ).toUpperCase();
                                       const isArchived = currentStatus === "ARCHIVED";
                                       const isSDCampaign = campaign.type === "SD";
-                                      
+
                                       if (isArchived || isSDCampaign) {
                                         return (
                                           <span className="table-text leading-[1.26] opacity-60">
@@ -3595,12 +3665,12 @@ export const Campaigns: React.FC = () => {
                                           </span>
                                         );
                                       }
-                                      
+
                                       const budgetTypeValue = editingCell?.campaignId === campaign.campaignId &&
                                         editingCell?.field === "budgetType"
                                         ? editedValue
                                         : (campaign.budgetType || "DAILY");
-                                      
+
                                       return (
                                         <Dropdown
                                           options={[
@@ -3615,7 +3685,7 @@ export const Campaigns: React.FC = () => {
                                             const newValue = val as string;
                                             const wasEditing = editingCell?.campaignId === campaign.campaignId &&
                                               editingCell?.field === "budgetType";
-                                            
+
                                             if (!wasEditing) {
                                               startInlineEdit(campaign, "budgetType");
                                               // Pass campaign ID and field directly to avoid state timing issues
@@ -3641,12 +3711,12 @@ export const Campaigns: React.FC = () => {
                                     <span className="table-text leading-[1.26] whitespace-nowrap">
                                       {campaign.startDate
                                         ? new Date(
-                                            campaign.startDate
-                                          ).toLocaleDateString("en-US", {
-                                            month: "short",
-                                            day: "numeric",
-                                            year: "numeric",
-                                          })
+                                          campaign.startDate
+                                        ).toLocaleDateString("en-US", {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        })
                                         : "—"}
                                     </span>
                                   </td>
@@ -3692,8 +3762,8 @@ export const Campaigns: React.FC = () => {
                                   <td className="table-cell">
                                     <span className="table-text leading-[1.26]">
                                       {campaign.roas
-                                        ? `${campaign.roas.toFixed(2)} x`
-                                        : "0.00 x"}
+                                        ? `${campaign.roas.toFixed(2)}`
+                                        : "0.00"}
                                     </span>
                                   </td>
                                 </tr>
@@ -3743,11 +3813,10 @@ export const Campaigns: React.FC = () => {
                         <button
                           key={pageNum}
                           onClick={() => handlePageChange(pageNum)}
-                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                            currentPage === pageNum
-                              ? "bg-white text-[#136D6D] font-semibold"
-                              : "text-black hover:bg-gray-50"
-                          }`}
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
+                            }`}
                         >
                           {pageNum}
                         </button>
@@ -3761,11 +3830,10 @@ export const Campaigns: React.FC = () => {
                     {totalPages > 5 && (
                       <button
                         onClick={() => handlePageChange(totalPages)}
-                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                          currentPage === totalPages
-                            ? "bg-white text-[#136D6D] font-semibold"
-                            : "text-black hover:bg-gray-50"
-                        }`}
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
+                          ? "bg-white text-[#136D6D] font-semibold"
+                          : "text-black hover:bg-gray-50"
+                          }`}
                       >
                         {totalPages}
                       </button>

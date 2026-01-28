@@ -25,7 +25,7 @@ interface TargetsTableProps {
     currentValue: string
   ) => void;
   onEditChange?: (value: string) => void;
-  onEditEnd?: (value?: string) => void;
+  onEditEnd?: (value?: string, targetId?: number, field?: "status" | "bid") => void;
   onEditCancel?: () => void;
   inlineEditLoading?: Set<number>;
   pendingChange?: {
@@ -350,12 +350,14 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                                 value={currentValue}
                                 onChange={(val) => {
                                   const newValue = val as string;
-                                  if (editingField?.id !== target.id ||
-                                    editingField?.field !== "status") {
+                                  const wasEditing = editingField?.id === target.id &&
+                                    editingField?.field === "status";
+
+                                  if (!wasEditing) {
                                     onEditStart?.(target.id, "status", statusValue);
                                   }
                                   onEditChange?.(newValue);
-                                  onEditEnd?.(newValue);
+                                  onEditEnd?.(newValue, target.id, "status");
                                 }}
                                 buttonClassName="inline-edit-dropdown"
                                 width="w-full"
@@ -433,20 +435,20 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                                 }}
                                 onBlur={(e) => {
                                   if (isArchived) return;
-                                  setTimeout(() => {
-                                    const inputValue = e.target.value;
-                                    if (editingField?.id === target.id &&
-                                      editingField?.field === "bid") {
-                                      onEditEnd?.(inputValue);
-                                    }
-                                  }, 200);
+                                  const inputValue = e.target.value;
+                                  if (editingField?.id === target.id &&
+                                    editingField?.field === "bid") {
+                                    onEditEnd?.(inputValue, target.id, "bid");
+                                  }
                                 }}
                                 onKeyDown={(e) => {
                                   if (isArchived) return;
                                   if (e.key === "Enter") {
                                     e.preventDefault();
                                     onEditEnd?.(
-                                      (e.target as HTMLInputElement).value
+                                      (e.target as HTMLInputElement).value,
+                                      target.id,
+                                      "bid"
                                     );
                                   } else if (e.key === "Escape") {
                                     e.preventDefault();

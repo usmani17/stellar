@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { Checkbox } from "../ui/Checkbox";
 import { SingleDatePicker } from "../ui/SingleDatePicker";
+import { Loader } from "../ui/Loader";
 import { accountsService } from "../../services/accounts";
+import { toLocalDateString } from "../../utils/dateHelpers";
 
 interface CreateCampaignPanelProps {
   isOpen: boolean;
@@ -10,6 +12,8 @@ interface CreateCampaignPanelProps {
   onSubmit: (data: CreateCampaignData) => Promise<void>;
   accountId?: string;
   loading?: boolean;
+  /** When loading campaign details for edit, pass e.g. "Loading campaign..." to override default "Saving campaign..." */
+  loadingMessage?: string;
   submitError?: string | null;
   mode?: "create" | "edit";
   initialData?: Partial<CreateCampaignData> | null;
@@ -134,6 +138,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   onSubmit,
   accountId,
   loading = false,
+  loadingMessage,
   submitError = null,
   mode = "create",
   initialData = null,
@@ -216,12 +221,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     const budgetType =
       campaignType === "SB" || campaignType === "SD" ? "LIFETIME" : "DAILY";
 
-    // Calculate dates
-    const startDate = new Date().toISOString().split("T")[0];
+    // Calculate dates (local YYYY-MM-DD to avoid timezone shift)
+    const startDate = toLocalDateString(new Date());
     // If LIFETIME budget, ensure end date is provided (30 days from now)
-    const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0];
+    const endDate = toLocalDateString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
 
     // Base fake data common to all campaign types
     // Note: bidOptimization is true, so bidAdjustmentsByPlacement should NOT be included
@@ -579,8 +582,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       setInitializedCampaignId(undefined);
       setSnapshotInitialData(null);
     }
+    // Include initialData so we re-run when parent sets it after fetching (second+ edit open)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, mode, campaignId]);
+  }, [isOpen, mode, campaignId, initialData]);
 
   // Parse field errors and generic errors from submitError
   useEffect(() => {
@@ -635,10 +639,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           label: `${p.name} (${p.id})`,
         })) || [];
       setPortfolioOptions(options);
-      // Clear portfolioId if it's no longer in the options
+      // Clear portfolioId if it's no longer in the options (skip in edit mode so we keep showing existing value)
       if (
         formData.portfolioId &&
-        !options.find((opt) => opt.value === formData.portfolioId)
+        !options.find((opt) => opt.value === formData.portfolioId) &&
+        mode !== "edit"
       ) {
         setFormData((prev) => ({ ...prev, portfolioId: "" }));
       }
@@ -668,10 +673,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           label: `${be.brandRegistryName} (${be.brandEntityId})`,
         })) || [];
       setBrandEntityOptions(options);
-      // Clear brandEntityId if it's no longer in the options
+      // Clear brandEntityId if it's no longer in the options (skip in edit mode so we keep showing existing value)
       if (
         formData.brandEntityId &&
-        !options.find((opt) => opt.value === formData.brandEntityId)
+        !options.find((opt) => opt.value === formData.brandEntityId) &&
+        mode !== "edit"
       ) {
         setFormData((prev) => ({ ...prev, brandEntityId: "" }));
       }
@@ -828,8 +834,12 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       newErrors.profileId = "Profile is required";
     }
 
-    // Portfolio is required when portfolios exist
-    if (portfolioOptions.length > 0 && !formData.portfolioId) {
+    // Portfolio is required when portfolios exist (optional for SP and SB campaigns)
+    if (
+      formData.type === "SD" &&
+      portfolioOptions.length > 0 &&
+      !formData.portfolioId
+    ) {
       newErrors.portfolioId = "Portfolio is required";
     }
 
@@ -917,6 +927,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  /** Backend requires bidAdjustmentsByPlacement to be omitted when bidOptimization is true */
+  const sanitizeBiddingForApi = (bidding: CreateCampaignData["bidding"]) => {
+    if (!bidding) return bidding;
+    if (bidding.bidOptimization) {
+      const { bidAdjustmentsByPlacement: _, ...rest } = bidding;
+      return rest;
+    }
+    return bidding;
+  };
+
   const buildFilteredPayload = (
     data: CreateCampaignData
   ): CreateCampaignData & {
@@ -981,7 +1001,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
         basePayload.endDate = "";
       }
       if (data.bidding) {
-        basePayload.bidding = data.bidding;
+        basePayload.bidding = sanitizeBiddingForApi(data.bidding);
       }
 
       return basePayload;
@@ -1006,7 +1026,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           }
         }
         if (data.bidding) {
-          basePayload.bidding = data.bidding;
+          basePayload.bidding = sanitizeBiddingForApi(data.bidding);
         }
         // Format startDate as YYYYMMDD if provided (convert from YYYY-MM-DD)
         if (data.startDate && data.startDate.trim()) {
@@ -1055,7 +1075,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           basePayload.smartDefault = data.smartDefault;
         }
         if (data.bidding) {
-          basePayload.bidding = data.bidding;
+          basePayload.bidding = sanitizeBiddingForApi(data.bidding);
         }
         if (data.siteRestrictions) {
           basePayload.siteRestrictions = data.siteRestrictions;
@@ -1165,7 +1185,23 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]">
+    <div className="relative border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]">
+      {/* Loading overlay when creating/updating campaign or loading campaign details for edit */}
+      {loading && (
+        <div className="loading-overlay rounded-xl z-10">
+          <div className="loading-overlay-content">
+            <Loader
+              size="md"
+              message={
+                loadingMessage ??
+                (mode === "edit"
+                  ? "Saving campaign..."
+                  : "Creating campaign...")
+              }
+            />
+          </div>
+        </div>
+      )}
       {/* Form */}
       <form onSubmit={handleSubmit}>
         <div className="p-4 border-b border-gray-200">
@@ -1391,7 +1427,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     goals. We'll make bidding and targeting recommendations to
                     help achieve this outcome.
                   </p>
-                  <div className="grid grid-cols-4 ">
+                  <div className="grid grid-cols-4 gap-6">
                     <Dropdown
                       options={[
                         {
@@ -1993,15 +2029,15 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           </div>
 
                           {/* Placement Bid Adjustments - Always visible and enabled */}
-                          <div className="mb-6 border border-[#e8e8e3] rounded-lg overflow-hidden">
+                          <div className="tabs-container">
                             {/* Tabs */}
-                            <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
+                            <div className="tabs-nav">
                               <button
                                 type="button"
                                 onClick={() => setActiveBiddingTab("strategy")}
-                                className={`px-4 py-2 text-[14px] transition-colors ${activeBiddingTab === "strategy"
-                                  ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                                  : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                                className={`tab-button ${activeBiddingTab === "strategy"
+                                  ? "tab-button-active"
+                                  : "tab-button-inactive"
                                   }`}
                               >
                                 Strategy
@@ -2009,9 +2045,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                               <button
                                 type="button"
                                 onClick={() => setActiveBiddingTab("placements")}
-                                className={`px-4 py-2 text-[14px] transition-colors ${activeBiddingTab === "placements"
-                                  ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                                  : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                                className={`tab-button ${activeBiddingTab === "placements"
+                                  ? "tab-button-active"
+                                  : "tab-button-inactive"
                                   }`}
                               >
                                 Placements
@@ -2019,9 +2055,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                               <button
                                 type="button"
                                 onClick={() => setActiveBiddingTab("audiences")}
-                                className={`px-4 py-2 text-[14px] transition-colors ${activeBiddingTab === "audiences"
-                                  ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                                  : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                                className={`tab-button ${activeBiddingTab === "audiences"
+                                  ? "tab-button-active"
+                                  : "tab-button-inactive"
                                   }`}
                               >
                                 Audiences
@@ -2030,7 +2066,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                             {/* Strategy Tab Content */}
                             {activeBiddingTab === "strategy" && (
-                              <div className="bg-[#FEFEFB] p-4 space-y-4">
+                              <div className="tabs-content p-4 space-y-4">
                                 <div className="grid grid-cols-4 gap-6">
                                   <div>
                                     <label className="form-label">
@@ -2098,7 +2134,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             {activeBiddingTab === "placements" && (
                               <>
                                 {/* Placement Inputs */}
-                                <div className="bg-[#FEFEFB] p-4 space-y-4">
+                                <div className="tabs-content">
                                   {/* Instructions */}
                                   <div className="flex items-center gap-2">
                                     <p className="text-[13px] text-[#072929]">
@@ -2165,8 +2201,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                       </p>
                                     </div>
                                   )}
-                                  {/* Placement Fields - 2 per row */}
-                                  <div className="grid grid-cols-2 gap-4">
+                                  {/* Placement Fields - 2 per row - disabled when Bid Optimization enabled */}
+                                  <div className={`grid grid-cols-2 gap-4 ${(formData.bidding?.bidOptimization ?? true) ? "opacity-60 pointer-events-none" : ""}`}>
                                     {/* Top of search (PLACEMENT_TOP) */}
                                     <div>
                                       <label className="block text-[13px] font-medium text-[#072929] mb-2">
@@ -2176,6 +2212,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                         <div className="relative flex-1">
                                           <input
                                             type="number"
+                                            disabled={formData.bidding?.bidOptimization ?? true}
                                             value={
                                               formData.bidding?.bidAdjustmentsByPlacement?.find(
                                                 (adj) =>
@@ -2243,6 +2280,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                         <div className="relative flex-1">
                                           <input
                                             type="number"
+                                            disabled={formData.bidding?.bidOptimization ?? true}
                                             value={
                                               formData.bidding?.bidAdjustmentsByPlacement?.find(
                                                 (adj) =>
@@ -2312,6 +2350,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                         <div className="relative flex-1">
                                           <input
                                             type="number"
+                                            disabled={formData.bidding?.bidOptimization ?? true}
                                             value={
                                               formData.bidding?.bidAdjustmentsByPlacement?.find(
                                                 (adj) =>
@@ -2381,6 +2420,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                         <div className="relative flex-1">
                                           <input
                                             type="number"
+                                            disabled={formData.bidding?.bidOptimization ?? true}
                                             value={
                                               formData.bidding?.bidAdjustmentsByPlacement?.find(
                                                 (adj) =>
@@ -2447,7 +2487,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                             {/* Audiences Tab Content */}
                             {activeBiddingTab === "audiences" && (
-                              <div className="bg-[#FEFEFB] p-4 space-y-4">
+                              <div className="tabs-content p-4 space-y-4 ">
                                 {/* Radio Buttons */}
                                 <div className="space-y-3">
                                   <label
@@ -2658,7 +2698,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             <label className="form-label">
                               Tags - Max 50
                             </label>
-                            <div className="space-y-2">
+                            <div className="space-y-2 grid grid-cols-4 gap-6">
                               {(formData.tags || []).map((tag, index) => (
                                 <div key={index} className="flex gap-2 items-center">
                                   <input
@@ -2840,6 +2880,18 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             value: "",
                             label: "Select Brand entity ID",
                           },
+                          ...(mode === "edit" &&
+                            formData.brandEntityId &&
+                            !brandEntityOptions.find(
+                              (o) => o.value === formData.brandEntityId
+                            )
+                            ? [
+                              {
+                                value: formData.brandEntityId,
+                                label: formData.brandEntityId,
+                              },
+                            ]
+                            : []),
                           ...brandEntityOptions,
                         ]}
                         value={formData.brandEntityId || ""}
@@ -3016,7 +3068,21 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                 Portfolio
                               </label>
                               <Dropdown<string>
-                                options={portfolioOptions}
+                                options={[
+                                  ...(mode === "edit" &&
+                                    formData.portfolioId &&
+                                    !portfolioOptions.find(
+                                      (o) => o.value === formData.portfolioId
+                                    )
+                                    ? [
+                                      {
+                                        value: formData.portfolioId,
+                                        label: formData.portfolioId,
+                                      },
+                                    ]
+                                    : []),
+                                  ...portfolioOptions,
+                                ]}
                                 value={formData.portfolioId || undefined}
                                 onChange={(value) => handleChange("portfolioId", value)}
                                 placeholder={
@@ -3078,56 +3144,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             Dynamic Bidding
                           </h4>
 
-                          {/* Bid Optimization Field */}
-                          <div className="mb-6">
-                            <label className="form-label-small">
-                              Bid Optimization
-                            </label>
-                            <div className="flex items-center gap-3">
-                              <Checkbox
-                                checked={formData.bidding?.bidOptimization ?? true}
-                                onChange={(checked) => {
-                                  const newBidOptimization = checked;
-                                  setFormData((prev) => {
-                                    const updated = { ...prev };
-                                    if (!updated.bidding) {
-                                      updated.bidding = {
-                                        bidOptimization: newBidOptimization,
-                                        shopperCohortBidAdjustments: [],
-                                        bidAdjustmentsByPlacement: [],
-                                      };
-                                    } else {
-                                      updated.bidding = {
-                                        ...updated.bidding,
-                                        bidOptimization: newBidOptimization,
-                                        // Keep bidAdjustmentsByPlacement regardless of bidOptimization
-                                        bidAdjustmentsByPlacement:
-                                          updated.bidding.bidAdjustmentsByPlacement ||
-                                          [],
-                                      };
-                                    }
-                                    return updated;
-                                  });
-                                }}
-                                label="Automatic placement optimization"
-                                className="[&_label]:text-[13.3px] [&_label]:font-medium [&_label]:text-[#072929]"
-                              />
-                            </div>
-                            <p className="text-[12px] text-[#556179] mt-1">
-                              When enabled, placement adjustments are ignored
-                            </p>
-                          </div>
-
-                          {/* Placement Bid Adjustments - Always visible and enabled */}
-                          <div className="mb-6 border border-[#e8e8e3] rounded-lg overflow-hidden">
+                          {/* Placement Bid Adjustments */}
+                          <div className="tabs-container">
                             {/* Tabs */}
-                            <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
+                            <div className="tabs-nav">
                               <button
                                 type="button"
                                 onClick={() => setActiveBiddingTab("placements")}
-                                className={`px-4 py-2 text-[14px] transition-colors ${activeBiddingTab === "placements"
-                                  ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                                  : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                                className={`tab-button ${activeBiddingTab === "placements"
+                                  ? "tab-button-active"
+                                  : "tab-button-inactive"
                                   }`}
                               >
                                 Placements
@@ -3135,9 +3161,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                               <button
                                 type="button"
                                 onClick={() => setActiveBiddingTab("audiences")}
-                                className={`px-4 py-2 text-[14px] transition-colors ${activeBiddingTab === "audiences"
-                                  ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                                  : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                                className={`tab-button ${activeBiddingTab === "audiences"
+                                  ? "tab-button-active"
+                                  : "tab-button-inactive"
                                   }`}
                               >
                                 Audiences
@@ -3147,15 +3173,46 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             {/* Placements Tab Content */}
                             {activeBiddingTab === "placements" && (
                               <>
-                                {/* Instructions */}
-                                <div className="flex items-center gap-2 mb-4 px-4 pt-4">
-                                  <p className="text-[13px] text-[#072929]">
-                                    Increase your bid for specific Amazon placements.
+                                {/* Bid Optimization - inside Placements tab */}
+                                <div className="mb-4 px-4 pt-4">
+                                  <label className="form-label-small">
+                                    Bid Optimization
+                                  </label>
+                                  <div className="flex items-center gap-3">
+                                    <Checkbox
+                                      checked={formData.bidding?.bidOptimization ?? true}
+                                      onChange={(checked) => {
+                                        const newBidOptimization = checked;
+                                        setFormData((prev) => {
+                                          const updated = { ...prev };
+                                          if (!updated.bidding) {
+                                            updated.bidding = {
+                                              bidOptimization: newBidOptimization,
+                                              shopperCohortBidAdjustments: [],
+                                              bidAdjustmentsByPlacement: [],
+                                            };
+                                          } else {
+                                            updated.bidding = {
+                                              ...updated.bidding,
+                                              bidOptimization: newBidOptimization,
+                                              bidAdjustmentsByPlacement:
+                                                updated.bidding.bidAdjustmentsByPlacement || [],
+                                            };
+                                          }
+                                          return updated;
+                                        });
+                                      }}
+                                      label="Automatic placement optimization"
+                                      className="[&_label]:text-[13.3px] [&_label]:font-medium [&_label]:text-[#072929]"
+                                    />
+                                  </div>
+                                  <p className="text-[12px] text-[#556179] mt-1">
+                                    When enabled, placement adjustments are ignored
                                   </p>
                                 </div>
 
-                                {/* Placement Inputs */}
-                                <div className="bg-[#FEFEFB] px-4 pb-4">
+                                {/* Placement Inputs - disabled when Bid Optimization is enabled */}
+                                <div className={`tabs-content p-4 space-y-4 ${(formData.bidding?.bidOptimization ?? true) ? "opacity-60 pointer-events-none" : ""}`}>
                                   {/* Placement Fields - 2 per row */}
                                   <div className="grid grid-cols-2 gap-4">
                                     {/* Top of search (PLACEMENT_TOP) */}
@@ -3167,6 +3224,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                         <div className="relative flex-1">
                                           <input
                                             type="number"
+                                            disabled={formData.bidding?.bidOptimization ?? true}
                                             value={
                                               formData.bidding?.bidAdjustmentsByPlacement?.find(
                                                 (adj) =>
@@ -3234,6 +3292,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                         <div className="relative flex-1">
                                           <input
                                             type="number"
+                                            disabled={formData.bidding?.bidOptimization ?? true}
                                             value={
                                               formData.bidding?.bidAdjustmentsByPlacement?.find(
                                                 (adj) =>
@@ -3303,6 +3362,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                         <div className="relative flex-1">
                                           <input
                                             type="number"
+                                            disabled={formData.bidding?.bidOptimization ?? true}
                                             value={
                                               formData.bidding?.bidAdjustmentsByPlacement?.find(
                                                 (adj) =>
@@ -3372,6 +3432,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                         <div className="relative flex-1">
                                           <input
                                             type="number"
+                                            disabled={formData.bidding?.bidOptimization ?? true}
                                             value={
                                               formData.bidding?.bidAdjustmentsByPlacement?.find(
                                                 (adj) =>
@@ -3438,7 +3499,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                             {/* Audiences Tab Content */}
                             {activeBiddingTab === "audiences" && (
-                              <div className="bg-[#FEFEFB] p-4 space-y-4">
+                              <div className="tabs-content p-4 space-y-4">
                                 {/* Radio Buttons */}
                                 <div className="space-y-3">
                                   <label
@@ -3493,21 +3554,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                         <div className="relative">
                                           <Dropdown<string>
                                             options={[
-                                              {
-                                                value: "40836",
-                                                label:
-                                                  "Clicked or Added brand's product to cart - 40836...",
-                                              },
-                                              {
-                                                value: "40837",
-                                                label:
-                                                  "Viewed brand's product detail page - 40837...",
-                                              },
-                                              {
-                                                value: "40838",
-                                                label:
-                                                  "Purchased brand's product - 40838...",
-                                              },
                                             ]}
                                             value={selectedAudience}
                                             onChange={(value) =>

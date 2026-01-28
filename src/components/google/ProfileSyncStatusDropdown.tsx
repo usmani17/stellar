@@ -14,14 +14,14 @@ const getStatusBadge = (status: string) => {
   switch (status) {
     case "syncing":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-sandstorm-s40 text-forest-f60">
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-sandstorm-s10 text-forest-f60 border border-sandstorm-s40">
           <div className="w-2 h-2 rounded-full bg-forest-f60 animate-pulse"></div>
           Syncing
         </span>
       );
     case "completed":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700">
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-forest-f0 text-forest-f60 border border-forest-f20">
           <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 20 20">
             <path
               fillRule="evenodd"
@@ -29,12 +29,12 @@ const getStatusBadge = (status: string) => {
               clipRule="evenodd"
             />
           </svg>
-          Completed
+          Synced
         </span>
       );
     case "error":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700">
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-red-r0 text-red-r30 border border-red-r30">
           <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 20 20">
             <path
               fillRule="evenodd"
@@ -47,7 +47,7 @@ const getStatusBadge = (status: string) => {
       );
     default:
       return (
-        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-600">
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-sandstorm-s10 text-forest-f30 border border-sandstorm-s40">
           Idle
         </span>
       );
@@ -123,7 +123,7 @@ export const ProfileSyncStatusDropdown: React.FC<ProfileSyncStatusDropdownProps>
     // If no profiles, just show the aggregated status
     return (
       <div className={cn("inline-flex items-center gap-2", className)}>
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-forest-f60">
           {syncStatus.last_synced_at
             ? `Last synced: ${formatTimeAgo(syncStatus.last_synced_at)}`
             : "Never synced"}
@@ -146,7 +146,7 @@ export const ProfileSyncStatusDropdown: React.FC<ProfileSyncStatusDropdownProps>
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-200 transition-colors"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium text-forest-f60 hover:bg-sandstorm-s30 border border-sandstorm-s40 transition-colors"
         >
           <span>
             {syncStatus.last_synced_at
@@ -178,7 +178,7 @@ export const ProfileSyncStatusDropdown: React.FC<ProfileSyncStatusDropdownProps>
         createPortal(
           <div
             ref={menuRef}
-            className="fixed z-50 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden"
+            className="fixed z-50 bg-sandstorm-s0 rounded-lg shadow-lg border border-sandstorm-s40 overflow-hidden"
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,
@@ -187,35 +187,35 @@ export const ProfileSyncStatusDropdown: React.FC<ProfileSyncStatusDropdownProps>
               overflowY: "auto",
             }}
           >
-            <div className="p-4 border-b border-gray-200 bg-gray-50">
-              <h3 className="text-sm font-semibold text-gray-900">
+            <div className="p-4 border-b border-sandstorm-s40 bg-sandstorm-s10">
+              <h3 className="text-sm font-semibold text-forest-f60">
                 {entityNameMap[entityType]} Sync Status
               </h3>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-forest-f30 mt-1">
                 {profiles.length} profile{profiles.length !== 1 ? "s" : ""} connected
               </p>
             </div>
 
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-sandstorm-s40">
               {profiles.map((profile) => (
                 <div
                   key={profile.id}
-                  className="p-4 hover:bg-gray-50 transition-colors"
+                  className="p-4 hover:bg-sandstorm-s10 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
-                        <h4 className="text-sm font-medium text-gray-900 truncate">
+                        <h4 className="text-sm font-medium text-forest-f60 truncate">
                           {profile.name}
                         </h4>
                         {getStatusBadge(profile.status)}
                       </div>
-                      <p className="text-xs text-gray-500 mb-2">
+                      <p className="text-xs text-forest-f30 mb-2">
                         {profile.customer_id ||
                           profile.advertiser_id ||
                           profile.profileId}
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-forest-f60">
                         {profile.last_synced_at
                           ? `Last synced: ${formatTimeAgo(profile.last_synced_at)}`
                           : "Never synced"}

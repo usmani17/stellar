@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDateRange } from "../../../../contexts/DateRangeContext";
+import { toLocalDateString } from "../../../../utils/dateHelpers";
 import { Button } from "../../../../components/ui";
 import { Loader } from "../../../../components/ui/Loader";
 import { googleAdwordsLogsService } from "../../../../services/googleAdwords/googleAdwordsLogs";
@@ -14,7 +15,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
   accountId,
   campaignId,
 }) => {
-  const { startDate, endDate } = useDateRange();
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const [logs, setLogs] = useState<GoogleLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -26,9 +27,6 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   const [exportLoading, setExportLoading] = useState(false);
   const isLoadingRef = useRef(false);
-
-  const startDateStr = startDate?.toISOString();
-  const endDateStr = endDate?.toISOString();
 
   // Load logs - memoized with useCallback
   const loadLogs = useCallback(async () => {
@@ -56,8 +54,8 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
         page: currentPage,
         page_size: pageSize,
         search: search || undefined,
-        start_date: startDateStr ? startDateStr.split("T")[0] : undefined,
-        end_date: endDateStr ? endDateStr.split("T")[0] : undefined,
+        start_date: startDateStr,
+        end_date: endDateStr,
       });
 
       setLogs(response.logs);
@@ -125,10 +123,8 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
       }
 
       const params: any = {
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        start_date: startDateStr,
+        end_date: endDateStr,
         export_type: exportType,
       };
 
@@ -150,7 +146,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
       // Automatically download the file
       const link = document.createElement("a");
       link.href = result.url;
-      link.download = result.filename || `google_logs_${new Date().toISOString().split("T")[0]}.csv`;
+      link.download = result.filename || `google_logs_${toLocalDateString(new Date())}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -529,7 +525,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
                 {logs.map((log) => (
                   <div
                     key={`old-value-${log.id}`}
-                    className="self-stretch min-h-[60px] px-2 py-1.5 border-b border-[#e8e8e3] flex flex-col justify-center items-start min-w-0"
+                    className="self-stretch h-10 px-2 py-1.5 border-b border-[#e8e8e3] flex flex-col justify-center items-start min-w-0"
                   >
                     {renderLogValue(log.old_value)}
                   </div>
@@ -546,7 +542,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
                 {logs.map((log) => (
                   <div
                     key={`new-value-${log.id}`}
-                    className="self-stretch min-h-[60px] px-2 py-1.5 border-b border-[#e8e8e3] flex flex-col justify-center items-start min-w-0"
+                    className="self-stretch h-10 px-2 py-1.5 border-b border-[#e8e8e3] flex flex-col justify-center items-start min-w-0"
                   >
                     {renderLogValue(log.new_value)}
                   </div>

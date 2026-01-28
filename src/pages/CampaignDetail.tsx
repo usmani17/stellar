@@ -4,6 +4,7 @@ import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { KPICard } from "../components/ui/KPICard";
 import { useDateRange } from "../contexts/DateRangeContext";
+import { toLocalDateString } from "../utils/dateHelpers";
 import { useSidebar } from "../contexts/SidebarContext";
 import {
   campaignsService,
@@ -75,7 +76,7 @@ export const CampaignDetail: React.FC = () => {
     campaignTypeAndId: string;
   }>();
   const [searchParams] = useSearchParams();
-  const { startDate, endDate } = useDateRange();
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
 
   // Parse campaign type and ID from URL format: sp_123456, sb_123456, or sd_123456
@@ -101,14 +102,14 @@ export const CampaignDetail: React.FC = () => {
   );
 
   // Inline edit state
-  const [editingField, setEditingField] = useState<"budget" | "status" | null>(
+  const [editingField, setEditingField] = useState<"budget" | "status" | "startDate" | "endDate" | null>(
     null,
   );
   const [editedValue, setEditedValue] = useState<string>("");
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
   const [inlineEditField, setInlineEditField] = useState<
-    "budget" | "status" | null
+    "budget" | "status" | "startDate" | "endDate" | null
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
@@ -846,8 +847,8 @@ export const CampaignDetail: React.FC = () => {
           const keywordsData = await campaignsService.getKeywords(
             accountIdNum,
             campaignId,
-            startDate.toISOString().split("T")[0],
-            endDate.toISOString().split("T")[0],
+            startDateStr,
+            endDateStr,
             {
               page: 1,
               page_size: 1,
@@ -859,8 +860,8 @@ export const CampaignDetail: React.FC = () => {
           const targetsData = await campaignsService.getTargets(
             accountIdNum,
             campaignId,
-            startDate.toISOString().split("T")[0],
-            endDate.toISOString().split("T")[0],
+            startDateStr,
+            endDateStr,
             {
               page: 1,
               page_size: 1,
@@ -903,16 +904,6 @@ export const CampaignDetail: React.FC = () => {
     });
     return JSON.stringify(sorted);
   }, [adgroupsFilters]);
-
-  // Memoize date strings to prevent unnecessary re-renders
-  const startDateStr = useMemo(
-    () => startDate.toISOString().split("T")[0],
-    [startDate],
-  );
-  const endDateStr = useMemo(
-    () => endDate.toISOString().split("T")[0],
-    [endDate],
-  );
 
   // Reset pagination when date range or tab changes (but NOT filters - that's handled in onApply)
   useEffect(() => {
@@ -1088,18 +1079,28 @@ export const CampaignDetail: React.FC = () => {
           params.name = filter.value;
         }
       } else if (filter.field === "state") {
-        params.state = filter.value;
+        // Normalize to lowercase so backend state filter matches (enabled/paused/archived)
+        const v = String(filter.value).trim().toLowerCase();
+        if (v) params.state = v;
       } else if (filter.field === "default_bid") {
-        if (filter.operator === "lt") {
-          params.default_bid__lt = filter.value;
-        } else if (filter.operator === "gt") {
-          params.default_bid__gt = filter.value;
-        } else if (filter.operator === "eq") {
-          params.default_bid = filter.value;
-        } else if (filter.operator === "lte") {
-          params.default_bid__lte = filter.value;
-        } else if (filter.operator === "gte") {
-          params.default_bid__gte = filter.value;
+        const numVal =
+          typeof filter.value === "number"
+            ? filter.value
+            : parseFloat(String(filter.value));
+        if (numVal !== undefined && !Number.isNaN(numVal)) {
+          const isEq =
+            filter.operator === "eq" || filter.operator === "equals";
+          if (filter.operator === "lt") {
+            params.default_bid__lt = numVal;
+          } else if (filter.operator === "gt") {
+            params.default_bid__gt = numVal;
+          } else if (isEq) {
+            params.default_bid = numVal;
+          } else if (filter.operator === "lte") {
+            params.default_bid__lte = numVal;
+          } else if (filter.operator === "gte") {
+            params.default_bid__gte = numVal;
+          }
         }
       } else if (filter.field === "spends") {
         if (filter.operator === "lt") {
@@ -1316,6 +1317,8 @@ export const CampaignDetail: React.FC = () => {
     if (adgroupsAbortControllerRef.current) {
       adgroupsAbortControllerRef.current.abort();
     }
+    // Allow a new load when filters/sort/page etc. change even if previous request was in flight
+    adgroupsLoadingRef.current = false;
 
     // Create new abort controller for this request
     adgroupsAbortControllerRef.current = new AbortController();
@@ -1343,10 +1346,6 @@ export const CampaignDetail: React.FC = () => {
     adgroupsRequestIdRef.current = requestId;
 
     if (accountId && campaignId && activeTab === "Ad Groups") {
-      // Prevent multiple simultaneous calls
-      if (adgroupsLoadingRef.current) {
-        return;
-      }
       loadAdGroups();
     }
 
@@ -1665,8 +1664,8 @@ export const CampaignDetail: React.FC = () => {
       const data = await campaignsService.getCampaignDetail(
         accountIdNum,
         campaignId!,
-        startDate.toISOString().split("T")[0],
-        endDate.toISOString().split("T")[0],
+        startDateStr,
+        endDateStr,
         campaignType || undefined,
       );
 
@@ -1759,8 +1758,8 @@ export const CampaignDetail: React.FC = () => {
         const data = await campaignsService.getAdGroups(
           accountIdNum,
           campaignId,
-          startDate.toISOString().split("T")[0],
-          endDate.toISOString().split("T")[0],
+          startDateStr,
+          endDateStr,
           {
             page: page,
             page_size: pageSize,
@@ -2765,6 +2764,18 @@ export const CampaignDetail: React.FC = () => {
           unit: "amount",
           value: budgetValue,
         });
+      } else if (inlineEditField === "startDate") {
+        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
+          campaignIds: [campaignDetail.campaign.campaignId || campaignId!],
+          action: "startDate",
+          startDate: inlineEditNewValue,
+        });
+      } else if (inlineEditField === "endDate") {
+        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
+          campaignIds: [campaignDetail.campaign.campaignId || campaignId!],
+          action: "endDate",
+          endDate: inlineEditNewValue,
+        });
       }
 
       // Reload campaign detail
@@ -2806,8 +2817,8 @@ export const CampaignDetail: React.FC = () => {
       const data = await campaignsService.getKeywords(
         accountIdNum,
         campaignId,
-        startDate.toISOString().split("T")[0],
-        endDate.toISOString().split("T")[0],
+        startDateStr,
+        endDateStr,
         {
           page: keywordsCurrentPage,
           page_size: 10,
@@ -2927,8 +2938,8 @@ export const CampaignDetail: React.FC = () => {
       const data = await campaignsService.getProductAds(
         accountIdNum,
         campaignId,
-        startDate.toISOString().split("T")[0],
-        endDate.toISOString().split("T")[0],
+        startDateStr,
+        endDateStr,
         {
           page: productadsCurrentPage,
           page_size: 10,
@@ -2998,8 +3009,8 @@ export const CampaignDetail: React.FC = () => {
       const data = await campaignsService.getProductAds(
         accountIdNum,
         campaignId,
-        startDate.toISOString().split("T")[0],
-        endDate.toISOString().split("T")[0],
+        startDateStr,
+        endDateStr,
         {
           page: sbAdsCurrentPage,
           page_size: 10,
@@ -4114,8 +4125,8 @@ export const CampaignDetail: React.FC = () => {
       const data = await campaignsService.getTargets(
         accountIdNum,
         campaignId,
-        startDate.toISOString().split("T")[0],
-        endDate.toISOString().split("T")[0],
+        startDateStr,
+        endDateStr,
         {
           page: targetsCurrentPage,
           page_size: 10,
@@ -4800,18 +4811,21 @@ export const CampaignDetail: React.FC = () => {
     setEditedProductAdValue(value);
   };
 
-  const handleProductAdEditEnd = (newValue?: string) => {
-    if (!editingProductAdField) return;
-    const productad = productads.find(
-      (pa) => pa.id === editingProductAdField.id,
-    );
+  const handleProductAdEditEnd = (newValue?: string, adId?: number, field?: "status") => {
+    // Use override parameters if provided, otherwise fall back to editingProductAdField state
+    // Same pattern as Targets tab to avoid state timing issues
+    const adIdToUse = adId !== undefined ? adId : editingProductAdField?.id;
+    const fieldToUse = field !== undefined ? field : editingProductAdField?.field;
+
+    if (adIdToUse === undefined || fieldToUse === undefined) return;
+
+    const productad = productads.find((pa) => pa.id === adIdToUse);
     if (!productad) {
       setEditingProductAdField(null);
       setEditedProductAdValue("");
       return;
     }
 
-    // Use the passed value if provided, otherwise use the state value
     const valueToCompare =
       newValue !== undefined ? newValue : editedProductAdValue;
 
@@ -4821,16 +4835,17 @@ export const CampaignDetail: React.FC = () => {
         ? "enabled"
         : "paused";
     const oldValue = currentStatus;
-    const hasChanged = valueToCompare !== currentStatus;
+    const hasChanged = valueToCompare.toLowerCase() !== currentStatus;
 
     if (hasChanged) {
       setPendingProductAdChange({
-        id: editingProductAdField.id,
-        field: editingProductAdField.field,
+        id: adIdToUse,
+        field: fieldToUse,
         newValue: valueToCompare,
         oldValue: oldValue,
       });
       setShowProductAdsConfirmationModal(true);
+      setEditingProductAdField(null);
     } else {
       setEditingProductAdField(null);
       setEditedProductAdValue("");
@@ -5083,19 +5098,16 @@ export const CampaignDetail: React.FC = () => {
     setEditedTargetValue(value);
   };
 
-  const handleTargetEditEnd = (newValue?: string) => {
-    console.log("handleTargetEditEnd:", {
-      editingTargetField,
-      newValue,
-      editedTargetValue,
-    });
-    if (!editingTargetField) {
-      console.log("handleTargetEditEnd: No editingTargetField, returning");
-      return;
-    }
-    const target = targets.find((tgt) => tgt.id === editingTargetField.id);
+  const handleTargetEditEnd = (newValue?: string, targetId?: number, field?: "status" | "bid") => {
+    // Use override parameters if provided, otherwise fall back to editingTargetField state
+    // This matches the pattern from AdGroupsTable to avoid state timing issues
+    const targetIdToUse = targetId !== undefined ? targetId : editingTargetField?.id;
+    const fieldToUse = field !== undefined ? field : editingTargetField?.field;
+
+    if (targetIdToUse === undefined || fieldToUse === undefined) return;
+
+    const target = targets.find((tgt) => tgt.id === targetIdToUse);
     if (!target) {
-      console.log("handleTargetEditEnd: Target not found");
       setEditingTargetField(null);
       setEditedTargetValue("");
       return;
@@ -5105,52 +5117,42 @@ export const CampaignDetail: React.FC = () => {
     const valueToCompare =
       newValue !== undefined ? newValue : editedTargetValue;
 
-    console.log("handleTargetEditEnd: valueToCompare:", valueToCompare);
-
     let hasChanged = false;
     let oldValue = "";
 
-    if (editingTargetField.field === "status") {
+    if (fieldToUse === "status") {
       const statusLower = target.status?.toLowerCase() || "enabled";
       const currentStatus =
         statusLower === "enable" || statusLower === "enabled"
           ? "enabled"
+          : statusLower === "paused"
+          ? "paused"
+          : statusLower === "archived" || statusLower === "archive"
+          ? "archived"
           : "paused";
       oldValue = currentStatus;
-      hasChanged = valueToCompare !== currentStatus;
-    } else if (editingTargetField.field === "bid") {
+      hasChanged = valueToCompare.toLowerCase() !== currentStatus;
+    } else if (fieldToUse === "bid") {
       const currentBid = target.bid ? target.bid.replace(/[^0-9.]/g, "") : "0";
       oldValue = target.bid || "$0.00";
-      // Compare numeric values
       const currentBidNum = parseFloat(currentBid) || 0;
       const newBidNum = parseFloat(valueToCompare) || 0;
       hasChanged =
         Math.abs(newBidNum - currentBidNum) > 0.001 &&
         valueToCompare !== "" &&
         !isNaN(newBidNum);
-      console.log("handleTargetEditEnd: bid comparison:", {
-        currentBid,
-        currentBidNum,
-        valueToCompare,
-        newBidNum,
-        hasChanged,
-      });
     }
 
     if (hasChanged) {
-      console.log(
-        "handleTargetEditEnd: Value changed, showing confirmation modal",
-      );
       setPendingTargetChange({
-        id: editingTargetField.id,
-        field: editingTargetField.field,
+        id: targetIdToUse,
+        field: fieldToUse,
         newValue: valueToCompare,
         oldValue: oldValue,
       });
       setShowTargetsConfirmationModal(true);
       setEditingTargetField(null);
     } else {
-      console.log("handleTargetEditEnd: No change, clearing edit state");
       setEditingTargetField(null);
       setEditedTargetValue("");
     }
@@ -5489,31 +5491,32 @@ export const CampaignDetail: React.FC = () => {
     setEditedNegativeTargetValue(value);
   };
 
-  const handleNegativeTargetEditEnd = (newValue?: string) => {
-    if (!editingNegativeTargetField) return;
-    const negativeTarget = negativeTargets.find(
-      (ntg) => ntg.id === editingNegativeTargetField.id,
-    );
+  const handleNegativeTargetEditEnd = (newValue?: string, targetId?: number, field?: "status") => {
+    // Use override parameters if provided, otherwise fall back to editingNegativeTargetField state
+    // Same pattern as Targets tab to avoid state timing issues
+    const targetIdToUse = targetId !== undefined ? targetId : editingNegativeTargetField?.id;
+    const fieldToUse = field !== undefined ? field : editingNegativeTargetField?.field;
+
+    if (targetIdToUse === undefined || fieldToUse === undefined) return;
+
+    const negativeTarget = negativeTargets.find((ntg) => ntg.id === targetIdToUse);
     if (!negativeTarget) {
       setEditingNegativeTargetField(null);
       setEditedNegativeTargetValue("");
       return;
     }
 
-    // Use the passed value if provided, otherwise use the state value
     const valueToCompare =
       newValue !== undefined ? newValue : editedNegativeTargetValue;
 
     let hasChanged = false;
     let oldValue = "";
 
-    if (editingNegativeTargetField.field === "status") {
+    if (fieldToUse === "status") {
       const statusLower =
         negativeTarget.status?.toLowerCase() ||
         negativeTarget.state?.toLowerCase() ||
         "enabled";
-      // For SD campaigns, handle lowercase states (enabled, paused, archived)
-      // For SP/SB campaigns, handle uppercase states (ENABLED, PAUSED)
       let currentStatus: string;
       if (campaignType === "SD") {
         currentStatus =
@@ -5538,8 +5541,8 @@ export const CampaignDetail: React.FC = () => {
 
     if (hasChanged) {
       setPendingNegativeTargetChange({
-        id: editingNegativeTargetField.id,
-        field: editingNegativeTargetField.field,
+        id: targetIdToUse,
+        field: fieldToUse,
         newValue: valueToCompare,
         oldValue: oldValue,
       });
@@ -6977,6 +6980,18 @@ export const CampaignDetail: React.FC = () => {
                 setEditedValue(
                   (campaignDetail.campaign.budget || 0).toString(),
                 );
+              } else if (field === "startDate" && campaignDetail) {
+                setEditedValue(
+                  campaignDetail.campaign.startDate
+                    ? toLocalDateString(new Date(campaignDetail.campaign.startDate + "T12:00:00"))
+                    : "",
+                );
+              } else if (field === "endDate" && campaignDetail) {
+                setEditedValue(
+                  campaignDetail.campaign.endDate
+                    ? toLocalDateString(new Date(campaignDetail.campaign.endDate + "T12:00:00"))
+                    : "",
+                );
               }
             }}
             onEditValueChange={setEditedValue}
@@ -6989,10 +7004,19 @@ export const CampaignDetail: React.FC = () => {
               const fieldToUse = field !== undefined ? field : editingField;
               
               if (fieldToUse === "status") {
-                const currentStatus =
-                  campaignDetail.campaign.status?.toLowerCase() || "enabled";
-                const newEditedValue = valueToCompare.toLowerCase();
-                if (newEditedValue !== currentStatus) {
+                const rawCurrent =
+                  campaignDetail.campaign.status ?? "";
+                const rawNew = String(valueToCompare ?? "").trim();
+                const norm = (s: string) => {
+                  const v = s.trim().toLowerCase();
+                  if (v === "enable" || v === "enabled" || v === "active")
+                    return "enabled";
+                  if (v === "pause" || v === "paused" || v === "inactive")
+                    return "paused";
+                  if (v === "archive" || v === "archived") return "archived";
+                  return v || "enabled";
+                };
+                if (norm(rawCurrent) !== norm(rawNew)) {
                   setInlineEditField("status");
                   setInlineEditOldValue(
                     campaignDetail.campaign.status || "Enabled",
@@ -7010,6 +7034,42 @@ export const CampaignDetail: React.FC = () => {
                   setInlineEditField("budget");
                   setInlineEditOldValue(`$${oldBudget.toLocaleString()}`);
                   setInlineEditNewValue(valueToCompare);
+                  setShowInlineEditModal(true);
+                } else {
+                  setEditingField(null);
+                  setEditedValue("");
+                }
+              } else if (fieldToUse === "startDate") {
+                const oldStartDate = campaignDetail.campaign.startDate
+                  ? toLocalDateString(new Date(campaignDetail.campaign.startDate + "T12:00:00"))
+                  : "";
+                const newStartDate = String(valueToCompare ?? "").trim();
+                if (newStartDate && newStartDate !== oldStartDate) {
+                  setInlineEditField("startDate");
+                  setInlineEditOldValue(
+                    oldStartDate
+                      ? new Date(oldStartDate).toLocaleDateString()
+                      : "—"
+                  );
+                  setInlineEditNewValue(newStartDate);
+                  setShowInlineEditModal(true);
+                } else {
+                  setEditingField(null);
+                  setEditedValue("");
+                }
+              } else if (fieldToUse === "endDate") {
+                const oldEndDate = campaignDetail.campaign.endDate
+                  ? toLocalDateString(new Date(campaignDetail.campaign.endDate + "T12:00:00"))
+                  : "";
+                const newEndDate = String(valueToCompare ?? "").trim();
+                if (newEndDate && newEndDate !== oldEndDate) {
+                  setInlineEditField("endDate");
+                  setInlineEditOldValue(
+                    oldEndDate
+                      ? new Date(oldEndDate).toLocaleDateString()
+                      : "—"
+                  );
+                  setInlineEditNewValue(newEndDate);
                   setShowInlineEditModal(true);
                 } else {
                   setEditingField(null);
@@ -7435,7 +7495,7 @@ export const CampaignDetail: React.FC = () => {
                             />
                           </svg>
                           <span className="text-[10.64px] text-[#072929] font-normal">
-                            Edit
+                            Bulk Actions
                           </span>
                         </Button>
                         {showSBAdsBulkActions && (
@@ -7732,7 +7792,7 @@ export const CampaignDetail: React.FC = () => {
                           />
                         </svg>
                         <span className="text-[10.64px] text-[#072929] font-normal">
-                          Edit
+                          Bulk Actions
                         </span>
                       </Button>
                       {showProductAdsBulkActions && (
@@ -8242,7 +8302,7 @@ export const CampaignDetail: React.FC = () => {
                             />
                           </svg>
                           <span className="text-[10.64px] text-[#072929] font-normal">
-                            Edit
+                            Bulk Actions
                           </span>
                         </Button>
                         {showNegativeTargetsBulkActions && (
@@ -8415,6 +8475,12 @@ export const CampaignDetail: React.FC = () => {
                     onEditCancel={handleNegativeTargetEditCancel}
                     inlineEditLoading={negativeTargetEditLoading}
                     pendingChange={pendingNegativeTargetChange}
+                    adgroups={(allAdgroups.length > 0 ? allAdgroups : adgroups)
+                      .filter(ag => ag.adGroupId != null)
+                      .map(ag => ({
+                        adGroupId: ag.adGroupId!,
+                        name: ag.name
+                      }))}
                   />
                 </div>
                 {/* Pagination */}
@@ -8786,6 +8852,7 @@ export const CampaignDetail: React.FC = () => {
                       ).map((ag) => ({
                         adGroupId: ag.adGroupId,
                         name: ag.name || `Ad Group ${ag.adGroupId}`,
+                        creativeType: ag.creativeType || null,
                       }))}
                       loading={createCreativeLoading}
                       editCreative={editingCreative}
@@ -8813,6 +8880,7 @@ export const CampaignDetail: React.FC = () => {
                     sortOrder={creativesSortOrder}
                     onSort={handleCreativesSort}
                     onEdit={handleEditCreative}
+                    adgroups={adgroups}
                   />
                 </div>
 
@@ -8951,7 +9019,11 @@ export const CampaignDetail: React.FC = () => {
             <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
               {inlineEditField === "status"
                 ? "Confirm Status Changes"
-                : "Confirm Budget Changes"}
+                : inlineEditField === "budget"
+                  ? "Confirm Budget Changes"
+                  : inlineEditField === "startDate"
+                    ? "Confirm Start Date Changes"
+                    : "Confirm End Date Changes"}
             </h3>
 
             {/* Summary */}
@@ -8961,7 +9033,13 @@ export const CampaignDetail: React.FC = () => {
                   1 campaign will be updated:
                 </span>
                 <span className="text-[12.16px] font-semibold text-[#072929]">
-                  {inlineEditField === "status" ? "Status" : "Budget"} change
+                  {inlineEditField === "status"
+                    ? "Status"
+                    : inlineEditField === "budget"
+                      ? "Budget"
+                      : inlineEditField === "startDate"
+                        ? "Start Date"
+                        : "End Date"} change
                 </span>
               </div>
             </div>
@@ -9000,9 +9078,11 @@ export const CampaignDetail: React.FC = () => {
                         {inlineEditField === "status"
                           ? inlineEditNewValue.charAt(0).toUpperCase() +
                             inlineEditNewValue.slice(1)
-                          : `$${parseFloat(inlineEditNewValue || "0").toFixed(
-                              2,
-                            )}`}
+                          : inlineEditField === "budget"
+                            ? `$${parseFloat(inlineEditNewValue || "0").toFixed(2)}`
+                            : inlineEditField === "startDate" || inlineEditField === "endDate"
+                              ? new Date(inlineEditNewValue).toLocaleDateString()
+                              : `$${parseFloat(inlineEditNewValue || "0").toFixed(2)}`}
                       </td>
                     </tr>
                   </tbody>

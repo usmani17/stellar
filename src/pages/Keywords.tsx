@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -27,8 +27,10 @@ import { logsService } from "../services/logs";
 
 export const Keywords: React.FC = () => {
   const navigate = useNavigate();
-  const { accountId } = useParams<{ accountId: string }>();
-  const { startDate, endDate } = useDateRange();
+  const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
+  const [searchParams] = useSearchParams();
+  const profileId = searchParams.get("profile_id") ?? undefined;
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [summary, setSummary] = useState<{
@@ -111,7 +113,7 @@ export const Keywords: React.FC = () => {
       key: "roas",
       label: "ROAS",
       color: "#059669",
-      tooltipFormatter: (v) => `${v.toFixed(2)} x`,
+      tooltipFormatter: (v) => `${v.toFixed(2)}`,
     },
   ];
   const [currentPage, setCurrentPage] = useState(1);
@@ -371,8 +373,8 @@ export const Keywords: React.FC = () => {
       const params: any = {
         sort_by: sortBy,
         order: sortOrder,
-        start_date: startDate.toISOString().split("T")[0],
-        end_date: endDate.toISOString().split("T")[0],
+        start_date: startDateStr,
+        end_date: endDateStr,
         ...buildFilterParams(filters),
       };
 
@@ -383,10 +385,12 @@ export const Keywords: React.FC = () => {
       }
 
       // Call export API
-      const result = await campaignsService.exportKeywords(accountIdNum, {
-        ...params,
-        export_type: exportType,
-      });
+      const result = await campaignsService.exportKeywords(
+        accountIdNum,
+        { ...params, export_type: exportType },
+        channelId ?? null,
+        profileId ?? null
+      );
 
       // Automatically download the file
       const link = document.createElement("a");
@@ -425,8 +429,6 @@ export const Keywords: React.FC = () => {
     try {
       loadingRef.current = true;
       setLoading(true);
-      const startDateStr = startDate?.toISOString().split("T")[0];
-      const endDateStr = endDate?.toISOString().split("T")[0];
 
       console.log("Keywords - Date range:", {
         startDate: startDateStr,
@@ -445,7 +447,9 @@ export const Keywords: React.FC = () => {
 
       const response = await campaignsService.getKeywordsList(
         accountId,
-        params
+        params,
+        channelId ?? null,
+        profileId ?? null
       );
 
       console.log(
@@ -493,14 +497,16 @@ export const Keywords: React.FC = () => {
         order: sortOrder,
         page: 1, // Always reset to first page when applying filters
         page_size: itemsPerPage,
-        start_date: startDate?.toISOString().split("T")[0],
-        end_date: endDate?.toISOString().split("T")[0],
+        start_date: startDateStr,
+        end_date: endDateStr,
         ...buildFilterParams(filterList),
       };
 
       const response = await campaignsService.getKeywordsList(
         accountId,
-        params
+        params,
+        channelId ?? null,
+        profileId ?? null
       );
       setKeywords(Array.isArray(response.keywords) ? response.keywords : []);
       setTotalPages(response.total_pages || 0);
@@ -1307,7 +1313,7 @@ export const Keywords: React.FC = () => {
                     />
                   </svg>
                   <span className="text-[10.64px] text-[#072929] font-normal">
-                    Edit
+                    Bulk Actions
                   </span>
                 </Button>
                 {showBulkActions && (
@@ -1966,7 +1972,7 @@ export const Keywords: React.FC = () => {
                                 {summary.avg_acos.toFixed(2)}%
                               </td>
                               <td className="table-cell table-text leading-[1.26]">
-                                {summary.avg_roas.toFixed(2)}x
+                                {summary.avg_roas.toFixed(2)}
                               </td>
                             </tr>
                           )}
@@ -2169,6 +2175,7 @@ export const Keywords: React.FC = () => {
                                         navigate(
                                           buildMarketplaceRoute(
                                             parseInt(accountId),
+                                            channelId ?? 0,
                                             "amazon",
                                             "campaigns",
                                             `${
@@ -2266,8 +2273,8 @@ export const Keywords: React.FC = () => {
                                     {keyword.roas
                                       ? `${parseFloat(keyword.roas).toFixed(
                                           2
-                                        )} x`
-                                      : "0.00 x"}
+                                        )}`
+                                      : "0.00"}
                                   </span>
                                 </td>
 

@@ -116,23 +116,27 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
                 )}
               </button>
             )}
-            <button
-              type="button"
+            <a
+              href={navPath}
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(navPath);
+                // Only prevent default for regular clicks (not Ctrl/Cmd/middle click)
+                if (!e.metaKey && !e.ctrlKey && e.button !== 1) {
+                  e.preventDefault();
+                  navigate(navPath);
+                }
               }}
               className="table-edit-link"
             >
               {value}
-            </button>
+            </a>
           </div>
         );
       },
     },
     {
       key: "account_name",
-      label: "Brand Name",
+      label: "Profile",
       type: "text",
       sortable: true,
       minWidth: "min-w-[200px]",
@@ -157,7 +161,11 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       sortable: true,
       width: "w-[140px]",
       maxWidth: "max-w-[140px]",
-      editable: true,
+      editable: (row: IGoogleCampaign) => {
+        // Don't allow editing status if campaign is REMOVED
+        const status = getStatusWithDefault(row.status).toUpperCase();
+        return status !== "REMOVED";
+      },
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
         { value: "PAUSED", label: "Paused" },
@@ -170,7 +178,11 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       label: "Budget",
       type: "budget",
       sortable: true,
-      editable: true,
+      editable: (row: IGoogleCampaign) => {
+        // Don't allow editing budget if campaign is REMOVED
+        const status = getStatusWithDefault(row.status).toUpperCase();
+        return status !== "REMOVED";
+      },
       getValue: (row: IGoogleCampaign) => row.daily_budget || 0,
     },
     {
@@ -179,6 +191,11 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       type: "start_date",
       sortable: true,
       editable: (row: IGoogleCampaign) => {
+        // Don't allow editing start_date if campaign is REMOVED
+        const status = getStatusWithDefault(row.status).toUpperCase();
+        if (status === "REMOVED") {
+          return false;
+        }
         // Make start_date non-editable if it's in the past
         const startDateStr = row.start_date;
         if (startDateStr) {
@@ -198,6 +215,11 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       type: "end_date",
       sortable: true,
       editable: (row: IGoogleCampaign) => {
+        // Don't allow editing end_date if campaign is REMOVED
+        const status = getStatusWithDefault(row.status).toUpperCase();
+        if (status === "REMOVED") {
+          return false;
+        }
         // Make end_date non-editable if it's in the past
         const endDateStr = row.end_date;
         if (endDateStr) {

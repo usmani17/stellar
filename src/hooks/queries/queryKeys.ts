@@ -21,7 +21,12 @@ export const queryKeys = {
   },
   campaigns: {
     all: ["campaigns"] as const,
-    lists: (accountId: number, params?: Record<string, any>) => {
+    lists: (
+      accountId: number,
+      params?: Record<string, any>,
+      channelId?: number | string | null,
+      profileId?: string | number | null
+    ) => {
       // Create a stable key from params by sorting keys
       const paramsKey = params
         ? JSON.stringify(
@@ -38,6 +43,8 @@ export const queryKeys = {
         "list",
         accountId,
         paramsKey,
+        channelId ?? "",
+        profileId ?? "",
       ] as const;
     },
     detail: (accountId: number, campaignId: string | number) =>

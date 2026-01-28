@@ -70,6 +70,7 @@ const AccountChannelsList: React.FC<{
                   navigate(
                     buildMarketplaceRoute(
                       accountId,
+                      channel.id,
                       channel.channel_type,
                       "campaigns",
                     ),
@@ -255,15 +256,15 @@ export const DashboardHeader: React.FC = () => {
     ? (currentEntity as "campaigns" | "adgroups" | "ads" | "keywords")
     : null;
 
-  // Hide date picker and account dropdown on profile page, channels page, and account selection pages
+  // Hide date picker and account dropdown on profile page, integrations page, and account selection pages
   const isProfilePage = location.pathname === "/profile";
-  const isChannelsPage = /^\/brands\/\d+\/channels$/.test(location.pathname);
+  const isIntegrationsPage = /^\/brands\/\d+\/integrations$/.test(location.pathname);
   const isAccountSelectionPage =
     /^\/channels\/\d+\/(select-google-accounts|select-tiktok-profiles|list-profiles)$/.test(
       location.pathname,
     );
   const shouldHideDatePicker =
-    isProfilePage || isChannelsPage || isAccountSelectionPage;
+    isProfilePage || isIntegrationsPage || isAccountSelectionPage;
 
   // Use channels from accounts data if available, otherwise fall back to API call
   // This avoids unnecessary API calls when channels are already included in accounts response
@@ -433,7 +434,9 @@ export const DashboardHeader: React.FC = () => {
                             }, 150);
                           }}
                           onClick={() => {
-                            setSelectedAccount(account);
+                            navigate(`/brands/${account.id}/integrations`);
+                            setIsAccountDropdownOpen(false);
+                            setExpandedAccountId(null);
                           }}
                           className={`w-full flex items-center gap-2 px-3 py-2 text-[12.32px] text-left ${
                             expandedAccountId === account.id

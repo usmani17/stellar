@@ -1,16 +1,36 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { campaignsService } from "../../services/campaigns";
+import { CreateGoogleSearchAdTypeForm, type AdFormData } from "./CreateGoogleSearchAdTypeForm";
 
 export interface AdInput {
-  adgroup_id?: number; // Optional: use existing adgroup
-  adgroup?: {
-    name: string;
-    cpc_bid?: number;
-  };
+  adgroup_id: number; // Required: always use existing adgroup
+  ad_type: "RESPONSIVE_SEARCH_AD" | "RESPONSIVE_DISPLAY_AD";
   ad: {
+    // RSA fields
     headlines: string[];
     descriptions: string[];
+    path1?: string;
+    path2?: string;
+    headline_pins?: string[]; // HEADLINE_1, HEADLINE_2, etc. (indexed: headline_pins[0] corresponds to headlines[0])
+    description_pins?: string[]; // DESCRIPTION_1, etc. (indexed: description_pins[0] corresponds to descriptions[0])
+    // Asset-based (optional)
+    headline_asset_ids?: number[]; // For UI reference only
+    headline_asset_resource_names?: string[]; // For API (format: "customers/{customer_id}/assets/{asset_id}")
+    description_asset_ids?: number[]; // For UI reference only
+    description_asset_resource_names?: string[]; // For API (format: "customers/{customer_id}/assets/{asset_id}")
+    // RDA fields
+    marketing_image_urls?: string[];
+    square_marketing_image_urls?: string[];
+    marketing_image_asset_ids?: number[];
+    marketing_image_asset_resource_names?: string[];
+    square_marketing_image_asset_ids?: number[];
+    square_marketing_image_asset_resource_names?: string[];
+    long_headline?: string;
+    long_headline_asset_id?: number;
+    long_headline_asset_resource_name?: string;
+    business_name?: string;
+    // Common
     final_url?: string;
   };
   keywords?: Array<{
@@ -26,6 +46,7 @@ interface CreateGoogleAdPanelProps {
   onSubmit: (entity: AdInput) => void;
   campaignId: string;
   accountId: string;
+  profileId?: number | null;
   loading?: boolean;
   submitError?: string | null;
 }
@@ -36,29 +57,18 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
   onSubmit,
   campaignId,
   accountId,
+  profileId = null,
   loading = false,
   submitError = null,
 }) => {
-  const generateDefaultAdGroupName = (): string => {
-    const now = new Date();
-    const day = String(now.getDate()).padStart(2, "0");
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const year = now.getFullYear();
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const seconds = String(now.getSeconds()).padStart(2, "0");
-    const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
-    const dateTime = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}.${milliseconds}`;
-    return `Ad Group - ${dateTime}`;
-  };
-
-  const [useExistingAdGroup, setUseExistingAdGroup] = useState(true);
   const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>("");
-  const [newAdGroupName, setNewAdGroupName] = useState(generateDefaultAdGroupName());
-  const [adGroupBid, setAdGroupBid] = useState<number | undefined>(undefined);
-  const [headlines, setHeadlines] = useState<string[]>(["", "", ""]);
-  const [descriptions, setDescriptions] = useState<string[]>(["", ""]);
-  const [finalUrl, setFinalUrl] = useState<string>("");
+  const [formData, setFormData] = useState<AdFormData>({
+    ad_type: "RESPONSIVE_SEARCH_AD",
+    headlines: ["", "", ""],
+    descriptions: ["", ""],
+    marketing_image_urls: [""],
+    square_marketing_image_urls: [""],
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   // Adgroup search state
@@ -66,6 +76,7 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
   const [adgroupOptions, setAdgroupOptions] = useState<Array<{ value: string; label: string; adgroup_id: number }>>([]);
   const [loadingAdgroups, setLoadingAdgroups] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasFetchedAdgroupsRef = useRef(false);
 
   // Fetch adgroups from API with debounced search
   const fetchAdgroups = useCallback(async (searchQuery: string = "") => {
@@ -118,21 +129,29 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
     } finally {
       setLoadingAdgroups(false);
     }
-  }, [accountId, campaignId]);
+  }, [accountId, campaignId, selectedAdGroupId]);
 
-  // Debounced search effect
+  // Fetch adgroups once when panel opens
   useEffect(() => {
-    if (!useExistingAdGroup || !isOpen) return;
+    if (!isOpen) {
+      hasFetchedAdgroupsRef.current = false;
+      return;
+    }
+    
+    // Only fetch once when panel opens
+    if (!hasFetchedAdgroupsRef.current) {
+      hasFetchedAdgroupsRef.current = true;
+      fetchAdgroups("");
+    }
+  }, [isOpen, fetchAdgroups]);
+
+  // Debounced search effect - only for search queries
+  useEffect(() => {
+    if (!isOpen || adgroupSearchQuery === "") return;
     
     // Clear previous timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
-    }
-    
-    // Fetch initial adgroups when dropdown opens
-    if (adgroupSearchQuery === "") {
-      fetchAdgroups("");
-      return;
     }
     
     // Debounce search query
@@ -145,28 +164,23 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [adgroupSearchQuery, useExistingAdGroup, isOpen, fetchAdgroups]);
-
-  // Fetch adgroups when switching to existing adgroup mode
-  useEffect(() => {
-    if (useExistingAdGroup && isOpen) {
-      fetchAdgroups("");
-    }
-  }, [useExistingAdGroup, isOpen, fetchAdgroups]);
+  }, [adgroupSearchQuery, isOpen, fetchAdgroups]);
 
   // Reset form when panel closes
   useEffect(() => {
     if (!isOpen) {
-      setUseExistingAdGroup(true);
       setSelectedAdGroupId("");
-      setNewAdGroupName(generateDefaultAdGroupName());
-      setAdGroupBid(undefined);
-      setHeadlines(["", "", ""]);
-      setDescriptions(["", ""]);
-      setFinalUrl("");
+      setFormData({
+        ad_type: "RESPONSIVE_SEARCH_AD",
+        headlines: ["", "", ""],
+        descriptions: ["", ""],
+        marketing_image_urls: [""],
+        square_marketing_image_urls: [""],
+      });
       setErrors({});
       setAdgroupSearchQuery("");
       setAdgroupOptions([]);
+      hasFetchedAdgroupsRef.current = false;
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
@@ -178,16 +192,18 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
   useEffect(() => {
     if (prevLoadingRef.current === true && loading === false && isOpen) {
       // Successful submission - reset form
-      setUseExistingAdGroup(true);
       setSelectedAdGroupId("");
-      setNewAdGroupName(generateDefaultAdGroupName());
-      setAdGroupBid(undefined);
-      setHeadlines(["", "", ""]);
-      setDescriptions(["", ""]);
-      setFinalUrl("");
+      setFormData({
+        ad_type: "RESPONSIVE_SEARCH_AD",
+        headlines: ["", "", ""],
+        descriptions: ["", ""],
+        marketing_image_urls: [""],
+        square_marketing_image_urls: [""],
+      });
       setErrors({});
       setAdgroupSearchQuery("");
       setAdgroupOptions([]);
+      hasFetchedAdgroupsRef.current = false;
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
@@ -198,30 +214,78 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (useExistingAdGroup) {
-      if (!selectedAdGroupId) {
-        newErrors.adGroup = "Please select an ad group";
-      }
-    } else {
-      if (!newAdGroupName.trim()) {
-        newErrors.adGroupName = "Ad Group name is required";
-      }
+    if (!selectedAdGroupId) {
+      newErrors.adGroup = "Please select an ad group";
     }
 
-    const validHeadlines = headlines.filter((h) => h.trim()).length;
-    if (validHeadlines < 3) {
-      newErrors.headlines = "At least 3 headlines are required";
-    }
-    if (validHeadlines > 15) {
-      newErrors.headlines = "Maximum 15 headlines allowed";
-    }
+    if (formData.ad_type === "RESPONSIVE_SEARCH_AD") {
+      const validHeadlines = formData.headlines?.filter((h) => h.trim()).length || 0;
+      if (validHeadlines < 3) {
+        newErrors.headlines = "At least 3 headlines are required";
+      }
+      if (validHeadlines > 15) {
+        newErrors.headlines = "Maximum 15 headlines allowed";
+      }
 
-    const validDescriptions = descriptions.filter((d) => d.trim()).length;
-    if (validDescriptions < 2) {
-      newErrors.descriptions = "At least 2 descriptions are required";
-    }
-    if (validDescriptions > 4) {
-      newErrors.descriptions = "Maximum 4 descriptions allowed";
+      const validDescriptions = formData.descriptions?.filter((d) => d.trim()).length || 0;
+      if (validDescriptions < 2) {
+        newErrors.descriptions = "At least 2 descriptions are required";
+      }
+      if (validDescriptions > 4) {
+        newErrors.descriptions = "Maximum 4 descriptions allowed";
+      }
+
+      // Validate path lengths
+      if (formData.path1 && formData.path1.length > 15) {
+        newErrors.path1 = "Path 1 must be 15 characters or less";
+      }
+      if (formData.path2 && formData.path2.length > 15) {
+        newErrors.path2 = "Path 2 must be 15 characters or less";
+      }
+    } else if (formData.ad_type === "RESPONSIVE_DISPLAY_AD") {
+      const validMarketingImages = formData.marketing_image_urls?.filter((url) => url.trim()).length || 0;
+      if (validMarketingImages < 1) {
+        newErrors.marketing_images = "At least 1 marketing image is required";
+      }
+      if (validMarketingImages > 15) {
+        newErrors.marketing_images = "Maximum 15 marketing images allowed";
+      }
+
+      const validSquareImages = formData.square_marketing_image_urls?.filter((url) => url.trim()).length || 0;
+      if (validSquareImages < 1) {
+        newErrors.square_marketing_images = "At least 1 square marketing image is required";
+      }
+      if (validSquareImages > 15) {
+        newErrors.square_marketing_images = "Maximum 15 square marketing images allowed";
+      }
+
+      const validHeadlines = formData.headlines?.filter((h) => h.trim()).length || 0;
+      if (validHeadlines < 3) {
+        newErrors.headlines = "At least 3 headlines are required";
+      }
+      if (validHeadlines > 15) {
+        newErrors.headlines = "Maximum 15 headlines allowed";
+      }
+
+      if (!formData.long_headline || !formData.long_headline.trim()) {
+        newErrors.long_headline = "Long headline is required";
+      } else if (formData.long_headline.length > 90) {
+        newErrors.long_headline = "Long headline must be 90 characters or less";
+      }
+
+      const validDescriptions = formData.descriptions?.filter((d) => d.trim()).length || 0;
+      if (validDescriptions < 2) {
+        newErrors.descriptions = "At least 2 descriptions are required";
+      }
+      if (validDescriptions > 4) {
+        newErrors.descriptions = "Maximum 4 descriptions allowed";
+      }
+
+      if (!formData.business_name || !formData.business_name.trim()) {
+        newErrors.business_name = "Business name is required";
+      } else if (formData.business_name.length > 25) {
+        newErrors.business_name = "Business name must be 25 characters or less";
+      }
     }
 
     setErrors(newErrors);
@@ -229,26 +293,181 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
   };
 
   const handleAddHeadline = () => {
-    if (headlines.length < 15) {
-      setHeadlines([...headlines, ""]);
-    }
+    setFormData((prev) => {
+      if ((prev.headlines?.length || 0) >= 15) return prev;
+      return { ...prev, headlines: [...(prev.headlines || []), ""] };
+    });
   };
 
   const handleRemoveHeadline = (index: number) => {
-    if (headlines.length > 3) {
-      setHeadlines(headlines.filter((_, i) => i !== index));
-    }
+    setFormData((prev) => {
+      if ((prev.headlines?.length || 0) <= 3) return prev;
+      const newHeadlines = [...(prev.headlines || [])];
+      newHeadlines.splice(index, 1);
+      const newHeadlineAssetIds = [...(prev.headline_asset_ids || [])];
+      const newHeadlineAssetResourceNames = [...(prev.headline_asset_resource_names || [])];
+      newHeadlineAssetIds.splice(index, 1);
+      newHeadlineAssetResourceNames.splice(index, 1);
+      const newHeadlinePins = [...(prev.headline_pins || [])];
+      newHeadlinePins.splice(index, 1);
+      return {
+        ...prev,
+        headlines: newHeadlines,
+        headline_asset_ids: newHeadlineAssetIds,
+        headline_asset_resource_names: newHeadlineAssetResourceNames,
+        headline_pins: newHeadlinePins,
+      };
+    });
+  };
+
+  const handleUpdateHeadline = (index: number, value: string) => {
+    setFormData((prev) => {
+      const newHeadlines = [...(prev.headlines || [])];
+      while (newHeadlines.length <= index) {
+        newHeadlines.push("");
+      }
+      newHeadlines[index] = value;
+      return { ...prev, headlines: newHeadlines };
+    });
   };
 
   const handleAddDescription = () => {
-    if (descriptions.length < 4) {
-      setDescriptions([...descriptions, ""]);
-    }
+    setFormData((prev) => {
+      if ((prev.descriptions?.length || 0) >= 4) return prev;
+      return { ...prev, descriptions: [...(prev.descriptions || []), ""] };
+    });
   };
 
   const handleRemoveDescription = (index: number) => {
-    if (descriptions.length > 2) {
-      setDescriptions(descriptions.filter((_, i) => i !== index));
+    setFormData((prev) => {
+      if ((prev.descriptions?.length || 0) <= 2) return prev;
+      const newDescriptions = [...(prev.descriptions || [])];
+      newDescriptions.splice(index, 1);
+      const newDescriptionAssetIds = [...(prev.description_asset_ids || [])];
+      const newDescriptionAssetResourceNames = [...(prev.description_asset_resource_names || [])];
+      newDescriptionAssetIds.splice(index, 1);
+      newDescriptionAssetResourceNames.splice(index, 1);
+      const newDescriptionPins = [...(prev.description_pins || [])];
+      newDescriptionPins.splice(index, 1);
+      return {
+        ...prev,
+        descriptions: newDescriptions,
+        description_asset_ids: newDescriptionAssetIds,
+        description_asset_resource_names: newDescriptionAssetResourceNames,
+        description_pins: newDescriptionPins,
+      };
+    });
+  };
+
+  const handleUpdateDescription = (index: number, value: string) => {
+    setFormData((prev) => {
+      const newDescriptions = [...(prev.descriptions || [])];
+      while (newDescriptions.length <= index) {
+        newDescriptions.push("");
+      }
+      newDescriptions[index] = value;
+      return { ...prev, descriptions: newDescriptions };
+    });
+  };
+
+  const handleAddMarketingImage = () => {
+    setFormData((prev) => {
+      if ((prev.marketing_image_urls?.length || 0) >= 15) return prev;
+      return { ...prev, marketing_image_urls: [...(prev.marketing_image_urls || []), ""] };
+    });
+  };
+
+  const handleRemoveMarketingImage = (index: number) => {
+    setFormData((prev) => {
+      if ((prev.marketing_image_urls?.length || 0) <= 1) return prev;
+      const newUrls = [...(prev.marketing_image_urls || [])];
+      newUrls.splice(index, 1);
+      const newAssetIds = [...(prev.marketing_image_asset_ids || [])];
+      const newAssetResourceNames = [...(prev.marketing_image_asset_resource_names || [])];
+      newAssetIds.splice(index, 1);
+      newAssetResourceNames.splice(index, 1);
+      return {
+        ...prev,
+        marketing_image_urls: newUrls,
+        marketing_image_asset_ids: newAssetIds,
+        marketing_image_asset_resource_names: newAssetResourceNames,
+      };
+    });
+  };
+
+  const handleUpdateMarketingImage = (index: number, value: string) => {
+    setFormData((prev) => {
+      const newUrls = [...(prev.marketing_image_urls || [])];
+      while (newUrls.length <= index) {
+        newUrls.push("");
+      }
+      newUrls[index] = value;
+      return { ...prev, marketing_image_urls: newUrls };
+    });
+  };
+
+  const handleAddSquareMarketingImage = () => {
+    setFormData((prev) => {
+      if ((prev.square_marketing_image_urls?.length || 0) >= 15) return prev;
+      return { ...prev, square_marketing_image_urls: [...(prev.square_marketing_image_urls || []), ""] };
+    });
+  };
+
+  const handleRemoveSquareMarketingImage = (index: number) => {
+    setFormData((prev) => {
+      if ((prev.square_marketing_image_urls?.length || 0) <= 1) return prev;
+      const newUrls = [...(prev.square_marketing_image_urls || [])];
+      newUrls.splice(index, 1);
+      const newAssetIds = [...(prev.square_marketing_image_asset_ids || [])];
+      const newAssetResourceNames = [...(prev.square_marketing_image_asset_resource_names || [])];
+      newAssetIds.splice(index, 1);
+      newAssetResourceNames.splice(index, 1);
+      return {
+        ...prev,
+        square_marketing_image_urls: newUrls,
+        square_marketing_image_asset_ids: newAssetIds,
+        square_marketing_image_asset_resource_names: newAssetResourceNames,
+      };
+    });
+  };
+
+  const handleUpdateSquareMarketingImage = (index: number, value: string) => {
+    setFormData((prev) => {
+      const newUrls = [...(prev.square_marketing_image_urls || [])];
+      while (newUrls.length <= index) {
+        newUrls.push("");
+      }
+      newUrls[index] = value;
+      return { ...prev, square_marketing_image_urls: newUrls };
+    });
+  };
+
+  const handleFormChange = (field: keyof AdFormData, value: any) => {
+    // When ad_type changes, reset form data appropriately
+    if (field === 'ad_type' && value !== formData.ad_type) {
+      if (value === 'RESPONSIVE_SEARCH_AD') {
+        setFormData({
+          ad_type: value,
+          headlines: ["", "", ""],
+          descriptions: ["", ""],
+          marketing_image_urls: undefined,
+          square_marketing_image_urls: undefined,
+        });
+      } else if (value === 'RESPONSIVE_DISPLAY_AD') {
+        setFormData({
+          ad_type: value,
+          headlines: ["", "", ""],
+          descriptions: ["", ""],
+          marketing_image_urls: [""],
+          square_marketing_image_urls: [""],
+        });
+      }
+    } else {
+      // Use functional update to avoid stale state issues
+      setFormData((prevFormData) => {
+        const updated = { ...prevFormData, [field]: value };
+        return updated;
+      });
     }
   };
 
@@ -258,38 +477,104 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
     }
 
     const entity: AdInput = {
+      adgroup_id: parseInt(selectedAdGroupId, 10),
+      ad_type: formData.ad_type,
       ad: {
-        headlines: headlines.filter((h) => h.trim()),
-        descriptions: descriptions.filter((d) => d.trim()),
-        ...(finalUrl.trim() && { final_url: finalUrl.trim() }),
+        headlines: formData.headlines?.filter((h) => h.trim()) || [],
+        descriptions: formData.descriptions?.filter((d) => d.trim()) || [],
+        ...(formData.final_url?.trim() && { final_url: formData.final_url.trim() }),
+        ...(formData.ad_type === "RESPONSIVE_SEARCH_AD" && {
+          ...(formData.path1 && { path1: formData.path1 }),
+          ...(formData.path2 && { path2: formData.path2 }),
+          ...(formData.headline_pins && formData.headline_pins.some(p => p) && { headline_pins: formData.headline_pins }),
+          ...(formData.description_pins && formData.description_pins.some(p => p) && { description_pins: formData.description_pins }),
+          ...(formData.headline_asset_resource_names && formData.headline_asset_resource_names.some(r => r) && {
+            headline_asset_resource_names: formData.headline_asset_resource_names.filter(r => r) as string[],
+          }),
+          ...(formData.description_asset_resource_names && formData.description_asset_resource_names.some(r => r) && {
+            description_asset_resource_names: formData.description_asset_resource_names.filter(r => r) as string[],
+          }),
+        }),
+        ...(formData.ad_type === "RESPONSIVE_DISPLAY_AD" && {
+          marketing_image_urls: formData.marketing_image_urls?.filter((url) => url.trim()) || [],
+          square_marketing_image_urls: formData.square_marketing_image_urls?.filter((url) => url.trim()) || [],
+          ...(formData.marketing_image_asset_resource_names && formData.marketing_image_asset_resource_names.some(r => r) && {
+            marketing_image_asset_resource_names: formData.marketing_image_asset_resource_names.filter(r => r) as string[],
+          }),
+          ...(formData.square_marketing_image_asset_resource_names && formData.square_marketing_image_asset_resource_names.some(r => r) && {
+            square_marketing_image_asset_resource_names: formData.square_marketing_image_asset_resource_names.filter(r => r) as string[],
+          }),
+          ...(formData.long_headline && { long_headline: formData.long_headline }),
+          ...(formData.long_headline_asset_resource_name && { long_headline_asset_resource_name: formData.long_headline_asset_resource_name }),
+          ...(formData.business_name && { business_name: formData.business_name }),
+        }),
       },
     };
-
-    if (useExistingAdGroup && selectedAdGroupId) {
-      // Use existing adgroup - send adgroup_id
-      entity.adgroup_id = parseInt(selectedAdGroupId, 10);
-    } else {
-      // Create new adgroup - send adgroup data
-      entity.adgroup = {
-        name: newAdGroupName.trim(),
-        ...(adGroupBid !== undefined && adGroupBid > 0 && { cpc_bid: adGroupBid }),
-      };
-    }
 
     onSubmit(entity);
   };
 
+  const handleFillDummyValues = () => {
+    if (formData.ad_type === "RESPONSIVE_SEARCH_AD") {
+      setFormData({
+        ad_type: "RESPONSIVE_SEARCH_AD",
+        headlines: [
+          "Best Products Online",
+          "Shop Now & Save",
+          "Quality Guaranteed",
+          "Free Shipping Today",
+          "Limited Time Offer"
+        ],
+        descriptions: [
+          "Discover amazing products at unbeatable prices. Shop now and enjoy fast shipping!",
+          "Get the best deals on quality products. Satisfaction guaranteed or your money back."
+        ],
+        path1: "Shop",
+        path2: "Now",
+        headline_pins: ["", "", "", "", ""],
+        description_pins: ["", ""],
+        final_url: "https://example.com",
+      });
+    } else {
+      // RESPONSIVE_DISPLAY_AD
+      setFormData({
+        ad_type: "RESPONSIVE_DISPLAY_AD",
+        headlines: [
+          "Best Products Online",
+          "Shop Now & Save",
+          "Quality Guaranteed"
+        ],
+        descriptions: [
+          "Discover amazing products at unbeatable prices. Shop now and enjoy fast shipping!",
+          "Get the best deals on quality products. Satisfaction guaranteed or your money back."
+        ],
+        marketing_image_urls: [
+          "https://picsum.photos/1200/627?random=1",
+          "https://picsum.photos/1200/627?random=2"
+        ],
+        square_marketing_image_urls: [
+          "https://picsum.photos/1200/1200?random=3",
+          "https://picsum.photos/1200/1200?random=4"
+        ],
+        long_headline: "Discover Amazing Products at Unbeatable Prices - Shop Now and Enjoy Fast Shipping!",
+        business_name: "Best Products Co",
+        final_url: "https://example.com",
+      });
+    }
+    setErrors({}); // Clear any existing errors
+  };
+
   const handleCancel = () => {
-    setUseExistingAdGroup(true);
     setSelectedAdGroupId("");
-    setNewAdGroupName(generateDefaultAdGroupName());
-    setAdGroupBid(undefined);
-    setHeadlines(["", "", ""]);
-    setDescriptions(["", ""]);
-    setFinalUrl("");
+    setFormData({
+      ad_type: "RESPONSIVE_SEARCH_AD",
+      headlines: ["", "", ""],
+      descriptions: ["", ""],
+    });
     setErrors({});
     setAdgroupSearchQuery("");
     setAdgroupOptions([]);
+    hasFetchedAdgroupsRef.current = false;
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
@@ -302,9 +587,19 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
     <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6] mb-4">
       {/* Form */}
       <div className="p-4 border-b border-gray-200">
-        <h2 className="text-[16px] font-semibold text-[#072929] mb-4">
-          Create Ad
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[16px] font-semibold text-[#072929]">
+            Create Ad
+          </h2>
+          <button
+            type="button"
+            onClick={handleFillDummyValues}
+            className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] hover:underline px-2 py-1"
+            title="Fill with dummy values for testing"
+          >
+            Fill Dummy Values
+          </button>
+        </div>
 
         {/* Ad Group Selection */}
         <div className="mb-6">
@@ -312,327 +607,65 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
             Ad Group
           </h3>
           <div className="mb-3">
-            <div className="flex items-center gap-4 mb-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={!useExistingAdGroup}
-                  onChange={() => {
-                    setUseExistingAdGroup(false);
-                    setSelectedAdGroupId("");
-                    if (errors.adGroup) {
-                      setErrors((prev) => {
-                        const newErrors = { ...prev };
-                        delete newErrors.adGroup;
-                        return newErrors;
-                      });
-                    }
-                  }}
-                  className="text-[#136D6D]"
-                />
-                <span className="text-[11.2px] text-[#556179]">
-                  Create New Ad Group
-                </span>
+            <div>
+              <label className="form-label-small">
+                Select Ad Group *
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={useExistingAdGroup}
-                  onChange={() => {
-                    setUseExistingAdGroup(true);
-                    setNewAdGroupName(generateDefaultAdGroupName());
-                    if (errors.adGroupName) {
-                      setErrors((prev) => {
-                        const newErrors = { ...prev };
-                        delete newErrors.adGroupName;
-                        return newErrors;
-                      });
-                    }
-                  }}
-                  className="text-[#136D6D]"
-                />
-                <span className="text-[11.2px] text-[#556179]">
-                  Use Existing Ad Group
-                </span>
-              </label>
+              <Dropdown<string>
+                options={adgroupOptions}
+                value={selectedAdGroupId}
+                onChange={(value) => {
+                  setSelectedAdGroupId(value);
+                  if (errors.adGroup) {
+                    setErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.adGroup;
+                      return newErrors;
+                    });
+                  }
+                }}
+                placeholder={loadingAdgroups ? "Loading adgroups..." : "Search and select an ad group"}
+                buttonClassName="w-full"
+                searchable={true}
+                searchPlaceholder="Search adgroups..."
+                emptyMessage={loadingAdgroups ? "Loading..." : "No adgroups found. Try a different search."}
+                onSearchChange={(query: string) => {
+                  setAdgroupSearchQuery(query);
+                }}
+              />
+              {errors.adGroup && (
+                <p className="text-[10px] text-red-500 mt-1">
+                  {errors.adGroup}
+                </p>
+              )}
+              {!loadingAdgroups && adgroupOptions.length === 0 && adgroupSearchQuery === "" && (
+                <p className="text-[10px] text-gray-500 mt-1">
+                  No ad groups available. Please create an ad group first.
+                </p>
+              )}
             </div>
-
-            {!useExistingAdGroup ? (
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="flex-1 min-w-[200px]">
-                  <label className="form-label-small">
-                    Ad Group Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={newAdGroupName}
-                    onChange={(e) => {
-                      setNewAdGroupName(e.target.value);
-                      if (errors.adGroupName) {
-                        setErrors((prev) => {
-                          const newErrors = { ...prev };
-                          delete newErrors.adGroupName;
-                          return newErrors;
-                        });
-                      }
-                    }}
-                    placeholder="Enter ad group name"
-                    className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                      errors.adGroupName ? "border-red-500" : "border-gray-200"
-                    }`}
-                  />
-                  {errors.adGroupName && (
-                    <p className="text-[10px] text-red-500 mt-1">
-                      {errors.adGroupName}
-                    </p>
-                  )}
-                </div>
-                <div className="w-[140px]">
-                  <label className="form-label-small">
-                    CPC Bid (Optional)
-                  </label>
-                  <input
-                    type="number"
-                    value={adGroupBid || ""}
-                    onChange={(e) =>
-                      setAdGroupBid(
-                        e.target.value ? parseFloat(e.target.value) : undefined
-                      )
-                    }
-                    placeholder="0.10"
-                    min="0"
-                    step="0.01"
-                    className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div>
-                <label className="form-label-small">
-                  Select Ad Group *
-                </label>
-                <Dropdown<string>
-                  options={adgroupOptions}
-                  value={selectedAdGroupId}
-                  onChange={(value) => {
-                    setSelectedAdGroupId(value);
-                    if (errors.adGroup) {
-                      setErrors((prev) => {
-                        const newErrors = { ...prev };
-                        delete newErrors.adGroup;
-                        return newErrors;
-                      });
-                    }
-                  }}
-                  placeholder={loadingAdgroups ? "Loading adgroups..." : "Search and select an ad group"}
-                  buttonClassName="w-full"
-                  searchable={true}
-                  searchPlaceholder="Search adgroups..."
-                  emptyMessage={loadingAdgroups ? "Loading..." : "No adgroups found. Try a different search."}
-                  onSearchChange={(query: string) => {
-                    setAdgroupSearchQuery(query);
-                  }}
-                />
-                {errors.adGroup && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.adGroup}
-                  </p>
-                )}
-                {!loadingAdgroups && adgroupOptions.length === 0 && adgroupSearchQuery === "" && (
-                  <p className="text-[10px] text-gray-500 mt-1">
-                    No ad groups available. Please create a new ad group.
-                  </p>
-                )}
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Ad Section */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-[14px] font-semibold text-[#072929]">
-              Responsive Search Ad
-            </h3>
-            <button
-              type="button"
-              onClick={() => {
-                // Fill dummy values for quick testing
-                setHeadlines([
-                  "Best Products Online",
-                  "Shop Now and Save",
-                  "Quality You Can Trust",
-                  "Free Shipping Available",
-                  "Limited Time Offer"
-                ]);
-                setDescriptions([
-                  "Discover amazing deals on our premium products. Shop now and enjoy fast delivery!",
-                  "Get the best prices on quality items. Customer satisfaction guaranteed."
-                ]);
-                setFinalUrl("https://pixis.ai");
-                // Clear any headline/description errors
-                setErrors((prev) => {
-                  const newErrors = { ...prev };
-                  delete newErrors.headlines;
-                  delete newErrors.descriptions;
-                  return newErrors;
-                });
-              }}
-              className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] hover:underline px-2 py-1"
-              title="Fill with dummy values for testing"
-            >
-              Fill Dummy Values
-            </button>
-          </div>
-          <div className="mb-3">
-            <label className="form-label-small">
-              Headlines * (3-15 required)
-            </label>
-            <div className="space-y-2">
-              {headlines.map((headline, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={headline}
-                    onChange={(e) => {
-                      const newHeadlines = [...headlines];
-                      newHeadlines[index] = e.target.value;
-                      setHeadlines(newHeadlines);
-                      if (errors.headlines) {
-                        setErrors((prev) => {
-                          const newErrors = { ...prev };
-                          delete newErrors.headlines;
-                          return newErrors;
-                        });
-                      }
-                    }}
-                    placeholder={`Headline ${index + 1}`}
-                    maxLength={30}
-                    className={`flex-1 bg-white px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                      errors.headlines ? "border-red-500" : "border-gray-200"
-                    }`}
-                  />
-                  {headlines.length > 3 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveHeadline(index)}
-                      className="text-red-500 hover:text-red-700 transition-colors px-2"
-                      title="Remove"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-            {headlines.length < 15 && (
-              <button
-                type="button"
-                onClick={handleAddHeadline}
-                className="mt-2 text-[11.2px] text-[#136D6D] hover:underline"
-              >
-                + Add Headline
-              </button>
-            )}
-            {errors.headlines && (
-              <p className="text-[10px] text-red-500 mt-1">{errors.headlines}</p>
-            )}
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label-small">
-              Descriptions * (2-4 required)
-            </label>
-            <div className="space-y-2">
-              {descriptions.map((description, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <textarea
-                    value={description}
-                    onChange={(e) => {
-                      const newDescriptions = [...descriptions];
-                      newDescriptions[index] = e.target.value;
-                      setDescriptions(newDescriptions);
-                      if (errors.descriptions) {
-                        setErrors((prev) => {
-                          const newErrors = { ...prev };
-                          delete newErrors.descriptions;
-                          return newErrors;
-                        });
-                      }
-                    }}
-                    placeholder={`Description ${index + 1}`}
-                    maxLength={90}
-                    rows={2}
-                    className={`flex-1 bg-white px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                      errors.descriptions ? "border-red-500" : "border-gray-200"
-                    }`}
-                  />
-                  {descriptions.length > 2 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveDescription(index)}
-                      className="text-red-500 hover:text-red-700 transition-colors px-2"
-                      title="Remove"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-            {descriptions.length < 4 && (
-              <button
-                type="button"
-                onClick={handleAddDescription}
-                className="mt-2 text-[11.2px] text-[#136D6D] hover:underline"
-              >
-                + Add Description
-              </button>
-            )}
-            {errors.descriptions && (
-              <p className="text-[10px] text-red-500 mt-1">
-                {errors.descriptions}
-              </p>
-            )}
-          </div>
-
-          <div className="w-full">
-            <label className="form-label-small">
-              Final URL (Optional)
-            </label>
-            <input
-              type="url"
-              value={finalUrl}
-              onChange={(e) => setFinalUrl(e.target.value)}
-              placeholder="https://example.com"
-              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-            />
-          </div>
-        </div>
+        {/* Ad Form */}
+        <CreateGoogleSearchAdTypeForm
+          formData={formData}
+          errors={errors}
+          onChange={handleFormChange}
+          profileId={profileId}
+          onAddHeadline={handleAddHeadline}
+          onRemoveHeadline={handleRemoveHeadline}
+          onUpdateHeadline={handleUpdateHeadline}
+          onAddDescription={handleAddDescription}
+          onRemoveDescription={handleRemoveDescription}
+          onUpdateDescription={handleUpdateDescription}
+          onAddMarketingImage={handleAddMarketingImage}
+          onRemoveMarketingImage={handleRemoveMarketingImage}
+          onUpdateMarketingImage={handleUpdateMarketingImage}
+          onAddSquareMarketingImage={handleAddSquareMarketingImage}
+          onRemoveSquareMarketingImage={handleRemoveSquareMarketingImage}
+          onUpdateSquareMarketingImage={handleUpdateSquareMarketingImage}
+        />
       </div>
 
       {/* Error Message */}

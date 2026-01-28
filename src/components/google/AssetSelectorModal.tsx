@@ -5,7 +5,7 @@ import { CreateTextAssetModal } from "./CreateTextAssetModal";
 import { CreateImageAssetModal } from "./CreateImageAssetModal";
 import { CreateYoutubeVideoAssetModal } from "./CreateYoutubeVideoAssetModal";
 import { CreateSitelinkAssetModal } from "./CreateSitelinkAssetModal";
-import { CreateCalloutAssetModal } from "./CreateCalloutAssetModal";
+// import { CreateCalloutAssetModal } from "./CreateCalloutAssetModal";
 import { useAssets } from "../../hooks/queries/useAssets";
 
 interface AssetSelectorModalProps {
@@ -38,13 +38,13 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
   const [createImageAssetOpen, setCreateImageAssetOpen] = useState(false);
   const [createYoutubeVideoAssetOpen, setCreateYoutubeVideoAssetOpen] = useState(false);
   const [createSitelinkAssetOpen, setCreateSitelinkAssetOpen] = useState(false);
-  const [createCalloutAssetOpen, setCreateCalloutAssetOpen] = useState(false);
+  // const [createCalloutAssetOpen, setCreateCalloutAssetOpen] = useState(false);
 
-  const tabs = ["All", "Business Name", "Logo", "Text", "Image", "YouTube Video", "Sitelink", "Callout"];
+  const tabs = ["All", "Business Name", "Logo", "Text", "Image", "YouTube Video", "Sitelink"]; // "Callout" - commented out temporarily
   const textSubTabs = ["All", "Text", "Headline", "Description", "Long Headline"];
 
   // Use React Query to fetch assets with caching
-  const { data: allAssets = [], isLoading: loading, error: queryError } = useAssets(
+  const { data: allAssets = [], isLoading: loading, error: queryError, refetch } = useAssets(
     isOpen ? profileId : undefined // Only fetch when modal is open
   );
   
@@ -89,17 +89,18 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
           // Use field_type directly from API - exact match only, no fallback
           return asset.field_type === "LOGO";
         });
-      } else if (activeTab === "Callout") {
-        // Callout: Show all TEXT assets (users can select any text asset to use as callout)
-        filtered = filtered.filter((asset) => {
-          return asset.type === "TEXT";
-        });
+      // } else if (activeTab === "Callout") {
+      //   // Callout: Show all TEXT assets (users can select any text asset to use as callout)
+      //   filtered = filtered.filter((asset) => {
+      //     return asset.type === "TEXT";
+      //   });
       } else if (activeTab === "Text") {
         // Text (for Headlines/Descriptions): Filter by sub-tab
         filtered = filtered.filter((asset) => {
           if (asset.type !== "TEXT") return false;
-          // Exclude BUSINESS_NAME and CALLOUT as they have their own tabs
-          if (asset.field_type === "BUSINESS_NAME" || asset.field_type === "CALLOUT") {
+          // Exclude BUSINESS_NAME as it has its own tab
+          // CALLOUT commented out temporarily
+          if (asset.field_type === "BUSINESS_NAME") { // || asset.field_type === "CALLOUT") {
             return false;
           }
           // Use field_type directly from API - exact match only, no fallback
@@ -210,10 +211,10 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
         return false; // Logo should be IMAGE type, not TEXT
       }
       // Headlines, Descriptions, and Long Headlines can use any text asset - no field_type restriction
-      // Just exclude BUSINESS_NAME and CALLOUT (if they have their own tabs)
+      // Just exclude BUSINESS_NAME (CALLOUT commented out temporarily)
       if (title && (title.includes("Headline") || title.includes("Description") || title.includes("Long Headline"))) {
         // Allow any text asset except BUSINESS_NAME (which has its own selection)
-        return asset.field_type !== "BUSINESS_NAME";
+        return asset.field_type !== "BUSINESS_NAME"; // && asset.field_type !== "CALLOUT";
       }
       return true;
     }
@@ -241,7 +242,7 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
         'BUSINESS_NAME': 'Business Name',
         'LOGO': 'Logo',
         'BUSINESS_LOGO': 'Logo',
-        'CALLOUT': 'Callout',
+        // 'CALLOUT': 'Callout', // Commented out temporarily
         'HEADLINE': 'Headline',
         'DESCRIPTION': 'Description',
         'LONG_HEADLINE': 'Long Headline',
@@ -314,8 +315,9 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
                     }
                     if (tab === "Text") {
                       if (a.type !== "TEXT") return false;
-                      // Exclude BUSINESS_NAME and CALLOUT as they have their own tabs
-                      if (a.field_type === "BUSINESS_NAME" || a.field_type === "CALLOUT") return false;
+                      // Exclude BUSINESS_NAME as it has its own tab
+                      // CALLOUT commented out temporarily
+                      if (a.field_type === "BUSINESS_NAME") return false; // || a.field_type === "CALLOUT") return false;
                       // Include HEADLINE, DESCRIPTION, LONG_HEADLINE, and generic text assets
                       return true;
                     }
@@ -326,10 +328,10 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
                     }
                     if (tab === "YouTube Video") return a.type === "YOUTUBE_VIDEO";
                     if (tab === "Sitelink") return a.type === "SITELINK";
-                    if (tab === "Callout") {
-                      // Show all TEXT assets (users can select any text asset to use as callout)
-                      return a.type === "TEXT";
-                    }
+                    // if (tab === "Callout") {
+                    //   // Show all TEXT assets (users can select any text asset to use as callout)
+                    //   return a.type === "TEXT";
+                    // }
                     return false;
                   });
               
@@ -363,8 +365,9 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
               {textSubTabs.map((subTab) => {
                 const subTabAssets = allAssets.filter((a) => {
                   if (a.type !== "TEXT") return false;
-                  // Exclude BUSINESS_NAME and CALLOUT as they have their own tabs
-                  if (a.field_type === "BUSINESS_NAME" || a.field_type === "CALLOUT") return false;
+                  // Exclude BUSINESS_NAME as it has its own tab
+                  // CALLOUT commented out temporarily
+                  if (a.field_type === "BUSINESS_NAME") return false; // || a.field_type === "CALLOUT") return false;
                   
                   if (subTab === "Text") {
                     // Show text assets that are NOT yet categorized as heading, description, or long headline
@@ -468,7 +471,7 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
             </button>
           )}
           {/* Callout Asset Creation - use text asset modal but with callout title */}
-          {activeTab === "Callout" && (
+          {/* {activeTab === "Callout" && (
             <button
               type="button"
               onClick={(e) => {
@@ -480,7 +483,7 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
             >
               <span className="text-[10.64px] text-white font-normal">Create New Callout Asset</span>
             </button>
-          )}
+          )} */}
         </div>
 
         {/* Content - Table View */}
@@ -497,7 +500,7 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  loadAssets();
+                  refetch();
                 }}
                 className="create-entity-button"
               >
@@ -684,13 +687,13 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
       />
 
       {/* Create Callout Asset Modal */}
-      <CreateCalloutAssetModal
+      {/* <CreateCalloutAssetModal
         isOpen={createCalloutAssetOpen}
         onClose={() => setCreateCalloutAssetOpen(false)}
         onSuccess={() => {}} // React Query mutations handle cache updates automatically
         profileId={profileId}
         title="Create Callout Asset"
-      />
+      /> */}
     </div>
   );
 };

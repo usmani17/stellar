@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { googleAdwordsAdsService } from "../../../services/googleAdwords/googleAdwordsAds";
 import type { FilterValues } from "../../../components/filters/FilterPanel";
+import { toLocalDateString } from "../../../utils/dateHelpers";
 
 interface UseGoogleCampaignDetailProductGroupsParams {
   accountId: string | undefined;
@@ -46,7 +47,8 @@ export const useGoogleCampaignDetailProductGroups = ({
       }
 
       // Product groups are stored in the ads table with ad_type = 'SHOPPING_PRODUCT_AD'
-      // Add ad_type filter to the filters array
+      // AND extra_data->>'is_product_group' = 'true'
+      // Add filters to get only product groups (not shopping ads)
       const productGroupsFiltersWithType = [
         ...productGroupsFilters,
         { field: "ad_type", value: "SHOPPING_PRODUCT_AD" },
@@ -62,14 +64,20 @@ export const useGoogleCampaignDetailProductGroups = ({
           page_size: 10,
           sort_by: productGroupsSortBy,
           order: productGroupsSortOrder,
-          start_date: startDate
-            ? startDate.toISOString().split("T")[0]
-            : undefined,
-          end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+          start_date: startDate ? toLocalDateString(startDate) : undefined,
+          end_date: endDate ? toLocalDateString(endDate) : undefined,
         }
       );
 
-      setProductGroups(data.ads || []);
+      // Filter to only show product groups (is_product_group: true)
+      // Shopping ads have is_product_group: false or not set
+      const productGroups = (data.ads || []).filter((ad: any) => {
+        const extraData = ad.extra_data || {};
+        // Include only ads where is_product_group is true
+        return extraData.is_product_group === true;
+      });
+
+      setProductGroups(productGroups);
       setProductGroupsTotalPages(data.total_pages || 0);
     } catch (error) {
       console.error("Failed to load product groups:", error);

@@ -2,6 +2,7 @@ import React, { useRef } from "react";
 import { Checkbox } from "../ui/Checkbox";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Dropdown } from "../ui/Dropdown";
+import { Loader } from "../ui/Loader";
 
 export interface SBAd {
   id: number;
@@ -11,6 +12,7 @@ export interface SBAd {
   state?: string;
   status?: string;
   adGroupId?: string | number;
+  adgroup_name?: string;
   campaignId?: string | number;
   landingPage?: string | any; // Can be JSON string or object
   creative?: string | any; // Can be JSON string or object
@@ -41,7 +43,7 @@ interface SBAdsTableProps {
     currentValue: string
   ) => void;
   onEditChange?: (value: string) => void;
-  onEditEnd?: (value?: string) => void;
+  onEditEnd?: (value?: string, adId?: number, field?: "status" | "name") => void;
   onEditCancel?: () => void;
   inlineEditLoading?: Set<number>;
   pendingChange?: {
@@ -212,23 +214,8 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                     {getSortIcon("status")}
                   </div>
                 </th>
-                <th
-                  className="table-header"
-                  onClick={() => onSort?.("adGroupId")}
-                >
-                  <div className="flex items-center">
-                    Ad Group ID
-                    {getSortIcon("adGroupId")}
-                  </div>
-                </th>
-                <th
-                  className="table-header"
-                  onClick={() => onSort?.("campaignId")}
-                >
-                  <div className="flex items-center">
-                    Campaign ID
-                    {getSortIcon("campaignId")}
-                  </div>
+                <th className="table-header">
+                  Ad Group Name
                 </th>
                 <th className="table-header">
                   Serving Status
@@ -322,170 +309,153 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                       {ad.adId || "—"}
                     </td>
                     <td className="table-cell table-text leading-[1.26] min-w-[150px] max-w-[200px]">
-                      {inlineEditLoading.has(ad.id) ? (
-                        <div className="flex items-center gap-2">
-                          <span className="table-text leading-[1.26]">
-                            {pendingChange?.field === "name"
-                              ? pendingChange.newValue
-                              : ad.name || "—"}
-                          </span>
-                          <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
-                        </div>
-                      ) : pendingChange?.id === ad.id &&
-                        pendingChange?.field === "name" ? (
-                        <div className="flex items-center gap-2">
-                          <span className="table-text leading-[1.26]">
-                            {pendingChange.newValue}
-                          </span>
-                        </div>
-                      ) : editingField?.id === ad.id &&
-                        editingField?.field === "name" ? (
-                        <div className="flex items-center gap-2">
+                      {(() => {
+                        if (isArchived) {
+                          return (
+                            <span className="table-text leading-[1.26] opacity-60">
+                              {ad.name || "—"}
+                            </span>
+                          );
+                        }
+
+                        if (inlineEditLoading.has(ad.id)) {
+                          return (
+                            <div className="flex items-center gap-2">
+                              <span className="table-text leading-[1.26]">
+                                {pendingChange?.field === "name"
+                                  ? pendingChange.newValue
+                                  : ad.name || "—"}
+                              </span>
+                              <Loader size="sm" showMessage={false} />
+                            </div>
+                          );
+                        }
+
+                        const nameValue = editingField?.id === ad.id &&
+                          editingField?.field === "name"
+                          ? editedValue
+                          : (ad.name || "");
+
+                        return (
                           <input
                             type="text"
-                            value={editedValue}
-                            onChange={(e) => onEditChange?.(e.target.value)}
-                            className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
-                            autoFocus
-                            onBlur={() => onEditEnd?.()}
+                            value={nameValue}
+                            onFocus={() => {
+                              if (editingField?.id !== ad.id ||
+                                  editingField?.field !== "name") {
+                                onEditStart?.(
+                                  ad.id,
+                                  "name",
+                                  ad.name || ""
+                                );
+                              }
+                            }}
+                            onChange={(e) => {
+                              onEditChange?.(e.target.value);
+                            }}
+                            onBlur={() => {
+                              onEditEnd?.();
+                            }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === "Escape") {
                                 onEditEnd?.();
                               }
                             }}
-                          />
-                        </div>
-                      ) : (
-                        <div
-                          className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${isArchived
-                              ? "text-gray-400 cursor-not-allowed"
-                              : "text-[#0b0f16] cursor-pointer hover:underline"
-                            }`}
-                          onClick={() => {
-                            if (!isArchived) {
-                              onEditStart?.(
-                                ad.id,
-                                "name",
-                                ad.name || ""
-                              );
+                            className="inline-edit-input"
+                            disabled={isArchived}
+                            title={
+                              isArchived
+                                ? "Archived ads cannot be modified"
+                                : undefined
                             }
-                          }}
-                          title={ad.name || "—"}
-                        >
-                          {ad.name || "—"}
-                        </div>
-                      )}
+                          />
+                        );
+                      })()}
                     </td>
                     <td className="table-cell table-text leading-[1.26] min-w-[250px]">
-                      {inlineEditLoading.has(ad.id) ? (
-                        <div className="flex items-center gap-2">
-                          <span className="table-text leading-[1.26]">
-                            {pendingChange?.field === "status"
-                              ? pendingChange.newValue === "enabled"
-                                ? "Enabled"
-                                : "Paused"
-                              : statusValue}
-                          </span>
-                          <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
-                        </div>
-                      ) : pendingChange?.id === ad.id &&
-                        pendingChange?.field === "status" ? (
-                        <div className="flex items-center gap-2">
-                          <span className="table-text leading-[1.26]">
-                            {pendingChange.newValue === "enabled"
-                              ? "Enabled"
-                              : "Paused"}
-                          </span>
-                        </div>
-                      ) : editingField?.id === ad.id &&
-                        editingField?.field === "status" ? (
-                        <div className="flex items-center gap-2">
+                      {(() => {
+                        if (inlineEditLoading.has(ad.id)) {
+                          return (
+                            <div className="flex items-center gap-2">
+                              <span className="table-text leading-[1.26]">
+                                {pendingChange?.field === "status"
+                                  ? pendingChange.newValue === "enabled"
+                                    ? "Enabled"
+                                    : pendingChange.newValue === "paused"
+                                    ? "Paused"
+                                    : "Archived"
+                                  : statusValue}
+                              </span>
+                              <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                          );
+                        }
+                        
+                        if (pendingChange?.id === ad.id &&
+                            pendingChange?.field === "status") {
+                          return (
+                            <div className="flex items-center gap-2">
+                              <span className="table-text leading-[1.26]">
+                                {pendingChange.newValue === "enabled"
+                                  ? "Enabled"
+                                  : pendingChange.newValue === "paused"
+                                  ? "Paused"
+                                  : "Archived"}
+                              </span>
+                            </div>
+                          );
+                        }
+                        
+                        if (isArchived) {
+                          return (
+                            <div className="opacity-60">
+                              <StatusBadge status={statusValue} />
+                            </div>
+                          );
+                        }
+                        
+                        const statusLower =
+                          statusValue?.toLowerCase() || "enabled";
+                        const statusValueNormalized =
+                          statusLower === "enable" ||
+                          statusLower === "enabled"
+                            ? "enabled"
+                            : statusLower === "paused"
+                            ? "paused"
+                            : "archived";
+                        
+                        const currentValue = editingField?.id === ad.id &&
+                          editingField?.field === "status"
+                          ? editedValue
+                          : statusValueNormalized;
+                        
+                        return (
                           <Dropdown
                             options={[
                               { value: "enabled", label: "Enabled" },
                               { value: "paused", label: "Paused" },
                             ]}
-                            value={(() => {
-                              if (editedValue) return editedValue;
-                              const statusLower =
-                                statusValue?.toLowerCase() || "enabled";
-                              return statusLower === "enable" ||
-                                statusLower === "enabled"
-                                ? "enabled"
-                                : "paused";
-                            })()}
+                            value={currentValue}
                             onChange={(val) => {
-                              // Mark that a selection was made for this ad
-                              statusSelectionMadeRef.current = ad.id;
                               const newValue = val as string;
-                              onEditChange?.(newValue);
-                              // Call onEditEnd with the new value immediately when a value is selected
-                              // This will trigger the pending change confirmation
-                              onEditEnd?.(newValue);
-                              // Clear the ref after a short delay to allow onClose to check it
-                              setTimeout(() => {
-                                if (
-                                  statusSelectionMadeRef.current ===
-                                  ad.id
-                                ) {
-                                  statusSelectionMadeRef.current = null;
-                                }
-                              }, 200);
-                            }}
-                            onClose={() => {
-                              // Only cancel if no selection was made (clicked outside)
-                              // If a selection was made, statusSelectionMadeRef will be set
-                              if (
-                                statusSelectionMadeRef.current !==
-                                ad.id &&
-                                editingField?.id === ad.id
-                              ) {
-                                onEditCancel?.();
+                              const wasEditing = editingField?.id === ad.id &&
+                                editingField?.field === "status";
+                              
+                              if (!wasEditing) {
+                                onEditStart?.(ad.id, "status", statusValueNormalized);
                               }
+                              onEditChange?.(newValue);
+                              onEditEnd?.(newValue, ad.id, "status");
                             }}
-                            defaultOpen={true}
-                            closeOnSelect={true}
                             buttonClassName="inline-edit-dropdown"
                             width="w-full"
                             align="center"
                           />
-                        </div>
-                      ) : (
-                        <div
-                          className={`text-[13.3px] leading-[1.26] ${isArchived
-                              ? "cursor-not-allowed opacity-60"
-                              : "cursor-pointer hover:underline"
-                            }`}
-                          onClick={() => {
-                            if (!isArchived) {
-                              const statusLower =
-                                statusValue?.toLowerCase() || "enabled";
-                              const statusValueNormalized =
-                                statusLower === "enable" ||
-                                  statusLower === "enabled"
-                                  ? "enabled"
-                                  : "paused";
-                              onEditStart?.(
-                                ad.id,
-                                "status",
-                                statusValueNormalized
-                              );
-                            }
-                          }}
-                        >
-                          <StatusBadge status={statusValue} />
-                        </div>
-                      )}
+                        );
+                      })()}
                     </td>
                     <td className="table-cell table-text leading-[1.26]">
-                      {ad.adGroupId != null && ad.adGroupId !== ""
-                        ? String(ad.adGroupId)
-                        : "—"}
-                    </td>
-                    <td className="table-cell table-text leading-[1.26]">
-                      {ad.campaignId != null && ad.campaignId !== ""
-                        ? String(ad.campaignId)
-                        : "—"}
+                      {ad.adgroup_name || "—"}
                     </td>
                     <td className="table-cell table-text leading-[1.26]">
                       {ad.servingStatus || "—"}
