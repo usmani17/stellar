@@ -16,7 +16,7 @@ import type { FilterValues } from "../../components/filters/FilterPanel";
 
 export const TikTokAdGroups: React.FC = () => {
     const { accountId } = useParams<{ accountId: string }>();
-    const { startDate, endDate } = useDateRange();
+    const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
     const { sidebarWidth } = useSidebar();
 
     const [adgroups, setAdgroups] = useState<TikTokAdGroup[]>([]);
@@ -474,8 +474,8 @@ export const TikTokAdGroups: React.FC = () => {
                 page_size: itemsPerPage,
                 sort_by: sortBy,
                 order: sortOrder,
-                start_date: startDate.toISOString().split("T")[0],
-                end_date: endDate.toISOString().split("T")[0],
+                start_date: startDateStr,
+                end_date: endDateStr,
                 filters: filterParams, // Pass filters object specifically for POST or structured params
             };
 
@@ -538,8 +538,8 @@ export const TikTokAdGroups: React.FC = () => {
             const params: any = {
                 sort_by: sortBy,
                 order: sortOrder,
-                start_date: startDate.toISOString().split("T")[0],
-                end_date: endDate.toISOString().split("T")[0],
+                start_date: startDateStr,
+                end_date: endDateStr,
             };
 
             // Apply FilterPanel filters to export

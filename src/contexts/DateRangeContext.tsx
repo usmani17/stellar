@@ -1,8 +1,13 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useMemo, ReactNode } from 'react';
+import { toLocalDateString } from '../utils/dateHelpers';
 
 interface DateRangeContextType {
   startDate: Date;
   endDate: Date;
+  /** YYYY-MM-DD in local time – use for API start_date so selected date is preserved */
+  startDateStr: string;
+  /** YYYY-MM-DD in local time – use for API end_date so selected date is preserved */
+  endDateStr: string;
   setDateRange: (startDate: Date, endDate: Date) => void;
   formatDateRange: () => string;
 }
@@ -33,8 +38,16 @@ export const DateRangeProvider: React.FC<{ children: ReactNode }> = ({ children 
     return `${formatDate(startDate)} - ${formatDate(endDate)}`;
   };
 
+  const startDateStr = useMemo(() => toLocalDateString(startDate), [startDate]);
+  const endDateStr = useMemo(() => toLocalDateString(endDate), [endDate]);
+
+  const value = useMemo(
+    () => ({ startDate, endDate, startDateStr, endDateStr, setDateRange, formatDateRange }),
+    [startDate, endDate, startDateStr, endDateStr]
+  );
+
   return (
-    <DateRangeContext.Provider value={{ startDate, endDate, setDateRange, formatDateRange }}>
+    <DateRangeContext.Provider value={value}>
       {children}
     </DateRangeContext.Provider>
   );

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { googleAdwordsAdsService } from "../../../services/googleAdwords/googleAdwordsAds";
 import type { FilterValues } from "../../../components/filters/FilterPanel";
+import { toLocalDateString } from "../../../utils/dateHelpers";
 
 interface UseGoogleCampaignDetailProductGroupsParams {
   accountId: string | undefined;
@@ -63,10 +64,8 @@ export const useGoogleCampaignDetailProductGroups = ({
           page_size: 10,
           sort_by: productGroupsSortBy,
           order: productGroupsSortOrder,
-          start_date: startDate
-            ? startDate.toISOString().split("T")[0]
-            : undefined,
-          end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+          start_date: startDate ? toLocalDateString(startDate) : undefined,
+          end_date: endDate ? toLocalDateString(endDate) : undefined,
         }
       );
 

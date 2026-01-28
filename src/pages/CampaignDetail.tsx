@@ -4,6 +4,7 @@ import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { KPICard } from "../components/ui/KPICard";
 import { useDateRange } from "../contexts/DateRangeContext";
+import { toLocalDateString } from "../utils/dateHelpers";
 import { useSidebar } from "../contexts/SidebarContext";
 import {
   campaignsService,
@@ -75,7 +76,7 @@ export const CampaignDetail: React.FC = () => {
     campaignTypeAndId: string;
   }>();
   const [searchParams] = useSearchParams();
-  const { startDate, endDate } = useDateRange();
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
 
   // Parse campaign type and ID from URL format: sp_123456, sb_123456, or sd_123456
@@ -846,8 +847,8 @@ export const CampaignDetail: React.FC = () => {
           const keywordsData = await campaignsService.getKeywords(
             accountIdNum,
             campaignId,
-            startDate.toISOString().split("T")[0],
-            endDate.toISOString().split("T")[0],
+            startDateStr,
+            endDateStr,
             {
               page: 1,
               page_size: 1,
@@ -859,8 +860,8 @@ export const CampaignDetail: React.FC = () => {
           const targetsData = await campaignsService.getTargets(
             accountIdNum,
             campaignId,
-            startDate.toISOString().split("T")[0],
-            endDate.toISOString().split("T")[0],
+            startDateStr,
+            endDateStr,
             {
               page: 1,
               page_size: 1,
@@ -903,16 +904,6 @@ export const CampaignDetail: React.FC = () => {
     });
     return JSON.stringify(sorted);
   }, [adgroupsFilters]);
-
-  // Memoize date strings to prevent unnecessary re-renders
-  const startDateStr = useMemo(
-    () => startDate.toISOString().split("T")[0],
-    [startDate],
-  );
-  const endDateStr = useMemo(
-    () => endDate.toISOString().split("T")[0],
-    [endDate],
-  );
 
   // Reset pagination when date range or tab changes (but NOT filters - that's handled in onApply)
   useEffect(() => {
@@ -1673,8 +1664,8 @@ export const CampaignDetail: React.FC = () => {
       const data = await campaignsService.getCampaignDetail(
         accountIdNum,
         campaignId!,
-        startDate.toISOString().split("T")[0],
-        endDate.toISOString().split("T")[0],
+        startDateStr,
+        endDateStr,
         campaignType || undefined,
       );
 
@@ -1767,8 +1758,8 @@ export const CampaignDetail: React.FC = () => {
         const data = await campaignsService.getAdGroups(
           accountIdNum,
           campaignId,
-          startDate.toISOString().split("T")[0],
-          endDate.toISOString().split("T")[0],
+          startDateStr,
+          endDateStr,
           {
             page: page,
             page_size: pageSize,
@@ -2826,8 +2817,8 @@ export const CampaignDetail: React.FC = () => {
       const data = await campaignsService.getKeywords(
         accountIdNum,
         campaignId,
-        startDate.toISOString().split("T")[0],
-        endDate.toISOString().split("T")[0],
+        startDateStr,
+        endDateStr,
         {
           page: keywordsCurrentPage,
           page_size: 10,
@@ -2947,8 +2938,8 @@ export const CampaignDetail: React.FC = () => {
       const data = await campaignsService.getProductAds(
         accountIdNum,
         campaignId,
-        startDate.toISOString().split("T")[0],
-        endDate.toISOString().split("T")[0],
+        startDateStr,
+        endDateStr,
         {
           page: productadsCurrentPage,
           page_size: 10,
@@ -3018,8 +3009,8 @@ export const CampaignDetail: React.FC = () => {
       const data = await campaignsService.getProductAds(
         accountIdNum,
         campaignId,
-        startDate.toISOString().split("T")[0],
-        endDate.toISOString().split("T")[0],
+        startDateStr,
+        endDateStr,
         {
           page: sbAdsCurrentPage,
           page_size: 10,
@@ -4134,8 +4125,8 @@ export const CampaignDetail: React.FC = () => {
       const data = await campaignsService.getTargets(
         accountIdNum,
         campaignId,
-        startDate.toISOString().split("T")[0],
-        endDate.toISOString().split("T")[0],
+        startDateStr,
+        endDateStr,
         {
           page: targetsCurrentPage,
           page_size: 10,
@@ -6992,13 +6983,13 @@ export const CampaignDetail: React.FC = () => {
               } else if (field === "startDate" && campaignDetail) {
                 setEditedValue(
                   campaignDetail.campaign.startDate
-                    ? new Date(campaignDetail.campaign.startDate).toISOString().split("T")[0]
+                    ? toLocalDateString(new Date(campaignDetail.campaign.startDate + "T12:00:00"))
                     : "",
                 );
               } else if (field === "endDate" && campaignDetail) {
                 setEditedValue(
                   campaignDetail.campaign.endDate
-                    ? new Date(campaignDetail.campaign.endDate).toISOString().split("T")[0]
+                    ? toLocalDateString(new Date(campaignDetail.campaign.endDate + "T12:00:00"))
                     : "",
                 );
               }
@@ -7050,7 +7041,7 @@ export const CampaignDetail: React.FC = () => {
                 }
               } else if (fieldToUse === "startDate") {
                 const oldStartDate = campaignDetail.campaign.startDate
-                  ? new Date(campaignDetail.campaign.startDate).toISOString().split("T")[0]
+                  ? toLocalDateString(new Date(campaignDetail.campaign.startDate + "T12:00:00"))
                   : "";
                 const newStartDate = String(valueToCompare ?? "").trim();
                 if (newStartDate && newStartDate !== oldStartDate) {
@@ -7068,7 +7059,7 @@ export const CampaignDetail: React.FC = () => {
                 }
               } else if (fieldToUse === "endDate") {
                 const oldEndDate = campaignDetail.campaign.endDate
-                  ? new Date(campaignDetail.campaign.endDate).toISOString().split("T")[0]
+                  ? toLocalDateString(new Date(campaignDetail.campaign.endDate + "T12:00:00"))
                   : "";
                 const newEndDate = String(valueToCompare ?? "").trim();
                 if (newEndDate && newEndDate !== oldEndDate) {

@@ -1,5 +1,6 @@
 import api from "./api";
 import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../components/google/CreateGooglePmaxAssetGroupPanel";
+import { toLocalDateString } from "../utils/dateHelpers";
 
 export interface Campaign {
   id: number; // Database ID (for internal use)
@@ -2728,7 +2729,7 @@ export const campaignsService = {
     link.href = url;
     link.setAttribute(
       "download",
-      `google-ads-${new Date().toISOString().split("T")[0]}.csv`
+      `google-ads-${toLocalDateString(new Date())}.csv`
     );
     document.body.appendChild(link);
     link.click();

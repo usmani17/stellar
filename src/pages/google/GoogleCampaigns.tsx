@@ -50,7 +50,7 @@ export const GoogleCampaigns: React.FC = () => {
   const navigate = useNavigate();
   const { accountId } = useParams<{ accountId: string }>();
   const { sidebarWidth } = useSidebar();
-  const { startDate, endDate } = useDateRange();
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const [campaigns, setCampaigns] = useState<IGoogleCampaign[]>([]);
   const [summary, setSummary] = useState<IGoogleCampaignsSummary | null>(null);
   const [chartDataFromApi, setChartDataFromApi] = useState<
@@ -394,9 +394,9 @@ export const GoogleCampaigns: React.FC = () => {
         page: currentPage,
         page_size: itemsPerPage,
         start_date: startDate
-          ? startDate.toISOString().split("T")[0]
+          ? startDateStr
           : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        end_date: endDate ? endDateStr : undefined,
         filters: filters || [], // Pass filters array directly - ensure it's always an array
         ...(apiSearchQuery && {
           campaign_name__icontains: apiSearchQuery,
@@ -503,8 +503,8 @@ export const GoogleCampaigns: React.FC = () => {
           accountId: accountIdNum,
           currentPage,
           filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
-          startDate: startDate ? startDate.toISOString().split("T")[0] : null,
-          endDate: endDate ? endDate.toISOString().split("T")[0] : null,
+          startDate: startDate ? startDateStr : null,
+          endDate: endDate ? endDateStr : null,
           apiSearchQuery,
         });
 
@@ -1693,9 +1693,9 @@ export const GoogleCampaigns: React.FC = () => {
             page: 1,
             page_size: itemsPerPage,
             start_date: startDate
-              ? startDate.toISOString().split("T")[0]
+              ? startDateStr
               : undefined,
-            end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+            end_date: endDate ? endDateStr : undefined,
             filters: filters, // Pass filters array directly
           };
 
@@ -2941,9 +2941,9 @@ export const GoogleCampaigns: React.FC = () => {
         sort_by: sortBy,
         order: sortOrder,
         start_date: startDate
-          ? startDate.toISOString().split("T")[0]
+          ? startDateStr
           : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        end_date: endDate ? endDateStr : undefined,
         filters: filters, // Pass filters array directly
       };
 

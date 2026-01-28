@@ -1,6 +1,7 @@
 import React from "react";
 import { Dropdown } from "../../../components/ui/Dropdown";
 import type { CampaignDetail } from "../../../services/campaigns";
+import { toLocalDateString } from "../../../utils/dateHelpers";
 
 interface CampaignInformationProps {
   campaignDetail: CampaignDetail | null;
@@ -186,13 +187,13 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
               value={
                 editingField === "startDate"
                   ? editedValue
-                  : new Date(campaignDetail.campaign.startDate).toISOString().split("T")[0]
+                  : toLocalDateString(new Date(campaignDetail.campaign.startDate + "T12:00:00"))
               }
               onFocus={() => {
                 if (editingField !== "startDate") {
                   onEditField("startDate");
                   onEditValueChange(
-                    new Date(campaignDetail.campaign.startDate).toISOString().split("T")[0],
+                    toLocalDateString(new Date(campaignDetail.campaign.startDate + "T12:00:00")),
                   );
                 }
               }}
@@ -230,13 +231,13 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
               value={
                 editingField === "endDate"
                   ? editedValue
-                  : new Date(campaignDetail.campaign.endDate).toISOString().split("T")[0]
+                  : toLocalDateString(new Date(campaignDetail.campaign.endDate + "T12:00:00"))
               }
               onFocus={() => {
                 if (editingField !== "endDate") {
                   onEditField("endDate");
                   onEditValueChange(
-                    new Date(campaignDetail.campaign.endDate).toISOString().split("T")[0],
+                    toLocalDateString(new Date(campaignDetail.campaign.endDate + "T12:00:00")),
                   );
                 }
               }}
