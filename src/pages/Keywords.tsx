@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -27,7 +27,9 @@ import { logsService } from "../services/logs";
 
 export const Keywords: React.FC = () => {
   const navigate = useNavigate();
-  const { accountId } = useParams<{ accountId: string }>();
+  const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
+  const [searchParams] = useSearchParams();
+  const profileId = searchParams.get("profile_id") ?? undefined;
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
   const [keywords, setKeywords] = useState<Keyword[]>([]);
@@ -383,10 +385,12 @@ export const Keywords: React.FC = () => {
       }
 
       // Call export API
-      const result = await campaignsService.exportKeywords(accountIdNum, {
-        ...params,
-        export_type: exportType,
-      });
+      const result = await campaignsService.exportKeywords(
+        accountIdNum,
+        { ...params, export_type: exportType },
+        channelId ?? null,
+        profileId ?? null
+      );
 
       // Automatically download the file
       const link = document.createElement("a");
@@ -443,7 +447,9 @@ export const Keywords: React.FC = () => {
 
       const response = await campaignsService.getKeywordsList(
         accountId,
-        params
+        params,
+        channelId ?? null,
+        profileId ?? null
       );
 
       console.log(
@@ -498,7 +504,9 @@ export const Keywords: React.FC = () => {
 
       const response = await campaignsService.getKeywordsList(
         accountId,
-        params
+        params,
+        channelId ?? null,
+        profileId ?? null
       );
       setKeywords(Array.isArray(response.keywords) ? response.keywords : []);
       setTotalPages(response.total_pages || 0);
@@ -2167,6 +2175,7 @@ export const Keywords: React.FC = () => {
                                         navigate(
                                           buildMarketplaceRoute(
                                             parseInt(accountId),
+                                            channelId ?? 0,
                                             "amazon",
                                             "campaigns",
                                             `${

@@ -33,7 +33,10 @@ import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
 
 export const AdGroups: React.FC = () => {
   const navigate = useNavigate();
-  const { accountId } = useParams<{ accountId: string }>();
+  const { accountId, channelId } = useParams<{
+    accountId: string;
+    channelId?: string;
+  }>();
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
   const [adgroups, setAdgroups] = useState<AdGroup[]>([]);
@@ -387,11 +390,13 @@ export const AdGroups: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
-      // Call export API
-      const result = await campaignsService.exportAdGroups(accountIdNum, {
-        ...params,
-        export_type: exportType,
-      });
+      // Call export API (channelId from route for /brands/:accountId/:channelId/amazon/adgroups)
+      const result = await campaignsService.exportAdGroups(
+        accountIdNum,
+        { ...params, export_type: exportType },
+        channelId ?? undefined,
+        undefined
+      );
 
       // Automatically download the file
       const link = document.createElement("a");
@@ -448,7 +453,9 @@ export const AdGroups: React.FC = () => {
 
       const response = await campaignsService.getAdGroupsList(
         accountId,
-        params
+        params,
+        channelId ?? undefined,
+        undefined
       );
 
       console.log(
@@ -503,7 +510,9 @@ export const AdGroups: React.FC = () => {
 
       const response = await campaignsService.getAdGroupsList(
         accountId,
-        params
+        params,
+        channelId ?? undefined,
+        undefined
       );
       setAdgroups(Array.isArray(response.adgroups) ? response.adgroups : []);
       setTotalPages(response.total_pages || 0);

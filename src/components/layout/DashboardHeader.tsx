@@ -70,6 +70,7 @@ const AccountChannelsList: React.FC<{
                   navigate(
                     buildMarketplaceRoute(
                       accountId,
+                      channel.id,
                       channel.channel_type,
                       "campaigns",
                     ),

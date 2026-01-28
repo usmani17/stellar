@@ -7,6 +7,7 @@ import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { googleAdwordsSyncStatusService } from "../services/googleAdwords/googleAdwordsSyncStatus";
 import { accountsSyncStatusService } from "../services/accountsSyncStatus";
+import { accountsService } from "../services/accounts";
 import type {
   GoogleSyncStatusResponse,
   ProfileSyncStatus,
@@ -23,6 +24,8 @@ interface ProfileRow {
   id: number;
   name: string;
   profileIdLabel: string | undefined; // customer_id, profileId, or advertiser_id
+  country?: string; // countryCode for Amazon (from DB)
+  currency?: string; // currency_code for Amazon (from DB)
   campaign: { status: EntityStatus; last_synced_at: string | null };
   keywords: { status: EntityStatus; last_synced_at: string | null };
   adgroups: { status: EntityStatus; last_synced_at: string | null };
@@ -146,6 +149,32 @@ function buildProfileRowsFromResponse(
   });
 }
 
+/** Amazon profile from our DB (GET /accounts/channels/:channelId/profiles/) - no Amazon API */
+interface AmazonProfileFromDb {
+  id: number;
+  profileId: string;
+  name: string;
+  countryCode?: string;
+  currency_code?: string;
+  is_selected?: boolean;
+}
+
+function buildAmazonProfileRows(profiles: AmazonProfileFromDb[]): ProfileRow[] {
+  const idle = { status: "idle" as EntityStatus, last_synced_at: null };
+  return profiles.map((p) => ({
+    platform: "amazon" as Platform,
+    id: p.id,
+    name: p.name,
+    profileIdLabel: p.profileId,
+    country: p.countryCode ?? "",
+    currency: p.currency_code ?? "",
+    campaign: idle,
+    keywords: idle,
+    adgroups: idle,
+    lastSyncedAt: null,
+  }));
+}
+
 export const AccountProfiles: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
@@ -158,8 +187,9 @@ export const AccountProfiles: React.FC = () => {
 
   const [googleData, setGoogleData] =
     useState<GoogleSyncStatusResponse | null>(null);
-  const [amazonData, setAmazonData] =
-    useState<PlatformSyncStatusResponse | null>(null);
+  const [amazonProfiles, setAmazonProfiles] = useState<AmazonProfileFromDb[]>(
+    []
+  );
   const [tiktokData, setTiktokData] =
     useState<PlatformSyncStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -167,10 +197,10 @@ export const AccountProfiles: React.FC = () => {
 
   const profileRows = useMemo(() => {
     const googleRows = buildProfileRowsFromResponse(googleData, "google");
-    const amazonRows = buildProfileRowsFromResponse(amazonData, "amazon");
+    const amazonRows = buildAmazonProfileRows(amazonProfiles);
     const tiktokRows = buildProfileRowsFromResponse(tiktokData, "tiktok");
     return [...googleRows, ...amazonRows, ...tiktokRows];
-  }, [googleData, amazonData, tiktokData]);
+  }, [googleData, amazonProfiles, tiktokData]);
 
   useEffect(() => {
     setPageTitle("Profiles");
@@ -193,15 +223,26 @@ export const AccountProfiles: React.FC = () => {
     setLoading(true);
     setSyncError(null);
     setGoogleData(null);
-    setAmazonData(null);
+    setAmazonProfiles([]);
     setTiktokData(null);
+
+    const loadAmazonProfilesForChannel = async () => {
+      const channels = await accountsService.getAccountChannels(accountIdNum);
+      const amazonChannel = channels.find(
+        (c) => c.channel_type === "amazon"
+      );
+      if (!amazonChannel || cancelled) return;
+      const res = await accountsService.getAmazonProfiles(amazonChannel.id);
+      if (!cancelled && res?.profiles) {
+        setAmazonProfiles(res.profiles);
+      }
+    };
+
     Promise.allSettled([
       googleAdwordsSyncStatusService
         .getGoogleSyncStatus(accountIdNum)
         .then((d) => (!cancelled ? setGoogleData(d) : undefined)),
-      accountsSyncStatusService
-        .getAmazonSyncStatus(accountIdNum)
-        .then((d) => (!cancelled ? setAmazonData(d) : undefined)),
+      loadAmazonProfilesForChannel(),
       accountsSyncStatusService
         .getTikTokSyncStatus(accountIdNum)
         .then((d) => (!cancelled ? setTiktokData(d) : undefined)),
@@ -212,7 +253,7 @@ export const AccountProfiles: React.FC = () => {
         if (err && err.status === "rejected") {
           setSyncError(
             (err.reason?.response?.data?.error as string) ||
-              "Failed to load profile sync status"
+              "Failed to load profiles"
           );
         }
       })
@@ -245,6 +286,8 @@ export const AccountProfiles: React.FC = () => {
               <thead>
                 <tr>
                   <th className="table-header min-w-[180px]">Profile name</th>
+                  <th className="table-header min-w-[100px]">Country</th>
+                  <th className="table-header min-w-[80px]">Currency</th>
                   <th className="table-header min-w-[120px]">Campaign</th>
                   <th className="table-header min-w-[120px]">Keywords</th>
                   <th className="table-header min-w-[120px]">Ad groups</th>
@@ -257,6 +300,12 @@ export const AccountProfiles: React.FC = () => {
                     <tr key={`skeleton-${i}`} className="table-row">
                       <td className="table-cell">
                         <div className="h-5 bg-gray-200 rounded animate-pulse w-40" />
+                      </td>
+                      <td className="table-cell">
+                        <div className="h-5 bg-gray-200 rounded animate-pulse w-16" />
+                      </td>
+                      <td className="table-cell">
+                        <div className="h-5 bg-gray-200 rounded animate-pulse w-12" />
                       </td>
                       <td className="table-cell">
                         <div className="h-5 bg-gray-200 rounded animate-pulse w-20" />
@@ -275,7 +324,7 @@ export const AccountProfiles: React.FC = () => {
                 ) : profileRows.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={7}
                       className="table-cell text-center py-12 text-[#556179]"
                     >
                       <p className="text-[14px] mb-1">
@@ -341,6 +390,12 @@ export const AccountProfiles: React.FC = () => {
                             </span>
                           )}
                         </div>
+                      </td>
+                      <td className="table-cell text-[#0b0f16]">
+                        {row.country ?? "—"}
+                      </td>
+                      <td className="table-cell text-[#0b0f16]">
+                        {row.currency ?? "—"}
                       </td>
                       <td className="table-cell">
                         <div className="flex flex-col gap-0.5">
