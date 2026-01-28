@@ -3185,40 +3185,6 @@ export const GoogleCampaigns: React.FC = () => {
               </>
             )}
 
-            {/* Sync Messages */}
-            {syncMessage && (
-              <div className="mb-4">
-                <Banner
-                  type={
-                    syncMessage.includes("error") ||
-                    syncMessage.includes("Failed")
-                      ? "error"
-                      : "success"
-                  }
-                  message={syncMessage}
-                  dismissable={true}
-                  onDismiss={() => setSyncMessage(null)}
-                />
-              </div>
-            )}
-            {analyticsSyncMessage && (
-              <div className="mb-4">
-                <Banner
-                  type={
-                    analyticsSyncMessage.includes("error") ||
-                    analyticsSyncMessage.includes("Failed")
-                      ? "error"
-                      : "success"
-                  }
-                  message={analyticsSyncMessage}
-                  dismissable={true}
-                  onDismiss={() => setAnalyticsSyncMessage(null)}
-                />
-              </div>
-            )}
-
-            {/* Sync Status Banner */}
-            <SyncStatusBanner />
 
             {/* Filter Panel - inline, matching Amazon layout */}
             {isFilterPanelOpen && accountId && (
@@ -3235,14 +3201,6 @@ export const GoogleCampaigns: React.FC = () => {
                   })) as FilterValues;
                   setFilters(convertedFilters);
                   setCurrentPage(1);
-                  // Removed direct call to loadCampaignsWithFilters - useEffect will handle it when filters change
-                  // This prevents double requests
-                  // if (accountId) {
-                  //   const accountIdNum = parseInt(accountId, 10);
-                  //   if (!isNaN(accountIdNum)) {
-                  //     loadCampaignsWithFilters(accountIdNum, convertedFilters);
-                  //   }
-                  // }
                 }}
                 initialFilters={filters.map((f) => ({
                   id: f.id,
@@ -4461,22 +4419,6 @@ export const GoogleCampaigns: React.FC = () => {
               )}
             </div>
 
-            {/* Sync Message */}
-            {syncMessage && (
-              <div className="mb-4">
-                <Banner
-                  type={
-                    syncMessage.includes("error") ||
-                    syncMessage.includes("Failed")
-                      ? "error"
-                      : "success"
-                  }
-                  message={syncMessage}
-                  dismissable={true}
-                  onDismiss={() => setSyncMessage(null)}
-                />
-              </div>
-            )}
           </div>
         </div>
       </div>

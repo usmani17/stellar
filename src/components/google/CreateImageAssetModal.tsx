@@ -58,7 +58,7 @@ export const CreateImageAssetModal: React.FC<CreateImageAssetModalProps> = ({
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api"}/accounts/upload/logo/`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api"}/accounts/upload/logo/?marketplace=google`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,

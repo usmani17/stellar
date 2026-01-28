@@ -2,7 +2,7 @@
 // This component contains Business Information, Asset Group Settings, and Asset Tabs
 // Can be used in both PMax campaign creation and standalone asset group creation
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import type { BaseCampaignFormProps } from "./types";
 import { getMinHeadlines, getMaxHeadlines, getMinDescriptions, getMaxDescriptions } from "./utils";
 import { AssetSelectorModal } from "../AssetSelectorModal";
@@ -74,6 +74,43 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
   const [assetSelectorType, setAssetSelectorType] = useState<"BUSINESS_NAME" | "LOGO" | "HEADLINE" | "DESCRIPTION" | "LONG_HEADLINE" | "IMAGE" | "SQUARE_IMAGE" | "VIDEO" | "SITELINK" | "CALLOUT" | null>(null);
   const [assetSelectorIndex, setAssetSelectorIndex] = useState<number | null>(null);
   const [assetSelectorError, setAssetSelectorError] = useState<string | null>(null);
+
+  // Track if we've already auto-switched to prevent re-switching when user manually changes tabs
+  const hasAutoSwitchedRef = useRef(false);
+  const prevImageErrorsRef = useRef(false);
+
+  // Helper function to check if a tab has errors
+  const hasTabErrors = (tabId: AssetTabId): boolean => {
+    if (tabId === "images") {
+      return !!(errors.marketing_image_url || errors.square_marketing_image_url);
+    } else if (tabId === "text") {
+      return !!(errors.headlines || errors.descriptions);
+    }
+    return false;
+  };
+
+  // Auto-switch to tab with errors when validation fails (only once when errors first appear)
+  useEffect(() => {
+    const hasImageErrors = hasTabErrors("images");
+    const hadImageErrors = prevImageErrorsRef.current;
+
+    // Only auto-switch if:
+    // 1. Image errors just appeared (weren't there before)
+    // 2. We haven't already auto-switched (this prevents re-switching when user manually changes tabs)
+    // 3. We're not already on the images tab
+    if (hasImageErrors && !hadImageErrors && !hasAutoSwitchedRef.current && activeAssetTab !== "images") {
+      setActiveAssetTab("images");
+      hasAutoSwitchedRef.current = true;
+    }
+
+    // Reset auto-switch flag when errors are cleared, so we can auto-switch again if errors reappear
+    if (!hasImageErrors && hadImageErrors) {
+      hasAutoSwitchedRef.current = false;
+    }
+
+    // Update ref for next comparison
+    prevImageErrorsRef.current = hasImageErrors;
+  }, [errors.marketing_image_url, errors.square_marketing_image_url, activeAssetTab]);
 
   const handleSelectAsset = (asset: Asset) => {
     if (!assetSelectorType || !profileId) return;
@@ -597,6 +634,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
           <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
             {ASSET_TABS.map((tab) => {
               const isActive = activeAssetTab === tab.id;
+              const hasErrors = hasTabErrors(tab.id);
               return (
                 <button
                   key={tab.id}
@@ -606,9 +644,11 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                     setActiveAssetTab(tab.id);
                   }}
                   className={`px-4 py-2 text-[14px] transition-colors ${
-                    isActive
-                      ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                      : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                    hasErrors
+                      ? "border-b-2 border-red-500"
+                      : isActive
+                        ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                        : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
                   }`}
                 >
                   {tab.label}

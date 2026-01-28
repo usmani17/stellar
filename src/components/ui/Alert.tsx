@@ -25,10 +25,9 @@ export const Alert: React.FC<AlertProps> = ({
       px-4 py-3 
       rounded-lg 
       text-h700
+      font-poppins
       ${className}
-    `}
-      className="font-poppins"
-    >
+    `}>
       {children}
     </div>
   );

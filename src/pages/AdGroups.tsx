@@ -1334,12 +1334,21 @@ export const AdGroups: React.FC = () => {
                 {showBulkActions && (
                   <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                     <div className="overflow-y-auto">
-                      {[
-                        { value: "enable", label: "Enabled" },
-                        { value: "pause", label: "Paused" },
-                        { value: "archive", label: "Archived" },
-                        { value: "edit_bid", label: "Edit Default Bid" },
-                      ].map((opt) => (
+                      {(() => {
+                        // Check if all adgroups are SD type - if so, exclude Default Bid
+                        const allAdgroupsAreSd = adgroups.length > 0 && 
+                          adgroups.every((ag) => {
+                            const type = ag.type || ag.campaignType || ag.campaign_type;
+                            return type === "SD";
+                          });
+                        
+                        return [
+                          { value: "enable", label: "Enabled" },
+                          { value: "pause", label: "Paused" },
+                          { value: "archive", label: "Archived" },
+                          ...(allAdgroupsAreSd ? [] : [{ value: "edit_bid", label: "Edit Default Bid" }]),
+                        ];
+                      })().map((opt) => (
                         <button
                           key={opt.value}
                           type="button"
@@ -1622,7 +1631,12 @@ export const AdGroups: React.FC = () => {
                   }
                 }}
               >
-                <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
+                  {bulkLoading && (
+                    <div className="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10 rounded-xl backdrop-blur-sm">
+                      <Loader size="md" message="Updating adgroups..." />
+                    </div>
+                  )}
                   <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
                     {isBidChange
                       ? "Confirm Default Bid Changes"
