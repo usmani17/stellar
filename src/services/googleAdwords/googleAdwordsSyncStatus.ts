@@ -8,11 +8,13 @@ export interface ProfileSyncStatus {
   profileId?: string;
   status: "syncing" | "completed" | "idle" | "error";
   last_synced_at: string | null;
+  last_synced_before?: string | null;
 }
 
 export interface SyncStatus {
   status: "syncing" | "completed" | "idle" | "error";
   last_synced_at: string | null;
+  last_synced_before?: string | null;
   profiles?: ProfileSyncStatus[];
 }
 

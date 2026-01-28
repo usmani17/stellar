@@ -359,15 +359,6 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
               <label className="form-label mb-0">
                 Business Name * <span className="text-[10px] text-[#556179] font-normal">(max 25 characters)</span>
               </label>
-              {profileId && (
-                <button
-                  type="button"
-                  onClick={() => openAssetSelector("BUSINESS_NAME")}
-                  className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium"
-                >
-                  Select Asset
-                </button>
-              )}
             </div>
             {formData.business_name_asset_id ? (
               <div className="flex items-center gap-2">
@@ -697,7 +688,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                             <button
                               type="button"
                               onClick={() => openAssetSelector("HEADLINE", index)}
-                              className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
+                              className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
                             >
                               Select Asset
                             </button>
@@ -846,7 +837,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                             <button
                               type="button"
                               onClick={() => openAssetSelector("DESCRIPTION", index)}
-                              className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap mt-1"
+                              className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap mt-1"
                             >
                               Select Asset
                             </button>
@@ -968,7 +959,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                             <button
                               type="button"
                               onClick={() => openAssetSelector("LONG_HEADLINE", index)}
-                              className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
+                              className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
                             >
                               Select Asset
                             </button>

@@ -1364,6 +1364,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                       }
                       getSortIcon={getSortIcon}
                       onUpdateAdStatus={handleUpdateAdStatus}
+                      formatCurrency={formatCurrency2Decimals}
+                      formatPercentage={formatPercentage}
                       createButton={
                         campaignDetail?.campaign.advertising_channel_type ===
                           "SEARCH" ? (

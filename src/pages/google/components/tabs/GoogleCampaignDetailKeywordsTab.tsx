@@ -10,6 +10,7 @@ import {
   type FilterValues,
 } from "../../../../components/filters/FilterPanel";
 import type { GoogleKeyword } from "./GoogleTypes";
+import { formatCurrency2Decimals as formatCurrency2DecimalsUtil, formatPercentage as formatPercentageUtil } from "../../utils/campaignDetailHelpers";
 
 interface GoogleCampaignDetailKeywordsTabProps {
   keywords: GoogleKeyword[];
@@ -83,11 +84,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
   onStartKeywordTextEdit,
   onStartFinalUrlEdit,
   createButton,
-  formatCurrency2Decimals = (value: number | string | undefined) => {
-    const num = typeof value === 'string' ? parseFloat(value) : (value || 0);
-    return isNaN(num) ? '0.00' : num.toFixed(2);
-  },
+  formatCurrency2Decimals = formatCurrency2DecimalsUtil,
 }) => {
+  const formatPercentage = formatPercentageUtil;
     const [editingKeywordId, setEditingKeywordId] = useState<number | null>(null);
     const [editingField, setEditingField] = useState<
       "status" | "match_type" | "bid" | null
@@ -457,7 +456,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                         {getSortIcon("keyword_text", sortBy, sortOrder)}
                       </div>
                     </th>
-                    <th className="table-header hidden lg:table-cell">
+                    <th className="table-header hidden lg:table-cell min-w-[200px]">
                       Ad Group
                     </th>
                     <th
@@ -470,7 +469,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                       </div>
                     </th>
                     <th
-                      className="table-header hidden md:table-cell w-[130px] max-w-[130px]"
+                      className="table-header hidden md:table-cell w-[130px] max-w-[130px] pr-4"
                       onClick={() => onSort("cpc_bid_dollars")}
                     >
                       <div className="flex items-center gap-1">
@@ -479,7 +478,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                       </div>
                     </th>
                     <th
-                      className="table-header hidden md:table-cell w-[150px] max-w-[150px]"
+                      className="table-header hidden md:table-cell w-[150px] max-w-[150px] pl-2"
                       onClick={() => onSort("match_type")}
                     >
                       <div className="flex items-center gap-1">
@@ -489,6 +488,114 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                     </th>
                     <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
                       Final URL
+                    </th>
+                    <th
+                      className="table-header hidden md:table-cell"
+                      onClick={() => onSort("spends")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Cost
+                        {getSortIcon("spends", sortBy, sortOrder)}
+                      </div>
+                    </th>
+                    <th
+                      className="table-header hidden md:table-cell"
+                      onClick={() => onSort("sales")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Conv. value
+                        {getSortIcon("sales", sortBy, sortOrder)}
+                      </div>
+                    </th>
+                    <th
+                      className="table-header hidden md:table-cell"
+                      onClick={() => onSort("impressions")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Impressions
+                        {getSortIcon("impressions", sortBy, sortOrder)}
+                      </div>
+                    </th>
+                    <th
+                      className="table-header hidden md:table-cell"
+                      onClick={() => onSort("clicks")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Clicks
+                        {getSortIcon("clicks", sortBy, sortOrder)}
+                      </div>
+                    </th>
+                    <th
+                      className="table-header hidden md:table-cell"
+                      onClick={() => onSort("ctr")}
+                    >
+                      <div className="flex items-center gap-1">
+                        CTR
+                        {getSortIcon("ctr", sortBy, sortOrder)}
+                      </div>
+                    </th>
+                    <th
+                      className="table-header hidden md:table-cell"
+                      onClick={() => onSort("roas")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Conv. value / cost
+                        {getSortIcon("roas", sortBy, sortOrder)}
+                      </div>
+                    </th>
+                    <th
+                      className="table-header hidden md:table-cell"
+                      onClick={() => onSort("avg_cpc")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Avg. CPC
+                        {getSortIcon("avg_cpc", sortBy, sortOrder)}
+                      </div>
+                    </th>
+                    <th
+                      className="table-header hidden md:table-cell"
+                      onClick={() => onSort("conversions")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Conversions
+                        {getSortIcon("conversions", sortBy, sortOrder)}
+                      </div>
+                    </th>
+                    <th
+                      className="table-header hidden md:table-cell"
+                      onClick={() => onSort("conversion_rate")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Conv. rate
+                        {getSortIcon("conversion_rate", sortBy, sortOrder)}
+                      </div>
+                    </th>
+                    <th
+                      className="table-header hidden md:table-cell"
+                      onClick={() => onSort("cost_per_conversion")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Cost / conv.
+                        {getSortIcon("cost_per_conversion", sortBy, sortOrder)}
+                      </div>
+                    </th>
+                    <th
+                      className="table-header hidden md:table-cell"
+                      onClick={() => onSort("avg_cost")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Avg. cost
+                        {getSortIcon("avg_cost", sortBy, sortOrder)}
+                      </div>
+                    </th>
+                    <th
+                      className="table-header hidden md:table-cell"
+                      onClick={() => onSort("interaction_rate")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Interaction rate
+                        {getSortIcon("interaction_rate", sortBy, sortOrder)}
+                      </div>
                     </th>
                   </tr>
                 </thead>
@@ -528,7 +635,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                             {keyword.keyword_text || "—"}
                           </span>
                         </td>
-                        <td className="table-cell hidden lg:table-cell">
+                        <td className="table-cell hidden lg:table-cell min-w-[200px]">
                           <span className="table-text leading-[1.26]">
                             {keyword.adgroup_name || "—"}
                           </span>
@@ -653,7 +760,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                           )}
                         </div>
                       </td>
-                        <td className="table-cell hidden md:table-cell w-[130px] max-w-[130px]">
+                        <td className="table-cell hidden md:table-cell w-[130px] max-w-[130px] pr-4">
                           {updatingKeywordId === keyword.id &&
                             pendingChange?.field === "bid" ? (
                             <div className="flex items-center gap-2">
@@ -711,7 +818,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                             </button>
                           )}
                         </td>
-                        <td className="table-cell hidden md:table-cell w-[150px] max-w-[150px]">
+                        <td className="table-cell hidden md:table-cell w-[150px] max-w-[150px] pl-2">
                           {updatingKeywordId === keyword.id &&
                             pendingChange?.field === "match_type" ? (
                             <div className="flex items-center gap-2">
@@ -934,6 +1041,66 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                               </div>
                             );
                           })()}
+                        </td>
+                        <td className="table-cell hidden md:table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {formatCurrency2Decimals((keyword as any).spends)}
+                          </span>
+                        </td>
+                        <td className="table-cell hidden md:table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {formatCurrency2Decimals((keyword as any).sales)}
+                          </span>
+                        </td>
+                        <td className="table-cell hidden md:table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {((keyword as any).impressions || 0).toLocaleString()}
+                          </span>
+                        </td>
+                        <td className="table-cell hidden md:table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {((keyword as any).clicks || 0).toLocaleString()}
+                          </span>
+                        </td>
+                        <td className="table-cell hidden md:table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {formatPercentage((keyword as any).ctr)}
+                          </span>
+                        </td>
+                        <td className="table-cell hidden md:table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {((keyword as any).roas || 0).toFixed(2)}x
+                          </span>
+                        </td>
+                        <td className="table-cell hidden md:table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {formatCurrency2Decimals((keyword as any).avg_cpc || (keyword as any).cpc)}
+                          </span>
+                        </td>
+                        <td className="table-cell hidden md:table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {((keyword as any).conversions || 0).toLocaleString()}
+                          </span>
+                        </td>
+                        <td className="table-cell hidden md:table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {formatPercentage((keyword as any).conversion_rate)}
+                          </span>
+                        </td>
+                        <td className="table-cell hidden md:table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {formatCurrency2Decimals((keyword as any).cost_per_conversion)}
+                          </span>
+                        </td>
+                        <td className="table-cell hidden md:table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {formatCurrency2Decimals((keyword as any).avg_cost || (((keyword as any).spends || 0) / Math.max((keyword as any).interactions || (keyword as any).clicks || 1, 1)))}
+                          </span>
+                        </td>
+                        <td className="table-cell hidden md:table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {formatPercentage((keyword as any).interaction_rate)}
+                          </span>
                         </td>
                       </tr>
                     );

@@ -386,6 +386,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                           <span className="table-text leading-[1.26]">
                             {assetGroup.name || "—"}
                           </span>
+                          {/* TODO: Re-enable edit icon later
                           {onEditAssetGroup && (
                             <button
                               type="button"
@@ -416,6 +417,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                               )}
                             </button>
                           )}
+                          */}
                         </div>
                       </td>
                       <td className="table-cell hidden md:table-cell w-[150px] max-w-[150px]">
@@ -668,119 +670,149 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                   <Loader size="lg" message="Loading assets..." />
                 </div>
               ) : assetGroupAssets ? (
-                <div className="space-y-4">
-                  {/* Basic Info - Compact Grid */}
-                  {(assetGroupAssets.business_name || (assetGroupAssets.final_urls && assetGroupAssets.final_urls.length > 0)) && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {assetGroupAssets.business_name && (
-                        <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-lg p-3">
-                          <h4 className="text-[12px] font-semibold text-[#072929] mb-1.5">Business Name</h4>
-                          <p className="text-[13px] text-[#556179]">{assetGroupAssets.business_name}</p>
-                        </div>
-                      )}
-                      {assetGroupAssets.final_urls && assetGroupAssets.final_urls.length > 0 && (
-                        <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-lg p-3">
-                          <h4 className="text-[12px] font-semibold text-[#072929] mb-1.5">Final URLs ({assetGroupAssets.final_urls.length})</h4>
-                          <div className="space-y-1">
-                            {assetGroupAssets.final_urls.slice(0, 2).map((url, index) => (
-                              <a
-                                key={index}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[12px] text-[#136D6D] hover:text-[#0d5252] hover:underline block truncate"
-                                title={url}
-                              >
-                                {url}
-                              </a>
-                            ))}
-                            {assetGroupAssets.final_urls.length > 2 && (
-                              <p className="text-[11px] text-[#556179]">+{assetGroupAssets.final_urls.length - 2} more</p>
-                            )}
-                          </div>
+                <div className="space-y-6">
+                  {/* Beautiful Header: Business Name + Logo */}
+                  {(assetGroupAssets.business_name || assetGroupAssets.logo_url) && (
+                    <div className="flex items-center justify-between p-5 bg-gradient-to-r from-[#fefefb] via-[#fafaf7] to-[#f9f9f6] rounded-xl border border-[#e8e8e3] shadow-sm">
+                      <div className="flex-1">
+                        {assetGroupAssets.business_name && (
+                          <h4 className="text-[18px] font-semibold text-[#072929]">
+                            {assetGroupAssets.business_name}
+                          </h4>
+                        )}
+                      </div>
+                      {assetGroupAssets.logo_url && (
+                        <div className="ml-6 p-3 bg-white rounded-lg border border-[#e8e8e3] shadow-sm">
+                          <img
+                            src={assetGroupAssets.logo_url}
+                            alt="Logo"
+                            className="h-16 w-16 object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* Text Assets - Compact Group */}
-                  {(assetGroupAssets.headlines && assetGroupAssets.headlines.filter(h => h && h.trim()).length > 0) ||
-                   (assetGroupAssets.descriptions && assetGroupAssets.descriptions.filter(d => d && d.trim()).length > 0) ||
-                   assetGroupAssets.long_headline ? (
-                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-lg p-4">
-                      <h4 className="text-[13px] font-semibold text-[#072929] mb-3">Text Assets</h4>
-                      <div className="space-y-3">
-                        {/* Headlines */}
-                        {assetGroupAssets.headlines && assetGroupAssets.headlines.filter(h => h && h.trim()).length > 0 && (
-                          <div>
-                            <p className="text-[11px] font-medium text-[#556179] mb-1.5">
-                              Headlines ({assetGroupAssets.headlines.filter(h => h && h.trim()).length})
-                            </p>
-                            <div className="space-y-1.5">
-                              {assetGroupAssets.headlines.filter(h => h && h.trim()).map((headline, index) => (
-                                <p key={index} className="text-[12.5px] text-[#556179] pl-2 border-l-2 border-[#e8e8e3]">
-                                  {headline}
-                                </p>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Long Headline */}
-                        {assetGroupAssets.long_headline && (
-                          <div>
-                            <p className="text-[11px] font-medium text-[#556179] mb-1.5">Long Headline</p>
-                            <p className="text-[12.5px] text-[#556179] pl-2 border-l-2 border-[#e8e8e3]">
-                              {assetGroupAssets.long_headline}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Descriptions */}
-                        {assetGroupAssets.descriptions && assetGroupAssets.descriptions.filter(d => d && d.trim()).length > 0 && (
-                          <div>
-                            <p className="text-[11px] font-medium text-[#556179] mb-1.5">
-                              Descriptions ({assetGroupAssets.descriptions.filter(d => d && d.trim()).length})
-                            </p>
-                            <div className="space-y-1.5">
-                              {assetGroupAssets.descriptions.filter(d => d && d.trim()).map((description, index) => (
-                                <p key={index} className="text-[12.5px] text-[#556179] pl-2 border-l-2 border-[#e8e8e3]">
-                                  {description}
-                                </p>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                  {/* Final URLs */}
+                  {assetGroupAssets.final_urls && assetGroupAssets.final_urls.length > 0 && (
+                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-4 shadow-sm">
+                      <h4 className="text-[13px] font-semibold text-[#072929] mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4 text-[#136D6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        Final URLs ({assetGroupAssets.final_urls.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {assetGroupAssets.final_urls.map((url, index) => (
+                          <a
+                            key={index}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[13px] text-[#136D6D] hover:text-[#0d5252] hover:underline block truncate flex items-center gap-2"
+                            title={url}
+                          >
+                            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                            {url}
+                          </a>
+                        ))}
                       </div>
                     </div>
-                  ) : null}
+                  )}
 
-                  {/* Media Assets - Images and Videos in Grid */}
-                  {(assetGroupAssets.marketing_image_url || assetGroupAssets.square_marketing_image_url || assetGroupAssets.logo_url || (assetGroupAssets.video_assets && assetGroupAssets.video_assets.length > 0)) && (
-                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-lg p-4">
-                      <h4 className="text-[13px] font-semibold text-[#072929] mb-3">Media Assets</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {/* Headlines - Beautiful Card */}
+                  {assetGroupAssets.headlines && assetGroupAssets.headlines.filter(h => h && h.trim()).length > 0 && (
+                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-5 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <h4 className="text-[15px] font-semibold text-[#072929]">Headlines</h4>
+                        <span className="px-2.5 py-0.5 bg-[#136D6D]/10 text-[#136D6D] text-[11px] font-medium rounded-full">
+                          {assetGroupAssets.headlines.filter(h => h && h.trim()).length}
+                        </span>
+                      </div>
+                      <ol className="space-y-3 list-none">
+                        {assetGroupAssets.headlines.filter(h => h && h.trim()).map((headline, index) => (
+                          <li key={index} className="flex items-start gap-3">
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#136D6D]/10 text-[#136D6D] text-[12px] font-semibold flex items-center justify-center mt-0.5">
+                              {index + 1}
+                            </span>
+                            <p className="text-[14px] text-[#072929] leading-relaxed flex-1">
+                              {headline}
+                            </p>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+
+                  {/* Descriptions - Beautiful Card */}
+                  {assetGroupAssets.descriptions && assetGroupAssets.descriptions.filter(d => d && d.trim()).length > 0 && (
+                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-5 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <h4 className="text-[15px] font-semibold text-[#072929]">Descriptions</h4>
+                        <span className="px-2.5 py-0.5 bg-[#136D6D]/10 text-[#136D6D] text-[11px] font-medium rounded-full">
+                          {assetGroupAssets.descriptions.filter(d => d && d.trim()).length}
+                        </span>
+                      </div>
+                      <ol className="space-y-3 list-none">
+                        {assetGroupAssets.descriptions.filter(d => d && d.trim()).map((description, index) => (
+                          <li key={index} className="flex items-start gap-3">
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#136D6D]/10 text-[#136D6D] text-[12px] font-semibold flex items-center justify-center mt-0.5">
+                              {index + 1}
+                            </span>
+                            <p className="text-[14px] text-[#072929] leading-relaxed flex-1">
+                              {description}
+                            </p>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+
+                  {/* Long Headline - Beautiful Card */}
+                  {assetGroupAssets.long_headline && (
+                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-5 shadow-sm">
+                      <h4 className="text-[15px] font-semibold text-[#072929] mb-3">Long Headline</h4>
+                      <p className="text-[14px] text-[#072929] leading-relaxed pl-2 border-l-3 border-[#136D6D]">
+                        {assetGroupAssets.long_headline}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Media Assets - Images First */}
+                  {(assetGroupAssets.marketing_image_url || assetGroupAssets.square_marketing_image_url) && (
+                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-5 shadow-sm">
+                      <h4 className="text-[15px] font-semibold text-[#072929] mb-4">Media Assets</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Marketing Image */}
                         {assetGroupAssets.marketing_image_url && (
-                          <div className="border border-[#e8e8e3] rounded-lg overflow-hidden bg-gray-50">
-                            <div className="aspect-video bg-gray-100 flex items-center justify-center">
+                          <div className="group border border-[#e8e8e3] rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
+                            <div className="aspect-video bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden">
                               <img
                                 src={assetGroupAssets.marketing_image_url}
                                 alt="Marketing Image"
-                                className="w-full h-full object-contain"
+                                className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-105"
                                 onError={(e) => {
                                   (e.target as HTMLImageElement).style.display = 'none';
                                 }}
                               />
                             </div>
-                            <div className="p-2 bg-white border-t border-[#e8e8e3]">
-                              <p className="text-[11px] font-medium text-[#556179] mb-1">Marketing Image</p>
+                            <div className="p-3 bg-white border-t border-[#e8e8e3]">
+                              <p className="text-[12px] font-medium text-[#556179] mb-2">Marketing Image</p>
                               <a
                                 href={assetGroupAssets.marketing_image_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-[10px] text-[#136D6D] hover:text-[#0d5252] hover:underline"
+                                className="inline-flex items-center gap-1.5 text-[11px] text-[#136D6D] hover:text-[#0d5252] font-medium hover:underline"
                               >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
                                 View Full
                               </a>
                             </div>
@@ -789,64 +821,53 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
 
                         {/* Square Marketing Image */}
                         {assetGroupAssets.square_marketing_image_url && (
-                          <div className="border border-[#e8e8e3] rounded-lg overflow-hidden bg-gray-50">
-                            <div className="aspect-square bg-gray-100 flex items-center justify-center">
+                          <div className="group border border-[#e8e8e3] rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
+                            <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden">
                               <img
                                 src={assetGroupAssets.square_marketing_image_url}
                                 alt="Square Marketing Image"
-                                className="w-full h-full object-contain"
+                                className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-105"
                                 onError={(e) => {
                                   (e.target as HTMLImageElement).style.display = 'none';
                                 }}
                               />
                             </div>
-                            <div className="p-2 bg-white border-t border-[#e8e8e3]">
-                              <p className="text-[11px] font-medium text-[#556179] mb-1">Square Marketing Image</p>
+                            <div className="p-3 bg-white border-t border-[#e8e8e3]">
+                              <p className="text-[12px] font-medium text-[#556179] mb-2">Square Marketing Image</p>
                               <a
                                 href={assetGroupAssets.square_marketing_image_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-[10px] text-[#136D6D] hover:text-[#0d5252] hover:underline"
+                                className="inline-flex items-center gap-1.5 text-[11px] text-[#136D6D] hover:text-[#0d5252] font-medium hover:underline"
                               >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
                                 View Full
                               </a>
                             </div>
                           </div>
                         )}
+                      </div>
+                    </div>
+                  )}
 
-                        {/* Logo */}
-                        {assetGroupAssets.logo_url && (
-                          <div className="border border-[#e8e8e3] rounded-lg overflow-hidden bg-gray-50">
-                            <div className="aspect-square bg-gray-100 flex items-center justify-center">
-                              <img
-                                src={assetGroupAssets.logo_url}
-                                alt="Logo"
-                                className="w-full h-full object-contain p-4"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                }}
-                              />
-                            </div>
-                            <div className="p-2 bg-white border-t border-[#e8e8e3]">
-                              <p className="text-[11px] font-medium text-[#556179] mb-1">Logo</p>
-                              <a
-                                href={assetGroupAssets.logo_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[10px] text-[#136D6D] hover:text-[#0d5252] hover:underline"
-                              >
-                                View Full
-                              </a>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* YouTube Videos */}
-                        {assetGroupAssets.video_assets && assetGroupAssets.video_assets.length > 0 && assetGroupAssets.video_assets.map((video: any, index: number) => {
+                  {/* Video Assets - After Media Images */}
+                  {assetGroupAssets.video_assets && assetGroupAssets.video_assets.length > 0 && (
+                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-5 shadow-sm">
+                      <h4 className="text-[15px] font-semibold text-[#072929] mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-[#136D6D]" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                        </svg>
+                        Video Assets
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {assetGroupAssets.video_assets.map((video: any, index: number) => {
                           if (!video.youtube_video_id) return null;
                           return (
-                            <div key={index} className="border border-[#e8e8e3] rounded-lg overflow-hidden bg-gray-50">
-                              <div className="aspect-video bg-gray-900 flex items-center justify-center">
+                            <div key={index} className="group border border-[#e8e8e3] rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all duration-200">
+                              <div className="aspect-video bg-gray-900 flex items-center justify-center overflow-hidden rounded-t-xl">
                                 <iframe
                                   className="w-full h-full"
                                   src={`https://www.youtube.com/embed/${video.youtube_video_id}`}
@@ -855,16 +876,19 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                                   allowFullScreen
                                 />
                               </div>
-                              <div className="p-2 bg-white border-t border-[#e8e8e3]">
-                                <p className="text-[11px] font-medium text-[#556179] mb-1">
-                                  {video.name || `YouTube Video`}
+                              <div className="p-3 bg-white border-t border-[#e8e8e3]">
+                                <p className="text-[12px] font-medium text-[#556179] mb-2 truncate">
+                                  {video.name || `YouTube Video ${index + 1}`}
                                 </p>
                                 <a
                                   href={`https://www.youtube.com/watch?v=${video.youtube_video_id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-[10px] text-[#136D6D] hover:text-[#0d5252] hover:underline"
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#FF0000] hover:bg-[#CC0000] text-white text-[11px] font-medium rounded-lg transition-colors duration-200"
                                 >
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                  </svg>
                                   Watch on YouTube
                                 </a>
                               </div>
