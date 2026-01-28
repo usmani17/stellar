@@ -679,6 +679,7 @@ export const useGoogleCampaignDetailAdGroups = ({
     isCreateShoppingEntitiesPanelOpen,
     setIsCreateShoppingEntitiesPanelOpen,
     createShoppingEntitiesLoading,
+    setCreateShoppingEntitiesLoading, // Expose setter for loading state
     createShoppingEntitiesError,
     setCreateShoppingEntitiesError, // Expose setter for error clearing
     

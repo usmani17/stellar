@@ -1,12 +1,12 @@
 import React from "react";
 
-interface CreateGoogleShoppingEntitiesSectionProps {
+interface CreateGoogleShoppingAdSectionProps {
   isOpen: boolean;
   onToggle: () => void;
 }
 
-export const CreateGoogleShoppingEntitiesSection: React.FC<
-  CreateGoogleShoppingEntitiesSectionProps
+export const CreateGoogleShoppingAdSection: React.FC<
+  CreateGoogleShoppingAdSectionProps
 > = ({ isOpen, onToggle }) => {
   return (
     <button
@@ -14,7 +14,7 @@ export const CreateGoogleShoppingEntitiesSection: React.FC<
       className="create-entity-button"
     >
       <span className="text-[10.64px] text-white font-normal">
-        Create Listing Group
+        Create Shopping Ad
       </span>
       <svg
         className={`w-4 h-4 !text-white transition-transform ${
@@ -34,4 +34,3 @@ export const CreateGoogleShoppingEntitiesSection: React.FC<
     </button>
   );
 };
-

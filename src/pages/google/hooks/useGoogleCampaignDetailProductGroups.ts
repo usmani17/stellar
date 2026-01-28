@@ -47,7 +47,8 @@ export const useGoogleCampaignDetailProductGroups = ({
       }
 
       // Product groups are stored in the ads table with ad_type = 'SHOPPING_PRODUCT_AD'
-      // Add ad_type filter to the filters array
+      // AND extra_data->>'is_product_group' = 'true'
+      // Add filters to get only product groups (not shopping ads)
       const productGroupsFiltersWithType = [
         ...productGroupsFilters,
         { field: "ad_type", value: "SHOPPING_PRODUCT_AD" },
@@ -68,7 +69,15 @@ export const useGoogleCampaignDetailProductGroups = ({
         }
       );
 
-      setProductGroups(data.ads || []);
+      // Filter to only show product groups (is_product_group: true)
+      // Shopping ads have is_product_group: false or not set
+      const productGroups = (data.ads || []).filter((ad: any) => {
+        const extraData = ad.extra_data || {};
+        // Include only ads where is_product_group is true
+        return extraData.is_product_group === true;
+      });
+
+      setProductGroups(productGroups);
       setProductGroupsTotalPages(data.total_pages || 0);
     } catch (error) {
       console.error("Failed to load product groups:", error);

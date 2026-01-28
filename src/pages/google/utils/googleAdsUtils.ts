@@ -12,6 +12,15 @@ export const GOOGLE_STATUS_DEFAULT = "ENABLED" as const;
 export type GoogleStatus = "ENABLED" | "PAUSED" | "REMOVED";
 
 /**
+ * Status dropdown options for Google Ads - reusable across all Google pages
+ */
+export const STATUS_DROPDOWN_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "ENABLED", label: "Enabled" },
+  { value: "PAUSED", label: "Paused" },
+  { value: "REMOVED", label: "Remove" },
+];
+
+/**
  * Maps API status values to display-friendly format
  */
 export const STATUS_DISPLAY_MAP: Record<string, string> = {
@@ -130,18 +139,40 @@ export const formatBiddingStrategy = (strategy?: string | null): string => {
 // ============================================================================
 
 /**
- * Formats date string (YYYY-MM-DD) for display (MM/DD/YYYY)
+ * Formats date string (YYYY-MM-DD or ISO format) for display (MM/DD/YYYY)
  */
 export const formatDateForDisplay = (dateStr?: string | null): string => {
   if (!dateStr) return "—";
   try {
-    const parts = dateStr.split("-");
+    // Handle ISO format (YYYY-MM-DDTHH:mm:ss) by extracting just the date part
+    const dateOnly = dateStr.split("T")[0];
+    const parts = dateOnly.split("-");
     if (parts.length !== 3) {
+      // If not in expected format, try parsing as Date object
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const year = date.getFullYear();
+        return `${month}/${day}/${year}`;
+      }
       return dateStr;
     }
     const [year, month, day] = parts;
     return `${month}/${day}/${year}`;
   } catch {
+    // Fallback: try parsing as Date object
+    try {
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const year = date.getFullYear();
+        return `${month}/${day}/${year}`;
+      }
+    } catch {
+      // Ignore
+    }
     return dateStr;
   }
 };

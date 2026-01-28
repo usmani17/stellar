@@ -68,10 +68,27 @@ export const googleAdwordsCampaignsService = {
         name: string;
         cpc_bid?: number; // Optional, in dollars
       };
+      ad_type?: "RESPONSIVE_SEARCH_AD" | "RESPONSIVE_DISPLAY_AD";
       ad?: {
+        // RSA fields
         headlines: string[]; // Min 3, max 15
         descriptions: string[]; // Min 2, max 4
-        final_url?: string; // Optional
+        path1?: string;
+        path2?: string;
+        headline_pins?: string[]; // HEADLINE_1, HEADLINE_2, etc.
+        description_pins?: string[]; // DESCRIPTION_1, etc.
+        headline_asset_resource_names?: string[];
+        description_asset_resource_names?: string[];
+        // RDA fields
+        marketing_image_urls?: string[];
+        square_marketing_image_urls?: string[];
+        marketing_image_asset_resource_names?: string[];
+        square_marketing_image_asset_resource_names?: string[];
+        long_headline?: string;
+        long_headline_asset_resource_name?: string;
+        business_name?: string;
+        // Common
+        final_url?: string;
       };
       keywords?: Array<{
         text: string;
@@ -178,6 +195,29 @@ export const googleAdwordsCampaignsService = {
     error?: string;
   }> => {
     const url = `/google-adwords/${accountId}/campaigns/${campaignId}/shopping-entities/create/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  createGoogleShoppingAd: async (
+    accountId: number,
+    campaignId: number,
+    payload: {
+      adgroup_id: number; // Required: use existing adgroup
+    }
+  ): Promise<{
+    ad?: {
+      id: string;
+      resource_name: string;
+    };
+    adgroup?: {
+      id: string;
+      resource_name: string;
+      name: string;
+    };
+    error?: string;
+  }> => {
+    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/shopping-ads/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },

@@ -104,8 +104,8 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
   return (
     <>
       {/* Section 1: Campaign Settings Tabs */}
-      <div className="mt-6">
-        <div className="mb-6 overflow-hidden">
+      <div className="tabs-container mt-2">
+        <div className="">
           <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
             {CAMPAIGN_SETTINGS_TABS.map((tab) => {
               const isActive = activeCampaignSettingsTab === tab.id;
@@ -117,10 +117,10 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
                     e.preventDefault();
                     setActiveCampaignSettingsTab(tab.id);
                   }}
-                  className={`px-4 py-2 text-[14px] transition-colors ${
+                  className={`tab-button cursor-pointer ${
                     isActive
-                      ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                      : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                      ? "tab-button-active"
+                      : "tab-button-inactive"
                   }`}
                 >
                   {tab.label}
@@ -143,7 +143,7 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
 
           {/* Device Targeting Tab */}
           {activeCampaignSettingsTab === "device" && (
-            <div className="p-3">
+            <div className="p-3 tab-content">
               <div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {DEVICE_OPTIONS.map((device) => (
@@ -179,7 +179,7 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
 
           {/* Network Settings Tab */}
           {activeCampaignSettingsTab === "network" && (
-            <div className="p-3">
+            <div className="p-3 tab-content">
               <div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Search Network card */}
@@ -304,7 +304,7 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
 
           {/* Location Targeting Tab */}
           {activeCampaignSettingsTab === "location" && (
-            <div className="p-3">
+            <div className="p-3 tab-content">
               <GoogleLocationTargetingForm
                 locationIds={formData.location_ids}
                 excludedLocationIds={formData.excluded_location_ids}
@@ -320,7 +320,7 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
 
           {/* Language Targeting Tab */}
           {activeCampaignSettingsTab === "language" && (
-            <div className="p-3">
+            <div className="p-3 tab-content">
               {languageOptions && languageOptions.length > 0 && (
                 <GoogleLanguageTargetingForm
                   languageIds={formData.language_ids}
@@ -336,7 +336,7 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
 
           {/* Campaign URL Options Tab */}
           {activeCampaignSettingsTab === "url-options" && (
-            <div className="p-3">
+            <div className="p-3 tab-content">
               <GoogleTrackingTemplateForm
                 trackingUrlTemplate={trackingUrlTemplate}
                 finalUrlSuffix={finalUrlSuffix}

@@ -7,6 +7,7 @@ import { KPICard } from "../../components/ui/KPICard";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
+import { googleAdwordsAdGroupsService } from "../../services/googleAdwords/googleAdwordsAdGroups";
 import { accountsService } from "../../services/accounts";
 import type { FilterValues } from "../../components/filters/FilterPanel";
 import { GoogleOverviewTab } from "./components/tabs/GoogleOverviewTab";
@@ -16,6 +17,7 @@ import { GoogleCampaignDetailKeywordsTab } from "./components/tabs/GoogleCampaig
 import { GoogleCampaignDetailNegativeKeywordsTab } from "./components/tabs/GoogleCampaignDetailNegativeKeywordsTab";
 import { GoogleCampaignDetailAssetGroupsTab } from "./components/tabs/GoogleCampaignDetailAssetGroupsTab";
 import { GoogleCampaignDetailProductGroupsTab } from "./components/tabs/GoogleCampaignDetailProductGroupsTab";
+import { GoogleCampaignDetailShoppingAdsTab } from "./components/tabs/GoogleCampaignDetailShoppingAdsTab";
 import { GoogleCampaignDetailLogsTab } from "./components/tabs/GoogleCampaignDetailLogsTab";
 import { GoogleCampaignInformation } from "./components/GoogleCampaignInformation";
 import { GoogleAssetManagementPanel } from "../../components/google/GoogleAssetManagementPanel";
@@ -40,8 +42,13 @@ import {
   CreateGoogleShoppingEntitiesPanel,
   type ShoppingEntityInput,
 } from "../../components/google/CreateGoogleShoppingEntitiesPanel";
+import {
+  CreateGoogleShoppingAdPanel,
+  type ShoppingAdInput,
+} from "../../components/google/CreateGoogleShoppingAdPanel";
 import { CreateGooglePmaxAssetGroupSection } from "../../components/google/CreateGooglePmaxAssetGroupSection";
 import { CreateGoogleShoppingEntitiesSection } from "../../components/google/CreateGoogleShoppingEntitiesSection";
+import { CreateGoogleShoppingAdSection } from "../../components/google/CreateGoogleShoppingAdSection";
 import { CreateGoogleAdGroupSection } from "../../components/google/CreateGoogleAdGroupSection";
 import { CreateGoogleAdSection } from "../../components/google/CreateGoogleAdSection";
 import { CreateGoogleKeywordSection } from "../../components/google/CreateGoogleKeywordSection";
@@ -60,6 +67,7 @@ import { useGoogleCampaignDetailKeywords } from "./hooks/useGoogleCampaignDetail
 import { useGoogleCampaignDetailNegativeKeywords } from "./hooks/useGoogleCampaignDetailNegativeKeywords";
 import { useGoogleCampaignDetailAssetGroups } from "./hooks/useGoogleCampaignDetailAssetGroups";
 import { useGoogleCampaignDetailProductGroups } from "./hooks/useGoogleCampaignDetailProductGroups";
+import { useGoogleCampaignDetailShoppingAds } from "./hooks/useGoogleCampaignDetailShoppingAds";
 
 interface GoogleCampaignDetail {
   campaign: {
@@ -104,6 +112,19 @@ export const GoogleCampaignDetail: React.FC = () => {
   const { startDate, endDate } = useDateRange();
   const [activeTab, setActiveTab] = useState("Overview");
   const [campaignAssetPanelOpen, setCampaignAssetPanelOpen] = useState(false);
+
+  // Inline edit state management
+  const [editingField, setEditingField] = useState<
+    "budget" | "status" | "start_date" | "end_date" | null
+  >(null);
+  const [editedValue, setEditedValue] = useState<string>("");
+  const [showInlineEditModal, setShowInlineEditModal] = useState(false);
+  const [inlineEditLoading, setInlineEditLoading] = useState(false);
+  const [inlineEditField, setInlineEditField] = useState<
+    "budget" | "status" | "start_date" | "end_date" | null
+  >(null);
+  const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
+  const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
 
   // Use campaign detail hook
   const {
@@ -219,6 +240,11 @@ export const GoogleCampaignDetail: React.FC = () => {
     handleUpdateNegativeKeywordMatchType,
   } = negativeKeywordsHook;
 
+  // Shopping Ad creation state
+  const [isCreateShoppingAdPanelOpen, setIsCreateShoppingAdPanelOpen] = useState(false);
+  const [createShoppingAdLoading, setCreateShoppingAdLoading] = useState(false);
+  const [createShoppingAdError, setCreateShoppingAdError] = useState<string | null>(null);
+
   // Sync state (for entities not yet extracted to hooks)
 
   const [syncMessage, setSyncMessage] = useState<{
@@ -229,6 +255,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     | "negative_keywords"
     | "assetgroups"
     | "productgroups"
+    | "shoppingads"
     | null;
     message: string | null;
   }>({ type: null, message: null });
@@ -266,7 +293,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     if (channelType === "PERFORMANCE_MAX") {
       return ["Overview", "Asset Groups", "Audience Signal", "Negative Keywords", "Logs"];
     } else if (channelType === "SHOPPING") {
-      return ["Overview", "Ad Groups", "Product Groups", "Logs"];
+      return ["Overview", "Ad Groups", "Product Groups", "Shopping Ads", "Logs"];
     } else {
       // SEARCH or default
       return [
@@ -396,6 +423,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     isCreateShoppingEntitiesPanelOpen,
     setIsCreateShoppingEntitiesPanelOpen,
     createShoppingEntitiesLoading,
+    setCreateShoppingEntitiesLoading,
     createShoppingEntitiesError,
     setCreateShoppingEntitiesError,
     showAdGroupNameEditModal,
@@ -595,6 +623,45 @@ export const GoogleCampaignDetail: React.FC = () => {
     handleUpdateProductGroupStatus,
     loadProductGroups,
   } = productGroupsHook;
+
+  // Use Shopping Ads hook
+  const shoppingAdsHook = useGoogleCampaignDetailShoppingAds({
+    accountId,
+    campaignId,
+    startDate,
+    endDate,
+    activeTab,
+    onError: (error) => {
+      setErrorModal({
+        isOpen: true,
+        title: error.title,
+        message: error.message,
+        isSuccess: error.isSuccess || false,
+      });
+    },
+  });
+
+  // Destructure Shopping Ads hook values
+  const {
+    listingGroups: shoppingAds,
+    listingGroupsLoading: shoppingAdsLoading,
+    selectedListingGroupIds: selectedShoppingAdIds,
+    listingGroupsCurrentPage: shoppingAdsCurrentPage,
+    setListingGroupsCurrentPage: setShoppingAdsCurrentPage,
+    listingGroupsTotalPages: shoppingAdsTotalPages,
+    listingGroupsSortBy: shoppingAdsSortBy,
+    listingGroupsSortOrder: shoppingAdsSortOrder,
+    isListingGroupsFilterPanelOpen: isShoppingAdsFilterPanelOpen,
+    setIsListingGroupsFilterPanelOpen: setIsShoppingAdsFilterPanelOpen,
+    listingGroupsFilters: shoppingAdsFilters,
+    setListingGroupsFilters: setShoppingAdsFilters,
+    handleSelectAllListingGroups: handleSelectAllShoppingAds,
+    handleSelectListingGroup: handleSelectShoppingAd,
+    handleListingGroupsSort: handleShoppingAdsSort,
+    handleListingGroupsPageChange: handleShoppingAdsPageChange,
+    handleUpdateListingGroupStatus: handleUpdateShoppingAdStatus,
+    loadListingGroups: loadShoppingAds,
+  } = shoppingAdsHook;
 
   // Switch away from hidden tabs when campaign type changes
   useEffect(() => {
@@ -833,7 +900,8 @@ export const GoogleCampaignDetail: React.FC = () => {
     if (!accountId || !campaignId) return;
 
     setIsCreateShoppingEntitiesPanelOpen(true);
-    // Note: createShoppingEntitiesLoading is managed by the hook
+    setCreateShoppingEntitiesError(null);
+    setCreateShoppingEntitiesLoading(true);
 
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -866,7 +934,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         setIsCreateShoppingEntitiesPanelOpen(false);
         const adgroupName = response.adgroup?.name || "Ad group";
         const successMessage = response.product_group
-          ? `Product ad created successfully in "${adgroupName}"!`
+          ? `Listing group created successfully in "${adgroupName}"!`
           : `Ad group "${adgroupName}" created successfully!`;
         setErrorModal({
           isOpen: true,
@@ -880,6 +948,10 @@ export const GoogleCampaignDetail: React.FC = () => {
         // Reload product groups if we're on the Product Groups tab
         if (activeTab === "Product Groups") {
           await loadProductGroups();
+        }
+        // Reload shopping ads if we're on the Shopping Ads tab
+        if (activeTab === "Shopping Ads") {
+          await loadShoppingAds();
         }
       }
     } catch (error: any) {
@@ -896,10 +968,82 @@ export const GoogleCampaignDetail: React.FC = () => {
         message: errorMessage,
         isSuccess: false,
       });
+    } finally {
+      setCreateShoppingEntitiesLoading(false);
     }
   };
 
+  // Handler for creating Shopping Ad
+  const handleCreateShoppingAd = async (entity: ShoppingAdInput) => {
+    if (!accountId || !campaignId) return;
 
+    setIsCreateShoppingAdPanelOpen(true);
+    setCreateShoppingAdError(null);
+    setCreateShoppingAdLoading(true);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const campaignIdNum = parseInt(campaignId, 10);
+      if (isNaN(campaignIdNum)) {
+        throw new Error("Invalid campaign ID");
+      }
+
+      const response = await googleAdwordsCampaignsService.createGoogleShoppingAd(
+        accountIdNum,
+        campaignIdNum,
+        entity
+      );
+
+      if (response.error) {
+        // Close panel and show error modal
+        setIsCreateShoppingAdPanelOpen(false);
+        setErrorModal({
+          isOpen: true,
+          title: "Error",
+          message: response.error,
+          isSuccess: false,
+        });
+      } else {
+        // Success - close panel and show success message
+        setIsCreateShoppingAdPanelOpen(false);
+        const adgroupName = response.adgroup?.name || "Ad group";
+        const successMessage = `Shopping ad created successfully in "${adgroupName}"!`;
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: successMessage,
+          isSuccess: true,
+        });
+
+        // Reload data to show new entities
+        if (loadAdGroups) await loadAdGroups();
+        // Reload shopping ads if we're on the Shopping Ads tab
+        if (activeTab === "Shopping Ads") {
+          await loadShoppingAds();
+        }
+      }
+    } catch (error: any) {
+      console.error("Failed to create shopping ad:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to create shopping ad. Please try again.";
+      // Close panel and show error modal
+      setIsCreateShoppingAdPanelOpen(false);
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+      });
+    } finally {
+      setCreateShoppingAdLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white flex">
@@ -962,7 +1106,115 @@ export const GoogleCampaignDetail: React.FC = () => {
             {/* Campaign Entity Information Card */}
             <GoogleCampaignInformation
               campaignDetail={campaignDetail}
-              onUpdateCampaign={handleUpdateCampaign}
+              editingField={editingField}
+              editedValue={editedValue}
+              loading={loading}
+              onEditField={(field) => {
+                setEditingField(field);
+                if (field === "status" && campaignDetail) {
+                  const statusUpper = campaignDetail.campaign.status?.toUpperCase() || "ENABLED";
+                  setEditedValue(
+                    statusUpper === "ENABLED" ? "ENABLED" : "PAUSED"
+                  );
+                } else if (field === "budget" && campaignDetail) {
+                  setEditedValue(
+                    (campaignDetail.campaign.daily_budget || 0).toString(),
+                  );
+                } else if (field === "start_date" && campaignDetail) {
+                  setEditedValue(
+                    campaignDetail.campaign.start_date
+                      ? new Date(campaignDetail.campaign.start_date).toISOString().split("T")[0]
+                      : "",
+                  );
+                } else if (field === "end_date" && campaignDetail) {
+                  setEditedValue(
+                    campaignDetail.campaign.end_date
+                      ? new Date(campaignDetail.campaign.end_date).toISOString().split("T")[0]
+                      : "",
+                  );
+                }
+              }}
+              onEditValueChange={setEditedValue}
+              onEditEnd={(value, field) => {
+                if (!campaignDetail) return;
+                // Use the passed value and field if provided, otherwise use the state values
+                const valueToCompare = value !== undefined ? value : editedValue;
+                const fieldToUse = field !== undefined ? field : editingField;
+                
+                if (fieldToUse === "status") {
+                  const rawCurrent = campaignDetail.campaign.status ?? "";
+                  const rawNew = String(valueToCompare ?? "").trim();
+                  const norm = (s: string) => {
+                    const v = s.trim().toUpperCase();
+                    if (v === "ENABLED") return "ENABLED";
+                    if (v === "PAUSED") return "PAUSED";
+                    return v || "ENABLED";
+                  };
+                  if (norm(rawCurrent) !== norm(rawNew)) {
+                    setInlineEditField("status");
+                    setInlineEditOldValue(
+                      campaignDetail.campaign.status || "Enabled",
+                    );
+                    setInlineEditNewValue(valueToCompare);
+                    setShowInlineEditModal(true);
+                  } else {
+                    setEditingField(null);
+                    setEditedValue("");
+                  }
+                } else if (fieldToUse === "budget") {
+                  const budgetValue = parseFloat(valueToCompare);
+                  const oldBudget = campaignDetail.campaign.daily_budget || 0;
+                  if (!isNaN(budgetValue) && budgetValue !== oldBudget) {
+                    setInlineEditField("budget");
+                    setInlineEditOldValue(formatCurrency2Decimals(oldBudget));
+                    setInlineEditNewValue(valueToCompare);
+                    setShowInlineEditModal(true);
+                  } else {
+                    setEditingField(null);
+                    setEditedValue("");
+                  }
+                } else if (fieldToUse === "start_date") {
+                  const oldStartDate = campaignDetail.campaign.start_date
+                    ? new Date(campaignDetail.campaign.start_date).toISOString().split("T")[0]
+                    : "";
+                  const newStartDate = String(valueToCompare ?? "").trim();
+                  if (newStartDate && newStartDate !== oldStartDate) {
+                    setInlineEditField("start_date");
+                    setInlineEditOldValue(
+                      oldStartDate
+                        ? new Date(oldStartDate).toLocaleDateString()
+                        : "—"
+                    );
+                    setInlineEditNewValue(newStartDate);
+                    setShowInlineEditModal(true);
+                  } else {
+                    setEditingField(null);
+                    setEditedValue("");
+                  }
+                } else if (fieldToUse === "end_date") {
+                  const oldEndDate = campaignDetail.campaign.end_date
+                    ? new Date(campaignDetail.campaign.end_date).toISOString().split("T")[0]
+                    : "";
+                  const newEndDate = String(valueToCompare ?? "").trim();
+                  if (newEndDate && newEndDate !== oldEndDate) {
+                    setInlineEditField("end_date");
+                    setInlineEditOldValue(
+                      oldEndDate
+                        ? new Date(oldEndDate).toLocaleDateString()
+                        : "—"
+                    );
+                    setInlineEditNewValue(newEndDate);
+                    setShowInlineEditModal(true);
+                  } else {
+                    setEditingField(null);
+                    setEditedValue("");
+                  }
+                }
+              }}
+              onEditCancel={() => {
+                setEditingField(null);
+                setEditedValue("");
+              }}
             />
 
             {/* KPI Cards */}
@@ -1251,7 +1503,39 @@ export const GoogleCampaignDetail: React.FC = () => {
                     getSortIcon={getSortIcon}
                     onUpdateAdGroupStatus={handleUpdateAdGroupStatus}
                     onUpdateAdGroupBid={handleUpdateAdGroupBid}
-                    onStartNameEdit={handleStartAdGroupNameEdit}
+                    onUpdateAdGroupName={async (adgroupId: number, name: string) => {
+                      if (!accountId) return;
+                      const accountIdNum = parseInt(accountId, 10);
+                      if (isNaN(accountIdNum)) {
+                        throw new Error("Invalid account ID");
+                      }
+                      
+                      // Find the adgroup to get adgroup_id
+                      const adgroup = adgroups.find(ag => ag.id === adgroupId);
+                      if (!adgroup || !adgroup.adgroup_id) {
+                        throw new Error("Ad group not found");
+                      }
+                      
+                      const trimmedName = name.trim();
+                      if (!trimmedName) {
+                        throw new Error("Name cannot be empty");
+                      }
+                      
+                      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+                        adgroupIds: [adgroup.adgroup_id],
+                        action: "name",
+                        name: trimmedName,
+                      });
+                      
+                      if (response.errors && response.errors.length > 0) {
+                        throw new Error(response.errors[0]);
+                      }
+                      
+                      // Reload ad groups
+                      if (loadAdGroups) {
+                        await loadAdGroups();
+                      }
+                    }}
                     accountId={accountId}
                     onBulkUpdateComplete={loadAdGroups}
                     createButton={
@@ -1306,13 +1590,14 @@ export const GoogleCampaignDetail: React.FC = () => {
                               onSubmit={handleCreateAd}
                               campaignId={campaignId}
                               accountId={accountId || ""}
+                              profileId={profileId}
                               loading={createSearchEntitiesLoading}
                               submitError={null}
                             />
                           )}
                         </>
                       )}
-                    {/* Create Product Ad Panel - For SHOPPING campaigns */}
+                    {/* Create Listing Group Panel - For SHOPPING campaigns */}
                     {campaignDetail?.campaign.advertising_channel_type ===
                       "SHOPPING" && (
                         <>
@@ -1606,13 +1891,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                       setProductGroupsFilters(newFilters);
                       setProductGroupsCurrentPage(1);
                     }}
-                    syncing={syncingAds}
-                    onSync={handleSyncAds}
-                    syncingAnalytics={syncingAdsAnalytics}
-                    onSyncAnalytics={handleSyncAdsAnalytics}
-                    syncMessage={
-                      syncMessage.type === "ads" ? syncMessage.message : null
-                    }
+                    syncing={false}
+                    onSync={() => {}}
+                    syncingAnalytics={undefined}
+                    onSyncAnalytics={undefined}
+                    syncMessage={null}
                     getSortIcon={getSortIcon}
                     formatCurrency2Decimals={formatCurrency2Decimals}
                     formatPercentage={formatPercentage}
@@ -1625,6 +1908,80 @@ export const GoogleCampaignDetail: React.FC = () => {
                           onToggle={() => {
                             setIsCreateShoppingEntitiesPanelOpen(
                               !isCreateShoppingEntitiesPanelOpen
+                            );
+                            // Close filter panel if exists
+                          }}
+                        />
+                      ) : undefined
+                    }
+                  />
+                </>
+              )}
+
+              {activeTab === "Shopping Ads" && (
+                <>
+                  {/* Create Shopping Ad Panel - Only for SHOPPING campaigns */}
+                  {campaignDetail?.campaign.advertising_channel_type ===
+                    "SHOPPING" && (
+                      <>
+                        {isCreateShoppingAdPanelOpen &&
+                          campaignId &&
+                          accountId && (
+                            <CreateGoogleShoppingAdPanel
+                              isOpen={isCreateShoppingAdPanelOpen}
+                              onClose={() => {
+                                setIsCreateShoppingAdPanelOpen(false);
+                                setCreateShoppingAdError(null);
+                              }}
+                              onSubmit={handleCreateShoppingAd}
+                              campaignId={campaignId}
+                              accountId={accountId}
+                              loading={createShoppingAdLoading}
+                              submitError={createShoppingAdError}
+                            />
+                          )}
+                      </>
+                    )}
+                  <GoogleCampaignDetailShoppingAdsTab
+                    listingGroups={shoppingAds}
+                    loading={shoppingAdsLoading}
+                    selectedListingGroupIds={selectedShoppingAdIds}
+                    onSelectAll={handleSelectAllShoppingAds}
+                    onSelectListingGroup={handleSelectShoppingAd}
+                    sortBy={shoppingAdsSortBy}
+                    sortOrder={shoppingAdsSortOrder}
+                    onSort={handleShoppingAdsSort}
+                    currentPage={shoppingAdsCurrentPage}
+                    totalPages={shoppingAdsTotalPages}
+                    onPageChange={handleShoppingAdsPageChange}
+                    isFilterPanelOpen={isShoppingAdsFilterPanelOpen}
+                    onToggleFilterPanel={() =>
+                      setIsShoppingAdsFilterPanelOpen(
+                        !isShoppingAdsFilterPanelOpen
+                      )
+                    }
+                    filters={shoppingAdsFilters}
+                    onApplyFilters={(newFilters) => {
+                      setShoppingAdsFilters(newFilters);
+                      setShoppingAdsCurrentPage(1);
+                    }}
+                    syncing={false}
+                    onSync={() => {}}
+                    syncingAnalytics={undefined}
+                    onSyncAnalytics={undefined}
+                    syncMessage={null}
+                    getSortIcon={getSortIcon}
+                    formatCurrency2Decimals={formatCurrency2Decimals}
+                    formatPercentage={formatPercentage}
+                    onUpdateListingGroupStatus={handleUpdateShoppingAdStatus}
+                    createButton={
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "SHOPPING" ? (
+                        <CreateGoogleShoppingAdSection
+                          isOpen={isCreateShoppingAdPanelOpen}
+                          onToggle={() => {
+                            setIsCreateShoppingAdPanelOpen(
+                              !isCreateShoppingAdPanelOpen
                             );
                             // Close filter panel if exists
                           }}
@@ -1896,6 +2253,85 @@ export const GoogleCampaignDetail: React.FC = () => {
                 className="create-entity-button btn-sm"
               >
                 {finalUrlEditLoading ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inline Edit Confirmation Modal */}
+      {showInlineEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Confirm Change</h3>
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">
+                {inlineEditField === "status"
+                  ? "State"
+                  : inlineEditField === "budget"
+                    ? "Budget"
+                    : inlineEditField === "start_date"
+                      ? "Start Date"
+                      : "End Date"}
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">From:</span>
+                <span className="text-sm font-medium">
+                  {inlineEditOldValue}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-sm text-gray-500">To:</span>
+                <span className="text-sm font-medium">
+                  {inlineEditField === "status"
+                    ? inlineEditNewValue
+                    : inlineEditField === "budget"
+                      ? formatCurrency2Decimals(
+                          parseFloat(inlineEditNewValue || "0")
+                        )
+                      : inlineEditNewValue}
+                </span>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowInlineEditModal(false);
+                  setInlineEditField(null);
+                  setInlineEditOldValue("");
+                  setInlineEditNewValue("");
+                  setEditingField(null);
+                  setEditedValue("");
+                }}
+                disabled={inlineEditLoading}
+                className="cancel-button"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!inlineEditField || !campaignDetail) return;
+
+                  setInlineEditLoading(true);
+                  try {
+                    await handleUpdateCampaign(inlineEditField, inlineEditNewValue);
+                    setShowInlineEditModal(false);
+                    setInlineEditField(null);
+                    setInlineEditOldValue("");
+                    setInlineEditNewValue("");
+                    setEditingField(null);
+                    setEditedValue("");
+                  } catch (error) {
+                    console.error("Error updating campaign:", error);
+                    alert("Failed to update campaign. Please try again.");
+                  } finally {
+                    setInlineEditLoading(false);
+                  }
+                }}
+                disabled={inlineEditLoading}
+                className="create-entity-button btn-sm"
+              >
+                {inlineEditLoading ? "Saving..." : "Confirm"}
               </button>
             </div>
           </div>
