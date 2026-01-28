@@ -70,6 +70,9 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
   refreshMessage = null,
   profileId = null,
 }) => {
+  // Suppress unused variable warnings - these props are part of the interface but not used in this component
+  void _campaignId;
+  void _assetGroupId;
     const generateDefaultAssetGroupName = React.useCallback((): string => {
       const now = new Date();
       const day = String(now.getDate()).padStart(2, "0");
@@ -97,73 +100,83 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
 
     const [errors, setErrors] = useState<Partial<Record<keyof CreateGoogleCampaignData, string>>>({});
 
-    // Image previews
+    // Image previews - state needed because form component calls setters directly
     const [marketingImagePreview, setMarketingImagePreview] = useState<string | null>(null);
     const [squareMarketingImagePreview, setSquareMarketingImagePreview] = useState<string | null>(null);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
-    // Initialize form data from initialData when in edit mode
+    // Track previous editMode and initialData to detect meaningful changes
+    const prevEditModeRef = React.useRef(editMode);
+    const prevInitialDataRef = React.useRef(initialData);
+    
+    // Sync form data when editMode or initialData changes (legitimate prop-to-state sync pattern)
     useEffect(() => {
-      if (editMode && initialData) {
-        setFormData({
-          campaign_type: "PERFORMANCE_MAX",
-          name: "",
-          budget_amount: 0,
-          asset_group_name: initialData.asset_group_name || "",
-          final_url: initialData.final_url || "",
-          headlines: Array.isArray(initialData.headlines) && initialData.headlines.length > 0 ? initialData.headlines : ["", "", ""],
-          descriptions: Array.isArray(initialData.descriptions) && initialData.descriptions.length > 0 ? initialData.descriptions : ["", ""],
-          long_headlines: initialData.long_headline ? [initialData.long_headline] : [],
-          marketing_image_url: initialData.marketing_image_url || "",
-          square_marketing_image_url: initialData.square_marketing_image_url || "",
-          business_name: initialData.business_name || "",
-          logo_url: initialData.logo_url || "",
-        });
-      } else if (!editMode) {
-        // Reset to defaults when not in edit mode
-        setFormData({
-          campaign_type: "PERFORMANCE_MAX",
-          name: "",
-          budget_amount: 0,
-          asset_group_name: generateDefaultAssetGroupName(),
-          final_url: "",
-          headlines: ["", "", ""], // Minimum 3 for validation
-          descriptions: ["", ""], // Minimum 2 for validation
-          long_headlines: [],
-        });
+      /* eslint-disable react-hooks/set-state-in-effect */
+      const editModeChanged = prevEditModeRef.current !== editMode;
+      const initialDataChanged = prevInitialDataRef.current !== initialData;
+      
+      if (editModeChanged || initialDataChanged) {
+        if (editMode && initialData) {
+          const newFormData: CreateGoogleCampaignData = {
+            campaign_type: "PERFORMANCE_MAX",
+            name: "",
+            budget_amount: 0,
+            asset_group_name: initialData.asset_group_name || "",
+            final_url: initialData.final_url || "",
+            headlines: Array.isArray(initialData.headlines) && initialData.headlines.length > 0 ? initialData.headlines : ["", "", ""],
+            descriptions: Array.isArray(initialData.descriptions) && initialData.descriptions.length > 0 ? initialData.descriptions : ["", ""],
+            long_headlines: initialData.long_headline ? [initialData.long_headline] : [],
+            marketing_image_url: initialData.marketing_image_url || "",
+            square_marketing_image_url: initialData.square_marketing_image_url || "",
+            business_name: initialData.business_name || "",
+            logo_url: initialData.logo_url || "",
+          };
+          setFormData(newFormData);
+          // Update previews synchronously with form data
+          setMarketingImagePreview(newFormData.marketing_image_url?.trim() || null);
+          setSquareMarketingImagePreview(newFormData.square_marketing_image_url?.trim() || null);
+          setLogoPreview(newFormData.logo_url?.trim() || null);
+        } else if (!editMode) {
+          // Reset to defaults when not in edit mode
+          const newFormData: CreateGoogleCampaignData = {
+            campaign_type: "PERFORMANCE_MAX",
+            name: "",
+            budget_amount: 0,
+            asset_group_name: generateDefaultAssetGroupName(),
+            final_url: "",
+            headlines: ["", "", ""], // Minimum 3 for validation
+            descriptions: ["", ""], // Minimum 2 for validation
+            long_headlines: [],
+          };
+          setFormData(newFormData);
+          // Reset previews
+          setMarketingImagePreview(null);
+          setSquareMarketingImagePreview(null);
+          setLogoPreview(null);
+        }
+        
+        prevEditModeRef.current = editMode;
+        prevInitialDataRef.current = initialData;
       }
+      /* eslint-enable react-hooks/set-state-in-effect */
     }, [editMode, initialData, generateDefaultAssetGroupName]);
 
-    // Update image previews when URLs change
-    useEffect(() => {
-      if (formData.marketing_image_url && formData.marketing_image_url.trim()) {
-        setMarketingImagePreview(formData.marketing_image_url.trim());
-      } else {
-        setMarketingImagePreview(null);
-      }
-    }, [formData.marketing_image_url]);
-
-    useEffect(() => {
-      if (formData.square_marketing_image_url && formData.square_marketing_image_url.trim()) {
-        setSquareMarketingImagePreview(formData.square_marketing_image_url.trim());
-      } else {
-        setSquareMarketingImagePreview(null);
-      }
-    }, [formData.square_marketing_image_url]);
-
-    useEffect(() => {
-      if (formData.logo_url && formData.logo_url.trim()) {
-        setLogoPreview(formData.logo_url.trim());
-      } else {
-        setLogoPreview(null);
-      }
-    }, [formData.logo_url]);
-
     const handleChange = useCallback((field: keyof CreateGoogleCampaignData, value: any) => {
-      setFormData((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
+      setFormData((prev) => {
+        const newFormData = {
+          ...prev,
+          [field]: value,
+        };
+        // Update previews when URL fields change
+        if (field === "marketing_image_url") {
+          setMarketingImagePreview(typeof value === "string" && value.trim() ? value.trim() : null);
+        } else if (field === "square_marketing_image_url") {
+          setSquareMarketingImagePreview(typeof value === "string" && value.trim() ? value.trim() : null);
+        } else if (field === "logo_url") {
+          setLogoPreview(typeof value === "string" && value.trim() ? value.trim() : null);
+        }
+        return newFormData;
+      });
       // Clear error for this field when user starts typing
       if (errors[field]) {
         setErrors((prev) => {
@@ -198,6 +211,15 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
       }
 
       // Long headlines are optional - no validation needed
+
+      // Marketing image URLs are required for Performance Max asset groups
+      if (!formData.marketing_image_url?.trim()) {
+        newErrors.marketing_image_url = "Marketing Image URL is required for Performance Max asset groups";
+      }
+
+      if (!formData.square_marketing_image_url?.trim()) {
+        newErrors.square_marketing_image_url = "Square Marketing Image URL is required for Performance Max asset groups";
+      }
 
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;

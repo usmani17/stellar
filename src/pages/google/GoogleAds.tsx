@@ -946,40 +946,6 @@ export const GoogleAds: React.FC = () => {
               </div>
             </div>
 
-            {/* Sync Messages */}
-            {syncMessage && (
-              <div className="mb-4">
-                <Banner
-                  type={
-                    syncMessage.includes("error") ||
-                    syncMessage.includes("Failed")
-                      ? "error"
-                      : "success"
-                  }
-                  message={syncMessage}
-                  dismissable={true}
-                  onDismiss={() => setSyncMessage(null)}
-                />
-              </div>
-            )}
-            {analyticsSyncMessage && (
-              <div className="mb-4">
-                <Banner
-                  type={
-                    analyticsSyncMessage.includes("error") ||
-                    analyticsSyncMessage.includes("Failed")
-                      ? "error"
-                      : "success"
-                  }
-                  message={analyticsSyncMessage}
-                  dismissable={true}
-                  onDismiss={() => setAnalyticsSyncMessage(null)}
-                />
-              </div>
-            )}
-
-            {/* Sync Status Banner */}
-            <SyncStatusBanner />
 
             {/* Filter Panel */}
             {isFilterPanelOpen && accountId && (
@@ -996,14 +962,6 @@ export const GoogleAds: React.FC = () => {
                   }));
                   setFilters(convertedFilters);
                   setCurrentPage(1);
-                  // Removed direct call to loadAdsWithFilters - useEffect will handle it when filters change
-                  // This prevents double requests
-                  // if (accountId) {
-                  //   const accountIdNum = parseInt(accountId, 10);
-                  //   if (!isNaN(accountIdNum)) {
-                  //     loadAdsWithFilters(accountIdNum, convertedFilters);
-                  //   }
-                  // }
                 }}
                 initialFilters={filters.map((f) => ({
                   id: f.id,
