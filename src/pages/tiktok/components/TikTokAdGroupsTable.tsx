@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
 import { Checkbox } from "../../../components/ui/Checkbox";
 import { Dropdown } from "../../../components/ui/Dropdown";
@@ -57,6 +57,8 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
     onUpdateAdGroupStatus,
     onUpdateAdGroupBudget,
 }) => {
+    const navigate = useNavigate();
+    const { accountId } = useParams<{ accountId: string }>();
     // Helper to check if ad group is deleted
     const isDeleted = (adgroup: TikTokAdGroup): boolean => {
         const statusLower = adgroup.operation_status?.toLowerCase() || "";
@@ -535,13 +537,23 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                             </td>
                                             <td className="table-cell">
                                                 <div className="table-text leading-[1.26] text-left">
-                                                    {/* If we had campaign ID, we'd link it. For now just text or optional link */}
-                                                    {item.campaign_id ? (
-                                                        <Link to={`/brands/${1}/tiktok-campaigns/${item.campaign_id}`} className="hover:underline hover:text-[#136D6D]">
+                                                    {item.campaign_id && accountId ? (
+                                                        <a
+                                                            href={`/brands/${accountId}/tiktok-campaigns/${item.campaign_id}`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                // Only prevent default for regular clicks (not Ctrl/Cmd/middle click)
+                                                                if (!e.metaKey && !e.ctrlKey && e.button !== 1) {
+                                                                    e.preventDefault();
+                                                                    navigate(`/brands/${accountId}/tiktok-campaigns/${item.campaign_id}`);
+                                                                }
+                                                            }}
+                                                            className="table-edit-link hover:underline hover:text-[#136D6D]"
+                                                        >
                                                             {item.campaign_name}
-                                                        </Link>
+                                                        </a>
                                                     ) : (
-                                                        item.campaign_name
+                                                        <span>{item.campaign_name}</span>
                                                     )}
                                                 </div>
                                             </td>
