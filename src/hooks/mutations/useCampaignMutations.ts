@@ -9,7 +9,11 @@ import { queryKeys } from "../queries/queryKeys";
  * Hook for bulk updating campaigns (status, budget, etc.)
  * Automatically invalidates campaigns cache after successful update
  */
-export const useBulkUpdateCampaigns = (accountId: number) => {
+export const useBulkUpdateCampaigns = (
+  accountId: number,
+  channelId?: number | string | null,
+  profileId?: string | number | null
+) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -31,7 +35,12 @@ export const useBulkUpdateCampaigns = (accountId: number) => {
       siteRestrictions?: string | null;
       dynamicBidding?: any;
     }) => {
-      return await campaignsService.bulkUpdateCampaigns(accountId, payload);
+      return await campaignsService.bulkUpdateCampaigns(
+        accountId,
+        payload,
+        channelId,
+        profileId
+      );
     },
     onSuccess: () => {
       // Invalidate all campaigns queries for this account to refetch fresh data
@@ -47,12 +56,21 @@ export const useBulkUpdateCampaigns = (accountId: number) => {
  * Hook for bulk deleting campaigns
  * Automatically invalidates campaigns cache after successful delete
  */
-export const useBulkDeleteCampaigns = (accountId: number) => {
+export const useBulkDeleteCampaigns = (
+  accountId: number,
+  channelId?: number | string | null,
+  profileId?: string | number | null
+) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (payload: { campaignIds: Array<string | number> }) => {
-      return await campaignsService.bulkDeleteCampaigns(accountId, payload);
+      return await campaignsService.bulkDeleteCampaigns(
+        accountId,
+        payload,
+        channelId,
+        profileId
+      );
     },
     onSuccess: () => {
       // Invalidate all campaigns queries for this account to refetch fresh data
@@ -67,7 +85,11 @@ export const useBulkDeleteCampaigns = (accountId: number) => {
  * Hook for creating a campaign
  * Automatically invalidates campaigns cache after successful create
  */
-export const useCreateCampaign = (accountId: number) => {
+export const useCreateCampaign = (
+  accountId: number,
+  channelId?: number | string | null,
+  profileId?: string | number | null
+) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -82,7 +104,12 @@ export const useCreateCampaign = (accountId: number) => {
       targetingType?: "AUTO" | "MANUAL";
       profileId: string | number;
     }) => {
-      return await campaignsService.createCampaign(accountId, data);
+      return await campaignsService.createCampaign(
+        accountId,
+        data,
+        channelId,
+        profileId
+      );
     },
     onSuccess: () => {
       // Invalidate all campaigns queries for this account to refetch fresh data
@@ -97,7 +124,11 @@ export const useCreateCampaign = (accountId: number) => {
  * Hook for updating a campaign (via form)
  * Automatically invalidates campaigns cache after successful update
  */
-export const useUpdateCampaign = (accountId: number) => {
+export const useUpdateCampaign = (
+  accountId: number,
+  channelId?: number | string | null,
+  profileId?: string | number | null
+) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -113,58 +144,82 @@ export const useUpdateCampaign = (accountId: number) => {
         targetingType?: "AUTO" | "MANUAL";
       };
     }) => {
-      // This uses bulkUpdateCampaigns internally for updates
       const updates: Promise<any>[] = [];
 
       if (payload.data.budget !== undefined) {
         updates.push(
-          campaignsService.bulkUpdateCampaigns(accountId, {
-            campaignIds: [payload.campaignId],
-            action: "budget",
-            budgetAction: "set",
-            unit: "amount",
-            value: payload.data.budget,
-          })
+          campaignsService.bulkUpdateCampaigns(
+            accountId,
+            {
+              campaignIds: [payload.campaignId],
+              action: "budget",
+              budgetAction: "set",
+              unit: "amount",
+              value: payload.data.budget,
+            },
+            channelId,
+            profileId
+          )
         );
       }
 
       if (payload.data.budgetType) {
         updates.push(
-          campaignsService.bulkUpdateCampaigns(accountId, {
-            campaignIds: [payload.campaignId],
-            action: "budgetType",
-            budgetType: payload.data.budgetType,
-          })
+          campaignsService.bulkUpdateCampaigns(
+            accountId,
+            {
+              campaignIds: [payload.campaignId],
+              action: "budgetType",
+              budgetType: payload.data.budgetType,
+            },
+            channelId,
+            profileId
+          )
         );
       }
 
       if (payload.data.endDate !== undefined) {
         updates.push(
-          campaignsService.bulkUpdateCampaigns(accountId, {
-            campaignIds: [payload.campaignId],
-            action: "endDate",
-            endDate: payload.data.endDate,
-          })
+          campaignsService.bulkUpdateCampaigns(
+            accountId,
+            {
+              campaignIds: [payload.campaignId],
+              action: "endDate",
+              endDate: payload.data.endDate,
+            },
+            channelId,
+            profileId
+          )
         );
       }
 
       if (payload.data.portfolioId !== undefined) {
         updates.push(
-          campaignsService.bulkUpdateCampaigns(accountId, {
-            campaignIds: [payload.campaignId],
-            action: "portfolioId",
-            portfolioId: payload.data.portfolioId,
-          })
+          campaignsService.bulkUpdateCampaigns(
+            accountId,
+            {
+              campaignIds: [payload.campaignId],
+              action: "portfolioId",
+              portfolioId: payload.data.portfolioId,
+            },
+            channelId,
+            profileId
+          )
         );
       }
 
       if (payload.data.targetingType) {
         updates.push(
-          campaignsService.bulkUpdateCampaigns(accountId, {
-            campaignIds: [payload.campaignId],
-            action: "targetingType",
-            targetingType: payload.data.targetingType,
-          })
+          campaignsService.bulkUpdateCampaigns(
+            accountId,
+            {
+              campaignIds: [payload.campaignId],
+              action: "targetingType",
+              targetingType: payload.data.targetingType,
+            },
+            channelId,
+            profileId
+          )
         );
       }
 

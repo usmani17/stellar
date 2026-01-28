@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -26,7 +26,9 @@ import { Loader } from "../components/ui/Loader";
 
 export const Targets: React.FC = () => {
   const navigate = useNavigate();
-  const { accountId } = useParams<{ accountId: string }>();
+  const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
+  const [searchParams] = useSearchParams();
+  const profileId = searchParams.get("profile_id") ?? undefined;
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
   const [targets, setTargets] = useState<Target[]>([]);
@@ -358,10 +360,12 @@ export const Targets: React.FC = () => {
       }
 
       // Call export API
-      const result = await campaignsService.exportTargets(accountIdNum, {
-        ...params,
-        export_type: exportType,
-      });
+      const result = await campaignsService.exportTargets(
+        accountIdNum,
+        { ...params, export_type: exportType },
+        channelId ?? null,
+        profileId ?? null
+      );
 
       // Automatically download the file
       const link = document.createElement("a");
@@ -416,7 +420,12 @@ export const Targets: React.FC = () => {
         ...buildFilterParams(filters),
       };
 
-      const response = await campaignsService.getTargetsList(accountId, params);
+      const response = await campaignsService.getTargetsList(
+        accountId,
+        params,
+        channelId ?? null,
+        profileId ?? null
+      );
 
       console.log(
         "Targets - Chart data received:",
@@ -468,7 +477,12 @@ export const Targets: React.FC = () => {
         ...buildFilterParams(filterList),
       };
 
-      const response = await campaignsService.getTargetsList(accountId, params);
+      const response = await campaignsService.getTargetsList(
+        accountId,
+        params,
+        channelId ?? null,
+        profileId ?? null
+      );
       setTargets(Array.isArray(response.targets) ? response.targets : []);
       setTotalPages(response.total_pages || 0);
       if (response.summary) {
@@ -1878,6 +1892,7 @@ export const Targets: React.FC = () => {
                                         navigate(
                                           buildMarketplaceRoute(
                                             parseInt(accountId),
+                                            channelId ?? 0,
                                             "amazon",
                                             "campaigns",
                                             `${

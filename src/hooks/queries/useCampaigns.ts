@@ -5,17 +5,21 @@ import { queryKeys } from "./queryKeys";
 /**
  * Hook to fetch campaigns for a specific account with pagination and filters
  * Uses React Query for caching and automatic state management
- * 
+ *
  * @param accountId - The account ID to fetch campaigns for
  * @param params - Query parameters including pagination, sorting, filters, and date range
+ * @param channelId - Optional channel ID for Amazon channel-scoped API path
+ * @param profileId - Optional profile ID for filtering by Amazon profile
  */
 export const useCampaigns = (
   accountId: number | undefined,
-  params?: CampaignsQueryParams
+  params?: CampaignsQueryParams,
+  channelId?: number | string | null,
+  profileId?: string | number | null
 ) => {
   return useQuery<CampaignsResponse, Error>({
     queryKey: accountId
-      ? queryKeys.campaigns.lists(accountId, params)
+      ? queryKeys.campaigns.lists(accountId, params, channelId, profileId)
       : ["campaigns", "list", "disabled"],
     queryFn: async () => {
       if (!accountId) {
@@ -27,7 +31,12 @@ export const useCampaigns = (
           total_pages: 0,
         };
       }
-      const response = await campaignsService.getCampaigns(accountId, params || {});
+      const response = await campaignsService.getCampaigns(
+        accountId,
+        params || {},
+        channelId,
+        profileId
+      );
       return response;
     },
     enabled: !!accountId, // Only run query if accountId is provided

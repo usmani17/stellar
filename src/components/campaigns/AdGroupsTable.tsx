@@ -76,7 +76,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   campaignDetail,
 }) => {
   const navigate = useNavigate();
-  const { accountId } = useParams<{ accountId: string }>();
+  const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
   const statusSelectionMadeRef = useRef<number | null>(null);
 
   // Show all columns on both adgroups page and campaign detail page
@@ -86,13 +86,17 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   const handleCampaignNameClick = (adgroup: AdGroup, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!accountId || !adgroup.campaignId) return;
+    const channelIdSeg = channelId ?? "";
 
     // Build campaignTypeAndId in format: sp_123456, sb_123456, or sd_123456
     // Default to 'sp' if type is not available
     const campaignType = (adgroup.type || "sp").toLowerCase();
     const campaignTypeAndId = `${campaignType}_${adgroup.campaignId}`;
 
-    navigate(`/brands/${accountId}/amazon/campaigns/${campaignTypeAndId}`);
+    const path = channelIdSeg
+      ? `/brands/${accountId}/${channelIdSeg}/amazon/campaigns/${campaignTypeAndId}`
+      : `/brands/${accountId}/amazon/campaigns/${campaignTypeAndId}`;
+    navigate(path);
   };
   const getSortIcon = (column: string) => {
     if (sortBy !== column || !onSort) {

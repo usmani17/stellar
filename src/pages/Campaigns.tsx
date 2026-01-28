@@ -5,7 +5,7 @@ import React, {
   useRef,
   useCallback,
 } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -52,7 +52,9 @@ import type { FilterDefinition } from "../types/filters";
 
 export const Campaigns: React.FC = () => {
   const navigate = useNavigate();
-  const { accountId } = useParams<{ accountId: string }>();
+  const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
+  const [searchParams] = useSearchParams();
+  const profileId = searchParams.get("profile_id") ?? undefined;
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
 
@@ -166,7 +168,7 @@ export const Campaigns: React.FC = () => {
     isLoading: loading,
     error: campaignsError,
     refetch: refetchCampaigns,
-  } = useCampaigns(accountIdNum, queryParams);
+  } = useCampaigns(accountIdNum, queryParams, channelId ?? null, profileId ?? null);
 
   // Extract data from response and apply client-side filtering
   const campaigns = useMemo(() => {
@@ -198,10 +200,26 @@ export const Campaigns: React.FC = () => {
   }, [campaignsResponse]);
 
   // Mutation hooks (only initialize if accountIdNum is valid)
-  const bulkUpdateMutation = useBulkUpdateCampaigns(accountIdNum || 0);
-  const bulkDeleteMutation = useBulkDeleteCampaigns(accountIdNum || 0);
-  const createCampaignMutation = useCreateCampaign(accountIdNum || 0);
-  const updateCampaignMutation = useUpdateCampaign(accountIdNum || 0);
+  const bulkUpdateMutation = useBulkUpdateCampaigns(
+    accountIdNum || 0,
+    channelId ?? null,
+    profileId ?? null
+  );
+  const bulkDeleteMutation = useBulkDeleteCampaigns(
+    accountIdNum || 0,
+    channelId ?? null,
+    profileId ?? null
+  );
+  const createCampaignMutation = useCreateCampaign(
+    accountIdNum || 0,
+    channelId ?? null,
+    profileId ?? null
+  );
+  const updateCampaignMutation = useUpdateCampaign(
+    accountIdNum || 0,
+    channelId ?? null,
+    profileId ?? null
+  );
 
   // Use mutation loading states
   const bulkLoading =
@@ -501,10 +519,12 @@ export const Campaigns: React.FC = () => {
       }
 
       // Call export API
-      const result = await campaignsService.exportCampaigns(accountIdNum, {
-        ...params,
-        export_type: exportType,
-      });
+      const result = await campaignsService.exportCampaigns(
+        accountIdNum,
+        { ...params, export_type: exportType },
+        channelId ?? null,
+        profileId ?? null
+      );
 
       // Automatically download the file
       const link = document.createElement("a");
@@ -1684,7 +1704,9 @@ export const Campaigns: React.FC = () => {
       const response = await campaignsService.updateCampaign(
         accountIdNum,
         campaignId,
-        updatePayload
+        updatePayload,
+        channelId ?? null,
+        profileId ?? null
       );
 
       // Refetch campaigns to update the data table
@@ -1709,7 +1731,14 @@ export const Campaigns: React.FC = () => {
           onClick: () => {
             setErrorModal({ isOpen: false, message: "" });
             navigate(
-              `/accounts/${accountIdNum}/campaigns/${campaignTypeAndId}`
+              buildMarketplaceRoute(
+                accountIdNum!,
+                channelId ?? 0,
+                "amazon",
+                "campaigns",
+                campaignTypeAndId,
+                profileId ?? undefined
+              )
             );
           },
         },
@@ -1745,7 +1774,9 @@ export const Campaigns: React.FC = () => {
         row.campaignId,
         undefined,
         undefined,
-        row.type
+        row.type,
+        channelId ?? null,
+        profileId ?? null
       );
 
       const campaign = detail.campaign;
@@ -3441,6 +3472,7 @@ export const Campaigns: React.FC = () => {
                                             navigate(
                                               buildMarketplaceRoute(
                                                 parseInt(accountId),
+                                                channelId ?? 0,
                                                 "amazon",
                                                 "campaigns",
                                                 `${campaign.type.toLowerCase()}_${campaign.campaignId
