@@ -390,9 +390,9 @@ export const Channels: React.FC = () => {
                 <table className="w-full">
                   <thead>
                     <tr>
-                      <th className="table-header">Channel Name</th>
+                      <th className="table-header">Name</th>
                       <th className="table-header">Type</th>
-                      <th className="table-header">Channel Created</th>
+                      <th className="table-header">Created At</th>
                       <th className="table-header">Connected Profiles Count</th>
                       <th className="table-header">Actions</th>
                     </tr>
@@ -435,7 +435,7 @@ export const Channels: React.FC = () => {
                           <tr key={channel.id} className="table-row group">
                             <td className="table-cell group">
                               {editingChannel?.channelId === channel.id &&
-                              editingChannel.field === "channel_name" ? (
+                                editingChannel.field === "channel_name" ? (
                                 <input
                                   type="text"
                                   value={editedChannelName}
@@ -588,6 +588,18 @@ export const Channels: React.FC = () => {
                                     Select Profiles
                                   </span>
                                 </Button>
+                                {accountId && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="connect-button"
+                                    onClick={() =>
+                                      navigate(`/brands/${accountId}/profiles`)
+                                    }
+                                  >
+                                    <span>Profile Sync Status</span>
+                                  </Button>
+                                )}
                                 <button
                                   onClick={() => handleDeleteChannel(channel)}
                                   disabled={deletingChannelId === channel.id}
