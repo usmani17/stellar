@@ -235,12 +235,20 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                       target.status || target.state || "ENABLED";
                     const isArchived =
                       statusValue?.toLowerCase() === "archived";
+                    const isStateDropdownOpen =
+                      editingField?.id === target.id &&
+                      editingField?.field === "status";
                     return (
                       <tr
                         key={target.id}
                         className={`${
                           !isLastRow ? "border-b border-[#e8e8e3]" : ""
                         } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
+                        style={
+                          isStateDropdownOpen
+                            ? { position: "relative", zIndex: 999 }
+                            : undefined
+                        }
                       >
                         {/* Checkbox */}
                         {onSelect && (
@@ -281,7 +289,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                           style={{
                             overflow: "visible",
                             position: "relative",
-                            zIndex: 1,
+                            zIndex: isStateDropdownOpen ? 1000 : 1,
                           }}
                         >
                           {inlineEditLoading.has(target.id) ? (
@@ -318,7 +326,10 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                           ) : (
                             <div
                               className="w-[120px]"
-                              style={{ position: "relative", zIndex: 1000 }}
+                              style={{
+                                position: "relative",
+                                zIndex: isStateDropdownOpen ? 1001 : undefined,
+                              }}
                             >
                               <Dropdown
                                 options={[

@@ -47,6 +47,8 @@ interface FilterPanelProps {
   accountId?: string;
   channelType?: "amazon" | "google" | "walmart" | "tiktok";
   useUppercaseState?: boolean;
+  /** When provided, overrides state/status options (e.g. for SD Negative Keywords: ["Paused", "Archived"]) */
+  stateOptions?: string[];
 }
 
 const DEFAULT_FILTER_FIELDS = [
@@ -123,6 +125,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   accountId,
   channelType,
   useUppercaseState = false,
+  stateOptions: stateOptionsProp,
 }) => {
   // Use initialFilters directly as the source of truth - no internal state sync
   // This prevents infinite loops when parent updates filters
@@ -836,9 +839,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               ) : isStateOrType ? (
                 <div className="max-h-[200px] overflow-y-auto border border-gray-200 rounded-lg bg-[#FEFEFB] p-2">
                   {(selectedField === "state"
-                    ? useUppercaseState
-                      ? STATUS_OPTIONS
-                      : STATE_OPTIONS
+                    ? stateOptionsProp && stateOptionsProp.length > 0
+                      ? stateOptionsProp
+                      : useUppercaseState
+                        ? STATUS_OPTIONS
+                        : STATE_OPTIONS
                     : channelType === "tiktok"
                       ? TIKTOK_TYPE_OPTIONS
                       : TYPE_OPTIONS

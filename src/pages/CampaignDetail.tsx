@@ -619,7 +619,7 @@ export const CampaignDetail: React.FC = () => {
   const [
     pendingNegativeKeywordsStatusAction,
     setPendingNegativeKeywordsStatusAction,
-  ] = useState<"enable" | "pause" | null>(null);
+  ] = useState<"enable" | "pause" | "archive" | null>(null);
   const [negativeKeywordsBulkLoading, setNegativeKeywordsBulkLoading] =
     useState(false);
   const [
@@ -1031,7 +1031,10 @@ export const CampaignDetail: React.FC = () => {
     return params;
   };
 
-  const buildNegativeKeywordsFilterParams = (filterList: FilterValues) => {
+  const buildNegativeKeywordsFilterParams = (
+    filterList: FilterValues,
+    type?: string | null,
+  ) => {
     const params: any = {};
 
     // Add filters to params
@@ -1045,9 +1048,11 @@ export const CampaignDetail: React.FC = () => {
           params.keywordText = filter.value;
         }
       } else if (filter.field === "state") {
-        // State values are already uppercase (PAUSED, ENABLED) from FilterPanel with useUppercaseState=true
-        // But ensure uppercase for any edge cases
-        params.state = String(filter.value).toUpperCase();
+        // SB stores state lowercase (paused, archived); SP uses uppercase (PAUSED, ENABLED)
+        params.state =
+          type === "SB"
+            ? String(filter.value).toLowerCase()
+            : String(filter.value).toUpperCase();
       }
     });
     return params;
@@ -1193,14 +1198,6 @@ export const CampaignDetail: React.FC = () => {
         }
       } else if (filter.field === "state") {
         params.state = filter.value;
-      } else if (filter.field === "adGroupId") {
-        if (filter.operator === "contains") {
-          params.adGroupId__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.adGroupId__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.adGroupId = filter.value;
-        }
       }
     });
 
@@ -2507,28 +2504,41 @@ export const CampaignDetail: React.FC = () => {
     } catch (error: any) {
       console.error("Failed to create negative keywords:", error);
 
-      // Extract error message and field errors
-      let errorMessage =
-        "Failed to create negative keywords. Please try again.";
-      let fieldErrors: Record<string, string> = {};
+      // API may return 400 with failed_negative_keywords and errors — show them in the panel
+      const data = error?.response?.data;
+      if (data && (data.failed_negative_keywords?.length > 0 || data.errors?.length > 0)) {
+        setFailedNegativeKeywords(data.failed_negative_keywords || []);
+        setFailedNegativeKeywordCount(data.failed ?? negativeKeywords.length);
+        setCreateNegativeKeywordFieldErrors(data.field_errors || {});
+        const message =
+          data.errors?.[0] ?? data.error ?? data.message ?? "Failed to create negative keywords. Please fix the errors and try again.";
+        setCreateNegativeKeywordError(message);
+      } else {
+        // Generic network/unknown error
+        let errorMessage =
+          "Failed to create negative keywords. Please try again.";
+        let fieldErrors: Record<string, string> = {};
 
-      if (error?.response?.data) {
-        if (error.response.data.field_errors) {
-          fieldErrors = error.response.data.field_errors;
-          errorMessage = error.response.data.error || errorMessage;
-        } else if (error.response.data.error) {
-          errorMessage = error.response.data.error;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
+        if (data) {
+          if (data.field_errors) {
+            fieldErrors = data.field_errors;
+            errorMessage = data.error || errorMessage;
+          } else if (data.error) {
+            errorMessage = data.error;
+          } else if (data.message) {
+            errorMessage = data.message;
+          } else if (Array.isArray(data.errors) && data.errors.length > 0) {
+            errorMessage = data.errors[0];
+          }
+        } else if (error?.message) {
+          errorMessage = error.message;
         }
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
 
-      setCreateNegativeKeywordError(errorMessage);
-      setCreateNegativeKeywordFieldErrors(fieldErrors);
-      setFailedNegativeKeywordCount(negativeKeywords.length); // All failed
-      setFailedNegativeKeywords([]); // No specific failed negative keywords data in error case
+        setCreateNegativeKeywordError(errorMessage);
+        setCreateNegativeKeywordFieldErrors(fieldErrors);
+        setFailedNegativeKeywordCount(negativeKeywords.length);
+        setFailedNegativeKeywords([]);
+      }
       // Don't close panel on error - let user fix and resubmit
     } finally {
       setCreateNegativeKeywordLoading(false);
@@ -4323,7 +4333,10 @@ export const CampaignDetail: React.FC = () => {
           sort_by: negativeKeywordsSortBy,
           order: negativeKeywordsSortOrder,
           type: campaignType,
-          ...buildNegativeKeywordsFilterParams(negativeKeywordsFilters),
+          ...buildNegativeKeywordsFilterParams(
+            negativeKeywordsFilters,
+            campaignType,
+          ),
         },
       );
 
@@ -5339,7 +5352,7 @@ export const CampaignDetail: React.FC = () => {
 
   // Negative keyword bulk action handlers
   const handleBulkNegativeKeywordsStatus = async (
-    statusValue: "enable" | "pause",
+    statusValue: "enable" | "pause" | "archive",
   ) => {
     if (!accountId || selectedNegativeKeywordIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -5416,9 +5429,13 @@ export const CampaignDetail: React.FC = () => {
     if (editingNegativeKeywordField.field === "status") {
       const statusLower = negativeKeyword.status?.toLowerCase() || "enabled";
       const currentStatus =
-        statusLower === "enable" || statusLower === "enabled"
-          ? "enabled"
-          : "paused";
+        campaignType === "SB"
+          ? statusLower === "archived"
+            ? "archived"
+            : "enabled"
+          : statusLower === "enable" || statusLower === "enabled"
+            ? "enabled"
+            : "paused";
       oldValue = currentStatus;
       hasChanged = valueToCompare !== currentStatus;
     }
@@ -5460,14 +5477,14 @@ export const CampaignDetail: React.FC = () => {
       }
 
       if (pendingNegativeKeywordChange.field === "status") {
-        // Map status values
-        const statusMap: Record<string, "enable" | "pause"> = {
-          enabled: "enable",
-          paused: "pause",
-        };
+        // Map status values: SB uses "enabled" | "archived", SP uses "enabled" | "paused"
+        const statusMap: Record<string, "enable" | "pause" | "archive"> =
+          campaignType === "SB"
+            ? { enabled: "enable", archived: "archive" }
+            : { enabled: "enable", paused: "pause" };
         const statusValue =
           statusMap[pendingNegativeKeywordChange.newValue.toLowerCase()] ||
-          "enable";
+          (campaignType === "SB" ? "enable" : "enable");
 
         await campaignsService.bulkUpdateNegativeKeywords(accountIdNum, {
           keywordIds: [negativeKeyword.keywordId],
@@ -5896,6 +5913,10 @@ export const CampaignDetail: React.FC = () => {
     }
   };
 
+  // Helper: archived targets cannot be updated or deleted
+  const isTargetArchived = (t: { state?: string; status?: string }) =>
+    String(t?.state || t?.status || "").toUpperCase() === "ARCHIVED";
+
   // Bulk action handlers for Targets
   const handleBulkTargetsStatus = async (
     statusValue: "enable" | "pause" | "archive",
@@ -5906,10 +5927,22 @@ export const CampaignDetail: React.FC = () => {
 
     try {
       setTargetsBulkLoading(true);
-      const selectedTargetIdsArray = Array.from(selectedTargetIds).map((id) => {
-        const target = targets.find((tgt) => tgt.id === id);
-        return target?.targetId ? String(target.targetId) : String(id);
-      });
+      // Exclude archived targets — they cannot be updated
+      const selectedTargetIdsArray = Array.from(selectedTargetIds)
+        .map((id) => targets.find((tgt) => tgt.id === id))
+        .filter((t): t is NonNullable<typeof t> => t != null && !isTargetArchived(t))
+        .map((t) => (t.targetId ? String(t.targetId) : String(t.id)));
+
+      if (selectedTargetIdsArray.length === 0) {
+        setTargetsBulkLoading(false);
+        setShowTargetsConfirmationModal(false);
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Archived targets cannot be updated. Please deselect archived targets and try again.",
+        });
+        return;
+      }
 
       // For SD campaigns, handle archive separately (one at a time)
       if (campaignType === "SD" && statusValue === "archive") {
@@ -5957,9 +5990,22 @@ export const CampaignDetail: React.FC = () => {
     try {
       setTargetsBulkLoading(true);
 
-      const selectedTargetsData = targets.filter((tgt) =>
-        selectedTargetIds.has(tgt.id),
+      // Exclude archived targets — they cannot be updated
+      const selectedTargetsData = targets.filter(
+        (tgt) =>
+          selectedTargetIds.has(tgt.id) && !isTargetArchived(tgt),
       );
+      if (selectedTargetsData.length === 0) {
+        setTargetsBulkLoading(false);
+        setShowTargetsConfirmationModal(false);
+        setShowTargetsBidPanel(false);
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Archived targets cannot be updated. Please deselect archived targets and try again.",
+        });
+        return;
+      }
       const updates: Array<{ targetId: string | number; newBid: number }> = [];
 
       for (const target of selectedTargetsData) {
@@ -6381,12 +6427,13 @@ export const CampaignDetail: React.FC = () => {
           status: statusValue === "enable" ? "enable" : "pause",
         });
       } else {
-        // For SP/SB campaigns, use regular bulk update
-        const statusMap: Record<"enable" | "pause", "ENABLED" | "PAUSED"> = {
-          enable: "ENABLED",
-          pause: "PAUSED",
-        };
-        const stateValue = statusMap[statusValue];
+        // For SP/SB campaigns, use regular bulk update (archive not supported; treat as PAUSED)
+        const stateValue =
+          statusValue === "enable"
+            ? "ENABLED"
+            : statusValue === "pause"
+              ? "PAUSED"
+              : "PAUSED";
 
         await campaignsService.bulkUpdateProductAds(
           accountIdNum,
@@ -6607,9 +6654,20 @@ export const CampaignDetail: React.FC = () => {
 
     try {
       setTargetsDeleteLoading(true);
-      const selectedTargetsData = targets.filter((t) =>
-        selectedTargetIds.has(t.id),
+      // Exclude archived targets — they cannot be deleted via this flow
+      const selectedTargetsData = targets.filter(
+        (t) => selectedTargetIds.has(t.id) && !isTargetArchived(t),
       );
+      if (selectedTargetsData.length === 0) {
+        setTargetsDeleteLoading(false);
+        setShowTargetsDeleteConfirmation(false);
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Archived targets cannot be deleted. Please deselect archived targets and try again.",
+        });
+        return;
+      }
       const targetIds = selectedTargetsData
         .map((t) => t.targetId || t.id)
         .filter(Boolean) as Array<string | number>;
@@ -8062,7 +8120,6 @@ export const CampaignDetail: React.FC = () => {
                         { value: "asin", label: "ASIN" },
                         { value: "sku", label: "SKU" },
                         { value: "state", label: "State" },
-                        { value: "adGroupId", label: "Ad Group ID" },
                       ]}
                     />
                   </div>
@@ -10112,7 +10169,9 @@ export const CampaignDetail: React.FC = () => {
                               const newStatus =
                                 pendingNegativeKeywordsStatusAction === "enable"
                                   ? "Enabled"
-                                  : "Paused";
+                                  : pendingNegativeKeywordsStatusAction === "archive"
+                                    ? "Archived"
+                                    : "Paused";
 
                               return (
                                 <tr
@@ -10147,7 +10206,9 @@ export const CampaignDetail: React.FC = () => {
                   <span className="text-[12.16px] font-semibold text-[#072929]">
                     {pendingNegativeKeywordsStatusAction === "enable"
                       ? "Enabled"
-                      : "Paused"}
+                      : pendingNegativeKeywordsStatusAction === "archive"
+                        ? "Archived"
+                        : "Paused"}
                   </span>
                 </div>
               </div>
@@ -10942,7 +11003,9 @@ export const CampaignDetail: React.FC = () => {
             oldValueDisplay =
               pendingNegativeKeywordChange.oldValue === "enabled"
                 ? "Enabled"
-                : "Paused";
+                : pendingNegativeKeywordChange.oldValue === "archived"
+                  ? "Archived"
+                  : "Paused";
           }
 
           // Format new value
@@ -10951,7 +11014,9 @@ export const CampaignDetail: React.FC = () => {
             newValueDisplay =
               pendingNegativeKeywordChange.newValue === "enabled"
                 ? "Enabled"
-                : "Paused";
+                : pendingNegativeKeywordChange.newValue === "archived"
+                  ? "Archived"
+                  : "Paused";
           }
 
           return (

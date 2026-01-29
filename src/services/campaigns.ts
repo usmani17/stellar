@@ -2416,7 +2416,7 @@ export const campaignsService = {
     payload: {
       keywordIds: Array<string | number>;
       action: "status";
-      status: "enable" | "pause";
+      status: "enable" | "pause" | "archive";
     }
   ) => {
     const url = `/accounts/${accountId}/negative-keywords/bulk-update/`;
