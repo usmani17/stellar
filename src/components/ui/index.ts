@@ -16,6 +16,7 @@ export { Dropdown } from "./Dropdown";
 export type { DropdownOption, DropdownProps } from "./Dropdown";
 export { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 export { ErrorModal } from "./ErrorModal";
+export { EditSummaryModal } from "./EditSummaryModal";
 export { BaseModal } from "./BaseModal";
 export type { ModalSize, BaseModalProps } from "./BaseModal";
 export { Chip } from "./Chip";

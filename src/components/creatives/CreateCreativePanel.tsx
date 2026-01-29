@@ -134,6 +134,7 @@ interface CreateCreativePanelProps {
   } | null;
   accountId?: string;
   profileId?: string;
+  channelId?: string | null;
 }
 
 const PROPERTY_TYPE_OPTIONS_IMAGE = [
@@ -155,6 +156,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
   editCreative,
   accountId,
   profileId,
+  channelId,
 }) => {
   const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>(
     adgroups.length > 0 ? String(adgroups[0].adGroupId) : "",
@@ -180,7 +182,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
     if (isOpen && accountId) {
       loadAssets();
     }
-  }, [isOpen, accountId, profileId]);
+  }, [isOpen, accountId, profileId, channelId]);
 
   const loadAssets = async () => {
     if (!accountId) {
@@ -202,11 +204,15 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
         "profileId:",
         profileId,
       );
-      const data = await campaignsService.getAssets(accountIdNum, {
-        page: 1,
-        page_size: 100, // Get all assets for dropdown
-        ...(profileId && { profileId }), // Include profileId if available to filter assets
-      });
+      const data = await campaignsService.getAssets(
+        accountIdNum,
+        {
+          page: 1,
+          page_size: 100, // Get all assets for dropdown
+          ...(profileId && { profileId }), // Include profileId if available to filter assets
+        },
+        channelId ?? null
+      );
       console.log(
         "[CreateCreativePanel] Assets loaded:",
         data.assets?.length || 0,

@@ -22,9 +22,12 @@ import {
   type MetricConfig,
 } from "../components/charts/PerformanceChart";
 import { ErrorModal } from "../components/ui/ErrorModal";
+import { useEditSummaryModal } from "../hooks/useEditSummaryModal";
 import { Loader } from "../components/ui/Loader";
 
 export const Targets: React.FC = () => {
+  const { showEditSummary, EditSummaryModal: EditSummaryModalOutlet } =
+    useEditSummaryModal();
   const navigate = useNavigate();
   const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
@@ -724,13 +727,26 @@ export const Targets: React.FC = () => {
         });
       }
 
-      // Reload targets to show updated values
-      await loadTargets(accountIdNum);
+      const field = inlineEditField;
+      const oldValue = inlineEditOldValue;
+      const newValue = inlineEditNewValue;
       setShowInlineEditModal(false);
       setInlineEditTarget(null);
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
+
+      showEditSummary({
+        entityType: "target",
+        action: "updated",
+        mode: "inline",
+        succeededCount: 1,
+        field,
+        oldValue,
+        newValue,
+      });
+
+      await loadTargets(accountIdNum);
     } catch (error) {
       console.error("Error updating target:", error);
       alert("Failed to update target. Please try again.");
@@ -837,10 +853,18 @@ export const Targets: React.FC = () => {
         action: "status",
         status: statusValue,
       });
+      const count = targetIds.length;
       await loadTargets(accountIdNum);
       setSelectedTargets(new Set());
       setShowConfirmationModal(false);
       setPendingStatusAction(null);
+      const action = statusValue === "archive" ? "archived" : "updated";
+      showEditSummary({
+        entityType: "target",
+        action,
+        mode: "bulk",
+        succeededCount: count,
+      });
     } catch (error: any) {
       console.error("Failed to update targets", error);
       alert("Failed to update targets. Please try again.");
@@ -921,6 +945,7 @@ export const Targets: React.FC = () => {
         });
       }
 
+      const count = updates.length;
       await loadTargets(accountIdNum);
       setSelectedTargets(new Set());
       setShowConfirmationModal(false);
@@ -928,6 +953,12 @@ export const Targets: React.FC = () => {
       setBidValue("");
       setUpperLimit("");
       setLowerLimit("");
+      showEditSummary({
+        entityType: "target",
+        action: "updated",
+        mode: "bulk",
+        succeededCount: count,
+      });
     } catch (error: any) {
       console.error("Failed to update targets", error);
       alert("Failed to update targets. Please try again.");
@@ -1009,6 +1040,8 @@ export const Targets: React.FC = () => {
         onClose={() => setErrorModal({ isOpen: false, message: "" })}
         message={errorModal.message}
       />
+
+      <EditSummaryModalOutlet />
 
       {/* Sidebar */}
       <Sidebar />

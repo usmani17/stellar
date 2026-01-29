@@ -22,10 +22,13 @@ import {
   type MetricConfig,
 } from "../components/charts/PerformanceChart";
 import { ErrorModal } from "../components/ui/ErrorModal";
+import { useEditSummaryModal } from "../hooks/useEditSummaryModal";
 import { Loader } from "../components/ui/Loader";
 import { logsService } from "../services/logs";
 
 export const Keywords: React.FC = () => {
+  const { showEditSummary, EditSummaryModal: EditSummaryModalOutlet } =
+    useEditSummaryModal();
   const navigate = useNavigate();
   const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
@@ -741,6 +744,7 @@ export const Keywords: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      let action: "updated" | "archived" = "updated";
       if (inlineEditField === "state") {
         // Map status values
         const statusMap: Record<string, "enable" | "pause" | "archive"> = {
@@ -749,6 +753,7 @@ export const Keywords: React.FC = () => {
           Archived: "archive",
         };
         const statusValue = statusMap[inlineEditNewValue] || "enable";
+        if (statusValue === "archive") action = "archived";
 
         await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
           keywordIds: [inlineEditKeyword.keywordId],
@@ -769,15 +774,27 @@ export const Keywords: React.FC = () => {
         });
       }
 
-      // Reload keywords to show updated values
-      await loadKeywords(accountIdNum);
+      const field = inlineEditField;
+      const oldValue = inlineEditOldValue;
+      const newValue = inlineEditNewValue;
       setShowInlineEditModal(false);
       setInlineEditKeyword(null);
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
-      // Clear editingCell after successful update
       cancelInlineEdit();
+
+      showEditSummary({
+        entityType: "keyword",
+        action,
+        mode: "inline",
+        succeededCount: 1,
+        field,
+        oldValue,
+        newValue: action === "archived" ? "Archived" : newValue,
+      });
+
+      await loadKeywords(accountIdNum);
     } catch (error: any) {
       console.error("Error updating keyword:", error);
       const errorMessage =
@@ -892,10 +909,18 @@ export const Keywords: React.FC = () => {
         action: "status",
         status: statusValue,
       });
+      const count = keywordIds.length;
       await loadKeywords(accountIdNum);
       setSelectedKeywords(new Set());
       setShowConfirmationModal(false);
       setPendingStatusAction(null);
+      const action = statusValue === "archive" ? "archived" : "updated";
+      showEditSummary({
+        entityType: "keyword",
+        action,
+        mode: "bulk",
+        succeededCount: count,
+      });
     } catch (error: any) {
       console.error("Failed to update keywords", error);
       const errorMessage =
@@ -983,6 +1008,7 @@ export const Keywords: React.FC = () => {
         });
       }
 
+      const count = updates.length;
       await loadKeywords(accountIdNum);
       setSelectedKeywords(new Set());
       setShowConfirmationModal(false);
@@ -990,6 +1016,12 @@ export const Keywords: React.FC = () => {
       setBidValue("");
       setUpperLimit("");
       setLowerLimit("");
+      showEditSummary({
+        entityType: "keyword",
+        action: "updated",
+        mode: "bulk",
+        succeededCount: count,
+      });
     } catch (error: any) {
       console.error("Failed to update keywords", error);
       const errorMessage =
@@ -1046,6 +1078,7 @@ export const Keywords: React.FC = () => {
       }
 
       // Handle response with success/error arrays
+      const count = keywordIds.length;
       if (response?.keywords) {
         const errors = response.keywords.error || [];
         const successes = response.keywords.success || [];
@@ -1072,14 +1105,29 @@ export const Keywords: React.FC = () => {
           await loadKeywords(accountIdNum);
           setSelectedKeywords(new Set());
         }
+
+        setShowDeleteConfirmation(false);
+        setPendingDeleteAction(null);
+        showEditSummary({
+          entityType: "keyword",
+          action: "deleted",
+          mode: "bulk",
+          succeededCount: successes.length,
+          ...(errors.length > 0 && { failedCount: errors.length }),
+        });
       } else {
         // If response format is different, just reload
         await loadKeywords(accountIdNum);
         setSelectedKeywords(new Set());
+        setShowDeleteConfirmation(false);
+        setPendingDeleteAction(null);
+        showEditSummary({
+          entityType: "keyword",
+          action: "deleted",
+          mode: "bulk",
+          succeededCount: count,
+        });
       }
-
-      setShowDeleteConfirmation(false);
-      setPendingDeleteAction(null);
     } catch (error: any) {
       console.error("Failed to delete keywords", error);
       const errorMessage =
@@ -1164,6 +1212,8 @@ export const Keywords: React.FC = () => {
         onClose={() => setErrorModal({ isOpen: false, message: "" })}
         message={errorModal.message}
       />
+
+      <EditSummaryModalOutlet />
 
       {/* Sidebar */}
       <Sidebar />
