@@ -568,7 +568,7 @@ export const Targets: React.FC = () => {
     if (field === "bid") {
       // Extract numeric value from formatted string
       const bidValue = parseFloat(
-        (target.bid || "$0.00").replace(/[^0-9.]/g, "")
+        (typeof target.bid === "number" ? String(target.bid) : (target.bid || "$0.00")).replace(/[^0-9.]/g, "")
       );
       setEditedValue(bidValue.toString());
     } else if (field === "status") {
@@ -618,7 +618,7 @@ export const Targets: React.FC = () => {
       const newBidStr = valueToCheck.trim();
       const newBid = newBidStr === "" ? 0 : parseFloat(newBidStr);
       const oldBid = parseFloat(
-        (target.bid || "$0.00").replace(/[^0-9.]/g, "")
+        (typeof target.bid === "number" ? String(target.bid) : (target.bid || "$0.00")).replace(/[^0-9.]/g, "")
       );
 
       // Check if the value is a valid number and if it changed
@@ -644,10 +644,13 @@ export const Targets: React.FC = () => {
     let newValue = valueToCheck;
 
     if (fieldToUse === "bid") {
-      oldValue = formatCurrency(
-        parseFloat((target.bid || "$0.00").replace(/[^0-9.]/g, ""))
-      );
-      newValue = formatCurrency(parseFloat(valueToCheck) || 0);
+      const currency = target.profile_currency_code;
+      const bidNum =
+        typeof target.bid === "number"
+          ? target.bid
+          : parseFloat((typeof target.bid === "number" ? String(target.bid) : (target.bid || "$0.00")).replace(/[^0-9.]/g, ""));
+      oldValue = formatCurrency(bidNum, currency);
+      newValue = formatCurrency(parseFloat(valueToCheck) || 0, currency);
     } else if (fieldToUse === "status") {
       oldValue = target.status || "Enabled";
       newValue = valueToCheck;
@@ -774,16 +777,18 @@ export const Targets: React.FC = () => {
     }
   }, [editingCell, showInlineEditModal]);
 
-  const formatCurrency = (value: string | number) => {
+  const formatCurrency = (value: string | number, currency?: string) => {
     const numValue =
       typeof value === "string"
         ? parseFloat(value.replace(/[^0-9.-]+/g, ""))
-        : value;
+        : Number(value);
+    const code = currency?.trim() ? currency.trim().toUpperCase() : "USD";
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      currency: code,
+      currencyDisplay: "code",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(numValue || 0);
   };
 
@@ -842,7 +847,7 @@ export const Targets: React.FC = () => {
       for (const target of selectedTargetsData) {
         // Extract current bid from formatted string
         const currentBid = parseFloat(
-          (target.bid || "$0.00").replace(/[^0-9.]/g, "")
+          (typeof target.bid === "number" ? String(target.bid) : (target.bid || "$0.00")).replace(/[^0-9.]/g, "")
         );
         let newBid = currentBid;
 
@@ -1440,7 +1445,9 @@ export const Targets: React.FC = () => {
                                     </td>
                                     <td className="px-4 py-2 text-[10.64px] text-[#072929]">
                                       {isBidChange
-                                        ? target.bid || "$0.00"
+                                        ? typeof target.bid === "number"
+                                          ? formatCurrency(target.bid, target.profile_currency_code)
+                                          : (target.bid || "$0.00")
                                         : target.status || "Enabled"}
                                     </td>
                                   </tr>
@@ -1563,6 +1570,9 @@ export const Targets: React.FC = () => {
                         {/* Country */}
                         <th className="table-header min-w-[100px]">Country</th>
 
+                        {/* Currency */}
+                        <th className="table-header min-w-[80px]">Currency</th>
+
                         {/* Type */}
                         <th
                           className="table-header"
@@ -1679,10 +1689,16 @@ export const Targets: React.FC = () => {
                               <td className="table-cell"></td>
                               <td className="table-cell"></td>
                               <td className="table-cell table-text leading-[1.26]">
-                                {formatCurrency(summary.total_spends)}
+                                {formatCurrency(
+                                  summary.total_spends,
+                                  targets[0]?.profile_currency_code
+                                )}
                               </td>
                               <td className="table-cell table-text leading-[1.26]">
-                                {formatCurrency(summary.total_sales)}
+                                {formatCurrency(
+                                  summary.total_sales,
+                                  targets[0]?.profile_currency_code
+                                )}
                               </td>
                               <td className="table-cell table-text leading-[1.26]">
                                 {summary.total_impressions.toLocaleString()}
@@ -1829,7 +1845,7 @@ export const Targets: React.FC = () => {
                                     const isArchived = currentStatus === "archived";
                                     
                                     const bidValue = parseFloat(
-                                      (target.bid || "$0.00").replace(/[^0-9.]/g, "")
+                                      (typeof target.bid === "number" ? String(target.bid) : (target.bid || "$0.00")).replace(/[^0-9.]/g, "")
                                     );
                                     
                                     const inputValue = editingCell?.targetId === (target.targetId || target.id) &&
@@ -1837,47 +1853,53 @@ export const Targets: React.FC = () => {
                                       ? editedValue
                                       : bidValue.toString();
                                     
+                                    const currencyCode = (target.profile_currency_code || "USD").trim() || "USD";
                                     return (
-                                      <input
-                                        type="number"
-                                        value={inputValue}
-                                        onFocus={() => {
-                                          if (!isArchived &&
-                                              (editingCell?.targetId !== (target.targetId || target.id) ||
-                                               editingCell?.field !== "bid")) {
-                                            startInlineEdit(target, "bid");
-                                          }
-                                        }}
-                                        onChange={(e) => {
-                                          if (isArchived) return;
-                                          handleInlineEditChange(e.target.value);
-                                        }}
-                                        onBlur={(e) => {
-                                          if (isArchived) return;
-                                          const inputValue = e.target.value;
-                                          if (editingCell?.targetId === (target.targetId || target.id) &&
-                                              editingCell?.field === "bid") {
-                                            confirmInlineEdit(inputValue);
-                                          }
-                                        }}
-                                        onKeyDown={(e) => {
-                                          if (isArchived) return;
-                                          if (e.key === "Enter") {
-                                            e.currentTarget.blur();
-                                          } else if (e.key === "Escape") {
-                                            cancelInlineEdit();
-                                          }
-                                        }}
-                                        disabled={isArchived}
-                                        className={`inline-edit-input ${
-                                          isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
-                                        }`}
-                                        title={
-                                          isArchived
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="table-text text-gray-500 text-sm shrink-0" title="Currency">
+                                          {currencyCode}
+                                        </span>
+                                        <input
+                                          type="number"
+                                          value={inputValue}
+                                          onFocus={() => {
+                                            if (!isArchived &&
+                                                (editingCell?.targetId !== (target.targetId || target.id) ||
+                                                 editingCell?.field !== "bid")) {
+                                              startInlineEdit(target, "bid");
+                                            }
+                                          }}
+                                          onChange={(e) => {
+                                            if (isArchived) return;
+                                            handleInlineEditChange(e.target.value);
+                                          }}
+                                          onBlur={(e) => {
+                                            if (isArchived) return;
+                                            const inputValue = e.target.value;
+                                            if (editingCell?.targetId === (target.targetId || target.id) &&
+                                                editingCell?.field === "bid") {
+                                              confirmInlineEdit(inputValue);
+                                            }
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (isArchived) return;
+                                            if (e.key === "Enter") {
+                                              e.currentTarget.blur();
+                                            } else if (e.key === "Escape") {
+                                              cancelInlineEdit();
+                                            }
+                                          }}
+                                          disabled={isArchived}
+                                          className={`inline-edit-input ${
+                                            isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                          }`}
+                                          title={
+                                            isArchived
                                             ? "Archived targets cannot be modified"
                                             : undefined
                                         }
-                                      />
+                                        />
+                                      </div>
                                     );
                                   })()}
                                 </td>
@@ -1933,6 +1955,16 @@ export const Targets: React.FC = () => {
                                   </span>
                                 </td>
 
+                                {/* Currency */}
+                                <td className="table-cell min-w-[80px]">
+                                  <span className="table-text leading-[1.26] whitespace-nowrap">
+                                    {target.profile_currency_code &&
+                                    target.profile_currency_code.trim() !== ""
+                                      ? target.profile_currency_code
+                                      : "—"}
+                                  </span>
+                                </td>
+
                                 {/* Type */}
                                 <td className="table-cell">
                                   <span className="table-text leading-[1.26]">
@@ -1943,14 +1975,20 @@ export const Targets: React.FC = () => {
                                 {/* Spends */}
                                 <td className="table-cell">
                                   <span className="table-text leading-[1.26]">
-                                    {target.spends || "$0.00"}
+                                    {formatCurrency(
+                                      Number(target.spends) || 0,
+                                      target.profile_currency_code
+                                    )}
                                   </span>
                                 </td>
 
                                 {/* Sales */}
                                 <td className="table-cell">
                                   <span className="table-text leading-[1.26]">
-                                    {target.sales || "$0.00"}
+                                    {formatCurrency(
+                                      Number(target.sales) || 0,
+                                      target.profile_currency_code
+                                    )}
                                   </span>
                                 </td>
 

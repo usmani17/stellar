@@ -756,6 +756,23 @@ export const CampaignDetail: React.FC = () => {
     return filteredTabs;
   }, [campaignType, isAutoCampaign]);
 
+  // Profile currency for formatting (campaign detail and all sub-tabs)
+  const profileCurrencyCode =
+    campaignDetail?.campaign?.profile_currency_code?.trim() ||
+    adgroups[0]?.profile_currency_code?.trim() ||
+    "USD";
+
+  const formatCurrency = (value: number, currency?: string) => {
+    const code = (currency?.trim() || profileCurrencyCode).toUpperCase();
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      currencyDisplay: "code",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(Number(value) || 0);
+  };
+
   // Read tab from query parameter on mount (one-directional: URL → tab, not tab → URL)
   // Use a ref to track if we've read the query param for this campaign
   const hasReadTabParam = useRef<string | null>(null);
@@ -4423,8 +4440,14 @@ export const CampaignDetail: React.FC = () => {
     let totalImpressions = 0;
 
     adgroups.forEach((ag) => {
-      const spends = parseFloat(ag.spends?.replace(/[^0-9.]/g, "") || "0");
-      const sales = parseFloat(ag.sales?.replace(/[^0-9.]/g, "") || "0");
+      const spends =
+        typeof ag.spends === "number"
+          ? ag.spends
+          : parseFloat(String(ag.spends ?? "").replace(/[^0-9.-]/g, "")) || 0;
+      const sales =
+        typeof ag.sales === "number"
+          ? ag.sales
+          : parseFloat(String(ag.sales ?? "").replace(/[^0-9.-]/g, "")) || 0;
       totalSpends += spends;
       totalSales += sales;
       totalClicks += ag.clicks || 0;
@@ -4436,18 +4459,17 @@ export const CampaignDetail: React.FC = () => {
         ? `${((totalClicks / totalImpressions) * 100).toFixed(2)}%`
         : "0.00%";
 
+    const currency =
+      campaignDetail?.campaign?.profile_currency_code?.trim() ||
+      adgroups[0]?.profile_currency_code?.trim() ||
+      "USD";
+
     return {
-      spends: `$${totalSpends.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`,
-      sales: `$${totalSales.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`,
+      spends: formatCurrency(totalSpends, currency),
+      sales: formatCurrency(totalSales, currency),
       ctr: totalCTR,
     };
-  }, [adgroups]);
+  }, [adgroups, campaignDetail]);
 
   // Ad Group inline edit handlers
   const handleAdGroupEditStart = (
@@ -4499,10 +4521,15 @@ export const CampaignDetail: React.FC = () => {
       oldValue = currentStatus;
       hasChanged = valueToCompare !== currentStatus;
     } else if (fieldToUse === "default_bid") {
-      const currentBid = adgroup.default_bid
-        ? adgroup.default_bid.replace(/[^0-9.]/g, "")
-        : "0";
-      oldValue = adgroup.default_bid || "$0.00";
+      const currentBid =
+        adgroup.default_bid != null
+          ? String(adgroup.default_bid).replace(/[^0-9.]/g, "")
+          : "0";
+      const bidNum =
+        typeof adgroup.default_bid === "number"
+          ? adgroup.default_bid
+          : parseFloat(String(adgroup.default_bid ?? "").replace(/[^0-9.-]/g, "")) || 0;
+      oldValue = formatCurrency(bidNum, adgroup.profile_currency_code);
       // if (
       //   Number(currentBid) > campaignDetail?.campaign?.budget ||
       //   currentBid < 0
@@ -4676,10 +4703,18 @@ export const CampaignDetail: React.FC = () => {
       oldValue = currentStatus;
       hasChanged = valueToCompare !== currentStatus;
     } else if (editingKeywordField.field === "bid") {
-      const currentBid = keyword.bid
-        ? keyword.bid.replace(/[^0-9.]/g, "")
-        : "0";
-      oldValue = keyword.bid || "$0.00";
+      const currentBid =
+        keyword.bid != null
+          ? (typeof keyword.bid === "number"
+              ? String(keyword.bid)
+              : keyword.bid
+            ).replace(/[^0-9.]/g, "")
+          : "0";
+      const bidNum =
+        typeof keyword.bid === "number"
+          ? keyword.bid
+          : parseFloat(String(keyword.bid ?? "").replace(/[^0-9.-]/g, "")) || 0;
+      oldValue = formatCurrency(bidNum, keyword.profile_currency_code);
       hasChanged = valueToCompare !== currentBid && valueToCompare !== "";
     }
 
@@ -5127,8 +5162,18 @@ export const CampaignDetail: React.FC = () => {
       oldValue = currentStatus;
       hasChanged = valueToCompare.toLowerCase() !== currentStatus;
     } else if (fieldToUse === "bid") {
-      const currentBid = target.bid ? target.bid.replace(/[^0-9.]/g, "") : "0";
-      oldValue = target.bid || "$0.00";
+      const currentBid =
+        target.bid != null
+          ? (typeof target.bid === "number"
+              ? String(target.bid)
+              : target.bid
+            ).replace(/[^0-9.]/g, "")
+          : "0";
+      const bidNum =
+        typeof target.bid === "number"
+          ? target.bid
+          : parseFloat(String(target.bid ?? "").replace(/[^0-9.-]/g, "")) || 0;
+      oldValue = formatCurrency(bidNum, target.profile_currency_code);
       const currentBidNum = parseFloat(currentBid) || 0;
       const newBidNum = parseFloat(valueToCompare) || 0;
       hasChanged =
@@ -5921,7 +5966,10 @@ export const CampaignDetail: React.FC = () => {
         if (!target.targetId) continue;
 
         const currentBid = parseFloat(
-          (target.bid || "$0.00").replace(/[^0-9.]/g, ""),
+          (typeof target.bid === "number"
+            ? String(target.bid)
+            : (target.bid || "$0.00")
+          ).replace(/[^0-9.]/g, ""),
         );
         let newBid = currentBid;
 
@@ -6053,7 +6101,10 @@ export const CampaignDetail: React.FC = () => {
         if (!keyword.keywordId) continue;
 
         const currentBid = parseFloat(
-          (keyword.bid || "$0.00").replace(/[^0-9.]/g, ""),
+          (typeof keyword.bid === "number"
+            ? String(keyword.bid)
+            : (keyword.bid || "$0.00")
+          ).replace(/[^0-9.]/g, ""),
         );
         let newBid = currentBid;
 
@@ -6810,7 +6861,10 @@ export const CampaignDetail: React.FC = () => {
         if (!adgroup.adGroupId) continue;
 
         const currentBid = parseFloat(
-          (adgroup.default_bid || "$0.00").replace(/[^0-9.]/g, ""),
+          (typeof adgroup.default_bid === "number"
+            ? String(adgroup.default_bid)
+            : (adgroup.default_bid || "$0.00")
+          ).replace(/[^0-9.]/g, ""),
         );
         const newBid = calculateNewAdGroupBid(currentBid);
 
@@ -7015,7 +7069,9 @@ export const CampaignDetail: React.FC = () => {
                 const oldBudget = campaignDetail.campaign.budget || 0;
                 if (!isNaN(budgetValue) && budgetValue !== oldBudget) {
                   setInlineEditField("budget");
-                  setInlineEditOldValue(`$${oldBudget.toLocaleString()}`);
+                  setInlineEditOldValue(
+                    formatCurrency(oldBudget, campaignDetail.campaign.profile_currency_code)
+                  );
                   setInlineEditNewValue(valueToCompare);
                   setShowInlineEditModal(true);
                 } else {
@@ -9058,10 +9114,10 @@ export const CampaignDetail: React.FC = () => {
                           ? inlineEditNewValue.charAt(0).toUpperCase() +
                             inlineEditNewValue.slice(1)
                           : inlineEditField === "budget"
-                            ? `$${parseFloat(inlineEditNewValue || "0").toFixed(2)}`
+                            ? formatCurrency(parseFloat(inlineEditNewValue || "0"), profileCurrencyCode)
                             : inlineEditField === "startDate" || inlineEditField === "endDate"
                               ? new Date(inlineEditNewValue).toLocaleDateString()
-                              : `$${parseFloat(inlineEditNewValue || "0").toFixed(2)}`}
+                              : formatCurrency(parseFloat(inlineEditNewValue || "0"), profileCurrencyCode)}
                       </td>
                     </tr>
                   </tbody>
@@ -9675,8 +9731,12 @@ export const CampaignDetail: React.FC = () => {
                             .slice(0, previewCount)
                             .map((tgt) => {
                               const oldBid = parseFloat(
-                                (tgt.bid || "$0.00").replace(/[^0-9.]/g, ""),
+                                (typeof tgt.bid === "number"
+                                  ? String(tgt.bid)
+                                  : (tgt.bid || "$0.00")
+                                ).replace(/[^0-9.]/g, ""),
                               );
+                              const tgtCurrency = tgt.profile_currency_code?.trim() || "USD";
                               const oldStatus = tgt.status || "Enabled";
                               const calculateNewTargetBid = (
                                 currentBid: number,
@@ -9743,12 +9803,12 @@ export const CampaignDetail: React.FC = () => {
                                   </td>
                                   <td className="px-4 py-2 text-[10.64px] text-[#556179]">
                                     {isTargetsBidChange
-                                      ? `$${oldBid.toFixed(2)}`
+                                      ? formatCurrency(oldBid, tgtCurrency)
                                       : oldStatus}
                                   </td>
                                   <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
                                     {isTargetsBidChange
-                                      ? `$${newBid.toFixed(2)}`
+                                      ? formatCurrency(newBid, tgtCurrency)
                                       : newStatus}
                                   </td>
                                 </tr>
@@ -9787,7 +9847,7 @@ export const CampaignDetail: React.FC = () => {
                         <span className="text-[12.16px] font-semibold text-[#072929]">
                           {targetsBidUnit === "percent"
                             ? "Percentage (%)"
-                            : "Amount ($)"}
+                            : `Amount (${targets.filter((t) => selectedTargetIds.has(t.targetId || t.id))[0]?.profile_currency_code?.trim() || "USD"})`}
                         </span>
                       </div>
                     )}
@@ -9798,18 +9858,18 @@ export const CampaignDetail: React.FC = () => {
                       </span>
                       <span className="text-[12.16px] font-semibold text-[#072929]">
                         {targetsBidValue}{" "}
-                        {targetsBidUnit === "percent" ? "%" : "$"}
+                        {targetsBidUnit === "percent" ? "%" : targets.filter((t) => selectedTargetIds.has(t.targetId || t.id))[0]?.profile_currency_code?.trim() || "USD"}
                       </span>
                     </div>
 
-                    {targetsBidAction === "increase" &&
+                      {targetsBidAction === "increase" &&
                       targetsBidUpperLimit && (
                         <div className="flex justify-between items-center py-2 border-b border-gray-200">
                           <span className="text-[12.16px] text-[#556179]">
                             Upper Limit:
                           </span>
                           <span className="text-[12.16px] font-semibold text-[#072929]">
-                            ${targetsBidUpperLimit}
+                            {formatCurrency(parseFloat(targetsBidUpperLimit) || 0, targets.filter((t) => selectedTargetIds.has(t.targetId || t.id))[0]?.profile_currency_code)}
                           </span>
                         </div>
                       )}
@@ -9821,7 +9881,7 @@ export const CampaignDetail: React.FC = () => {
                             Lower Limit:
                           </span>
                           <span className="text-[12.16px] font-semibold text-[#072929]">
-                            ${targetsBidLowerLimit}
+                            {formatCurrency(parseFloat(targetsBidLowerLimit) || 0, targets.filter((t) => selectedTargetIds.has(t.targetId || t.id))[0]?.profile_currency_code)}
                           </span>
                         </div>
                       )}
@@ -10263,11 +10323,12 @@ export const CampaignDetail: React.FC = () => {
                           .slice(0, previewCount)
                           .map((ag) => {
                             const oldBid = parseFloat(
-                              (ag.default_bid || "$0.00").replace(
-                                /[^0-9.]/g,
-                                "",
-                              ),
+                              (typeof ag.default_bid === "number"
+                                ? String(ag.default_bid)
+                                : (ag.default_bid || "$0.00")
+                              ).replace(/[^0-9.]/g, ""),
                             );
+                            const agCurrency = ag.profile_currency_code?.trim() || "USD";
                             const oldStatus = ag.status || "Enabled";
                             const newBid = isAdGroupsBidChange
                               ? calculateNewAdGroupBid(oldBid)
@@ -10289,12 +10350,12 @@ export const CampaignDetail: React.FC = () => {
                                 </td>
                                 <td className="px-4 py-2 text-[10.64px] text-[#556179]">
                                   {isAdGroupsBidChange
-                                    ? `$${oldBid.toFixed(2)}`
+                                    ? formatCurrency(oldBid, agCurrency)
                                     : oldStatus}
                                 </td>
                                 <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
                                   {isAdGroupsBidChange
-                                    ? `$${newBid.toFixed(2)}`
+                                    ? formatCurrency(newBid, agCurrency)
                                     : newStatus}
                                 </td>
                               </tr>
@@ -10333,7 +10394,7 @@ export const CampaignDetail: React.FC = () => {
                       <span className="text-[12.16px] font-semibold text-[#072929]">
                         {adGroupsBidUnit === "percent"
                           ? "Percentage (%)"
-                          : "Amount ($)"}
+                          : `Amount (${adgroups.find((ag) => selectedAdGroupIds.has(ag.adGroupId || ag.id))?.profile_currency_code?.trim() || "USD"})`}
                       </span>
                     </div>
                   )}
@@ -10344,7 +10405,7 @@ export const CampaignDetail: React.FC = () => {
                     </span>
                     <span className="text-[12.16px] font-semibold text-[#072929]">
                       {adGroupsBidValue}{" "}
-                      {adGroupsBidUnit === "percent" ? "%" : "$"}
+                      {adGroupsBidUnit === "percent" ? "%" : adgroups.find((ag) => selectedAdGroupIds.has(ag.adGroupId || ag.id))?.profile_currency_code?.trim() || "USD"}
                     </span>
                   </div>
 
@@ -10355,7 +10416,7 @@ export const CampaignDetail: React.FC = () => {
                           Upper Limit:
                         </span>
                         <span className="text-[12.16px] font-semibold text-[#072929]">
-                          ${adGroupsBidUpperLimit}
+                          {formatCurrency(parseFloat(adGroupsBidUpperLimit) || 0, adgroups.find((ag) => selectedAdGroupIds.has(ag.adGroupId || ag.id))?.profile_currency_code)}
                         </span>
                       </div>
                     )}
@@ -10367,7 +10428,7 @@ export const CampaignDetail: React.FC = () => {
                           Lower Limit:
                         </span>
                         <span className="text-[12.16px] font-semibold text-[#072929]">
-                          ${adGroupsBidLowerLimit}
+                          {formatCurrency(parseFloat(adGroupsBidLowerLimit) || 0, adgroups.find((ag) => selectedAdGroupIds.has(ag.adGroupId || ag.id))?.profile_currency_code)}
                         </span>
                       </div>
                     )}
@@ -10564,14 +10625,10 @@ export const CampaignDetail: React.FC = () => {
           // Format old value
           let oldValueDisplay = "";
           if (pendingKeywordChange.field === "bid") {
-            oldValueDisplay = pendingKeywordChange.oldValue.startsWith("$")
-              ? pendingKeywordChange.oldValue
-              : `$${parseFloat(
-                  pendingKeywordChange.oldValue || "0",
-                ).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}`;
+            const bidNum = parseFloat(
+              String(pendingKeywordChange.oldValue ?? "").replace(/[^0-9.-]/g, "") || "0"
+            ) || 0;
+            oldValueDisplay = formatCurrency(bidNum, keyword?.profile_currency_code);
           } else if (pendingKeywordChange.field === "status") {
             oldValueDisplay =
               pendingKeywordChange.oldValue === "enabled"
@@ -10584,12 +10641,10 @@ export const CampaignDetail: React.FC = () => {
           // Format new value
           let newValueDisplay = "";
           if (pendingKeywordChange.field === "bid") {
-            newValueDisplay = `$${parseFloat(
-              pendingKeywordChange.newValue || "0",
-            ).toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}`;
+            newValueDisplay = formatCurrency(
+              parseFloat(pendingKeywordChange.newValue || "0") || 0,
+              keyword?.profile_currency_code
+            );
           } else if (pendingKeywordChange.field === "status") {
             const newValueLower = pendingKeywordChange.newValue.toLowerCase();
             newValueDisplay =

@@ -593,7 +593,7 @@ export const Keywords: React.FC = () => {
     if (field === "bid") {
       // Extract numeric value from formatted string
       const bidValue = parseFloat(
-        (keyword.bid || "$0.00").replace(/[^0-9.]/g, "")
+        (typeof keyword.bid === "number" ? String(keyword.bid) : (keyword.bid || "$0.00")).replace(/[^0-9.]/g, "")
       );
       setEditedValue(initialValue || bidValue.toString());
     } else if (field === "state") {
@@ -651,7 +651,7 @@ export const Keywords: React.FC = () => {
       const newBidStr = valueToCheck.trim();
       const newBid = newBidStr === "" ? 0 : parseFloat(newBidStr);
       const oldBid = parseFloat(
-        (keyword.bid || "$0.00").replace(/[^0-9.]/g, "")
+        (typeof keyword.bid === "number" ? String(keyword.bid) : (keyword.bid || "$0.00")).replace(/[^0-9.]/g, "")
       );
 
       // Check if the value is a valid number and if it changed
@@ -687,10 +687,13 @@ export const Keywords: React.FC = () => {
     let newValue = valueToCheck;
 
     if (fieldToUse === "bid") {
-      oldValue = formatCurrency(
-        parseFloat((keyword.bid || "$0.00").replace(/[^0-9.]/g, ""))
-      );
-      newValue = formatCurrency(parseFloat(valueToCheck) || 0);
+      const currency = keyword.profile_currency_code;
+      const bidNum =
+        typeof keyword.bid === "number"
+          ? keyword.bid
+          : parseFloat((typeof keyword.bid === "number" ? String(keyword.bid) : (keyword.bid || "$0.00")).replace(/[^0-9.]/g, ""));
+      oldValue = formatCurrency(bidNum, currency);
+      newValue = formatCurrency(parseFloat(valueToCheck) || 0, currency);
     } else if (fieldToUse === "state") {
       // Normalize old state for display to match dropdown format
       const oldStatusLower = (keyword.state || "Enabled").trim().toLowerCase();
@@ -837,16 +840,18 @@ export const Keywords: React.FC = () => {
     }
   }, [editingCell, showInlineEditModal]);
 
-  const formatCurrency = (value: string | number) => {
+  const formatCurrency = (value: string | number, currency?: string) => {
     const numValue =
       typeof value === "string"
         ? parseFloat(value.replace(/[^0-9.-]+/g, ""))
-        : value;
+        : Number(value);
+    const code = currency?.trim() ? currency.trim().toUpperCase() : "USD";
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      currency: code,
+      currencyDisplay: "code",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(numValue || 0);
   };
 
@@ -912,7 +917,7 @@ export const Keywords: React.FC = () => {
       for (const keyword of selectedKeywordsData) {
         // Extract current bid from formatted string
         const currentBid = parseFloat(
-          (keyword.bid || "$0.00").replace(/[^0-9.]/g, "")
+          (typeof keyword.bid === "number" ? String(keyword.bid) : (keyword.bid || "$0.00")).replace(/[^0-9.]/g, "")
         );
         let newBid = currentBid;
 
@@ -1067,75 +1072,6 @@ export const Keywords: React.FC = () => {
         error?.response?.data?.error ||
         error?.message ||
         "Failed to delete keywords. Please try again.";
-      setErrorModal({
-        isOpen: true,
-        message: errorMessage,
-      });
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
-
-  // Inline delete handler
-  const handleInlineDelete = async (
-    keywordId: string | number,
-    keywordName: string
-  ) => {
-    if (!accountId) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setDeleteLoading(true);
-      const response = await campaignsService.bulkDeleteKeywords(accountIdNum, {
-        keywordIdFilter: {
-          include: [keywordId],
-        },
-      });
-
-      // Log the delete operation
-      try {
-        await logsService.createLog(accountIdNum, {
-          entity: "keyword",
-          field: "delete",
-          old_value: keywordName,
-          new_value: "",
-          method: "Inline",
-        });
-      } catch (logError) {
-        console.error("Failed to log delete operation:", logError);
-      }
-
-      // Handle response
-      if (response?.keywords) {
-        const errors = response.keywords.error || [];
-        const successes = response.keywords.success || [];
-
-        if (errors.length > 0) {
-          const errorDetails = errors[0]?.errors?.[0]?.errorValue;
-          const errorMessage = errorDetails
-            ? Object.values(errorDetails)
-                .map((e: any) => e?.message || "Unknown error")
-                .join(", ")
-            : "Failed to delete keyword";
-          setErrorModal({
-            isOpen: true,
-            message: errorMessage,
-          });
-        }
-
-        if (successes.length > 0) {
-          await loadKeywords(accountIdNum);
-        }
-      } else {
-        await loadKeywords(accountIdNum);
-      }
-    } catch (error: any) {
-      console.error("Failed to delete keyword", error);
-      const errorMessage =
-        error?.response?.data?.error ||
-        error?.message ||
-        "Failed to delete keyword. Please try again.";
       setErrorModal({
         isOpen: true,
         message: errorMessage,
@@ -1841,6 +1777,9 @@ export const Keywords: React.FC = () => {
                         {/* Country */}
                         <th className="table-header min-w-[100px]">Country</th>
 
+                        {/* Currency */}
+                        <th className="table-header min-w-[80px]">Currency</th>
+
                         {/* Type */}
                         <th
                           className="table-header"
@@ -1955,11 +1894,18 @@ export const Keywords: React.FC = () => {
                               <td className="table-cell"></td>
                               <td className="table-cell"></td>
                               <td className="table-cell"></td>
+                              <td className="table-cell"></td>
                               <td className="table-cell table-text leading-[1.26]">
-                                {formatCurrency(summary.total_spends)}
+                                {formatCurrency(
+                                  summary.total_spends,
+                                  keywords[0]?.profile_currency_code
+                                )}
                               </td>
                               <td className="table-cell table-text leading-[1.26]">
-                                {formatCurrency(summary.total_sales)}
+                                {formatCurrency(
+                                  summary.total_sales,
+                                  keywords[0]?.profile_currency_code
+                                )}
                               </td>
                               <td className="table-cell table-text leading-[1.26]">
                                 {summary.total_impressions.toLocaleString()}
@@ -2112,7 +2058,7 @@ export const Keywords: React.FC = () => {
                                     const isArchived = currentStatus === "archived";
                                     
                                     const bidValue = parseFloat(
-                                      (keyword.bid || "$0.00").replace(/[^0-9.]/g, "")
+                                      (typeof keyword.bid === "number" ? String(keyword.bid) : (keyword.bid || "$0.00")).replace(/[^0-9.]/g, "")
                                     );
                                     
                                     const keywordIdForBid = keyword.keywordId || keyword.id;
@@ -2121,48 +2067,54 @@ export const Keywords: React.FC = () => {
                                       ? editedValue
                                       : bidValue.toString();
                                     
+                                    const currencyCode = (keyword.profile_currency_code || "USD").trim() || "USD";
                                     return (
-                                      <input
-                                        type="number"
-                                        value={inputValue}
-                                        onFocus={() => {
-                                          if (!isArchived &&
-                                              (editingCell?.keywordId !== keywordIdForBid ||
-                                               editingCell?.field !== "bid")) {
-                                            startInlineEdit(keyword, "bid");
-                                          }
-                                        }}
-                                        onChange={(e) => {
-                                          if (isArchived) return;
-                                          handleInlineEditChange(e.target.value);
-                                        }}
-                                        onBlur={(e) => {
-                                          if (isArchived) return;
-                                          const inputValue = e.target.value;
-                                          const keywordIdForBid = keyword.keywordId || keyword.id;
-                                          if (editingCell?.keywordId === keywordIdForBid &&
-                                              editingCell?.field === "bid") {
-                                            confirmInlineEdit(inputValue, keywordIdForBid, "bid");
-                                          }
-                                        }}
-                                        onKeyDown={(e) => {
-                                          if (isArchived) return;
-                                          if (e.key === "Enter") {
-                                            e.currentTarget.blur();
-                                          } else if (e.key === "Escape") {
-                                            cancelInlineEdit();
-                                          }
-                                        }}
-                                        disabled={isArchived}
-                                        className={`inline-edit-input ${
-                                          isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
-                                        }`}
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="table-text text-gray-500 text-sm shrink-0" title="Currency">
+                                          {currencyCode}
+                                        </span>
+                                        <input
+                                          type="number"
+                                          value={inputValue}
+                                          onFocus={() => {
+                                            if (!isArchived &&
+                                                (editingCell?.keywordId !== keywordIdForBid ||
+                                                 editingCell?.field !== "bid")) {
+                                              startInlineEdit(keyword, "bid");
+                                            }
+                                          }}
+                                          onChange={(e) => {
+                                            if (isArchived) return;
+                                            handleInlineEditChange(e.target.value);
+                                          }}
+                                          onBlur={(e) => {
+                                            if (isArchived) return;
+                                            const inputValue = e.target.value;
+                                            const keywordIdForBid = keyword.keywordId || keyword.id;
+                                            if (editingCell?.keywordId === keywordIdForBid &&
+                                                editingCell?.field === "bid") {
+                                              confirmInlineEdit(inputValue, keywordIdForBid, "bid");
+                                            }
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (isArchived) return;
+                                            if (e.key === "Enter") {
+                                              e.currentTarget.blur();
+                                            } else if (e.key === "Escape") {
+                                              cancelInlineEdit();
+                                            }
+                                          }}
+                                          disabled={isArchived}
+                                          className={`inline-edit-input ${
+                                            isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                          }`}
                                         title={
                                           isArchived
                                             ? "Archived keywords cannot be modified"
                                             : undefined
                                         }
-                                      />
+                                        />
+                                      </div>
                                     );
                                   })()}
                                 </td>
@@ -2212,6 +2164,16 @@ export const Keywords: React.FC = () => {
                                   </span>
                                 </td>
 
+                                {/* Currency */}
+                                <td className="table-cell min-w-[80px]">
+                                  <span className="table-text leading-[1.26] whitespace-nowrap">
+                                    {keyword.profile_currency_code &&
+                                    keyword.profile_currency_code.trim() !== ""
+                                      ? keyword.profile_currency_code
+                                      : "—"}
+                                  </span>
+                                </td>
+
                                 {/* Type */}
                                 <td className="table-cell">
                                   <span className="table-text leading-[1.26]">
@@ -2222,14 +2184,20 @@ export const Keywords: React.FC = () => {
                                 {/* Spends */}
                                 <td className="table-cell">
                                   <span className="table-text leading-[1.26]">
-                                    {keyword.spends || "$0.00"}
+                                    {formatCurrency(
+                                      Number(keyword.spends) || 0,
+                                      keyword.profile_currency_code
+                                    )}
                                   </span>
                                 </td>
 
                                 {/* Sales */}
                                 <td className="table-cell">
                                   <span className="table-text leading-[1.26]">
-                                    {keyword.sales || "$0.00"}
+                                    {formatCurrency(
+                                      Number(keyword.sales) || 0,
+                                      keyword.profile_currency_code
+                                    )}
                                   </span>
                                 </td>
 
@@ -2276,43 +2244,6 @@ export const Keywords: React.FC = () => {
                                         )}`
                                       : "0.00"}
                                   </span>
-                                </td>
-
-                                {/* Delete Icon - Show on hover */}
-                                <td className="table-cell w-[40px] relative group">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const keywordId =
-                                        keyword.keywordId || keyword.id;
-                                      const keywordName =
-                                        keyword.name || "Unnamed Keyword";
-                                      if (keywordId) {
-                                        handleInlineDelete(
-                                          keywordId,
-                                          keywordName
-                                        );
-                                      }
-                                    }}
-                                    disabled={deleteLoading}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded cursor-pointer disabled:opacity-50"
-                                    title="Delete keyword"
-                                  >
-                                    <svg
-                                      className="w-4 h-4 text-red-600"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                      />
-                                    </svg>
-                                  </button>
                                 </td>
                               </tr>
                             );
