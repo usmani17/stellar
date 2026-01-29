@@ -137,43 +137,48 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
           <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
             Budget
           </label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={
-              editingField === "budget"
-                ? editedValue.replace(/[^0-9.]/g, "")
-                : (campaignDetail.campaign.budget || 0).toString()
-            }
-            onFocus={() => {
-              if (editingField !== "budget") {
-                onEditField("budget");
-                onEditValueChange(
-                  (campaignDetail.campaign.budget || 0).toString(),
-                );
+          <div className="flex items-center gap-1.5">
+            <span className="table-text text-gray-500 text-sm shrink-0" title="Currency">
+              {campaignDetail.campaign.profile_currency_code?.trim() || "USD"}
+            </span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={
+                editingField === "budget"
+                  ? editedValue.replace(/[^0-9.]/g, "")
+                  : (campaignDetail.campaign.budget || 0).toString()
               }
-            }}
-            onChange={(e) => {
-              onEditValueChange(e.target.value);
-            }}
-            onBlur={() => {
-              if (editingField === "budget") {
-                onEditEnd();
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.currentTarget.blur();
-              } else if (e.key === "Escape") {
-                onEditCancel();
-              }
-            }}
-            className="inline-edit-input w-32"
-            style={{
-              width: "150px",
-            }}
-          />
+              onFocus={() => {
+                if (editingField !== "budget") {
+                  onEditField("budget");
+                  onEditValueChange(
+                    (campaignDetail.campaign.budget || 0).toString(),
+                  );
+                }
+              }}
+              onChange={(e) => {
+                onEditValueChange(e.target.value);
+              }}
+              onBlur={() => {
+                if (editingField === "budget") {
+                  onEditEnd();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                } else if (e.key === "Escape") {
+                  onEditCancel();
+                }
+              }}
+              className="inline-edit-input w-32"
+              style={{
+                width: "150px",
+              }}
+            />
+          </div>
         </div>
 
         {/* Start Date */}

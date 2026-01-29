@@ -21,6 +21,7 @@ export interface Campaign {
   profile_name?: string; // Profile name
   profile_id?: string; // Profile ID
   profile_country_code?: string; // Profile country code
+  profile_currency_code?: string; // Profile currency (e.g. USD, AUD) for formatting
   targetingType?: string; // Targeting type (only for SP campaigns: "AUTO" or "MANUAL")
   targeting_type?: string; // Targeting type (snake_case variant)
   report_date?: string; // Report date (YYYY-MM-DD) - one row per campaign per day
@@ -99,6 +100,7 @@ export interface CampaignDetail {
     targeting_type?: string; // Only for SP campaigns: "AUTO" or "MANUAL" (snake_case)
     profile_id?: string; // Profile ID for the campaign
     profile_name?: string; // Profile name for the campaign
+    profile_currency_code?: string; // Profile currency (e.g. USD, MXN) for formatting
     type?: string; // Campaign type (SP, SB, SD)
   };
   kpi_cards: Array<{
@@ -137,15 +139,16 @@ export interface AdGroup {
   campaignId?: string;
   name: string;
   status: string;
-  default_bid?: string;
+  default_bid?: string | number;
   campaign_name?: string;
   profile_name?: string;
   profile_id?: string;
   profile_country_code?: string;
+  profile_currency_code?: string;
   type?: string;
   ctr: string;
-  spends: string;
-  sales: string;
+  spends: string | number;
+  sales: string | number;
   clicks?: number;
   impressions?: number;
   acos?: string;
@@ -192,15 +195,17 @@ export interface Keyword {
   keywordId?: string | number;
   name: string;
   state: string;
-  bid?: string;
+  bid?: string | number;
   adgroup_name?: string;
   campaign_name?: string;
   campaignId?: string | number;
   profile_name?: string;
+  profile_country_code?: string;
+  profile_currency_code?: string;
   type?: string;
   ctr: string;
-  spends: string;
-  sales: string;
+  spends: string | number;
+  sales: string | number;
   clicks?: number;
   impressions?: number;
   acos?: string;
@@ -356,20 +361,22 @@ export interface Target {
   targetId?: string | number;
   name: string;
   status: string;
-  bid?: string;
+  bid?: string | number;
   adgroup_name?: string;
   campaign_name?: string;
   campaignId?: string | number;
   profile_name?: string;
+  profile_country_code?: string;
+  profile_currency_code?: string;
   keyword?: string;
   keyword_type?: string;
-  keyword_bid?: string;
+  keyword_bid?: string | number;
   match_type?: string;
   targeting?: string;
   type?: string;
   ctr: string;
-  spends: string;
-  sales: string;
+  spends: string | number;
+  sales: string | number;
   clicks?: number;
   impressions?: number;
   acos?: string;

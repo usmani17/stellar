@@ -25,7 +25,14 @@ export const useGoogleCampaignDetailProductGroups = ({
   // Data state
   const [productGroups, setProductGroups] = useState<any[]>([]);
   const [productGroupsLoading, setProductGroupsLoading] = useState(false);
-  const [selectedProductGroupIds, setSelectedProductGroupIds] = useState<Set<number>>(new Set());
+  /** Composite key "adgroup_id-product_group_id" so selection is unique per row (same product_group_id can exist in multiple ad groups). */
+  const [selectedProductGroupKeys, setSelectedProductGroupKeys] = useState<Set<string>>(new Set());
+
+  const getProductGroupSelectionKey = useCallback((pg: { adgroup_id?: number; product_group_id?: number; id?: number }) => {
+    const adgroupId = pg.adgroup_id ?? (pg as any).adGroupId ?? "";
+    const productGroupId = pg.product_group_id ?? pg.id ?? "";
+    return `${adgroupId}-${productGroupId}`;
+  }, []);
 
   // Pagination state
   const [productGroupsCurrentPage, setProductGroupsCurrentPage] = useState(1);
@@ -112,22 +119,22 @@ export const useGoogleCampaignDetailProductGroups = ({
     }
   }, [activeTab, startDate, endDate, productGroupsFilters]);
 
-  // Selection handlers
+  // Selection handlers (use composite key so one row doesn't select all rows with same product_group_id)
   const handleSelectAllProductGroups = useCallback((checked: boolean) => {
     if (checked) {
-      setSelectedProductGroupIds(new Set(productGroups.map((pg) => pg.id)));
+      setSelectedProductGroupKeys(new Set(productGroups.map((pg) => getProductGroupSelectionKey(pg))));
     } else {
-      setSelectedProductGroupIds(new Set());
+      setSelectedProductGroupKeys(new Set());
     }
-  }, [productGroups]);
+  }, [productGroups, getProductGroupSelectionKey]);
 
-  const handleSelectProductGroup = useCallback((id: number, checked: boolean) => {
-    setSelectedProductGroupIds((prev) => {
+  const handleSelectProductGroup = useCallback((key: string, checked: boolean) => {
+    setSelectedProductGroupKeys((prev) => {
       const newSet = new Set(prev);
       if (checked) {
-        newSet.add(id);
+        newSet.add(key);
       } else {
-        newSet.delete(id);
+        newSet.delete(key);
       }
       return newSet;
     });
@@ -149,8 +156,8 @@ export const useGoogleCampaignDetailProductGroups = ({
     setProductGroupsCurrentPage(page);
   }, []);
 
-  // Update handler
-  const handleUpdateProductGroupStatus = useCallback(async (productGroupId: number, status: string) => {
+  // Update handler (key = "adgroup_id-product_group_id")
+  const handleUpdateProductGroupStatus = useCallback(async (selectionKey: string, status: string) => {
     if (!accountId || !channelId) return;
 
     try {
@@ -158,8 +165,8 @@ export const useGoogleCampaignDetailProductGroups = ({
       const channelIdNum = parseInt(channelId, 10);
       if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
 
-      // Find the product group
-      const productGroup = productGroups.find((pg: any) => pg.id === productGroupId);
+      // Find the product group by composite key
+      const productGroup = productGroups.find((pg: any) => getProductGroupSelectionKey(pg) === selectionKey);
       if (!productGroup) {
         if (onError) {
           onError({
@@ -177,6 +184,7 @@ export const useGoogleCampaignDetailProductGroups = ({
       const adGroupId =
         productGroup.adgroup_id ||
         (productGroup as any).adGroupId;
+      const productGroupId = productGroup.id ?? productGroup.product_group_id;
 
       // Call API - use the dedicated product groups bulk update endpoint
       await googleAdwordsProductGroupsService.bulkUpdateGoogleProductGroups(accountIdNum, channelIdNum, {
@@ -191,10 +199,10 @@ export const useGoogleCampaignDetailProductGroups = ({
           : undefined,
       });
 
-      // Update local state
+      // Update local state (match by composite key)
       setProductGroups((prevProductGroups) =>
         prevProductGroups.map((pg) =>
-          pg.id === productGroupId ? { ...pg, status } : pg
+          getProductGroupSelectionKey(pg) === selectionKey ? { ...pg, status } : pg
         )
       );
       
@@ -215,13 +223,13 @@ export const useGoogleCampaignDetailProductGroups = ({
       }
       throw error;
     }
-  }, [accountId, channelId, productGroups, loadProductGroups, onError]);
+  }, [accountId, channelId, productGroups, loadProductGroups, onError, getProductGroupSelectionKey]);
 
   return {
     // Data
     productGroups,
     productGroupsLoading,
-    selectedProductGroupIds,
+    getProductGroupSelectionKey,
     
     // Pagination
     productGroupsCurrentPage,
@@ -240,6 +248,7 @@ export const useGoogleCampaignDetailProductGroups = ({
     loadProductGroups,
     handleSelectAllProductGroups,
     handleSelectProductGroup,
+    selectedProductGroupIds: selectedProductGroupKeys,
     handleProductGroupsSort,
     handleProductGroupsPageChange,
     handleUpdateProductGroupStatus,

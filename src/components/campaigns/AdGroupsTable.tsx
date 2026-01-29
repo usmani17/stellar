@@ -83,6 +83,17 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
   const statusSelectionMadeRef = useRef<number | null>(null);
 
+  const formatCurrency = (value: number, currency?: string) => {
+    const code = currency?.trim() ? currency.trim().toUpperCase() : "USD";
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      currencyDisplay: "code",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(Number(value) || 0);
+  };
+
   // Show all columns on both adgroups page and campaign detail page
   const showCampaignColumn = true;
 
@@ -258,6 +269,10 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                 {showCampaignColumn && (
                   <th className="table-header min-w-[100px]">Country</th>
                 )}
+                {/* Currency Header - Only show when not in campaign detail */}
+                {showCampaignColumn && (
+                  <th className="table-header min-w-[80px]">Currency</th>
+                )}
 
                 {/* Type Header - Only show when not in campaign detail */}
                 {showCampaignColumn && (
@@ -427,6 +442,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           <td className="table-cell"></td>
                           <td className="table-cell"></td>
                           <td className="table-cell"></td>
+                          <td className="table-cell"></td>
                         </>
                       )}
                       <td className="table-cell"></td>
@@ -443,18 +459,16 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           : "0.00%"}
                       </td>
                       <td className="table-cell table-text leading-[1.26]">
-                        $
-                        {summary.total_spends.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        {formatCurrency(
+                          summary.total_spends,
+                          adgroups[0]?.profile_currency_code
+                        )}
                       </td>
                       <td className="table-cell table-text leading-[1.26]">
-                        $
-                        {summary.total_sales.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        {formatCurrency(
+                          summary.total_sales,
+                          adgroups[0]?.profile_currency_code
+                        )}
                       </td>
                       {showCampaignColumn && (
                         <>
@@ -633,6 +647,17 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                             </span>
                           </td>
                         )}
+                        {/* Currency - Only show when not in campaign detail */}
+                        {showCampaignColumn && (
+                          <td className="table-cell min-w-[80px]">
+                            <span className="table-text leading-[1.26] whitespace-nowrap">
+                              {adgroup.profile_currency_code &&
+                              adgroup.profile_currency_code.trim() !== ""
+                                ? adgroup.profile_currency_code
+                                : "—"}
+                            </span>
+                          </td>
+                        )}
 
                         {/* Type - Only show when not in campaign detail */}
                         {showCampaignColumn && (
@@ -741,19 +766,24 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           <td className="table-cell whitespace-nowrap">
                             {(() => {
                               if (inlineEditLoading.has(adgroup.id)) {
+                                const currency = adgroup.profile_currency_code;
                                 return (
                                   <div className="flex items-center gap-2">
                                     <span className="table-text leading-[1.26]">
                                       {pendingChange?.field === "default_bid"
-                                        ? pendingChange.newValue.startsWith("$")
-                                          ? pendingChange.newValue
-                                          : `$${parseFloat(
-                                              pendingChange.newValue || "0",
-                                            ).toLocaleString(undefined, {
-                                              minimumFractionDigits: 2,
-                                              maximumFractionDigits: 2,
-                                            })}`
-                                        : adgroup.default_bid || "$0.00"}
+                                        ? formatCurrency(
+                                            parseFloat(
+                                              (pendingChange.newValue || "0").replace(
+                                                /[^0-9.-]+/g,
+                                                ""
+                                              )
+                                            ) || 0,
+                                            currency
+                                          )
+                                        : formatCurrency(
+                                            Number(adgroup.default_bid) || 0,
+                                            currency
+                                          )}
                                     </span>
                                     <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
                                   </div>
@@ -764,25 +794,31 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                 pendingChange?.id === adgroup.id &&
                                 pendingChange?.field === "default_bid"
                               ) {
+                                const currency = adgroup.profile_currency_code;
                                 return (
                                   <div className="flex items-center gap-2">
                                     <span className="table-text leading-[1.26]">
-                                      {pendingChange.newValue.startsWith("$")
-                                        ? pendingChange.newValue
-                                        : `$${parseFloat(
-                                            pendingChange.newValue || "0",
-                                          ).toLocaleString(undefined, {
-                                            minimumFractionDigits: 2,
-                                            maximumFractionDigits: 2,
-                                          })}`}
+                                      {formatCurrency(
+                                        parseFloat(
+                                          (pendingChange.newValue || "0").replace(
+                                            /[^0-9.-]+/g,
+                                            ""
+                                          )
+                                        ) || 0,
+                                        currency
+                                      )}
                                     </span>
                                   </div>
                                 );
                               }
 
-                              const currentBid = adgroup.default_bid
-                                ? adgroup.default_bid.replace(/[^0-9.]/g, "")
-                                : "0";
+                              const currentBid =
+                                adgroup.default_bid != null
+                                  ? String(adgroup.default_bid).replace(
+                                      /[^0-9.]/g,
+                                      ""
+                                    )
+                                  : "0";
 
                               const bidValue =
                                 editingField?.id === adgroup.id &&
@@ -791,54 +827,60 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                     currentBid
                                   : currentBid;
 
+                              const currencyCode = (adgroup.profile_currency_code || "USD").trim() || "USD";
                               return (
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={bidValue}
-                                  onFocus={() => {
-                                    if (
-                                      !isArchived &&
-                                      (editingField?.id !== adgroup.id ||
-                                        editingField?.field !== "default_bid")
-                                    ) {
-                                      onEditStart?.(
-                                        adgroup.id,
-                                        "default_bid",
-                                        currentBid,
-                                      );
-                                    }
-                                  }}
-                                  onChange={(e) => {
-                                    if (isArchived) return;
-                                    onEditChange?.(e.target.value);
-                                  }}
-                                  onBlur={(e) => {
-                                    if (isArchived) return;
-                                    const inputValue = e.target.value;
-                                    if (
-                                      editingField?.id === adgroup.id &&
-                                      editingField?.field === "default_bid"
-                                    ) {
-                                      onEditEnd?.(inputValue);
-                                    }
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (isArchived) return;
-                                    if (e.key === "Enter") {
-                                      e.currentTarget.blur();
-                                    } else if (e.key === "Escape") {
-                                      onEditCancel?.();
-                                    }
-                                  }}
-                                  disabled={isArchived}
-                                  className={`inline-edit-input w-24 ${
-                                    isArchived
-                                      ? "opacity-60 cursor-not-allowed bg-gray-50"
-                                      : ""
-                                  }`}
-                                />
+                                <div className="flex items-center gap-1.5">
+                                  <span className="table-text text-gray-500 text-sm shrink-0" title="Currency">
+                                    {currencyCode}
+                                  </span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={bidValue}
+                                    onFocus={() => {
+                                      if (
+                                        !isArchived &&
+                                        (editingField?.id !== adgroup.id ||
+                                          editingField?.field !== "default_bid")
+                                      ) {
+                                        onEditStart?.(
+                                          adgroup.id,
+                                          "default_bid",
+                                          currentBid,
+                                        );
+                                      }
+                                    }}
+                                    onChange={(e) => {
+                                      if (isArchived) return;
+                                      onEditChange?.(e.target.value);
+                                    }}
+                                    onBlur={(e) => {
+                                      if (isArchived) return;
+                                      const inputValue = e.target.value;
+                                      if (
+                                        editingField?.id === adgroup.id &&
+                                        editingField?.field === "default_bid"
+                                      ) {
+                                        onEditEnd?.(inputValue);
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (isArchived) return;
+                                      if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                      } else if (e.key === "Escape") {
+                                        onEditCancel?.();
+                                      }
+                                    }}
+                                    disabled={isArchived}
+                                    className={`inline-edit-input w-24 ${
+                                      isArchived
+                                        ? "opacity-60 cursor-not-allowed bg-gray-50"
+                                        : ""
+                                    }`}
+                                  />
+                                </div>
                               );
                             })()}
                           </td>
@@ -854,14 +896,20 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         {/* Spends */}
                         <td className="table-cell">
                           <span className="table-text leading-[1.26]">
-                            {adgroup.spends}
+                            {formatCurrency(
+                              Number(adgroup.spends) || 0,
+                              adgroup.profile_currency_code
+                            )}
                           </span>
                         </td>
 
                         {/* Sales */}
                         <td className="table-cell">
                           <span className="table-text leading-[1.26]">
-                            {adgroup.sales}
+                            {formatCurrency(
+                              Number(adgroup.sales) || 0,
+                              adgroup.profile_currency_code
+                            )}
                           </span>
                         </td>
 

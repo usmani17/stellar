@@ -1,12 +1,17 @@
 /**
- * Format a number as USD currency
+ * Format a number as currency.
  * @param value - The number to format
- * @returns Formatted currency string (e.g., "$1,234.56")
+ * @param currency - ISO 4217 currency code (e.g. USD, AUD). Defaults to USD.
+ * @returns Formatted currency string (e.g., "$1,234.56" or "A$1,234.56")
  */
-export const formatCurrency = (value: number): string => {
+export const formatCurrency = (
+  value: number,
+  currency: string = "USD"
+): string => {
+  const code = currency && currency.trim() ? currency.trim().toUpperCase() : "USD";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: code,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);

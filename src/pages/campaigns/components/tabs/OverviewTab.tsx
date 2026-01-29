@@ -53,6 +53,19 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     "campaigns-overview-chart-collapsed"
   );
 
+  const currency =
+    campaignDetail?.campaign?.profile_currency_code?.trim() || "USD";
+  const formatCurrency = (value: number, currencyCode?: string) => {
+    const code = (currencyCode?.trim() || currency).toUpperCase();
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      currencyDisplay: "code",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(Number(value) || 0);
+  };
+
   return (
     <>
       {/* Chart Section */}
@@ -149,12 +162,22 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                             </td>
                             <td className="table-cell">
                               <span className="table-text leading-[1.26]">
-                                {keyword.spends}
+                                {formatCurrency(
+                                  typeof keyword.spends === "number"
+                                    ? keyword.spends
+                                    : parseFloat(String(keyword.spends ?? "").replace(/[^0-9.-]/g, "")) || 0,
+                                  currency
+                                )}
                               </span>
                             </td>
                             <td className="table-cell">
                               <span className="table-text leading-[1.26]">
-                                {keyword.sales}
+                                {formatCurrency(
+                                  typeof keyword.sales === "number"
+                                    ? keyword.sales
+                                    : parseFloat(String(keyword.sales ?? "").replace(/[^0-9.-]/g, "")) || 0,
+                                  currency
+                                )}
                               </span>
                             </td>
                           </tr>
@@ -244,7 +267,12 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                           </td>
                           <td className="table-cell">
                             <span className="table-text leading-[1.26]">
-                              {product.sales}
+                              {formatCurrency(
+                                typeof product.sales === "number"
+                                  ? product.sales
+                                  : parseFloat(String(product.sales ?? "").replace(/[^0-9.-]/g, "")) || 0,
+                                currency
+                              )}
                             </span>
                           </td>
                         </tr>

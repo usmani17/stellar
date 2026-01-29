@@ -734,8 +734,9 @@ export const Campaigns: React.FC = () => {
     let newValue = valueToCheck;
 
     if (fieldToUse === "budget") {
-      oldValue = formatCurrency(campaign.daily_budget || 0);
-      newValue = formatCurrency(parseFloat(valueToCheck) || 0);
+      const currency = (campaign as Campaign).profile_currency_code;
+      oldValue = formatCurrency(campaign.daily_budget || 0, currency);
+      newValue = formatCurrency(parseFloat(valueToCheck) || 0, currency);
     } else if (fieldToUse === "budgetType") {
       oldValue = campaign.budgetType || "—";
       newValue = valueToCheck;
@@ -2166,10 +2167,12 @@ export const Campaigns: React.FC = () => {
     );
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number, currency?: string) => {
+    const code = currency?.trim() ? currency.trim().toUpperCase() : "USD";
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: code,
+      currencyDisplay: "code", // e.g. "MXN 0" instead of "MX$0" to avoid double currency symbol
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value);
@@ -2857,12 +2860,12 @@ export const Campaigns: React.FC = () => {
                                         </td>
                                         <td className="px-4 py-2 text-[10.64px] text-[#556179]">
                                           {isBudgetChange
-                                            ? `$${oldBudget.toFixed(2)}`
+                                            ? formatCurrency(oldBudget, campaign.profile_currency_code)
                                             : oldStatus}
                                         </td>
                                         <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
                                           {isBudgetChange
-                                            ? `$${newBudget.toFixed(2)}`
+                                            ? formatCurrency(newBudget, campaign.profile_currency_code)
                                             : newStatus}
                                         </td>
                                       </tr>
@@ -3211,6 +3214,11 @@ export const Campaigns: React.FC = () => {
                             Country
                           </th>
 
+                          {/* Currency Header */}
+                          <th className="table-header min-w-[80px]">
+                            Currency
+                          </th>
+
                           {/* Campaign Type Header */}
                           <th
                             className="table-header"
@@ -3242,7 +3250,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Budget Header */}
                           <th
-                            className="table-header w-[80px]"
+                            className="table-header min-w-[125px] w-[125px]"
                             onClick={() => handleSort("budget")}
                           >
                             <div className="flex items-center gap-1">
@@ -3345,7 +3353,7 @@ export const Campaigns: React.FC = () => {
                         {loading && campaigns.length === 0 ? (
                           Array.from({ length: 5 }).map((_, index) => (
                             <tr key={`skeleton-${index}`} className="table-row">
-                              <td className="table-cell" colSpan={16}>
+                              <td className="table-cell" colSpan={17}>
                                 <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                               </td>
                             </tr>
@@ -3361,17 +3369,18 @@ export const Campaigns: React.FC = () => {
                                 </td>
                                 <td className="table-cell table-text leading-[1.26]" data-summary-col="profile">—</td>
                                 <td className="table-cell table-text leading-[1.26]" data-summary-col="country">—</td>
+                                <td className="table-cell table-text leading-[1.26]" data-summary-col="currency">—</td>
                                 <td className="table-cell table-text leading-[1.26]" data-summary-col="type">—</td>
                                 <td className="table-cell table-text leading-[1.26]" data-summary-col="targeting_type">—</td>
                                 <td className="table-cell table-text leading-[1.26]" data-summary-col="state">—</td>
-                                <td className="table-cell table-text leading-[1.26]" data-summary-col="budget">—</td>
+                                <td className="table-cell table-text leading-[1.26] min-w-[125px] w-[125px]" data-summary-col="budget">—</td>
                                 <td className="table-cell table-text leading-[1.26]" data-summary-col="budget_type">—</td>
                                 <td className="table-cell table-text leading-[1.26]" data-summary-col="start_date">—</td>
                                 <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="spends">
-                                  {formatCurrency(summary.total_spends)}
+                                  {formatCurrency(summary.total_spends, campaigns[0]?.profile_currency_code)}
                                 </td>
                                 <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="sales">
-                                  {formatCurrency(summary.total_sales)}
+                                  {formatCurrency(summary.total_sales, campaigns[0]?.profile_currency_code)}
                                 </td>
                                 <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="impressions">
                                   {summary.total_impressions.toLocaleString()}
@@ -3471,6 +3480,7 @@ export const Campaigns: React.FC = () => {
                                         <Link
                                           to={buildMarketplaceRoute(
                                             parseInt(accountId),
+                                            channelId ?? "",
                                             "amazon",
                                             "campaigns",
                                             `${campaign.type.toLowerCase()}_${campaign.campaignId}`
@@ -3506,6 +3516,16 @@ export const Campaigns: React.FC = () => {
                                         campaign.profile_country_code.trim() !==
                                         ""
                                         ? campaign.profile_country_code
+                                        : "—"}
+                                    </span>
+                                  </td>
+
+                                  {/* Currency */}
+                                  <td className="table-cell min-w-[80px]">
+                                    <span className="table-text leading-[1.26] whitespace-nowrap">
+                                      {campaign.profile_currency_code &&
+                                        campaign.profile_currency_code.trim() !== ""
+                                        ? campaign.profile_currency_code
                                         : "—"}
                                     </span>
                                   </td>
@@ -3594,7 +3614,7 @@ export const Campaigns: React.FC = () => {
                                   </td>
 
                                   {/* Daily Budget */}
-                                  <td className="table-cell w-[100px]">
+                                  <td className="table-cell min-w-[125px] w-[125px]">
                                     {(() => {
                                       const currentStatus = (
                                         campaign.status || "Enabled"
@@ -3604,11 +3624,16 @@ export const Campaigns: React.FC = () => {
                                         editingCell?.field === "budget"
                                         ? editedValue
                                         : (campaign.daily_budget || 0).toString();
+                                      const currencyCode = (campaign.profile_currency_code || "USD").trim() || "USD";
 
                                       return (
-                                        <input
-                                          type="number"
-                                          value={budgetValue}
+                                        <div className="flex items-center gap-1">
+                                          <span className="table-text text-[#556179] shrink-0" title={currencyCode}>
+                                            {currencyCode}
+                                          </span>
+                                          <input
+                                            type="number"
+                                            value={budgetValue}
                                           onFocus={() => {
                                             if (isArchived) return;
                                             if (editingCell?.campaignId !== campaign.campaignId ||
@@ -3645,6 +3670,7 @@ export const Campaigns: React.FC = () => {
                                               : undefined
                                           }
                                         />
+                                        </div>
                                       );
                                     })()}
                                   </td>
@@ -3724,14 +3750,14 @@ export const Campaigns: React.FC = () => {
                                   {/* Spends */}
                                   <td className="table-cell">
                                     <span className="table-text leading-[1.26]">
-                                      {formatCurrency(campaign.spends || 0)}
+                                      {formatCurrency(campaign.spends || 0, campaign.profile_currency_code)}
                                     </span>
                                   </td>
 
                                   {/* Sales */}
                                   <td className="table-cell">
                                     <span className="table-text leading-[1.26]">
-                                      {formatCurrency(campaign.sales || 0)}
+                                      {formatCurrency(campaign.sales || 0, campaign.profile_currency_code)}
                                     </span>
                                   </td>
 

@@ -83,6 +83,7 @@ interface GoogleAdGroupsTableProps {
   formatPercentage: (value: number) => string;
   getStatusBadge: (status: string) => React.ReactElement;
   getSortIcon: (column: string) => React.ReactElement;
+  currencyCode?: string;
 }
 
 export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
@@ -117,6 +118,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
   formatPercentage,
   getStatusBadge,
   getSortIcon,
+  currencyCode,
 }) => {
   // Map editingCell to shared component format
   const sharedEditingCell = editingCell ? {
@@ -213,18 +215,11 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       getValue: (row: GoogleAdGroup) => row.cpc_bid_dollars || 0,
     },
     {
-      key: "spends",
-      label: "Cost",
-      type: "currency",
-      sortable: true,
-      getValue: (row: GoogleAdGroup) => row.spends || 0,
-    },
-    {
-      key: "sales",
-      label: "Conv. value",
-      type: "currency",
-      sortable: true,
-      getValue: (row: GoogleAdGroup) => row.sales || 0,
+      key: "currency",
+      label: "Currency",
+      type: "text",
+      sortable: false,
+      getValue: () => currencyCode ?? "—",
     },
     {
       key: "impressions",
@@ -241,6 +236,20 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       getValue: (row: GoogleAdGroup) => row.clicks || 0,
     },
     {
+      key: "spends",
+      label: "Cost",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleAdGroup) => row.spends || 0,
+    },
+    {
+      key: "sales",
+      label: "Conv. value",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleAdGroup) => row.sales || 0,
+    },
+    {
       key: "roas",
       label: "Conv. value / cost",
       type: "roas",
@@ -253,13 +262,6 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       type: "percentage",
       sortable: true,
       getValue: (row: GoogleAdGroup) => (row as any).ctr || 0,
-    },
-    {
-      key: "avg_cpc",
-      label: "Avg. CPC",
-      type: "currency",
-      sortable: true,
-      getValue: (row: GoogleAdGroup) => (row as any).avg_cpc || (row as any).cpc || 0,
     },
     {
       key: "conversions",
@@ -283,6 +285,13 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       getValue: (row: GoogleAdGroup) => (row as any).cost_per_conversion || 0,
     },
     {
+      key: "avg_cpc",
+      label: "Avg. CPC",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleAdGroup) => (row as any).avg_cpc || (row as any).cpc || 0,
+    },
+    {
       key: "avg_cost",
       label: "Avg. cost",
       type: "currency",
@@ -301,7 +310,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       sortable: true,
       getValue: (row: GoogleAdGroup) => (row as any).interaction_rate || 0,
     },
-  ], [accountId, channelId]);
+  ], [accountId, channelId, currencyCode]);
 
   // Handle confirm inline edit - route to parent handler
   const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
@@ -375,6 +384,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       formatPercentage={formatPercentage}
       getStatusBadge={getStatusBadge}
       getSortIcon={getSortIcon}
+      currencyCode={currencyCode}
     />
   </>
   );
