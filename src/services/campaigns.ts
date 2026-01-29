@@ -1354,9 +1354,12 @@ export const campaignsService = {
       status?: "ENABLED" | "PAUSED";
       value?: number;
       name?: string;
-    }
+      campaignType?: "SP" | "SB" | "SD";
+    },
+    channelId: number | string | null
   ) => {
-    const url = `/accounts/${accountId}/adgroups/bulk-update/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/adgroups/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },
@@ -1664,6 +1667,7 @@ export const campaignsService = {
 
   bulkUpdateKeywords: async (
     accountId: number,
+    channelId: number | string | null,
     payload: {
       keywordIds: Array<string | number>;
       action: "status" | "bid" | "archive";
@@ -1671,26 +1675,30 @@ export const campaignsService = {
       bid?: number;
     }
   ) => {
-    const url = `/accounts/${accountId}/keywords/bulk-update/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/keywords/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },
 
   bulkDeleteKeywords: async (
     accountId: number,
+    channelId: number | string | null,
     payload: {
       keywordIdFilter: {
         include: Array<string | number>;
       };
     }
   ) => {
-    const url = `/accounts/${accountId}/keywords/bulk-delete/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/keywords/bulk-delete/`;
     const response = await api.post(url, payload);
     return response.data;
   },
 
   bulkDeleteNegativeKeywords: async (
     accountId: number,
+    channelId: number | string | null,
     payload: {
       negativeKeywordIdFilter: {
         include: Array<string | number>;
@@ -1699,7 +1707,8 @@ export const campaignsService = {
       campaignId?: string | number;
     }
   ) => {
-    const url = `/accounts/${accountId}/negative-keywords/bulk-delete/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/negative-keywords/bulk-delete/`;
     const response = await api.post(url, payload);
     return response.data;
   },
@@ -1723,15 +1732,23 @@ export const campaignsService = {
       adGroupIdFilter: {
         include: Array<string | number>;
       };
-    }
+      campaignType?: "SP" | "SB" | "SD";
+    },
+    channelId: number | string | null
   ) => {
-    const url = `/accounts/${accountId}/adgroups/bulk-delete/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/adgroups/bulk-delete/`;
     const response = await api.post(url, payload);
     return response.data;
   },
 
-  archiveSdAdGroup: async (accountId: number, adGroupId: string | number) => {
-    const url = `/accounts/${accountId}/adgroups/${adGroupId}/archive/`;
+  archiveSdAdGroup: async (
+    accountId: number,
+    adGroupId: string | number,
+    channelId: number | string | null
+  ) => {
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/adgroups/${adGroupId}/archive/`;
     const response = await api.delete(url);
     return response.data;
   },
@@ -1835,15 +1852,18 @@ export const campaignsService = {
         defaultBid: number;
         state: "ENABLED" | "PAUSED";
       }>;
-    }
+    },
+    channelId: number | string | null
   ) => {
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/create/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/campaigns/${campaignId}/adgroups/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },
 
   createKeywords: async (
     accountId: number,
+    channelId: number | string | null,
     campaignId: string | number,
     payload: {
       keywords: Array<{
@@ -1855,7 +1875,8 @@ export const campaignsService = {
       }>;
     }
   ) => {
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/create/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/campaigns/${campaignId}/keywords/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },
@@ -2394,6 +2415,7 @@ export const campaignsService = {
 
   createNegativeKeywords: async (
     accountId: number,
+    channelId: number | string | null,
     campaignId: string,
     payload: {
       negativeKeywords: Array<{
@@ -2406,20 +2428,23 @@ export const campaignsService = {
       }>;
     }
   ) => {
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-keywords/create/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/campaigns/${campaignId}/negative-keywords/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },
 
   bulkUpdateNegativeKeywords: async (
     accountId: number,
+    channelId: number | string | null,
     payload: {
       keywordIds: Array<string | number>;
       action: "status";
       status: "enable" | "pause" | "archive";
     }
   ) => {
-    const url = `/accounts/${accountId}/negative-keywords/bulk-update/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/negative-keywords/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },

@@ -597,38 +597,43 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         {showCampaignColumn && (
                           <td className="table-cell min-w-[225px] max-w-[300px]">
                             {adgroup.campaignId && accountId ? (
-                              <Link
-                                to={`/brands/${accountId}/amazon/campaigns/${(adgroup.type || "sp").toLowerCase()}_${adgroup.campaignId}`}
-                                className="table-edit-link text-left block w-full"
-                                style={{
-                                  whiteSpace: "normal",
-                                  overflow: "visible",
-                                  textOverflow: "clip",
-                                  wordBreak: "break-word",
-                                  pointerEvents: "auto",
-                                  cursor: "pointer",
-                                }}
-                                title={
-                                  adgroup.campaign_name ||
-                                  "View campaign details"
-                                }
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Force navigation even if on same route
-                                  const targetPath = `/brands/${accountId}/amazon/campaigns/${(adgroup.type || "sp").toLowerCase()}_${adgroup.campaignId}`;
-                                  // Only prevent default and navigate if it's a regular click (not Ctrl/Cmd/middle click)
-                                  if (
-                                    !e.metaKey &&
-                                    !e.ctrlKey &&
-                                    e.button !== 1
-                                  ) {
-                                    e.preventDefault();
-                                    navigate(targetPath);
-                                  }
-                                }}
-                              >
-                                {adgroup.campaign_name || "—"}
-                              </Link>
+                              (() => {
+                                const campaignTypeAndId = `${(adgroup.type || "sp").toLowerCase()}_${adgroup.campaignId}`;
+                                const targetPath = channelId
+                                  ? `/brands/${accountId}/${channelId}/amazon/campaigns/${campaignTypeAndId}`
+                                  : `/brands/${accountId}/amazon/campaigns/${campaignTypeAndId}`;
+                                return (
+                                  <Link
+                                    to={targetPath}
+                                    className="table-edit-link text-left block w-full"
+                                    style={{
+                                      whiteSpace: "normal",
+                                      overflow: "visible",
+                                      textOverflow: "clip",
+                                      wordBreak: "break-word",
+                                      pointerEvents: "auto",
+                                      cursor: "pointer",
+                                    }}
+                                    title={
+                                      adgroup.campaign_name ||
+                                      "View campaign details"
+                                    }
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (
+                                        !e.metaKey &&
+                                        !e.ctrlKey &&
+                                        e.button !== 1
+                                      ) {
+                                        e.preventDefault();
+                                        navigate(targetPath);
+                                      }
+                                    }}
+                                  >
+                                    {adgroup.campaign_name || "—"}
+                                  </Link>
+                                );
+                              })()
                             ) : (
                               <span className="table-text leading-[1.26] text-left whitespace-normal break-words block w-full">
                                 {adgroup.campaign_name || "—"}

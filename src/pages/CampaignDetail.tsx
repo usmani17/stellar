@@ -72,8 +72,9 @@ import {
 import { CampaignInformation } from "./campaigns/components/CampaignInformation";
 
 export const CampaignDetail: React.FC = () => {
-  const { accountId, campaignTypeAndId } = useParams<{
+  const { accountId, channelId, campaignTypeAndId } = useParams<{
     accountId: string;
+    channelId?: string;
     campaignTypeAndId: string;
   }>();
   const [searchParams] = useSearchParams();
@@ -873,6 +874,8 @@ export const CampaignDetail: React.FC = () => {
               page_size: 1,
               type: campaignType || undefined,
             },
+            channelId ?? null,
+            undefined,
           );
 
           // Load first page of targets to check if any exist
@@ -886,6 +889,8 @@ export const CampaignDetail: React.FC = () => {
               page_size: 1,
               type: campaignType || undefined,
             },
+            channelId ?? null,
+            undefined,
           );
 
           // Update state to reflect existence
@@ -1702,13 +1707,15 @@ export const CampaignDetail: React.FC = () => {
       }
 
       // campaignId is now the Amazon campaignId (string), pass it directly
-      // Include campaign type if available
+      // Include campaign type and channelId for channelized URL
       const data = await campaignsService.getCampaignDetail(
         accountIdNum,
         campaignId!,
         startDateStr,
         endDateStr,
         campaignType || undefined,
+        channelId ?? null,
+        undefined,
       );
 
       setCampaignDetail(data);
@@ -1755,6 +1762,8 @@ export const CampaignDetail: React.FC = () => {
           type: campaignType || undefined, // Pass campaign type to API
           ...buildAdGroupsFilterParams(adgroupsFilters),
         },
+        channelId ?? null,
+        campaignDetail?.campaign?.profile_id ?? undefined,
       );
 
       // Check if request was aborted before updating state
@@ -1809,6 +1818,8 @@ export const CampaignDetail: React.FC = () => {
             order: "asc",
             type: campaignType || undefined,
           },
+          channelId ?? null,
+          campaignDetail?.campaign?.profile_id ?? undefined,
         );
 
         const adgroups = data.adgroups || [];
@@ -1876,6 +1887,7 @@ export const CampaignDetail: React.FC = () => {
         accountIdNum,
         campaignId,
         payload,
+        channelId ?? null
       );
 
       // Check for partial success
@@ -2022,6 +2034,7 @@ export const CampaignDetail: React.FC = () => {
 
       const response = await campaignsService.createKeywords(
         accountIdNum,
+        channelId ?? null,
         campaignId,
         {
           keywords: keywords.map((kw) => ({
@@ -2445,6 +2458,7 @@ export const CampaignDetail: React.FC = () => {
 
       const response = await campaignsService.createNegativeKeywords(
         accountIdNum,
+        channelId ?? null,
         campaignId,
         {
           negativeKeywords: negativeKeywords.map((nkw) => ({
@@ -2882,6 +2896,8 @@ export const CampaignDetail: React.FC = () => {
           type: campaignType || undefined, // Pass campaign type to API
           ...buildKeywordsFilterParams(keywordsFilters),
         },
+        channelId ?? null,
+        campaignDetail?.campaign?.profile_id ?? undefined,
       );
 
       setKeywords(data.keywords);
@@ -3003,6 +3019,8 @@ export const CampaignDetail: React.FC = () => {
           type: campaignType || undefined, // Pass campaign type to API
           ...buildProductAdsFilterParams(productadsFilters),
         },
+        channelId ?? null,
+        campaignDetail?.campaign?.profile_id ?? undefined,
       );
 
       setProductads(data.productads);
@@ -3074,6 +3092,8 @@ export const CampaignDetail: React.FC = () => {
           type: "SB", // Force SB type for SB ads
           ...buildSBAdsFilterParams(sbAdsFilters),
         },
+        channelId ?? null,
+        campaignDetail?.campaign?.profile_id ?? undefined,
       );
 
       setSbAds(data.productads as SBAd[]);
@@ -4190,6 +4210,8 @@ export const CampaignDetail: React.FC = () => {
           type: campaignType || undefined, // Pass campaign type to API
           ...buildTargetsFilterParams(targetsFilters),
         },
+        channelId ?? null,
+        campaignDetail?.campaign?.profile_id ?? undefined,
       );
 
       setTargets(data.targets);
@@ -4365,6 +4387,8 @@ export const CampaignDetail: React.FC = () => {
             campaignType,
           ),
         },
+        channelId ?? null,
+        campaignDetail?.campaign?.profile_id ?? undefined,
       );
 
       setNegativeKeywords(data.negative_keywords || []);
@@ -4399,6 +4423,8 @@ export const CampaignDetail: React.FC = () => {
           type: campaignType,
           ...buildNegativeTargetsFilterParams(negativeTargetsFilters),
         },
+        channelId ?? null,
+        campaignDetail?.campaign?.profile_id ?? undefined,
       );
 
       setNegativeTargets(data.negative_targets || []);
@@ -4636,6 +4662,7 @@ export const CampaignDetail: React.FC = () => {
           await campaignsService.archiveSdAdGroup(
             accountIdNum,
             adgroup.adGroupId,
+            channelId ?? null
           );
         } else {
           // Map status values to uppercase
@@ -4648,11 +4675,16 @@ export const CampaignDetail: React.FC = () => {
           const statusValue =
             statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "ENABLED";
 
-          await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-            adgroupIds: [adgroup.adGroupId],
-            action: "status",
-            status: statusValue,
-          });
+          await campaignsService.bulkUpdateAdGroups(
+            accountIdNum,
+            {
+              adgroupIds: [adgroup.adGroupId],
+              action: "status",
+              status: statusValue,
+              campaignType: campaignType as "SP" | "SB" | "SD",
+            },
+            channelId ?? null
+          );
         }
       } else if (pendingAdGroupChange.field === "default_bid") {
         // Extract numeric value
@@ -4661,17 +4693,27 @@ export const CampaignDetail: React.FC = () => {
           throw new Error("Invalid bid value");
         }
 
-        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-          adgroupIds: [adgroup.adGroupId],
-          action: "default_bid",
-          value: bidValue,
-        });
+        await campaignsService.bulkUpdateAdGroups(
+          accountIdNum,
+          {
+            adgroupIds: [adgroup.adGroupId],
+            action: "default_bid",
+            value: bidValue,
+            campaignType: campaignType as "SP" | "SB" | "SD",
+          },
+          channelId ?? null
+        );
       } else if (pendingAdGroupChange.field === "name") {
-        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-          adgroupIds: [adgroup.adGroupId],
-          action: "name",
-          name: pendingAdGroupChange.newValue.trim(),
-        });
+        await campaignsService.bulkUpdateAdGroups(
+          accountIdNum,
+          {
+            adgroupIds: [adgroup.adGroupId],
+            action: "name",
+            name: pendingAdGroupChange.newValue.trim(),
+            campaignType: campaignType as "SP" | "SB" | "SD",
+          },
+          channelId ?? null
+        );
       }
 
       // Reload ad groups
@@ -4802,7 +4844,7 @@ export const CampaignDetail: React.FC = () => {
 
         // Handle archive separately (uses DELETE endpoint)
         if (newValueLower === "archive") {
-          await campaignsService.bulkUpdateKeywords(accountIdNum, {
+          await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
             keywordIds: [keyword.keywordId],
             action: "archive",
           });
@@ -4814,7 +4856,7 @@ export const CampaignDetail: React.FC = () => {
           };
           const statusValue = statusMap[newValueLower] || "enable";
 
-          await campaignsService.bulkUpdateKeywords(accountIdNum, {
+          await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
             keywordIds: [keyword.keywordId],
             action: "status",
             status: statusValue,
@@ -4827,7 +4869,7 @@ export const CampaignDetail: React.FC = () => {
           throw new Error("Invalid bid value");
         }
 
-        await campaignsService.bulkUpdateKeywords(accountIdNum, {
+        await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
           keywordIds: [keyword.keywordId],
           action: "bid",
           bid: bidValue,
@@ -5403,7 +5445,7 @@ export const CampaignDetail: React.FC = () => {
           : String(id);
       });
 
-      await campaignsService.bulkUpdateNegativeKeywords(accountIdNum, {
+      await campaignsService.bulkUpdateNegativeKeywords(accountIdNum, channelId ?? null, {
         keywordIds: selectedNegativeKeywordIdsArray,
         action: "status",
         status: statusValue,
@@ -5520,7 +5562,7 @@ export const CampaignDetail: React.FC = () => {
           statusMap[pendingNegativeKeywordChange.newValue.toLowerCase()] ||
           (campaignType === "SB" ? "enable" : "enable");
 
-        await campaignsService.bulkUpdateNegativeKeywords(accountIdNum, {
+        await campaignsService.bulkUpdateNegativeKeywords(accountIdNum, channelId ?? null, {
           keywordIds: [negativeKeyword.keywordId],
           action: "status",
           status: statusValue,
@@ -6149,7 +6191,7 @@ export const CampaignDetail: React.FC = () => {
         return;
       }
 
-      await campaignsService.bulkUpdateKeywords(accountIdNum, {
+      await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
         keywordIds: selectedKeywordIdsArray,
         action: "status",
         status: statusValue,
@@ -6280,7 +6322,7 @@ export const CampaignDetail: React.FC = () => {
       }
 
       for (const update of updates) {
-        await campaignsService.bulkUpdateKeywords(accountIdNum, {
+        await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
           keywordIds: [update.keywordId],
           action: "bid",
           bid: update.newBid,
@@ -6336,7 +6378,7 @@ export const CampaignDetail: React.FC = () => {
       }
 
       // Use bulkUpdateKeywords with archive action
-      const response = await campaignsService.bulkUpdateKeywords(accountIdNum, {
+      const response = await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
         keywordIds: keywordIds,
         action: "archive",
       });
@@ -6625,11 +6667,16 @@ export const CampaignDetail: React.FC = () => {
         return;
       }
 
-      const response = await campaignsService.bulkDeleteAdGroups(accountIdNum, {
-        adGroupIdFilter: {
-          include: adGroupIds,
+      const response = await campaignsService.bulkDeleteAdGroups(
+        accountIdNum,
+        {
+          adGroupIdFilter: {
+            include: adGroupIds,
+          },
+          campaignType: campaignType as "SP" | "SB" | "SD",
         },
-      });
+        channelId ?? null
+      );
 
       // Handle response with success/error arrays
       // Note: Log creation is handled by the backend
@@ -6778,6 +6825,7 @@ export const CampaignDetail: React.FC = () => {
 
       const response = await campaignsService.bulkDeleteNegativeKeywords(
         accountIdNum,
+        channelId ?? null,
         {
           negativeKeywordIdFilter: {
             include: negativeKeywordIds,
@@ -6946,11 +6994,16 @@ export const CampaignDetail: React.FC = () => {
 
       // For SD campaigns, archive uses bulk delete endpoint
       if (statusValue === "archive" && campaignType === "SD") {
-        await campaignsService.bulkDeleteAdGroups(accountIdNum, {
-          adGroupIdFilter: {
-            include: selectedAdGroupIdsArray,
+        await campaignsService.bulkDeleteAdGroups(
+          accountIdNum,
+          {
+            adGroupIdFilter: {
+              include: selectedAdGroupIdsArray,
+            },
+            campaignType: "SD",
           },
-        });
+          channelId ?? null
+        );
       } else {
         // Convert to uppercase for API: enable -> ENABLED, pause -> PAUSED
         const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
@@ -6961,11 +7014,16 @@ export const CampaignDetail: React.FC = () => {
         };
         const apiStatus = statusMap[statusValue.toLowerCase()] || "ENABLED";
 
-        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-          adgroupIds: selectedAdGroupIdsArray,
-          action: "status",
-          status: apiStatus,
-        });
+        await campaignsService.bulkUpdateAdGroups(
+          accountIdNum,
+          {
+            adgroupIds: selectedAdGroupIdsArray,
+            action: "status",
+            status: apiStatus,
+            campaignType: campaignType as "SP" | "SB" | "SD",
+          },
+          channelId ?? null
+        );
       }
 
       await loadAdGroups();
@@ -7077,11 +7135,16 @@ export const CampaignDetail: React.FC = () => {
       }
 
       for (const update of updates) {
-        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-          adgroupIds: [update.adgroupId],
-          action: "default_bid",
-          value: update.newBid,
-        });
+        await campaignsService.bulkUpdateAdGroups(
+          accountIdNum,
+          {
+            adgroupIds: [update.adgroupId],
+            action: "default_bid",
+            value: update.newBid,
+            campaignType: campaignType as "SP" | "SB" | "SD",
+          },
+          channelId ?? null
+        );
       }
 
       await loadAdGroups();

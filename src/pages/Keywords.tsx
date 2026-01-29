@@ -750,7 +750,7 @@ export const Keywords: React.FC = () => {
         };
         const statusValue = statusMap[inlineEditNewValue] || "enable";
 
-        await campaignsService.bulkUpdateKeywords(accountIdNum, {
+        await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
           keywordIds: [inlineEditKeyword.keywordId],
           action: "status",
           status: statusValue,
@@ -762,7 +762,7 @@ export const Keywords: React.FC = () => {
           throw new Error("Invalid bid value");
         }
 
-        await campaignsService.bulkUpdateKeywords(accountIdNum, {
+        await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
           keywordIds: [inlineEditKeyword.keywordId],
           action: "bid",
           bid: bidValue,
@@ -887,7 +887,7 @@ export const Keywords: React.FC = () => {
         .map((k) => k.keywordId || k.id)
         .filter(Boolean);
 
-      await campaignsService.bulkUpdateKeywords(accountIdNum, {
+      await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
         keywordIds: keywordIds,
         action: "status",
         status: statusValue,
@@ -976,7 +976,7 @@ export const Keywords: React.FC = () => {
 
       // Update each keyword individually
       for (const update of updates) {
-        await campaignsService.bulkUpdateKeywords(accountIdNum, {
+        await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
           keywordIds: [update.keywordId],
           action: "bid",
           bid: update.newBid,
@@ -1023,7 +1023,7 @@ export const Keywords: React.FC = () => {
         .map((k) => k.keywordId || k.id)
         .filter(Boolean);
 
-      const response = await campaignsService.bulkDeleteKeywords(accountIdNum, {
+      const response = await campaignsService.bulkDeleteKeywords(accountIdNum, channelId ?? null, {
         keywordIdFilter: {
           include: keywordIds,
         },
