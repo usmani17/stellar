@@ -1195,10 +1195,62 @@ export const GoogleCampaigns: React.FC = () => {
         }
       }
 
-      // 11. PMax Asset fields are not checked in edit mode since asset groups are not part of the edit form
-      // (SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION is false, so this code is removed)
+      // 11. Check if PMAX fields changed (Brand Guidelines + assets)
+      if (data.campaign_type === "PERFORMANCE_MAX") {
+        // Initialize pmax_assets object if not already present
+        if (!updatePayload.pmax_assets) {
+          updatePayload.pmax_assets = {};
+        }
 
-      console.log("Update payload:", updatePayload);
+        // Check if business_name changed
+        const originalBusinessName = original.business_name || "";
+        const newBusinessName = data.business_name || "";
+        if (newBusinessName !== originalBusinessName && newBusinessName) {
+          updatePayload.pmax_assets.business_name = newBusinessName;
+        }
+
+        // Check if logo_url changed
+        const originalLogoUrl = original.logo_url || "";
+        const newLogoUrl = data.logo_url || "";
+        if (newLogoUrl !== originalLogoUrl && newLogoUrl) {
+          updatePayload.pmax_assets.logo_url = newLogoUrl;
+        }
+
+        // Check if square_marketing_image_url changed
+        const originalSquareMarketingImageUrl = original.square_marketing_image_url || "";
+        const newSquareMarketingImageUrl = data.square_marketing_image_url || "";
+        if (newSquareMarketingImageUrl !== originalSquareMarketingImageUrl && newSquareMarketingImageUrl) {
+          updatePayload.pmax_assets.square_marketing_image_url = newSquareMarketingImageUrl;
+        }
+
+        // Check if final_url changed
+        const originalFinalUrl = original.final_url || "";
+        const newFinalUrl = data.final_url || "";
+        if (newFinalUrl !== originalFinalUrl && newFinalUrl) {
+          updatePayload.pmax_assets.final_url = newFinalUrl;
+        }
+
+        // Check if marketing_image_url changed
+        const originalMarketingImageUrl = original.marketing_image_url || "";
+        const newMarketingImageUrl = data.marketing_image_url || "";
+        if (newMarketingImageUrl !== originalMarketingImageUrl && newMarketingImageUrl) {
+          updatePayload.pmax_assets.marketing_image_url = newMarketingImageUrl;
+        }
+
+        // Check if headlines changed
+        const originalHeadlines = original.headlines || [];
+        const newHeadlines = data.headlines || [];
+        if (JSON.stringify(originalHeadlines) !== JSON.stringify(newHeadlines)) {
+          updatePayload.pmax_assets.headlines = newHeadlines;
+        }
+
+        // Check if descriptions changed
+        const originalDescriptions = original.descriptions || [];
+        const newDescriptions = data.descriptions || [];
+        if (JSON.stringify(originalDescriptions) !== JSON.stringify(newDescriptions)) {
+          updatePayload.pmax_assets.descriptions = newDescriptions;
+        }
+      }
 
       // Separate PMax assets from campaign update payload
       const pmaxAssets = updatePayload.pmax_assets;
@@ -1233,18 +1285,27 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       // Update campaign-level fields if there are any changes
-      if (hasCampaignChanges) {
-        console.log("Executing campaign update with changes...");
+      if (hasCampaignChanges || hasPmaxChanges) {
         const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
         if (!channelIdNum || isNaN(channelIdNum)) {
           throw new Error("Channel ID is required");
         }
+
+        // If only PMAX assets changed, include them in the payload
+        let payloadToSend = hasCampaignChanges ? campaignUpdatePayload : updatePayload;
+        
+        console.log("Making bulkUpdateGoogleCampaigns call with:", {
+          hasCampaignChanges,
+          hasPmaxChanges,
+          payloadKeys: Object.keys(payloadToSend),
+          pmaxAssets: payloadToSend.pmax_assets
+        });
+
         const result = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           channelIdNum,
-          campaignUpdatePayload
+          payloadToSend
         );
-        console.log("Campaign update completed successfully", result);
 
         // Check for errors in the response
         if (result.errors && result.errors.length > 0) {
@@ -1546,6 +1607,7 @@ export const GoogleCampaigns: React.FC = () => {
         const refreshResponse =
           await campaignsService.refreshGoogleCampaignFromAPI(
             accountIdNum,
+            channelId ? parseInt(channelId, 10) : 0,
             row.campaign_id
           );
         refreshedCampaignData = refreshResponse.campaign;
