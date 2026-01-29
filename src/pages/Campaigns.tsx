@@ -3480,6 +3480,7 @@ export const Campaigns: React.FC = () => {
                                         <Link
                                           to={buildMarketplaceRoute(
                                             parseInt(accountId),
+                                            channelId ?? "",
                                             "amazon",
                                             "campaigns",
                                             `${campaign.type.toLowerCase()}_${campaign.campaignId}`
