@@ -967,7 +967,13 @@ export const Campaigns: React.FC = () => {
             onClick: () => {
               setErrorModal({ isOpen: false, message: "" });
               navigate(
-                `/brands/${accountIdNum}/campaigns/${campaignTypeAndId}`
+                buildMarketplaceRoute(
+                  accountIdNum!,
+                  channelId ?? 0,
+                  "amazon",
+                  "campaigns",
+                  campaignTypeAndId
+                )
               );
             },
           },
