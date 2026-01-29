@@ -4,7 +4,6 @@ import { StatusBadge } from "../ui/StatusBadge";
 import { Dropdown } from "../ui/Dropdown";
 import { Loader } from "../ui/Loader";
 
-
 import type { Keyword } from "../../services/campaigns";
 
 interface KeywordsTableProps {
@@ -24,7 +23,7 @@ interface KeywordsTableProps {
   onEditStart?: (
     id: number,
     field: "state" | "bid",
-    currentValue: string
+    currentValue: string,
   ) => void;
   onEditChange?: (value: string) => void;
   onEditEnd?: (value?: string) => void;
@@ -118,7 +117,10 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
   };
 
   return (
-    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
+    <div
+      className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full"
+      style={{ position: "relative", minHeight: loading ? "400px" : "auto" }}
+    >
       <div className="overflow-x-auto w-full">
         {keywords.length === 0 && !loading ? (
           <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
@@ -145,7 +147,8 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
               </h3>
               {/* Description */}
               <p className="text-sm text-[#556179] text-center leading-relaxed">
-                There are no keywords for this campaign yet. Keywords will appear here when they are created.
+                There are no keywords for this campaign yet. Keywords will
+                appear here when they are created.
               </p>
             </div>
           </div>
@@ -241,9 +244,10 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
               <tbody>
                 {keywords.map((keyword, index) => {
                   const isLastRow = index === keywords.length - 1;
-                    const isArchived = keyword.state?.toLowerCase() === "archived";
-                    const isEnabled = keyword.state?.toLowerCase() === "enabled";
-                    const isPaused = keyword.state?.toLowerCase() === "paused";
+                  const isArchived =
+                    keyword.state?.toLowerCase() === "archived";
+                  const isEnabled = keyword.state?.toLowerCase() === "enabled";
+                  const isPaused = keyword.state?.toLowerCase() === "paused";
                   return (
                     <tr
                       key={keyword.id}
@@ -289,30 +293,32 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                                     ? pendingChange.newValue === "enabled"
                                       ? "Enabled"
                                       : pendingChange.newValue === "paused"
-                                      ? "Paused"
-                                      : "Archived"
+                                        ? "Paused"
+                                        : "Archived"
                                     : keyword.state}
                                 </span>
                                 <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
                               </div>
                             );
                           }
-                          
-                          if (pendingChange?.id === keyword.id &&
-                              pendingChange?.field === "state") {
+
+                          if (
+                            pendingChange?.id === keyword.id &&
+                            pendingChange?.field === "state"
+                          ) {
                             return (
                               <div className="flex items-center gap-2">
                                 <span className="table-text leading-[1.26]">
                                   {pendingChange.newValue === "enabled"
                                     ? "Enabled"
                                     : pendingChange.newValue === "paused"
-                                    ? "Paused"
-                                    : "Archived"}
+                                      ? "Paused"
+                                      : "Archived"}
                                 </span>
                               </div>
                             );
                           }
-                          
+
                           if (isArchived) {
                             return (
                               <div className="opacity-60">
@@ -320,24 +326,48 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                               </div>
                             );
                           }
-                          
+
                           const stateLower =
                             keyword.state?.toLowerCase() || "enabled";
                           const stateValue =
-                            stateLower === "enable" ||
-                            stateLower === "enabled"
+                            stateLower === "enable" || stateLower === "enabled"
                               ? "enabled"
                               : "paused";
-                          
-                          const currentValue = editingField?.id === keyword.id &&
+
+                          const currentValue =
+                            editingField?.id === keyword.id &&
                             editingField?.field === "state"
-                            ? editedValue
-                            : stateValue;
-                          
+                              ? editedValue
+                              : stateValue;
+
                           // #region agent log
-                          fetch('http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KeywordsTable.tsx:310',message:'Dropdown render - currentValue calculation',data:{keywordId:keyword.id,editingFieldId:editingField?.id,editingFieldField:editingField?.field,editedValue,stateValue,currentValue,stateLower},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                          fetch(
+                            "http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357",
+                            {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                location: "KeywordsTable.tsx:310",
+                                message:
+                                  "Dropdown render - currentValue calculation",
+                                data: {
+                                  keywordId: keyword.id,
+                                  editingFieldId: editingField?.id,
+                                  editingFieldField: editingField?.field,
+                                  editedValue,
+                                  stateValue,
+                                  currentValue,
+                                  stateLower,
+                                },
+                                timestamp: Date.now(),
+                                sessionId: "debug-session",
+                                runId: "run1",
+                                hypothesisId: "C",
+                              }),
+                            },
+                          ).catch(() => {});
                           // #endregion
-                          
+
                           return (
                             <Dropdown
                               options={[
@@ -349,21 +379,107 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                               onChange={(val) => {
                                 const newValue = val as string;
                                 // #region agent log
-                                fetch('http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KeywordsTable.tsx:322',message:'Dropdown onChange - entry',data:{keywordId:keyword.id,newValue,editingFieldId:editingField?.id,editingFieldField:editingField?.field,wasEditing:editingField?.id === keyword.id && editingField?.field === "state"},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B'})}).catch(()=>{});
+                                fetch(
+                                  "http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357",
+                                  {
+                                    method: "POST",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      location: "KeywordsTable.tsx:322",
+                                      message: "Dropdown onChange - entry",
+                                      data: {
+                                        keywordId: keyword.id,
+                                        newValue,
+                                        editingFieldId: editingField?.id,
+                                        editingFieldField: editingField?.field,
+                                        wasEditing:
+                                          editingField?.id === keyword.id &&
+                                          editingField?.field === "state",
+                                      },
+                                      timestamp: Date.now(),
+                                      sessionId: "debug-session",
+                                      runId: "run1",
+                                      hypothesisId: "A,B",
+                                    }),
+                                  },
+                                ).catch(() => {});
                                 // #endregion
-                                if (editingField?.id !== keyword.id ||
-                                    editingField?.field !== "state") {
+                                if (
+                                  editingField?.id !== keyword.id ||
+                                  editingField?.field !== "state"
+                                ) {
                                   // #region agent log
-                                  fetch('http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KeywordsTable.tsx:326',message:'Calling onEditStart',data:{keywordId:keyword.id,field:"state",stateValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                                  fetch(
+                                    "http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357",
+                                    {
+                                      method: "POST",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                      },
+                                      body: JSON.stringify({
+                                        location: "KeywordsTable.tsx:326",
+                                        message: "Calling onEditStart",
+                                        data: {
+                                          keywordId: keyword.id,
+                                          field: "state",
+                                          stateValue,
+                                        },
+                                        timestamp: Date.now(),
+                                        sessionId: "debug-session",
+                                        runId: "run1",
+                                        hypothesisId: "B",
+                                      }),
+                                    },
+                                  ).catch(() => {});
                                   // #endregion
-                                  onEditStart?.(keyword.id, "state", stateValue);
+                                  onEditStart?.(
+                                    keyword.id,
+                                    "state",
+                                    stateValue,
+                                  );
                                 }
                                 // #region agent log
-                                fetch('http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KeywordsTable.tsx:330',message:'Calling onEditChange',data:{newValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                                fetch(
+                                  "http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357",
+                                  {
+                                    method: "POST",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      location: "KeywordsTable.tsx:330",
+                                      message: "Calling onEditChange",
+                                      data: { newValue },
+                                      timestamp: Date.now(),
+                                      sessionId: "debug-session",
+                                      runId: "run1",
+                                      hypothesisId: "B",
+                                    }),
+                                  },
+                                ).catch(() => {});
                                 // #endregion
                                 onEditChange?.(newValue);
                                 // #region agent log
-                                fetch('http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KeywordsTable.tsx:332',message:'Calling onEditEnd',data:{newValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,D'})}).catch(()=>{});
+                                fetch(
+                                  "http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357",
+                                  {
+                                    method: "POST",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      location: "KeywordsTable.tsx:332",
+                                      message: "Calling onEditEnd",
+                                      data: { newValue },
+                                      timestamp: Date.now(),
+                                      sessionId: "debug-session",
+                                      runId: "run1",
+                                      hypothesisId: "B,D",
+                                    }),
+                                  },
+                                ).catch(() => {});
                                 // #endregion
                                 onEditEnd?.(newValue);
                               }}
@@ -384,7 +500,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                                 <span className="table-text leading-[1.26]">
                                   $
                                   {parseFloat(
-                                    pendingChange?.newValue || "0"
+                                    pendingChange?.newValue || "0",
                                   ).toLocaleString(undefined, {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
@@ -394,15 +510,17 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                               </div>
                             );
                           }
-                          
-                          if (pendingChange?.id === keyword.id &&
-                              pendingChange?.field === "bid") {
+
+                          if (
+                            pendingChange?.id === keyword.id &&
+                            pendingChange?.field === "bid"
+                          ) {
                             return (
                               <div className="flex items-center gap-2">
                                 <span className="table-text leading-[1.26]">
                                   $
                                   {parseFloat(
-                                    pendingChange.newValue || "0"
+                                    pendingChange.newValue || "0",
                                   ).toLocaleString(undefined, {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
@@ -411,16 +529,17 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                               </div>
                             );
                           }
-                          
+
                           const currentBid = keyword.bid
                             ? keyword.bid.replace(/[^0-9.]/g, "")
                             : "0";
-                          
-                          const bidValue = editingField?.id === keyword.id &&
+
+                          const bidValue =
+                            editingField?.id === keyword.id &&
                             editingField?.field === "bid"
-                            ? editedValue
-                            : currentBid;
-                          
+                              ? editedValue
+                              : currentBid;
+
                           return (
                             <input
                               type="number"
@@ -428,9 +547,11 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                               min="0"
                               value={bidValue}
                               onFocus={() => {
-                                if (!isArchived &&
-                                    (editingField?.id !== keyword.id ||
-                                     editingField?.field !== "bid")) {
+                                if (
+                                  !isArchived &&
+                                  (editingField?.id !== keyword.id ||
+                                    editingField?.field !== "bid")
+                                ) {
                                   onEditStart?.(keyword.id, "bid", currentBid);
                                 }
                               }}
@@ -441,8 +562,10 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                               onBlur={(e) => {
                                 if (isArchived) return;
                                 const inputValue = e.target.value;
-                                if (editingField?.id === keyword.id &&
-                                    editingField?.field === "bid") {
+                                if (
+                                  editingField?.id === keyword.id &&
+                                  editingField?.field === "bid"
+                                ) {
                                   onEditEnd?.(inputValue);
                                 }
                               }}
@@ -450,13 +573,15 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                                 if (isArchived) return;
                                 if (e.key === "Enter" || e.key === "Escape") {
                                   onEditEnd?.(
-                                    (e.target as HTMLInputElement).value
+                                    (e.target as HTMLInputElement).value,
                                   );
                                 }
                               }}
                               disabled={isArchived}
                               className={`inline-edit-input w-24 ${
-                                isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                isArchived
+                                  ? "opacity-60 cursor-not-allowed bg-gray-50"
+                                  : ""
                               }`}
                             />
                           );
@@ -491,7 +616,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
           </div>
         )}
       </div>
-      {/* Loading overlay for table */}   
+      {/* Loading overlay for table */}
       {loading && (
         <div className="loading-overlay">
           <div className="loading-overlay-content">

@@ -5992,6 +5992,10 @@ export const CampaignDetail: React.FC = () => {
     }
   };
 
+  // Helper: archived keywords cannot have their state/bid updated
+  const isKeywordArchived = (kw: { state?: string; status?: string }) =>
+    String(kw?.state || kw?.status || "").toUpperCase() === "ARCHIVED";
+
   // Bulk action handlers for Keywords
   const handleBulkKeywordsStatus = async (statusValue: "enable" | "pause") => {
     if (!accountId || selectedKeywordIds.size === 0) return;
@@ -6000,12 +6004,22 @@ export const CampaignDetail: React.FC = () => {
 
     try {
       setKeywordsBulkLoading(true);
-      const selectedKeywordIdsArray = Array.from(selectedKeywordIds).map(
-        (id) => {
-          const keyword = keywords.find((kw) => kw.id === id);
-          return keyword?.keywordId || id;
-        },
-      );
+      // Exclude archived keywords — they cannot have their state updated
+      const selectedKeywordIdsArray = Array.from(selectedKeywordIds)
+        .map((id) => keywords.find((kw) => kw.id === id))
+        .filter((kw): kw is NonNullable<typeof kw> => kw != null && !isKeywordArchived(kw))
+        .map((kw) => kw.keywordId || kw.id);
+
+      if (selectedKeywordIdsArray.length === 0) {
+        setKeywordsBulkLoading(false);
+        setShowKeywordsConfirmationModal(false);
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Archived keywords cannot be updated. Please deselect archived keywords and try again.",
+        });
+        return;
+      }
 
       await campaignsService.bulkUpdateKeywords(accountIdNum, {
         keywordIds: selectedKeywordIdsArray,
@@ -6037,16 +6051,44 @@ export const CampaignDetail: React.FC = () => {
     if (isNaN(accountIdNum)) return;
 
     const valueNum = parseFloat(keywordsBidValue);
-    if (isNaN(valueNum)) {
+    if (isNaN(valueNum) || (keywordsBidValue ?? "").trim() === "") {
+      setShowKeywordsConfirmationModal(false);
+      setErrorModal({
+        isOpen: true,
+        message: "Please enter a valid bid value.",
+      });
+      return;
+    }
+    if (keywordsBidAction === "set" && valueNum < 0) {
+      setShowKeywordsConfirmationModal(false);
+      setErrorModal({
+        isOpen: true,
+        message: "Bid value cannot be negative.",
+      });
       return;
     }
 
     try {
       setKeywordsBulkLoading(true);
 
-      const selectedKeywordsData = keywords.filter((kw) =>
-        selectedKeywordIds.has(kw.id),
+      // Exclude archived keywords — they cannot have their bid updated
+      const selectedKeywordsData = keywords.filter(
+        (kw) =>
+          selectedKeywordIds.has(kw.id) && !isKeywordArchived(kw),
       );
+
+      if (selectedKeywordsData.length === 0) {
+        setKeywordsBulkLoading(false);
+        setShowKeywordsConfirmationModal(false);
+        setShowKeywordsBidPanel(false);
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Archived keywords cannot be updated. Please deselect archived keywords and try again.",
+        });
+        return;
+      }
+
       const updates: Array<{ keywordId: string | number; newBid: number }> = [];
 
       for (const keyword of selectedKeywordsData) {
@@ -6094,6 +6136,18 @@ export const CampaignDetail: React.FC = () => {
         });
       }
 
+      if (updates.length === 0) {
+        setKeywordsBulkLoading(false);
+        setShowKeywordsConfirmationModal(false);
+        setShowKeywordsBidPanel(false);
+        setErrorModal({
+          isOpen: true,
+          message:
+            "No keywords could be updated. Selected keywords may be missing keyword IDs.",
+        });
+        return;
+      }
+
       for (const update of updates) {
         await campaignsService.bulkUpdateKeywords(accountIdNum, {
           keywordIds: [update.keywordId],
@@ -6130,12 +6184,25 @@ export const CampaignDetail: React.FC = () => {
 
     try {
       setKeywordsDeleteLoading(true);
-      const selectedKeywordsData = keywords.filter((kw) =>
-        selectedKeywordIds.has(kw.id),
+      // Exclude archived keywords — they cannot be archived again
+      const selectedKeywordsData = keywords.filter(
+        (kw) =>
+          selectedKeywordIds.has(kw.id) && !isKeywordArchived(kw),
       );
       const keywordIds = selectedKeywordsData
         .map((k) => k.keywordId || k.id)
         .filter(Boolean) as Array<string | number>;
+
+      if (keywordIds.length === 0) {
+        setKeywordsDeleteLoading(false);
+        setShowKeywordsDeleteConfirmation(false);
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Archived keywords cannot be archived again. Please deselect archived keywords and try again.",
+        });
+        return;
+      }
 
       // Use bulkUpdateKeywords with archive action
       const response = await campaignsService.bulkUpdateKeywords(accountIdNum, {
@@ -6373,6 +6440,10 @@ export const CampaignDetail: React.FC = () => {
     }
   };
 
+  // Helper: archived adgroups cannot have their state updated
+  const isAdGroupArchived = (ag: { state?: string; status?: string }) =>
+    String(ag?.state || ag?.status || "").toUpperCase() === "ARCHIVED";
+
   const handleBulkAdGroupsDelete = async () => {
     if (!accountId || selectedAdGroupIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -6381,34 +6452,44 @@ export const CampaignDetail: React.FC = () => {
     try {
       setAdGroupsDeleteLoading(true);
       // Filter adgroups by checking both id and adGroupId against selectedAdGroupIds
-      // The selectedAdGroupIds might contain either id or adGroupId values
-      const selectedAdGroupsData = adgroups.filter((ag) => {
-        const agId = ag.id;
-        const agAdGroupId = ag.adGroupId;
-        return (
-          selectedAdGroupIds.has(agId) ||
-          (agAdGroupId !== undefined &&
-            selectedAdGroupIds.has(agAdGroupId as number))
-        );
-      });
+      // Exclude archived adgroups — they cannot be updated/deleted via this flow
+      const selectedAdGroupsData = adgroups
+        .filter((ag) => {
+          const agId = ag.id;
+          const agAdGroupId = ag.adGroupId;
+          return (
+            (selectedAdGroupIds.has(agId) ||
+              (agAdGroupId !== undefined &&
+                selectedAdGroupIds.has(agAdGroupId as number))) &&
+            !isAdGroupArchived(ag)
+          );
+        });
 
       // Extract adGroupId values (prefer adGroupId over id for API call)
-      const adGroupIds = selectedAdGroupsData
+      let adGroupIds = selectedAdGroupsData
         .map((ag) => ag.adGroupId || ag.id)
         .filter(Boolean) as Array<string | number>;
 
       // If still no IDs found, the selectedAdGroupIds might already be adGroupIds
       if (adGroupIds.length === 0 && selectedAdGroupIds.size > 0) {
-        // Use the selected IDs directly as they might already be adGroupIds
-        const directIds = Array.from(selectedAdGroupIds).filter(
-          (id): id is string | number => id !== undefined && id !== null,
-        );
-        adGroupIds.push(...directIds);
+        // Use the selected IDs directly but exclude any that belong to archived adgroups
+        const directIds = Array.from(selectedAdGroupIds).filter((id) => {
+          const ag = adgroups.find(
+            (a) => a.id === id || a.adGroupId === id,
+          );
+          return id !== undefined && id !== null && (!ag || !isAdGroupArchived(ag));
+        });
+        adGroupIds = directIds as Array<string | number>;
       }
 
       if (adGroupIds.length === 0) {
-        console.error("No adGroup IDs found for deletion");
         setAdGroupsDeleteLoading(false);
+        setShowAdGroupsDeleteConfirmation(false);
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Archived ad groups cannot be deleted. Please deselect archived ad groups and try again.",
+        });
         return;
       }
 
@@ -6698,12 +6779,27 @@ export const CampaignDetail: React.FC = () => {
 
     try {
       setAdGroupsBulkLoading(true);
-      const selectedAdGroupIdsArray = Array.from(selectedAdGroupIds).map(
-        (id) => {
-          const adgroup = adgroups.find((ag) => ag.id === id);
-          return adgroup?.adGroupId || id;
-        },
-      );
+      // Exclude archived adgroups — they cannot have their state updated
+      const selectedAdGroupIdsArray = Array.from(selectedAdGroupIds)
+        .map((id) => {
+          const adgroup = adgroups.find(
+            (ag) => ag.id === id || ag.adGroupId === id,
+          );
+          return adgroup;
+        })
+        .filter((ag): ag is NonNullable<typeof ag> => ag != null && !isAdGroupArchived(ag))
+        .map((ag) => ag.adGroupId || ag.id);
+
+      if (selectedAdGroupIdsArray.length === 0) {
+        setAdGroupsBulkLoading(false);
+        setShowAdGroupsConfirmationModal(false);
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Archived ad groups cannot be updated. Please deselect archived ad groups and try again.",
+        });
+        return;
+      }
 
       // For SD campaigns, archive uses bulk delete endpoint
       if (statusValue === "archive" && campaignType === "SD") {
@@ -6801,9 +6897,23 @@ export const CampaignDetail: React.FC = () => {
     try {
       setAdGroupsBulkLoading(true);
 
-      const selectedAdGroupsData = adgroups.filter((ag) =>
-        selectedAdGroupIds.has(ag.adGroupId || ag.id),
+      // Exclude archived adgroups — they cannot have their bid updated
+      const selectedAdGroupsData = adgroups.filter(
+        (ag) =>
+          selectedAdGroupIds.has(ag.adGroupId || ag.id) && !isAdGroupArchived(ag),
       );
+
+      if (selectedAdGroupsData.length === 0) {
+        setAdGroupsBulkLoading(false);
+        setShowAdGroupsConfirmationModal(false);
+        setShowAdGroupsBidPanel(false);
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Archived ad groups cannot be updated. Please deselect archived ad groups and try again.",
+        });
+        return;
+      }
       const updates: Array<{ adgroupId: string | number; newBid: number }> = [];
 
       for (const adgroup of selectedAdGroupsData) {
@@ -7202,25 +7312,10 @@ export const CampaignDetail: React.FC = () => {
                 }}
                 filters={adgroupsFilters}
                 onApplyFilters={(newFilters) => {
-                  const filtersStr = JSON.stringify(
-                    [...newFilters].sort((a, b) => {
-                      if (a.field !== b.field)
-                        return a.field.localeCompare(b.field);
-                      const aOp = a.operator || "";
-                      const bOp = b.operator || "";
-                      if (aOp !== bOp) return aOp.localeCompare(bOp);
-                      return String(a.value).localeCompare(String(b.value));
-                    }),
-                  );
-                  if (lastAppliedFiltersRef.current === filtersStr) {
-                    return;
-                  }
-                  lastAppliedFiltersRef.current = filtersStr;
                   setAdgroupsFilters(newFilters);
                   setAdgroupsCurrentPage(1);
                 }}
                 filtersString={adgroupsFiltersString}
-                lastAppliedFiltersRef={lastAppliedFiltersRef}
                 isCreatePanelOpen={isCreateAdGroupPanelOpen}
                 onToggleCreatePanel={() => {
                   setIsCreateAdGroupPanelOpen(!isCreateAdGroupPanelOpen);
@@ -7358,7 +7453,7 @@ export const CampaignDetail: React.FC = () => {
                 }}
                 onCloseBulkActions={() => {
                   setShowKeywordsBulkActions(false);
-                  setShowKeywordsBidPanel(false);
+                  // Do not close bid panel here — "Edit Bid" opens it then closes dropdown; keep panel visible
                 }}
                 bulkActionsRef={keywordsBulkActionsRef}
                 onBulkStatusAction={(action) => {
@@ -7371,6 +7466,7 @@ export const CampaignDetail: React.FC = () => {
                   setShowKeywordsDeleteConfirmation(true);
                 }}
                 onBulkEditBid={() => {
+                  setPendingKeywordsStatusAction(null);
                   setShowKeywordsBidPanel(true);
                 }}
                 showBidPanel={showKeywordsBidPanel}
@@ -7396,6 +7492,7 @@ export const CampaignDetail: React.FC = () => {
                   setKeywordsBidLowerLimit("");
                 }}
                 onBidPanelApply={() => {
+                  setPendingKeywordsStatusAction(null);
                   setShowKeywordsConfirmationModal(true);
                 }}
                 bulkLoading={keywordsBulkLoading}
