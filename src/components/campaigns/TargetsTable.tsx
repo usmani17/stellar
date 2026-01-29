@@ -405,9 +405,10 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                             );
                           }
 
-                          const currentBid = target.bid
-                            ? target.bid.replace(/[^0-9.]/g, "")
-                            : "0";
+                          const currentBid =
+                            target.bid != null
+                              ? String(target.bid).replace(/[^0-9.]/g, "")
+                              : "0";
 
                           const bidValue = editingField?.id === target.id &&
                             editingField?.field === "bid"
