@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -27,8 +27,6 @@ import { Loader } from "../components/ui/Loader";
 export const Targets: React.FC = () => {
   const navigate = useNavigate();
   const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
-  const [searchParams] = useSearchParams();
-  const profileId = searchParams.get("profile_id") ?? undefined;
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
   const [targets, setTargets] = useState<Target[]>([]);
@@ -133,6 +131,20 @@ export const Targets: React.FC = () => {
     isOpen: boolean;
     message: string;
   }>({ isOpen: false, message: "" });
+
+  // Profile filter: derive profileId from filters (same as other filters; no URL sync)
+  const profileId = useMemo(() => {
+    const f = filters.find((x) => x.field === "profile_name");
+    if (!f || f.value == null || f.value === "") return null;
+    const v = Array.isArray(f.value)
+      ? f.value.length === 1
+        ? f.value[0]
+        : null
+      : f.value;
+    if (v == null || v === "" || String(v).toLowerCase() === "false")
+      return null;
+    return String(v);
+  }, [filters]);
 
   // Bulk actions state
   const [showBulkActions, setShowBulkActions] = useState(false);
@@ -273,7 +285,9 @@ export const Targets: React.FC = () => {
         };
         params.state = stateMap[filter.value as string] || filter.value;
       } else if (filter.field === "type") {
-        params.type = filter.value;
+        // Type filter can be array from multi-select; backend expects single value (SP/SB/SD)
+        const v = filter.value;
+        params.type = Array.isArray(v) ? v[0] : v;
       } else if (filter.field === "campaign_name") {
         if (filter.operator === "contains") {
           params.campaign_name__icontains = filter.value;
@@ -281,6 +295,14 @@ export const Targets: React.FC = () => {
           params.campaign_name__not_icontains = filter.value;
         } else if (filter.operator === "equals") {
           params.campaign_name = filter.value;
+        }
+      } else if (filter.field === "adgroup_name") {
+        if (filter.operator === "contains") {
+          params.adgroup_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.adgroup_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.adgroup_name = filter.value;
         }
       } else if (filter.field === "profile_name") {
         if (filter.operator === "contains") {
@@ -1025,7 +1047,6 @@ export const Targets: React.FC = () => {
               onApply={(newFilters) => {
                 setFilters(newFilters);
                 setCurrentPage(1); // Reset to first page when applying filters
-                // useEffect will handle the API call when filters change
               }}
               filterFields={TARGET_FILTER_FIELDS}
               initialFilters={filters}
@@ -1674,43 +1695,44 @@ export const Targets: React.FC = () => {
                         ))
                       ) : (
                         <>
-                          {/* Summary Row */}
+                          {/* Summary Row - match Campaigns: explicit bg so ROAS and all cells show #f5f5f0 */}
                           {summary && (
                             <tr className="table-summary-row">
-                              <td className="table-cell"></td>
-                              <td className="table-cell table-text leading-[1.26]">
+                              <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]" data-summary-col="checkbox" />
+                              <td className="table-cell table-sticky-first-column font-medium bg-[#f5f5f0]" data-summary-col="name">
                                 Total ({summary.total_targets})
                               </td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell table-text leading-[1.26]">
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="state">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="bid">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="adgroup_name">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="campaign_name">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="profile">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="country">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="currency">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="type">—</td>
+                              <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="spends">
                                 {formatCurrency(
                                   summary.total_spends,
                                   targets[0]?.profile_currency_code
                                 )}
                               </td>
-                              <td className="table-cell table-text leading-[1.26]">
+                              <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="sales">
                                 {formatCurrency(
                                   summary.total_sales,
                                   targets[0]?.profile_currency_code
                                 )}
                               </td>
-                              <td className="table-cell table-text leading-[1.26]">
+                              <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="impressions">
                                 {summary.total_impressions.toLocaleString()}
                               </td>
-                              <td className="table-cell table-text leading-[1.26]">
+                              <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="clicks">
                                 {summary.total_clicks.toLocaleString()}
                               </td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell table-text leading-[1.26]">
+                              <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="ctr">—</td>
+                              <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="acos">
                                 {summary.avg_acos.toFixed(2)}%
                               </td>
-                              <td className="table-cell table-text leading-[1.26]">
+                              <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="roas">
                                 {summary.avg_roas.toFixed(2)}
                               </td>
                             </tr>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -28,8 +28,6 @@ import { logsService } from "../services/logs";
 export const Keywords: React.FC = () => {
   const navigate = useNavigate();
   const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
-  const [searchParams] = useSearchParams();
-  const profileId = searchParams.get("profile_id") ?? undefined;
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
   const [keywords, setKeywords] = useState<Keyword[]>([]);
@@ -134,6 +132,20 @@ export const Keywords: React.FC = () => {
     isOpen: boolean;
     message: string;
   }>({ isOpen: false, message: "" });
+
+  // Profile filter: derive profileId from filters (same as other filters; no URL sync)
+  const profileId = useMemo(() => {
+    const f = filters.find((x) => x.field === "profile_name");
+    if (!f || f.value == null || f.value === "") return null;
+    const v = Array.isArray(f.value)
+      ? f.value.length === 1
+        ? f.value[0]
+        : null
+      : f.value;
+    if (v == null || v === "" || String(v).toLowerCase() === "false")
+      return null;
+    return String(v);
+  }, [filters]);
 
   // Bulk actions state
   const [showBulkActions, setShowBulkActions] = useState(false);
@@ -298,7 +310,9 @@ export const Keywords: React.FC = () => {
         };
         params.state = stateMap[filter.value as string] || filter.value;
       } else if (filter.field === "type") {
-        params.type = filter.value;
+        // Type filter can be array from multi-select; backend expects single value (SP/SB/SD)
+        const v = filter.value;
+        params.type = Array.isArray(v) ? v[0] : v;
       } else if (filter.field === "campaign_name") {
         if (filter.operator === "contains") {
           params.campaign_name__icontains = filter.value;
@@ -1188,7 +1202,6 @@ export const Keywords: React.FC = () => {
               onApply={(newFilters) => {
                 setFilters(newFilters);
                 setCurrentPage(1); // Reset to first page when applying filters
-                // useEffect will handle the API call when filters change
               }}
               filterFields={KEYWORD_FILTER_FIELDS}
               initialFilters={filters}

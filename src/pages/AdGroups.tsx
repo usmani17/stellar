@@ -142,6 +142,20 @@ export const AdGroups: React.FC = () => {
     message: string;
   }>({ isOpen: false, message: "" });
 
+  // Profile filter: derive profileId from filters (same as other filters; no URL sync)
+  const profileId = useMemo(() => {
+    const f = filters.find((x) => x.field === "profile_name");
+    if (!f || f.value == null || f.value === "") return null;
+    const v = Array.isArray(f.value)
+      ? f.value.length === 1
+        ? f.value[0]
+        : null
+      : f.value;
+    if (v == null || v === "" || String(v).toLowerCase() === "false")
+      return null;
+    return String(v);
+  }, [filters]);
+
   // Bulk actions state
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showBidPanel, setShowBidPanel] = useState(false);
@@ -233,6 +247,7 @@ export const AdGroups: React.FC = () => {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
       filters,
+      profileId,
     });
 
     // Skip if this is the same request as the last one (prevents React StrictMode double calls)
@@ -269,6 +284,7 @@ export const AdGroups: React.FC = () => {
     startDate,
     endDate,
     filters,
+    profileId,
   ]);
 
   const buildFilterParams = (filterList: FilterValues) => {
@@ -395,7 +411,7 @@ export const AdGroups: React.FC = () => {
         accountIdNum,
         { ...params, export_type: exportType },
         channelId ?? undefined,
-        undefined
+        profileId ?? null
       );
 
       // Automatically download the file
@@ -455,7 +471,7 @@ export const AdGroups: React.FC = () => {
         accountId,
         params,
         channelId ?? undefined,
-        undefined
+        profileId ?? null
       );
 
       console.log(
@@ -512,7 +528,7 @@ export const AdGroups: React.FC = () => {
         accountId,
         params,
         channelId ?? undefined,
-        undefined
+        profileId ?? null
       );
       setAdgroups(Array.isArray(response.adgroups) ? response.adgroups : []);
       setTotalPages(response.total_pages || 0);
@@ -1267,7 +1283,6 @@ export const AdGroups: React.FC = () => {
               onApply={(newFilters) => {
                 setFilters(newFilters);
                 setCurrentPage(1); // Reset to first page when applying filters
-                // useEffect will handle the API call when filters change
               }}
               filterFields={ADGROUP_FILTER_FIELDS}
               initialFilters={filters}
