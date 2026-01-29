@@ -340,34 +340,6 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                               ? editedValue
                               : stateValue;
 
-                          // #region agent log
-                          fetch(
-                            "http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357",
-                            {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                location: "KeywordsTable.tsx:310",
-                                message:
-                                  "Dropdown render - currentValue calculation",
-                                data: {
-                                  keywordId: keyword.id,
-                                  editingFieldId: editingField?.id,
-                                  editingFieldField: editingField?.field,
-                                  editedValue,
-                                  stateValue,
-                                  currentValue,
-                                  stateLower,
-                                },
-                                timestamp: Date.now(),
-                                sessionId: "debug-session",
-                                runId: "run1",
-                                hypothesisId: "C",
-                              }),
-                            },
-                          ).catch(() => {});
-                          // #endregion
-
                           return (
                             <Dropdown
                               options={[
@@ -378,109 +350,17 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                               value={currentValue}
                               onChange={(val) => {
                                 const newValue = val as string;
-                                // #region agent log
-                                fetch(
-                                  "http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357",
-                                  {
-                                    method: "POST",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                      location: "KeywordsTable.tsx:322",
-                                      message: "Dropdown onChange - entry",
-                                      data: {
-                                        keywordId: keyword.id,
-                                        newValue,
-                                        editingFieldId: editingField?.id,
-                                        editingFieldField: editingField?.field,
-                                        wasEditing:
-                                          editingField?.id === keyword.id &&
-                                          editingField?.field === "state",
-                                      },
-                                      timestamp: Date.now(),
-                                      sessionId: "debug-session",
-                                      runId: "run1",
-                                      hypothesisId: "A,B",
-                                    }),
-                                  },
-                                ).catch(() => {});
-                                // #endregion
                                 if (
                                   editingField?.id !== keyword.id ||
                                   editingField?.field !== "state"
                                 ) {
-                                  // #region agent log
-                                  fetch(
-                                    "http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357",
-                                    {
-                                      method: "POST",
-                                      headers: {
-                                        "Content-Type": "application/json",
-                                      },
-                                      body: JSON.stringify({
-                                        location: "KeywordsTable.tsx:326",
-                                        message: "Calling onEditStart",
-                                        data: {
-                                          keywordId: keyword.id,
-                                          field: "state",
-                                          stateValue,
-                                        },
-                                        timestamp: Date.now(),
-                                        sessionId: "debug-session",
-                                        runId: "run1",
-                                        hypothesisId: "B",
-                                      }),
-                                    },
-                                  ).catch(() => {});
-                                  // #endregion
                                   onEditStart?.(
                                     keyword.id,
                                     "state",
                                     stateValue,
                                   );
                                 }
-                                // #region agent log
-                                fetch(
-                                  "http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357",
-                                  {
-                                    method: "POST",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                      location: "KeywordsTable.tsx:330",
-                                      message: "Calling onEditChange",
-                                      data: { newValue },
-                                      timestamp: Date.now(),
-                                      sessionId: "debug-session",
-                                      runId: "run1",
-                                      hypothesisId: "B",
-                                    }),
-                                  },
-                                ).catch(() => {});
-                                // #endregion
                                 onEditChange?.(newValue);
-                                // #region agent log
-                                fetch(
-                                  "http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357",
-                                  {
-                                    method: "POST",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                      location: "KeywordsTable.tsx:332",
-                                      message: "Calling onEditEnd",
-                                      data: { newValue },
-                                      timestamp: Date.now(),
-                                      sessionId: "debug-session",
-                                      runId: "run1",
-                                      hypothesisId: "B,D",
-                                    }),
-                                  },
-                                ).catch(() => {});
-                                // #endregion
                                 onEditEnd?.(newValue);
                               }}
                               buttonClassName="inline-edit-dropdown"
@@ -530,9 +410,10 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                             );
                           }
 
-                          const currentBid = keyword.bid
-                            ? keyword.bid.replace(/[^0-9.]/g, "")
-                            : "0";
+                          const currentBid =
+                            keyword.bid != null && keyword.bid !== ""
+                              ? String(keyword.bid).replace(/[^0-9.]/g, "")
+                              : "0";
 
                           const bidValue =
                             editingField?.id === keyword.id &&

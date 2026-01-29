@@ -617,7 +617,8 @@ export const DashboardHeader: React.FC = () => {
               <button
                 onClick={() => {
                   logout();
-                  navigate("/login");
+                  // Do not navigate: logout() does window.location.href to /login or Auth0.
+                  // Navigating to /login first would trigger PublicRoute to redirect to /brands.
                 }}
                 className="w-full text-left px-3 py-2 rounded text-[12.32px] text-[#313850] hover:bg-gray-50 transition-colors"
               >
