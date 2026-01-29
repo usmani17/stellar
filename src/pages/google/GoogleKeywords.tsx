@@ -181,13 +181,13 @@ export const GoogleKeywords: React.FC = () => {
   const [exportLoading, setExportLoading] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
-  
+
   // Keyword text edit modal state
   const [showKeywordTextEditModal, setShowKeywordTextEditModal] = useState(false);
   const [keywordTextEditKeyword, setKeywordTextEditKeyword] = useState<GoogleKeyword | null>(null);
   const [keywordTextEditValue, setKeywordTextEditValue] = useState<string>("");
   const [keywordTextEditLoading, setKeywordTextEditLoading] = useState(false);
-  
+
   // Final URL edit modal state
   const [showFinalUrlModal, setShowFinalUrlModal] = useState(false);
   const [finalUrlKeyword, setFinalUrlKeyword] = useState<GoogleKeyword | null>(null);
@@ -195,7 +195,7 @@ export const GoogleKeywords: React.FC = () => {
   const [mobileFinalUrlValue, setMobileFinalUrlValue] = useState<string>("");
   const [useMobileFinalUrl, setUseMobileFinalUrl] = useState(false);
   const [finalUrlEditLoading, setFinalUrlEditLoading] = useState(false);
-  
+
   // Error modal state
   const [errorModal, setErrorModal] = useState<{
     isOpen: boolean;
@@ -328,7 +328,7 @@ export const GoogleKeywords: React.FC = () => {
       const keywordsArray = Array.isArray(response.keywords)
         ? response.keywords
         : [];
-      
+
       // Debug: Log first keyword to check final URLs
       if (keywordsArray.length > 0 && import.meta.env.DEV) {
         console.log('First keyword from API:', {
@@ -339,7 +339,7 @@ export const GoogleKeywords: React.FC = () => {
           all_keys: Object.keys(keywordsArray[0]),
         });
       }
-      
+
       setKeywords(keywordsArray);
       setTotalPages(response.total_pages || 0);
       setTotal(response.total || 0);
@@ -589,7 +589,7 @@ export const GoogleKeywords: React.FC = () => {
   // Helper function to find keyword by composite ID
   const findKeywordByCompositeId = (compositeId: string | number): GoogleKeyword | undefined => {
     const { keywordId, adgroupId } = parseKeywordCompositeId(compositeId);
-    
+
     if (adgroupId !== undefined) {
       return keywords.find((k) => {
         // Convert both to strings for comparison to handle type mismatches
@@ -597,7 +597,7 @@ export const GoogleKeywords: React.FC = () => {
         const kAdgroupId = k.adgroup_id !== undefined ? String(k.adgroup_id) : undefined;
         const searchKeywordId = String(keywordId);
         const searchAdgroupId = String(adgroupId);
-        
+
         return kKeywordId === searchKeywordId && kAdgroupId === searchAdgroupId;
       });
     }
@@ -628,11 +628,11 @@ export const GoogleKeywords: React.FC = () => {
       setEditedValue(keyword.keyword_text || "");
     }
   };
-  
+
   // Keyword text edit handler
   const handleKeywordTextEditSave = async () => {
     if (!keywordTextEditKeyword || !accountId) return;
-    
+
     const trimmedText = keywordTextEditValue.trim();
     if (!trimmedText) {
       setErrorModal({
@@ -642,7 +642,7 @@ export const GoogleKeywords: React.FC = () => {
       });
       return;
     }
-    
+
     const oldText = (keywordTextEditKeyword.keyword_text || "").trim();
     if (trimmedText === oldText) {
       setShowKeywordTextEditModal(false);
@@ -650,7 +650,7 @@ export const GoogleKeywords: React.FC = () => {
       setKeywordTextEditValue("");
       return;
     }
-    
+
     setKeywordTextEditLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -675,14 +675,14 @@ export const GoogleKeywords: React.FC = () => {
         const errorMessage = response.errors[0];
         let title = "Update Failed";
         let message = errorMessage;
-        
+
         if (errorMessage.toLowerCase().includes("already exists") || errorMessage.toLowerCase().includes("duplicate")) {
           title = "Duplicate Keyword";
           message = `The keyword "${trimmedText}" already exists in this ad group with the same match type. Please choose a different keyword text.`;
         } else {
           message = `Failed to update keyword text: ${errorMessage}`;
         }
-        
+
         setErrorModal({
           isOpen: true,
           title,
@@ -698,7 +698,7 @@ export const GoogleKeywords: React.FC = () => {
       setKeywordTextEditValue("");
     } catch (error: any) {
       console.error("Error updating keyword text:", error);
-      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred"; 
+      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
       setErrorModal({
         isOpen: true,
         title: "Update Failed",
@@ -708,14 +708,14 @@ export const GoogleKeywords: React.FC = () => {
       setKeywordTextEditLoading(false);
     }
   };
-  
+
   // Final URL edit handlers
   const handleStartFinalUrlEdit = (keyword: GoogleKeyword) => {
     if (!keyword) {
       console.error("Cannot edit final URL: keyword is null");
       return;
     }
-    
+
     setFinalUrlKeyword(keyword);
     // Get first URL from final_urls array if available
     const finalUrls = (keyword as any)?.final_urls || (keyword as any)?.finalUrls || null;
@@ -726,7 +726,7 @@ export const GoogleKeywords: React.FC = () => {
       currentUrl = finalUrls.trim();
     }
     setFinalUrlValue(currentUrl);
-    
+
     const mobileUrls = (keyword as any)?.final_mobile_urls || (keyword as any)?.finalMobileUrls || null;
     let currentMobileUrl = "";
     if (Array.isArray(mobileUrls) && mobileUrls.length > 0) {
@@ -738,10 +738,10 @@ export const GoogleKeywords: React.FC = () => {
     setUseMobileFinalUrl(!!currentMobileUrl);
     setShowFinalUrlModal(true);
   };
-  
+
   const handleFinalUrlEditSave = async () => {
     if (!finalUrlKeyword || !accountId) return;
-    
+
     const trimmedUrl = finalUrlValue.trim();
     if (!trimmedUrl) {
       setErrorModal({
@@ -751,13 +751,13 @@ export const GoogleKeywords: React.FC = () => {
       });
       return;
     }
-    
+
     // Validate URL format
     let finalUrl = trimmedUrl;
     if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
       finalUrl = "https://" + finalUrl;
     }
-    
+
     try {
       new URL(finalUrl);
     } catch {
@@ -768,7 +768,7 @@ export const GoogleKeywords: React.FC = () => {
       });
       return;
     }
-    
+
     let mobileUrl = "";
     if (useMobileFinalUrl) {
       const trimmedMobileUrl = mobileFinalUrlValue.trim();
@@ -795,7 +795,7 @@ export const GoogleKeywords: React.FC = () => {
         return;
       }
     }
-    
+
     setFinalUrlEditLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -872,23 +872,23 @@ export const GoogleKeywords: React.FC = () => {
       if (!keyword) {
         return;
       }
-      
+
       // Prioritize newValueOverride (from blur/enter event) over editedValue state
       // This ensures we get the actual value from the input field
-      const valueToCheck = newValueOverride !== undefined && newValueOverride !== null && newValueOverride !== "" 
-        ? newValueOverride 
+      const valueToCheck = newValueOverride !== undefined && newValueOverride !== null && newValueOverride !== ""
+        ? newValueOverride
         : (editedValue !== undefined && editedValue !== null && editedValue !== "" ? editedValue : "");
-      
+
       // For status, show modal
       if (fieldKey === "status") {
         const keyword = findKeywordByCompositeId(keywordIdParam);
         if (!keyword) {
           return;
         }
-        
+
         const oldStatusRaw = getStatusWithDefault(keyword.status);
         const newStatusRaw = valueToCheck.trim();
-        
+
         // Check if status is being changed to REMOVED - show confirmation modal
         if (newStatusRaw.toUpperCase() === "REMOVED") {
           // Close the dropdown immediately when modal appears
@@ -897,17 +897,17 @@ export const GoogleKeywords: React.FC = () => {
           setShowRemoveConfirmation(true);
           return;
         }
-        
+
         // Only show modal if status actually changed
         if (newStatusRaw.toUpperCase() === oldStatusRaw.toUpperCase()) {
           cancelInlineEdit();
           return;
         }
-        
+
         // Format status values for display
         const oldValue = formatStatusForDisplay(oldStatusRaw);
         const newValue = formatStatusForDisplay(newStatusRaw);
-        
+
         setInlineEditKeyword(keyword);
         setInlineEditField(fieldKey);
         setInlineEditOldValue(oldValue);
@@ -916,7 +916,7 @@ export const GoogleKeywords: React.FC = () => {
         setEditingCell(null);
         return;
       }
-      
+
       // Disabled: Google Ads API doesn't allow updating keyword match type
       // For match_type, show modal only if value changed
       // if (fieldKey === "match_type") {
@@ -940,7 +940,7 @@ export const GoogleKeywords: React.FC = () => {
       //   setEditingCell(null);
       //   return;
       // }
-      
+
       // For bid, show modal
       if (fieldKey === "bid") {
         const keyword = findKeywordByCompositeId(keywordIdParam);
@@ -948,50 +948,50 @@ export const GoogleKeywords: React.FC = () => {
           console.log("[GoogleKeywords confirmInlineEdit] Bid: Keyword not found");
           return;
         }
-        
+
         // Ensure valueToCheck is properly parsed - handle empty string case
         // Use the override value directly, don't fall back to editedValue for bid
         // Convert to string first to ensure we have the raw input value
-        const rawValue = newValueOverride !== undefined && newValueOverride !== null 
-          ? String(newValueOverride) 
+        const rawValue = newValueOverride !== undefined && newValueOverride !== null
+          ? String(newValueOverride)
           : "";
         const bidStr = rawValue.trim();
-        
+
         // If empty, don't show modal
         if (bidStr === "") {
           cancelInlineEdit();
           return;
         }
-        
+
         // Try to parse the bid value - handle decimal values correctly
         // parseFloat should handle "0.02" correctly
         let finalBid = parseFloat(bidStr);
-        
+
         // If parsing failed, try cleaning the string and parsing again
         if (isNaN(finalBid)) {
           const cleanedStr = bidStr.replace(/[^0-9.]/g, "");
           finalBid = parseFloat(cleanedStr);
         }
-        
+
         // If still NaN or invalid, don't show modal
         if (isNaN(finalBid) || finalBid < 0) {
           cancelInlineEdit();
           return;
         }
-        
+
         const oldBid = keyword.cpc_bid_dollars || 0;
-        
+
         // Only show modal if bid actually changed (use small threshold for floating point comparison)
         if (Math.abs(finalBid - oldBid) < 0.001) {
           cancelInlineEdit();
           return;
         }
-        
+
         const formattedOld = formatCurrency(oldBid);
         // Store the raw numeric value as string, not the formatted currency
         // The modal will format it for display
         const rawBidString = finalBid.toString();
-        
+
         setInlineEditKeyword(keyword);
         setInlineEditField(fieldKey);
         setInlineEditOldValue(formattedOld);
@@ -1000,21 +1000,21 @@ export const GoogleKeywords: React.FC = () => {
         setEditingCell(null);
         return;
       }
-      
+
       // For keyword_text, show modal only if value changed
       if (fieldKey === "keyword_text") {
         const keyword = findKeywordByCompositeId(keywordIdParam);
         if (!keyword) return;
-        
+
         const oldValue = (keyword.keyword_text || "").trim();
         const newValue = valueToCheck.trim();
-        
+
         // Only show modal if value actually changed and is not empty
         if (newValue === oldValue || newValue === "") {
           cancelInlineEdit();
           return;
         }
-        
+
         setInlineEditKeyword(keyword);
         setInlineEditField(fieldKey);
         setInlineEditOldValue(oldValue || "—");
@@ -1033,8 +1033,8 @@ export const GoogleKeywords: React.FC = () => {
 
     // Prioritize newValueOverride (from blur/enter event) over editedValue state
     // This ensures we get the actual value from the input field
-    const valueToCheck = newValueOverride !== undefined && newValueOverride !== null && newValueOverride !== "" 
-      ? newValueOverride 
+    const valueToCheck = newValueOverride !== undefined && newValueOverride !== null && newValueOverride !== ""
+      ? newValueOverride
       : (editedValue !== undefined && editedValue !== null && editedValue !== "" ? editedValue : "");
     const field = fieldKey || editingCell.field;
     let hasChanged = false;
@@ -1053,22 +1053,22 @@ export const GoogleKeywords: React.FC = () => {
       const oldValue = getStatusWithDefault(keyword.status).trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
-    // Disabled: Google Ads API doesn't allow updating keyword match type
-    // } else if (editingCell.field === "match_type") {
-    //   const oldValue = (keyword.match_type || "EXACT").trim();
-    //   const newValue = valueToCheck.trim();
-    //   hasChanged = newValue !== oldValue;
+      // Disabled: Google Ads API doesn't allow updating keyword match type
+      // } else if (editingCell.field === "match_type") {
+      //   const oldValue = (keyword.match_type || "EXACT").trim();
+      //   const newValue = valueToCheck.trim();
+      //   hasChanged = newValue !== oldValue;
     } else if (editingCell.field === "keyword_text") {
       const oldValue = (keyword.keyword_text || "").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue && newValue !== "";
-      
+
       // Only show modal if value actually changed and is not empty
       if (!hasChanged) {
         cancelInlineEdit();
         return;
       }
-      
+
       // Show modal for keyword_text
       setInlineEditKeyword(keyword);
       setInlineEditField(editingCell.field);
@@ -1088,7 +1088,7 @@ export const GoogleKeywords: React.FC = () => {
     if (editingCell.field === "status") {
       const oldStatusRaw = getStatusWithDefault(keyword.status);
       const newStatusRaw = valueToCheck.trim();
-      
+
       // Check if status is being changed to REMOVED - show confirmation modal
       if (newStatusRaw.toUpperCase() === "REMOVED") {
         // Close the dropdown immediately when modal appears
@@ -1097,17 +1097,17 @@ export const GoogleKeywords: React.FC = () => {
         setShowRemoveConfirmation(true);
         return;
       }
-      
+
       // Only show modal if status actually changed
       if (newStatusRaw.toUpperCase() === oldStatusRaw.toUpperCase()) {
         cancelInlineEdit();
         return;
       }
-      
+
       // Format status values for display
       const oldValue = formatStatusForDisplay(oldStatusRaw);
       const newValue = formatStatusForDisplay(newStatusRaw);
-      
+
       setInlineEditKeyword(keyword);
       setInlineEditField(editingCell.field);
       setInlineEditOldValue(oldValue);
@@ -1142,44 +1142,44 @@ export const GoogleKeywords: React.FC = () => {
     if (editingCell.field === "bid") {
       // Ensure valueToCheck is properly parsed - handle empty string case
       // Prioritize newValueOverride (from blur event) over editedValue state
-      const bidStr = (newValueOverride !== undefined && newValueOverride !== null && newValueOverride !== "") 
-        ? String(newValueOverride).trim() 
+      const bidStr = (newValueOverride !== undefined && newValueOverride !== null && newValueOverride !== "")
+        ? String(newValueOverride).trim()
         : (valueToCheck !== undefined && valueToCheck !== null && valueToCheck !== "" ? String(valueToCheck).trim() : "");
-      
+
       // If empty, don't show modal
       if (bidStr === "") {
         cancelInlineEdit();
         return;
       }
-      
+
       // Try to parse the bid value - handle decimal values correctly
       let finalBid = parseFloat(bidStr);
-      
+
       // If parsing failed, try cleaning the string and parsing again
       if (isNaN(finalBid)) {
         const cleanedStr = bidStr.replace(/[^0-9.]/g, "");
         finalBid = parseFloat(cleanedStr);
       }
-      
+
       // If still NaN or invalid, don't show modal
       if (isNaN(finalBid) || finalBid < 0) {
         cancelInlineEdit();
         return;
       }
-      
+
       const oldBid = keyword.cpc_bid_dollars || 0;
-      
+
       // Only show modal if bid actually changed (use small threshold for floating point comparison)
       if (Math.abs(finalBid - oldBid) < 0.001) {
         cancelInlineEdit();
         return;
       }
-      
+
       const formattedOld = formatCurrency(oldBid);
       // Store the raw numeric value as string, not the formatted currency
       // The modal will format it for display
       const rawBidString = finalBid.toString();
-      
+
       setInlineEditKeyword(keyword);
       setInlineEditField(editingCell.field);
       setInlineEditOldValue(formattedOld);
@@ -1193,7 +1193,7 @@ export const GoogleKeywords: React.FC = () => {
     if (editingCell.field === "keyword_text") {
       const valueToStore = valueToCheck.trim();
       const compositeId = getKeywordCompositeId(keyword);
-      
+
       // Create pending change
       setPendingChanges((prev) => ({
         ...prev,
@@ -1204,7 +1204,7 @@ export const GoogleKeywords: React.FC = () => {
       }));
       setEditingCell(null);
       setEditedValue("");
-      
+
       // Immediately call handleConfirmChange to make API call
       handleConfirmChange(compositeId, field, valueToStore);
       return;
@@ -1222,12 +1222,12 @@ export const GoogleKeywords: React.FC = () => {
     // Parse composite key to extract keyword_id and adgroup_id for API call
     const { keywordId, adgroupId } = parseKeywordCompositeId(itemId);
 
-    setUpdatingField({ 
+    setUpdatingField({
       keywordId: itemId, // Keep composite key for state tracking
       field: fieldKey as any,
       newValue: newValue,
     });
-    
+
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) {
@@ -1269,12 +1269,12 @@ export const GoogleKeywords: React.FC = () => {
         delete updated[fieldKey];
         return updated;
       });
-      
+
       await loadKeywords(accountIdNum, channelIdNum);
-      
+
       // Clear any previous errors
       setInlineEditError(null);
-      
+
       // Show success feedback
       setInlineEditSuccess({
         keywordId: itemId,
@@ -1282,13 +1282,13 @@ export const GoogleKeywords: React.FC = () => {
       });
     } catch (error: any) {
       console.error("Failed to update keyword:", error);
-      
+
       // Clear any previous success
       setInlineEditSuccess(null);
-      
+
       // Set error state for inline feedback
       let errorMessage = "Failed to update keyword. Please try again.";
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (error?.response?.data) {
@@ -1303,7 +1303,7 @@ export const GoogleKeywords: React.FC = () => {
           errorMessage = error.response.data.errors[0].replace(/^Keyword\s+\d+:\s*/i, "");
         }
       }
-      
+
       setInlineEditError({
         keywordId: itemId,
         field: fieldKey,
@@ -1338,7 +1338,7 @@ export const GoogleKeywords: React.FC = () => {
       // Parse composite key to extract keyword_id and adgroup_id
       const { keywordId, adgroupId } = parseKeywordCompositeId(pendingRemoveChange.keywordId);
       const statusValue = convertStatusToApi("REMOVED");
-      
+
       const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
       if (!channelIdNum || isNaN(channelIdNum)) {
         throw new Error("Channel ID is required");
@@ -1352,13 +1352,13 @@ export const GoogleKeywords: React.FC = () => {
       });
 
       await loadKeywords(accountIdNum, channelIdNum);
-      
+
       setShowRemoveConfirmation(false);
       setPendingRemoveChange(null);
-      
+
       // Clear any previous errors
       setInlineEditError(null);
-      
+
       // Show success feedback
       setInlineEditSuccess({
         keywordId: pendingRemoveChange.keywordId,
@@ -1366,13 +1366,13 @@ export const GoogleKeywords: React.FC = () => {
       });
     } catch (error: any) {
       console.error("Failed to remove keyword:", error);
-      
+
       // Clear any previous success
       setInlineEditSuccess(null);
-      
+
       // Set error state for inline feedback
       let errorMessage = "Failed to remove keyword. Please try again.";
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (error?.response?.data) {
@@ -1386,7 +1386,7 @@ export const GoogleKeywords: React.FC = () => {
           errorMessage = error.response.data.errors[0].replace(/^Keyword\s+\d+:\s*/i, "");
         }
       }
-      
+
       setInlineEditError({
         keywordId: pendingRemoveChange.keywordId,
         field: "status",
@@ -1418,18 +1418,18 @@ export const GoogleKeywords: React.FC = () => {
       if (inlineEditField === "status") {
         // Convert display status to API format
         const statusValue = convertStatusToApi(inlineEditNewValue);
-        
+
         // Ensure status is one of the valid API values (only ENABLED or PAUSED are valid for updates)
-        const validStatus: "ENABLED" | "PAUSED" = 
-          statusValue === "ENABLED" || statusValue === "PAUSED" 
-            ? statusValue 
+        const validStatus: "ENABLED" | "PAUSED" =
+          statusValue === "ENABLED" || statusValue === "PAUSED"
+            ? statusValue
             : "ENABLED";
 
         const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
+        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "status",
           status: validStatus,
@@ -1447,10 +1447,10 @@ export const GoogleKeywords: React.FC = () => {
         }
 
         const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
+        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "bid",
           bid: bidValue,
@@ -1460,26 +1460,26 @@ export const GoogleKeywords: React.FC = () => {
         if (response.errors && response.errors.length > 0) {
           throw { response: { data: response } };
         }
-      // Disabled: Google Ads API doesn't allow updating keyword match type
-      // else if (inlineEditField === "match_type") {
-      //   // Convert display match type to API format
-      //   const matchTypeValue = convertMatchTypeToApi(inlineEditNewValue);
+        // Disabled: Google Ads API doesn't allow updating keyword match type
+        // else if (inlineEditField === "match_type") {
+        //   // Convert display match type to API format
+        //   const matchTypeValue = convertMatchTypeToApi(inlineEditNewValue);
 
-      //   const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      // if (!channelIdNum || isNaN(channelIdNum)) {
-      //   throw new Error("Channel ID is required");
-      // }
-      // const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
-      //     keywordIds: [inlineEditKeyword.keyword_id],
-      //     action: "match_type",
-      //     match_type: matchTypeValue,
-      //     adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
-      //   });
-      //   
-      //   if (response.errors && response.errors.length > 0) {
-      //     throw { response: { data: response } };
-      //   }
-      // }
+        //   const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        // if (!channelIdNum || isNaN(channelIdNum)) {
+        //   throw new Error("Channel ID is required");
+        // }
+        // const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
+        //     keywordIds: [inlineEditKeyword.keyword_id],
+        //     action: "match_type",
+        //     match_type: matchTypeValue,
+        //     adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
+        //   });
+        //   
+        //   if (response.errors && response.errors.length > 0) {
+        //     throw { response: { data: response } };
+        //   }
+        // }
       } else if (inlineEditField === "keyword_text") {
         // Update keyword text
         const newKeywordText = inlineEditNewValue.trim();
@@ -1488,16 +1488,16 @@ export const GoogleKeywords: React.FC = () => {
         }
 
         const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
+        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "keyword_text",
           keyword_text: newKeywordText,
           adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
         });
-        
+
         if (response.errors && response.errors.length > 0) {
           throw { response: { data: response } };
         }
@@ -1512,10 +1512,10 @@ export const GoogleKeywords: React.FC = () => {
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
-      
+
       // Clear any previous errors
       setInlineEditError(null);
-      
+
       // Show success feedback (use composite key)
       const compositeId = getKeywordCompositeId(inlineEditKeyword);
       setInlineEditSuccess({
@@ -1524,16 +1524,16 @@ export const GoogleKeywords: React.FC = () => {
       });
     } catch (error: any) {
       console.error("Error updating keyword:", error);
-      
+
       // Parse error and show in modal
       const { title, message } = parseGoogleApiError(error);
-      
+
       setErrorModal({
         isOpen: true,
         title,
         message,
       });
-      
+
       // Also set inline error for visual feedback
       setInlineEditError({
         keywordId: inlineEditKeyword.keyword_id,
@@ -1817,7 +1817,7 @@ export const GoogleKeywords: React.FC = () => {
         params,
         exportType
       );
-      
+
       // Close dropdown after a short delay to show success
       setTimeout(() => {
         setShowExportDropdown(false);
@@ -1971,9 +1971,8 @@ export const GoogleKeywords: React.FC = () => {
                     Add Filter
                   </span>
                   <svg
-                    className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                      isFilterPanelOpen ? "rotate-180" : ""
-                    }`}
+                    className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isFilterPanelOpen ? "rotate-180" : ""
+                      }`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -2021,23 +2020,23 @@ export const GoogleKeywords: React.FC = () => {
 
             {/* Performance Trends Chart */}
             <div className="relative">
-            <PerformanceChart
-              data={chartData}
-              toggles={chartToggles}
-              onToggle={toggleChartMetric}
-              title="Performance Trends"
-              isCollapsed={isChartCollapsed}
-              onCollapseToggle={toggleChartCollapse}
-            />
-            {loading && !isChartCollapsed && (
-                  <div className="loading-overlay">
-                    <div className="loading-overlay-content">
-                      <Loader size="md" message="Loading chart data..." />
-                    </div>
+              <PerformanceChart
+                data={chartData}
+                toggles={chartToggles}
+                onToggle={toggleChartMetric}
+                title="Performance Trends"
+                isCollapsed={isChartCollapsed}
+                onCollapseToggle={toggleChartCollapse}
+              />
+              {loading && !isChartCollapsed && (
+                <div className="loading-overlay">
+                  <div className="loading-overlay-content">
+                    <Loader size="md" message="Loading chart data..." />
                   </div>
-                )}
+                </div>
+              )}
             </div>
-                
+
             {/* Edit and Export Buttons - Above Table */}
             <div className="flex items-center justify-end gap-2">
               <div
@@ -2167,9 +2166,8 @@ export const GoogleKeywords: React.FC = () => {
                           <button
                             key={opt.value}
                             type="button"
-                            className={`w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3 ${
-                              opt.disabled ? "opacity-50 cursor-not-allowed" : ""
-                            }`}
+                            className={`w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3 ${opt.disabled ? "opacity-50 cursor-not-allowed" : ""
+                              }`}
                             onClick={async (e) => {
                               e.stopPropagation();
                               e.preventDefault();
@@ -2178,8 +2176,8 @@ export const GoogleKeywords: React.FC = () => {
                                 opt.value === "bulk_export"
                                   ? "all_data"
                                   : opt.value === "current_view"
-                                  ? "current_view"
-                                  : "selected";
+                                    ? "current_view"
+                                    : "selected";
                               // Keep dropdown open during export
                               await handleExport(exportType);
                             }}
@@ -2243,42 +2241,40 @@ export const GoogleKeywords: React.FC = () => {
                               setBidUnit("amount");
                             }
                           }}
-                          buttonClassName="w-full bg-[#FEFEFB]"
+                          buttonClassName="w-full bg-[#FEFEFB] edit-button"
                           width="w-full"
                         />
                       </div>
                       {(bidAction === "increase" ||
                         bidAction === "decrease") && (
-                        <div className="w-[140px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Unit
-                          </label>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                bidUnit === "percent"
-                                  ? "bg-forest-f40  border-forest-f40"
-                                  : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                              }`}
-                              onClick={() => setBidUnit("percent")}
-                            >
-                              %
-                            </button>
-                            <button
-                              type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                bidUnit === "amount"
-                                  ? "bg-forest-f40  border-forest-f40"
-                                  : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                              }`}
-                              onClick={() => setBidUnit("amount")}
-                            >
-                              $
-                            </button>
+                          <div className="w-[140px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Unit
+                            </label>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "percent"
+                                    ? "bg-forest-f40  border-forest-f40"
+                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                  }`}
+                                onClick={() => setBidUnit("percent")}
+                              >
+                                %
+                              </button>
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "amount"
+                                    ? "bg-forest-f40  border-forest-f40"
+                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                  }`}
+                                onClick={() => setBidUnit("amount")}
+                              >
+                                $
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                       <div className="w-[160px]">
                         <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                           Value
@@ -2371,8 +2367,8 @@ export const GoogleKeywords: React.FC = () => {
                       {bulkUpdateResults
                         ? "Update Results"
                         : isBidChange
-                        ? "Confirm Bid Changes"
-                        : "Confirm Status Changes"}
+                          ? "Confirm Bid Changes"
+                          : "Confirm Status Changes"}
                     </h3>
 
                     {/* Results Summary */}
@@ -2468,9 +2464,8 @@ export const GoogleKeywords: React.FC = () => {
                             <span className="text-[10.64px] text-[#556179]">
                               {hasMore
                                 ? `Showing ${previewCount} of ${selectedKeywordsData.length} selected keywords`
-                                : `${selectedKeywordsData.length} keyword${
-                                    selectedKeywordsData.length !== 1 ? "s" : ""
-                                  } selected`}
+                                : `${selectedKeywordsData.length} keyword${selectedKeywordsData.length !== 1 ? "s" : ""
+                                } selected`}
                             </span>
                           </div>
                           <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[400px] overflow-y-auto">
@@ -2533,81 +2528,81 @@ export const GoogleKeywords: React.FC = () => {
 
                     {/* Action Details - Only show before update */}
                     {!bulkUpdateResults && (
-                    <div className="space-y-3 mb-6">
-                      {isBidChange ? (
-                        <>
+                      <div className="space-y-3 mb-6">
+                        {isBidChange ? (
+                          <>
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Action:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {bidAction === "increase"
+                                  ? "Increase By"
+                                  : bidAction === "decrease"
+                                    ? "Decrease By"
+                                    : "Set To"}
+                              </span>
+                            </div>
+
+                            {(bidAction === "increase" ||
+                              bidAction === "decrease") && (
+                                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                  <span className="text-[12.16px] text-[#556179]">
+                                    Unit:
+                                  </span>
+                                  <span className="text-[12.16px] font-semibold text-[#072929]">
+                                    {bidUnit === "percent"
+                                      ? "Percentage (%)"
+                                      : "Amount ($)"}
+                                  </span>
+                                </div>
+                              )}
+
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Value:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {bidValue} {bidUnit === "percent" ? "%" : "$"}
+                              </span>
+                            </div>
+
+                            {bidAction === "increase" && upperLimit && (
+                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span className="text-[12.16px] text-[#556179]">
+                                  Upper Limit:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                  ${upperLimit}
+                                </span>
+                              </div>
+                            )}
+
+                            {bidAction === "decrease" && lowerLimit && (
+                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span className="text-[12.16px] text-[#556179]">
+                                  Lower Limit:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                  ${lowerLimit}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
                           <div className="flex justify-between items-center py-2 border-b border-gray-200">
                             <span className="text-[12.16px] text-[#556179]">
-                              Action:
+                              New Status:
                             </span>
                             <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {bidAction === "increase"
-                                ? "Increase By"
-                                : bidAction === "decrease"
-                                ? "Decrease By"
-                                : "Set To"}
-                            </span>
-                          </div>
-
-                          {(bidAction === "increase" ||
-                            bidAction === "decrease") && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Unit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {bidUnit === "percent"
-                                  ? "Percentage (%)"
-                                  : "Amount ($)"}
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Value:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {bidValue} {bidUnit === "percent" ? "%" : "$"}
-                            </span>
-                          </div>
-
-                          {bidAction === "increase" && upperLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Upper Limit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                ${upperLimit}
-                              </span>
-                            </div>
-                          )}
-
-                          {bidAction === "decrease" && lowerLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Lower Limit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                ${lowerLimit}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                          <span className="text-[12.16px] text-[#556179]">
-                            New Status:
-                          </span>
-                          <span className="text-[12.16px] font-semibold text-[#072929]">
-                            {pendingStatusAction
-                              ? pendingStatusAction.charAt(0) +
+                              {pendingStatusAction
+                                ? pendingStatusAction.charAt(0) +
                                 pendingStatusAction.slice(1).toLowerCase()
-                              : ""}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                                : ""}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     )}
 
                     <div className="flex justify-end gap-3">
@@ -2679,8 +2674,8 @@ export const GoogleKeywords: React.FC = () => {
                       {inlineEditField === "bid"
                         ? "Bid"
                         : inlineEditField === "status"
-                        ? "Status"
-                        : "Match Type"}{" "}
+                          ? "Status"
+                          : "Match Type"}{" "}
                       Change
                     </h3>
                     <div className="mb-4">
@@ -2697,8 +2692,8 @@ export const GoogleKeywords: React.FC = () => {
                             {inlineEditField === "bid"
                               ? "Bid"
                               : inlineEditField === "status"
-                              ? "Status"
-                              : "Match Type"}
+                                ? "Status"
+                                : "Match Type"}
                             :
                           </span>
                           <div className="flex items-center gap-2">
@@ -2756,7 +2751,7 @@ export const GoogleKeywords: React.FC = () => {
                     }
                   }}
                 >
-                  <div 
+                  <div
                     className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -2765,8 +2760,8 @@ export const GoogleKeywords: React.FC = () => {
                     </h3>
                     <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                       <p className="text-[12px] text-yellow-800">
-                        <strong>Note:</strong> Google Ads doesn't allow updating keyword text directly. 
-                        This will create a new keyword with the updated text and remove the old one. 
+                        <strong>Note:</strong> Google Ads doesn't allow updating keyword text directly.
+                        This will create a new keyword with the updated text and remove the old one.
                         The keyword will appear with a new ID after the update.
                       </p>
                     </div>
@@ -2833,7 +2828,7 @@ export const GoogleKeywords: React.FC = () => {
                     }
                   }}
                 >
-                  <div 
+                  <div
                     className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -2864,7 +2859,7 @@ export const GoogleKeywords: React.FC = () => {
                           disabled={finalUrlEditLoading}
                           className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D] disabled:opacity-50"
                         />
-                        <label 
+                        <label
                           htmlFor="use-mobile-url"
                           className="text-[13.3px] text-[#072929] cursor-pointer"
                         >
@@ -2996,11 +2991,10 @@ export const GoogleKeywords: React.FC = () => {
                         <button
                           key={pageNum}
                           onClick={() => setCurrentPage(pageNum)}
-                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                            currentPage === pageNum
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
                               ? "bg-white text-[#136D6D] font-semibold"
                               : "text-black hover:bg-gray-50"
-                          }`}
+                            }`}
                         >
                           {pageNum}
                         </button>
@@ -3014,11 +3008,10 @@ export const GoogleKeywords: React.FC = () => {
                     {totalPages > 5 && currentPage < totalPages - 2 && (
                       <button
                         onClick={() => setCurrentPage(totalPages)}
-                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                          currentPage === totalPages
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
                             ? "bg-white text-[#136D6D] font-semibold"
                             : "text-black hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         {totalPages}
                       </button>
@@ -3039,7 +3032,7 @@ export const GoogleKeywords: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Error Modal */}
       <ErrorModal
         isOpen={errorModal.isOpen}

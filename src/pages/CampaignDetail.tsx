@@ -7169,6 +7169,7 @@ export const CampaignDetail: React.FC = () => {
             editingField={editingField}
             editedValue={editedValue}
             loading={loading}
+            canEditStartDate={false}
             onEditField={(field) => {
               setEditingField(field);
               if (field === "status" && campaignDetail) {

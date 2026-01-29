@@ -142,6 +142,20 @@ export const AdGroups: React.FC = () => {
     message: string;
   }>({ isOpen: false, message: "" });
 
+  // Profile filter: derive profileId from filters (same as other filters; no URL sync)
+  const profileId = useMemo(() => {
+    const f = filters.find((x) => x.field === "profile_name");
+    if (!f || f.value == null || f.value === "") return null;
+    const v = Array.isArray(f.value)
+      ? f.value.length === 1
+        ? f.value[0]
+        : null
+      : f.value;
+    if (v == null || v === "" || String(v).toLowerCase() === "false")
+      return null;
+    return String(v);
+  }, [filters]);
+
   // Bulk actions state
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showBidPanel, setShowBidPanel] = useState(false);
@@ -187,16 +201,16 @@ export const AdGroups: React.FC = () => {
       | "acos"
       | "roas"
     > = [
-      "sales",
-      "spend",
-      "sales1d",
-      "sales7d",
-      "sales14d",
-      "impressions",
-      "clicks",
-      "acos",
-      "roas",
-    ];
+        "sales",
+        "spend",
+        "sales1d",
+        "sales7d",
+        "sales14d",
+        "impressions",
+        "clicks",
+        "acos",
+        "roas",
+      ];
     if (validKeys.includes(key as any)) {
       setChartToggles((prev) => ({
         ...prev,
@@ -233,6 +247,7 @@ export const AdGroups: React.FC = () => {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
       filters,
+      profileId,
     });
 
     // Skip if this is the same request as the last one (prevents React StrictMode double calls)
@@ -269,6 +284,7 @@ export const AdGroups: React.FC = () => {
     startDate,
     endDate,
     filters,
+    profileId,
   ]);
 
   const buildFilterParams = (filterList: FilterValues) => {
@@ -395,7 +411,7 @@ export const AdGroups: React.FC = () => {
         accountIdNum,
         { ...params, export_type: exportType },
         channelId ?? undefined,
-        undefined
+        profileId ?? null
       );
 
       // Automatically download the file
@@ -455,7 +471,7 @@ export const AdGroups: React.FC = () => {
         accountId,
         params,
         channelId ?? undefined,
-        undefined
+        profileId ?? null
       );
 
       console.log(
@@ -512,7 +528,7 @@ export const AdGroups: React.FC = () => {
         accountId,
         params,
         channelId ?? undefined,
-        undefined
+        profileId ?? null
       );
       setAdgroups(Array.isArray(response.adgroups) ? response.adgroups : []);
       setTotalPages(response.total_pages || 0);
@@ -618,7 +634,7 @@ export const AdGroups: React.FC = () => {
     // Use override parameters if provided, otherwise fall back to editingAdGroupField state
     const adgroupIdToUse = adgroupIdOverride || editingAdGroupField?.id;
     const fieldToUse = fieldOverride || editingAdGroupField?.field;
-    
+
     if (!adgroupIdToUse || !fieldToUse) return;
 
     const adgroup = adgroups.find((ag) => ag.id === adgroupIdToUse);
@@ -643,8 +659,8 @@ export const AdGroups: React.FC = () => {
         statusLower === "enable" || statusLower === "enabled"
           ? "enabled"
           : statusLower === "paused"
-          ? "paused"
-          : "archived";
+            ? "paused"
+            : "archived";
       oldValue = currentStatus;
       hasChanged = valueToCompare !== currentStatus;
     } else if (fieldToUse === "default_bid") {
@@ -820,7 +836,7 @@ export const AdGroups: React.FC = () => {
         const hasSdAdgroups = selectedAdgroupsData.some(
           (ag) => ag.type === "SD" || ag.campaignType === "SD" || ag.campaign_type === "SD"
         );
-        
+
         // For SD adgroups, archive uses bulk delete endpoint
         if (hasSdAdgroups) {
           await campaignsService.bulkDeleteAdGroups(accountIdNum, {
@@ -1109,8 +1125,8 @@ export const AdGroups: React.FC = () => {
             pendingAdGroupChange.field === "status"
               ? "Status"
               : pendingAdGroupChange.field === "default_bid"
-              ? "Default Bid"
-              : "Name";
+                ? "Default Bid"
+                : "Name";
 
           // Format old value
           let oldValueDisplay = "";
@@ -1118,20 +1134,20 @@ export const AdGroups: React.FC = () => {
             oldValueDisplay = pendingAdGroupChange.oldValue.startsWith("$")
               ? pendingAdGroupChange.oldValue
               : `$${parseFloat(
-                  pendingAdGroupChange.oldValue || "0"
-                ).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}`;
+                pendingAdGroupChange.oldValue || "0"
+              ).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`;
           } else if (pendingAdGroupChange.field === "status") {
             oldValueDisplay =
               pendingAdGroupChange.oldValue === "enabled"
                 ? "Enabled"
                 : pendingAdGroupChange.oldValue === "paused"
-                ? "Paused"
-                : pendingAdGroupChange.oldValue === "archived"
-                ? "Archived"
-                : pendingAdGroupChange.oldValue;
+                  ? "Paused"
+                  : pendingAdGroupChange.oldValue === "archived"
+                    ? "Archived"
+                    : pendingAdGroupChange.oldValue;
           } else {
             // name
             oldValueDisplay = pendingAdGroupChange.oldValue || "—";
@@ -1143,20 +1159,20 @@ export const AdGroups: React.FC = () => {
             newValueDisplay = pendingAdGroupChange.newValue.startsWith("$")
               ? pendingAdGroupChange.newValue
               : `$${parseFloat(
-                  pendingAdGroupChange.newValue || "0"
-                ).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}`;
+                pendingAdGroupChange.newValue || "0"
+              ).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`;
           } else if (pendingAdGroupChange.field === "status") {
             newValueDisplay =
               pendingAdGroupChange.newValue === "enabled"
                 ? "Enabled"
                 : pendingAdGroupChange.newValue === "paused"
-                ? "Paused"
-                : pendingAdGroupChange.newValue === "archived"
-                ? "Archived"
-                : pendingAdGroupChange.newValue;
+                  ? "Paused"
+                  : pendingAdGroupChange.newValue === "archived"
+                    ? "Archived"
+                    : pendingAdGroupChange.newValue;
           } else {
             // name
             newValueDisplay = pendingAdGroupChange.newValue || "—";
@@ -1253,7 +1269,7 @@ export const AdGroups: React.FC = () => {
                 isOpen={isFilterPanelOpen}
                 onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                 filters={filters}
-                onApply={() => {}} // Not used - FilterSectionPanel handles onApply
+                onApply={() => { }} // Not used - FilterSectionPanel handles onApply
                 filterFields={ADGROUP_FILTER_FIELDS}
                 initialFilters={filters}
               />
@@ -1267,7 +1283,6 @@ export const AdGroups: React.FC = () => {
               onApply={(newFilters) => {
                 setFilters(newFilters);
                 setCurrentPage(1); // Reset to first page when applying filters
-                // useEffect will handle the API call when filters change
               }}
               filterFields={ADGROUP_FILTER_FIELDS}
               initialFilters={filters}
@@ -1336,12 +1351,12 @@ export const AdGroups: React.FC = () => {
                     <div className="overflow-y-auto">
                       {(() => {
                         // Check if all adgroups are SD type - if so, exclude Default Bid
-                        const allAdgroupsAreSd = adgroups.length > 0 && 
+                        const allAdgroupsAreSd = adgroups.length > 0 &&
                           adgroups.every((ag) => {
                             const type = ag.type || ag.campaignType || ag.campaign_type;
                             return type === "SD";
                           });
-                        
+
                         return [
                           { value: "enable", label: "Enabled" },
                           { value: "pause", label: "Paused" },
@@ -1514,7 +1529,7 @@ export const AdGroups: React.FC = () => {
                             setBidUnit("amount");
                           }
                         }}
-                        buttonClassName="w-full bg-[#FEFEFB]"
+                        buttonClassName="w-full bg-[#FEFEFB] edit-button"
                         width="w-full"
                       />
                     </div>
@@ -1526,22 +1541,20 @@ export const AdGroups: React.FC = () => {
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                              bidUnit === "percent"
+                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "percent"
                                 ? "bg-forest-f40  border-forest-f40"
                                 : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                            }`}
+                              }`}
                             onClick={() => setBidUnit("percent")}
                           >
                             %
                           </button>
                           <button
                             type="button"
-                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                              bidUnit === "amount"
+                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "amount"
                                 ? "bg-forest-f40  border-forest-f40"
                                 : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                            }`}
+                              }`}
                             onClick={() => setBidUnit("amount")}
                           >
                             $
@@ -1672,9 +1685,8 @@ export const AdGroups: React.FC = () => {
                           <span className="text-[10.64px] text-[#556179]">
                             {hasMore
                               ? `Showing ${previewCount} of ${selectedAdgroupsData.length} selected ad groups`
-                              : `${selectedAdgroupsData.length} ad group${
-                                  selectedAdgroupsData.length !== 1 ? "s" : ""
-                                } selected`}
+                              : `${selectedAdgroupsData.length} ad group${selectedAdgroupsData.length !== 1 ? "s" : ""
+                              } selected`}
                           </span>
                         </div>
                         <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -1708,9 +1720,9 @@ export const AdGroups: React.FC = () => {
                                     : oldBid;
                                   const newStatus = pendingStatusAction
                                     ? pendingStatusAction
-                                        .charAt(0)
-                                        .toUpperCase() +
-                                      pendingStatusAction.slice(1)
+                                      .charAt(0)
+                                      .toUpperCase() +
+                                    pendingStatusAction.slice(1)
                                     : oldStatus;
 
                                   return (
@@ -1753,24 +1765,24 @@ export const AdGroups: React.FC = () => {
                             {bidAction === "increase"
                               ? "Increase By"
                               : bidAction === "decrease"
-                              ? "Decrease By"
-                              : "Set To"}
+                                ? "Decrease By"
+                                : "Set To"}
                           </span>
                         </div>
 
                         {(bidAction === "increase" ||
                           bidAction === "decrease") && (
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Unit:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {bidUnit === "percent"
-                                ? "Percentage (%)"
-                                : "Amount ($)"}
-                            </span>
-                          </div>
-                        )}
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Unit:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {bidUnit === "percent"
+                                  ? "Percentage (%)"
+                                  : "Amount ($)"}
+                              </span>
+                            </div>
+                          )}
 
                         <div className="flex justify-between items-center py-2 border-b border-gray-200">
                           <span className="text-[12.16px] text-[#556179]">
@@ -1811,7 +1823,7 @@ export const AdGroups: React.FC = () => {
                         <span className="text-[12.16px] font-semibold text-[#072929]">
                           {pendingStatusAction
                             ? pendingStatusAction.charAt(0).toUpperCase() +
-                              pendingStatusAction.slice(1)
+                            pendingStatusAction.slice(1)
                             : ""}
                         </span>
                       </div>
@@ -1908,11 +1920,10 @@ export const AdGroups: React.FC = () => {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                          currentPage === pageNum
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
                             ? "bg-white text-[#136D6D] font-semibold"
                             : "text-black hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -1926,11 +1937,10 @@ export const AdGroups: React.FC = () => {
                   {totalPages > 5 && (
                     <button
                       onClick={() => handlePageChange(totalPages)}
-                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                        currentPage === totalPages
+                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
                           ? "bg-white text-[#136D6D] font-semibold"
                           : "text-black hover:bg-gray-50"
-                      }`}
+                        }`}
                     >
                       {totalPages}
                     </button>

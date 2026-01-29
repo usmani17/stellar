@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -28,8 +28,6 @@ import { logsService } from "../services/logs";
 export const Keywords: React.FC = () => {
   const navigate = useNavigate();
   const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
-  const [searchParams] = useSearchParams();
-  const profileId = searchParams.get("profile_id") ?? undefined;
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
   const [keywords, setKeywords] = useState<Keyword[]>([]);
@@ -134,6 +132,20 @@ export const Keywords: React.FC = () => {
     isOpen: boolean;
     message: string;
   }>({ isOpen: false, message: "" });
+
+  // Profile filter: derive profileId from filters (same as other filters; no URL sync)
+  const profileId = useMemo(() => {
+    const f = filters.find((x) => x.field === "profile_name");
+    if (!f || f.value == null || f.value === "") return null;
+    const v = Array.isArray(f.value)
+      ? f.value.length === 1
+        ? f.value[0]
+        : null
+      : f.value;
+    if (v == null || v === "" || String(v).toLowerCase() === "false")
+      return null;
+    return String(v);
+  }, [filters]);
 
   // Bulk actions state
   const [showBulkActions, setShowBulkActions] = useState(false);
@@ -298,7 +310,9 @@ export const Keywords: React.FC = () => {
         };
         params.state = stateMap[filter.value as string] || filter.value;
       } else if (filter.field === "type") {
-        params.type = filter.value;
+        // Type filter can be array from multi-select; backend expects single value (SP/SB/SD)
+        const v = filter.value;
+        params.type = Array.isArray(v) ? v[0] : v;
       } else if (filter.field === "campaign_name") {
         if (filter.operator === "contains") {
           params.campaign_name__icontains = filter.value;
@@ -606,10 +620,10 @@ export const Keywords: React.FC = () => {
           statusLower === "enable" || statusLower === "enabled"
             ? "Enabled"
             : statusLower === "paused"
-            ? "Paused"
-            : statusLower === "archived"
-            ? "Archived"
-            : "Enabled";
+              ? "Paused"
+              : statusLower === "archived"
+                ? "Archived"
+                : "Enabled";
         setEditedValue(normalizedStatus);
       }
     }
@@ -628,7 +642,7 @@ export const Keywords: React.FC = () => {
     // Use override parameters if provided, otherwise fall back to editingCell state
     const keywordIdToUse = keywordIdOverride || editingCell?.keywordId;
     const fieldToUse = fieldOverride || editingCell?.field;
-    
+
     if (!keywordIdToUse || !fieldToUse || !accountId) {
       return;
     }
@@ -670,10 +684,10 @@ export const Keywords: React.FC = () => {
         oldStatusLower === "enable" || oldStatusLower === "enabled"
           ? "Enabled"
           : oldStatusLower === "paused"
-          ? "Paused"
-          : oldStatusLower === "archived"
-          ? "Archived"
-          : "Enabled";
+            ? "Paused"
+            : oldStatusLower === "archived"
+              ? "Archived"
+              : "Enabled";
       const normalizedNewValue = valueToCheck.trim();
       hasChanged = normalizedNewValue !== normalizedOldStatus;
     }
@@ -701,10 +715,10 @@ export const Keywords: React.FC = () => {
         oldStatusLower === "enable" || oldStatusLower === "enabled"
           ? "Enabled"
           : oldStatusLower === "paused"
-          ? "Paused"
-          : oldStatusLower === "archived"
-          ? "Archived"
-          : "Enabled";
+            ? "Paused"
+            : oldStatusLower === "archived"
+              ? "Archived"
+              : "Enabled";
       newValue = valueToCheck;
     }
 
@@ -1174,7 +1188,7 @@ export const Keywords: React.FC = () => {
                 isOpen={isFilterPanelOpen}
                 onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                 filters={filters}
-                onApply={() => {}} // Not used - FilterSectionPanel handles onApply
+                onApply={() => { }} // Not used - FilterSectionPanel handles onApply
                 filterFields={KEYWORD_FILTER_FIELDS}
                 initialFilters={filters}
               />
@@ -1188,7 +1202,6 @@ export const Keywords: React.FC = () => {
               onApply={(newFilters) => {
                 setFilters(newFilters);
                 setCurrentPage(1); // Reset to first page when applying filters
-                // useEffect will handle the API call when filters change
               }}
               filterFields={KEYWORD_FILTER_FIELDS}
               initialFilters={filters}
@@ -1211,7 +1224,7 @@ export const Keywords: React.FC = () => {
               {loading && (
                 <div className="loading-overlay">
                   <div className="loading-overlay-content">
-                    <Loader size="md" message="Loading chart data..." />  
+                    <Loader size="md" message="Loading chart data..." />
                   </div>
                 </div>
               )}
@@ -1428,7 +1441,7 @@ export const Keywords: React.FC = () => {
                             setBidUnit("amount");
                           }
                         }}
-                        buttonClassName="w-full bg-[#FEFEFB]"
+                        buttonClassName="w-full bg-[#FEFEFB] edit-button"
                         width="w-full"
                       />
                     </div>
@@ -1440,22 +1453,20 @@ export const Keywords: React.FC = () => {
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                              bidUnit === "percent"
+                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "percent"
                                 ? "bg-forest-f40  border-forest-f40"
                                 : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                            }`}
+                              }`}
                             onClick={() => setBidUnit("percent")}
                           >
                             %
                           </button>
                           <button
                             type="button"
-                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                              bidUnit === "amount"
+                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "amount"
                                 ? "bg-forest-f40  border-forest-f40"
                                 : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                            }`}
+                              }`}
                             onClick={() => setBidUnit("amount")}
                           >
                             $
@@ -1581,9 +1592,8 @@ export const Keywords: React.FC = () => {
                           <span className="text-[10.64px] text-[#556179]">
                             {hasMore
                               ? `Showing ${previewCount} of ${selectedKeywordsData.length} selected keywords`
-                              : `${selectedKeywordsData.length} keyword${
-                                  selectedKeywordsData.length !== 1 ? "s" : ""
-                                } selected`}
+                              : `${selectedKeywordsData.length} keyword${selectedKeywordsData.length !== 1 ? "s" : ""
+                              } selected`}
                           </span>
                         </div>
                         <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -1621,7 +1631,7 @@ export const Keywords: React.FC = () => {
                           </table>
                         </div>
 
-                        
+
                       </div>
                     );
                   })()}
@@ -1674,11 +1684,9 @@ export const Keywords: React.FC = () => {
                   </h3>
                   <p className="text-[13.3px] text-[#556179] mb-6">
                     {pendingDeleteAction?.type === "bulk"
-                      ? `Are you sure you want to delete ${
-                          selectedKeywords.size
-                        } selected keyword${
-                          selectedKeywords.size !== 1 ? "s" : ""
-                        }? This action cannot be undone.`
+                      ? `Are you sure you want to delete ${selectedKeywords.size
+                      } selected keyword${selectedKeywords.size !== 1 ? "s" : ""
+                      }? This action cannot be undone.`
                       : "Are you sure you want to delete this keyword? This action cannot be undone."}
                   </p>
                   <div className="flex justify-end gap-3">
@@ -1710,7 +1718,7 @@ export const Keywords: React.FC = () => {
 
             {/* Table */}
             <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
-            <div className="overflow-x-auto w-full">
+              <div className="overflow-x-auto w-full">
                 {keywords.length === 0 && !loading ? (
                   <div className="text-center py-8">
                     <p className="text-[13.3px] text-[#556179] mb-4">
@@ -1929,13 +1937,11 @@ export const Keywords: React.FC = () => {
                             return (
                               <tr
                                 key={keyword.id}
-                                className={`${
-                                  !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                                } ${
-                                  isArchived
+                                className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
+                                  } ${isArchived
                                     ? "bg-gray-100 opacity-60"
                                     : "hover:bg-gray-50"
-                                } transition-colors`}
+                                  } transition-colors`}
                               >
                                 {/* Checkbox */}
                                 <td className="table-cell">
@@ -1980,7 +1986,7 @@ export const Keywords: React.FC = () => {
                                       keyword.state || "Enabled"
                                     ).toLowerCase();
                                     const isArchived = currentStatus === "archived";
-                                    
+
                                     if (isArchived) {
                                       return (
                                         <div className="opacity-60">
@@ -1990,26 +1996,26 @@ export const Keywords: React.FC = () => {
                                         </div>
                                       );
                                     }
-                                    
+
                                     const statusLower = (
                                       keyword.state || "Enabled"
                                     ).toLowerCase();
                                     const normalizedStatus =
                                       statusLower === "enable" ||
-                                      statusLower === "enabled"
+                                        statusLower === "enabled"
                                         ? "Enabled"
                                         : statusLower === "paused"
-                                        ? "Paused"
-                                        : statusLower === "archived"
-                                        ? "Archived"
-                                        : "Enabled";
-                                    
+                                          ? "Paused"
+                                          : statusLower === "archived"
+                                            ? "Archived"
+                                            : "Enabled";
+
                                     const keywordId = keyword.keywordId || keyword.id;
                                     const statusValue = editingCell?.keywordId === keywordId &&
                                       editingCell?.field === "state"
                                       ? editedValue
                                       : normalizedStatus;
-                                    
+
                                     return (
                                       <Dropdown
                                         options={[
@@ -2026,7 +2032,7 @@ export const Keywords: React.FC = () => {
                                           const keywordId = keyword.keywordId || keyword.id;
                                           const wasEditing = editingCell?.keywordId === keywordId &&
                                             editingCell?.field === "state";
-                                          
+
                                           if (!wasEditing) {
                                             // Pass newValue as initialValue to startInlineEdit so dropdown shows correct value immediately
                                             startInlineEdit(keyword, "state", newValue);
@@ -2056,17 +2062,17 @@ export const Keywords: React.FC = () => {
                                       keyword.state || "Enabled"
                                     ).toLowerCase();
                                     const isArchived = currentStatus === "archived";
-                                    
+
                                     const bidValue = parseFloat(
                                       (typeof keyword.bid === "number" ? String(keyword.bid) : (keyword.bid || "$0.00")).replace(/[^0-9.]/g, "")
                                     );
-                                    
+
                                     const keywordIdForBid = keyword.keywordId || keyword.id;
                                     const inputValue = editingCell?.keywordId === keywordIdForBid &&
                                       editingCell?.field === "bid"
                                       ? editedValue
                                       : bidValue.toString();
-                                    
+
                                     const currencyCode = (keyword.profile_currency_code || "USD").trim() || "USD";
                                     return (
                                       <div className="flex items-center gap-1.5">
@@ -2078,8 +2084,8 @@ export const Keywords: React.FC = () => {
                                           value={inputValue}
                                           onFocus={() => {
                                             if (!isArchived &&
-                                                (editingCell?.keywordId !== keywordIdForBid ||
-                                                 editingCell?.field !== "bid")) {
+                                              (editingCell?.keywordId !== keywordIdForBid ||
+                                                editingCell?.field !== "bid")) {
                                               startInlineEdit(keyword, "bid");
                                             }
                                           }}
@@ -2092,7 +2098,7 @@ export const Keywords: React.FC = () => {
                                             const inputValue = e.target.value;
                                             const keywordIdForBid = keyword.keywordId || keyword.id;
                                             if (editingCell?.keywordId === keywordIdForBid &&
-                                                editingCell?.field === "bid") {
+                                              editingCell?.field === "bid") {
                                               confirmInlineEdit(inputValue, keywordIdForBid, "bid");
                                             }
                                           }}
@@ -2105,14 +2111,13 @@ export const Keywords: React.FC = () => {
                                             }
                                           }}
                                           disabled={isArchived}
-                                          className={`inline-edit-input ${
-                                            isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
-                                          }`}
-                                        title={
-                                          isArchived
-                                            ? "Archived keywords cannot be modified"
-                                            : undefined
-                                        }
+                                          className={`inline-edit-input ${isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                            }`}
+                                          title={
+                                            isArchived
+                                              ? "Archived keywords cannot be modified"
+                                              : undefined
+                                          }
                                         />
                                       </div>
                                     );
@@ -2130,9 +2135,8 @@ export const Keywords: React.FC = () => {
                                             channelId ?? 0,
                                             "amazon",
                                             "campaigns",
-                                            `${
-                                              keyword.type?.toLowerCase() ||
-                                              "sp"
+                                            `${keyword.type?.toLowerCase() ||
+                                            "sp"
                                             }_${keyword.campaignId}`
                                           )
                                         );
@@ -2148,7 +2152,7 @@ export const Keywords: React.FC = () => {
                                 <td className="table-cell min-w-[150px]">
                                   <span className="table-text leading-[1.26] whitespace-nowrap">
                                     {keyword.profile_name &&
-                                    keyword.profile_name.trim() !== ""
+                                      keyword.profile_name.trim() !== ""
                                       ? keyword.profile_name
                                       : "—"}
                                   </span>
@@ -2158,7 +2162,7 @@ export const Keywords: React.FC = () => {
                                 <td className="table-cell min-w-[100px]">
                                   <span className="table-text leading-[1.26] whitespace-nowrap">
                                     {keyword.profile_country_code &&
-                                    keyword.profile_country_code.trim() !== ""
+                                      keyword.profile_country_code.trim() !== ""
                                       ? keyword.profile_country_code
                                       : "—"}
                                   </span>
@@ -2168,7 +2172,7 @@ export const Keywords: React.FC = () => {
                                 <td className="table-cell min-w-[80px]">
                                   <span className="table-text leading-[1.26] whitespace-nowrap">
                                     {keyword.profile_currency_code &&
-                                    keyword.profile_currency_code.trim() !== ""
+                                      keyword.profile_currency_code.trim() !== ""
                                       ? keyword.profile_currency_code
                                       : "—"}
                                   </span>
@@ -2229,8 +2233,8 @@ export const Keywords: React.FC = () => {
                                   <span className="table-text leading-[1.26]">
                                     {keyword.acos
                                       ? `${parseFloat(keyword.acos).toFixed(
-                                          2
-                                        )}%`
+                                        2
+                                      )}%`
                                       : "0.00%"}
                                   </span>
                                 </td>
@@ -2240,8 +2244,8 @@ export const Keywords: React.FC = () => {
                                   <span className="table-text leading-[1.26]">
                                     {keyword.roas
                                       ? `${parseFloat(keyword.roas).toFixed(
-                                          2
-                                        )}`
+                                        2
+                                      )}`
                                       : "0.00"}
                                   </span>
                                 </td>
@@ -2292,11 +2296,10 @@ export const Keywords: React.FC = () => {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                          currentPage === pageNum
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
                             ? "bg-white text-[#136D6D] font-semibold"
                             : "text-black hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -2310,11 +2313,10 @@ export const Keywords: React.FC = () => {
                   {totalPages > 5 && (
                     <button
                       onClick={() => handlePageChange(totalPages)}
-                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                        currentPage === totalPages
+                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
                           ? "bg-white text-[#136D6D] font-semibold"
                           : "text-black hover:bg-gray-50"
-                      }`}
+                        }`}
                     >
                       {totalPages}
                     </button>
@@ -2446,18 +2448,18 @@ export const Keywords: React.FC = () => {
                   )
                     ? pendingKeywordChange.oldValue
                     : `$${parseFloat(
-                        pendingKeywordChange.oldValue || "0"
-                      ).toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}`;
+                      pendingKeywordChange.oldValue || "0"
+                    ).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}`;
                 } else if (pendingKeywordChange.field === "state") {
                   oldValueDisplay =
                     pendingKeywordChange.oldValue === "enabled"
                       ? "Enabled"
                       : pendingKeywordChange.oldValue === "paused"
-                      ? "Paused"
-                      : "Archived";
+                        ? "Paused"
+                        : "Archived";
                 }
 
                 // Format new value
@@ -2474,8 +2476,8 @@ export const Keywords: React.FC = () => {
                     pendingKeywordChange.newValue === "enabled"
                       ? "Enabled"
                       : pendingKeywordChange.newValue === "paused"
-                      ? "Paused"
-                      : "Archived";
+                        ? "Paused"
+                        : "Archived";
                 }
 
                 return (

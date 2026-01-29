@@ -251,9 +251,8 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
               Create Keywords
             </span>
             <svg
-              className={`w-4 h-4 !text-white transition-transform ${
-                isCreatePanelOpen ? "rotate-180" : ""
-              }`}
+              className={`w-4 h-4 !text-white transition-transform ${isCreatePanelOpen ? "rotate-180" : ""
+                }`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -292,9 +291,8 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
               Add Filter
             </span>
             <svg
-              className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                isFilterPanelOpen ? "rotate-180" : ""
-              }`}
+              className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isFilterPanelOpen ? "rotate-180" : ""
+                }`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -333,7 +331,7 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
                       onBidUnitChange("amount");
                     }
                   }}
-                  buttonClassName="w-full"
+                  buttonClassName="w-full bg-[#FEFEFB] edit-button"
                   width="w-full"
                 />
               </div>
@@ -345,22 +343,20 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                        bidUnit === "percent"
+                      className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "percent"
                           ? "bg-forest-f40 border-forest-f40"
                           : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                      }`}
+                        }`}
                       onClick={() => onBidUnitChange("percent")}
                     >
                       %
                     </button>
                     <button
                       type="button"
-                      className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                        bidUnit === "amount"
+                      className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "amount"
                           ? "bg-forest-f40 border-forest-f40"
                           : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                      }`}
+                        }`}
                       onClick={() => onBidUnitChange("amount")}
                     >
                       $
