@@ -47,6 +47,8 @@ interface FilterPanelProps {
   accountId?: string;
   channelType?: "amazon" | "google" | "walmart" | "tiktok";
   useUppercaseState?: boolean;
+  /** When provided, overrides state/status options (e.g. for SD Negative Keywords: ["Paused", "Archived"]) */
+  stateOptions?: string[];
 }
 
 const DEFAULT_FILTER_FIELDS = [
@@ -123,6 +125,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   accountId,
   channelType,
   useUppercaseState = false,
+  stateOptions: stateOptionsProp,
 }) => {
   // Use initialFilters directly as the source of truth - no internal state sync
   // This prevents infinite loops when parent updates filters
@@ -951,10 +954,10 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   }))}
                   value={filterValue || undefined}
                   placeholder={`Select ${selectedField === "status"
-                      ? "Status"
-                      : selectedField === "match_type"
-                        ? "Match Type"
-                        : "Channel Type"
+                    ? "Status"
+                    : selectedField === "match_type"
+                      ? "Match Type"
+                      : "Channel Type"
                     }`}
                   onChange={(value) => setFilterValue(value)}
                   buttonClassName="edit-button w-full"

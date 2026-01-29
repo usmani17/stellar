@@ -33,6 +33,7 @@ interface NegativeKeywordsTableProps {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   onSort?: (column: string) => void;
+  campaignType?: "SP" | "SB" | "SD";
   editingField?: {
     id: number;
     field: "status";
@@ -61,6 +62,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
   sortBy = "id",
   sortOrder = "asc",
   onSort,
+  campaignType,
   editingField = null,
   editedValue = "",
   onEditStart,
@@ -71,6 +73,16 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
   pendingChange = null,
   adgroups = [],
 }) => {
+  const isSB = campaignType === "SB";
+  const statusOptions = isSB
+    ? [
+        { value: "enabled", label: "Enabled" },
+        { value: "archived", label: "Archived" },
+      ]
+    : [
+        { value: "enabled", label: "Enabled" },
+        { value: "paused", label: "Paused" },
+      ];
   const statusSelectionMadeRef = useRef<number | null>(null);
   const allSelected =
     negativeKeywords.length > 0 &&
@@ -341,10 +353,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                           editingField?.field === "status" ? (
                           <div className="flex items-center gap-2">
                             <Dropdown
-                              options={[
-                                { value: "enabled", label: "Enabled" },
-                                { value: "paused", label: "Paused" },
-                              ]}
+                              options={statusOptions}
                               value={(() => {
                                 if (editedValue) return editedValue;
                                 const statusLower = (
@@ -352,6 +361,11 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                                   keyword.state ||
                                   "enabled"
                                 ).toLowerCase();
+                                if (isSB) {
+                                  return statusLower === "archived"
+                                    ? "archived"
+                                    : "enabled";
+                                }
                                 return statusLower === "enable" ||
                                   statusLower === "enabled"
                                   ? "enabled"
@@ -401,9 +415,12 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                             onClick={() => {
                               if (!isArchived) {
                                 const statusLower = statusValue.toLowerCase();
-                                const editStatusValue =
-                                  statusLower === "enable" ||
-                                  statusLower === "enabled"
+                                const editStatusValue = isSB
+                                  ? statusLower === "archived"
+                                    ? "archived"
+                                    : "enabled"
+                                  : statusLower === "enable" ||
+                                      statusLower === "enabled"
                                     ? "enabled"
                                     : "paused";
                                 onEditStart?.(

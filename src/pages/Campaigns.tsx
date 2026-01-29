@@ -2783,8 +2783,9 @@ export const Campaigns: React.FC = () => {
                 <div
                   className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
                   onClick={(e) => {
-                    if (e.target === e.currentTarget) {
+                    if (e.target === e.currentTarget && !bulkLoading) {
                       setShowConfirmationModal(false);
+                      setPendingStatusAction(null);
                     }
                   }}
                 >
@@ -2973,9 +2974,11 @@ export const Campaigns: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => {
+                          if (bulkLoading) return;
                           setShowConfirmationModal(false);
                           setPendingStatusAction(null);
                         }}
+                        disabled={bulkLoading}
                         className="cancel-button"
                       >
                         Cancel
@@ -2983,21 +2986,32 @@ export const Campaigns: React.FC = () => {
                       <button
                         type="button"
                         onClick={async () => {
-                          setShowConfirmationModal(false);
-                          if (isBudgetChange) {
-                            await runBulkBudget();
-                            setShowBudgetPanel(false);
-                            setShowBulkActions(false);
-                          } else if (pendingStatusAction) {
-                            await runBulkStatus(pendingStatusAction);
-                            setShowBulkActions(false);
+                          if (bulkLoading) return;
+                          try {
+                            if (isBudgetChange) {
+                              await runBulkBudget();
+                              setShowBudgetPanel(false);
+                              setShowBulkActions(false);
+                            } else if (pendingStatusAction) {
+                              await runBulkStatus(pendingStatusAction);
+                              setShowBulkActions(false);
+                            }
+                          } finally {
+                            setShowConfirmationModal(false);
+                            setPendingStatusAction(null);
                           }
-                          setPendingStatusAction(null);
                         }}
                         disabled={bulkLoading}
-                        className="create-entity-button btn-sm"
+                        className="create-entity-button btn-sm flex items-center gap-2"
                       >
-                        {bulkLoading ? "Applying..." : "Confirm"}
+                        {bulkLoading ? (
+                          <>
+                            <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Applying...
+                          </>
+                        ) : (
+                          "Confirm"
+                        )}
                       </button>
                     </div>
                   </div>
