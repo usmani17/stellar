@@ -8,6 +8,7 @@ import { GoogleLanguageTargetingForm } from "./GoogleLanguageTargetingForm";
 import { GoogleLocationTargetingForm } from "./GoogleLocationTargetingForm";
 import { GoogleTrackingTemplateForm } from "./GoogleTrackingTemplateForm";
 import { GoogleBiddingStrategyForm } from "./GoogleBiddingStrategyForm";
+// import { GoogleConversionActionForm } from "./GoogleConversionActionForm"; // used when Conversion Actions section is enabled
 
 interface GoogleSearchCampaignFormProps extends BaseCampaignFormProps {
   // Language targeting props
@@ -25,6 +26,9 @@ interface GoogleSearchCampaignFormProps extends BaseCampaignFormProps {
   onTrackingUrlTemplateChange: (value: string) => void;
   onFinalUrlSuffixChange: (value: string) => void;
   onCustomParametersChange: (params: Array<{ key: string; value: string }> | undefined) => void;
+  // Conversion action props
+  selectedConversionActions?: Array<{ id: string; name: string }>;
+  onSelectConversionActionsClick: () => void;
 }
 
 // Tab definitions
@@ -54,6 +58,8 @@ export const GoogleSearchCampaignForm: React.FC<GoogleSearchCampaignFormProps> =
   onTrackingUrlTemplateChange,
   onFinalUrlSuffixChange,
   onCustomParametersChange,
+  selectedConversionActions: _selectedConversionActions = [], // used when Conversion Actions section is enabled
+  onSelectConversionActionsClick: _onSelectConversionActionsClick, // used when Conversion Actions section is enabled
   errors = {},
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>("bidding");
@@ -303,6 +309,18 @@ export const GoogleSearchCampaignForm: React.FC<GoogleSearchCampaignFormProps> =
           </div>
         )}
       </div>
+
+      {/* Conversion Actions - at end of form (disabled for now; enable later) */}
+      {/* <div className="mt-8 pt-6 p-3 border-t border-[#e8e8e3]">
+        <GoogleConversionActionForm
+          conversionActionIds={formData.conversion_action_ids}
+          selectedConversionActions={selectedConversionActions}
+          onConversionActionIdsChange={(ids) => onChange("conversion_action_ids", ids)}
+          onSelectClick={onSelectConversionActionsClick}
+          errors={errors}
+          showTitle={false}
+        />
+      </div> */}
     </div>
   );
 };

@@ -88,4 +88,15 @@ export const queryKeys = {
         assetId,
       ] as const,
   },
+  googleConversionActions: {
+    all: ["googleConversionActions"] as const,
+    lists: (accountId: number, channelId: number, profileId: number) =>
+      [
+        ...queryKeys.googleConversionActions.all,
+        "list",
+        accountId,
+        channelId,
+        profileId,
+      ] as const,
+  },
 } as const;

@@ -26,6 +26,8 @@ import {
   formatDateForName,
 } from "./campaigns/utils";
 import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "./CreateGooglePmaxAssetGroupPanel";
+import { GoogleConversionActionSelectorModal } from "./GoogleConversionActionSelectorModal";
+import { type GoogleConversionAction } from "../../services/googleAdwords/googleAdwordsConversionActions";
 
 export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps> = ({
   isOpen,
@@ -55,8 +57,12 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   const [languageOptions, setLanguageOptions] = useState<Array<{ value: string; label: string; id: string }>>([]);
   const [loadingLanguages, setLoadingLanguages] = useState(false);
   
+  // Conversion action state
+  const [selectedConversionActions, setSelectedConversionActions] = useState<Array<{ id: string; name: string }>>([]);
+  const [conversionActionModalOpen, setConversionActionModalOpen] = useState(false);
+  
   // Profile selection state
-  const [googleProfiles, setGoogleProfiles] = useState<Array<{ value: string; label: string; customer_id: string; customer_id_raw: string }>>([]);
+  const [googleProfiles, setGoogleProfiles] = useState<Array<{ value: string; label: string; customer_id: string; customer_id_raw: string; currency_code?: string }>>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string>("");
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const [profilesError, setProfilesError] = useState<string | null>(null);
@@ -220,6 +226,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             customer_id: customerIdFormatted,
             customer_id_raw: customerIdRaw,
             profile_id: profile.id, // Include profile ID for API calls
+            currency_code: profile.currency_code || undefined,
           };
         }).filter((p: any) => p.value);
 
@@ -1161,6 +1168,15 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     onClose();
   };
 
+  // Handle conversion action selection
+  const handleConversionActionsSelect = (conversionActions: GoogleConversionAction[]) => {
+    const ids = conversionActions.map(ca => ca.id);
+    const selected = conversionActions.map(ca => ({ id: ca.id, name: ca.name }));
+    handleChange("conversion_action_ids", ids);
+    setSelectedConversionActions(selected);
+    setConversionActionModalOpen(false);
+  };
+
   // Quick fill functions for testing
   const quickFillPerformanceMax = () => {
     const today = new Date();
@@ -1537,6 +1553,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
               onTrackingUrlTemplateChange={(value) => handleChange("tracking_url_template", value)}
               onFinalUrlSuffixChange={(value) => handleChange("final_url_suffix", value)}
               onCustomParametersChange={(params) => handleChange("url_custom_parameters", params)}
+              selectedConversionActions={selectedConversionActions}
+              onSelectConversionActionsClick={() => setConversionActionModalOpen(true)}
             />
           )}
 
@@ -1642,6 +1660,20 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           </button>
         </div>
       </form>
+
+      {/* Conversion Action Selector Modal */}
+      {selectedProfileId && accountId != null && channelId != null && (
+        <GoogleConversionActionSelectorModal
+          isOpen={conversionActionModalOpen}
+          onClose={() => setConversionActionModalOpen(false)}
+          onSelect={handleConversionActionsSelect}
+          accountId={Number(accountId)}
+          channelId={Number(channelId)}
+          profileId={parseInt(selectedProfileId)}
+          selectedIds={formData.conversion_action_ids || []}
+          profileCurrencyCode={googleProfiles.find((p) => p.value === selectedProfileId)?.currency_code}
+        />
+      )}
     </div>
   );
 };
