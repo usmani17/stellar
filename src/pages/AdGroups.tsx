@@ -662,7 +662,14 @@ export const AdGroups: React.FC = () => {
             ? "paused"
             : "archived";
       oldValue = currentStatus;
-      hasChanged = valueToCompare !== currentStatus;
+      const newStatusLower = (valueToCompare || "").toLowerCase();
+      const normalizedNew =
+        newStatusLower === "enable" || newStatusLower === "enabled"
+          ? "enabled"
+          : newStatusLower === "paused"
+            ? "paused"
+            : "archived";
+      hasChanged = normalizedNew !== currentStatus;
     } else if (fieldToUse === "default_bid") {
       const currentBid = adgroup.default_bid
         ? adgroup.default_bid.replace(/[^0-9.]/g, "")

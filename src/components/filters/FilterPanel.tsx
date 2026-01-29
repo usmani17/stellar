@@ -836,9 +836,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               ) : isStateOrType ? (
                 <div className="max-h-[200px] overflow-y-auto border border-gray-200 rounded-lg bg-[#FEFEFB] p-2">
                   {(selectedField === "state"
-                    ? useUppercaseState
-                      ? STATUS_OPTIONS
-                      : STATE_OPTIONS
+                    ? channelType === "amazon"
+                      ? STATE_OPTIONS
+                      : useUppercaseState
+                        ? STATUS_OPTIONS
+                        : STATE_OPTIONS
                     : channelType === "tiktok"
                       ? TIKTOK_TYPE_OPTIONS
                       : TYPE_OPTIONS

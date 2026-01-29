@@ -305,6 +305,7 @@ export const CampaignDetail: React.FC = () => {
     useState(false);
   const [sbAdsDeleteLoading, setSbAdsDeleteLoading] = useState(false);
   const sbAdsBulkActionsRef = useRef<HTMLDivElement>(null);
+  const sbAdsRequestIdRef = useRef<string>("");
   const [pendingSBAdsStatusAction, setPendingSBAdsStatusAction] = useState<
     "enable" | "pause" | null
   >(null);
@@ -1330,6 +1331,17 @@ export const CampaignDetail: React.FC = () => {
     return params;
   };
 
+  // When switching away from a tab, clear its request id so switching back always triggers a fresh fetch
+  // (e.g. user creates an ad group in Ad Groups tab, then switches to Keywords and back — new ad group must appear)
+  useEffect(() => {
+    if (activeTab !== "Ad Groups") {
+      adgroupsRequestIdRef.current = "";
+    }
+    if (activeTab !== "Ads Collection") {
+      sbAdsRequestIdRef.current = "";
+    }
+  }, [activeTab]);
+
   useEffect(() => {
     // Cancel any pending request when dependencies change
     if (adgroupsAbortControllerRef.current) {
@@ -1580,6 +1592,21 @@ export const CampaignDetail: React.FC = () => {
   ]);
 
   useEffect(() => {
+    const requestId = JSON.stringify({
+      accountId,
+      campaignId,
+      activeTab,
+      startDate: startDateStr,
+      endDate: endDateStr,
+      sbAdsCurrentPage,
+      sbAdsSortBy,
+      sbAdsSortOrder,
+      sbAdsFilters,
+    });
+    if (sbAdsRequestIdRef.current === requestId) {
+      return;
+    }
+    sbAdsRequestIdRef.current = requestId;
     if (accountId && campaignId && activeTab === "Ads Collection") {
       loadSBAds();
     }
@@ -1587,8 +1614,8 @@ export const CampaignDetail: React.FC = () => {
     accountId,
     campaignId,
     activeTab,
-    startDate,
-    endDate,
+    startDateStr,
+    endDateStr,
     sbAdsCurrentPage,
     sbAdsSortBy,
     sbAdsSortOrder,
@@ -4519,7 +4546,14 @@ export const CampaignDetail: React.FC = () => {
             ? "paused"
             : "archived";
       oldValue = currentStatus;
-      hasChanged = valueToCompare !== currentStatus;
+      const newStatusLower = (valueToCompare || "").toLowerCase();
+      const normalizedNew =
+        newStatusLower === "enable" || newStatusLower === "enabled"
+          ? "enabled"
+          : newStatusLower === "paused"
+            ? "paused"
+            : "archived";
+      hasChanged = normalizedNew !== currentStatus;
     } else if (fieldToUse === "default_bid") {
       const currentBid =
         adgroup.default_bid != null

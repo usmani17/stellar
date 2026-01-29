@@ -55,6 +55,13 @@ interface AdGroupsTableProps {
   } | null;
 }
 
+// Match Keywords page: capitalized values so dropdown shows Enabled, Paused, Archived
+const ADGROUP_STATE_OPTIONS = [
+  { value: "Enabled", label: "Enabled" },
+  { value: "Paused", label: "Paused" },
+  { value: "Archived", label: "Archived" },
+] as const;
+
 export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   adgroups,
   loading = false,
@@ -672,16 +679,22 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         <td className="table-cell min-w-[100px] whitespace-nowrap">
                           {(() => {
                             if (inlineEditLoading.has(adgroup.id)) {
+                              const statusDisplay =
+                                pendingChange?.field === "status"
+                                  ? (pendingChange.newValue?.toLowerCase() ===
+                                    "enabled" ||
+                                    pendingChange.newValue?.toLowerCase() ===
+                                      "enable"
+                                      ? "Enabled"
+                                      : pendingChange.newValue?.toLowerCase() ===
+                                          "paused"
+                                        ? "Paused"
+                                        : "Archived")
+                                  : adgroup.status;
                               return (
                                 <div className="flex items-center gap-2">
                                   <span className="table-text leading-[1.26]">
-                                    {pendingChange?.field === "status"
-                                      ? pendingChange.newValue === "enabled"
-                                        ? "Enabled"
-                                        : pendingChange.newValue === "paused"
-                                          ? "Paused"
-                                          : "Archived"
-                                      : adgroup.status}
+                                    {statusDisplay}
                                   </span>
                                   <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
                                 </div>
@@ -692,14 +705,20 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                               pendingChange?.id === adgroup.id &&
                               pendingChange?.field === "status"
                             ) {
+                              const statusDisplay =
+                                pendingChange.newValue?.toLowerCase() ===
+                                  "enabled" ||
+                                pendingChange.newValue?.toLowerCase() ===
+                                  "enable"
+                                  ? "Enabled"
+                                  : pendingChange.newValue?.toLowerCase() ===
+                                      "paused"
+                                    ? "Paused"
+                                    : "Archived";
                               return (
                                 <div className="flex items-center gap-2">
                                   <span className="table-text leading-[1.26]">
-                                    {pendingChange.newValue === "enabled"
-                                      ? "Enabled"
-                                      : pendingChange.newValue === "paused"
-                                        ? "Paused"
-                                        : "Archived"}
+                                    {statusDisplay}
                                   </span>
                                 </div>
                               );
@@ -715,27 +734,35 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
 
                             const statusLower =
                               adgroup.status?.toLowerCase() || "enabled";
-                            const statusValue =
+                            const normalizedStatus =
                               statusLower === "enable" ||
                               statusLower === "enabled"
-                                ? "enabled"
+                                ? "Enabled"
                                 : statusLower === "paused"
-                                  ? "paused"
-                                  : "archived";
+                                  ? "Paused"
+                                  : "Archived";
 
-                            const currentValue =
+                            const rawCurrentValue =
                               editingField?.id === adgroup.id &&
                               editingField?.field === "status"
                                 ? editedValue
-                                : statusValue;
+                                : normalizedStatus;
+                            const currentValue =
+                              typeof rawCurrentValue === "string"
+                                ? (rawCurrentValue.toLowerCase() === "enable" ||
+                                  rawCurrentValue.toLowerCase() === "enabled"
+                                    ? "Enabled"
+                                    : rawCurrentValue.toLowerCase() === "paused"
+                                      ? "Paused"
+                                      : rawCurrentValue.toLowerCase() ===
+                                          "archived"
+                                        ? "Archived"
+                                        : normalizedStatus)
+                                : normalizedStatus;
 
                             return (
                               <Dropdown
-                                options={[
-                                  { value: "enabled", label: "Enabled" },
-                                  { value: "paused", label: "Paused" },
-                                  { value: "archived", label: "Archived" },
-                                ]}
+                                options={[...ADGROUP_STATE_OPTIONS]}
                                 value={currentValue}
                                 onChange={(val) => {
                                   const newValue = val as string;
@@ -747,7 +774,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                     onEditStart?.(
                                       adgroup.id,
                                       "status",
-                                      statusValue,
+                                      normalizedStatus,
                                     );
                                   }
                                   onEditChange?.(newValue);
