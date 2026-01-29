@@ -14,6 +14,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
   loading,
   sorting,
   accountId,
+  channelId,
   selectedCampaigns,
   allSelected,
   someSelected,
@@ -80,10 +81,10 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       maxWidth: "max-w-[400px]",
       editable: false,
       navigateTo: (row: IGoogleCampaign, accountId: string) =>
-        `/brands/${accountId}/google-campaigns/${row.campaign_id}`,
+        channelId ? `/brands/${accountId}/${channelId}/google/campaigns/${row.campaign_id}` : `/brands/${accountId}/google-campaigns/${row.campaign_id}`,
       getValue: (row: IGoogleCampaign) => row.campaign_name || "Unnamed Campaign",
       render: (value: any, row: IGoogleCampaign) => {
-        const navPath = `/brands/${accountId}/google-campaigns/${row.campaign_id}`;
+        const navPath = channelId ? `/brands/${accountId}/${channelId}/google/campaigns/${row.campaign_id}` : `/brands/${accountId}/google-campaigns/${row.campaign_id}`;
         return (
           <div className="group relative flex items-center gap-2">
             {onEditCampaign && (
@@ -116,16 +117,20 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
                 )}
               </button>
             )}
-            <button
-              type="button"
+            <a
+              href={navPath}
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(navPath);
+                // Only prevent default for regular clicks (not Ctrl/Cmd/middle click)
+                if (!e.metaKey && !e.ctrlKey && e.button !== 1) {
+                  e.preventDefault();
+                  navigate(navPath);
+                }
               }}
               className="table-edit-link"
             >
               {value}
-            </button>
+            </a>
           </div>
         );
       },

@@ -70,6 +70,7 @@ export interface IGoogleCampaignsTableProps {
     loading: boolean;
     sorting: boolean;
     accountId: string;
+    channelId?: string;
     selectedCampaigns: Set<string | number>;
     allSelected: boolean;
     someSelected: boolean;

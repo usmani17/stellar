@@ -6,7 +6,7 @@ const LAST_SELECTED_ACCOUNT_KEY = 'lastSelectedAccountId';
 
 /**
  * Extract account_id from URL pathname
- * @param pathname - Current pathname (e.g., '/brands/1/amazon/campaigns')
+ * @param pathname - Current pathname (e.g., '/brands/1/58/amazon/campaigns' or '/brands/1/amazon/campaigns')
  * @returns account_id as number or null if not found
  */
 export const getAccountIdFromUrl = (pathname: string): number | null => {
@@ -14,6 +14,20 @@ export const getAccountIdFromUrl = (pathname: string): number | null => {
   if (match && match[1]) {
     const accountId = parseInt(match[1], 10);
     return isNaN(accountId) ? null : accountId;
+  }
+  return null;
+};
+
+/**
+ * Extract channel_id from URL pathname (for Amazon routes: /brands/:accountId/:channelId/amazon/...)
+ * @param pathname - Current pathname (e.g., '/brands/1/58/amazon/campaigns')
+ * @returns channel_id as number or null if not found
+ */
+export const getChannelIdFromUrl = (pathname: string): number | null => {
+  const match = pathname.match(/^\/brands\/\d+\/(\d+)\/(?:amazon|google|tiktok)\//);
+  if (match && match[1]) {
+    const channelId = parseInt(match[1], 10);
+    return isNaN(channelId) ? null : channelId;
   }
   return null;
 };
@@ -78,21 +92,35 @@ export const buildAccountRoute = (accountId: number, path: string): string => {
 };
 
 /**
- * Build a marketplace-specific route
+ * Build a marketplace-specific route.
+ * For Amazon/TikTok/Google: includes channelId in path and optional profileId as query.
  * @param accountId - Account ID
- * @param marketplace - Marketplace name (e.g., 'amazon', 'google', 'walmart')
+ * @param channelId - Channel ID (required for all marketplaces)
+ * @param marketplace - Marketplace name (e.g., 'amazon', 'google', 'tiktok')
  * @param entity - Entity name (e.g., 'campaigns', 'adgroups')
  * @param id - Optional entity ID for detail pages
+ * @param profileId - Optional profile ID as query param (?profile_id=xxx)
  * @returns Full route path
  */
 export const buildMarketplaceRoute = (
   accountId: number,
+  channelId: number | string,
   marketplace: string,
   entity: string,
-  id?: string | number
+  id?: string | number,
+  profileId?: string | number
 ): string => {
-  const basePath = `/brands/${accountId}/${marketplace}/${entity}`;
-  return id !== undefined ? `${basePath}/${id}` : basePath;
+  const includeChannelInPath =
+    marketplace === 'amazon' || marketplace === 'tiktok' || marketplace === 'google';
+  const basePath = includeChannelInPath
+    ? `/brands/${accountId}/${channelId}/${marketplace}/${entity}`
+    : `/brands/${accountId}/${marketplace}/${entity}`;
+  const pathWithId = id !== undefined ? `${basePath}/${id}` : basePath;
+  if (profileId !== undefined && profileId !== '' && includeChannelInPath) {
+    const q = `profile_id=${encodeURIComponent(String(profileId))}`;
+    return `${pathWithId}?${q}`;
+  }
+  return pathWithId;
 };
 
 /**
@@ -121,22 +149,38 @@ export const requiresAccountId = (pathname: string): boolean => {
 };
 
 /**
- * Extract marketplace from URL pathname
- * @param pathname - Current pathname
- * @returns marketplace name or null if not found
+ * Extract marketplace from URL pathname.
+ * Supports both /brands/:accountId/:channelId/amazon/... and /brands/:accountId/amazon/...
  */
 export const getMarketplaceFromUrl = (pathname: string): string | null => {
-  const match = pathname.match(/^\/brands\/\d+\/([^/]+)\//);
-  return match ? match[1] : null;
+  const segments = pathname.split('/').filter(Boolean);
+  // /brands/26/58/amazon/campaigns -> ['brands','26','58','amazon','campaigns']
+  // /brands/26/amazon/campaigns -> ['brands','26','amazon','campaigns']
+  if (segments[0] !== 'brands' || !segments[1]) return null;
+  const second = segments[2];
+  if (second && ['amazon', 'google', 'tiktok'].includes(second)) {
+    return second;
+  }
+  if (segments[3] && ['amazon', 'google', 'tiktok'].includes(segments[3])) {
+    return segments[3];
+  }
+  return null;
 };
 
 /**
- * Extract entity from URL pathname
- * @param pathname - Current pathname
- * @returns entity name or null if not found
+ * Extract entity from URL pathname.
+ * Supports both /brands/:accountId/:channelId/amazon/entity and /brands/:accountId/amazon/entity
  */
 export const getEntityFromUrl = (pathname: string): string | null => {
-  const match = pathname.match(/^\/brands\/\d+\/[^/]+\/([^/]+)/);
-  return match ? match[1] : null;
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments[0] !== 'brands' || !segments[1]) return null;
+  const second = segments[2];
+  if (second && ['amazon', 'google', 'tiktok'].includes(second)) {
+    return segments[3] ?? null;
+  }
+  if (segments[3] && ['amazon', 'google', 'tiktok'].includes(segments[3])) {
+    return segments[4] ?? null;
+  }
+  return null;
 };
 

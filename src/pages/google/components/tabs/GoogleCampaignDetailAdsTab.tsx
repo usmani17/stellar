@@ -6,6 +6,8 @@ import { Button } from "../../../../components/ui";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
 import type { GoogleAd } from "./GoogleTypes";
 import { formatCurrency2Decimals, formatPercentage as formatPercentageUtil } from "../../utils/campaignDetailHelpers";
+import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal";
+import { TrashIcon } from "lucide-react";
 
 interface GoogleCampaignDetailAdsTabProps {
   ads: GoogleAd[];
@@ -72,6 +74,12 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
+  const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
+  const [pendingRemoveChange, setPendingRemoveChange] = useState<{
+    value: string;
+    adId: number;
+    field: string;
+  } | null>(null);
 
   const handleStatusClick = (ad: GoogleAd) => {
     if (onUpdateAdStatus) {
@@ -88,10 +96,17 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
     const newStatusUpper = newStatus.toUpperCase();
 
     if (newStatusUpper !== oldStatus) {
-      // Close dropdown immediately when REMOVED is selected
+      // Check if status is being changed to REMOVED - show confirmation modal
       if (newStatusUpper === "REMOVED") {
         setEditingAdId(null);
         setEditingStatus("");
+        setPendingRemoveChange({ 
+          value: "REMOVED", 
+          adId: ad.id, 
+          field: "status" 
+        });
+        setShowRemoveConfirmation(true);
+        return;
       }
       
       // Show confirmation modal immediately - matches Amazon pattern
@@ -147,6 +162,40 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
     setInlineEditAd(null);
     setInlineEditOldValue("");
     setInlineEditNewValue("");
+  };
+
+  // Handle confirmation for REMOVED status change
+  const handleConfirmRemove = async () => {
+    if (!pendingRemoveChange || !onUpdateAdStatus) return;
+
+    setInlineEditLoading(true);
+    try {
+      const ad = ads.find((a) => a.id === pendingRemoveChange.adId);
+      if (!ad) {
+        throw new Error("Ad not found");
+      }
+
+      await onUpdateAdStatus(ad.id, "REMOVED");
+      
+      setShowRemoveConfirmation(false);
+      setPendingRemoveChange(null);
+    } catch (error: any) {
+      console.error("Failed to remove ad:", error);
+      alert(
+        error?.response?.data?.error ||
+          "Failed to remove ad. Please try again."
+      );
+    } finally {
+      setInlineEditLoading(false);
+    }
+  };
+
+  // Handle cancel for REMOVED status change
+  const handleCancelRemove = () => {
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+    setEditingAdId(null);
+    setEditingStatus("");
   };
 
   return (
@@ -736,6 +785,19 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
             </div>
           </div>
         )}
+
+        {/* Remove Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showRemoveConfirmation}
+          onClose={handleCancelRemove}
+          onConfirm={handleConfirmRemove}
+          title="Are you sure you want to remove this ad?"
+          message="This action cannot be undone. All data associated with this ad will be permanently removed."
+          type="danger"
+          size="sm"
+          isLoading={inlineEditLoading}
+          icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+        />
       </>
     );
   };

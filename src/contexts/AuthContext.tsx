@@ -81,11 +81,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   }, []);
 
   const login = async (credentials: LoginCredentials) => {
-    const response = await authService.login(credentials);
-    localStorage.setItem("accessToken", response.tokens.access);
-    localStorage.setItem("refreshToken", response.tokens.refresh);
-    localStorage.setItem("user", JSON.stringify(response.user));
-    setUser(response.user);
+    try {
+      const response = await authService.login(credentials);
+      localStorage.setItem("accessToken", response.tokens.access);
+      localStorage.setItem("refreshToken", response.tokens.refresh);
+      localStorage.setItem("user", JSON.stringify(response.user));
+      setUser(response.user);
+    } catch (error) {
+      // Re-throw the error so it can be handled by the Login component
+      throw error;
+    }
   };
 
   const loginWithAuth0 = async () => {

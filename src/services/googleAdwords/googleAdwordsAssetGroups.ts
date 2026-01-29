@@ -3,6 +3,8 @@ import api from "../api";
 export const googleAdwordsAssetGroupsService = {
   getGoogleAssetGroups: async (
     accountId: number,
+    channelId: number,
+    profileId: number,
     campaignId?: string | number,
     params?: {
       filters?: Array<{ field: string; operator?: string; value: any }>; // Dynamic filters from DynamicFilterPanel
@@ -30,6 +32,7 @@ export const googleAdwordsAssetGroupsService = {
       page_size: params?.page_size,
       start_date: params?.start_date,
       end_date: params?.end_date,
+      profile_id: profileId,
     };
     
     // Add campaign_id if provided
@@ -37,7 +40,7 @@ export const googleAdwordsAssetGroupsService = {
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
 
     const response = await api.post(
-      `/google-adwords/${accountId}/asset-groups/`,
+      `/google-adwords/${accountId}/channels/${channelId}/asset-groups/`,
       payload
     );
     return response.data;
@@ -46,6 +49,8 @@ export const googleAdwordsAssetGroupsService = {
   // Get asset group with assets (for Performance Max edit)
   getGoogleAssetGroupAssets: async (
     accountId: number,
+    channelId: number,
+    profileId: number,
     assetGroupId: string | number,
     campaignId?: string | number
   ): Promise<{
@@ -62,8 +67,9 @@ export const googleAdwordsAssetGroupsService = {
   }> => {
     const params = new URLSearchParams();
     if (campaignId) params.append("campaign_id", String(campaignId));
+    params.append("profile_id", String(profileId));
     const queryString = params.toString();
-    const url = `/google-adwords/${accountId}/asset-groups/${assetGroupId}/assets/${
+    const url = `/google-adwords/${accountId}/channels/${channelId}/asset-groups/${assetGroupId}/assets/${
       queryString ? `?${queryString}` : ""
     }`;
     const response = await api.get(url);
@@ -71,10 +77,13 @@ export const googleAdwordsAssetGroupsService = {
   },
 
   syncGoogleAssetGroups: async (
-    accountId: number
+    accountId: number,
+    channelId: number,
+    profileId: number
   ): Promise<{ synced: number; errors?: string[]; message?: string }> => {
     const response = await api.post(
-      `/google-adwords/${accountId}/asset-groups/sync/`
+      `/google-adwords/${accountId}/channels/${channelId}/asset-groups/sync/`,
+      { profile_id: profileId }
     );
     return response.data;
   },
@@ -82,13 +91,16 @@ export const googleAdwordsAssetGroupsService = {
   // Update asset group status
   updateAssetGroupStatus: async (
     accountId: number,
+    channelId: number,
+    profileId: number,
     assetGroupId: string | number,
     campaignId: string | number,
     status: "ENABLED" | "PAUSED"
   ): Promise<any> => {
-    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/update-asset-group/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/update-asset-group/`;
     const response = await api.post(url, {
       status: status,
+      profile_id: profileId,
     });
     return response.data;
   },

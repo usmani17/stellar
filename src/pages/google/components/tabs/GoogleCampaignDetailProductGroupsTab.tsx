@@ -153,7 +153,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
         </div>
       )}
       
-      {/* Header with Filter Button and Sync Button */}
+      {/* Header with Filter Button */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
           Product Groups
@@ -196,36 +196,6 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
               />
             </svg>
           </button>
-          <button
-            onClick={onSync}
-            disabled={syncing || syncingAnalytics}
-            className="create-entity-button disabled:opacity-50"
-          >
-            {syncing ? (
-              <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                <Loader size="sm" variant="white" showMessage={false} className="!flex-row" />
-                Syncing...
-              </span>
-            ) : (
-              <span className="text-[10.64px] text-white font-normal">Sync Product Groups</span>
-            )}
-          </button>
-          {onSyncAnalytics && (
-            <button
-              onClick={onSyncAnalytics}
-              disabled={syncing || syncingAnalytics}
-              className="create-entity-button disabled:opacity-50"
-            >
-              {syncingAnalytics ? (
-                <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                  <Loader size="sm" variant="white" showMessage={false} className="!flex-row" />
-                  Syncing Analytics...
-                </span>
-              ) : (
-                <span className="text-[10.64px] text-white font-normal">Sync Analytics</span>
-              )}
-            </button>
-          )}
         </div>
       </div>
 
@@ -295,24 +265,6 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                       Status
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
-                  </th>
-                  <th
-                    className="table-header hidden md:table-cell"
-                    onClick={() => onSort("cpc_bid_dollars")}
-                  >
-                    <div className="flex items-center gap-1">
-                      CPC Bid
-                      {getSortIcon("cpc_bid_dollars", sortBy, sortOrder)}
-                    </div>
-                  </th>
-                  <th className="table-header hidden md:table-cell">
-                    CTR
-                  </th>
-                  <th className="table-header hidden md:table-cell">
-                    Cost
-                  </th>
-                  <th className="table-header hidden md:table-cell">
-                    Conv. value
                   </th>
                 </tr>
               </thead>
@@ -460,26 +412,6 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                           </button>
                         ) : null}
                         </div>
-                      </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatCurrency2Decimals(productGroup.cpc_bid_dollars)}
-                        </span>
-                      </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatPercentage(productGroup.ctr)}
-                        </span>
-                      </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatCurrency2Decimals(productGroup.spends)}
-                        </span>
-                      </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatCurrency2Decimals(productGroup.sales)}
-                        </span>
                       </td>
                     </tr>
                   );

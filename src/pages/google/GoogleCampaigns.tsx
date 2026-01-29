@@ -48,9 +48,9 @@ import { queryKeys } from "../../hooks/queries/queryKeys";
 
 export const GoogleCampaigns: React.FC = () => {
   const navigate = useNavigate();
-  const { accountId } = useParams<{ accountId: string }>();
+  const { accountId, channelId } = useParams<{ accountId: string; channelId: string }>();
   const { sidebarWidth } = useSidebar();
-  const { startDate, endDate } = useDateRange();
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const [campaigns, setCampaigns] = useState<IGoogleCampaign[]>([]);
   const [summary, setSummary] = useState<IGoogleCampaignsSummary | null>(null);
   const [chartDataFromApi, setChartDataFromApi] = useState<
@@ -379,9 +379,16 @@ export const GoogleCampaigns: React.FC = () => {
 
   // Removed buildFilterParams - now passing filters array directly to service
 
-  const loadCampaigns = useCallback(async (accountId: number) => {
+  const loadCampaigns = useCallback(async (accountId: number, channelId: number) => {
     // Prevent duplicate concurrent calls
     if (isLoadingRef.current) {
+      return;
+    }
+
+    // Validate channelId before making the call
+    if (!channelId || isNaN(channelId)) {
+      console.error("loadCampaigns: channelId is required and must be a valid number", { accountId, channelId });
+      setLoading(false);
       return;
     }
 
@@ -394,9 +401,9 @@ export const GoogleCampaigns: React.FC = () => {
         page: currentPage,
         page_size: itemsPerPage,
         start_date: startDate
-          ? startDate.toISOString().split("T")[0]
+          ? startDateStr
           : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        end_date: endDate ? endDateStr : undefined,
         filters: filters || [], // Pass filters array directly - ensure it's always an array
         ...(apiSearchQuery && {
           campaign_name__icontains: apiSearchQuery,
@@ -412,6 +419,7 @@ export const GoogleCampaigns: React.FC = () => {
 
       const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
         accountId,
+        channelId,
         params
       );
       console.log("Google campaigns API response:", response);
@@ -482,12 +490,20 @@ export const GoogleCampaigns: React.FC = () => {
     return campaigns;
   }, [campaigns, searchQuery, apiSearchQuery, accountId]);
 
+  // Wrapper function for useGoogleSyncStatus hook (it expects only accountId)
+  const loadCampaignsWrapper = useCallback(async (accountId: number) => {
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    if (channelIdNum && !isNaN(channelIdNum)) {
+      await loadCampaigns(accountId, channelIdNum);
+    }
+  }, [channelId, loadCampaigns]);
+
   // Sync status hook (after loadCampaigns is defined)
   const { SyncStatusBanner } = useGoogleSyncStatus({
     accountId,
     entityType: "campaigns",
     currentData: campaigns,
-    loadFunction: loadCampaigns,
+    loadFunction: loadCampaignsWrapper,
   });
 
   useEffect(() => {
@@ -503,15 +519,18 @@ export const GoogleCampaigns: React.FC = () => {
           accountId: accountIdNum,
           currentPage,
           filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
-          startDate: startDate ? startDate.toISOString().split("T")[0] : null,
-          endDate: endDate ? endDate.toISOString().split("T")[0] : null,
+          startDate: startDate ? startDateStr : null,
+          endDate: endDate ? endDateStr : null,
           apiSearchQuery,
         });
 
         // Only call loadCampaigns if the request parameters have actually changed
         if (lastRequestParamsRef.current !== requestKey) {
           lastRequestParamsRef.current = requestKey;
-          loadCampaigns(accountIdNum);
+          const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+          if (channelIdNum && !isNaN(channelIdNum)) {
+            loadCampaigns(accountIdNum, channelIdNum);
+          }
         }
       } else {
         setLoading(false);
@@ -520,7 +539,7 @@ export const GoogleCampaigns: React.FC = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, currentPage, filters, startDate, endDate, sorting, apiSearchQuery]);
+  }, [accountId, channelId, currentPage, filters, startDate, endDate, sorting, apiSearchQuery]);
 
   const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
     console.log("handleCreateGoogleCampaign called", { 
@@ -596,25 +615,18 @@ export const GoogleCampaigns: React.FC = () => {
         !SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION
       ) {
         // Filter out asset group fields to prevent backend from creating asset group
-        // Note: The backend currently requires headlines, descriptions, logo_url, marketing_image_url,
-        // and square_marketing_image_url for PERFORMANCE_MAX campaigns and will always create an asset group.
-        // Filtering these out will cause backend validation errors. To fully prevent asset group creation,
-        // backend changes would be needed to make asset group creation optional.
-        // This constant is a frontend control that can be used when backend supports optional asset groups.
+        // BUT keep business_name and logo_url (and their asset IDs/resource names) because
+        // they are required for Brand Guidelines, not just for asset groups
         const {
           asset_group_name,
           headlines,
           descriptions,
           long_headlines,
-          business_name,
-          logo_url,
           marketing_image_url,
           square_marketing_image_url,
           headline_asset_resource_names,
           description_asset_resource_names,
           long_headline_asset_resource_names,
-          business_name_asset_resource_name,
-          logo_asset_resource_name,
           marketing_image_asset_resource_name,
           square_marketing_image_asset_resource_name,
           video_asset_resource_names,
@@ -623,23 +635,27 @@ export const GoogleCampaigns: React.FC = () => {
           headline_asset_ids,
           description_asset_ids,
           long_headline_asset_ids,
-          business_name_asset_id,
-          logo_asset_id,
           marketing_image_asset_id,
           square_marketing_image_asset_id,
           video_asset_ids,
           sitelink_asset_ids,
           callout_asset_ids,
+          // Keep business_name and logo_url for Brand Guidelines
+          // business_name, logo_url, business_name_asset_id, business_name_asset_resource_name,
+          // logo_asset_id, logo_asset_resource_name are NOT destructured, so they stay in rest
           ...rest
         } = payload;
         
         payload = rest;
-        console.log("Asset group fields filtered out from PMAX campaign creation payload (SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION = false)");
-        console.warn("Note: Backend currently requires asset group fields for PERFORMANCE_MAX campaigns. This may cause validation errors.");
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
       const response = await googleAdwordsCampaignsService.createGoogleCampaign(
         accountIdNum,
+        channelIdNum,
         payload
       );
 
@@ -680,13 +696,19 @@ export const GoogleCampaigns: React.FC = () => {
             text: "View Campaign",
             onClick: () => {
               setErrorModal({ isOpen: false, message: "" });
-              navigate(
-                `/brands/${accountIdNum}/google-campaigns/${newCampaignId}`
-              );
+              const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+              if (channelIdNum) {
+                navigate(
+                  `/brands/${accountIdNum}/${channelIdNum}/google/campaigns/${newCampaignId}`
+                );
+              }
             },
           },
         });
-        await loadCampaigns(accountIdNum);
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (channelIdNum && !isNaN(channelIdNum)) {
+          await loadCampaigns(accountIdNum, channelIdNum);
+        }
       } else {
         // If no campaign ID, show success and reload campaigns
         setErrorModal({
@@ -697,7 +719,10 @@ export const GoogleCampaigns: React.FC = () => {
         });
 
         // Refresh campaigns to get updated data
-        await loadCampaigns(accountIdNum);
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (channelIdNum && !isNaN(channelIdNum)) {
+          await loadCampaigns(accountIdNum, channelIdNum);
+        }
       }
     } catch (error: any) {
       console.error("Failed to create Google campaign:", error);
@@ -1189,8 +1214,13 @@ export const GoogleCampaigns: React.FC = () => {
       // Update campaign-level fields if there are any changes
       if (hasCampaignChanges) {
         console.log("Executing campaign update with changes...");
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const result = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           campaignUpdatePayload
         );
         console.log("Campaign update completed successfully", result);
@@ -1407,7 +1437,10 @@ export const GoogleCampaigns: React.FC = () => {
       });
 
       // Reload campaigns
-      await loadCampaigns(accountIdNum);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadCampaigns(accountIdNum, channelIdNum);
+      }
 
       // Close the panel after a short delay to show success message
       setTimeout(() => {
@@ -1518,8 +1551,13 @@ export const GoogleCampaigns: React.FC = () => {
         });
         // Fallback: Fetch from database
         try {
+          const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+          if (!channelIdNum || isNaN(channelIdNum)) {
+            throw new Error("Channel ID is required");
+          }
           const campaignDetail = await googleAdwordsCampaignsService.getGoogleCampaignDetail(
             accountIdNum,
+            channelIdNum,
             row.campaign_id
           );
           refreshedCampaignData = campaignDetail?.campaign || null;
@@ -1685,7 +1723,8 @@ export const GoogleCampaigns: React.FC = () => {
     // Reload campaigns with new sort
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
-      if (!isNaN(accountIdNum)) {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!isNaN(accountIdNum) && channelIdNum && !isNaN(channelIdNum)) {
         try {
           const params: any = {
             sort_by: newSortBy,
@@ -1693,14 +1732,15 @@ export const GoogleCampaigns: React.FC = () => {
             page: 1,
             page_size: itemsPerPage,
             start_date: startDate
-              ? startDate.toISOString().split("T")[0]
+              ? startDateStr
               : undefined,
-            end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+            end_date: endDate ? endDateStr : undefined,
             filters: filters, // Pass filters array directly
           };
 
           const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
             accountIdNum,
+            channelIdNum,
             params
           );
           setCampaigns(
@@ -2212,8 +2252,13 @@ export const GoogleCampaigns: React.FC = () => {
         // Convert display status to API format
         const statusValue = convertStatusToApi(newValue);
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           {
             campaignIds: [campaign.campaign_id],
             action: "status",
@@ -2243,8 +2288,13 @@ export const GoogleCampaigns: React.FC = () => {
           value: budgetValue,
         });
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           {
             campaignIds: [campaign.campaign_id],
             action: "budget",
@@ -2271,8 +2321,13 @@ export const GoogleCampaigns: React.FC = () => {
           dateValue = "";
         }
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           {
             campaignIds: [campaign.campaign_id],
             action: field,
@@ -2401,8 +2456,13 @@ export const GoogleCampaigns: React.FC = () => {
           }
         }
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           payload
         );
 
@@ -2413,7 +2473,10 @@ export const GoogleCampaigns: React.FC = () => {
         }
       }
 
-      await loadCampaigns(accountIdNum);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadCampaigns(accountIdNum, channelIdNum);
+      }
       
       // Clear any previous errors
       setInlineEditError(null);
@@ -2555,8 +2618,13 @@ export const GoogleCampaigns: React.FC = () => {
           value: budgetValue,
         });
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           {
             campaignIds: [inlineEditCampaign.campaign_id],
             action: "budget",
@@ -2583,8 +2651,13 @@ export const GoogleCampaigns: React.FC = () => {
           dateValue = "";
         }
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           {
             campaignIds: [inlineEditCampaign.campaign_id],
             action: inlineEditField,
@@ -2600,8 +2673,13 @@ export const GoogleCampaigns: React.FC = () => {
       } else if (inlineEditField === "status") {
         const statusValue = convertStatusToApi(inlineEditNewValue);
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           {
             campaignIds: [inlineEditCampaign.campaign_id],
             action: "status",
@@ -2719,8 +2797,13 @@ export const GoogleCampaigns: React.FC = () => {
           }
         }
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           payload
         );
 
@@ -2731,7 +2814,10 @@ export const GoogleCampaigns: React.FC = () => {
         }
       }
 
-      await loadCampaigns(accountIdNum);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadCampaigns(accountIdNum, channelIdNum);
+      }
       
       setInlineEditError(null);
       setInlineEditSuccess({
@@ -2788,7 +2874,11 @@ export const GoogleCampaigns: React.FC = () => {
       setBulkLoading(true);
       setBulkUpdateResults(null);
 
-      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, channelIdNum, {
         campaignIds: Array.from(selectedCampaigns),
         action: "status",
         status: statusValue,
@@ -2803,7 +2893,9 @@ export const GoogleCampaigns: React.FC = () => {
 
       // Reload campaigns with loading state
       setSorting(true); // Show loading overlay
-      await loadCampaigns(accountIdNum);
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadCampaigns(accountIdNum, channelIdNum);
+      }
       // Hide loading overlay after a short delay
       setTimeout(() => {
         setSorting(false);
@@ -2882,7 +2974,11 @@ export const GoogleCampaigns: React.FC = () => {
       setBulkLoading(true);
       setBulkUpdateResults(null);
 
-      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, channelIdNum, {
         campaignIds: Array.from(selectedCampaigns),
         action: "budget",
         budgetAction,
@@ -2901,7 +2997,9 @@ export const GoogleCampaigns: React.FC = () => {
 
       // Reload campaigns with loading state
       setSorting(true); // Show loading overlay
-      await loadCampaigns(accountIdNum);
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadCampaigns(accountIdNum, channelIdNum);
+      }
       // Hide loading overlay after a short delay
       setTimeout(() => {
         setSorting(false);
@@ -2941,9 +3039,9 @@ export const GoogleCampaigns: React.FC = () => {
         sort_by: sortBy,
         order: sortOrder,
         start_date: startDate
-          ? startDate.toISOString().split("T")[0]
+          ? startDateStr
           : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        end_date: endDate ? endDateStr : undefined,
         filters: filters, // Pass filters array directly
       };
 
@@ -2959,8 +3057,13 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       // Call export API
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
       const result = await googleAdwordsCampaignsService.exportGoogleCampaigns(
         accountIdNum,
+        channelIdNum,
         params,
         exportType
       );
@@ -3174,6 +3277,7 @@ export const GoogleCampaigns: React.FC = () => {
                     }}
                     onSubmit={handleCreateGoogleCampaign}
                     accountId={accountId}
+                    channelId={channelId}
                     loading={createCampaignLoading}
                     submitError={createCampaignError}
                     mode={campaignFormMode}
@@ -3185,40 +3289,6 @@ export const GoogleCampaigns: React.FC = () => {
               </>
             )}
 
-            {/* Sync Messages */}
-            {syncMessage && (
-              <div className="mb-4">
-                <Banner
-                  type={
-                    syncMessage.includes("error") ||
-                    syncMessage.includes("Failed")
-                      ? "error"
-                      : "success"
-                  }
-                  message={syncMessage}
-                  dismissable={true}
-                  onDismiss={() => setSyncMessage(null)}
-                />
-              </div>
-            )}
-            {analyticsSyncMessage && (
-              <div className="mb-4">
-                <Banner
-                  type={
-                    analyticsSyncMessage.includes("error") ||
-                    analyticsSyncMessage.includes("Failed")
-                      ? "error"
-                      : "success"
-                  }
-                  message={analyticsSyncMessage}
-                  dismissable={true}
-                  onDismiss={() => setAnalyticsSyncMessage(null)}
-                />
-              </div>
-            )}
-
-            {/* Sync Status Banner */}
-            <SyncStatusBanner />
 
             {/* Filter Panel - inline, matching Amazon layout */}
             {isFilterPanelOpen && accountId && (
@@ -3235,14 +3305,6 @@ export const GoogleCampaigns: React.FC = () => {
                   })) as FilterValues;
                   setFilters(convertedFilters);
                   setCurrentPage(1);
-                  // Removed direct call to loadCampaignsWithFilters - useEffect will handle it when filters change
-                  // This prevents double requests
-                  // if (accountId) {
-                  //   const accountIdNum = parseInt(accountId, 10);
-                  //   if (!isNaN(accountIdNum)) {
-                  //     loadCampaignsWithFilters(accountIdNum, convertedFilters);
-                  //   }
-                  // }
                 }}
                 initialFilters={filters.map((f) => ({
                   id: f.id,
@@ -4346,6 +4408,7 @@ export const GoogleCampaigns: React.FC = () => {
                     loading={loading}
                     sorting={sorting}
                     accountId={accountId || ""}
+                    channelId={channelId}
                     selectedCampaigns={selectedCampaigns}
                     allSelected={allSelected}
                     someSelected={someSelected}
@@ -4461,22 +4524,6 @@ export const GoogleCampaigns: React.FC = () => {
               )}
             </div>
 
-            {/* Sync Message */}
-            {syncMessage && (
-              <div className="mb-4">
-                <Banner
-                  type={
-                    syncMessage.includes("error") ||
-                    syncMessage.includes("Failed")
-                      ? "error"
-                      : "success"
-                  }
-                  message={syncMessage}
-                  dismissable={true}
-                  onDismiss={() => setSyncMessage(null)}
-                />
-              </div>
-            )}
           </div>
         </div>
       </div>

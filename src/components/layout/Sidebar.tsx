@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
   getCurrentAccountId,
+  getChannelIdFromUrl,
   buildMarketplaceRoute,
   buildAccountRoute,
   getMarketplaceFromUrl,
@@ -51,6 +52,18 @@ export const Sidebar: React.FC = () => {
   const hasAmazonChannel = channels.some((c) => c.channel_type === "amazon");
   const hasGoogleChannel = channels.some((c) => c.channel_type === "google");
   const hasTikTokChannel = channels.some((c) => c.channel_type === "tiktok");
+  const amazonChannelId =
+    (location.pathname.includes("/amazon/") ? getChannelIdFromUrl(location.pathname) : null) ??
+    channels.find((c) => c.channel_type === "amazon")?.id ??
+    0;
+  const googleChannelId =
+    (location.pathname.includes("/google/") ? getChannelIdFromUrl(location.pathname) : null) ??
+    channels.find((c) => c.channel_type === "google")?.id ??
+    0;
+  const tiktokChannelId =
+    (location.pathname.includes("/tiktok/") ? getChannelIdFromUrl(location.pathname) : null) ??
+    channels.find((c) => c.channel_type === "tiktok")?.id ??
+    0;
 
   const [channelRequiredModal, setChannelRequiredModal] = useState<
     "amazon" | "google" | "tiktok" | null
@@ -493,13 +506,13 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? buildMarketplaceRoute(accountId, "amazon", "campaigns")
+                    ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "campaigns")
                     : "/brands"
                 }
                 onClick={(e) => {
                   handleAmazonNavClick(e, () =>
                     accountId
-                      ? buildMarketplaceRoute(accountId, "amazon", "campaigns")
+                      ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "campaigns")
                       : "/brands/1/amazon/campaigns",
                   );
                 }}
@@ -548,13 +561,13 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? buildMarketplaceRoute(accountId, "amazon", "campaigns")
+                    ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "campaigns")
                     : "/brands"
                 }
                 onClick={(e) =>
                   handleAmazonNavClick(e, () =>
                     accountId
-                      ? buildMarketplaceRoute(accountId, "amazon", "campaigns")
+                      ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "campaigns")
                       : "/brands/1/amazon/campaigns",
                   )
                 }
@@ -589,13 +602,13 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? buildMarketplaceRoute(accountId, "amazon", "adgroups")
+                    ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "adgroups")
                     : "/brands"
                 }
                 onClick={(e) =>
                   handleAmazonNavClick(e, () =>
                     accountId
-                      ? buildMarketplaceRoute(accountId, "amazon", "adgroups")
+                      ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "adgroups")
                       : "/brands/1/amazon/adgroups",
                   )
                 }
@@ -628,13 +641,13 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? buildMarketplaceRoute(accountId, "amazon", "keywords")
+                    ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "keywords")
                     : "/brands"
                 }
                 onClick={(e) =>
                   handleAmazonNavClick(e, () =>
                     accountId
-                      ? buildMarketplaceRoute(accountId, "amazon", "keywords")
+                      ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "keywords")
                       : "/brands/1/amazon/keywords",
                   )
                 }
@@ -667,13 +680,13 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? buildMarketplaceRoute(accountId, "amazon", "targets")
+                    ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "targets")
                     : "/brands"
                 }
                 onClick={(e) =>
                   handleAmazonNavClick(e, () =>
                     accountId
-                      ? buildMarketplaceRoute(accountId, "amazon", "targets")
+                      ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "targets")
                       : "/brands/1/amazon/targets",
                   )
                 }
@@ -704,11 +717,15 @@ export const Sidebar: React.FC = () => {
                 )}
               </Link>
               <Link
-                to={accountId ? `/brands/${accountId}/amazon/logs` : "/brands"}
+                to={
+                  accountId
+                    ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "logs")
+                    : "/brands"
+                }
                 onClick={(e) =>
                   handleAmazonNavClick(e, () =>
                     accountId
-                      ? `/brands/${accountId}/amazon/logs`
+                      ? buildMarketplaceRoute(accountId, amazonChannelId, "amazon", "logs")
                       : "/brands/1/amazon/logs",
                   )
                 }
@@ -757,13 +774,13 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? buildMarketplaceRoute(accountId, "google", "campaigns")
+                    ? buildMarketplaceRoute(accountId, googleChannelId, "google", "campaigns")
                     : "/brands"
                 }
                 onClick={(e) => {
                   handleMarketplaceClick("google", e, () =>
                     accountId
-                      ? buildMarketplaceRoute(accountId, "google", "campaigns")
+                      ? buildMarketplaceRoute(accountId, googleChannelId, "google", "campaigns")
                       : "/brands/1/google/campaigns",
                   );
                 }}
@@ -812,13 +829,13 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? buildMarketplaceRoute(accountId, "google", "campaigns")
+                    ? buildMarketplaceRoute(accountId, googleChannelId, "google", "campaigns")
                     : "/brands"
                 }
                 onClick={(e) =>
                   handleMarketplaceClick("google", e, () =>
                     accountId
-                      ? buildMarketplaceRoute(accountId, "google", "campaigns")
+                      ? buildMarketplaceRoute(accountId, googleChannelId, "google", "campaigns")
                       : "/brands/1/google/campaigns",
                   )
                 }
@@ -853,13 +870,13 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? buildMarketplaceRoute(accountId, "google", "adgroups")
+                    ? buildMarketplaceRoute(accountId, googleChannelId, "google", "adgroups")
                     : "/brands"
                 }
                 onClick={(e) =>
                   handleMarketplaceClick("google", e, () =>
                     accountId
-                      ? buildMarketplaceRoute(accountId, "google", "adgroups")
+                      ? buildMarketplaceRoute(accountId, googleChannelId, "google", "adgroups")
                       : "/brands/1/google/adgroups",
                   )
                 }
@@ -892,13 +909,13 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? buildMarketplaceRoute(accountId, "google", "keywords")
+                    ? buildMarketplaceRoute(accountId, googleChannelId, "google", "keywords")
                     : "/brands"
                 }
                 onClick={(e) =>
                   handleMarketplaceClick("google", e, () =>
                     accountId
-                      ? buildMarketplaceRoute(accountId, "google", "keywords")
+                      ? buildMarketplaceRoute(accountId, googleChannelId, "google", "keywords")
                       : "/brands/1/google/keywords",
                   )
                 }
@@ -937,13 +954,13 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? buildMarketplaceRoute(accountId, "google", "ads")
+                    ? buildMarketplaceRoute(accountId, googleChannelId, "google", "ads")
                     : "/brands"
                 }
                 onClick={(e) =>
                   handleMarketplaceClick("google", e, () =>
                     accountId
-                      ? buildMarketplaceRoute(accountId, "google", "ads")
+                      ? buildMarketplaceRoute(accountId, googleChannelId, "google", "ads")
                       : "/brands/1/google/ads",
                   )
                 }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { queryClient } from "../lib/queryClient";
@@ -32,6 +32,13 @@ export const Login: React.FC = () => {
   const location = useLocation();
   const from = (location.state as { from?: { pathname: string; search?: string; hash?: string } } | null)?.from;
 
+  // Debug: Log when error state changes
+  useEffect(() => {
+    if (error) {
+      console.log("Error state updated:", error);
+    }
+  }, [error]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -59,11 +66,29 @@ export const Login: React.FC = () => {
       navigate(redirectTo, { replace: true });
     } catch (err: any) {
       // Better error handling - check for axios error structure
-      const errorMessage = 
-        err?.response?.data?.error || 
-        err?.response?.data?.message ||
-        err?.message ||
-        "Login failed. Please check your email and password.";
+      console.error("Login error:", err);
+      console.error("Error response:", err?.response);
+      console.error("Error data:", err?.response?.data);
+      
+      // Extract error message from various possible locations
+      let errorMessage = "Login failed. Please check your email and password.";
+      
+      if (err?.response?.data) {
+        // Check for error field first (most common)
+        if (err.response.data.error) {
+          errorMessage = err.response.data.error;
+        } else if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        } else if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        } else if (err.response.data.detail) {
+          errorMessage = err.response.data.detail;
+        }
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      console.log("Setting error message:", errorMessage);
       setError(errorMessage);
       setLoading(false);
     }
@@ -117,8 +142,6 @@ export const Login: React.FC = () => {
         >
           {/* Input Fields */}
           <div className="self-stretch flex flex-col justify-start items-start gap-4 sm:gap-5">
-            {error && <Alert variant="error">{error}</Alert>}
-
             {/* Email Input */}
             <div className="self-stretch inline-flex justify-start items-start">
               <AuthFormField
@@ -155,6 +178,13 @@ export const Login: React.FC = () => {
               />
             </div>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="self-stretch flex justify-center items-center">
+              <p className="text-red-600 text-center text-sm font-poppins">{error}</p>
+            </div>
+          )}
 
           {/* Sign In Button */}
           <div className="self-stretch flex flex-col justify-start items-center">

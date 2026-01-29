@@ -1,4 +1,15 @@
 /**
+ * Format a Date to YYYY-MM-DD in local time (avoids off-by-one from UTC).
+ * Use this when sending start_date/end_date to APIs so the selected calendar date is preserved.
+ */
+export const toLocalDateString = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+/**
  * Formats a date string (YYYY-MM-DD) to a localized date string
  * without timezone conversion issues.
  * 
@@ -182,4 +193,3 @@ export const formatDateTime = (dateString: string | null | undefined): string =>
     return "Never";
   }
 };
-

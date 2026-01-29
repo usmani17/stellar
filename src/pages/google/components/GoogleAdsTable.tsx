@@ -146,18 +146,26 @@ export function GoogleAdsTable<T = any>({
     const cellContent = column.render ? column.render(value, row) : renderValue(column, value);
     const isClickable = isEditableForRow && !isEditing && !isPanelOpen; // Disable editing when panel is open
 
-    // Only wrap in button if no custom render function is provided
+    // Only wrap in link if no custom render function is provided
     // Custom render functions should handle their own navigation/click handling
     if (column.navigateTo && !column.render) {
       const navPath = column.navigateTo(row, accountId);
       if (navPath) {
         return (
-          <button
-            onClick={() => navigate(navPath)}
+          <a
+            href={navPath}
+            onClick={(e) => {
+              e.stopPropagation();
+              // Only prevent default for regular clicks (not Ctrl/Cmd/middle click)
+              if (!e.metaKey && !e.ctrlKey && e.button !== 1) {
+                e.preventDefault();
+                navigate(navPath);
+              }
+            }}
             className="table-edit-link block w-full"
           >
             {cellContent}
-          </button>
+          </a>
         );
       }
     }
@@ -946,8 +954,8 @@ export function GoogleAdsTable<T = any>({
               ) : data.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length + 1} className="table-cell">
-                    <div className="text-center py-8">
-                      <p className="text-[13.3px] text-[#556179] mb-4">{emptyMessage}</p>
+                    <div className="flex items-center justify-center py-8">
+                      <p className="text-[13.3px] text-[#556179] mb-4 text-center">{emptyMessage}</p>
                     </div>
                   </td>
                 </tr>

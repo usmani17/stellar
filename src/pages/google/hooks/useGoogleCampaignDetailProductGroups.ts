@@ -1,9 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
-import { googleAdwordsAdsService } from "../../../services/googleAdwords/googleAdwordsAds";
+import { googleAdwordsProductGroupsService } from "../../../services/googleAdwords/googleAdwordsProductGroups";
 import type { FilterValues } from "../../../components/filters/FilterPanel";
+import { toLocalDateString } from "../../../utils/dateHelpers";
 
 interface UseGoogleCampaignDetailProductGroupsParams {
   accountId: string | undefined;
+  channelId: string | undefined;
   campaignId: string | undefined;
   startDate: Date | null;
   endDate: Date | null;
@@ -13,6 +15,7 @@ interface UseGoogleCampaignDetailProductGroupsParams {
 
 export const useGoogleCampaignDetailProductGroups = ({
   accountId,
+  channelId,
   campaignId,
   startDate,
   endDate,
@@ -39,33 +42,26 @@ export const useGoogleCampaignDetailProductGroups = ({
     try {
       setProductGroupsLoading(true);
       const accountIdNum = parseInt(accountId!, 10);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
 
-      if (isNaN(accountIdNum) || !campaignId) {
+      if (isNaN(accountIdNum) || !channelIdNum || !campaignId) {
         setProductGroupsLoading(false);
         return;
       }
 
-      // Product groups are stored in the ads table with ad_type = 'SHOPPING_PRODUCT_AD'
-      // Add ad_type filter to the filters array
-      const productGroupsFiltersWithType = [
-        ...productGroupsFilters,
-        { field: "ad_type", value: "SHOPPING_PRODUCT_AD" },
-      ];
-
-      const data = await googleAdwordsAdsService.getGoogleAds(
+      const data = await googleAdwordsProductGroupsService.getGoogleProductGroups(
         accountIdNum,
+        channelIdNum,
         parseInt(campaignId, 10),
         undefined,
         {
-          filters: productGroupsFiltersWithType,
+          filters: productGroupsFilters,
           page: productGroupsCurrentPage,
           page_size: 10,
           sort_by: productGroupsSortBy,
           order: productGroupsSortOrder,
-          start_date: startDate
-            ? startDate.toISOString().split("T")[0]
-            : undefined,
-          end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+          start_date: startDate ? toLocalDateString(startDate) : undefined,
+          end_date: endDate ? toLocalDateString(endDate) : undefined,
         }
       );
 
@@ -80,6 +76,7 @@ export const useGoogleCampaignDetailProductGroups = ({
     }
   }, [
     accountId,
+    channelId,
     campaignId,
     productGroupsCurrentPage,
     productGroupsSortBy,
@@ -91,11 +88,12 @@ export const useGoogleCampaignDetailProductGroups = ({
 
   // Load product groups when dependencies change
   useEffect(() => {
-    if (accountId && campaignId && activeTab === "Product Groups") {
+    if (accountId && channelId && campaignId && activeTab === "Product Groups") {
       loadProductGroups();
     }
   }, [
     accountId,
+    channelId,
     campaignId,
     activeTab,
     startDate,
@@ -153,35 +151,20 @@ export const useGoogleCampaignDetailProductGroups = ({
 
   // Update handler
   const handleUpdateProductGroupStatus = useCallback(async (productGroupId: number, status: string) => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
 
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) return;
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
 
-      // Find the product group to get ad_id
-      // Product groups are stored in the ads table, so they have ad_id
-      const productGroup = productGroups.find((pg) => pg.id === productGroupId);
+      // Find the product group
+      const productGroup = productGroups.find((pg: any) => pg.id === productGroupId);
       if (!productGroup) {
         if (onError) {
           onError({
             title: "Error",
             message: "Product group not found",
-          });
-        }
-        return;
-      }
-
-      // Product groups come from the ads table, so they should have ad_id
-      // Try both snake_case and camelCase field names
-      const adId =
-        (productGroup as any).ad_id ||
-        (productGroup as any).adId;
-      if (!adId) {
-        if (onError) {
-          onError({
-            title: "Error",
-            message: "Product group ad ID not found. Please sync product groups first.",
           });
         }
         return;
@@ -195,10 +178,9 @@ export const useGoogleCampaignDetailProductGroups = ({
         productGroup.adgroup_id ||
         (productGroup as any).adGroupId;
 
-      // Call API - product groups use the same bulkUpdateGoogleAds endpoint
-      // Include campaignId and adGroupId to only update this specific instance
-      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
-        adIds: [adId],
+      // Call API - use the dedicated product groups bulk update endpoint
+      await googleAdwordsProductGroupsService.bulkUpdateGoogleProductGroups(accountIdNum, channelIdNum, {
+        productGroupIds: [productGroupId],
         action: "status",
         status: status as "ENABLED" | "PAUSED" | "REMOVED",
         campaignId: campaignId
@@ -233,7 +215,7 @@ export const useGoogleCampaignDetailProductGroups = ({
       }
       throw error;
     }
-  }, [accountId, productGroups, loadProductGroups, onError]);
+  }, [accountId, channelId, productGroups, loadProductGroups, onError]);
 
   return {
     // Data

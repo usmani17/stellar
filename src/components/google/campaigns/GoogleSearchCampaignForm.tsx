@@ -8,6 +8,7 @@ import { GoogleLanguageTargetingForm } from "./GoogleLanguageTargetingForm";
 import { GoogleLocationTargetingForm } from "./GoogleLocationTargetingForm";
 import { GoogleTrackingTemplateForm } from "./GoogleTrackingTemplateForm";
 import { GoogleBiddingStrategyForm } from "./GoogleBiddingStrategyForm";
+// import { GoogleConversionActionForm } from "./GoogleConversionActionForm"; // used when Conversion Actions section is enabled
 
 interface GoogleSearchCampaignFormProps extends BaseCampaignFormProps {
   // Language targeting props
@@ -25,6 +26,9 @@ interface GoogleSearchCampaignFormProps extends BaseCampaignFormProps {
   onTrackingUrlTemplateChange: (value: string) => void;
   onFinalUrlSuffixChange: (value: string) => void;
   onCustomParametersChange: (params: Array<{ key: string; value: string }> | undefined) => void;
+  // Conversion action props
+  selectedConversionActions?: Array<{ id: string; name: string }>;
+  onSelectConversionActionsClick: () => void;
 }
 
 // Tab definitions
@@ -54,13 +58,15 @@ export const GoogleSearchCampaignForm: React.FC<GoogleSearchCampaignFormProps> =
   onTrackingUrlTemplateChange,
   onFinalUrlSuffixChange,
   onCustomParametersChange,
+  selectedConversionActions: _selectedConversionActions = [], // used when Conversion Actions section is enabled
+  onSelectConversionActionsClick: _onSelectConversionActionsClick, // used when Conversion Actions section is enabled
   errors = {},
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>("bidding");
 
   return (
-    <div className="mt-6">
-      <div className="mb-6 overflow-hidden">
+    <div className="tabs-container mt-2">
+      <div className="">
         <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -72,10 +78,10 @@ export const GoogleSearchCampaignForm: React.FC<GoogleSearchCampaignFormProps> =
                   e.preventDefault();
                   setActiveTab(tab.id);
                 }}
-                className={`px-4 py-2 text-[14px] transition-colors ${
+                className={`tab-button cursor-pointer ${
                   isActive
-                    ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
-                    : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
+                    ? "tab-button-active"
+                    : "tab-button-inactive"
                 }`}
               >
                 {tab.label}
@@ -98,7 +104,7 @@ export const GoogleSearchCampaignForm: React.FC<GoogleSearchCampaignFormProps> =
 
         {/* Network Settings Tab */}
         {activeTab === "network" && (
-          <div className="p-3">
+          <div className="p-3 tab-content">
             <div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Search Network card */}
@@ -223,7 +229,7 @@ export const GoogleSearchCampaignForm: React.FC<GoogleSearchCampaignFormProps> =
 
         {/* Device Targeting Tab */}
         {activeTab === "device" && (
-          <div className="p-3">
+          <div className="p-3 tab-content">
             <div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {DEVICE_OPTIONS.map((device) => (
@@ -259,7 +265,7 @@ export const GoogleSearchCampaignForm: React.FC<GoogleSearchCampaignFormProps> =
 
         {/* Language Targeting Tab */}
         {activeTab === "language" && (
-          <div className="p-3">
+          <div className="p-3 tab-content">
             <GoogleLanguageTargetingForm
               languageIds={formData.language_ids}
               languageOptions={languageOptions}
@@ -273,7 +279,7 @@ export const GoogleSearchCampaignForm: React.FC<GoogleSearchCampaignFormProps> =
 
         {/* Location Targeting Tab */}
         {activeTab === "location" && (
-          <div className="p-3">
+          <div className="p-3 tab-content">
             <GoogleLocationTargetingForm
               locationIds={formData.location_ids}
               excludedLocationIds={formData.excluded_location_ids}
@@ -289,7 +295,7 @@ export const GoogleSearchCampaignForm: React.FC<GoogleSearchCampaignFormProps> =
 
         {/* Campaign URL Options Tab */}
         {activeTab === "url-options" && (
-          <div className="p-3">
+          <div className="p-3 tab-content">
             <GoogleTrackingTemplateForm
               trackingUrlTemplate={trackingUrlTemplate}
               finalUrlSuffix={finalUrlSuffix}
@@ -303,6 +309,18 @@ export const GoogleSearchCampaignForm: React.FC<GoogleSearchCampaignFormProps> =
           </div>
         )}
       </div>
+
+      {/* Conversion Actions - at end of form (disabled for now; enable later) */}
+      {/* <div className="mt-8 pt-6 p-3 border-t border-[#e8e8e3]">
+        <GoogleConversionActionForm
+          conversionActionIds={formData.conversion_action_ids}
+          selectedConversionActions={selectedConversionActions}
+          onConversionActionIdsChange={(ids) => onChange("conversion_action_ids", ids)}
+          onSelectClick={onSelectConversionActionsClick}
+          errors={errors}
+          showTitle={false}
+        />
+      </div> */}
     </div>
   );
 };

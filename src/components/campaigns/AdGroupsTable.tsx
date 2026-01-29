@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { Checkbox } from "../ui/Checkbox";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Dropdown } from "../ui/Dropdown";
@@ -26,10 +26,14 @@ interface AdGroupsTableProps {
   onEditStart?: (
     id: number,
     field: "status" | "default_bid" | "name",
-    currentValue: string
+    currentValue: string,
   ) => void;
   onEditChange?: (value: string) => void;
-  onEditEnd?: (value?: string, adgroupId?: number, field?: "status" | "default_bid" | "name") => void;
+  onEditEnd?: (
+    value?: string,
+    adgroupId?: number,
+    field?: "status" | "default_bid" | "name",
+  ) => void;
   onEditCancel?: () => void;
   inlineEditLoading?: Set<number>;
   pendingChange?: {
@@ -76,7 +80,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   campaignDetail,
 }) => {
   const navigate = useNavigate();
-  const { accountId } = useParams<{ accountId: string }>();
+  const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
   const statusSelectionMadeRef = useRef<number | null>(null);
 
   // Show all columns on both adgroups page and campaign detail page
@@ -86,13 +90,17 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   const handleCampaignNameClick = (adgroup: AdGroup, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!accountId || !adgroup.campaignId) return;
+    const channelIdSeg = channelId ?? "";
 
     // Build campaignTypeAndId in format: sp_123456, sb_123456, or sd_123456
     // Default to 'sp' if type is not available
     const campaignType = (adgroup.type || "sp").toLowerCase();
     const campaignTypeAndId = `${campaignType}_${adgroup.campaignId}`;
 
-    navigate(`/brands/${accountId}/amazon/campaigns/${campaignTypeAndId}`);
+    const path = channelIdSeg
+      ? `/brands/${accountId}/${channelIdSeg}/amazon/campaigns/${campaignTypeAndId}`
+      : `/brands/${accountId}/amazon/campaigns/${campaignTypeAndId}`;
+    navigate(path);
   };
   const getSortIcon = (column: string) => {
     if (sortBy !== column || !onSort) {
@@ -171,7 +179,10 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   };
 
   return (
-    <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
+    <div
+      className="table-container"
+      style={{ position: "relative", minHeight: loading ? "400px" : "auto" }}
+    >
       <div className="overflow-x-auto w-full">
         {adgroups.length === 0 && !loading ? (
           <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
@@ -198,7 +209,8 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
               </h3>
               {/* Description */}
               <p className="text-sm text-[#556179] text-center leading-relaxed">
-                There are no ad groups for this campaign yet. Ad groups will appear here when they are created.
+                There are no ad groups for this campaign yet. Ad groups will
+                appear here when they are created.
               </p>
             </div>
           </div>
@@ -233,7 +245,9 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
 
                 {/* Campaign Name Header - Only show when not in campaign detail */}
                 {showCampaignColumn && (
-                  <th className="table-header min-w-[225px] max-w-[300px]">Campaign Name</th>
+                  <th className="table-header min-w-[225px] max-w-[300px]">
+                    Campaign Name
+                  </th>
                 )}
 
                 {/* Profile Header - Only show when not in campaign detail */}
@@ -416,7 +430,9 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         </>
                       )}
                       <td className="table-cell"></td>
-                      {campaignType !== "SB" && <td className="table-cell"></td>}
+                      {campaignType !== "SB" && (
+                        <td className="table-cell"></td>
+                      )}
                       <td className="table-cell table-text leading-[1.26]">
                         {summary.total_impressions > 0
                           ? `${(
@@ -452,7 +468,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                             {summary.avg_acos.toFixed(2)}%
                           </td>
                           <td className="table-cell table-text leading-[1.26]">
-                            {summary.avg_roas.toFixed(2)} x
+                            {summary.avg_roas.toFixed(2)}
                           </td>
                         </>
                       )}
@@ -474,12 +490,12 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           <div className="flex items-center justify-center">
                             <Checkbox
                               checked={selectedIds.has(
-                                adgroup.adGroupId || adgroup.id
+                                adgroup.adGroupId || adgroup.id,
                               )}
                               onChange={(checked) =>
                                 handleSelect(
                                   adgroup.adGroupId || adgroup.id,
-                                  checked
+                                  checked,
                                 )
                               }
                               size="small"
@@ -511,22 +527,25 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                               );
                             }
 
-                            const nameValue = editingField?.id === adgroup.id &&
+                            const nameValue =
+                              editingField?.id === adgroup.id &&
                               editingField?.field === "name"
-                              ? editedValue
-                              : (adgroup.name || "");
+                                ? editedValue
+                                : adgroup.name || "";
 
                             return (
                               <input
                                 type="text"
                                 value={nameValue}
                                 onFocus={() => {
-                                  if (editingField?.id !== adgroup.id ||
-                                      editingField?.field !== "name") {
+                                  if (
+                                    editingField?.id !== adgroup.id ||
+                                    editingField?.field !== "name"
+                                  ) {
                                     onEditStart?.(
                                       adgroup.id,
                                       "name",
-                                      adgroup.name || ""
+                                      adgroup.name || "",
                                     );
                                   }
                                 }}
@@ -556,25 +575,39 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         {/* Campaign Name - Only show when not in campaign detail */}
                         {showCampaignColumn && (
                           <td className="table-cell min-w-[225px] max-w-[300px]">
-                            {adgroup.campaignId ? (
-                              <button
-                                onClick={(e) =>
-                                  handleCampaignNameClick(adgroup, e)
-                                }
+                            {adgroup.campaignId && accountId ? (
+                              <Link
+                                to={`/brands/${accountId}/amazon/campaigns/${(adgroup.type || "sp").toLowerCase()}_${adgroup.campaignId}`}
                                 className="table-edit-link text-left block w-full"
                                 style={{
-                                  whiteSpace: 'normal',
-                                  overflow: 'visible',
-                                  textOverflow: 'clip',
-                                  wordBreak: 'break-word',
+                                  whiteSpace: "normal",
+                                  overflow: "visible",
+                                  textOverflow: "clip",
+                                  wordBreak: "break-word",
+                                  pointerEvents: "auto",
+                                  cursor: "pointer",
                                 }}
                                 title={
                                   adgroup.campaign_name ||
                                   "View campaign details"
                                 }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Force navigation even if on same route
+                                  const targetPath = `/brands/${accountId}/amazon/campaigns/${(adgroup.type || "sp").toLowerCase()}_${adgroup.campaignId}`;
+                                  // Only prevent default and navigate if it's a regular click (not Ctrl/Cmd/middle click)
+                                  if (
+                                    !e.metaKey &&
+                                    !e.ctrlKey &&
+                                    e.button !== 1
+                                  ) {
+                                    e.preventDefault();
+                                    navigate(targetPath);
+                                  }
+                                }}
                               >
                                 {adgroup.campaign_name || "—"}
-                              </button>
+                              </Link>
                             ) : (
                               <span className="table-text leading-[1.26] text-left whitespace-normal break-words block w-full">
                                 {adgroup.campaign_name || "—"}
@@ -621,30 +654,32 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                       ? pendingChange.newValue === "enabled"
                                         ? "Enabled"
                                         : pendingChange.newValue === "paused"
-                                        ? "Paused"
-                                        : "Archived"
+                                          ? "Paused"
+                                          : "Archived"
                                       : adgroup.status}
                                   </span>
                                   <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
                                 </div>
                               );
                             }
-                            
-                            if (pendingChange?.id === adgroup.id &&
-                                pendingChange?.field === "status") {
+
+                            if (
+                              pendingChange?.id === adgroup.id &&
+                              pendingChange?.field === "status"
+                            ) {
                               return (
                                 <div className="flex items-center gap-2">
                                   <span className="table-text leading-[1.26]">
                                     {pendingChange.newValue === "enabled"
                                       ? "Enabled"
                                       : pendingChange.newValue === "paused"
-                                      ? "Paused"
-                                      : "Archived"}
+                                        ? "Paused"
+                                        : "Archived"}
                                   </span>
                                 </div>
                               );
                             }
-                            
+
                             if (isArchived) {
                               return (
                                 <div className="opacity-60">
@@ -652,7 +687,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                 </div>
                               );
                             }
-                            
+
                             const statusLower =
                               adgroup.status?.toLowerCase() || "enabled";
                             const statusValue =
@@ -660,14 +695,15 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                               statusLower === "enabled"
                                 ? "enabled"
                                 : statusLower === "paused"
-                                ? "paused"
-                                : "archived";
-                            
-                            const currentValue = editingField?.id === adgroup.id &&
+                                  ? "paused"
+                                  : "archived";
+
+                            const currentValue =
+                              editingField?.id === adgroup.id &&
                               editingField?.field === "status"
-                              ? editedValue
-                              : statusValue;
-                            
+                                ? editedValue
+                                : statusValue;
+
                             return (
                               <Dropdown
                                 options={[
@@ -678,11 +714,16 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                 value={currentValue}
                                 onChange={(val) => {
                                   const newValue = val as string;
-                                  const wasEditing = editingField?.id === adgroup.id &&
+                                  const wasEditing =
+                                    editingField?.id === adgroup.id &&
                                     editingField?.field === "status";
-                                  
+
                                   if (!wasEditing) {
-                                    onEditStart?.(adgroup.id, "status", statusValue);
+                                    onEditStart?.(
+                                      adgroup.id,
+                                      "status",
+                                      statusValue,
+                                    );
                                   }
                                   onEditChange?.(newValue);
                                   onEditEnd?.(newValue, adgroup.id, "status");
@@ -707,7 +748,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                         ? pendingChange.newValue.startsWith("$")
                                           ? pendingChange.newValue
                                           : `$${parseFloat(
-                                              pendingChange.newValue || "0"
+                                              pendingChange.newValue || "0",
                                             ).toLocaleString(undefined, {
                                               minimumFractionDigits: 2,
                                               maximumFractionDigits: 2,
@@ -718,16 +759,18 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                   </div>
                                 );
                               }
-                              
-                              if (pendingChange?.id === adgroup.id &&
-                                  pendingChange?.field === "default_bid") {
+
+                              if (
+                                pendingChange?.id === adgroup.id &&
+                                pendingChange?.field === "default_bid"
+                              ) {
                                 return (
                                   <div className="flex items-center gap-2">
                                     <span className="table-text leading-[1.26]">
                                       {pendingChange.newValue.startsWith("$")
                                         ? pendingChange.newValue
                                         : `$${parseFloat(
-                                            pendingChange.newValue || "0"
+                                            pendingChange.newValue || "0",
                                           ).toLocaleString(undefined, {
                                             minimumFractionDigits: 2,
                                             maximumFractionDigits: 2,
@@ -736,16 +779,18 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                   </div>
                                 );
                               }
-                              
+
                               const currentBid = adgroup.default_bid
                                 ? adgroup.default_bid.replace(/[^0-9.]/g, "")
                                 : "0";
-                              
-                              const bidValue = editingField?.id === adgroup.id &&
+
+                              const bidValue =
+                                editingField?.id === adgroup.id &&
                                 editingField?.field === "default_bid"
-                                ? (editedValue?.replace(/[^0-9.]/g, "") || currentBid)
-                                : currentBid;
-                              
+                                  ? editedValue?.replace(/[^0-9.]/g, "") ||
+                                    currentBid
+                                  : currentBid;
+
                               return (
                                 <input
                                   type="number"
@@ -753,10 +798,16 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                   min="0"
                                   value={bidValue}
                                   onFocus={() => {
-                                    if (!isArchived &&
-                                        (editingField?.id !== adgroup.id ||
-                                         editingField?.field !== "default_bid")) {
-                                      onEditStart?.(adgroup.id, "default_bid", currentBid);
+                                    if (
+                                      !isArchived &&
+                                      (editingField?.id !== adgroup.id ||
+                                        editingField?.field !== "default_bid")
+                                    ) {
+                                      onEditStart?.(
+                                        adgroup.id,
+                                        "default_bid",
+                                        currentBid,
+                                      );
                                     }
                                   }}
                                   onChange={(e) => {
@@ -766,8 +817,10 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                   onBlur={(e) => {
                                     if (isArchived) return;
                                     const inputValue = e.target.value;
-                                    if (editingField?.id === adgroup.id &&
-                                        editingField?.field === "default_bid") {
+                                    if (
+                                      editingField?.id === adgroup.id &&
+                                      editingField?.field === "default_bid"
+                                    ) {
                                       onEditEnd?.(inputValue);
                                     }
                                   }}
@@ -781,7 +834,9 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                   }}
                                   disabled={isArchived}
                                   className={`inline-edit-input w-24 ${
-                                    isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                    isArchived
+                                      ? "opacity-60 cursor-not-allowed bg-gray-50"
+                                      : ""
                                   }`}
                                 />
                               );
@@ -834,7 +889,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                             <span className="table-text leading-[1.26]">
                               {adgroup.acos
                                 ? `${parseFloat(String(adgroup.acos)).toFixed(
-                                    2
+                                    2,
                                   )}%`
                                 : "0.00%"}
                             </span>
@@ -847,9 +902,9 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                             <span className="table-text leading-[1.26]">
                               {adgroup.roas
                                 ? `${parseFloat(String(adgroup.roas)).toFixed(
-                                    2
-                                  )} x`
-                                : "0.00 x"}
+                                    2,
+                                  )}`
+                                : "0.00"}
                             </span>
                           </td>
                         )}

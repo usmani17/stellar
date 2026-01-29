@@ -6,6 +6,7 @@ import type { NegativeKeywordInput } from "../../../components/google/CreateGoog
 
 interface UseGoogleCampaignDetailNegativeKeywordsParams {
   accountId: string | undefined;
+  channelId: string | undefined;
   campaignId: string | undefined;
   startDate: Date | null;
   endDate: Date | null;
@@ -16,6 +17,7 @@ interface UseGoogleCampaignDetailNegativeKeywordsParams {
 
 export const useGoogleCampaignDetailNegativeKeywords = ({
   accountId,
+  channelId,
   campaignId,
   startDate,
   endDate,
@@ -75,8 +77,9 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
     try {
       setNegativeKeywordsLoading(true);
       const accountIdNum = parseInt(accountId!, 10);
+      const channelIdNum = parseInt(channelId!, 10);
 
-      if (isNaN(accountIdNum) || !campaignId) {
+      if (isNaN(accountIdNum) || isNaN(channelIdNum) || !campaignId) {
         setNegativeKeywordsLoading(false);
         return;
       }
@@ -84,6 +87,7 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
       const data =
         await googleAdwordsNegativeKeywordsService.getGoogleNegativeKeywords(
           accountIdNum,
+          channelIdNum,
           {
             filters: negativeKeywordsFilters,
             campaign_id: campaignId,
@@ -103,7 +107,7 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
     } finally {
       setNegativeKeywordsLoading(false);
     }
-  }, [accountId, campaignId, negativeKeywordsFilters, negativeKeywordsCurrentPage, negativeKeywordsSortBy, negativeKeywordsSortOrder]);
+  }, [accountId, channelId, campaignId, negativeKeywordsFilters, negativeKeywordsCurrentPage, negativeKeywordsSortBy, negativeKeywordsSortOrder]);
 
   // Load negative keywords when dependencies change
   useEffect(() => {
@@ -168,7 +172,8 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
   const handleSyncNegativeKeywords = useCallback(async () => {
     if (!accountId) return;
     const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
+    const channelIdNum = parseInt(channelId!, 10);
+    if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
 
     try {
       setSyncingNegativeKeywords(true);
@@ -177,7 +182,8 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
       }
       const result =
         await googleAdwordsNegativeKeywordsService.syncGoogleNegativeKeywords(
-          accountIdNum
+          accountIdNum,
+          channelIdNum
         );
       let message = `Successfully synced ${result.synced} negative keywords`;
 
@@ -229,7 +235,7 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
     } finally {
       setSyncingNegativeKeywords(false);
     }
-  }, [accountId, loadNegativeKeywords, onSyncMessage]);
+  }, [accountId, channelId, loadNegativeKeywords, onSyncMessage]);
 
   // Create handler
   const handleCreateNegativeKeywords = useCallback(async (data: {
@@ -237,7 +243,7 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
     level: "campaign" | "adgroup";
     adGroupId?: string;
   }) => {
-    if (!accountId || !campaignId) return;
+    if (!accountId || !channelId || !campaignId) return;
 
     try {
       setCreateNegativeKeywordLoading(true);
@@ -246,9 +252,11 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
       setFailedNegativeKeywords([]);
 
       const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = parseInt(channelId, 10);
       const result =
         await googleAdwordsNegativeKeywordsService.createGoogleNegativeKeywords(
           accountIdNum,
+          channelIdNum,
           campaignId,
           data
         );
@@ -269,11 +277,11 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
     } finally {
       setCreateNegativeKeywordLoading(false);
     }
-  }, [accountId, campaignId, loadNegativeKeywords]);
+  }, [accountId, channelId, campaignId, loadNegativeKeywords]);
 
   // Update negative keyword text handler
   const handleUpdateNegativeKeywordText = useCallback(async (criterionId: string, keywordText: string) => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
 
     const trimmedText = keywordText.trim();
     if (!trimmedText) {
@@ -288,8 +296,9 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
 
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+        throw new Error("Invalid account ID or channel ID");
       }
 
       // Find the negative keyword to determine level
@@ -304,6 +313,7 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
 
       const response = await googleAdwordsNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(
         accountIdNum,
+        channelIdNum,
         {
           negativeKeywordIds: [criterionId],
           action: "keyword_text",
@@ -328,17 +338,18 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
       }
       throw error; // Re-throw so the modal in the tab component can handle it
     }
-  }, [accountId, negativeKeywords, loadNegativeKeywords, onError]);
+  }, [accountId, channelId, negativeKeywords, loadNegativeKeywords, onError]);
 
   // Update handlers
   const handleUpdateNegativeKeywordStatus = useCallback(async (criterionId: string, status: string) => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
 
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) return;
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
 
-      await googleAdwordsNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(accountIdNum, {
+      await googleAdwordsNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(accountIdNum, channelIdNum, {
         negativeKeywordIds: [criterionId],
         action: "status",
         value: status,
@@ -360,16 +371,17 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
         });
       }
     }
-  }, [accountId, loadNegativeKeywords, onError]);
+  }, [accountId, channelId, loadNegativeKeywords, onError]);
 
   const handleUpdateNegativeKeywordMatchType = useCallback(async (criterionId: string, matchType: string) => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
 
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) return;
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
 
-      await googleAdwordsNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(accountIdNum, {
+      await googleAdwordsNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(accountIdNum, channelIdNum, {
         negativeKeywordIds: [criterionId],
         action: "match_type",
         value: matchType,
@@ -391,7 +403,7 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
         });
       }
     }
-  }, [accountId, loadNegativeKeywords, onError]);
+  }, [accountId, channelId, loadNegativeKeywords, onError]);
 
   return {
     // Data

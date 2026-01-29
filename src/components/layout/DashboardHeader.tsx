@@ -9,6 +9,7 @@ import {
   buildMarketplaceRoute,
   getMarketplaceFromUrl,
   getEntityFromUrl,
+  getChannelIdFromUrl,
 } from "../../utils/urlHelpers";
 import { SyncStatusIndicator } from "../google/SyncStatusIndicator";
 import { type Account, accountsService } from "../../services/accounts";
@@ -70,6 +71,7 @@ const AccountChannelsList: React.FC<{
                   navigate(
                     buildMarketplaceRoute(
                       accountId,
+                      channel.id,
                       channel.channel_type,
                       "campaigns",
                     ),
@@ -274,10 +276,14 @@ export const DashboardHeader: React.FC = () => {
   );
   const selectedAccountChannels =
     selectedAccount?.channels || selectedAccountChannelsFromApi;
+  // When URL has channelId (e.g. Amazon/TikTok with multiple channels), show that channel; else first of current marketplace type
+  const urlChannelId = getChannelIdFromUrl(location.pathname);
   const selectedChannel = selectedAccount
-    ? selectedAccountChannels.find(
-        (ch) => ch.channel_type === currentMarketplace,
-      )
+    ? (urlChannelId != null
+        ? selectedAccountChannels.find((ch) => ch.id === urlChannelId)
+        : selectedAccountChannels.find(
+            (ch) => ch.channel_type === currentMarketplace,
+          ))
     : null;
 
   return (

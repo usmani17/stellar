@@ -8,6 +8,7 @@ export interface GoogleAdsListTableProps {
   loading: boolean;
   sorting: boolean;
   accountId: string;
+  channelId?: string;
   selectedAds: Set<string | number>;
   allSelected: boolean;
   someSelected: boolean;
@@ -73,6 +74,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
   loading,
   sorting,
   accountId,
+  channelId,
   selectedAds,
   allSelected,
   someSelected,
@@ -170,7 +172,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       sortable: true,
       minWidth: "min-w-[200px]",
       navigateTo: (row: GoogleAd, accountId: string) => 
-        row.adgroup_id ? `/brands/${accountId}/google-adgroups?adgroup_id=${row.adgroup_id}` : null,
+        row.adgroup_id ? (channelId ? `/brands/${accountId}/${channelId}/google/adgroups?adgroup_id=${row.adgroup_id}` : `/brands/${accountId}/google-adgroups?adgroup_id=${row.adgroup_id}`) : null,
       getValue: (row: GoogleAd) => row.adgroup_name || "—",
     },
     {
@@ -180,7 +182,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       sortable: true,
       minWidth: "min-w-[200px]",
       navigateTo: (row: GoogleAd, accountId: string) => 
-        row.campaign_id ? `/brands/${accountId}/google-campaigns/${row.campaign_id}` : null,
+        row.campaign_id ? (channelId ? `/brands/${accountId}/${channelId}/google/campaigns/${row.campaign_id}` : `/brands/${accountId}/google-campaigns/${row.campaign_id}`) : null,
       getValue: (row: GoogleAd) => row.campaign_name || "—",
     },
     {

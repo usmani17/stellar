@@ -43,7 +43,7 @@ export const TikTokCampaigns: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
   const { sidebarWidth } = useSidebar();
-  const { startDate, endDate } = useDateRange();
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
 
   // State
   const [campaigns, setCampaigns] = useState<TikTokCampaign[]>([]);
@@ -189,10 +189,6 @@ export const TikTokCampaigns: React.FC = () => {
 
     setLoading(true);
     try {
-      // Format dates for API (YYYY-MM-DD)
-      const startDateStr = startDate?.toISOString().split("T")[0];
-      const endDateStr = endDate?.toISOString().split("T")[0];
-
       // Check if we need to include deleted campaigns (if "Deleted" is in the state filter)
       const stateFilter = filters.find((f) => f.field === "state");
       const stateValues = stateFilter?.value;
@@ -414,8 +410,8 @@ export const TikTokCampaigns: React.FC = () => {
       const params: any = {
         sort_by: sortColumn,
         order: sortDirection,
-        start_date: startDate.toISOString().split("T")[0],
-        end_date: endDate.toISOString().split("T")[0],
+        start_date: startDateStr,
+        end_date: endDateStr,
       };
 
       // Apply FilterPanel filters to export

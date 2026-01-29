@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDateRange } from "../../../../contexts/DateRangeContext";
+import { toLocalDateString } from "../../../../utils/dateHelpers";
 import { Button } from "../../../../components/ui";
 import { Loader } from "../../../../components/ui/Loader";
 import { googleAdwordsLogsService } from "../../../../services/googleAdwords/googleAdwordsLogs";
@@ -7,14 +8,16 @@ import type { GoogleLogEntry } from "../../../../services/googleAdwords/googleAd
 
 interface GoogleCampaignDetailLogsTabProps {
   accountId: string;
+  channelId?: string;
   campaignId?: string;
 }
 
 export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabProps> = ({
   accountId,
+  channelId,
   campaignId,
 }) => {
-  const { startDate, endDate } = useDateRange();
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const [logs, setLogs] = useState<GoogleLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -27,9 +30,6 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
   const [exportLoading, setExportLoading] = useState(false);
   const isLoadingRef = useRef(false);
 
-  const startDateStr = startDate?.toISOString();
-  const endDateStr = endDate?.toISOString();
-
   // Load logs - memoized with useCallback
   const loadLogs = useCallback(async () => {
     // Prevent duplicate concurrent calls
@@ -37,7 +37,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
       return;
     }
 
-    if (!accountId) {
+    if (!accountId || !channelId) {
       setLoading(false);
       return;
     }
@@ -47,17 +47,18 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
       setLoading(true);
 
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+        throw new Error("Invalid account ID or channel ID");
       }
 
-      const response = await googleAdwordsLogsService.getGoogleLogs(accountIdNum, {
+      const response = await googleAdwordsLogsService.getGoogleLogs(accountIdNum, channelIdNum, {
         campaign_id: campaignId,
         page: currentPage,
         page_size: pageSize,
         search: search || undefined,
-        start_date: startDateStr ? startDateStr.split("T")[0] : undefined,
-        end_date: endDateStr ? endDateStr.split("T")[0] : undefined,
+        start_date: startDateStr,
+        end_date: endDateStr,
       });
 
       setLogs(response.logs);
@@ -77,7 +78,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
     } finally {
       isLoadingRef.current = false;
     }
-  }, [accountId, campaignId, startDateStr, endDateStr, currentPage, pageSize, search]);
+  }, [accountId, channelId, campaignId, startDateStr, endDateStr, currentPage, pageSize, search]);
 
   // Initial load and reload when filters or page change
   useEffect(() => {
@@ -114,21 +115,20 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
   }, [showExportDropdown]);
 
   const handleExport = async (exportType: "all_data" | "current_view") => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
 
     setShowExportDropdown(true);
     setExportLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+        throw new Error("Invalid account ID or channel ID");
       }
 
       const params: any = {
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        start_date: startDateStr,
+        end_date: endDateStr,
         export_type: exportType,
       };
 
@@ -145,12 +145,12 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
         params.page_size = pageSize;
       }
 
-      const result = await googleAdwordsLogsService.exportGoogleLogs(accountIdNum, params);
+      const result = await googleAdwordsLogsService.exportGoogleLogs(accountIdNum, channelIdNum, params);
 
       // Automatically download the file
       const link = document.createElement("a");
       link.href = result.url;
-      link.download = result.filename || `google_logs_${new Date().toISOString().split("T")[0]}.csv`;
+      link.download = result.filename || `google_logs_${toLocalDateString(new Date())}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

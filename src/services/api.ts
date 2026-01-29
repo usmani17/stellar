@@ -79,7 +79,13 @@ api.interceptors.response.use(
 
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Don't try to refresh token for login/register/auth endpoints - these are authentication attempts
+    const isAuthEndpoint = originalRequest?.url?.includes('/auth/login/') || 
+                          originalRequest?.url?.includes('/auth/register/') ||
+                          originalRequest?.url?.includes('/auth/password-reset/') ||
+                          originalRequest?.url?.includes('/auth/password-reset-confirm/');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
       // Check if this is Auth0 authentication (no refresh token in localStorage)

@@ -14,7 +14,7 @@ export const CreateGoogleShoppingEntitiesSection: React.FC<
       className="create-entity-button"
     >
       <span className="text-[10.64px] text-white font-normal">
-        Create Product Ad
+        Create Listing Group
       </span>
       <svg
         className={`w-4 h-4 !text-white transition-transform ${

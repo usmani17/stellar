@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { accountsService } from "../services/accounts";
+import { useAccounts } from "../contexts/AccountsContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
@@ -34,7 +35,12 @@ interface AmazonProfile {
 export const SelectAmazonProfiles: React.FC = () => {
   const { channelId } = useParams<{ channelId: string }>();
   const navigate = useNavigate();
+  const { accounts } = useAccounts();
   const { sidebarWidth } = useSidebar();
+  const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+  const accountId = accounts?.find((a) =>
+    a.channels?.some((ch) => ch.id === channelIdNum)
+  )?.id;
   const [profiles, setProfiles] = useState<AmazonProfile[]>([]);
   const [selectedProfileIds, setSelectedProfileIds] = useState<Set<string>>(
     new Set()
@@ -291,8 +297,12 @@ export const SelectAmazonProfiles: React.FC = () => {
           updated: result.updated,
           sync_initiated: result.sync_initiated
         }));
-        // Success - navigate to accounts
-        navigate("/brands");
+        // Success - navigate to integrations page for this brand (same as Google/TikTok)
+        if (accountId != null) {
+          navigate(`/brands/${accountId}/integrations`, { replace: true });
+        } else {
+          navigate("/brands", { replace: true });
+        }
       } else {
         setError("Profiles saved but no confirmation received");
       }
@@ -546,7 +556,11 @@ export const SelectAmazonProfiles: React.FC = () => {
                 <div className="flex gap-3 justify-end">
                   <Button
                     className="cancel-button"
-                    onClick={() => navigate("/brands")}
+                    onClick={() =>
+                      accountId != null
+                        ? navigate(`/brands/${accountId}/integrations`)
+                        : navigate("/brands")
+                    }
                     disabled={saving}
                   >
                     Cancel

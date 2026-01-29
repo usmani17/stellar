@@ -29,12 +29,13 @@ const GoogleSyncStatusContext = createContext<GoogleSyncStatusContextType | unde
 export const GoogleSyncStatusProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  // Try to get accountId from params first, fallback to URL parsing
-  const params = useParams<{ accountId: string }>();
+  // Try to get accountId and channelId from params first, fallback to URL parsing
+  const params = useParams<{ accountId: string; channelId: string }>();
   const location = useLocation();
   const accountId = params.accountId || getAccountIdFromUrl(location.pathname)?.toString() || undefined;
+  const channelId = params.channelId;
   
-  console.log(`[GoogleSyncStatus] Provider render - accountId from params:`, params.accountId, `from URL:`, getAccountIdFromUrl(location.pathname), `final:`, accountId);
+  console.log(`[GoogleSyncStatus] Provider render - accountId from params:`, params.accountId, `channelId:`, channelId, `from URL:`, getAccountIdFromUrl(location.pathname), `final accountId:`, accountId);
   const [syncStatus, setSyncStatus] = useState<{
     campaigns: SyncStatus | null;
     adgroups: SyncStatus | null;
@@ -56,14 +57,15 @@ export const GoogleSyncStatusProvider: React.FC<{ children: ReactNode }> = ({
 
   // Check sync status function
   const checkSyncStatus = useCallback(async () => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
 
     const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
+    const channelIdNum = parseInt(channelId, 10);
+    if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
 
     try {
       setLoading(true);
-      const response = await googleAdwordsSyncStatusService.getGoogleSyncStatus(accountIdNum);
+      const response = await googleAdwordsSyncStatusService.getGoogleSyncStatus(accountIdNum, channelIdNum);
       
       if (!isMountedRef.current) return;
       
@@ -92,25 +94,26 @@ export const GoogleSyncStatusProvider: React.FC<{ children: ReactNode }> = ({
     } finally {
       setLoading(false);
     }
-  }, [accountId]);
+  }, [accountId, channelId]);
 
-  // Initial load - fetch sync status once per accountId
+  // Initial load - fetch sync status once per accountId and channelId
   useEffect(() => {
-    console.log(`[GoogleSyncStatus] Initial load effect - accountId:`, accountId);
+    console.log(`[GoogleSyncStatus] Initial load effect - accountId:`, accountId, `channelId:`, channelId);
     
-    if (!accountId) {
-      console.log(`[GoogleSyncStatus] No accountId, skipping fetch`);
+    if (!accountId || !channelId) {
+      console.log(`[GoogleSyncStatus] No accountId or channelId, skipping fetch`);
       return;
     }
 
     const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) {
-      console.log(`[GoogleSyncStatus] Invalid accountId: ${accountId}`);
+    const channelIdNum = parseInt(channelId, 10);
+    if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+      console.log(`[GoogleSyncStatus] Invalid accountId or channelId: accountId=${accountId}, channelId=${channelId}`);
       return;
     }
 
     // Create unique request ID to prevent duplicates (handles React StrictMode)
-    const requestId = `sync-status-${accountId}`;
+    const requestId = `sync-status-${accountId}-${channelId}`;
     
     // Skip if this is the same request as the last one
     if (lastRequestIdRef.current === requestId) {
@@ -127,10 +130,10 @@ export const GoogleSyncStatusProvider: React.FC<{ children: ReactNode }> = ({
     const abortController = new AbortController();
     requestAbortControllerRef.current = abortController;
 
-    console.log(`[GoogleSyncStatus] Making initial sync status API call for account ${accountIdNum}`);
+    console.log(`[GoogleSyncStatus] Making initial sync status API call for account ${accountIdNum}, channel ${channelIdNum}`);
 
     googleAdwordsSyncStatusService
-      .getGoogleSyncStatus(accountIdNum)
+      .getGoogleSyncStatus(accountIdNum, channelIdNum)
       .then((response) => {
         if (abortController.signal.aborted || !isMountedRef.current) return;
         
@@ -209,7 +212,7 @@ export const GoogleSyncStatusProvider: React.FC<{ children: ReactNode }> = ({
         setIsPolling(false);
       }
     };
-  }, [accountId, syncStatus, checkSyncStatus]);
+  }, [accountId, channelId, syncStatus, checkSyncStatus]);
 
   // Global cleanup on unmount
   useEffect(() => {

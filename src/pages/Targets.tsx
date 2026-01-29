@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -26,8 +26,10 @@ import { Loader } from "../components/ui/Loader";
 
 export const Targets: React.FC = () => {
   const navigate = useNavigate();
-  const { accountId } = useParams<{ accountId: string }>();
-  const { startDate, endDate } = useDateRange();
+  const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
+  const [searchParams] = useSearchParams();
+  const profileId = searchParams.get("profile_id") ?? undefined;
+  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
   const [targets, setTargets] = useState<Target[]>([]);
   const [summary, setSummary] = useState<{
@@ -110,7 +112,7 @@ export const Targets: React.FC = () => {
       key: "roas",
       label: "ROAS",
       color: "#059669",
-      tooltipFormatter: (v) => `${v.toFixed(2)} x`,
+      tooltipFormatter: (v) => `${v.toFixed(2)}`,
     },
   ];
   const [currentPage, setCurrentPage] = useState(1);
@@ -346,8 +348,8 @@ export const Targets: React.FC = () => {
       const params: any = {
         sort_by: sortBy,
         order: sortOrder,
-        start_date: startDate.toISOString().split("T")[0],
-        end_date: endDate.toISOString().split("T")[0],
+        start_date: startDateStr,
+        end_date: endDateStr,
         ...buildFilterParams(filters),
       };
 
@@ -358,10 +360,12 @@ export const Targets: React.FC = () => {
       }
 
       // Call export API
-      const result = await campaignsService.exportTargets(accountIdNum, {
-        ...params,
-        export_type: exportType,
-      });
+      const result = await campaignsService.exportTargets(
+        accountIdNum,
+        { ...params, export_type: exportType },
+        channelId ?? null,
+        profileId ?? null
+      );
 
       // Automatically download the file
       const link = document.createElement("a");
@@ -400,8 +404,6 @@ export const Targets: React.FC = () => {
     try {
       loadingRef.current = true;
       setLoading(true);
-      const startDateStr = startDate?.toISOString().split("T")[0];
-      const endDateStr = endDate?.toISOString().split("T")[0];
 
       console.log("Targets - Date range:", {
         startDate: startDateStr,
@@ -418,7 +420,12 @@ export const Targets: React.FC = () => {
         ...buildFilterParams(filters),
       };
 
-      const response = await campaignsService.getTargetsList(accountId, params);
+      const response = await campaignsService.getTargetsList(
+        accountId,
+        params,
+        channelId ?? null,
+        profileId ?? null
+      );
 
       console.log(
         "Targets - Chart data received:",
@@ -465,12 +472,17 @@ export const Targets: React.FC = () => {
         order: sortOrder,
         page: 1, // Always reset to first page when applying filters
         page_size: itemsPerPage,
-        start_date: startDate?.toISOString().split("T")[0],
-        end_date: endDate?.toISOString().split("T")[0],
+        start_date: startDateStr,
+        end_date: endDateStr,
         ...buildFilterParams(filterList),
       };
 
-      const response = await campaignsService.getTargetsList(accountId, params);
+      const response = await campaignsService.getTargetsList(
+        accountId,
+        params,
+        channelId ?? null,
+        profileId ?? null
+      );
       setTargets(Array.isArray(response.targets) ? response.targets : []);
       setTotalPages(response.total_pages || 0);
       if (response.summary) {
@@ -1358,7 +1370,12 @@ export const Targets: React.FC = () => {
                   }
                 }}
               >
-                <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
+                  {bulkLoading && (
+                    <div className="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10 rounded-xl backdrop-blur-sm">
+                      <Loader size="md" message="Updating targets..." />
+                    </div>
+                  )}
                   <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
                     {isBidChange
                       ? "Confirm Bid Changes"
@@ -1678,7 +1695,7 @@ export const Targets: React.FC = () => {
                                 {summary.avg_acos.toFixed(2)}%
                               </td>
                               <td className="table-cell table-text leading-[1.26]">
-                                {summary.avg_roas.toFixed(2)}x
+                                {summary.avg_roas.toFixed(2)}
                               </td>
                             </tr>
                           )}
@@ -1880,6 +1897,7 @@ export const Targets: React.FC = () => {
                                         navigate(
                                           buildMarketplaceRoute(
                                             parseInt(accountId),
+                                            channelId ?? 0,
                                             "amazon",
                                             "campaigns",
                                             `${
@@ -1972,8 +1990,8 @@ export const Targets: React.FC = () => {
                                     {target.roas
                                       ? `${parseFloat(target.roas).toFixed(
                                           2
-                                        )} x`
-                                      : "0.00 x"}
+                                        )}`
+                                      : "0.00"}
                                   </span>
                                 </td>
                               </tr>
