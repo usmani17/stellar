@@ -54,6 +54,17 @@ export const Campaigns: React.FC = () => {
   const navigate = useNavigate();
   const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
+  const { sidebarWidth } = useSidebar();
+
+  // Get account ID as number
+  const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
+
+  // State for pagination, sorting, and filters
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, _setItemsPerPage] = useState(10);
+  const [sortBy, setSortBy] = useState<string>("sales");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [filters, setFilters] = useState<FilterValues>([]);
 
   // Profile filter: derive profileId from filters (same as other filters; no URL sync)
   const profileId = useMemo(() => {
@@ -68,17 +79,6 @@ export const Campaigns: React.FC = () => {
       return null;
     return String(v);
   }, [filters]);
-  const { sidebarWidth } = useSidebar();
-
-  // Get account ID as number
-  const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
-
-  // State for pagination, sorting, and filters
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, _setItemsPerPage] = useState(10);
-  const [sortBy, setSortBy] = useState<string>("sales");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [filters, setFilters] = useState<FilterValues>([]);
   const [searchQuery, setSearchQuery] = useState<string>(""); // For input field and client-side filtering
   const [apiSearchQuery, setApiSearchQuery] = useState<string>(""); // For backend API calls
 
