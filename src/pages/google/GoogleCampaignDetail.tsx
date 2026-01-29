@@ -60,6 +60,7 @@ import {
   formatPercentage,
   getSortIcon,
 } from "./utils/campaignDetailHelpers";
+import { useGoogleProfiles } from "../../hooks/queries/useGoogleProfiles";
 import { useGoogleCampaignDetail } from "./hooks/useGoogleCampaignDetail";
 import { useGoogleCampaignDetailAdGroups } from "./hooks/useGoogleCampaignDetailAdGroups";
 import { useGoogleCampaignDetailAds } from "./hooks/useGoogleCampaignDetailAds";
@@ -103,13 +104,21 @@ interface GoogleCampaignDetail {
 // Types are now imported from ./components/tabs/GoogleTypes
 
 export const GoogleCampaignDetail: React.FC = () => {
-  const { accountId, campaignId } = useParams<{
+  const { accountId, channelId, campaignId } = useParams<{
     accountId: string;
+    channelId: string;
     campaignId: string;
   }>();
   const navigate = useNavigate();
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate } = useDateRange();
+  const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+  const { data: profilesData } = useGoogleProfiles(channelIdNum);
+  const currencyCode = useMemo(() => {
+    const profiles = profilesData?.profiles || [];
+    const selected = profiles.find((p) => p.is_selected);
+    return selected?.currency_code || undefined;
+  }, [profilesData?.profiles]);
   const [activeTab, setActiveTab] = useState("Overview");
   const [campaignAssetPanelOpen, setCampaignAssetPanelOpen] = useState(false);
 
@@ -136,6 +145,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     handleUpdateCampaign,
   } = useGoogleCampaignDetail({
     accountId,
+    channelId,
     campaignId,
     startDate,
     endDate,
@@ -188,6 +198,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Use Negative Keywords hook
   const negativeKeywordsHook = useGoogleCampaignDetailNegativeKeywords({
     accountId,
+    channelId,
     campaignId,
     startDate,
     endDate,
@@ -346,6 +357,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Use Ads hook (after loadAds is defined - but we'll use the hook's loadAds)
   const adsHook = useGoogleCampaignDetailAds({
     accountId,
+    channelId,
     campaignId,
     startDate,
     endDate,
@@ -384,6 +396,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Use AdGroups hook (after loadAds is defined)
   const adGroupsHook = useGoogleCampaignDetailAdGroups({
     accountId,
+    channelId,
     campaignId,
     startDate,
     endDate,
@@ -451,6 +464,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Use Keywords hook
   const keywordsHook = useGoogleCampaignDetailKeywords({
     accountId,
+    channelId,
     campaignId,
     startDate,
     endDate,
@@ -523,6 +537,8 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Use Asset Groups hook
   const assetGroupsHook = useGoogleCampaignDetailAssetGroups({
     accountId,
+    channelId,
+    profileId,
     campaignId,
     startDate,
     endDate,
@@ -588,6 +604,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Use Product Groups hook
   const productGroupsHook = useGoogleCampaignDetailProductGroups({
     accountId,
+    channelId,
     campaignId,
     startDate,
     endDate,
@@ -607,6 +624,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     productGroups,
     productGroupsLoading,
     selectedProductGroupIds,
+    getProductGroupSelectionKey,
     productGroupsCurrentPage,
     setProductGroupsCurrentPage,
     productGroupsTotalPages,
@@ -627,6 +645,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Use Shopping Ads hook
   const shoppingAdsHook = useGoogleCampaignDetailShoppingAds({
     accountId,
+    channelId,
     campaignId,
     startDate,
     endDate,
@@ -645,6 +664,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   const {
     listingGroups: shoppingAds,
     listingGroupsLoading: shoppingAdsLoading,
+    listingGroupsSummary: shoppingAdsSummary,
     selectedListingGroupIds: selectedShoppingAdIds,
     listingGroupsCurrentPage: shoppingAdsCurrentPage,
     setListingGroupsCurrentPage: setShoppingAdsCurrentPage,
@@ -690,6 +710,11 @@ export const GoogleCampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Invalid channel ID");
+      }
+
       const campaignIdNum = parseInt(campaignId, 10);
       if (isNaN(campaignIdNum)) {
         throw new Error("Invalid campaign ID");
@@ -697,6 +722,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       const response = await googleAdwordsCampaignsService.createGoogleSearchEntities(
         accountIdNum,
+        channelIdNum,
         campaignIdNum,
         entity
       );
@@ -797,6 +823,11 @@ export const GoogleCampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Invalid channel ID");
+      }
+
       const campaignIdNum = parseInt(campaignId, 10);
       if (isNaN(campaignIdNum)) {
         throw new Error("Invalid campaign ID");
@@ -804,6 +835,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       const response = await googleAdwordsCampaignsService.createGoogleSearchEntities(
         accountIdNum,
+        channelIdNum,
         campaignIdNum,
         entity
       );
@@ -909,6 +941,11 @@ export const GoogleCampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Invalid channel ID");
+      }
+
       const campaignIdNum = parseInt(campaignId, 10);
       if (isNaN(campaignIdNum)) {
         throw new Error("Invalid campaign ID");
@@ -916,6 +953,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       const response = await googleAdwordsCampaignsService.createGoogleShoppingEntities(
         accountIdNum,
+        channelIdNum,
         campaignIdNum,
         entity
       );
@@ -987,6 +1025,11 @@ export const GoogleCampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Invalid channel ID");
+      }
+
       const campaignIdNum = parseInt(campaignId, 10);
       if (isNaN(campaignIdNum)) {
         throw new Error("Invalid campaign ID");
@@ -994,6 +1037,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       const response = await googleAdwordsCampaignsService.createGoogleShoppingAd(
         accountIdNum,
+        channelIdNum,
         campaignIdNum,
         entity
       );
@@ -1065,9 +1109,12 @@ export const GoogleCampaignDetail: React.FC = () => {
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <button
-                  onClick={() =>
-                    navigate(`/brands/${accountId}/google-campaigns`)
-                  }
+                  onClick={() => {
+                    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+                    if (channelIdNum) {
+                      navigate(`/brands/${accountId}/${channelIdNum}/google/campaigns`)
+                    }
+                  }}
                   className="flex items-center gap-2 text-[#072929] hover:text-[#136D6D] transition-colors"
                 >
                   <svg
@@ -1308,45 +1355,6 @@ export const GoogleCampaignDetail: React.FC = () => {
 
               {activeTab === "Asset Groups" && (
                 <>
-                  {/* Create Asset Group Panel - Only for PERFORMANCE_MAX campaigns */}
-                  {campaignDetail?.campaign.advertising_channel_type ===
-                    "PERFORMANCE_MAX" && (
-                      <>
-                        {isCreatePmaxAssetGroupPanelOpen && campaignId && (
-                          <CreateGooglePmaxAssetGroupPanel
-                            isOpen={isCreatePmaxAssetGroupPanelOpen}
-                            onClose={() => {
-                              setIsCreatePmaxAssetGroupPanelOpen(false);
-                              setCreatePmaxAssetGroupError(null);
-                            }}
-                            onSubmit={handleCreatePmaxAssetGroup}
-                            campaignId={campaignId}
-                            loading={createPmaxAssetGroupLoading}
-                            submitError={createPmaxAssetGroupError}
-                            profileId={profileId}
-                          />
-                        )}
-                        {isEditAssetGroupPanelOpen &&
-                          editingAssetGroupId !== null &&
-                          campaignId && (
-                            <div data-edit-asset-group-panel>
-                              <CreateGooglePmaxAssetGroupPanel
-                                isOpen={isEditAssetGroupPanelOpen}
-                                onClose={handleCloseEditPanel}
-                                onSubmit={handleUpdateAssetGroup}
-                                campaignId={campaignId}
-                                loading={editAssetGroupLoading}
-                                submitError={editAssetGroupError}
-                                editMode={true}
-                                initialData={editingAssetGroupData}
-                                assetGroupId={editingAssetGroupId}
-                                refreshMessage={refreshAssetGroupMessage}
-                                profileId={profileId}
-                              />
-                            </div>
-                          )}
-                      </>
-                    )}
                   <GoogleCampaignDetailAssetGroupsTab
                     assetGroups={assetGroups}
                     loading={assetGroupsLoading}
@@ -1389,6 +1397,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     assetGroupAssets={assetGroupAssets}
                     loadingAssets={loadingAssets}
                     onCloseViewAssetsModal={handleCloseViewAssetsModal}
+                    onBulkUpdateComplete={assetGroupsHook.loadAssetGroups}
                     createButton={
                       campaignDetail?.campaign.advertising_channel_type ===
                         "PERFORMANCE_MAX" ? (
@@ -1405,6 +1414,46 @@ export const GoogleCampaignDetail: React.FC = () => {
                             }
                           }}
                         />
+                      ) : undefined
+                    }
+                    createPanel={
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "PERFORMANCE_MAX" ? (
+                        <>
+                          {isCreatePmaxAssetGroupPanelOpen && campaignId && (
+                            <CreateGooglePmaxAssetGroupPanel
+                              isOpen={isCreatePmaxAssetGroupPanelOpen}
+                              onClose={() => {
+                                setIsCreatePmaxAssetGroupPanelOpen(false);
+                                setCreatePmaxAssetGroupError(null);
+                              }}
+                              onSubmit={handleCreatePmaxAssetGroup}
+                              campaignId={campaignId}
+                              loading={createPmaxAssetGroupLoading}
+                              submitError={createPmaxAssetGroupError}
+                              profileId={profileId}
+                            />
+                          )}
+                          {isEditAssetGroupPanelOpen &&
+                            editingAssetGroupId !== null &&
+                            campaignId && (
+                              <div data-edit-asset-group-panel>
+                                <CreateGooglePmaxAssetGroupPanel
+                                  isOpen={isEditAssetGroupPanelOpen}
+                                  onClose={handleCloseEditPanel}
+                                  onSubmit={handleUpdateAssetGroup}
+                                  campaignId={campaignId}
+                                  loading={editAssetGroupLoading}
+                                  submitError={editAssetGroupError}
+                                  editMode={true}
+                                  initialData={editingAssetGroupData}
+                                  assetGroupId={editingAssetGroupId}
+                                  refreshMessage={refreshAssetGroupMessage}
+                                  profileId={profileId}
+                                />
+                              </div>
+                            )}
+                        </>
                       ) : undefined
                     }
                   />
@@ -1426,48 +1475,6 @@ export const GoogleCampaignDetail: React.FC = () => {
 
               {activeTab === "Ad Groups" && (
                 <>
-                  {/* Create Ad Group Panel - For SEARCH and SHOPPING campaigns */}
-                  {(campaignDetail?.campaign.advertising_channel_type ===
-                    "SEARCH" ||
-                    campaignDetail?.campaign.advertising_channel_type ===
-                    "SHOPPING") && (
-                      <>
-                        {campaignDetail?.campaign.advertising_channel_type ===
-                          "SEARCH" &&
-                          isCreateSearchEntitiesPanelOpen &&
-                          campaignId && (
-                            <CreateGoogleAdGroupPanel
-                              isOpen={isCreateSearchEntitiesPanelOpen}
-                              onClose={() => {
-                                setIsCreateSearchEntitiesPanelOpen(false);
-                                setCreateSearchEntitiesError(null);
-                              }}
-                              onSubmit={handleCreateAdGroup}
-                              campaignId={campaignId}
-                              campaignName={campaignDetail?.campaign.name}
-                              loading={createSearchEntitiesLoading}
-                              submitError={null}
-                            />
-                          )}
-                        {campaignDetail?.campaign.advertising_channel_type ===
-                          "SHOPPING" &&
-                          isCreateShoppingEntitiesPanelOpen &&
-                          campaignId && (
-                            <CreateGoogleAdGroupPanel
-                              isOpen={isCreateShoppingEntitiesPanelOpen}
-                              onClose={() => {
-                                setIsCreateShoppingEntitiesPanelOpen(false);
-                                setCreateShoppingEntitiesError(null);
-                              }}
-                              onSubmit={handleCreateShoppingAdGroup}
-                              campaignId={campaignId}
-                              campaignName={campaignDetail?.campaign.name}
-                              loading={createShoppingEntitiesLoading}
-                              submitError={createShoppingEntitiesError}
-                            />
-                          )}
-                      </>
-                    )}
                   <GoogleCampaignDetailAdGroupsTab
                     adgroups={adgroups}
                     loading={adgroupsLoading}
@@ -1504,10 +1511,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onUpdateAdGroupStatus={handleUpdateAdGroupStatus}
                     onUpdateAdGroupBid={handleUpdateAdGroupBid}
                     onUpdateAdGroupName={async (adgroupId: number, name: string) => {
-                      if (!accountId) return;
+                      if (!accountId || !channelId) return;
                       const accountIdNum = parseInt(accountId, 10);
-                      if (isNaN(accountIdNum)) {
-                        throw new Error("Invalid account ID");
+                      const channelIdNum = parseInt(channelId, 10);
+                      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+                        throw new Error("Invalid account ID or channel ID");
                       }
                       
                       // Find the adgroup to get adgroup_id
@@ -1521,7 +1529,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                         throw new Error("Name cannot be empty");
                       }
                       
-                      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+                      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
                         adgroupIds: [adgroup.adgroup_id],
                         action: "name",
                         name: trimmedName,
@@ -1537,6 +1545,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       }
                     }}
                     accountId={accountId}
+                    channelId={channelId}
                     onBulkUpdateComplete={loadAdGroups}
                     createButton={
                       (campaignDetail?.campaign.advertising_channel_type ===
@@ -1568,6 +1577,49 @@ export const GoogleCampaignDetail: React.FC = () => {
                         />
                       ) : undefined
                     }
+                    createPanel={
+                      (campaignDetail?.campaign.advertising_channel_type ===
+                        "SEARCH" ||
+                        campaignDetail?.campaign.advertising_channel_type ===
+                        "SHOPPING") ? (
+                        <>
+                          {campaignDetail?.campaign.advertising_channel_type ===
+                            "SEARCH" &&
+                            isCreateSearchEntitiesPanelOpen &&
+                            campaignId && (
+                              <CreateGoogleAdGroupPanel
+                                isOpen={isCreateSearchEntitiesPanelOpen}
+                                onClose={() => {
+                                  setIsCreateSearchEntitiesPanelOpen(false);
+                                  setCreateSearchEntitiesError(null);
+                                }}
+                                onSubmit={handleCreateAdGroup}
+                                campaignId={campaignId}
+                                campaignName={campaignDetail?.campaign.name}
+                                loading={createSearchEntitiesLoading}
+                                submitError={null}
+                              />
+                            )}
+                          {campaignDetail?.campaign.advertising_channel_type ===
+                            "SHOPPING" &&
+                            isCreateShoppingEntitiesPanelOpen &&
+                            campaignId && (
+                              <CreateGoogleAdGroupPanel
+                                isOpen={isCreateShoppingEntitiesPanelOpen}
+                                onClose={() => {
+                                  setIsCreateShoppingEntitiesPanelOpen(false);
+                                  setCreateShoppingEntitiesError(null);
+                                }}
+                                onSubmit={handleCreateShoppingAdGroup}
+                                campaignId={campaignId}
+                                campaignName={campaignDetail?.campaign.name}
+                                loading={createShoppingEntitiesLoading}
+                                submitError={createShoppingEntitiesError}
+                              />
+                            )}
+                        </>
+                      ) : undefined
+                    }
                   />
                 </>
               )}
@@ -1576,49 +1628,6 @@ export const GoogleCampaignDetail: React.FC = () => {
                 campaignDetail?.campaign.advertising_channel_type !==
                 "PERFORMANCE_MAX" && (
                   <>
-                    {/* Create Ad Panel - For SEARCH campaigns */}
-                    {campaignDetail?.campaign.advertising_channel_type ===
-                      "SEARCH" && (
-                        <>
-                          {isCreateSearchEntitiesPanelOpen && campaignId && (
-                            <CreateGoogleAdPanel
-                              isOpen={isCreateSearchEntitiesPanelOpen}
-                              onClose={() => {
-                                setIsCreateSearchEntitiesPanelOpen(false);
-                                setCreateSearchEntitiesError(null);
-                              }}
-                              onSubmit={handleCreateAd}
-                              campaignId={campaignId}
-                              accountId={accountId || ""}
-                              profileId={profileId}
-                              loading={createSearchEntitiesLoading}
-                              submitError={null}
-                            />
-                          )}
-                        </>
-                      )}
-                    {/* Create Listing Group Panel - For SHOPPING campaigns */}
-                    {campaignDetail?.campaign.advertising_channel_type ===
-                      "SHOPPING" && (
-                        <>
-                          {isCreateShoppingEntitiesPanelOpen &&
-                            campaignId &&
-                            accountId && (
-                              <CreateGoogleShoppingEntitiesPanel
-                                isOpen={isCreateShoppingEntitiesPanelOpen}
-                                onClose={() => {
-                                  setIsCreateShoppingEntitiesPanelOpen(false);
-                                  setCreateShoppingEntitiesError(null);
-                                }}
-                                onSubmit={handleCreateShoppingEntities}
-                                campaignId={campaignId}
-                                accountId={accountId}
-                                loading={createShoppingEntitiesLoading}
-                                submitError={createShoppingEntitiesError}
-                              />
-                            )}
-                        </>
-                      )}
                     <GoogleCampaignDetailAdsTab
                       ads={ads}
                       loading={adsLoading}
@@ -1649,6 +1658,10 @@ export const GoogleCampaignDetail: React.FC = () => {
                       }
                       getSortIcon={getSortIcon}
                       onUpdateAdStatus={handleUpdateAdStatus}
+                      accountId={accountId}
+                      channelId={channelId}
+                      campaignId={campaignId}
+                      onBulkUpdateComplete={loadAdsFromHook}
                       formatCurrency={formatCurrency2Decimals}
                       formatPercentage={formatPercentage}
                       createButton={
@@ -1676,34 +1689,51 @@ export const GoogleCampaignDetail: React.FC = () => {
                           />
                         ) : undefined
                       }
+                      createPanel={
+                        campaignDetail?.campaign.advertising_channel_type ===
+                          "SEARCH" &&
+                          isCreateSearchEntitiesPanelOpen &&
+                          campaignId ? (
+                            <CreateGoogleAdPanel
+                              isOpen={isCreateSearchEntitiesPanelOpen}
+                              onClose={() => {
+                                setIsCreateSearchEntitiesPanelOpen(false);
+                                setCreateSearchEntitiesError(null);
+                              }}
+                              onSubmit={handleCreateAd}
+                              campaignId={campaignId}
+                              accountId={accountId || ""}
+                              channelId={channelId}
+                              profileId={profileId}
+                              loading={createSearchEntitiesLoading}
+                              submitError={null}
+                            />
+                          ) : campaignDetail?.campaign.advertising_channel_type ===
+                            "SHOPPING" &&
+                            isCreateShoppingEntitiesPanelOpen &&
+                            campaignId &&
+                            accountId ? (
+                            <CreateGoogleShoppingEntitiesPanel
+                              isOpen={isCreateShoppingEntitiesPanelOpen}
+                              onClose={() => {
+                                setIsCreateShoppingEntitiesPanelOpen(false);
+                                setCreateShoppingEntitiesError(null);
+                              }}
+                              onSubmit={handleCreateShoppingEntities}
+                              campaignId={campaignId}
+                              accountId={accountId}
+                              channelId={channelId}
+                              loading={createShoppingEntitiesLoading}
+                              submitError={createShoppingEntitiesError}
+                            />
+                          ) : undefined
+                      }
                     />
                   </>
                 )}
 
               {activeTab === "Keywords" && (
                 <>
-                  {/* Create Keywords Panel - Only for SEARCH campaigns */}
-                  {campaignDetail?.campaign.advertising_channel_type ===
-                    "SEARCH" && (
-                      <>
-                        {isCreateSearchEntitiesPanelOpen &&
-                          campaignId &&
-                          accountId && (
-                            <CreateGoogleKeywordPanel
-                              isOpen={isCreateSearchEntitiesPanelOpen}
-                              onClose={() => {
-                                setIsCreateSearchEntitiesPanelOpen(false);
-                                setCreateSearchEntitiesError(null);
-                              }}
-                              onSubmit={handleCreateKeywords}
-                              campaignId={campaignId}
-                              accountId={accountId}
-                              loading={createSearchEntitiesLoading}
-                              submitError={null}
-                            />
-                          )}
-                      </>
-                    )}
                   <GoogleCampaignDetailKeywordsTab
                     keywords={keywords}
                     loading={keywordsLoading}
@@ -1748,6 +1778,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onUpdateKeywordMatchType={handleUpdateKeywordMatchType}
                     onStartKeywordTextEdit={handleStartKeywordTextEdit}
                     onStartFinalUrlEdit={handleStartFinalUrlEdit}
+                    channelId={channelId}
+                    onBulkUpdateComplete={loadKeywords}
                     formatCurrency2Decimals={formatCurrency2Decimals}
                     createButton={
                       campaignDetail?.campaign.advertising_channel_type ===
@@ -1763,37 +1795,33 @@ export const GoogleCampaignDetail: React.FC = () => {
                         />
                       ) : undefined
                     }
+                    createPanel={
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "SEARCH" &&
+                        isCreateSearchEntitiesPanelOpen &&
+                        campaignId &&
+                        accountId ? (
+                        <CreateGoogleKeywordPanel
+                          isOpen={isCreateSearchEntitiesPanelOpen}
+                          onClose={() => {
+                            setIsCreateSearchEntitiesPanelOpen(false);
+                            setCreateSearchEntitiesError(null);
+                          }}
+                          onSubmit={handleCreateKeywords}
+                          campaignId={campaignId}
+                          accountId={accountId}
+                          channelId={channelId}
+                          loading={createSearchEntitiesLoading}
+                          submitError={null}
+                        />
+                      ) : undefined
+                    }
                   />
                 </>
               )}
 
               {activeTab === "Negative Keywords" && (
                 <>
-                  {/* Create Negative Keywords Panel */}
-                  {isCreateNegativeKeywordPanelOpen &&
-                    campaignId &&
-                    accountId && (
-                      <CreateGoogleNegativeKeywordPanel
-                        isOpen={isCreateNegativeKeywordPanelOpen}
-                        onClose={() => {
-                          setIsCreateNegativeKeywordPanelOpen(false);
-                          setCreateNegativeKeywordError(null);
-                          setCreatedNegativeKeywords([]);
-                          setFailedNegativeKeywords([]);
-                        }}
-                        onSubmit={handleCreateNegativeKeywords}
-                        campaignId={campaignId}
-                        accountId={accountId}
-                        campaignType={
-                          campaignDetail?.campaign?.advertising_channel_type
-                        }
-                        adgroups={adgroups}
-                        loading={createNegativeKeywordLoading}
-                        submitError={createNegativeKeywordError}
-                        createdNegativeKeywords={createdNegativeKeywords}
-                        failedNegativeKeywords={failedNegativeKeywords}
-                      />
-                    )}
                   <GoogleCampaignDetailNegativeKeywordsTab
                     negativeKeywords={negativeKeywords}
                     loading={negativeKeywordsLoading}
@@ -1829,6 +1857,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onUpdateNegativeKeywordMatchType={handleUpdateNegativeKeywordMatchType}
                     onUpdateNegativeKeywordText={handleUpdateNegativeKeywordText}
                     campaignType={campaignDetail?.campaign?.advertising_channel_type}
+                    accountId={accountId}
+                    channelId={channelId}
+                    onBulkUpdateComplete={negativeKeywordsHook.loadNegativeKeywords}
                     createButton={
                       <CreateGoogleNegativeKeywordSection
                         isOpen={isCreateNegativeKeywordPanelOpen}
@@ -1840,38 +1871,43 @@ export const GoogleCampaignDetail: React.FC = () => {
                         }}
                       />
                     }
+                    createPanel={
+                      isCreateNegativeKeywordPanelOpen &&
+                      campaignId &&
+                      accountId ? (
+                        <CreateGoogleNegativeKeywordPanel
+                          isOpen={isCreateNegativeKeywordPanelOpen}
+                          onClose={() => {
+                            setIsCreateNegativeKeywordPanelOpen(false);
+                            setCreateNegativeKeywordError(null);
+                            setCreatedNegativeKeywords([]);
+                            setFailedNegativeKeywords([]);
+                          }}
+                          onSubmit={handleCreateNegativeKeywords}
+                          campaignId={campaignId}
+                          accountId={accountId}
+                          campaignType={
+                            campaignDetail?.campaign?.advertising_channel_type
+                          }
+                          adgroups={adgroups}
+                          loading={createNegativeKeywordLoading}
+                          submitError={createNegativeKeywordError}
+                          createdNegativeKeywords={createdNegativeKeywords}
+                          failedNegativeKeywords={failedNegativeKeywords}
+                        />
+                      ) : undefined
+                    }
                   />
                 </>
               )}
 
               {activeTab === "Product Groups" && (
                 <>
-                  {/* Create Shopping Entities Panel - Only for SHOPPING campaigns */}
-                  {campaignDetail?.campaign.advertising_channel_type ===
-                    "SHOPPING" && (
-                      <>
-                        {isCreateShoppingEntitiesPanelOpen &&
-                          campaignId &&
-                          accountId && (
-                            <CreateGoogleShoppingEntitiesPanel
-                              isOpen={isCreateShoppingEntitiesPanelOpen}
-                              onClose={() => {
-                                setIsCreateShoppingEntitiesPanelOpen(false);
-                                setCreateShoppingEntitiesError(null);
-                              }}
-                              onSubmit={handleCreateShoppingEntities}
-                              campaignId={campaignId}
-                              accountId={accountId}
-                              loading={createShoppingEntitiesLoading}
-                              submitError={createShoppingEntitiesError}
-                            />
-                          )}
-                      </>
-                    )}
                   <GoogleCampaignDetailProductGroupsTab
                     productGroups={productGroups}
                     loading={productGroupsLoading}
                     selectedProductGroupIds={selectedProductGroupIds}
+                    getProductGroupSelectionKey={getProductGroupSelectionKey}
                     onSelectAll={handleSelectAllProductGroups}
                     onSelectProductGroup={handleSelectProductGroup}
                     sortBy={productGroupsSortBy}
@@ -1900,6 +1936,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                     formatCurrency2Decimals={formatCurrency2Decimals}
                     formatPercentage={formatPercentage}
                     onUpdateProductGroupStatus={handleUpdateProductGroupStatus}
+                    accountId={accountId}
+                    channelId={channelId}
+                    onBulkUpdateComplete={loadProductGroups}
                     createButton={
                       campaignDetail?.campaign.advertising_channel_type ===
                         "SHOPPING" ? (
@@ -1914,34 +1953,33 @@ export const GoogleCampaignDetail: React.FC = () => {
                         />
                       ) : undefined
                     }
+                    createPanel={
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "SHOPPING" &&
+                      isCreateShoppingEntitiesPanelOpen &&
+                      campaignId &&
+                      accountId ? (
+                        <CreateGoogleShoppingEntitiesPanel
+                          isOpen={isCreateShoppingEntitiesPanelOpen}
+                          onClose={() => {
+                            setIsCreateShoppingEntitiesPanelOpen(false);
+                            setCreateShoppingEntitiesError(null);
+                          }}
+                          onSubmit={handleCreateShoppingEntities}
+                          campaignId={campaignId}
+                          accountId={accountId}
+                          channelId={channelId}
+                          loading={createShoppingEntitiesLoading}
+                          submitError={createShoppingEntitiesError}
+                        />
+                      ) : undefined
+                    }
                   />
                 </>
               )}
 
               {activeTab === "Shopping Ads" && (
                 <>
-                  {/* Create Shopping Ad Panel - Only for SHOPPING campaigns */}
-                  {campaignDetail?.campaign.advertising_channel_type ===
-                    "SHOPPING" && (
-                      <>
-                        {isCreateShoppingAdPanelOpen &&
-                          campaignId &&
-                          accountId && (
-                            <CreateGoogleShoppingAdPanel
-                              isOpen={isCreateShoppingAdPanelOpen}
-                              onClose={() => {
-                                setIsCreateShoppingAdPanelOpen(false);
-                                setCreateShoppingAdError(null);
-                              }}
-                              onSubmit={handleCreateShoppingAd}
-                              campaignId={campaignId}
-                              accountId={accountId}
-                              loading={createShoppingAdLoading}
-                              submitError={createShoppingAdError}
-                            />
-                          )}
-                      </>
-                    )}
                   <GoogleCampaignDetailShoppingAdsTab
                     listingGroups={shoppingAds}
                     loading={shoppingAdsLoading}
@@ -1974,6 +2012,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                     formatCurrency2Decimals={formatCurrency2Decimals}
                     formatPercentage={formatPercentage}
                     onUpdateListingGroupStatus={handleUpdateShoppingAdStatus}
+                    onBulkUpdateComplete={loadShoppingAds}
+                    currencyCode={currencyCode}
+                    summary={shoppingAdsSummary}
                     createButton={
                       campaignDetail?.campaign.advertising_channel_type ===
                         "SHOPPING" ? (
@@ -1988,6 +2029,27 @@ export const GoogleCampaignDetail: React.FC = () => {
                         />
                       ) : undefined
                     }
+                    createPanel={
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "SHOPPING" &&
+                      isCreateShoppingAdPanelOpen &&
+                      campaignId &&
+                      accountId ? (
+                        <CreateGoogleShoppingAdPanel
+                          isOpen={isCreateShoppingAdPanelOpen}
+                          onClose={() => {
+                            setIsCreateShoppingAdPanelOpen(false);
+                            setCreateShoppingAdError(null);
+                          }}
+                          onSubmit={handleCreateShoppingAd}
+                          campaignId={campaignId}
+                          accountId={accountId}
+                          channelId={channelId}
+                          loading={createShoppingAdLoading}
+                          submitError={createShoppingAdError}
+                        />
+                      ) : undefined
+                    }
                   />
                 </>
               )}
@@ -1995,6 +2057,7 @@ export const GoogleCampaignDetail: React.FC = () => {
               {activeTab === "Logs" && accountId && (
                 <GoogleCampaignDetailLogsTab
                   accountId={accountId}
+                  channelId={channelId}
                   campaignId={campaignId}
                 />
               )}

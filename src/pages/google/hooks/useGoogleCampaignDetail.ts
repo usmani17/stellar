@@ -35,6 +35,7 @@ interface GoogleCampaignDetail {
 
 interface UseGoogleCampaignDetailParams {
   accountId: string | undefined;
+  channelId: string | undefined;
   campaignId: string | undefined;
   startDate: Date | null;
   endDate: Date | null;
@@ -42,6 +43,7 @@ interface UseGoogleCampaignDetailParams {
 
 export const useGoogleCampaignDetail = ({
   accountId,
+  channelId,
   campaignId,
   startDate,
   endDate,
@@ -88,8 +90,13 @@ export const useGoogleCampaignDetail = ({
         return;
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
       const data = await googleAdwordsCampaignsService.getGoogleCampaignDetail(
         accountIdNum,
+        channelIdNum,
         campaignIdNum,
         startDate ? toLocalDateString(startDate) : undefined,
         endDate ? toLocalDateString(endDate) : undefined
@@ -106,7 +113,7 @@ export const useGoogleCampaignDetail = ({
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [accountId, campaignId, startDate, endDate]);
+  }, [accountId, channelId, campaignId, startDate, endDate]);
 
   // Load campaign detail when params change
   const startDateStr = startDate?.toISOString();
@@ -152,12 +159,13 @@ export const useGoogleCampaignDetail = ({
       field: "budget" | "status" | "start_date" | "end_date",
       newValue: string
     ) => {
-      if (!accountId || !campaignDetail) return;
+      if (!accountId || !channelId || !campaignDetail) return;
 
       try {
         const accountIdNum = parseInt(accountId, 10);
-        if (isNaN(accountIdNum)) {
-          throw new Error("Invalid account ID");
+        const channelIdNum = parseInt(channelId, 10);
+        if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+          throw new Error("Invalid account ID or channel ID");
         }
 
         if (field === "status") {
@@ -173,6 +181,7 @@ export const useGoogleCampaignDetail = ({
 
           await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
             accountIdNum,
+            channelIdNum,
             {
               campaignIds: [campaignDetail.campaign.campaign_id],
               action: "status",
@@ -187,6 +196,7 @@ export const useGoogleCampaignDetail = ({
 
           await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
             accountIdNum,
+            channelIdNum,
             {
               campaignIds: [campaignDetail.campaign.campaign_id],
               action: "budget",
@@ -198,6 +208,7 @@ export const useGoogleCampaignDetail = ({
         } else if (field === "start_date") {
           await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
             accountIdNum,
+            channelIdNum,
             {
               campaignIds: [campaignDetail.campaign.campaign_id],
               action: "start_date",
@@ -207,6 +218,7 @@ export const useGoogleCampaignDetail = ({
         } else if (field === "end_date") {
           await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
             accountIdNum,
+            channelIdNum,
             {
               campaignIds: [campaignDetail.campaign.campaign_id],
               action: "end_date",
@@ -222,7 +234,7 @@ export const useGoogleCampaignDetail = ({
         throw error; // Re-throw so component can handle it
       }
     },
-    [accountId, campaignDetail, loadCampaignDetail]
+    [accountId, channelId, campaignDetail, loadCampaignDetail]
   );
 
   return {

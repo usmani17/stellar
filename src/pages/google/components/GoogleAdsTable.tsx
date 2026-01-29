@@ -41,6 +41,7 @@ export function GoogleAdsTable<T = any>({
   isPanelOpen = false,
   inlineEditSuccess,
   inlineEditError,
+  currencyCode,
 }: IGoogleAdsTableProps<T>) {
   const navigate = useNavigate();
   // Ref to track if a status selection was made (matches Amazon pattern)
@@ -991,6 +992,8 @@ export function GoogleAdsTable<T = any>({
                       } else if (index !== 0 && (column.key === "campaign_name" || column.key === "adgroup_name" || column.key === "account_name")) {
                         // Navigation columns (except first column) should be empty
                         summaryValue = "";
+                      } else if (column.key === "currency") {
+                        summaryValue = currencyCode ?? "";
                       } else if (column.key === "spends") {
                         summaryValue = formatCurrency(summary?.total_spends || 0);
                       } else if (column.key === "sales") {

@@ -3,6 +3,7 @@ import api from "../api";
 export const googleAdwordsAdsService = {
   getGoogleAds: async (
     accountId: number,
+    channelId: number,
     campaignId?: string | number,
     adgroupId?: string | number,
     params?: {
@@ -56,12 +57,13 @@ export const googleAdwordsAdsService = {
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
     if (params?.adgroup_id) payload.adgroup_id = params.adgroup_id;
 
-    const response = await api.post(`/google-adwords/${accountId}/ads/`, payload);
+    const response = await api.post(`/google-adwords/${accountId}/channels/${channelId}/ads/`, payload);
     return response.data;
   },
 
   syncGoogleAdAnalytics: async (
     accountId: number,
+    channelId: number,
     startDate?: string,
     endDate?: string
   ): Promise<{
@@ -78,7 +80,7 @@ export const googleAdwordsAdsService = {
     if (startDate) payload.start_date = startDate;
     if (endDate) payload.end_date = endDate;
     const response = await api.post(
-      `/google-adwords/${accountId}/ads/analytics-sync/`,
+      `/google-adwords/${accountId}/channels/${channelId}/ads/analytics-sync/`,
       payload
     );
     return response.data;
@@ -86,6 +88,7 @@ export const googleAdwordsAdsService = {
 
   exportGoogleAds: async (
     accountId: number,
+    channelId: number,
     params?: {
       filters?: Array<{ field: string; operator?: string; value: any }>; // Dynamic filters from DynamicFilterPanel
       sort_by?: string;
@@ -121,20 +124,22 @@ export const googleAdwordsAdsService = {
       payload.ad_ids = params.ad_ids;
     }
 
-    const url = `/google-adwords/${accountId}/ads/export/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/ads/export/`;
     const response = await api.post<{ url: string; filename: string }>(url, payload);
     return response.data;
   },
 
   syncGoogleAds: async (
-    accountId: number
+    accountId: number,
+    channelId: number
   ): Promise<{ synced: number; errors?: string[]; message?: string }> => {
-    const response = await api.post(`/google-adwords/${accountId}/ads/sync/`);
+    const response = await api.post(`/google-adwords/${accountId}/channels/${channelId}/ads/sync/`);
     return response.data;
   },
 
   bulkUpdateGoogleAds: async (
     accountId: number,
+    channelId: number,
     payload: {
       adIds: Array<string | number>;
       action: "status";
@@ -143,7 +148,11 @@ export const googleAdwordsAdsService = {
       adGroupId?: string;  // Optional: filter by ad group (for product groups)
     }
   ) => {
-    const url = `/google-adwords/${accountId}/ads/bulk-update/`;
+    // Validate channelId before constructing URL
+    if (!channelId || isNaN(channelId)) {
+      throw new Error(`Invalid channelId: ${channelId}. channelId must be a valid number.`);
+    }
+    const url = `/google-adwords/${accountId}/channels/${channelId}/ads/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },

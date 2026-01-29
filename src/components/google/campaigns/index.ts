@@ -13,4 +13,5 @@ export { BaseGoogleCampaignForm } from "./BaseGoogleCampaignForm";
 export { GoogleTrackingTemplateForm, type GoogleTrackingTemplateFormProps } from "./GoogleTrackingTemplateForm";
 export { GoogleLocationTargetingForm, type GoogleLocationTargetingFormProps } from "./GoogleLocationTargetingForm";
 export { GoogleLanguageTargetingForm, type GoogleLanguageTargetingFormProps } from "./GoogleLanguageTargetingForm";
+export { GoogleConversionActionForm, type GoogleConversionActionFormProps } from "./GoogleConversionActionForm";
 export { GoogleBiddingStrategyForm } from "./GoogleBiddingStrategyForm";

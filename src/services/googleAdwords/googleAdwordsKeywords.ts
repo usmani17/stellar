@@ -4,6 +4,7 @@ import { toLocalDateString } from "../../utils/dateHelpers";
 export const googleAdwordsKeywordsService = {
   getGoogleKeywords: async (
     accountId: number,
+    channelId: number,
     campaignId?: string | number,
     adgroupId?: string | number,
     params?: {
@@ -59,12 +60,13 @@ export const googleAdwordsKeywordsService = {
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
     if (params?.adgroup_id) payload.adgroup_id = params.adgroup_id;
 
-    const response = await api.post(`/google-adwords/${accountId}/keywords/`, payload);
+    const response = await api.post(`/google-adwords/${accountId}/channels/${channelId}/keywords/`, payload);
     return response.data;
   },
 
   syncGoogleKeywordAnalytics: async (
     accountId: number,
+    channelId: number,
     startDate?: string,
     endDate?: string
   ): Promise<{
@@ -81,7 +83,7 @@ export const googleAdwordsKeywordsService = {
     if (startDate) payload.start_date = startDate;
     if (endDate) payload.end_date = endDate;
     const response = await api.post(
-      `/google-adwords/${accountId}/keywords/analytics-sync/`,
+      `/google-adwords/${accountId}/channels/${channelId}/keywords/analytics-sync/`,
       payload
     );
     return response.data;
@@ -89,6 +91,7 @@ export const googleAdwordsKeywordsService = {
 
   exportGoogleKeywords: async (
     accountId: number,
+    channelId: number,
     params?: {
       filters?: Array<{ field: string; operator?: string; value: any }>; // Dynamic filters from DynamicFilterPanel
       sort_by?: string;
@@ -126,7 +129,7 @@ export const googleAdwordsKeywordsService = {
 
     // Make request with responseType blob to handle CSV file
     const response = await api.post(
-      `/google-adwords/${accountId}/keywords/export/`,
+      `/google-adwords/${accountId}/channels/${channelId}/keywords/export/`,
       payload,
       {
         responseType: "blob",
@@ -149,16 +152,18 @@ export const googleAdwordsKeywordsService = {
   },
 
   syncGoogleKeywords: async (
-    accountId: number
+    accountId: number,
+    channelId: number
   ): Promise<{ synced: number; errors?: string[]; message?: string }> => {
     const response = await api.post(
-      `/google-adwords/${accountId}/keywords/sync/`
+      `/google-adwords/${accountId}/channels/${channelId}/keywords/sync/`
     );
     return response.data;
   },
 
   bulkUpdateGoogleKeywords: async (
     accountId: number,
+    channelId: number,
     payload: {
       keywordIds: Array<string | number>;
       action: "status" | "bid" | "match_type" | "keyword_text" | "final_urls";
@@ -171,7 +176,11 @@ export const googleAdwordsKeywordsService = {
       adgroupIds?: Array<string | number>; // Optional: for filtering keywords by ad group
     }
   ) => {
-    const url = `/google-adwords/${accountId}/keywords/bulk-update/`;
+    // Validate channelId before constructing URL
+    if (!channelId || isNaN(channelId)) {
+      throw new Error(`Invalid channelId: ${channelId}. channelId must be a valid number.`);
+    }
+    const url = `/google-adwords/${accountId}/channels/${channelId}/keywords/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },

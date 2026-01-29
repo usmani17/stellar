@@ -7,6 +7,8 @@ import type { PmaxAssetGroupInput, AssetGroupInitialData } from "../../../compon
 
 interface UseGoogleCampaignDetailAssetGroupsParams {
   accountId: string | undefined;
+  channelId: string | undefined;
+  profileId: number | null;
   campaignId: string | undefined;
   startDate: Date | null;
   endDate: Date | null;
@@ -17,6 +19,8 @@ interface UseGoogleCampaignDetailAssetGroupsParams {
 
 export const useGoogleCampaignDetailAssetGroups = ({
   accountId,
+  channelId,
+  profileId,
   campaignId,
   startDate,
   endDate,
@@ -65,14 +69,17 @@ export const useGoogleCampaignDetailAssetGroups = ({
     try {
       setAssetGroupsLoading(true);
       const accountIdNum = parseInt(accountId!, 10);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
 
-      if (isNaN(accountIdNum) || !campaignId) {
+      if (isNaN(accountIdNum) || !channelIdNum || !profileId || !campaignId) {
         setAssetGroupsLoading(false);
         return;
       }
 
       const data = await googleAdwordsAssetGroupsService.getGoogleAssetGroups(
         accountIdNum,
+        channelIdNum,
+        profileId,
         parseInt(campaignId, 10),
         {
           filters: assetGroupsFilters,
@@ -94,6 +101,8 @@ export const useGoogleCampaignDetailAssetGroups = ({
     }
   }, [
     accountId,
+    channelId,
+    profileId,
     campaignId,
     assetGroupsCurrentPage,
     assetGroupsSortBy,
@@ -103,11 +112,13 @@ export const useGoogleCampaignDetailAssetGroups = ({
 
   // Load asset groups when dependencies change
   useEffect(() => {
-    if (accountId && campaignId && activeTab === "Asset Groups") {
+    if (accountId && channelId && profileId && campaignId && activeTab === "Asset Groups") {
       loadAssetGroups();
     }
   }, [
     accountId,
+    channelId,
+    profileId,
     campaignId,
     activeTab,
     startDate,
@@ -158,16 +169,17 @@ export const useGoogleCampaignDetailAssetGroups = ({
 
   // Sync handler
   const handleSyncAssetGroups = useCallback(async () => {
-    if (!accountId) return;
+    if (!accountId || !channelId || !profileId) return;
     const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    if (isNaN(accountIdNum) || !channelIdNum || !profileId) return;
 
     try {
       setSyncingAssetGroups(true);
       if (onSyncMessage) {
         onSyncMessage({ type: null, message: null });
       }
-      const result = await googleAdwordsAssetGroupsService.syncGoogleAssetGroups(accountIdNum);
+      const result = await googleAdwordsAssetGroupsService.syncGoogleAssetGroups(accountIdNum, channelIdNum, profileId);
       let message =
         result.message || `Successfully synced ${result.synced} asset groups`;
 
@@ -220,7 +232,7 @@ export const useGoogleCampaignDetailAssetGroups = ({
     } finally {
       setSyncingAssetGroups(false);
     }
-  }, [accountId, loadAssetGroups, onSyncMessage]);
+  }, [accountId, channelId, profileId, loadAssetGroups, onSyncMessage]);
 
   // Safe mapping function to convert API data to form data
   const mapApiDataToForm = useCallback((apiData: any): AssetGroupInitialData => {
@@ -267,24 +279,22 @@ export const useGoogleCampaignDetailAssetGroups = ({
 
   // Handler for creating Performance Max asset group
   const handleCreatePmaxAssetGroup = useCallback(async (entity: PmaxAssetGroupInput) => {
-    if (!accountId || !campaignId) return;
+    if (!accountId || !channelId || !campaignId) return;
 
     setCreatePmaxAssetGroupLoading(true);
     setCreatePmaxAssetGroupError(null);
 
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
+      const channelIdNum = parseInt(channelId, 10);
       const campaignIdNum = parseInt(campaignId, 10);
-      if (isNaN(campaignIdNum)) {
-        throw new Error("Invalid campaign ID");
+      if (isNaN(accountIdNum) || isNaN(channelIdNum) || isNaN(campaignIdNum)) {
+        throw new Error("Invalid account ID, channel ID, or campaign ID");
       }
 
       const response = await googleAdwordsCampaignsService.createGooglePmaxAssetGroup(
         accountIdNum,
+        channelIdNum,
         campaignIdNum,
         entity
       );
@@ -331,7 +341,7 @@ export const useGoogleCampaignDetailAssetGroups = ({
     } finally {
       setCreatePmaxAssetGroupLoading(false);
     }
-  }, [accountId, campaignId, loadAssetGroups, onError]);
+  }, [accountId, channelId, campaignId, loadAssetGroups, onError]);
 
   // Handler for editing asset group (fetches data when edit button is clicked)
   const handleEditAssetGroup = useCallback(async (assetGroup: any) => {
@@ -456,14 +466,15 @@ export const useGoogleCampaignDetailAssetGroups = ({
     assetGroupId: number,
     status: string
   ) => {
-    if (!accountId || !campaignId) return;
+    if (!accountId || !channelId || !profileId || !campaignId) return;
 
     try {
       const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
       const campaignIdNum = parseInt(campaignId, 10);
 
-      if (isNaN(accountIdNum) || isNaN(campaignIdNum)) {
-        throw new Error("Invalid account or campaign ID");
+      if (isNaN(accountIdNum) || !channelIdNum || !profileId || isNaN(campaignIdNum)) {
+        throw new Error("Invalid account, channel, profile, or campaign ID");
       }
 
       // Find the asset group to get asset_group_id
@@ -475,6 +486,8 @@ export const useGoogleCampaignDetailAssetGroups = ({
       // Call API to update status
       await googleAdwordsAssetGroupsService.updateAssetGroupStatus(
         accountIdNum,
+        channelIdNum,
+        profileId,
         assetGroup.asset_group_id,
         campaignIdNum,
         status as "ENABLED" | "PAUSED"
@@ -501,7 +514,7 @@ export const useGoogleCampaignDetailAssetGroups = ({
       }
       throw error;
     }
-  }, [accountId, campaignId, assetGroups, onError]);
+  }, [accountId, channelId, profileId, campaignId, assetGroups, onError]);
 
   // Handler for updating asset group
   const handleUpdateAssetGroup = useCallback(async (entity: PmaxAssetGroupInput) => {
@@ -606,7 +619,7 @@ export const useGoogleCampaignDetailAssetGroups = ({
 
   // Handler to view assets
   const handleViewAssets = useCallback(async (assetGroup: any) => {
-    if (!accountId || !assetGroup.asset_group_id) return;
+    if (!accountId || !channelId || !profileId || !assetGroup.asset_group_id) return;
 
     setViewingAssetGroupId(assetGroup.asset_group_id);
     setViewingAssetGroupName(assetGroup.name || "Unnamed Asset Group");
@@ -616,30 +629,31 @@ export const useGoogleCampaignDetailAssetGroups = ({
 
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+        throw new Error("Invalid account ID or channel ID");
       }
 
       const campaignIdNum = campaignId ? parseInt(campaignId, 10) : undefined;
-      if (campaignIdNum && !isNaN(campaignIdNum)) {
-        const assets = await googleAdwordsAssetGroupsService.getGoogleAssetGroupAssets(
-          accountIdNum,
-          assetGroup.asset_group_id,
-          campaignIdNum
-        );
-        // Backend now transforms the response to match frontend expectations
-        setAssetGroupAssets({
-          headlines: assets.headlines || [],
-          descriptions: assets.descriptions || [],
-          long_headline: assets.long_headline,
-          marketing_image_url: assets.marketing_image_url,
-          square_marketing_image_url: assets.square_marketing_image_url,
-          logo_url: assets.logo_url,
-          business_name: assets.business_name,
-          final_urls: assets.final_urls || [],
-          video_assets: assets.video_assets || [],
-        });
-      }
+      const assets = await googleAdwordsAssetGroupsService.getGoogleAssetGroupAssets(
+        accountIdNum,
+        channelIdNum,
+        profileId,
+        assetGroup.asset_group_id,
+        campaignIdNum
+      );
+      // Backend now transforms the response to match frontend expectations
+      setAssetGroupAssets({
+        headlines: assets.headlines || [],
+        descriptions: assets.descriptions || [],
+        long_headline: assets.long_headline,
+        marketing_image_url: assets.marketing_image_url,
+        square_marketing_image_url: assets.square_marketing_image_url,
+        logo_url: assets.logo_url,
+        business_name: assets.business_name,
+        final_urls: assets.final_urls || [],
+        video_assets: assets.video_assets || [],
+      });
     } catch (error: any) {
       console.error("Failed to load asset group assets:", error);
       setAssetGroupAssets({
@@ -650,7 +664,7 @@ export const useGoogleCampaignDetailAssetGroups = ({
     } finally {
       setLoadingAssets(false);
     }
-  }, [accountId, campaignId]);
+  }, [accountId, channelId, profileId, campaignId]);
 
   // Handler to close view assets modal
   const handleCloseViewAssetsModal = useCallback(() => {

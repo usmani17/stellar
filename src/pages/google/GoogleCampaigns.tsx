@@ -1,6 +1,6 @@
 import { parseDateToYYYYMMDD } from "../../utils/dateHelpers";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
-import { formatCurrency, formatPercentage } from "../../utils/formatters";
+import { formatPercentage } from "../../utils/formatters";
 import {
   getStatusWithDefault,
   formatStatusForDisplay,
@@ -9,7 +9,9 @@ import {
   formatDateForDisplay as formatDateForDisplayUtil,
   validateDateNotInPast,
   validateEndDateAfterStart,
+  formatCurrency as formatCurrencyUtil,
 } from "./utils/googleAdsUtils";
+import { useGoogleProfiles } from "../../hooks/queries/useGoogleProfiles";
 import { getStatusBadgeLabel, getChannelTypeLabel } from "../../utils/statusLabels";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -38,6 +40,12 @@ import {
 import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../../components/google/CreateGooglePmaxAssetGroupPanel";
 import { ErrorModal } from "../../components/ui/ErrorModal";
 import { Loader } from "../../components/ui/Loader";
+import {
+  BulkUpdateConfirmationModal,
+  type BulkUpdatePreviewRow,
+  type BulkUpdateActionDetails,
+  type BulkUpdateStatusDetails,
+} from "./components/BulkUpdateConfirmationModal";
 // import { CustomizeColumns } from "../../components/ui/CustomizeColumns";
 import type { IGoogleCampaign, IGoogleCampaignsSummary } from "../../types/google/campaign";
 import { useQuery } from "@tanstack/react-query";
@@ -48,9 +56,21 @@ import { queryKeys } from "../../hooks/queries/queryKeys";
 
 export const GoogleCampaigns: React.FC = () => {
   const navigate = useNavigate();
-  const { accountId } = useParams<{ accountId: string }>();
+  const { accountId, channelId } = useParams<{ accountId: string; channelId: string }>();
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
+  const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+  const { data: profilesData } = useGoogleProfiles(channelIdNum);
+  // Use first selected profile's currency for the page. If multiple profiles with different currencies, we still use one for consistency (summary row).
+  const currencyCode = useMemo(() => {
+    const profiles = profilesData?.profiles || [];
+    const selected = profiles.find((p) => p.is_selected);
+    return selected?.currency_code || undefined;
+  }, [profilesData?.profiles]);
+  const formatCurrency = useCallback(
+    (value: number) => formatCurrencyUtil(value, currencyCode),
+    [currencyCode]
+  );
   const [campaigns, setCampaigns] = useState<IGoogleCampaign[]>([]);
   const [summary, setSummary] = useState<IGoogleCampaignsSummary | null>(null);
   const [chartDataFromApi, setChartDataFromApi] = useState<
@@ -339,6 +359,7 @@ export const GoogleCampaigns: React.FC = () => {
     "start_date",
     "end_date",
     "bidding_strategy_type",
+    "currency",
     "impressions",
     "clicks",
     "spends",
@@ -379,9 +400,16 @@ export const GoogleCampaigns: React.FC = () => {
 
   // Removed buildFilterParams - now passing filters array directly to service
 
-  const loadCampaigns = useCallback(async (accountId: number) => {
+  const loadCampaigns = useCallback(async (accountId: number, channelId: number) => {
     // Prevent duplicate concurrent calls
     if (isLoadingRef.current) {
+      return;
+    }
+
+    // Validate channelId before making the call
+    if (!channelId || isNaN(channelId)) {
+      console.error("loadCampaigns: channelId is required and must be a valid number", { accountId, channelId });
+      setLoading(false);
       return;
     }
 
@@ -412,6 +440,7 @@ export const GoogleCampaigns: React.FC = () => {
 
       const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
         accountId,
+        channelId,
         params
       );
       console.log("Google campaigns API response:", response);
@@ -482,12 +511,20 @@ export const GoogleCampaigns: React.FC = () => {
     return campaigns;
   }, [campaigns, searchQuery, apiSearchQuery, accountId]);
 
+  // Wrapper function for useGoogleSyncStatus hook (it expects only accountId)
+  const loadCampaignsWrapper = useCallback(async (accountId: number) => {
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    if (channelIdNum && !isNaN(channelIdNum)) {
+      await loadCampaigns(accountId, channelIdNum);
+    }
+  }, [channelId, loadCampaigns]);
+
   // Sync status hook (after loadCampaigns is defined)
   const { SyncStatusBanner } = useGoogleSyncStatus({
     accountId,
     entityType: "campaigns",
     currentData: campaigns,
-    loadFunction: loadCampaigns,
+    loadFunction: loadCampaignsWrapper,
   });
 
   useEffect(() => {
@@ -511,7 +548,10 @@ export const GoogleCampaigns: React.FC = () => {
         // Only call loadCampaigns if the request parameters have actually changed
         if (lastRequestParamsRef.current !== requestKey) {
           lastRequestParamsRef.current = requestKey;
-          loadCampaigns(accountIdNum);
+          const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+          if (channelIdNum && !isNaN(channelIdNum)) {
+            loadCampaigns(accountIdNum, channelIdNum);
+          }
         }
       } else {
         setLoading(false);
@@ -520,7 +560,7 @@ export const GoogleCampaigns: React.FC = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, currentPage, filters, startDate, endDate, sorting, apiSearchQuery]);
+  }, [accountId, channelId, currentPage, filters, startDate, endDate, sorting, apiSearchQuery]);
 
   const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
     console.log("handleCreateGoogleCampaign called", { 
@@ -596,25 +636,18 @@ export const GoogleCampaigns: React.FC = () => {
         !SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION
       ) {
         // Filter out asset group fields to prevent backend from creating asset group
-        // Note: The backend currently requires headlines, descriptions, logo_url, marketing_image_url,
-        // and square_marketing_image_url for PERFORMANCE_MAX campaigns and will always create an asset group.
-        // Filtering these out will cause backend validation errors. To fully prevent asset group creation,
-        // backend changes would be needed to make asset group creation optional.
-        // This constant is a frontend control that can be used when backend supports optional asset groups.
+        // BUT keep business_name and logo_url (and their asset IDs/resource names) because
+        // they are required for Brand Guidelines, not just for asset groups
         const {
           asset_group_name,
           headlines,
           descriptions,
           long_headlines,
-          business_name,
-          logo_url,
           marketing_image_url,
           square_marketing_image_url,
           headline_asset_resource_names,
           description_asset_resource_names,
           long_headline_asset_resource_names,
-          business_name_asset_resource_name,
-          logo_asset_resource_name,
           marketing_image_asset_resource_name,
           square_marketing_image_asset_resource_name,
           video_asset_resource_names,
@@ -623,23 +656,27 @@ export const GoogleCampaigns: React.FC = () => {
           headline_asset_ids,
           description_asset_ids,
           long_headline_asset_ids,
-          business_name_asset_id,
-          logo_asset_id,
           marketing_image_asset_id,
           square_marketing_image_asset_id,
           video_asset_ids,
           sitelink_asset_ids,
           callout_asset_ids,
+          // Keep business_name and logo_url for Brand Guidelines
+          // business_name, logo_url, business_name_asset_id, business_name_asset_resource_name,
+          // logo_asset_id, logo_asset_resource_name are NOT destructured, so they stay in rest
           ...rest
         } = payload;
         
         payload = rest;
-        console.log("Asset group fields filtered out from PMAX campaign creation payload (SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION = false)");
-        console.warn("Note: Backend currently requires asset group fields for PERFORMANCE_MAX campaigns. This may cause validation errors.");
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
       const response = await googleAdwordsCampaignsService.createGoogleCampaign(
         accountIdNum,
+        channelIdNum,
         payload
       );
 
@@ -680,13 +717,19 @@ export const GoogleCampaigns: React.FC = () => {
             text: "View Campaign",
             onClick: () => {
               setErrorModal({ isOpen: false, message: "" });
-              navigate(
-                `/brands/${accountIdNum}/google-campaigns/${newCampaignId}`
-              );
+              const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+              if (channelIdNum) {
+                navigate(
+                  `/brands/${accountIdNum}/${channelIdNum}/google/campaigns/${newCampaignId}`
+                );
+              }
             },
           },
         });
-        await loadCampaigns(accountIdNum);
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (channelIdNum && !isNaN(channelIdNum)) {
+          await loadCampaigns(accountIdNum, channelIdNum);
+        }
       } else {
         // If no campaign ID, show success and reload campaigns
         setErrorModal({
@@ -697,7 +740,10 @@ export const GoogleCampaigns: React.FC = () => {
         });
 
         // Refresh campaigns to get updated data
-        await loadCampaigns(accountIdNum);
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (channelIdNum && !isNaN(channelIdNum)) {
+          await loadCampaigns(accountIdNum, channelIdNum);
+        }
       }
     } catch (error: any) {
       console.error("Failed to create Google campaign:", error);
@@ -1189,8 +1235,13 @@ export const GoogleCampaigns: React.FC = () => {
       // Update campaign-level fields if there are any changes
       if (hasCampaignChanges) {
         console.log("Executing campaign update with changes...");
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const result = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           campaignUpdatePayload
         );
         console.log("Campaign update completed successfully", result);
@@ -1407,7 +1458,10 @@ export const GoogleCampaigns: React.FC = () => {
       });
 
       // Reload campaigns
-      await loadCampaigns(accountIdNum);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadCampaigns(accountIdNum, channelIdNum);
+      }
 
       // Close the panel after a short delay to show success message
       setTimeout(() => {
@@ -1518,8 +1572,13 @@ export const GoogleCampaigns: React.FC = () => {
         });
         // Fallback: Fetch from database
         try {
+          const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+          if (!channelIdNum || isNaN(channelIdNum)) {
+            throw new Error("Channel ID is required");
+          }
           const campaignDetail = await googleAdwordsCampaignsService.getGoogleCampaignDetail(
             accountIdNum,
+            channelIdNum,
             row.campaign_id
           );
           refreshedCampaignData = campaignDetail?.campaign || null;
@@ -1685,7 +1744,8 @@ export const GoogleCampaigns: React.FC = () => {
     // Reload campaigns with new sort
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
-      if (!isNaN(accountIdNum)) {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!isNaN(accountIdNum) && channelIdNum && !isNaN(channelIdNum)) {
         try {
           const params: any = {
             sort_by: newSortBy,
@@ -1701,6 +1761,7 @@ export const GoogleCampaigns: React.FC = () => {
 
           const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
             accountIdNum,
+            channelIdNum,
             params
           );
           setCampaigns(
@@ -2212,8 +2273,13 @@ export const GoogleCampaigns: React.FC = () => {
         // Convert display status to API format
         const statusValue = convertStatusToApi(newValue);
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           {
             campaignIds: [campaign.campaign_id],
             action: "status",
@@ -2243,8 +2309,13 @@ export const GoogleCampaigns: React.FC = () => {
           value: budgetValue,
         });
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           {
             campaignIds: [campaign.campaign_id],
             action: "budget",
@@ -2271,8 +2342,13 @@ export const GoogleCampaigns: React.FC = () => {
           dateValue = "";
         }
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           {
             campaignIds: [campaign.campaign_id],
             action: field,
@@ -2401,8 +2477,13 @@ export const GoogleCampaigns: React.FC = () => {
           }
         }
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           payload
         );
 
@@ -2413,7 +2494,10 @@ export const GoogleCampaigns: React.FC = () => {
         }
       }
 
-      await loadCampaigns(accountIdNum);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadCampaigns(accountIdNum, channelIdNum);
+      }
       
       // Clear any previous errors
       setInlineEditError(null);
@@ -2555,8 +2639,13 @@ export const GoogleCampaigns: React.FC = () => {
           value: budgetValue,
         });
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           {
             campaignIds: [inlineEditCampaign.campaign_id],
             action: "budget",
@@ -2583,8 +2672,13 @@ export const GoogleCampaigns: React.FC = () => {
           dateValue = "";
         }
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           {
             campaignIds: [inlineEditCampaign.campaign_id],
             action: inlineEditField,
@@ -2600,8 +2694,13 @@ export const GoogleCampaigns: React.FC = () => {
       } else if (inlineEditField === "status") {
         const statusValue = convertStatusToApi(inlineEditNewValue);
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           {
             campaignIds: [inlineEditCampaign.campaign_id],
             action: "status",
@@ -2719,8 +2818,13 @@ export const GoogleCampaigns: React.FC = () => {
           }
         }
 
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
+          channelIdNum,
           payload
         );
 
@@ -2731,7 +2835,10 @@ export const GoogleCampaigns: React.FC = () => {
         }
       }
 
-      await loadCampaigns(accountIdNum);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadCampaigns(accountIdNum, channelIdNum);
+      }
       
       setInlineEditError(null);
       setInlineEditSuccess({
@@ -2788,7 +2895,11 @@ export const GoogleCampaigns: React.FC = () => {
       setBulkLoading(true);
       setBulkUpdateResults(null);
 
-      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, channelIdNum, {
         campaignIds: Array.from(selectedCampaigns),
         action: "status",
         status: statusValue,
@@ -2803,7 +2914,9 @@ export const GoogleCampaigns: React.FC = () => {
 
       // Reload campaigns with loading state
       setSorting(true); // Show loading overlay
-      await loadCampaigns(accountIdNum);
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadCampaigns(accountIdNum, channelIdNum);
+      }
       // Hide loading overlay after a short delay
       setTimeout(() => {
         setSorting(false);
@@ -2882,7 +2995,11 @@ export const GoogleCampaigns: React.FC = () => {
       setBulkLoading(true);
       setBulkUpdateResults(null);
 
-      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, channelIdNum, {
         campaignIds: Array.from(selectedCampaigns),
         action: "budget",
         budgetAction,
@@ -2901,7 +3018,9 @@ export const GoogleCampaigns: React.FC = () => {
 
       // Reload campaigns with loading state
       setSorting(true); // Show loading overlay
-      await loadCampaigns(accountIdNum);
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadCampaigns(accountIdNum, channelIdNum);
+      }
       // Hide loading overlay after a short delay
       setTimeout(() => {
         setSorting(false);
@@ -2959,8 +3078,13 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       // Call export API
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
       const result = await googleAdwordsCampaignsService.exportGoogleCampaigns(
         accountIdNum,
+        channelIdNum,
         params,
         exportType
       );
@@ -3174,6 +3298,7 @@ export const GoogleCampaigns: React.FC = () => {
                     }}
                     onSubmit={handleCreateGoogleCampaign}
                     accountId={accountId}
+                    channelId={channelId}
                     loading={createCampaignLoading}
                     submitError={createCampaignError}
                     mode={campaignFormMode}
@@ -3632,340 +3757,74 @@ export const GoogleCampaigns: React.FC = () => {
                 </div>
               )}
 
-              {/* Confirmation Modal */}
-              {showConfirmationModal && (
-                <div
-                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget) {
-                      setShowConfirmationModal(false);
-                    }
-                  }}
-                >
-                  <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
-                    {bulkLoading && (
-                      <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 rounded-xl">
-                        <Loader size="md" message="Updating campaigns..." />
-                      </div>
-                    )}
-                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      {bulkUpdateResults
-                        ? "Update Results"
-                        : isBudgetChange
-                        ? "Confirm Budget Changes"
-                        : "Confirm Status Changes"}
-                    </h3>
-
-                    {/* Results Summary */}
-                    {bulkUpdateResults ? (
-                      <div className="mb-6">
-                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Update Summary:
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full bg-forest-f40"></div>
-                              <span className="text-[12.16px] text-[#556179]">
-                                Successfully updated:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-forest-f40">
-                                {bulkUpdateResults.updated}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full bg-red-r40"></div>
-                              <span className="text-[12.16px] text-[#556179]">
-                                Failed:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-red-r40">
-                                {bulkUpdateResults.failed}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Errors */}
-                        {bulkUpdateResults.errors.length > 0 && (
-                          <div className="bg-red-r0 border border-red-r20 rounded-lg p-4 mb-4">
-                            <div className="text-[12.16px] font-semibold text-red-r40 mb-2">
-                              Errors ({bulkUpdateResults.errors.length}):
-                            </div>
-                            <div className="max-h-48 overflow-y-auto">
-                              <ul className="list-disc list-inside space-y-1">
-                                {bulkUpdateResults.errors.map((error, index) => {
-                                  // Handle both string errors (legacy) and object errors (new format)
-                                  if (typeof error === 'string') {
-                                    return (
-                                      <li
-                                        key={index}
-                                        className="text-[11.2px] text-red-r40"
-                                      >
-                                        {error}
-                                      </li>
-                                    );
-                                  } else if (error && typeof error === 'object') {
-                                    // New format: {campaign_id, error, updated_fields}
-                                    const errorObj = error as { campaign_id?: string; error: string; updated_fields?: string[] };
-                                    return (
-                                      <li
-                                        key={index}
-                                        className="text-[11.2px] text-red-r40 mb-2"
-                                      >
-                                        {errorObj.campaign_id && (
-                                          <span className="font-semibold">Campaign {errorObj.campaign_id}: </span>
-                                        )}
-                                        <span>{errorObj.error}</span>
-                                        {errorObj.updated_fields && errorObj.updated_fields.length > 0 && (
-                                          <div className="text-[10.4px] text-forest-f60 mt-1 ml-4">
-                                            ✓ Successfully updated: {errorObj.updated_fields.join(', ')}
-                                          </div>
-                                        )}
-                                      </li>
-                                    );
-                                  }
-                                  return null;
-                                })}
-                              </ul>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Success message if all succeeded */}
-                        {bulkUpdateResults.failed === 0 && bulkUpdateResults.updated > 0 && (
-                          <div className="bg-forest-f0 border border-forest-f40 rounded-lg p-4 mb-4">
-                            <div className="text-[12.16px] font-semibold text-forest-f60">
-                              ✓ All campaigns updated successfully!
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      /* Confirmation Summary */
-                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[12.16px] text-[#556179]">
-                            {selectedCampaigns.size} campaign
-                            {selectedCampaigns.size !== 1 ? "s" : ""} will be
-                            updated:
-                          </span>
-                          <span className="text-[12.16px] font-semibold text-[#072929]">
-                            {isBudgetChange ? "Budget" : "Status"} change
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Campaign Preview Table - Only show before update */}
-                    {!bulkUpdateResults && (() => {
-                      const selectedCampaignsData = getSelectedCampaignsData();
-                      const previewCount = Math.min(
-                        10,
-                        selectedCampaignsData.length
-                      );
-                      const hasMore = selectedCampaignsData.length > 10;
-
-                      return (
-                        <div className="mb-6">
-                          <div className="mb-2">
-                            <span className="text-[10.64px] text-[#556179]">
-                              {hasMore
-                                ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
-                                : `${selectedCampaignsData.length} campaign${
-                                    selectedCampaignsData.length !== 1
-                                      ? "s"
-                                      : ""
-                                  } selected`}
-                            </span>
-                          </div>
-                          <div className="border border-gray-200 rounded-lg overflow-hidden">
-                            <table className="w-full">
-                              <thead className="bg-sandstorm-s20">
-                                <tr>
-                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    Campaign Name
-                                  </th>
-                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    Old Value
-                                  </th>
-                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    New Value
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {selectedCampaignsData
-                                  .slice(0, 10)
-                                  .map((campaign) => {
-                                    const oldBudget =
-                                      campaign.daily_budget || 0;
-                                    const oldStatus =
-                                      getStatusWithDefault(campaign.status);
-                                    const newBudget = isBudgetChange
-                                      ? calculateNewBudget(oldBudget)
-                                      : oldBudget;
-                                    const newStatus = pendingStatusAction
-                                      ? pendingStatusAction
-                                      : oldStatus;
-
-                                    return (
-                                      <tr
-                                        key={campaign.campaign_id}
-                                        className="border-b border-gray-200 last:border-b-0"
-                                      >
-                                        <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                          {campaign.campaign_name ||
-                                            "Unnamed Campaign"}
-                                        </td>
-                                        <td className="px-4 py-2 text-[10.64px] text-[#556179]">
-                                          {isBudgetChange
-                                            ? `$${oldBudget.toFixed(2)}`
-                                            : oldStatus}
-                                        </td>
-                                        <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
-                                          {isBudgetChange
-                                            ? `$${newBudget.toFixed(2)}`
-                                            : newStatus}
-                                        </td>
-                                      </tr>
-                                    );
-                                  })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Action Details - Only show before update */}
-                    {!bulkUpdateResults && (
-                    <div className="space-y-3 mb-6">
-                      {isBudgetChange ? (
-                        <>
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Action:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {budgetAction === "increase"
-                                ? "Increase By"
-                                : budgetAction === "decrease"
-                                ? "Decrease By"
-                                : "Set To"}
-                            </span>
-                          </div>
-
-                          {(budgetAction === "increase" ||
-                            budgetAction === "decrease") && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Unit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {budgetUnit === "percent"
-                                  ? "Percentage (%)"
-                                  : "Amount ($)"}
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Value:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {budgetValue}{" "}
-                              {budgetUnit === "percent" ? "%" : "$"}
-                            </span>
-                          </div>
-
-                          {budgetAction === "increase" && upperLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Upper Limit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                ${upperLimit}
-                              </span>
-                            </div>
-                          )}
-
-                          {budgetAction === "decrease" && lowerLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Lower Limit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                ${lowerLimit}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                          <span className="text-[12.16px] text-[#556179]">
-                            New Status:
-                          </span>
-                          <span className="text-[12.16px] font-semibold text-[#072929]">
-                            {pendingStatusAction
-                              ? pendingStatusAction.charAt(0) +
-                                pendingStatusAction.slice(1).toLowerCase()
-                              : ""}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    )}
-
-                    <div className="flex justify-end gap-3">
-                      {bulkUpdateResults ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowConfirmationModal(false);
-                            setShowBudgetPanel(false);
-                            setShowBulkActions(false);
-                            setPendingStatusAction(null);
-                            setBulkUpdateResults(null);
-                          }}
-                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
-                        >
-                          Close
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowConfirmationModal(false);
-                              setPendingStatusAction(null);
-                            }}
-                            className="cancel-button"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (isBudgetChange) {
-                                await runBulkBudget();
-                              } else if (pendingStatusAction) {
-                                await runBulkStatus(pendingStatusAction);
-                              }
-                            }}
-                            disabled={bulkLoading}
-                            className="create-entity-button btn-sm"
-                          >
-                            {bulkLoading ? "Updating..." : "Confirm"}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Confirmation Modal - shared DRY component, full list */}
+              <BulkUpdateConfirmationModal
+                isOpen={showConfirmationModal}
+                onClose={() => {
+                  setShowConfirmationModal(false);
+                  setShowBudgetPanel(false);
+                  setShowBulkActions(false);
+                  setPendingStatusAction(null);
+                  setBulkUpdateResults(null);
+                }}
+                entityLabel="campaign"
+                entityNameColumn="Campaign Name"
+                selectedCount={selectedCampaigns.size}
+                bulkUpdateResults={bulkUpdateResults}
+                isValueChange={isBudgetChange}
+                valueChangeLabel="Budget"
+                previewRows={(() => {
+                  const selectedCampaignsData = getSelectedCampaignsData();
+                  return selectedCampaignsData.map((campaign) => {
+                    const oldBudget = campaign.daily_budget || 0;
+                    const oldStatus = getStatusWithDefault(campaign.status);
+                    const newBudget = isBudgetChange
+                      ? calculateNewBudget(oldBudget)
+                      : oldBudget;
+                    const newStatus = pendingStatusAction || oldStatus;
+                    return {
+                      name: campaign.campaign_name || "Unnamed Campaign",
+                      oldValue: isBudgetChange
+                        ? `$${oldBudget.toFixed(2)}`
+                        : oldStatus,
+                      newValue: isBudgetChange
+                        ? `$${newBudget.toFixed(2)}`
+                        : newStatus,
+                    } as BulkUpdatePreviewRow;
+                  });
+                })()}
+                actionDetails={
+                  !bulkUpdateResults
+                    ? isBudgetChange
+                      ? ({
+                          type: "value",
+                          action: budgetAction,
+                          unit: budgetUnit,
+                          value: budgetValue,
+                          upperLimit,
+                          lowerLimit,
+                        } as BulkUpdateActionDetails)
+                      : pendingStatusAction
+                      ? ({
+                          type: "status",
+                          newStatus:
+                            pendingStatusAction.charAt(0) +
+                            pendingStatusAction.slice(1).toLowerCase(),
+                        } as BulkUpdateStatusDetails)
+                      : null
+                    : null
+                }
+                loading={bulkLoading}
+                loadingMessage="Updating campaigns..."
+                successMessage="All campaigns updated successfully!"
+                onConfirm={async () => {
+                  if (isBudgetChange) {
+                    await runBulkBudget();
+                  } else if (pendingStatusAction) {
+                    await runBulkStatus(pendingStatusAction);
+                  }
+                }}
+              />
 
               {/* Inline Edit Confirmation Modal */}
               {showInlineEditModal && inlineEditCampaign && inlineEditField && (
@@ -4304,6 +4163,7 @@ export const GoogleCampaigns: React.FC = () => {
                     loading={loading}
                     sorting={sorting}
                     accountId={accountId || ""}
+                    channelId={channelId}
                     selectedCampaigns={selectedCampaigns}
                     allSelected={allSelected}
                     someSelected={someSelected}
@@ -4334,6 +4194,7 @@ export const GoogleCampaigns: React.FC = () => {
                     onEditCampaign={handleOpenEditCampaign}
                     editLoadingCampaignId={editLoadingCampaignId}
                     isPanelOpen={isCreateCampaignPanelOpen}
+                    currencyCode={currencyCode}
                   />
                 </div>
                 {loading && (

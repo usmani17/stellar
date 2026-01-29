@@ -44,7 +44,8 @@ interface AdGroupsTabProps {
   filters: FilterValues;
   onApplyFilters: (filters: FilterValues) => void;
   filtersString: string;
-  lastAppliedFiltersRef: React.MutableRefObject<string>;
+  /** @deprecated Use filtersString for skip-check; kept for backward compatibility */
+  lastAppliedFiltersRef?: React.MutableRefObject<string>;
 
   // Create Panel
   isCreatePanelOpen: boolean;
@@ -469,18 +470,20 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
                 })
               );
 
-              if (lastAppliedFiltersRef.current === filtersStr) {
+              // Skip only if new filters are deeply equal to current (apply immediately on add/remove)
+              if (filtersStr === filtersString) {
                 return;
               }
 
-              lastAppliedFiltersRef.current = filtersStr;
               onApplyFilters(newFilters);
             }}
             initialFilters={filters}
             filterFields={[
               { value: "name", label: "Ad Group Name" },
               { value: "state", label: "State" },
-              { value: "default_bid", label: "Default Bid" },
+              ...(campaignType !== "SB"
+                ? [{ value: "default_bid" as const, label: "Default Bid" }]
+                : []),
             ]}
           />
         </div>

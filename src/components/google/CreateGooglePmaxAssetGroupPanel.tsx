@@ -15,7 +15,7 @@ export interface PmaxAssetGroupInput {
   assets: {
     headlines: string[];
     descriptions: string[];
-    long_headline?: string;
+    long_headline: string; // Required field
     marketing_image_url?: string;
     square_marketing_image_url?: string;
     business_name?: string;
@@ -73,29 +73,16 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
   // Suppress unused variable warnings - these props are part of the interface but not used in this component
   void _campaignId;
   void _assetGroupId;
-    const generateDefaultAssetGroupName = React.useCallback((): string => {
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, "0");
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const year = now.getFullYear();
-      const hours = String(now.getHours()).padStart(2, "0");
-      const minutes = String(now.getMinutes()).padStart(2, "0");
-      const seconds = String(now.getSeconds()).padStart(2, "0");
-      const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
-      const dateTime = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}.${milliseconds}`;
-      return `Performance Max Asset Group - ${dateTime}`;
-    }, []);
-
     // Form data state (using CreateGoogleCampaignData format for compatibility)
     const [formData, setFormData] = useState<CreateGoogleCampaignData>({
       campaign_type: "PERFORMANCE_MAX",
       name: "",
       budget_amount: 0,
-      asset_group_name: generateDefaultAssetGroupName(),
+      asset_group_name: "",
       final_url: "",
       headlines: ["", "", ""], // Minimum 3 for validation
       descriptions: ["", ""], // Minimum 2 for validation
-      long_headlines: [],
+      long_headlines: [""], // Minimum 1 for validation (required)
     });
 
     const [errors, setErrors] = useState<Partial<Record<keyof CreateGoogleCampaignData, string>>>({});
@@ -125,7 +112,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
             final_url: initialData.final_url || "",
             headlines: Array.isArray(initialData.headlines) && initialData.headlines.length > 0 ? initialData.headlines : ["", "", ""],
             descriptions: Array.isArray(initialData.descriptions) && initialData.descriptions.length > 0 ? initialData.descriptions : ["", ""],
-            long_headlines: initialData.long_headline ? [initialData.long_headline] : [],
+            long_headlines: initialData.long_headline ? [initialData.long_headline] : [""], // Minimum 1 required
             marketing_image_url: initialData.marketing_image_url || "",
             square_marketing_image_url: initialData.square_marketing_image_url || "",
             business_name: initialData.business_name || "",
@@ -142,11 +129,11 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
             campaign_type: "PERFORMANCE_MAX",
             name: "",
             budget_amount: 0,
-            asset_group_name: generateDefaultAssetGroupName(),
+            asset_group_name: "",
             final_url: "",
             headlines: ["", "", ""], // Minimum 3 for validation
             descriptions: ["", ""], // Minimum 2 for validation
-            long_headlines: [],
+            long_headlines: [""], // Minimum 1 for validation (required)
           };
           setFormData(newFormData);
           // Reset previews
@@ -159,7 +146,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
         prevInitialDataRef.current = initialData;
       }
       /* eslint-enable react-hooks/set-state-in-effect */
-    }, [editMode, initialData, generateDefaultAssetGroupName]);
+    }, [editMode, initialData]);
 
     const handleChange = useCallback((field: keyof CreateGoogleCampaignData, value: any) => {
       setFormData((prev) => {
@@ -210,7 +197,11 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
         newErrors.descriptions = "Maximum 4 descriptions allowed";
       }
 
-      // Long headlines are optional - no validation needed
+      // Long headline is required - at least 1 is needed
+      const validLongHeadlines = formData.long_headlines?.filter((h) => h.trim()).length || 0;
+      if (validLongHeadlines < 1) {
+        newErrors.long_headlines = "At least 1 long headline is required";
+      }
 
       // Marketing image URLs are required for Performance Max asset groups
       if (!formData.marketing_image_url?.trim()) {
@@ -290,7 +281,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
         return;
       }
 
-      const longHeadline = formData.long_headlines && formData.long_headlines.length > 0 ? formData.long_headlines[0]?.trim() : undefined;
+      const longHeadline = formData.long_headlines && formData.long_headlines.length > 0 ? formData.long_headlines[0]?.trim() : "";
 
       const entity: PmaxAssetGroupInput = {
         asset_group: {
@@ -300,7 +291,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
         assets: {
           headlines: formData.headlines?.filter((h) => h.trim()) || [],
           descriptions: formData.descriptions?.filter((d) => d.trim()) || [],
-          ...(longHeadline && { long_headline: longHeadline }),
+          long_headline: longHeadline, // Required field
           ...(formData.marketing_image_url?.trim() && { marketing_image_url: formData.marketing_image_url.trim() }),
           ...(formData.square_marketing_image_url?.trim() && { square_marketing_image_url: formData.square_marketing_image_url.trim() }),
           ...(formData.business_name?.trim() && { business_name: formData.business_name.trim() }),
@@ -328,7 +319,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
           final_url: initialData.final_url || "",
           headlines: Array.isArray(initialData.headlines) && initialData.headlines.length > 0 ? initialData.headlines : ["", "", ""],
           descriptions: Array.isArray(initialData.descriptions) && initialData.descriptions.length > 0 ? initialData.descriptions : ["", ""],
-          long_headlines: initialData.long_headline ? [initialData.long_headline] : [],
+          long_headlines: initialData.long_headline ? [initialData.long_headline] : [""], // Minimum 1 required
           marketing_image_url: initialData.marketing_image_url || "",
           square_marketing_image_url: initialData.square_marketing_image_url || "",
           business_name: initialData.business_name || "",
@@ -340,11 +331,11 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
           campaign_type: "PERFORMANCE_MAX",
           name: "",
           budget_amount: 0,
-          asset_group_name: generateDefaultAssetGroupName(),
+          asset_group_name: "",
           final_url: "",
           headlines: ["", "", ""], // Minimum 3 for validation
           descriptions: ["", ""], // Minimum 2 for validation
-          long_headlines: [],
+          long_headlines: [""], // Minimum 1 for validation (required)
         });
       }
       setErrors({});

@@ -13,6 +13,14 @@ import type { GoogleKeyword } from "./GoogleTypes";
 import { formatCurrency2Decimals as formatCurrency2DecimalsUtil, formatPercentage as formatPercentageUtil } from "../../utils/campaignDetailHelpers";
 import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal";
 import { TrashIcon } from "lucide-react";
+import { googleAdwordsKeywordsService } from "../../../../services/googleAdwords/googleAdwordsKeywords";
+import {
+  BulkUpdateConfirmationModal,
+  type BulkUpdatePreviewRow,
+  type BulkUpdateStatusDetails,
+} from "../BulkUpdateConfirmationModal";
+import { BulkActionsDropdown } from "../BulkActionsDropdown";
+import { formatStatusForDisplay } from "../../utils/googleAdsUtils";
 
 interface GoogleCampaignDetailKeywordsTabProps {
   keywords: GoogleKeyword[];
@@ -51,6 +59,9 @@ interface GoogleCampaignDetailKeywordsTabProps {
   onStartKeywordTextEdit?: (keyword: GoogleKeyword) => void;
   onStartFinalUrlEdit?: (keyword: GoogleKeyword) => void;
   createButton?: React.ReactNode;
+  createPanel?: React.ReactNode;
+  channelId?: string;
+  onBulkUpdateComplete?: () => void;
   formatCurrency2Decimals?: (value: number | string | undefined) => string;
 }
 
@@ -86,15 +97,68 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
   onStartKeywordTextEdit,
   onStartFinalUrlEdit,
   createButton,
+  createPanel,
+  channelId,
+  onBulkUpdateComplete,
   formatCurrency2Decimals = formatCurrency2DecimalsUtil,
 }) => {
   const formatPercentage = formatPercentageUtil;
-    const [editingKeywordId, setEditingKeywordId] = useState<number | null>(null);
-    const [editingField, setEditingField] = useState<
+  const [editingKeywordId, setEditingKeywordId] = useState<number | null>(null);
+  const [showBulkConfirmationModal, setShowBulkConfirmationModal] = useState(false);
+  const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLED" | "PAUSED" | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
+
+  const getSelectedKeywordsData = () => keywords.filter((k) => selectedKeywordIds.has(k.id));
+  const selectableKeywords = keywords.filter(
+    (k) => (k.status || "").toUpperCase() !== "REMOVED"
+  );
+  const isKeywordRemoved = (k: { status?: string }) =>
+    (k.status || "").toUpperCase() === "REMOVED";
+
+  const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
+    if (!_accountId || !channelId || selectedKeywordIds.size === 0) return;
+    const accountIdNum = parseInt(_accountId, 10);
+    const channelIdNum = parseInt(channelId, 10);
+    if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
+    const selectedData = getSelectedKeywordsData();
+    const keywordIds = selectedData.map((k) => k.keyword_id);
+    try {
+      setBulkLoading(true);
+      setBulkUpdateResults(null);
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(
+        accountIdNum,
+        channelIdNum,
+        { keywordIds, action: "status", status: statusValue }
+      );
+      setBulkUpdateResults({
+        updated: (response as { updated?: number }).updated ?? keywordIds.length,
+        failed: (response as { failed?: number }).failed ?? 0,
+        errors: (response as { errors?: string[] }).errors ?? [],
+      });
+      if (onBulkUpdateComplete) onBulkUpdateComplete();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedKeywordIds.size,
+        errors: [err?.response?.data?.error || err?.message || "Failed to update keywords."],
+      });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const [editingField, setEditingField] = useState<
       "status" | "match_type" | "bid" | null
     >(null);
     const [editingStatus, setEditingStatus] = useState<string>("");
-    const [editingMatchType, setEditingMatchType] = useState<string>("");
+    // Disabled: Google Ads API doesn't allow updating keyword match type
+    // const [editingMatchType, setEditingMatchType] = useState<string>("");
     const [editingBid, setEditingBid] = useState<string>("");
     const [pendingChange, setPendingChange] = useState<{
       id: number;
@@ -171,15 +235,16 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
       }
     };
 
-    const handleMatchTypeClick = (keyword: GoogleKeyword) => {
-      if (onUpdateKeywordMatchType) {
-        setEditingKeywordId(keyword.id);
-        setEditingField("match_type");
-        // Normalize match type to match dropdown options
-        const currentMatchType = (keyword.match_type || "BROAD").toUpperCase();
-        setEditingMatchType(currentMatchType);
-      }
-    };
+    // Disabled: Google Ads API doesn't allow updating keyword match type
+    // const handleMatchTypeClick = (keyword: GoogleKeyword) => {
+    //   if (onUpdateKeywordMatchType) {
+    //     setEditingKeywordId(keyword.id);
+    //     setEditingField("match_type");
+    //     // Normalize match type to match dropdown options
+    //     const currentMatchType = (keyword.match_type || "BROAD").toUpperCase();
+    //     setEditingMatchType(currentMatchType);
+    //   }
+    // };
 
     const handleKeywordTextClick = (keyword: GoogleKeyword) => {
       if (onStartKeywordTextEdit) {
@@ -229,33 +294,34 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
       setEditingStatus("");
     };
 
-    const handleMatchTypeChange = (keywordId: number, newMatchType: string) => {
-      const keyword = keywords.find((k) => k.id === keywordId);
-      if (!keyword) return;
+    // Disabled: Google Ads API doesn't allow updating keyword match type
+    // const handleMatchTypeChange = (keywordId: number, newMatchType: string) => {
+    //   const keyword = keywords.find((k) => k.id === keywordId);
+    //   if (!keyword) return;
 
-      const oldMatchType = (keyword.match_type || "BROAD").toUpperCase();
-      const newMatchTypeUpper = newMatchType.toUpperCase();
+    //   const oldMatchType = (keyword.match_type || "BROAD").toUpperCase();
+    //   const newMatchTypeUpper = newMatchType.toUpperCase();
 
-      if (newMatchTypeUpper !== oldMatchType) {
-        // Show confirmation modal immediately - matches Amazon pattern
-        const matchTypeDisplayMap: Record<string, string> = {
-          EXACT: "Exact",
-          PHRASE: "Phrase",
-          BROAD: "Broad",
-          Exact: "Exact",
-          Phrase: "Phrase",
-          Broad: "Broad",
-        };
-        setInlineEditKeyword(keyword);
-        setInlineEditField("match_type");
-        setInlineEditOldValue(matchTypeDisplayMap[oldMatchType] || oldMatchType);
-        setInlineEditNewValue(matchTypeDisplayMap[newMatchTypeUpper] || newMatchTypeUpper);
-        setShowInlineEditModal(true);
-      }
-      setEditingKeywordId(null);
-      setEditingField(null);
-      setEditingMatchType("");
-    };
+    //   if (newMatchTypeUpper !== oldMatchType) {
+    //     // Show confirmation modal immediately - matches Amazon pattern
+    //     const matchTypeDisplayMap: Record<string, string> = {
+    //       EXACT: "Exact",
+    //       PHRASE: "Phrase",
+    //       BROAD: "Broad",
+    //       Exact: "Exact",
+    //       Phrase: "Phrase",
+    //       Broad: "Broad",
+    //     };
+    //     setInlineEditKeyword(keyword);
+    //     setInlineEditField("match_type");
+    //     setInlineEditOldValue(matchTypeDisplayMap[oldMatchType] || oldMatchType);
+    //     setInlineEditNewValue(matchTypeDisplayMap[newMatchTypeUpper] || newMatchTypeUpper);
+    //     setShowInlineEditModal(true);
+    //   }
+    //   setEditingKeywordId(null);
+    //   setEditingField(null);
+    //   setEditingMatchType("");
+    // };
 
     const runInlineEdit = async () => {
       if (!inlineEditKeyword || !inlineEditField || !onUpdateKeywordStatus || !onUpdateKeywordMatchType) return;
@@ -272,19 +338,21 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
           };
           const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
           await onUpdateKeywordStatus(inlineEditKeyword.id, statusValue);
-        } else if (inlineEditField === "match_type" && onUpdateKeywordMatchType) {
-          // Map display values back to API values
-          const matchTypeMap: Record<string, "EXACT" | "PHRASE" | "BROAD"> = {
-            Exact: "EXACT",
-            EXACT: "EXACT",
-            Phrase: "PHRASE",
-            PHRASE: "PHRASE",
-            Broad: "BROAD",
-            BROAD: "BROAD",
-          };
-          const matchTypeValue = matchTypeMap[inlineEditNewValue] || "EXACT";
-          await onUpdateKeywordMatchType(inlineEditKeyword.id, matchTypeValue);
-        }
+        } 
+        // Disabled: Google Ads API doesn't allow updating keyword match type
+        // else if (inlineEditField === "match_type" && onUpdateKeywordMatchType) {
+        //   // Map display values back to API values
+        //   const matchTypeMap: Record<string, "EXACT" | "PHRASE" | "BROAD"> = {
+        //     Exact: "EXACT",
+        //     EXACT: "EXACT",
+        //     Phrase: "PHRASE",
+        //     PHRASE: "PHRASE",
+        //     Broad: "BROAD",
+        //     BROAD: "BROAD",
+        //   };
+        //   const matchTypeValue = matchTypeMap[inlineEditNewValue] || "EXACT";
+        //   await onUpdateKeywordMatchType(inlineEditKeyword.id, matchTypeValue);
+        // }
 
         setShowInlineEditModal(false);
         setInlineEditKeyword(null);
@@ -333,7 +401,8 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
       setEditingKeywordId(null);
       setEditingField(null);
       setEditingStatus("");
-      setEditingMatchType("");
+      // Disabled: Google Ads API doesn't allow updating keyword match type
+      // setEditingMatchType("");
       setEditingBid("");
     };
 
@@ -396,6 +465,19 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
         </h2>
         <div className="flex items-center gap-2">
           {createButton}
+          {_accountId && channelId && onBulkUpdateComplete && (
+            <BulkActionsDropdown
+              options={[
+                { value: "ENABLED", label: "Enable" },
+                { value: "PAUSED", label: "Pause" },
+              ]}
+              selectedCount={selectedKeywordIds.size}
+              onSelect={(value) => {
+                setPendingStatusAction(value as "ENABLED" | "PAUSED");
+                setShowBulkConfirmationModal(true);
+              }}
+            />
+          )}
           <button
             onClick={onToggleFilterPanel}
             className="edit-button"
@@ -457,6 +539,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
         </div>
       </div>
 
+        {/* Create Panel - below create button */}
+        {createPanel}
+
         {/* Filter Panel */}
         {isFilterPanelOpen && (
           <div className="mb-4">
@@ -496,10 +581,12 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                       <div className="flex items-center justify-center">
                         <Checkbox
                           checked={
-                            keywords.length > 0 &&
-                            keywords.every((kw) => selectedKeywordIds.has(kw.id))
+                            selectableKeywords.length > 0 &&
+                            selectableKeywords.every((kw) => selectedKeywordIds.has(kw.id))
                           }
-                          onChange={onSelectAll}
+                          onChange={(checked) =>
+                            selectableKeywords.forEach((kw) => onSelectKeyword(kw.id, checked))
+                          }
                           size="small"
                         />
                       </div>
@@ -672,8 +759,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                             <Checkbox
                               checked={selectedKeywordIds.has(keyword.id)}
                               onChange={(checked) =>
-                                onSelectKeyword(keyword.id, checked)
+                                !isKeywordRemoved(keyword) && onSelectKeyword(keyword.id, checked)
                               }
+                              disabled={isRemoved}
                               size="small"
                             />
                           </div>
@@ -884,126 +972,15 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                           })()}
                         </td>
                         <td className="table-cell hidden md:table-cell w-[150px] max-w-[150px] pl-2">
-                          {updatingKeywordId === keyword.id &&
-                            pendingChange?.field === "match_type" ? (
-                            <div className="flex items-center gap-2">
-                              <span className="table-text leading-[1.26]">
-                                {pendingChange.newValue}
-                              </span>
-                              <Loader size="sm" showMessage={false} />
-                            </div>
-                          ) : pendingChange?.id === keyword.id &&
-                            pendingChange?.field === "match_type" ? (
-                            <div className="flex items-center gap-2">
-                              <span className="table-text leading-[1.26]">
-                                {pendingChange.newValue}
-                              </span>
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={confirmChange}
-                                  className="p-1 hover:bg-green-50 rounded transition-colors"
-                                  title="Confirm"
-                                >
-                                  <svg
-                                    className="w-4 h-4 text-green-600"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M5 13l4 4L19 7"
-                                    />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={cancelChange}
-                                  className="p-1 hover:bg-red-50 rounded transition-colors"
-                                  title="Cancel"
-                                >
-                                  <svg
-                                    className="w-4 h-4 text-red-600"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M6 18L18 6M6 6l12 12"
-                                    />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          ) : editingKeywordId === keyword.id &&
-                            editingField === "match_type" &&
-                            onUpdateKeywordMatchType && !isRemoved ? (
-                            <div className="w-full relative" onClick={(e) => e.stopPropagation()}>
-                              <Dropdown
-                                options={[
-                                  { value: "EXACT", label: "Exact match" },
-                                  { value: "PHRASE", label: "Phrase match" },
-                                  { value: "BROAD", label: "Broad match" },
-                                ]}
-                                value={editingMatchType}
-                                onChange={(val) =>
-                                  handleMatchTypeChange(keyword.id, val as string)
-                                }
-                                defaultOpen={true}
-                                closeOnSelect={true}
-                                showCheckmark={false}
-                                buttonClassName="inline-edit-dropdown w-full text-[13.3px]"
-                                width="w-full"
-                                className="w-full"
-                                menuClassName="z-[100000]"
-                                align="left"
-                                disabled={isRemoved}
-                              />
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              className={
-                                onUpdateKeywordMatchType && !isRemoved
-                                  ? "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between"
-                                  : "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between cursor-default"
-                              }
-                              onClick={() =>
-                                onUpdateKeywordMatchType && !isRemoved &&
-                                handleMatchTypeClick(keyword)
-                              }
-                              disabled={!onUpdateKeywordMatchType || isRemoved}
-                            >
-                              <span className="truncate flex-1 min-w-0 text-left">
-                                {keyword.match_type === "EXACT" || keyword.match_type === "Exact"
-                                  ? "Exact"
-                                  : keyword.match_type === "PHRASE" || keyword.match_type === "Phrase"
-                                  ? "Phrase"
-                                  : keyword.match_type === "BROAD" || keyword.match_type === "Broad"
-                                  ? "Broad"
-                                  : keyword.match_type || "—"}
-                              </span>
-                              {onUpdateKeywordMatchType && (
-                                <svg
-                                  className="w-4 h-4 text-[#072929] flex-shrink-0"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 9l-7 7-7-7"
-                                  />
-                                </svg>
-                              )}
-                            </button>
-                          )}
+                          <span className="table-text leading-[1.26]">
+                            {keyword.match_type === "EXACT" || keyword.match_type === "Exact"
+                              ? "Exact"
+                              : keyword.match_type === "PHRASE" || keyword.match_type === "Phrase"
+                              ? "Phrase"
+                              : keyword.match_type === "BROAD" || keyword.match_type === "Broad"
+                              ? "Broad"
+                              : keyword.match_type || "—"}
+                          </span>
                         </td>
                         <td className="py-[10px] px-[10px] hidden lg:table-cell">
                           {(() => {
@@ -1386,6 +1363,51 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
               </div>
             </div>
           </div>
+        )}
+
+        {/* Bulk confirmation modal */}
+        {_accountId && channelId && onBulkUpdateComplete && (
+          <BulkUpdateConfirmationModal
+            isOpen={showBulkConfirmationModal}
+            onClose={() => {
+              setShowBulkConfirmationModal(false);
+              setPendingStatusAction(null);
+              setBulkUpdateResults(null);
+            }}
+            entityLabel="keyword"
+            entityNameColumn="Keyword"
+            selectedCount={selectedKeywordIds.size}
+            bulkUpdateResults={bulkUpdateResults}
+            isValueChange={false}
+            valueChangeLabel=""
+            previewRows={getSelectedKeywordsData().map((kw) => {
+              const oldStatus = formatStatusForDisplay(kw.status || "ENABLED");
+              const newStatus = pendingStatusAction
+                ? formatStatusForDisplay(pendingStatusAction)
+                : oldStatus;
+              return {
+                name: kw.keyword_text || `Keyword ${kw.keyword_id}`,
+                oldValue: oldStatus,
+                newValue: newStatus,
+              } as BulkUpdatePreviewRow;
+            })}
+            actionDetails={
+              !bulkUpdateResults && pendingStatusAction
+                ? ({
+                    type: "status",
+                    newStatus:
+                      pendingStatusAction.charAt(0) +
+                      pendingStatusAction.slice(1).toLowerCase(),
+                  } as BulkUpdateStatusDetails)
+                : null
+            }
+            loading={bulkLoading}
+            loadingMessage="Updating keywords..."
+            successMessage="All keywords updated successfully!"
+            onConfirm={async () => {
+              if (pendingStatusAction) await runBulkStatus(pendingStatusAction);
+            }}
+          />
         )}
 
         {/* Remove Confirmation Modal */}

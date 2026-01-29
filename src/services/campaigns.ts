@@ -3249,27 +3249,32 @@ export const campaignsService = {
   // Google Merchant Center Accounts
   getGoogleMerchantAccounts: async (
     accountId: number,
-    customerId?: string
+    channelId: number,
+    profileId: string | number
   ): Promise<Array<{ value: string; label: string; merchant_id: string; status: string }>> => {
-    let url = `/google-adwords/${accountId}/merchant-accounts/`;
-    if (customerId) {
-      url += `?customer_id=${encodeURIComponent(customerId)}`;
+    // Validate channelId before constructing URL
+    if (!channelId || isNaN(channelId)) {
+      throw new Error(`Invalid channelId: ${channelId}. channelId must be a valid number.`);
     }
+    const url = `/google-adwords/${accountId}/channels/${channelId}/merchant-accounts/?profile_id=${profileId}`;
     const response = await api.get(url);
     return response.data.merchant_accounts || [];
   },
 
   getGoogleGeoTargetConstants: async (
     accountId: number,
+    channelId: number,
+    profileId: string | number,
     searchQuery?: string,
-    countryCode?: string,
-    customerId?: string
+    countryCode?: string
   ): Promise<Array<{ id: string; name: string; type: string; countryCode: string; resource_name: string }>> => {
-    let url = `/google-adwords/${accountId}/geo-target-constants/`;
-    const params = new URLSearchParams();
-    if (customerId) {
-      params.append('customer_id', customerId);
+    // Validate channelId before constructing URL
+    if (!channelId || isNaN(channelId)) {
+      throw new Error(`Invalid channelId: ${channelId}. channelId must be a valid number.`);
     }
+    let url = `/google-adwords/${accountId}/channels/${channelId}/geo-target-constants/`;
+    const params = new URLSearchParams();
+    params.append('profile_id', String(profileId));
     if (searchQuery) {
       params.append('query', searchQuery);
     }
@@ -3285,16 +3290,14 @@ export const campaignsService = {
 
   getGoogleLanguageConstants: async (
     accountId: number,
-    customerId?: string
+    channelId: number,
+    profileId: string | number
   ): Promise<Array<{ id: string; name: string; resource_name: string }>> => {
-    let url = `/google-adwords/${accountId}/language-constants/`;
-    const params = new URLSearchParams();
-    if (customerId) {
-      params.append('customer_id', customerId);
+    // Validate channelId before constructing URL
+    if (!channelId || isNaN(channelId)) {
+      throw new Error(`Invalid channelId: ${channelId}. channelId must be a valid number.`);
     }
-    if (params.toString()) {
-      url += `?${params.toString()}`;
-    }
+    const url = `/google-adwords/${accountId}/channels/${channelId}/language-constants/?profile_id=${profileId}`;
     const response = await api.get(url);
     return response.data.languages || [];
   },
@@ -3302,6 +3305,7 @@ export const campaignsService = {
   // Google Ad Groups
   getGoogleAdGroups: async (
     accountId: number,
+    channelId: number,
     campaignId?: string | number,
     params?: {
       page?: number;
@@ -3313,7 +3317,7 @@ export const campaignsService = {
       campaign_id?: string | number;
       adgroup_name?: string;
       adgroup_name__icontains?: string;
-      status?: string;
+      status?: "ENABLED" | "PAUSED" | "REMOVED";
       type?: string;
       bid?: number | string;
       bid__lt?: number | string;
@@ -3373,7 +3377,7 @@ export const campaignsService = {
     if (params?.account_name__not_icontains)
       filters.account_name__not_icontains = params.account_name__not_icontains;
 
-    const response = await api.post(`/google-adwords/${accountId}/adgroups/`, {
+    const response = await api.post(`/google-adwords/${accountId}/channels/${channelId}/adgroups/`, {
       filters,
     });
     return response.data;

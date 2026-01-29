@@ -5,6 +5,7 @@ import type { FilterValues } from "../../../components/filters/FilterPanel";
 
 interface UseGoogleCampaignDetailKeywordsParams {
   accountId: string | undefined;
+  channelId: string | undefined;
   campaignId: string | undefined;
   startDate: Date | null;
   endDate: Date | null;
@@ -15,6 +16,7 @@ interface UseGoogleCampaignDetailKeywordsParams {
 
 export const useGoogleCampaignDetailKeywords = ({
   accountId,
+  channelId,
   campaignId,
   startDate,
   endDate,
@@ -72,8 +74,13 @@ export const useGoogleCampaignDetailKeywords = ({
         return;
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
       const data = await googleAdwordsKeywordsService.getGoogleKeywords(
         accountIdNum,
+        channelIdNum,
         parseInt(campaignId, 10),
         undefined,
         {
@@ -157,12 +164,17 @@ export const useGoogleCampaignDetailKeywords = ({
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    if (!channelIdNum || isNaN(channelIdNum)) {
+      throw new Error("Channel ID is required");
+    }
+
     try {
       setSyncingKeywords(true);
       if (onSyncMessage) {
         onSyncMessage({ type: null, message: null });
       }
-      const result = await googleAdwordsKeywordsService.syncGoogleKeywords(accountIdNum);
+      const result = await googleAdwordsKeywordsService.syncGoogleKeywords(accountIdNum, channelIdNum);
       let message =
         result.message || `Successfully synced ${result.synced} keywords`;
 
@@ -215,12 +227,17 @@ export const useGoogleCampaignDetailKeywords = ({
     } finally {
       setSyncingKeywords(false);
     }
-  }, [accountId, loadKeywords, onSyncMessage]);
+  }, [accountId, channelId, loadKeywords, onSyncMessage]);
 
   const handleSyncKeywordsAnalytics = useCallback(async () => {
     if (!accountId) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    if (!channelIdNum || isNaN(channelIdNum)) {
+      throw new Error("Channel ID is required");
+    }
 
     try {
       setSyncingKeywordsAnalytics(true);
@@ -229,6 +246,7 @@ export const useGoogleCampaignDetailKeywords = ({
       }
       const result = await googleAdwordsKeywordsService.syncGoogleKeywordAnalytics(
         accountIdNum,
+        channelIdNum,
         startDate ? startDate.toISOString() : undefined,
         endDate ? endDate.toISOString() : undefined
       );
@@ -286,7 +304,7 @@ export const useGoogleCampaignDetailKeywords = ({
     } finally {
       setSyncingKeywordsAnalytics(false);
     }
-  }, [accountId, startDate, endDate, loadKeywords, onSyncMessage]);
+  }, [accountId, channelId, startDate, endDate, loadKeywords, onSyncMessage]);
 
   // Keyword text edit handlers
   const handleStartKeywordTextEdit = useCallback((keyword: GoogleKeyword) => {
@@ -325,7 +343,11 @@ export const useGoogleCampaignDetailKeywords = ({
       }
 
       // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
-      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
         keywordIds: [keywordTextEditKeyword.keyword_id],
         action: "keyword_text",
         keyword_text: trimmedText,
@@ -471,7 +493,11 @@ export const useGoogleCampaignDetailKeywords = ({
       }
 
       // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
-      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
         keywordIds: [finalUrlKeyword.keyword_id],
         action: "final_urls",
         final_url: finalUrl,
@@ -518,6 +544,11 @@ export const useGoogleCampaignDetailKeywords = ({
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) return;
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+
       // Find the keyword to get keyword_id
       const keyword = keywords.find((k) => k.id === keywordId);
       if (!keyword || !keyword.keyword_id) {
@@ -531,7 +562,7 @@ export const useGoogleCampaignDetailKeywords = ({
       }
 
       // Call API
-      await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
         keywordIds: [keyword.keyword_id],
         action: "status",
         status: status as "ENABLED" | "PAUSED",
@@ -560,7 +591,7 @@ export const useGoogleCampaignDetailKeywords = ({
         });
       }
     }
-  }, [accountId, keywords, loadKeywords, onError]);
+  }, [accountId, channelId, keywords, loadKeywords, onError]);
 
   const handleUpdateKeywordBid = useCallback(async (keywordId: number, bid: number) => {
     if (!accountId) return;
@@ -568,6 +599,11 @@ export const useGoogleCampaignDetailKeywords = ({
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) return;
+
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
 
       // Find the keyword to get keyword_id
       const keyword = keywords.find((k) => k.id === keywordId);
@@ -582,7 +618,7 @@ export const useGoogleCampaignDetailKeywords = ({
       }
 
       // Call API
-      await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
         keywordIds: [keyword.keyword_id],
         action: "bid",
         bid: bid,
@@ -613,7 +649,7 @@ export const useGoogleCampaignDetailKeywords = ({
         });
       }
     }
-  }, [accountId, keywords, loadKeywords, onError]);
+  }, [accountId, channelId, keywords, loadKeywords, onError]);
 
   const handleUpdateKeywordMatchType = useCallback(async (keywordId: number, matchType: string) => {
     if (!accountId) return;
@@ -621,6 +657,11 @@ export const useGoogleCampaignDetailKeywords = ({
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) return;
+
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
 
       // Find the keyword to get keyword_id
       const keyword = keywords.find((k) => k.id === keywordId);
@@ -635,7 +676,7 @@ export const useGoogleCampaignDetailKeywords = ({
       }
 
       // Call API
-      await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
         keywordIds: [keyword.keyword_id],
         action: "match_type",
         match_type: matchType as "EXACT" | "PHRASE" | "BROAD",
@@ -666,7 +707,7 @@ export const useGoogleCampaignDetailKeywords = ({
         });
       }
     }
-  }, [accountId, keywords, loadKeywords, onError]);
+  }, [accountId, channelId, keywords, loadKeywords, onError]);
 
   return {
     // Data

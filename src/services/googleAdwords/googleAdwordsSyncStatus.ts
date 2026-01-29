@@ -40,12 +40,17 @@ export interface GoogleSyncStatusResponse {
 
 export const googleAdwordsSyncStatusService = {
   getGoogleSyncStatus: async (
-    accountId: number
+    accountId: number,
+    channelId: number
   ): Promise<GoogleSyncStatusResponse> => {
+    // Validate channelId before constructing URL
+    if (!channelId || isNaN(channelId)) {
+      throw new Error(`Invalid channelId: ${channelId}. channelId must be a valid number.`);
+    }
     // Add cache-busting timestamp to ensure fresh data (prevents React/browser caching)
     const timestamp = new Date().getTime();
     const response = await api.get<GoogleSyncStatusResponse>(
-      `/google-adwords/${accountId}/google-sync-status/?_t=${timestamp}`
+      `/google-adwords/${accountId}/channels/${channelId}/google-sync-status/?_t=${timestamp}`
     );
     return response.data;
   },

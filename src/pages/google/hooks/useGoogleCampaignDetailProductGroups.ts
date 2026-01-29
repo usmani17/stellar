@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
-import { googleAdwordsAdsService } from "../../../services/googleAdwords/googleAdwordsAds";
+import { googleAdwordsProductGroupsService } from "../../../services/googleAdwords/googleAdwordsProductGroups";
 import type { FilterValues } from "../../../components/filters/FilterPanel";
 import { toLocalDateString } from "../../../utils/dateHelpers";
 
 interface UseGoogleCampaignDetailProductGroupsParams {
   accountId: string | undefined;
+  channelId: string | undefined;
   campaignId: string | undefined;
   startDate: Date | null;
   endDate: Date | null;
@@ -14,6 +15,7 @@ interface UseGoogleCampaignDetailProductGroupsParams {
 
 export const useGoogleCampaignDetailProductGroups = ({
   accountId,
+  channelId,
   campaignId,
   startDate,
   endDate,
@@ -23,7 +25,14 @@ export const useGoogleCampaignDetailProductGroups = ({
   // Data state
   const [productGroups, setProductGroups] = useState<any[]>([]);
   const [productGroupsLoading, setProductGroupsLoading] = useState(false);
-  const [selectedProductGroupIds, setSelectedProductGroupIds] = useState<Set<number>>(new Set());
+  /** Composite key "adgroup_id-product_group_id" so selection is unique per row (same product_group_id can exist in multiple ad groups). */
+  const [selectedProductGroupKeys, setSelectedProductGroupKeys] = useState<Set<string>>(new Set());
+
+  const getProductGroupSelectionKey = useCallback((pg: { adgroup_id?: number; product_group_id?: number; id?: number }) => {
+    const adgroupId = pg.adgroup_id ?? (pg as any).adGroupId ?? "";
+    const productGroupId = pg.product_group_id ?? pg.id ?? "";
+    return `${adgroupId}-${productGroupId}`;
+  }, []);
 
   // Pagination state
   const [productGroupsCurrentPage, setProductGroupsCurrentPage] = useState(1);
@@ -40,26 +49,20 @@ export const useGoogleCampaignDetailProductGroups = ({
     try {
       setProductGroupsLoading(true);
       const accountIdNum = parseInt(accountId!, 10);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
 
-      if (isNaN(accountIdNum) || !campaignId) {
+      if (isNaN(accountIdNum) || !channelIdNum || !campaignId) {
         setProductGroupsLoading(false);
         return;
       }
 
-      // Product groups are stored in the ads table with ad_type = 'SHOPPING_PRODUCT_AD'
-      // AND extra_data->>'is_product_group' = 'true'
-      // Add filters to get only product groups (not shopping ads)
-      const productGroupsFiltersWithType = [
-        ...productGroupsFilters,
-        { field: "ad_type", value: "SHOPPING_PRODUCT_AD" },
-      ];
-
-      const data = await googleAdwordsAdsService.getGoogleAds(
+      const data = await googleAdwordsProductGroupsService.getGoogleProductGroups(
         accountIdNum,
+        channelIdNum,
         parseInt(campaignId, 10),
         undefined,
         {
-          filters: productGroupsFiltersWithType,
+          filters: productGroupsFilters,
           page: productGroupsCurrentPage,
           page_size: 10,
           sort_by: productGroupsSortBy,
@@ -69,15 +72,7 @@ export const useGoogleCampaignDetailProductGroups = ({
         }
       );
 
-      // Filter to only show product groups (is_product_group: true)
-      // Shopping ads have is_product_group: false or not set
-      const productGroups = (data.ads || []).filter((ad: any) => {
-        const extraData = ad.extra_data || {};
-        // Include only ads where is_product_group is true
-        return extraData.is_product_group === true;
-      });
-
-      setProductGroups(productGroups);
+      setProductGroups(data.ads || []);
       setProductGroupsTotalPages(data.total_pages || 0);
     } catch (error) {
       console.error("Failed to load product groups:", error);
@@ -88,6 +83,7 @@ export const useGoogleCampaignDetailProductGroups = ({
     }
   }, [
     accountId,
+    channelId,
     campaignId,
     productGroupsCurrentPage,
     productGroupsSortBy,
@@ -99,11 +95,12 @@ export const useGoogleCampaignDetailProductGroups = ({
 
   // Load product groups when dependencies change
   useEffect(() => {
-    if (accountId && campaignId && activeTab === "Product Groups") {
+    if (accountId && channelId && campaignId && activeTab === "Product Groups") {
       loadProductGroups();
     }
   }, [
     accountId,
+    channelId,
     campaignId,
     activeTab,
     startDate,
@@ -122,22 +119,22 @@ export const useGoogleCampaignDetailProductGroups = ({
     }
   }, [activeTab, startDate, endDate, productGroupsFilters]);
 
-  // Selection handlers
+  // Selection handlers (use composite key so one row doesn't select all rows with same product_group_id)
   const handleSelectAllProductGroups = useCallback((checked: boolean) => {
     if (checked) {
-      setSelectedProductGroupIds(new Set(productGroups.map((pg) => pg.id)));
+      setSelectedProductGroupKeys(new Set(productGroups.map((pg) => getProductGroupSelectionKey(pg))));
     } else {
-      setSelectedProductGroupIds(new Set());
+      setSelectedProductGroupKeys(new Set());
     }
-  }, [productGroups]);
+  }, [productGroups, getProductGroupSelectionKey]);
 
-  const handleSelectProductGroup = useCallback((id: number, checked: boolean) => {
-    setSelectedProductGroupIds((prev) => {
+  const handleSelectProductGroup = useCallback((key: string, checked: boolean) => {
+    setSelectedProductGroupKeys((prev) => {
       const newSet = new Set(prev);
       if (checked) {
-        newSet.add(id);
+        newSet.add(key);
       } else {
-        newSet.delete(id);
+        newSet.delete(key);
       }
       return newSet;
     });
@@ -159,37 +156,22 @@ export const useGoogleCampaignDetailProductGroups = ({
     setProductGroupsCurrentPage(page);
   }, []);
 
-  // Update handler
-  const handleUpdateProductGroupStatus = useCallback(async (productGroupId: number, status: string) => {
-    if (!accountId) return;
+  // Update handler (key = "adgroup_id-product_group_id")
+  const handleUpdateProductGroupStatus = useCallback(async (selectionKey: string, status: string) => {
+    if (!accountId || !channelId) return;
 
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) return;
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
 
-      // Find the product group to get ad_id
-      // Product groups are stored in the ads table, so they have ad_id
-      const productGroup = productGroups.find((pg) => pg.id === productGroupId);
+      // Find the product group by composite key
+      const productGroup = productGroups.find((pg: any) => getProductGroupSelectionKey(pg) === selectionKey);
       if (!productGroup) {
         if (onError) {
           onError({
             title: "Error",
             message: "Product group not found",
-          });
-        }
-        return;
-      }
-
-      // Product groups come from the ads table, so they should have ad_id
-      // Try both snake_case and camelCase field names
-      const adId =
-        (productGroup as any).ad_id ||
-        (productGroup as any).adId;
-      if (!adId) {
-        if (onError) {
-          onError({
-            title: "Error",
-            message: "Product group ad ID not found. Please sync product groups first.",
           });
         }
         return;
@@ -202,11 +184,11 @@ export const useGoogleCampaignDetailProductGroups = ({
       const adGroupId =
         productGroup.adgroup_id ||
         (productGroup as any).adGroupId;
+      const productGroupId = productGroup.id ?? productGroup.product_group_id;
 
-      // Call API - product groups use the same bulkUpdateGoogleAds endpoint
-      // Include campaignId and adGroupId to only update this specific instance
-      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
-        adIds: [adId],
+      // Call API - use the dedicated product groups bulk update endpoint
+      await googleAdwordsProductGroupsService.bulkUpdateGoogleProductGroups(accountIdNum, channelIdNum, {
+        productGroupIds: [productGroupId],
         action: "status",
         status: status as "ENABLED" | "PAUSED" | "REMOVED",
         campaignId: campaignId
@@ -217,10 +199,10 @@ export const useGoogleCampaignDetailProductGroups = ({
           : undefined,
       });
 
-      // Update local state
+      // Update local state (match by composite key)
       setProductGroups((prevProductGroups) =>
         prevProductGroups.map((pg) =>
-          pg.id === productGroupId ? { ...pg, status } : pg
+          getProductGroupSelectionKey(pg) === selectionKey ? { ...pg, status } : pg
         )
       );
       
@@ -241,13 +223,13 @@ export const useGoogleCampaignDetailProductGroups = ({
       }
       throw error;
     }
-  }, [accountId, productGroups, loadProductGroups, onError]);
+  }, [accountId, channelId, productGroups, loadProductGroups, onError, getProductGroupSelectionKey]);
 
   return {
     // Data
     productGroups,
     productGroupsLoading,
-    selectedProductGroupIds,
+    getProductGroupSelectionKey,
     
     // Pagination
     productGroupsCurrentPage,
@@ -266,6 +248,7 @@ export const useGoogleCampaignDetailProductGroups = ({
     loadProductGroups,
     handleSelectAllProductGroups,
     handleSelectProductGroup,
+    selectedProductGroupIds: selectedProductGroupKeys,
     handleProductGroupsSort,
     handleProductGroupsPageChange,
     handleUpdateProductGroupStatus,

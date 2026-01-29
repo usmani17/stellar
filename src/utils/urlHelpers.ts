@@ -93,10 +93,9 @@ export const buildAccountRoute = (accountId: number, path: string): string => {
 
 /**
  * Build a marketplace-specific route.
- * For Amazon/TikTok: includes channelId in path and optional profileId as query.
- * For Google: channelId is optional (can be 0 or omitted for backward compat).
+ * For Amazon/TikTok/Google: includes channelId in path and optional profileId as query.
  * @param accountId - Account ID
- * @param channelId - Channel ID (required for amazon; use 0 or first channel for google/tiktok if needed)
+ * @param channelId - Channel ID (required for all marketplaces)
  * @param marketplace - Marketplace name (e.g., 'amazon', 'google', 'tiktok')
  * @param entity - Entity name (e.g., 'campaigns', 'adgroups')
  * @param id - Optional entity ID for detail pages
@@ -112,7 +111,7 @@ export const buildMarketplaceRoute = (
   profileId?: string | number
 ): string => {
   const includeChannelInPath =
-    marketplace === 'amazon' || marketplace === 'tiktok';
+    marketplace === 'amazon' || marketplace === 'tiktok' || marketplace === 'google';
   const basePath = includeChannelInPath
     ? `/brands/${accountId}/${channelId}/${marketplace}/${entity}`
     : `/brands/${accountId}/${marketplace}/${entity}`;

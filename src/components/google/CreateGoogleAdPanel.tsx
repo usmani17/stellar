@@ -46,6 +46,7 @@ interface CreateGoogleAdPanelProps {
   onSubmit: (entity: AdInput) => void;
   campaignId: string;
   accountId: string;
+  channelId?: string;
   profileId?: number | null;
   loading?: boolean;
   submitError?: string | null;
@@ -57,6 +58,7 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
   onSubmit,
   campaignId,
   accountId,
+  channelId,
   profileId = null,
   loading = false,
   submitError = null,
@@ -80,12 +82,17 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
 
   // Fetch adgroups from API with debounced search
   const fetchAdgroups = useCallback(async (searchQuery: string = "") => {
-    if (!accountId || !campaignId) return;
+    if (!accountId || !channelId || !campaignId) return;
     
     setLoadingAdgroups(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = parseInt(channelId, 10);
       const campaignIdNum = parseInt(campaignId, 10);
+      
+      if (isNaN(accountIdNum) || isNaN(channelIdNum) || isNaN(campaignIdNum)) {
+        throw new Error("Invalid account ID, channel ID, or campaign ID");
+      }
       
       const params: any = {
         page: 1,
@@ -100,8 +107,8 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
         params.adgroup_name__icontains = searchQuery.trim();
       }
       
-      // Pass campaignId as second parameter to ensure proper filtering
-      const response = await campaignsService.getGoogleAdGroups(accountIdNum, campaignIdNum, {
+      // Pass channelId as second parameter, campaignId as third
+      const response = await campaignsService.getGoogleAdGroups(accountIdNum, channelIdNum, campaignIdNum, {
         ...params,
         campaign_id: campaignIdNum, // Explicitly set in params as well
       });
@@ -114,8 +121,9 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
           value: adgroupId?.toString() || "",
           label: ag.name || ag.adgroup_name || `Ad Group ${adgroupId}`,
           adgroup_id: adgroupId,
+          status: ag.status,
         };
-      }).filter((opt: any) => opt.value && opt.adgroup_id); // Filter out invalid options
+      }).filter((opt: any) => opt.value && opt.adgroup_id && opt.status !== "REMOVED" && opt.status !== "Removed"); // Filter out invalid options and removed adgroups
       
       setAdgroupOptions(options);
       
@@ -129,7 +137,7 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
     } finally {
       setLoadingAdgroups(false);
     }
-  }, [accountId, campaignId, selectedAdGroupId]);
+  }, [accountId, channelId, campaignId, selectedAdGroupId]);
 
   // Fetch adgroups once when panel opens
   useEffect(() => {

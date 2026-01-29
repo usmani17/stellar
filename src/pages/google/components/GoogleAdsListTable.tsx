@@ -8,6 +8,7 @@ export interface GoogleAdsListTableProps {
   loading: boolean;
   sorting: boolean;
   accountId: string;
+  channelId?: string;
   selectedAds: Set<string | number>;
   allSelected: boolean;
   someSelected: boolean;
@@ -66,6 +67,7 @@ export interface GoogleAdsListTableProps {
   formatPercentage: (value: number) => string;
   getStatusBadge: (status: string) => React.ReactElement;
   getSortIcon: (column: string) => React.ReactElement;
+  currencyCode?: string;
 }
 
 export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
@@ -73,6 +75,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
   loading,
   sorting,
   accountId,
+  channelId,
   selectedAds,
   allSelected,
   someSelected,
@@ -99,6 +102,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
   formatPercentage,
   getStatusBadge,
   getSortIcon,
+  currencyCode,
 }) => {
   // Map editingCell to shared component format
   const sharedEditingCell = editingCell ? {
@@ -170,7 +174,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       sortable: true,
       minWidth: "min-w-[200px]",
       navigateTo: (row: GoogleAd, accountId: string) => 
-        row.adgroup_id ? `/brands/${accountId}/google-adgroups?adgroup_id=${row.adgroup_id}` : null,
+        row.adgroup_id ? (channelId ? `/brands/${accountId}/${channelId}/google/adgroups?adgroup_id=${row.adgroup_id}` : `/brands/${accountId}/google-adgroups?adgroup_id=${row.adgroup_id}`) : null,
       getValue: (row: GoogleAd) => row.adgroup_name || "—",
     },
     {
@@ -180,7 +184,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       sortable: true,
       minWidth: "min-w-[200px]",
       navigateTo: (row: GoogleAd, accountId: string) => 
-        row.campaign_id ? `/brands/${accountId}/google-campaigns/${row.campaign_id}` : null,
+        row.campaign_id ? (channelId ? `/brands/${accountId}/${channelId}/google/campaigns/${row.campaign_id}` : `/brands/${accountId}/google-campaigns/${row.campaign_id}`) : null,
       getValue: (row: GoogleAd) => row.campaign_name || "—",
     },
     {
@@ -205,6 +209,13 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       sortable: true,
       minWidth: "min-w-[150px]",
       getValue: (row: GoogleAd) => row.ad_type || "—",
+    },
+    {
+      key: "currency",
+      label: "Currency",
+      type: "text",
+      sortable: false,
+      getValue: () => currencyCode ?? "—",
     },
     {
       key: "impressions",
@@ -235,25 +246,18 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       getValue: (row: GoogleAd) => (row as any).sales || 0,
     },
     {
-      key: "ctr",
-      label: "CTR",
-      type: "percentage",
-      sortable: true,
-      getValue: (row: GoogleAd) => (row as any).ctr || 0,
-    },
-    {
-      key: "avg_cpc",
-      label: "Avg. CPC",
-      type: "currency",
-      sortable: true,
-      getValue: (row: GoogleAd) => (row as any).avg_cpc || (row as any).cpc || 0,
-    },
-    {
       key: "roas",
       label: "Conv. value / cost",
       type: "roas",
       sortable: true,
       getValue: (row: GoogleAd) => (row as any).roas || 0,
+    },
+    {
+      key: "ctr",
+      label: "CTR",
+      type: "percentage",
+      sortable: true,
+      getValue: (row: GoogleAd) => (row as any).ctr || 0,
     },
     {
       key: "conversions",
@@ -277,6 +281,13 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       getValue: (row: GoogleAd) => (row as any).cost_per_conversion || 0,
     },
     {
+      key: "avg_cpc",
+      label: "Avg. CPC",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleAd) => (row as any).avg_cpc || (row as any).cpc || 0,
+    },
+    {
       key: "avg_cost",
       label: "Avg. cost",
       type: "currency",
@@ -295,7 +306,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       sortable: true,
       getValue: (row: GoogleAd) => (row as any).interaction_rate || 0,
     },
-  ], []);
+  ], [currencyCode]);
 
   const handleConfirmInlineEdit = (value: string, field?: string, itemId?: string | number) => {
     if (field === "status") {
@@ -367,6 +378,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       formatPercentage={formatPercentage}
       getStatusBadge={getStatusBadge}
       getSortIcon={getSortIcon}
+      currencyCode={currencyCode}
     />
   </>
   );

@@ -10,6 +10,8 @@ import { GoogleTrackingTemplateForm } from "./GoogleTrackingTemplateForm";
 import { GoogleBiddingStrategyForm } from "./GoogleBiddingStrategyForm";
 import { GooglePerformanceMaxAssetGroupForm } from "./GooglePerformanceMaxAssetGroupForm";
 import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../CreateGooglePmaxAssetGroupPanel";
+import { AssetSelectorModal } from "../AssetSelectorModal";
+import type { Asset } from "../../../services/googleAdwords/googleAdwordsAssets";
 
 interface GooglePerformanceMaxCampaignFormProps extends BaseCampaignFormProps {
   // Headline and description handlers
@@ -101,10 +103,254 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
   const selectedProfile = googleProfiles?.find((p: any) => p.value === selectedProfileId);
   const profileId = selectedProfile?.profile_id || null;
 
+  // Asset Selector Modal state for business_name and logo
+  const [assetSelectorOpen, setAssetSelectorOpen] = useState(false);
+  const [assetSelectorType, setAssetSelectorType] = useState<"BUSINESS_NAME" | "LOGO" | null>(null);
+
+  const handleSelectAsset = (asset: Asset) => {
+    if (!assetSelectorType || !profileId) return;
+
+    switch (assetSelectorType) {
+      case "BUSINESS_NAME":
+        if (asset.type === "TEXT" && "text" in asset) {
+          onChange("business_name", asset.text);
+          onChange("business_name_asset_id", asset.id);
+          onChange("business_name_asset_resource_name", asset.resource_name);
+        }
+        break;
+      case "LOGO":
+        if (asset.type === "IMAGE" && "image_url" in asset) {
+          onChange("logo_url", asset.image_url || "");
+          onChange("logo_asset_resource_name", asset.resource_name);
+          onChange("logo_asset_id", asset.id);
+          if (asset.image_url) {
+            _setLogoPreview(asset.image_url);
+          }
+        }
+        break;
+    }
+    setAssetSelectorOpen(false);
+    setAssetSelectorType(null);
+  };
+
+  const openAssetSelector = (type: "BUSINESS_NAME" | "LOGO") => {
+    if (!profileId) {
+      setErrors({ ...errors, general: "Please select a Google Ads account first" });
+      return;
+    }
+    setAssetSelectorType(type);
+    setAssetSelectorOpen(true);
+  };
+
   return (
     <>
-      {/* Section 1: Campaign Settings Tabs */}
-      <div className="tabs-container mt-2">
+      {/* Section 1: Brand Guidelines Required Fields (Business Name & Square Logo) */}
+      <div className="mt-2">
+        <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
+          Brand Guidelines Required Fields
+        </h3>
+        <p className="text-[11px] text-[#556179] mt-2 mb-4">
+          Performance Max campaigns with Brand Guidelines enabled require a business name and square logo (1:1 aspect ratio).
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          {/* Business Name Field */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="form-label mb-0">
+                Business Name * <span className="text-[10px] text-[#556179] font-normal">(max 25 characters)</span>
+              </label>
+            </div>
+            {formData.business_name_asset_id ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={formData.business_name || ""}
+                  disabled
+                  readOnly
+                  maxLength={25}
+                  className="campaign-input w-full bg-gray-50 border-gray-200 cursor-not-allowed"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange("business_name", "");
+                    onChange("business_name_asset_id", undefined);
+                    onChange("business_name_asset_resource_name", undefined);
+                  }}
+                  className="text-red-500 hover:text-red-700 text-sm font-medium"
+                  title="Remove selected asset"
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.business_name || ""}
+                    onChange={(e) => onChange("business_name", e.target.value)}
+                    maxLength={25}
+                    className={`campaign-input w-full pr-28 ${
+                      errors.business_name ? "border-red-500" : ""
+                    }`}
+                    placeholder="Enter business name"
+                  />
+                  {profileId && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <button
+                        type="button"
+                        onClick={() => openAssetSelector("BUSINESS_NAME")}
+                        className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
+                      >
+                        Select Asset
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {errors.business_name && (
+              <p className="text-[10px] text-red-500 mt-1">
+                {errors.business_name}
+              </p>
+            )}
+            <p className="text-[10px] text-[#556179] mt-1">
+              Required. Enter business name directly or select from assets.
+            </p>
+          </div>
+
+          {/* Square Logo Field */}
+          <div>
+            <label className="form-label mb-1">
+              Square Logo (URL) * <span className="text-[10px] text-[#556179] font-normal">(1:1 aspect ratio, min 128x128px)</span>
+            </label>
+            <div className="space-y-2">
+              {formData.logo_asset_id ? (
+                <div className="space-y-2">
+                  <div className="relative group">
+                    <input
+                      type="url"
+                      value={formData.logo_url || ""}
+                      disabled
+                      readOnly
+                      className="campaign-input w-full pr-28 bg-gray-50 border-gray-200 cursor-not-allowed"
+                    />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                      <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
+                        From Asset
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onChange("logo_url", "");
+                          onChange("logo_asset_id", undefined);
+                          onChange("logo_asset_resource_name", undefined);
+                          _setLogoPreview(null);
+                        }}
+                        className="text-red-500 hover:text-red-700 text-sm font-medium"
+                        title="Remove selected asset"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {formData.logo_url && (formData.logo_url.startsWith("http://") || formData.logo_url.startsWith("https://")) && (
+                      <div className="absolute left-0 top-full mt-2 hidden group-hover:block z-50">
+                        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-2">
+                          <img
+                            src={formData.logo_url}
+                            alt="Logo preview"
+                            className="w-32 h-32 object-contain rounded"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {formData.logo_url && (formData.logo_url.startsWith("http://") || formData.logo_url.startsWith("https://")) && (
+                    <div>
+                      <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
+                      <div className="inline-block border border-gray-200 rounded p-1 bg-white">
+                        <img
+                          src={formData.logo_url}
+                          alt="Logo preview"
+                          className="w-12 h-12 object-contain rounded"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <input
+                      type="url"
+                      value={formData.logo_url || ""}
+                      onChange={(e) => {
+                        onChange("logo_url", e.target.value);
+                        const urlValue = e.target.value.trim();
+                        if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
+                          _setLogoPreview(urlValue);
+                        } else {
+                          _setLogoPreview(null);
+                        }
+                      }}
+                      className={`campaign-input w-full pr-28 ${
+                        errors.logo_url ? "border-red-500" : ""
+                      }`}
+                      placeholder="https://example.com/logo.png"
+                    />
+                    {profileId && (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                        <button
+                          type="button"
+                          onClick={() => openAssetSelector("LOGO")}
+                          className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
+                        >
+                          Select Asset
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {_logoPreview && (
+                    <div>
+                      <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
+                      <div className="inline-block border border-gray-200 rounded p-1 bg-white">
+                        <img
+                          src={_logoPreview}
+                          alt="Logo preview"
+                          className="w-12 h-12 object-contain rounded"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            _setLogoPreview(null);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {errors.logo_url && (
+                <p className="text-[10px] text-red-500 mt-1">
+                  {errors.logo_url}
+                </p>
+              )}
+              <p className="text-[10px] text-[#556179] mt-1">
+                Required. Enter square logo URL directly or select from assets. Must be 1:1 aspect ratio, minimum 128x128px.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Section 2: Campaign Settings Tabs */}
+      <div className="tabs-container mt-6">
         <div className="">
           <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
             {CAMPAIGN_SETTINGS_TABS.map((tab) => {
@@ -352,7 +598,22 @@ export const GooglePerformanceMaxCampaignForm: React.FC<GooglePerformanceMaxCamp
         </div>
       </div>
 
-      {/* Section 2: Business Information, Asset Group Settings, and Asset Tabs (Reusable Component) */}
+      {/* Asset Selector Modal */}
+      {profileId && (
+        <AssetSelectorModal
+          isOpen={assetSelectorOpen}
+          onClose={() => {
+            setAssetSelectorOpen(false);
+            setAssetSelectorType(null);
+          }}
+          onSelect={handleSelectAsset}
+          assetType={assetSelectorType === "BUSINESS_NAME" ? "TEXT" : assetSelectorType === "LOGO" ? "IMAGE" : undefined}
+          profileId={profileId}
+          initialTab={assetSelectorType === "BUSINESS_NAME" ? "Business Name" : assetSelectorType === "LOGO" ? "Logo" : undefined}
+        />
+      )}
+
+      {/* Section 3: Business Information, Asset Group Settings, and Asset Tabs (Reusable Component) */}
       {SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION && (
         <GooglePerformanceMaxAssetGroupForm
           formData={formData}

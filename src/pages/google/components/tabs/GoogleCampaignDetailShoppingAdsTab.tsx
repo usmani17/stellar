@@ -5,6 +5,13 @@ import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Loader } from "../../../../components/ui/Loader";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
+import {
+  BulkUpdateConfirmationModal,
+  type BulkUpdatePreviewRow,
+  type BulkUpdateStatusDetails,
+} from "../BulkUpdateConfirmationModal";
+import { BulkActionsDropdown } from "../BulkActionsDropdown";
+import { formatStatusForDisplay } from "../../utils/googleAdsUtils";
 
 interface GoogleListingGroup {
   id: number;
@@ -21,6 +28,32 @@ interface GoogleListingGroup {
   ctr?: number | string;
   spends?: number | string;
   sales?: number | string;
+  // Metrics (when API returns them with date range)
+  impressions?: number;
+  clicks?: number;
+  roas?: number;
+  conversions?: number;
+  conversion_rate?: number;
+  cost_per_conversion?: number;
+  avg_cpc?: number;
+  avg_cost?: number;
+  interaction_rate?: number;
+}
+
+interface ShoppingAdsSummary {
+  total_ads?: number;
+  total_spends?: number;
+  total_sales?: number;
+  total_impressions?: number;
+  total_clicks?: number;
+  avg_acos?: number;
+  avg_roas?: number;
+  total_conversions?: number;
+  avg_conversion_rate?: number;
+  avg_cost_per_conversion?: number;
+  avg_cpc?: number;
+  avg_cost?: number;
+  avg_interaction_rate?: number;
 }
 
 interface GoogleCampaignDetailShoppingAdsTabProps {
@@ -49,6 +82,10 @@ interface GoogleCampaignDetailShoppingAdsTabProps {
   formatPercentage: (value: number | string | undefined) => string;
   onUpdateListingGroupStatus?: (listingGroupId: number, status: string) => Promise<void>;
   createButton?: React.ReactNode;
+  createPanel?: React.ReactNode;
+  onBulkUpdateComplete?: () => void;
+  currencyCode?: string;
+  summary?: ShoppingAdsSummary | null;
 }
 
 export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailShoppingAdsTabProps> = ({
@@ -67,17 +104,75 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
   onToggleFilterPanel,
   filters,
   onApplyFilters,
-  syncing,
-  onSync,
-  syncingAnalytics,
-  onSyncAnalytics,
   syncMessage,
   getSortIcon,
   formatCurrency2Decimals,
   formatPercentage,
   onUpdateListingGroupStatus,
   createButton,
+  createPanel,
+  onBulkUpdateComplete,
+  currencyCode,
+  summary,
 }) => {
+  const getMetricNumber = (lg: GoogleListingGroup, key: keyof GoogleListingGroup): number => {
+    const v = lg[key];
+    if (v === undefined || v === null) return 0;
+    if (typeof v === "number") return v;
+    if (typeof v === "string") return parseFloat(v) || 0;
+    return 0;
+  };
+  const getAvgCost = (lg: GoogleListingGroup): number => {
+    const interactions = lg.clicks ?? 0;
+    const spends = getMetricNumber(lg, "spends");
+    return interactions > 0 ? spends / interactions : (lg.avg_cost ?? 0);
+  };
+  const [showBulkConfirmationModal, setShowBulkConfirmationModal] = useState(false);
+  const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLED" | "PAUSED" | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
+
+  const getSelectedListingGroupsData = () =>
+    listingGroups.filter((lg) => selectedListingGroupIds.has(lg.id));
+  const selectableListingGroups = listingGroups.filter(
+    (lg) => (lg.status || "").toUpperCase() !== "REMOVED"
+  );
+  const isListingGroupRemoved = (lg: { status?: string }) =>
+    (lg.status || "").toUpperCase() === "REMOVED";
+
+  const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
+    if (!onUpdateListingGroupStatus || selectedListingGroupIds.size === 0) return;
+    const selectedData = getSelectedListingGroupsData();
+    console.log("[ShoppingAds bulk] runBulkStatus: statusValue=", statusValue, "selectedData count=", selectedData.length);
+    let totalUpdated = 0;
+    let totalFailed = 0;
+    const allErrors: string[] = [];
+    setBulkLoading(true);
+    setBulkUpdateResults(null);
+    try {
+      for (const lg of selectedData) {
+        try {
+          console.log("[ShoppingAds bulk] calling onUpdateListingGroupStatus with id=", lg.id, "listing_group_id=", lg.listing_group_id, "ad_id=", lg.ad_id);
+          await onUpdateListingGroupStatus(lg.id, statusValue);
+          totalUpdated += 1;
+        } catch (err: unknown) {
+          totalFailed += 1;
+          const e = err as { message?: string };
+          allErrors.push(e?.message || "Failed");
+          console.error("[ShoppingAds bulk] update failed for id=", lg.id, err);
+        }
+      }
+      setBulkUpdateResults({ updated: totalUpdated, failed: totalFailed, errors: allErrors });
+      if (onBulkUpdateComplete) onBulkUpdateComplete();
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const [editingListingGroupId, setEditingListingGroupId] = useState<number | null>(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
   const [pendingChange, setPendingChange] = useState<{
@@ -160,6 +255,25 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
         </h2>
         <div className="flex items-center gap-2">
           {createButton}
+          {onUpdateListingGroupStatus && onBulkUpdateComplete && (
+            <BulkActionsDropdown
+              options={[
+                { value: "ENABLED", label: "Enable" },
+                { value: "PAUSED", label: "Pause" },
+              ]}
+              selectedCount={selectedListingGroupIds.size}
+              onSelect={(value) => {
+                const selectedData = getSelectedListingGroupsData();
+                console.log("[ShoppingAds bulk] selectedListingGroupIds (Set):", selectedListingGroupIds.size, Array.from(selectedListingGroupIds));
+                console.log("[ShoppingAds bulk] selected rows count:", selectedData.length);
+                selectedData.forEach((lg, i) => {
+                  console.log(`[ShoppingAds bulk] row ${i}: id=${lg.id}, listing_group_id=${lg.listing_group_id}, ad_id=${lg.ad_id}`);
+                });
+                setPendingStatusAction(value as "ENABLED" | "PAUSED");
+                setShowBulkConfirmationModal(true);
+              }}
+            />
+          )}
           <button
             onClick={onToggleFilterPanel}
             className="edit-button"
@@ -199,6 +313,9 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
         </div>
       </div>
 
+      {/* Create Panel - below create button */}
+      {createPanel}
+
       {/* Filter Panel */}
       {isFilterPanelOpen && (
         <div className="mb-4">
@@ -210,7 +327,7 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
             }}
             initialFilters={filters}
             filterFields={[
-              { value: "name", label: "Shopping Ad Name" },
+              { value: "ad_id", label: "Shopping Ad" },
               { value: "status", label: "Status" },
               { value: "adgroup_name", label: "Ad Group Name" },
             ]}
@@ -218,7 +335,7 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
         </div>
       )}
 
-      {/* Listing Groups Table */}
+      {/* Shopping Ads Table */}
       <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
         <div className="overflow-x-auto w-full">
           {loading ? (
@@ -238,19 +355,19 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
                   <th className="table-header w-[35px]">
                     <div className="flex items-center justify-center">
                       <Checkbox
-                        checked={listingGroups.length > 0 && listingGroups.every((lg) => selectedListingGroupIds.has(lg.id))}
-                        onChange={onSelectAll}
+                        checked={selectableListingGroups.length > 0 && selectableListingGroups.every((lg) => selectedListingGroupIds.has(lg.id))}
+                        onChange={(checked) => selectableListingGroups.forEach((lg) => onSelectListingGroup(lg.id, checked))}
                         size="small"
                       />
                     </div>
                   </th>
                   <th
                     className="table-header"
-                    onClick={() => onSort("listing_group_name")}
+                    onClick={() => onSort("id")}
                   >
                     <div className="flex items-center gap-1">
-                      Listing Groups
-                      {getSortIcon("listing_group_name", sortBy, sortOrder)}
+                      Shopping Ad
+                      {getSortIcon("id", sortBy, sortOrder)}
                     </div>
                   </th>
                   <th className="table-header hidden lg:table-cell">
@@ -266,24 +383,19 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
                   </th>
-                  <th
-                    className="table-header hidden md:table-cell"
-                    onClick={() => onSort("cpc_bid_dollars")}
-                  >
-                    <div className="flex items-center gap-1">
-                      CPC Bid
-                      {getSortIcon("cpc_bid_dollars", sortBy, sortOrder)}
-                    </div>
-                  </th>
-                  <th className="table-header hidden md:table-cell">
-                    CTR
-                  </th>
-                  <th className="table-header hidden md:table-cell">
-                    Cost
-                  </th>
-                  <th className="table-header hidden md:table-cell">
-                    Conv. value
-                  </th>
+                  <th className="table-header hidden md:table-cell">Currency</th>
+                  <th className="table-header hidden md:table-cell">Impressions</th>
+                  <th className="table-header hidden md:table-cell">Clicks</th>
+                  <th className="table-header hidden md:table-cell">Cost</th>
+                  <th className="table-header hidden md:table-cell">Conv. value</th>
+                  <th className="table-header hidden md:table-cell">Conv. value / cost</th>
+                  <th className="table-header hidden md:table-cell">CTR</th>
+                  <th className="table-header hidden md:table-cell">Conversions</th>
+                  <th className="table-header hidden md:table-cell">Conv. rate</th>
+                  <th className="table-header hidden md:table-cell">Cost / conv.</th>
+                  <th className="table-header hidden md:table-cell">Avg. CPC</th>
+                  <th className="table-header hidden md:table-cell">Avg. cost</th>
+                  <th className="table-header hidden md:table-cell">Interaction rate</th>
                 </tr>
               </thead>
               <tbody>
@@ -302,14 +414,15 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedListingGroupIds.has(listingGroup.id)}
-                            onChange={(checked) => onSelectListingGroup(listingGroup.id, checked)}
+                            onChange={(checked) => !isListingGroupRemoved(listingGroup) && onSelectListingGroup(listingGroup.id, checked)}
+                            disabled={isRemoved}
                             size="small"
                           />
                         </div>
                       </td>
                       <td className="table-cell">
-                        <span className="table-text leading-[1.26] underline cursor-pointer">
-                          All products
+                        <span className="table-text leading-[1.26]">
+                          {listingGroup.ad_id || listingGroup.id || "—"}
                         </span>
                       </td>
                       <td className="table-cell hidden lg:table-cell">
@@ -431,26 +544,19 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
                         ) : null}
                         </div>
                       </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatCurrency2Decimals(listingGroup.cpc_bid_dollars)}
-                        </span>
-                      </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatPercentage(listingGroup.ctr)}
-                        </span>
-                      </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatCurrency2Decimals(listingGroup.spends)}
-                        </span>
-                      </td>
-                      <td className="table-cell hidden md:table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatCurrency2Decimals(listingGroup.sales)}
-                        </span>
-                      </td>
+                      <td className="table-cell table-text leading-[1.26] hidden md:table-cell text-right">{currencyCode ?? "—"}</td>
+                      <td className="table-cell table-text leading-[1.26] hidden md:table-cell text-right">{Number(listingGroup.impressions ?? 0).toLocaleString()}</td>
+                      <td className="table-cell table-text leading-[1.26] hidden md:table-cell text-right">{Number(listingGroup.clicks ?? 0).toLocaleString()}</td>
+                      <td className="table-cell table-text leading-[1.26] hidden md:table-cell text-right">{formatCurrency2Decimals(getMetricNumber(listingGroup, "spends"))}</td>
+                      <td className="table-cell table-text leading-[1.26] hidden md:table-cell text-right">{formatCurrency2Decimals(getMetricNumber(listingGroup, "sales"))}</td>
+                      <td className="table-cell table-text leading-[1.26] hidden md:table-cell text-right">{getMetricNumber(listingGroup, "roas") ? Number(listingGroup.roas).toFixed(2) : "—"}</td>
+                      <td className="table-cell table-text leading-[1.26] hidden md:table-cell text-right">{formatPercentage(listingGroup.ctr ?? 0)}</td>
+                      <td className="table-cell table-text leading-[1.26] hidden md:table-cell text-right">{Number(listingGroup.conversions ?? 0).toLocaleString()}</td>
+                      <td className="table-cell table-text leading-[1.26] hidden md:table-cell text-right">{formatPercentage(listingGroup.conversion_rate ?? 0)}</td>
+                      <td className="table-cell table-text leading-[1.26] hidden md:table-cell text-right">{formatCurrency2Decimals(listingGroup.cost_per_conversion ?? 0)}</td>
+                      <td className="table-cell table-text leading-[1.26] hidden md:table-cell text-right">{formatCurrency2Decimals(listingGroup.avg_cpc ?? 0)}</td>
+                      <td className="table-cell table-text leading-[1.26] hidden md:table-cell text-right">{formatCurrency2Decimals(getAvgCost(listingGroup))}</td>
+                      <td className="table-cell table-text leading-[1.26] hidden md:table-cell text-right">{formatPercentage(listingGroup.interaction_rate ?? 0)}</td>
                     </tr>
                   );
                 })}
@@ -459,6 +565,51 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
           )}
         </div>
       </div>
+
+      {/* Bulk confirmation modal */}
+      {onUpdateListingGroupStatus && onBulkUpdateComplete && (
+        <BulkUpdateConfirmationModal
+          isOpen={showBulkConfirmationModal}
+          onClose={() => {
+            setShowBulkConfirmationModal(false);
+            setPendingStatusAction(null);
+            setBulkUpdateResults(null);
+          }}
+          entityLabel="shopping ad"
+          entityNameColumn="Shopping Ad"
+          selectedCount={selectedListingGroupIds.size}
+          bulkUpdateResults={bulkUpdateResults}
+          isValueChange={false}
+          valueChangeLabel=""
+          previewRows={getSelectedListingGroupsData().map((lg) => {
+            const oldStatus = formatStatusForDisplay(lg.status || "ENABLED");
+            const newStatus = pendingStatusAction
+              ? formatStatusForDisplay(pendingStatusAction)
+              : oldStatus;
+            return {
+              name: String(lg.ad_id ?? lg.id),
+              oldValue: oldStatus,
+              newValue: newStatus,
+            } as BulkUpdatePreviewRow;
+          })}
+          actionDetails={
+            !bulkUpdateResults && pendingStatusAction
+              ? ({
+                  type: "status",
+                  newStatus:
+                    pendingStatusAction.charAt(0) +
+                    pendingStatusAction.slice(1).toLowerCase(),
+                } as BulkUpdateStatusDetails)
+              : null
+          }
+          loading={bulkLoading}
+          loadingMessage="Updating shopping ads..."
+          successMessage="All shopping ads updated successfully!"
+          onConfirm={async () => {
+            if (pendingStatusAction) await runBulkStatus(pendingStatusAction);
+          }}
+        />
+      )}
 
       {/* Pagination */}
       {!loading && listingGroups.length > 0 && totalPages > 1 && (

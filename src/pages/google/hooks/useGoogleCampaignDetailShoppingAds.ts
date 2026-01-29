@@ -4,6 +4,7 @@ import type { FilterValues } from "../../../components/filters/FilterPanel";
 
 interface UseGoogleCampaignDetailShoppingAdsParams {
   accountId: string | undefined;
+  channelId: string | undefined;
   campaignId: string | undefined;
   startDate: Date | null;
   endDate: Date | null;
@@ -13,6 +14,7 @@ interface UseGoogleCampaignDetailShoppingAdsParams {
 
 export const useGoogleCampaignDetailShoppingAds = ({
   accountId,
+  channelId,
   campaignId,
   startDate,
   endDate,
@@ -22,6 +24,21 @@ export const useGoogleCampaignDetailShoppingAds = ({
   // Data state
   const [listingGroups, setListingGroups] = useState<any[]>([]);
   const [listingGroupsLoading, setListingGroupsLoading] = useState(false);
+  const [listingGroupsSummary, setListingGroupsSummary] = useState<{
+    total_ads?: number;
+    total_spends?: number;
+    total_sales?: number;
+    total_impressions?: number;
+    total_clicks?: number;
+    avg_acos?: number;
+    avg_roas?: number;
+    total_conversions?: number;
+    avg_conversion_rate?: number;
+    avg_cost_per_conversion?: number;
+    avg_cpc?: number;
+    avg_cost?: number;
+    avg_interaction_rate?: number;
+  } | null>(null);
   const [selectedListingGroupIds, setSelectedListingGroupIds] = useState<Set<number>>(new Set());
 
   // Pagination state
@@ -56,8 +73,13 @@ export const useGoogleCampaignDetailShoppingAds = ({
         // If not supported, we may need to filter on the frontend after fetching
       ];
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
       const data = await googleAdwordsAdsService.getGoogleAds(
         accountIdNum,
+        channelIdNum,
         parseInt(campaignId, 10),
         undefined,
         {
@@ -83,15 +105,18 @@ export const useGoogleCampaignDetailShoppingAds = ({
 
       setListingGroups(shoppingAds);
       setListingGroupsTotalPages(data.total_pages || 0);
+      setListingGroupsSummary(data.summary ?? null);
     } catch (error) {
       console.error("Failed to load shopping ads:", error);
       setListingGroups([]);
       setListingGroupsTotalPages(0);
+      setListingGroupsSummary(null);
     } finally {
       setListingGroupsLoading(false);
     }
   }, [
     accountId,
+    channelId,
     campaignId,
     listingGroupsCurrentPage,
     listingGroupsSortBy,
@@ -103,11 +128,12 @@ export const useGoogleCampaignDetailShoppingAds = ({
 
   // Load shopping ads when dependencies change
   useEffect(() => {
-    if (accountId && campaignId && activeTab === "Shopping Ads") {
+    if (accountId && channelId && campaignId && activeTab === "Shopping Ads") {
       loadListingGroups();
     }
   }, [
     accountId,
+    channelId,
     campaignId,
     activeTab,
     startDate,
@@ -165,11 +191,12 @@ export const useGoogleCampaignDetailShoppingAds = ({
 
   // Update handler
   const handleUpdateListingGroupStatus = useCallback(async (listingGroupId: number, status: string) => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
 
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) return;
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
 
       // Find the listing group to get ad_id
       // Listing groups are stored in the ads table, so they have ad_id
@@ -209,7 +236,7 @@ export const useGoogleCampaignDetailShoppingAds = ({
 
       // Call API - listing groups use the same bulkUpdateGoogleAds endpoint
       // Include campaignId and adGroupId to only update this specific instance
-      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
+      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, channelIdNum, {
         adIds: [adId],
         action: "status",
         status: status as "ENABLED" | "PAUSED" | "REMOVED",
@@ -245,12 +272,13 @@ export const useGoogleCampaignDetailShoppingAds = ({
       }
       throw error;
     }
-  }, [accountId, listingGroups, loadListingGroups, onError]);
+  }, [accountId, channelId, listingGroups, loadListingGroups, onError]);
 
   return {
     // Data
     listingGroups,
     listingGroupsLoading,
+    listingGroupsSummary,
     selectedListingGroupIds,
     
     // Pagination

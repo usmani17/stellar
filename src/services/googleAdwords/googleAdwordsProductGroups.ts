@@ -1,11 +1,11 @@
-import type { IGoogleCampaignsSummary } from "../../types/google/campaign";
 import api from "../api";
 
-export const googleAdwordsAdGroupsService = {
-  getGoogleAdGroups: async (
+export const googleAdwordsProductGroupsService = {
+  getGoogleProductGroups: async (
     accountId: number,
     channelId: number,
     campaignId?: string | number,
+    adgroupId?: string | number,
     params?: {
       filters?: Array<{ field: string; operator?: string; value: any }>; // Dynamic filters from DynamicFilterPanel
       sort_by?: string;
@@ -15,27 +15,33 @@ export const googleAdwordsAdGroupsService = {
       start_date?: string;
       end_date?: string;
       campaign_id?: string | number;
+      adgroup_id?: string | number;
     }
   ): Promise<{
-    adgroups: any[];
-    summary?: IGoogleCampaignsSummary | null;
+    ads: any[];
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
     chart_data?: Array<{
       date: string;
       spend: number;
       sales: number;
       impressions?: number;
       clicks?: number;
+      acos?: number;
+      roas?: number;
     }>;
-    total: number;
-    page: number;
-    page_size: number;
-    total_pages: number;
+    summary?: {
+      total_ads: number;
+      total_spends: number;
+      total_sales: number;
+      total_impressions: number;
+      total_clicks: number;
+      avg_acos: number;
+      avg_roas: number;
+    };
   }> => {
-    // Validate channelId before constructing URL
-    if (!channelId || isNaN(channelId)) {
-      throw new Error(`Invalid channelId: ${channelId}. channelId must be a valid number.`);
-    }
-    
     // Send filters array and params directly to backend - let backend handle conversion
     const payload: any = {
       filters: params?.filters || [],
@@ -47,15 +53,17 @@ export const googleAdwordsAdGroupsService = {
       end_date: params?.end_date,
     };
     
-    // Add campaign_id if provided
+    // Add campaign_id and adgroup_id if provided
     if (campaignId) payload.campaign_id = campaignId;
+    if (adgroupId) payload.adgroup_id = adgroupId;
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
+    if (params?.adgroup_id) payload.adgroup_id = params.adgroup_id;
 
-    const response = await api.post(`/google-adwords/${accountId}/channels/${channelId}/adgroups/`, payload);
+    const response = await api.post(`/google-adwords/${accountId}/channels/${channelId}/product-groups/`, payload);
     return response.data;
   },
 
-  syncGoogleAdGroupAnalytics: async (
+  syncGoogleProductGroupAnalytics: async (
     accountId: number,
     channelId: number,
     startDate?: string,
@@ -74,13 +82,13 @@ export const googleAdwordsAdGroupsService = {
     if (startDate) payload.start_date = startDate;
     if (endDate) payload.end_date = endDate;
     const response = await api.post(
-      `/google-adwords/${accountId}/channels/${channelId}/adgroups/analytics-sync/`,
+      `/google-adwords/${accountId}/channels/${channelId}/product-groups/analytics-sync/`,
       payload
     );
     return response.data;
   },
 
-  exportGoogleAdGroups: async (
+  exportGoogleProductGroups: async (
     accountId: number,
     channelId: number,
     params?: {
@@ -92,10 +100,11 @@ export const googleAdwordsAdGroupsService = {
       start_date?: string;
       end_date?: string;
       campaign_id?: string | number;
-      adgroup_ids?: Array<string | number>; // For selected adgroups export
+      adgroup_id?: string | number;
+      productGroupIds?: Array<string | number>; // For selected product groups export
     },
     exportType: "current_view" | "all_data" | "selected" = "all_data"
-  ): Promise<void> => {
+  ): Promise<{ url: string; filename: string }> => {
     // Send filters array and params directly to backend - let backend handle conversion
     const payload: any = {
       filters: params?.filters || [],
@@ -108,68 +117,46 @@ export const googleAdwordsAdGroupsService = {
       export_type: exportType,
     };
     
-    // Add campaign_id if provided
+    // Add campaign_id and adgroup_id if provided
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
+    if (params?.adgroup_id) payload.adgroup_id = params.adgroup_id;
 
-    // Add adgroup_ids for selected export
-    if (exportType === "selected" && params?.adgroup_ids) {
-      payload.adgroup_ids = params.adgroup_ids;
+    // Add productGroupIds for selected export
+    if (exportType === "selected" && params?.productGroupIds) {
+      payload.productGroupIds = params.productGroupIds;
     }
 
-    // Make request with responseType blob to handle CSV file
-    const response = await api.post(
-      `/google-adwords/${accountId}/channels/${channelId}/adgroups/export/`,
-      payload,
-      {
-        responseType: "blob",
-      }
-    );
-
-    // Create blob URL and trigger download
-    const blob = new Blob([response.data], { type: "text/csv;charset=utf-8;" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-
-    // Get filename from Content-Disposition header or use default
-    const contentDisposition = response.headers["content-disposition"];
-    let filename = "google_adgroups_export.csv";
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
-      if (filenameMatch) {
-        filename = filenameMatch[1];
-      }
-    }
-
-    link.setAttribute("download", filename);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+    const url = `/google-adwords/${accountId}/channels/${channelId}/product-groups/export/`;
+    const response = await api.post<{ url: string; filename: string }>(url, payload);
+    return response.data;
   },
 
-  syncGoogleAdGroups: async (
+  syncGoogleProductGroups: async (
     accountId: number,
     channelId: number
   ): Promise<{ synced: number; errors?: string[]; message?: string }> => {
     const response = await api.post(
-      `/google-adwords/${accountId}/channels/${channelId}/adgroups/sync/`
+      `/google-adwords/${accountId}/channels/${channelId}/product-groups/sync/`
     );
     return response.data;
   },
 
-  bulkUpdateGoogleAdGroups: async (
+  bulkUpdateGoogleProductGroups: async (
     accountId: number,
     channelId: number,
     payload: {
-      adgroupIds: Array<string | number>;
-      action: "status" | "bid" | "name";
-      status?: "ENABLED" | "PAUSED";
-      bid?: number;
-      name?: string;
+      productGroupIds: Array<string | number>;
+      action: "status";
+      status?: "ENABLED" | "PAUSED" | "REMOVED";
+      campaignId?: string;  // Optional: filter by campaign
+      adGroupId?: string;  // Optional: filter by ad group
     }
   ) => {
-    const url = `/google-adwords/${accountId}/channels/${channelId}/adgroups/bulk-update/`;
+    // Validate channelId before constructing URL
+    if (!channelId || isNaN(channelId)) {
+      throw new Error(`Invalid channelId: ${channelId}. channelId must be a valid number.`);
+    }
+    const url = `/google-adwords/${accountId}/channels/${channelId}/product-groups/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },

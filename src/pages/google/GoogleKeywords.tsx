@@ -7,7 +7,9 @@ import {
   formatMatchTypeForDisplay,
   convertMatchTypeToApi,
   parseGoogleApiError,
+  formatCurrency as formatCurrencyUtil,
 } from "./utils/googleAdsUtils";
+import { useGoogleProfiles } from "../../hooks/queries/useGoogleProfiles";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
@@ -36,9 +38,20 @@ import { ConfirmationModal } from "../../components/ui/ConfirmationModal";
 import { TrashIcon } from "lucide-react";
 
 export const GoogleKeywords: React.FC = () => {
-  const { accountId } = useParams<{ accountId: string }>();
+  const { accountId, channelId } = useParams<{ accountId: string; channelId: string }>();
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
+  const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+  const { data: profilesData } = useGoogleProfiles(channelIdNum);
+  const currencyCode = useMemo(() => {
+    const profiles = profilesData?.profiles || [];
+    const selected = profiles.find((p) => p.is_selected);
+    return selected?.currency_code || undefined;
+  }, [profilesData?.profiles]);
+  const formatCurrency = useCallback(
+    (value: number) => formatCurrencyUtil(value, currencyCode),
+    [currencyCode]
+  );
   const [keywords, setKeywords] = useState<GoogleKeyword[]>([]);
   const [summary, setSummary] = useState<{
     total_keywords: number;
@@ -284,7 +297,7 @@ export const GoogleKeywords: React.FC = () => {
 
   // Removed buildFilterParams - now passing filters array directly to service
 
-  const loadKeywords = useCallback(async (accountId: number) => {
+  const loadKeywords = useCallback(async (accountId: number, channelId: number) => {
     // Prevent duplicate concurrent calls
     if (isLoadingRef.current) {
       return;
@@ -307,6 +320,7 @@ export const GoogleKeywords: React.FC = () => {
 
       const response = await googleAdwordsKeywordsService.getGoogleKeywords(
         accountId,
+        channelId,
         undefined,
         undefined,
         params
@@ -356,12 +370,14 @@ export const GoogleKeywords: React.FC = () => {
   useEffect(() => {
     if (sorting) return;
 
-    if (accountId) {
+    if (accountId && channelId) {
       const accountIdNum = parseInt(accountId, 10);
-      if (!isNaN(accountIdNum)) {
+      const channelIdNum = parseInt(channelId, 10);
+      if (!isNaN(accountIdNum) && !isNaN(channelIdNum)) {
         // Create a unique key for this request to prevent duplicate calls
         const requestKey = JSON.stringify({
           accountId: accountIdNum,
+          channelId: channelIdNum,
           currentPage,
           filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
           startDate: startDate ? startDateStr : null,
@@ -371,7 +387,7 @@ export const GoogleKeywords: React.FC = () => {
         // Only call loadKeywords if the request parameters have actually changed
         if (lastRequestParamsRef.current !== requestKey) {
           lastRequestParamsRef.current = requestKey;
-          loadKeywords(accountIdNum);
+          loadKeywords(accountIdNum, channelIdNum);
         }
       } else {
         setLoading(false);
@@ -380,15 +396,23 @@ export const GoogleKeywords: React.FC = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
+  }, [accountId, channelId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
 
 
   // Sync status hook (after loadKeywords is defined)
+  // Wrapper function for useGoogleSyncStatus hook (it expects only accountId)
+  const loadKeywordsWrapper = useCallback(async (accountId: number) => {
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    if (channelIdNum && !isNaN(channelIdNum)) {
+      await loadKeywords(accountId, channelIdNum);
+    }
+  }, [channelId, loadKeywords]);
+
   const { SyncStatusBanner } = useGoogleSyncStatus({
     accountId,
     entityType: "keywords",
     currentData: keywords,
-    loadFunction: loadKeywords,
+    loadFunction: loadKeywordsWrapper,
   });
 
 
@@ -424,8 +448,13 @@ export const GoogleKeywords: React.FC = () => {
             filters: filters, // Pass filters array directly
           };
 
+          const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+          if (!channelIdNum || isNaN(channelIdNum)) {
+            throw new Error("Channel ID is required");
+          }
           const response = await googleAdwordsKeywordsService.getGoogleKeywords(
             accountIdNum,
+            channelIdNum,
             undefined,
             undefined,
             params
@@ -546,19 +575,34 @@ export const GoogleKeywords: React.FC = () => {
   const parseKeywordCompositeId = (compositeId: string | number): { keywordId: string | number; adgroupId?: number } => {
     const idStr = String(compositeId);
     if (idStr.includes(':')) {
-      const [keywordId, adgroupId] = idStr.split(':');
-      return { keywordId, adgroupId: Number(adgroupId) };
+      const [keywordIdStr, adgroupIdStr] = idStr.split(':');
+      // Convert to number for comparison with keyword_id (which is a number in the data)
+      const keywordId = Number(keywordIdStr);
+      const adgroupId = Number(adgroupIdStr);
+      return { keywordId: isNaN(keywordId) ? keywordIdStr : keywordId, adgroupId: isNaN(adgroupId) ? undefined : adgroupId };
     }
-    return { keywordId: idStr };
+    // Try to convert to number, fall back to string if not a valid number
+    const keywordId = Number(idStr);
+    return { keywordId: isNaN(keywordId) ? idStr : keywordId };
   };
 
   // Helper function to find keyword by composite ID
   const findKeywordByCompositeId = (compositeId: string | number): GoogleKeyword | undefined => {
     const { keywordId, adgroupId } = parseKeywordCompositeId(compositeId);
+    
     if (adgroupId !== undefined) {
-      return keywords.find((k) => k.keyword_id === keywordId && k.adgroup_id === adgroupId);
+      return keywords.find((k) => {
+        // Convert both to strings for comparison to handle type mismatches
+        const kKeywordId = String(k.keyword_id);
+        const kAdgroupId = k.adgroup_id !== undefined ? String(k.adgroup_id) : undefined;
+        const searchKeywordId = String(keywordId);
+        const searchAdgroupId = String(adgroupId);
+        
+        return kKeywordId === searchKeywordId && kAdgroupId === searchAdgroupId;
+      });
     }
-    return keywords.find((k) => k.keyword_id === keywordId);
+    // Convert both to strings for comparison
+    return keywords.find((k) => String(k.keyword_id) === String(keywordId));
   };
 
   // Inline edit handlers
@@ -577,7 +621,9 @@ export const GoogleKeywords: React.FC = () => {
     } else if (field === "status") {
       setEditedValue(getStatusWithDefault(keyword.status));
     } else if (field === "match_type") {
-      setEditedValue(getMatchTypeWithDefault(keyword.match_type));
+      // Disabled: Google Ads API doesn't allow updating keyword match type
+      // setEditedValue(getMatchTypeWithDefault(keyword.match_type));
+      return; // Don't allow editing match type
     } else if (field === "keyword_text") {
       setEditedValue(keyword.keyword_text || "");
     }
@@ -613,7 +659,11 @@ export const GoogleKeywords: React.FC = () => {
       }
 
       // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
-      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
         keywordIds: [keywordTextEditKeyword.keyword_id],
         action: "keyword_text",
         keyword_text: trimmedText,
@@ -641,7 +691,8 @@ export const GoogleKeywords: React.FC = () => {
         return;
       }
 
-      await loadKeywords(accountIdNum);
+      // Reload keywords after successful update (channelIdNum already declared and validated above)
+      await loadKeywords(accountIdNum, channelIdNum);
       setShowKeywordTextEditModal(false);
       setKeywordTextEditKeyword(null);
       setKeywordTextEditValue("");
@@ -753,7 +804,11 @@ export const GoogleKeywords: React.FC = () => {
       }
 
       // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
-      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
         keywordIds: [finalUrlKeyword.keyword_id],
         action: "final_urls",
         final_url: finalUrl,
@@ -771,7 +826,10 @@ export const GoogleKeywords: React.FC = () => {
         return;
       }
 
-      await loadKeywords(accountIdNum);
+      const channelIdNumForReload = channelId ? parseInt(channelId, 10) : undefined;
+      if (channelIdNumForReload && !isNaN(channelIdNumForReload)) {
+        await loadKeywords(accountIdNum, channelIdNumForReload);
+      }
       setShowFinalUrlModal(false);
       setFinalUrlKeyword(null);
       setFinalUrlValue("");
@@ -811,7 +869,9 @@ export const GoogleKeywords: React.FC = () => {
     if (keywordIdParam && fieldKey) {
       // Use composite ID to find keyword (handles keyword_id:adgroup_id format)
       const keyword = findKeywordByCompositeId(keywordIdParam);
-      if (!keyword) return;
+      if (!keyword) {
+        return;
+      }
       
       // Prioritize newValueOverride (from blur/enter event) over editedValue state
       // This ensures we get the actual value from the input field
@@ -822,7 +882,9 @@ export const GoogleKeywords: React.FC = () => {
       // For status, show modal
       if (fieldKey === "status") {
         const keyword = findKeywordByCompositeId(keywordIdParam);
-        if (!keyword) return;
+        if (!keyword) {
+          return;
+        }
         
         const oldStatusRaw = getStatusWithDefault(keyword.status);
         const newStatusRaw = valueToCheck.trim();
@@ -833,6 +895,12 @@ export const GoogleKeywords: React.FC = () => {
           cancelInlineEdit();
           setPendingRemoveChange({ value: "REMOVED", keywordId: keywordIdParam!, field: fieldKey });
           setShowRemoveConfirmation(true);
+          return;
+        }
+        
+        // Only show modal if status actually changed
+        if (newStatusRaw.toUpperCase() === oldStatusRaw.toUpperCase()) {
+          cancelInlineEdit();
           return;
         }
         
@@ -849,22 +917,29 @@ export const GoogleKeywords: React.FC = () => {
         return;
       }
       
-      // For match_type, show modal
-      if (fieldKey === "match_type") {
-        const keyword = findKeywordByCompositeId(keywordIdParam);
-        if (!keyword) return;
-        
-        const oldValue = getMatchTypeWithDefault(keyword.match_type).trim();
-        const newValue = valueToCheck.trim();
-        
-        setInlineEditKeyword(keyword);
-        setInlineEditField(fieldKey);
-        setInlineEditOldValue(formatMatchTypeForDisplay(oldValue));
-        setInlineEditNewValue(formatMatchTypeForDisplay(newValue));
-        setShowInlineEditModal(true);
-        setEditingCell(null);
-        return;
-      }
+      // Disabled: Google Ads API doesn't allow updating keyword match type
+      // For match_type, show modal only if value changed
+      // if (fieldKey === "match_type") {
+      //   const keyword = findKeywordByCompositeId(keywordIdParam);
+      //   if (!keyword) return;
+      //   
+      //   const oldValue = getMatchTypeWithDefault(keyword.match_type).trim();
+      //   const newValue = valueToCheck.trim();
+      //   
+      //   // Only show modal if value actually changed
+      //   if (newValue === oldValue) {
+      //     cancelInlineEdit();
+      //     return;
+      //   }
+      //   
+      //   setInlineEditKeyword(keyword);
+      //   setInlineEditField(fieldKey);
+      //   setInlineEditOldValue(formatMatchTypeForDisplay(oldValue));
+      //   setInlineEditNewValue(formatMatchTypeForDisplay(newValue));
+      //   setShowInlineEditModal(true);
+      //   setEditingCell(null);
+      //   return;
+      // }
       
       // For bid, show modal
       if (fieldKey === "bid") {
@@ -882,17 +957,8 @@ export const GoogleKeywords: React.FC = () => {
           : "";
         const bidStr = rawValue.trim();
         
-        console.log("[GoogleKeywords confirmInlineEdit] Bid processing:", {
-          newValueOverride,
-          rawValue,
-          bidStr,
-          keywordId: keyword.keyword_id,
-          oldBid: keyword.cpc_bid_dollars
-        });
-        
         // If empty, don't show modal
         if (bidStr === "") {
-          console.log("[GoogleKeywords confirmInlineEdit] Bid: Empty string, canceling");
           cancelInlineEdit();
           return;
         }
@@ -901,41 +967,30 @@ export const GoogleKeywords: React.FC = () => {
         // parseFloat should handle "0.02" correctly
         let finalBid = parseFloat(bidStr);
         
-        console.log("[GoogleKeywords confirmInlineEdit] Bid: After parseFloat:", {
-          bidStr,
-          finalBid,
-          isNaN: isNaN(finalBid)
-        });
-        
         // If parsing failed, try cleaning the string and parsing again
         if (isNaN(finalBid)) {
           const cleanedStr = bidStr.replace(/[^0-9.]/g, "");
           finalBid = parseFloat(cleanedStr);
-          console.log("[GoogleKeywords confirmInlineEdit] Bid: After cleaning:", {
-            cleanedStr,
-            finalBid
-          });
         }
         
         // If still NaN or invalid, don't show modal
         if (isNaN(finalBid) || finalBid < 0) {
-          console.log("[GoogleKeywords confirmInlineEdit] Bid: Invalid value, canceling:", finalBid);
           cancelInlineEdit();
           return;
         }
         
         const oldBid = keyword.cpc_bid_dollars || 0;
+        
+        // Only show modal if bid actually changed (use small threshold for floating point comparison)
+        if (Math.abs(finalBid - oldBid) < 0.001) {
+          cancelInlineEdit();
+          return;
+        }
+        
         const formattedOld = formatCurrency(oldBid);
         // Store the raw numeric value as string, not the formatted currency
         // The modal will format it for display
         const rawBidString = finalBid.toString();
-        
-        console.log("[GoogleKeywords confirmInlineEdit] Bid: Setting modal values:", {
-          oldBid,
-          finalBid,
-          formattedOld,
-          rawBidString
-        });
         
         setInlineEditKeyword(keyword);
         setInlineEditField(fieldKey);
@@ -946,13 +1001,19 @@ export const GoogleKeywords: React.FC = () => {
         return;
       }
       
-      // For keyword_text, show modal
+      // For keyword_text, show modal only if value changed
       if (fieldKey === "keyword_text") {
         const keyword = findKeywordByCompositeId(keywordIdParam);
         if (!keyword) return;
         
         const oldValue = (keyword.keyword_text || "").trim();
         const newValue = valueToCheck.trim();
+        
+        // Only show modal if value actually changed and is not empty
+        if (newValue === oldValue || newValue === "") {
+          cancelInlineEdit();
+          return;
+        }
         
         setInlineEditKeyword(keyword);
         setInlineEditField(fieldKey);
@@ -992,14 +1053,21 @@ export const GoogleKeywords: React.FC = () => {
       const oldValue = getStatusWithDefault(keyword.status).trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
-    } else if (editingCell.field === "match_type") {
-      const oldValue = (keyword.match_type || "EXACT").trim();
-      const newValue = valueToCheck.trim();
-      hasChanged = newValue !== oldValue;
+    // Disabled: Google Ads API doesn't allow updating keyword match type
+    // } else if (editingCell.field === "match_type") {
+    //   const oldValue = (keyword.match_type || "EXACT").trim();
+    //   const newValue = valueToCheck.trim();
+    //   hasChanged = newValue !== oldValue;
     } else if (editingCell.field === "keyword_text") {
       const oldValue = (keyword.keyword_text || "").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue && newValue !== "";
+      
+      // Only show modal if value actually changed and is not empty
+      if (!hasChanged) {
+        cancelInlineEdit();
+        return;
+      }
       
       // Show modal for keyword_text
       setInlineEditKeyword(keyword);
@@ -1030,6 +1098,12 @@ export const GoogleKeywords: React.FC = () => {
         return;
       }
       
+      // Only show modal if status actually changed
+      if (newStatusRaw.toUpperCase() === oldStatusRaw.toUpperCase()) {
+        cancelInlineEdit();
+        return;
+      }
+      
       // Format status values for display
       const oldValue = formatStatusForDisplay(oldStatusRaw);
       const newValue = formatStatusForDisplay(newStatusRaw);
@@ -1043,19 +1117,26 @@ export const GoogleKeywords: React.FC = () => {
       return;
     }
 
-    // For match_type, show modal
-    if (editingCell.field === "match_type") {
-      const oldValue = getMatchTypeWithDefault(keyword.match_type).trim();
-      const newValue = valueToCheck.trim();
-      
-      setInlineEditKeyword(keyword);
-      setInlineEditField(editingCell.field);
-      setInlineEditOldValue(formatMatchTypeForDisplay(oldValue));
-      setInlineEditNewValue(formatMatchTypeForDisplay(newValue));
-      setShowInlineEditModal(true);
-      setEditingCell(null);
-      return;
-    }
+    // Disabled: Google Ads API doesn't allow updating keyword match type
+    // For match_type, show modal only if value changed
+    // if (editingCell.field === "match_type") {
+    //   const oldValue = getMatchTypeWithDefault(keyword.match_type).trim();
+    //   const newValue = valueToCheck.trim();
+    //   
+    //   // Only show modal if value actually changed
+    //   if (newValue === oldValue) {
+    //     cancelInlineEdit();
+    //     return;
+    //   }
+    //   
+    //   setInlineEditKeyword(keyword);
+    //   setInlineEditField(editingCell.field);
+    //   setInlineEditOldValue(formatMatchTypeForDisplay(oldValue));
+    //   setInlineEditNewValue(formatMatchTypeForDisplay(newValue));
+    //   setShowInlineEditModal(true);
+    //   setEditingCell(null);
+    //   return;
+    // }
 
     // For bid, show modal
     if (editingCell.field === "bid") {
@@ -1065,18 +1146,8 @@ export const GoogleKeywords: React.FC = () => {
         ? String(newValueOverride).trim() 
         : (valueToCheck !== undefined && valueToCheck !== null && valueToCheck !== "" ? String(valueToCheck).trim() : "");
       
-      console.log("[GoogleKeywords confirmInlineEdit] Bid (editingCell path):", {
-        newValueOverride,
-        valueToCheck,
-        bidStr,
-        editingCellField: editingCell.field,
-        keywordId: keyword.keyword_id,
-        oldBid: keyword.cpc_bid_dollars
-      });
-      
       // If empty, don't show modal
       if (bidStr === "") {
-        console.log("[GoogleKeywords confirmInlineEdit] Bid (editingCell): Empty string, canceling");
         cancelInlineEdit();
         return;
       }
@@ -1084,41 +1155,30 @@ export const GoogleKeywords: React.FC = () => {
       // Try to parse the bid value - handle decimal values correctly
       let finalBid = parseFloat(bidStr);
       
-      console.log("[GoogleKeywords confirmInlineEdit] Bid (editingCell): After parseFloat:", {
-        bidStr,
-        finalBid,
-        isNaN: isNaN(finalBid)
-      });
-      
       // If parsing failed, try cleaning the string and parsing again
       if (isNaN(finalBid)) {
         const cleanedStr = bidStr.replace(/[^0-9.]/g, "");
         finalBid = parseFloat(cleanedStr);
-        console.log("[GoogleKeywords confirmInlineEdit] Bid (editingCell): After cleaning:", {
-          cleanedStr,
-          finalBid
-        });
       }
       
       // If still NaN or invalid, don't show modal
       if (isNaN(finalBid) || finalBid < 0) {
-        console.log("[GoogleKeywords confirmInlineEdit] Bid (editingCell): Invalid value, canceling:", finalBid);
         cancelInlineEdit();
         return;
       }
       
       const oldBid = keyword.cpc_bid_dollars || 0;
+      
+      // Only show modal if bid actually changed (use small threshold for floating point comparison)
+      if (Math.abs(finalBid - oldBid) < 0.001) {
+        cancelInlineEdit();
+        return;
+      }
+      
       const formattedOld = formatCurrency(oldBid);
       // Store the raw numeric value as string, not the formatted currency
       // The modal will format it for display
       const rawBidString = finalBid.toString();
-      
-      console.log("[GoogleKeywords confirmInlineEdit] Bid (editingCell): Setting modal values:", {
-        oldBid,
-        finalBid,
-        formattedOld,
-        rawBidString
-      });
       
       setInlineEditKeyword(keyword);
       setInlineEditField(editingCell.field);
@@ -1174,12 +1234,17 @@ export const GoogleKeywords: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+
       if (fieldKey === "bid") {
         const bidValue = parseFloat(newValue.replace(/[^0-9.]/g, ""));
         if (isNaN(bidValue) || bidValue <= 0) {
           throw new Error("Invalid bid value");
         }
-        await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
           keywordIds: [keywordId],
           action: "bid",
           bid: bidValue,
@@ -1190,7 +1255,7 @@ export const GoogleKeywords: React.FC = () => {
         if (!trimmedText) {
           throw new Error("Keyword text cannot be empty");
         }
-        await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
           keywordIds: [keywordId],
           action: "keyword_text",
           keyword_text: trimmedText,
@@ -1205,7 +1270,7 @@ export const GoogleKeywords: React.FC = () => {
         return updated;
       });
       
-      await loadKeywords(accountIdNum);
+      await loadKeywords(accountIdNum, channelIdNum);
       
       // Clear any previous errors
       setInlineEditError(null);
@@ -1273,14 +1338,20 @@ export const GoogleKeywords: React.FC = () => {
       // Parse composite key to extract keyword_id and adgroup_id
       const { keywordId, adgroupId } = parseKeywordCompositeId(pendingRemoveChange.keywordId);
       const statusValue = convertStatusToApi("REMOVED");
-      await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+
+      await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
         keywordIds: [keywordId],
         action: "status",
         status: statusValue as any, // REMOVED is a valid status for deletion
         adgroupIds: adgroupId ? [adgroupId] : undefined,
       });
 
-      await loadKeywords(accountIdNum);
+      await loadKeywords(accountIdNum, channelIdNum);
       
       setShowRemoveConfirmation(false);
       setPendingRemoveChange(null);
@@ -1354,7 +1425,11 @@ export const GoogleKeywords: React.FC = () => {
             ? statusValue 
             : "ENABLED";
 
-        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "status",
           status: validStatus,
@@ -1371,7 +1446,11 @@ export const GoogleKeywords: React.FC = () => {
           throw new Error("Invalid bid value");
         }
 
-        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "bid",
           bid: bidValue,
@@ -1381,20 +1460,26 @@ export const GoogleKeywords: React.FC = () => {
         if (response.errors && response.errors.length > 0) {
           throw { response: { data: response } };
         }
-      } else if (inlineEditField === "match_type") {
-        // Convert display match type to API format
-        const matchTypeValue = convertMatchTypeToApi(inlineEditNewValue);
+      // Disabled: Google Ads API doesn't allow updating keyword match type
+      // else if (inlineEditField === "match_type") {
+      //   // Convert display match type to API format
+      //   const matchTypeValue = convertMatchTypeToApi(inlineEditNewValue);
 
-        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
-          keywordIds: [inlineEditKeyword.keyword_id],
-          action: "match_type",
-          match_type: matchTypeValue,
-          adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
-        });
-        
-        if (response.errors && response.errors.length > 0) {
-          throw { response: { data: response } };
-        }
+      //   const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      // if (!channelIdNum || isNaN(channelIdNum)) {
+      //   throw new Error("Channel ID is required");
+      // }
+      // const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
+      //     keywordIds: [inlineEditKeyword.keyword_id],
+      //     action: "match_type",
+      //     match_type: matchTypeValue,
+      //     adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
+      //   });
+      //   
+      //   if (response.errors && response.errors.length > 0) {
+      //     throw { response: { data: response } };
+      //   }
+      // }
       } else if (inlineEditField === "keyword_text") {
         // Update keyword text
         const newKeywordText = inlineEditNewValue.trim();
@@ -1402,7 +1487,11 @@ export const GoogleKeywords: React.FC = () => {
           throw new Error("Keyword text cannot be empty");
         }
 
-        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "keyword_text",
           keyword_text: newKeywordText,
@@ -1414,7 +1503,10 @@ export const GoogleKeywords: React.FC = () => {
         }
       }
 
-      await loadKeywords(accountIdNum);
+      const channelIdNumForReload = channelId ? parseInt(channelId, 10) : undefined;
+      if (channelIdNumForReload && !isNaN(channelIdNumForReload)) {
+        await loadKeywords(accountIdNum, channelIdNumForReload);
+      }
       setShowInlineEditModal(false);
       setInlineEditKeyword(null);
       setInlineEditField(null);
@@ -1463,7 +1555,11 @@ export const GoogleKeywords: React.FC = () => {
       setBulkLoading(true);
       setBulkUpdateResults(null);
 
-      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
         keywordIds: Array.from(selectedKeywords),
         action: "status",
         status: statusValue,
@@ -1478,7 +1574,7 @@ export const GoogleKeywords: React.FC = () => {
 
       // Reload keywords with loading state
       setSorting(true); // Show loading overlay
-      await loadKeywords(accountIdNum);
+      await loadKeywords(accountIdNum, channelIdNum);
       // Hide loading overlay after a short delay
       setTimeout(() => {
         setSorting(false);
@@ -1552,6 +1648,11 @@ export const GoogleKeywords: React.FC = () => {
     const upper = upperLimit ? parseFloat(upperLimit) : undefined;
     const lower = lowerLimit ? parseFloat(lowerLimit) : undefined;
 
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    if (!channelIdNum || isNaN(channelIdNum)) {
+      throw new Error("Channel ID is required");
+    }
+
     try {
       // Show loading in modal
       setBulkLoading(true);
@@ -1564,7 +1665,7 @@ export const GoogleKeywords: React.FC = () => {
       if (bidAction === "set") {
         // For "set", we can update all keywords with the same bid in a single call
         try {
-          const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+          const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
             keywordIds: Array.from(selectedKeywords),
             action: "bid",
             bid: valueNum,
@@ -1621,7 +1722,7 @@ export const GoogleKeywords: React.FC = () => {
         // Update keywords in batches grouped by bid value
         for (const [bidValue, keywordIds] of keywordsByBid.entries()) {
           try {
-            const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+            const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
               keywordIds: keywordIds,
               action: "bid",
               bid: bidValue,
@@ -1652,7 +1753,7 @@ export const GoogleKeywords: React.FC = () => {
 
       // Reload keywords with loading state
       setSorting(true); // Show loading overlay
-      await loadKeywords(accountIdNum);
+      await loadKeywords(accountIdNum, channelIdNum);
       // Hide loading overlay after a short delay
       setTimeout(() => {
         setSorting(false);
@@ -1706,8 +1807,13 @@ export const GoogleKeywords: React.FC = () => {
         params.keyword_ids = Array.from(selectedKeywords);
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
       await googleAdwordsKeywordsService.exportGoogleKeywords(
         accountIdNum,
+        channelIdNum,
         params,
         exportType
       );
@@ -1727,15 +1833,6 @@ export const GoogleKeywords: React.FC = () => {
     } finally {
       setExportLoading(false);
     }
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
   };
 
   const formatPercentage = (value: number) => {
@@ -2358,11 +2455,12 @@ export const GoogleKeywords: React.FC = () => {
                     {/* Keyword Preview Table - Only show before update */}
                     {!bulkUpdateResults && (() => {
                       const selectedKeywordsData = getSelectedKeywordsData();
+                      const maxDisplay = 50; // Show up to 50 keywords
                       const previewCount = Math.min(
-                        10,
+                        maxDisplay,
                         selectedKeywordsData.length
                       );
-                      const hasMore = selectedKeywordsData.length > 10;
+                      const hasMore = selectedKeywordsData.length > maxDisplay;
 
                       return (
                         <div className="mb-6">
@@ -2375,9 +2473,9 @@ export const GoogleKeywords: React.FC = () => {
                                   } selected`}
                             </span>
                           </div>
-                          <div className="border border-gray-200 rounded-lg overflow-hidden">
+                          <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[400px] overflow-y-auto">
                             <table className="w-full">
-                              <thead className="bg-sandstorm-s20">
+                              <thead className="bg-sandstorm-s20 sticky top-0">
                                 <tr>
                                   <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
                                     Keyword
@@ -2392,7 +2490,7 @@ export const GoogleKeywords: React.FC = () => {
                               </thead>
                               <tbody>
                                 {selectedKeywordsData
-                                  .slice(0, 10)
+                                  .slice(0, maxDisplay)
                                   .map((keyword) => {
                                     const oldBid = keyword.cpc_bid_dollars || 0;
                                     const oldStatus =
@@ -2827,6 +2925,7 @@ export const GoogleKeywords: React.FC = () => {
                     loading={loading}
                     sorting={sorting}
                     accountId={accountId || ""}
+                    channelId={channelId}
                     selectedKeywords={selectedKeywords}
                     allSelected={allSelected}
                     someSelected={someSelected}
@@ -2855,6 +2954,7 @@ export const GoogleKeywords: React.FC = () => {
                     getStatusBadge={getStatusBadge}
                     getMatchTypeLabel={getMatchTypeLabel}
                     getSortIcon={getSortIcon}
+                    currencyCode={currencyCode}
                   />
                 </div>
                 {loading && (

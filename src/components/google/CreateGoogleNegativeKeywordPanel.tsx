@@ -76,10 +76,12 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
     if (!adgroups || adgroups.length === 0) {
       return [];
     }
-    return adgroups.map((adgroup) => ({
-      value: adgroup.adgroup_id.toString(),
-      label: adgroup.adgroup_name || adgroup.name || `Ad Group ${adgroup.adgroup_id}`,
-    }));
+    return adgroups
+      .filter((adgroup) => adgroup.status !== "REMOVED" && adgroup.status !== "Removed")
+      .map((adgroup) => ({
+        value: adgroup.adgroup_id.toString(),
+        label: adgroup.adgroup_name || adgroup.name || `Ad Group ${adgroup.adgroup_id}`,
+      }));
   }, [adgroups]);
 
   const addKeyword = () => {

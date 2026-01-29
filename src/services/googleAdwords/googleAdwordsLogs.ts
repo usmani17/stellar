@@ -56,6 +56,7 @@ export interface GoogleLogsExportParams {
 export const googleAdwordsLogsService = {
   getGoogleLogs: async (
     accountId: number,
+    channelId: number,
     params?: GoogleLogsQueryParams
   ): Promise<GoogleLogsResponse> => {
     const queryParams = new URLSearchParams();
@@ -88,7 +89,7 @@ export const googleAdwordsLogsService = {
     }
 
     const queryString = queryParams.toString();
-    const url = `/google-adwords/${accountId}/logs/${
+    const url = `/google-adwords/${accountId}/channels/${channelId}/logs/${
       queryString ? `?${queryString}` : ""
     }`;
     const response = await api.get<GoogleLogsResponse>(url);
@@ -97,6 +98,7 @@ export const googleAdwordsLogsService = {
 
   exportGoogleLogs: async (
     accountId: number,
+    channelId: number,
     params?: GoogleLogsExportParams
   ): Promise<{ url: string; filename: string; count: number }> => {
     // Build filters object for POST request body
@@ -131,7 +133,7 @@ export const googleAdwordsLogsService = {
     }
 
     // Send POST request with filters and export_type in body
-    const url = `/google-adwords/${accountId}/logs/export/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/logs/export/`;
     const response = await api.post<{ url: string; filename: string; count: number }>(url, {
       filters,
       export_type: params?.export_type || "all_data",

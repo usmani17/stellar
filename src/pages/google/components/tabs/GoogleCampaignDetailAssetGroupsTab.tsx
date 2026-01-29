@@ -6,6 +6,13 @@ import { Banner } from "../../../../components/ui/Banner";
 import { Loader } from "../../../../components/ui/Loader";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
 import { GoogleAssetManagementPanel } from "../../../../components/google/GoogleAssetManagementPanel";
+import {
+  BulkUpdateConfirmationModal,
+  type BulkUpdatePreviewRow,
+  type BulkUpdateStatusDetails,
+} from "../BulkUpdateConfirmationModal";
+import { BulkActionsDropdown } from "../BulkActionsDropdown";
+import { formatStatusForDisplay } from "../../utils/googleAdsUtils";
 
 interface GoogleAssetGroup {
   id: number;
@@ -71,6 +78,8 @@ interface GoogleCampaignDetailAssetGroupsTabProps {
   loadingAssets?: boolean;
   onCloseViewAssetsModal?: () => void;
   createButton?: React.ReactNode;
+  createPanel?: React.ReactNode;
+  onBulkUpdateComplete?: () => void;
 }
 
 export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAssetGroupsTabProps> = ({
@@ -105,7 +114,52 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
   loadingAssets = false,
   onCloseViewAssetsModal,
   createButton,
+  createPanel,
+  onBulkUpdateComplete,
 }) => {
+  const [showBulkConfirmationModal, setShowBulkConfirmationModal] = useState(false);
+  const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLED" | "PAUSED" | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
+
+  const getSelectedAssetGroupsData = () =>
+    assetGroups.filter((ag) => selectedAssetGroupIds.has(ag.id));
+  const selectableAssetGroups = assetGroups.filter(
+    (ag) => (ag.status || "").toUpperCase() !== "REMOVED"
+  );
+  const isAssetGroupRemoved = (ag: { status?: string }) =>
+    (ag.status || "").toUpperCase() === "REMOVED";
+
+  const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
+    if (!onUpdateAssetGroupStatus || selectedAssetGroupIds.size === 0) return;
+    const selectedData = getSelectedAssetGroupsData();
+    let totalUpdated = 0;
+    let totalFailed = 0;
+    const allErrors: string[] = [];
+    setBulkLoading(true);
+    setBulkUpdateResults(null);
+    try {
+      for (const ag of selectedData) {
+        try {
+          await onUpdateAssetGroupStatus(ag.id, statusValue);
+          totalUpdated += 1;
+        } catch (err: unknown) {
+          totalFailed += 1;
+          const e = err as { message?: string };
+          allErrors.push(e?.message || "Failed");
+        }
+      }
+      setBulkUpdateResults({ updated: totalUpdated, failed: totalFailed, errors: allErrors });
+      if (onBulkUpdateComplete) onBulkUpdateComplete();
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const [editingAssetGroupId, setEditingAssetGroupId] = useState<number | null>(null);
   const [editingField, setEditingField] = useState<"status" | null>(null);
   const [editingValue, setEditingValue] = useState<string>("");
@@ -243,6 +297,19 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
         </h2>
         <div className="flex items-center gap-2">
           {createButton}
+          {onUpdateAssetGroupStatus && onBulkUpdateComplete && (
+            <BulkActionsDropdown
+              options={[
+                { value: "ENABLED", label: "Enable" },
+                { value: "PAUSED", label: "Pause" },
+              ]}
+              selectedCount={selectedAssetGroupIds.size}
+              onSelect={(value) => {
+                setPendingStatusAction(value as "ENABLED" | "PAUSED");
+                setShowBulkConfirmationModal(true);
+              }}
+            />
+          )}
           <button
             onClick={onToggleFilterPanel}
             className="edit-button"
@@ -281,6 +348,9 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
           </button>
         </div>
       </div>
+
+      {/* Create Panel - below create button */}
+      {createPanel}
 
       {/* Filter Panel */}
       {isFilterPanelOpen && (
@@ -321,10 +391,12 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={
-                          assetGroups.length > 0 &&
-                          assetGroups.every((ag) => selectedAssetGroupIds.has(ag.id))
+                          selectableAssetGroups.length > 0 &&
+                          selectableAssetGroups.every((ag) => selectedAssetGroupIds.has(ag.id))
                         }
-                        onChange={onSelectAll}
+                        onChange={(checked) =>
+                          selectableAssetGroups.forEach((ag) => onSelectAssetGroup(ag.id, checked))
+                        }
                         size="small"
                       />
                     </div>
@@ -376,7 +448,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedAssetGroupIds.has(assetGroup.id)}
-                            onChange={(checked) => onSelectAssetGroup(assetGroup.id, checked)}
+                            onChange={(checked) => !isAssetGroupRemoved(assetGroup) && onSelectAssetGroup(assetGroup.id, checked)}
+                            disabled={isRemoved}
                             size="small"
                           />
                         </div>
@@ -933,6 +1006,51 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
             </div>
           </div>
         </div>
+      )}
+
+      {/* Bulk confirmation modal */}
+      {onUpdateAssetGroupStatus && onBulkUpdateComplete && (
+        <BulkUpdateConfirmationModal
+          isOpen={showBulkConfirmationModal}
+          onClose={() => {
+            setShowBulkConfirmationModal(false);
+            setPendingStatusAction(null);
+            setBulkUpdateResults(null);
+          }}
+          entityLabel="asset group"
+          entityNameColumn="Asset Group Name"
+          selectedCount={selectedAssetGroupIds.size}
+          bulkUpdateResults={bulkUpdateResults}
+          isValueChange={false}
+          valueChangeLabel=""
+          previewRows={getSelectedAssetGroupsData().map((ag) => {
+            const oldStatus = formatStatusForDisplay(ag.status || "ENABLED");
+            const newStatus = pendingStatusAction
+              ? formatStatusForDisplay(pendingStatusAction)
+              : oldStatus;
+            return {
+              name: ag.name || `Asset Group ${ag.asset_group_id}`,
+              oldValue: oldStatus,
+              newValue: newStatus,
+            } as BulkUpdatePreviewRow;
+          })}
+          actionDetails={
+            !bulkUpdateResults && pendingStatusAction
+              ? ({
+                  type: "status",
+                  newStatus:
+                    pendingStatusAction.charAt(0) +
+                    pendingStatusAction.slice(1).toLowerCase(),
+                } as BulkUpdateStatusDetails)
+              : null
+          }
+          loading={bulkLoading}
+          loadingMessage="Updating asset groups..."
+          successMessage="All asset groups updated successfully!"
+          onConfirm={async () => {
+            if (pendingStatusAction) await runBulkStatus(pendingStatusAction);
+          }}
+        />
       )}
 
       {/* Status Change Confirmation Modal */}

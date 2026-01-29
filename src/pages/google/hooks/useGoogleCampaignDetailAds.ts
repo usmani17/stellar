@@ -5,6 +5,7 @@ import type { FilterValues } from "../../../components/filters/FilterPanel";
 
 interface UseGoogleCampaignDetailAdsParams {
   accountId: string | undefined;
+  channelId: string | undefined;
   campaignId: string | undefined;
   startDate: Date | null;
   endDate: Date | null;
@@ -14,6 +15,7 @@ interface UseGoogleCampaignDetailAdsParams {
 
 export const useGoogleCampaignDetailAds = ({
   accountId,
+  channelId,
   campaignId,
   startDate,
   endDate,
@@ -50,8 +52,13 @@ export const useGoogleCampaignDetailAds = ({
         return;
       }
 
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
       const data = await googleAdwordsAdsService.getGoogleAds(
         accountIdNum,
+        channelIdNum,
         parseInt(campaignId, 10),
         undefined,
         {
@@ -72,7 +79,7 @@ export const useGoogleCampaignDetailAds = ({
     } finally {
       setAdsLoading(false);
     }
-  }, [accountId, campaignId, adsFilters, adsCurrentPage, adsSortBy, adsSortOrder]);
+  }, [accountId, channelId, campaignId, adsFilters, adsCurrentPage, adsSortBy, adsSortOrder]);
 
   // Load ads when dependencies change
   useEffect(() => {
@@ -131,16 +138,21 @@ export const useGoogleCampaignDetailAds = ({
 
   // Sync handlers
   const handleSyncAds = useCallback(async () => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    if (!channelIdNum || isNaN(channelIdNum)) {
+      throw new Error("Channel ID is required");
+    }
 
     try {
       setSyncingAds(true);
       if (onSyncMessage) {
         onSyncMessage({ type: null, message: null });
       }
-      const result = await googleAdwordsAdsService.syncGoogleAds(accountIdNum);
+      const result = await googleAdwordsAdsService.syncGoogleAds(accountIdNum, channelIdNum);
       let message =
         result.message || `Successfully synced ${result.synced} ads`;
 
@@ -193,12 +205,17 @@ export const useGoogleCampaignDetailAds = ({
     } finally {
       setSyncingAds(false);
     }
-  }, [accountId, loadAds, onSyncMessage]);
+  }, [accountId, channelId, loadAds, onSyncMessage]);
 
   const handleSyncAdsAnalytics = useCallback(async () => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    if (!channelIdNum || isNaN(channelIdNum)) {
+      throw new Error("Channel ID is required");
+    }
 
     try {
       setSyncingAdsAnalytics(true);
@@ -207,6 +224,7 @@ export const useGoogleCampaignDetailAds = ({
       }
       const result = await googleAdwordsAdsService.syncGoogleAdAnalytics(
         accountIdNum,
+        channelIdNum,
         startDate ? startDate.toISOString() : undefined,
         endDate ? endDate.toISOString() : undefined
       );
@@ -264,15 +282,20 @@ export const useGoogleCampaignDetailAds = ({
     } finally {
       setSyncingAdsAnalytics(false);
     }
-  }, [accountId, startDate, endDate, loadAds, onSyncMessage]);
+  }, [accountId, channelId, startDate, endDate, loadAds, onSyncMessage]);
 
   // Update handlers
   const handleUpdateAdStatus = useCallback(async (adId: number, status: string) => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
 
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) return;
+
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
 
       // Find the ad to get ad_id
       const ad = ads.find((a) => a.id === adId);
@@ -282,7 +305,7 @@ export const useGoogleCampaignDetailAds = ({
       }
 
       // Call API
-      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
+      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, channelIdNum, {
         adIds: [ad.ad_id],
         action: "status",
         status: status as "ENABLED" | "PAUSED" | "REMOVED",
@@ -301,7 +324,7 @@ export const useGoogleCampaignDetailAds = ({
       console.error("Failed to update ad status:", error);
       throw error;
     }
-  }, [accountId, ads, loadAds]);
+  }, [accountId, channelId, ads, loadAds]);
 
   return {
     // Data

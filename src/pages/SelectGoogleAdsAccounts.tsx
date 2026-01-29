@@ -20,6 +20,7 @@ interface GoogleAdsAccount {
   is_manager?: boolean;
   manager_customer_id?: string | null; // Customer ID of the manager account this profile belongs to
   status?: string; // Account status: ENABLED, CANCELED, SUSPENDED, CLOSED, etc.
+  is_selected?: boolean; // Present when loaded from DB
 }
 
 export const SelectGoogleAdsAccounts: React.FC = () => {
@@ -41,15 +42,19 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
 
   const accounts = useMemo(() => profilesData?.profiles || [], [profilesData?.profiles]);
 
+  // Profiles fetched from API (not saved to DB yet); when set, we display these instead of DB accounts
+  const [fetchedProfiles, setFetchedProfiles] = useState<GoogleAdsAccount[] | null>(null);
+  const displayAccounts = fetchedProfiles ?? accounts;
+
   const accountIdForBack: string | number | undefined =
     (location.state as { accountId?: string })?.accountId ??
     brandAccounts?.find((a) => a.channels?.some((ch) => ch.id === channelIdNum))?.id;
 
-  // Initialize selected customer IDs from profiles data
+  // Initialize selected customer IDs from DB profiles only when showing DB data (not API-only list)
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
   
   useEffect(() => {
-    if (accounts.length > 0) {
+    if (fetchedProfiles === null && accounts.length > 0) {
       const selectedIds = new Set<string>();
       accounts.forEach((savedProfile) => {
         if (savedProfile.is_selected) {
@@ -61,7 +66,7 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
       });
       setSelectedCustomerIds(selectedIds);
     }
-  }, [accounts]);
+  }, [fetchedProfiles, accounts]);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,18 +84,17 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
     }
   }, [queryError]);
 
-  // Auto-fetch profiles from Google Ads API if no profiles exist
+  // Always fetch profiles from Google Ads API when page loads
   useEffect(() => {
     if (
       !loading &&
-      profilesData?.total === 0 &&
       !fetchingFromAds &&
       !hasAutoFetchedRef.current &&
       channelIdNum
     ) {
       handleAutoFetch();
     }
-  }, [loading, profilesData?.total, channelIdNum, fetchingFromAds]);
+  }, [loading, channelIdNum, fetchingFromAds]);
 
   const handleAutoFetch = async () => {
     if (!channelIdNum || hasAutoFetchedRef.current) return; // Prevent duplicate calls
@@ -100,14 +104,18 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
     setError(null);
 
     try {
-      // Fetch from Google Ads API (backend auto-saves to database)
-      await accountsService.fetchGoogleProfiles(channelIdNum);
+      // Always fetch from Google Ads API (no DB write; show on frontend only until user saves)
+      const profiles = await accountsService.fetchGoogleProfiles(channelIdNum);
+      setFetchedProfiles(profiles ?? []);
       
-      // Invalidate cache to refresh list with newly fetched profiles
-      await queryClient.invalidateQueries({ 
-        queryKey: queryKeys.googleProfiles.lists(channelIdNum) 
-      });
-      await refetchProfiles();
+      // Preserve previous selection from DB when refreshing from API
+      if (accounts.length > 0) {
+        const selectedIds = new Set<string>();
+        accounts.forEach((p) => {
+          if (p.is_selected && p.customer_id) selectedIds.add(String(p.customer_id));
+        });
+        setSelectedCustomerIds(selectedIds);
+      }
     } catch (err: any) {
       console.error("Failed to auto-fetch Google profiles:", err);
       setError(
@@ -124,7 +132,7 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
 
   const toggleSelection = (customerId: string) => {
     // Prevent selection of manager accounts
-    const account = accounts.find((a) => a.customer_id === customerId);
+    const account = displayAccounts.find((a) => a.customer_id === customerId);
     if (account?.is_manager) {
       return; // Don't allow selection of manager accounts
     }
@@ -153,11 +161,30 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
         return;
       }
 
-      // Save selected profiles
+      // Filter to only selected profiles and their managers (if any)
+      const allProfiles = fetchedProfiles ?? accounts;
+      const selectedProfiles = allProfiles.filter((p) => selectedIds.includes(p.customer_id));
+      
+      // Find manager profiles for selected profiles
+      const managerIds = new Set<string>();
+      selectedProfiles.forEach((profile) => {
+        if (profile.manager_customer_id) {
+          managerIds.add(profile.manager_customer_id);
+        }
+      });
+      
+      // Include manager profiles if they exist
+      const managerProfiles = allProfiles.filter(
+        (p) => p.is_manager && managerIds.has(p.customer_id)
+      );
+      
+      // Combine selected profiles and their managers
+      const profilesToSave = [...selectedProfiles, ...managerProfiles];
+      
       const response = await accountsService.saveGoogleProfiles(
         parseInt(channelId),
         selectedIds,
-        accounts
+        profilesToSave
       );
 
       // Store success message for integrations page (same as Amazon/TikTok)
@@ -173,16 +200,19 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
         })
       );
 
-      // Refresh accounts to show the new channel
-      await refreshAccounts();
-
-      // Redirect to integrations page for this brand (same as Amazon profiles)
+      // Redirect immediately after successful save
       navigate(
         accountIdForBack != null
           ? `/brands/${accountIdForBack}/integrations`
           : "/brands",
         { replace: true }
       );
+
+      // Cleanup operations (run in background, don't block redirect)
+      // Refresh accounts context to update channel counts on other pages
+      // Note: No need to invalidate query cache since we navigate away immediately
+      // and this page always fetches from API on load anyway
+      refreshAccounts().catch(console.error);
     } catch (err: any) {
       console.error("Failed to save Google Ads accounts:", err);
       setError(
@@ -196,8 +226,8 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
   };
 
 
-  // Filter out closed/canceled accounts
-  const activeAccounts = accounts.filter(
+  // Filter out closed/canceled accounts (use display list: API-only or DB)
+  const activeAccounts = displayAccounts.filter(
     (a) => a.status !== "CLOSED" && a.status !== "CANCELED"
   );
 
@@ -242,7 +272,7 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
   );
   managerIdsWithChildren.forEach((managerId) => {
     if (!accountsByManager[managerId]) {
-      const manager = accounts.find((a) => a.customer_id === managerId && a.is_manager);
+      const manager = displayAccounts.find((a) => a.customer_id === managerId && a.is_manager);
       if (manager && manager.status !== "CLOSED" && manager.status !== "CANCELED") {
         const children = childAccounts.filter(
           (child) => child.manager_customer_id === managerId
@@ -295,23 +325,18 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
       setRefreshing(true);
       setError(null);
 
-      // Fetch latest profiles from Google Ads API
+      // Fetch from Google Ads API only (no DB write); show on frontend
       const googleProfiles = await accountsService.fetchGoogleProfiles(channelIdNum);
+      setFetchedProfiles(googleProfiles ?? []);
 
-      // Save profiles to database (with empty selection to just update the list)
-      if (googleProfiles && googleProfiles.length > 0) {
-        await accountsService.saveGoogleProfiles(
-          channelIdNum,
-          [], // Empty selection - just update the list
-          googleProfiles
-        );
+      // Preserve previous selection when refreshing: reinit from DB if we had saved selection
+      if (accounts.length > 0) {
+        const selectedIds = new Set<string>();
+        accounts.forEach((p) => {
+          if (p.is_selected && p.customer_id) selectedIds.add(String(p.customer_id));
+        });
+        setSelectedCustomerIds(selectedIds);
       }
-
-      // Invalidate and refetch using React Query
-      await queryClient.invalidateQueries({ 
-        queryKey: queryKeys.googleProfiles.lists(channelIdNum) 
-      });
-      await refetchProfiles();
     } catch (err: any) {
       console.error("Failed to refresh Google profiles:", err);
       setError(

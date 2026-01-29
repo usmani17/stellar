@@ -8,11 +8,13 @@ import type { GoogleLogEntry } from "../../../../services/googleAdwords/googleAd
 
 interface GoogleCampaignDetailLogsTabProps {
   accountId: string;
+  channelId?: string;
   campaignId?: string;
 }
 
 export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabProps> = ({
   accountId,
+  channelId,
   campaignId,
 }) => {
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
@@ -35,7 +37,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
       return;
     }
 
-    if (!accountId) {
+    if (!accountId || !channelId) {
       setLoading(false);
       return;
     }
@@ -45,11 +47,12 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
       setLoading(true);
 
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+        throw new Error("Invalid account ID or channel ID");
       }
 
-      const response = await googleAdwordsLogsService.getGoogleLogs(accountIdNum, {
+      const response = await googleAdwordsLogsService.getGoogleLogs(accountIdNum, channelIdNum, {
         campaign_id: campaignId,
         page: currentPage,
         page_size: pageSize,
@@ -75,7 +78,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
     } finally {
       isLoadingRef.current = false;
     }
-  }, [accountId, campaignId, startDateStr, endDateStr, currentPage, pageSize, search]);
+  }, [accountId, channelId, campaignId, startDateStr, endDateStr, currentPage, pageSize, search]);
 
   // Initial load and reload when filters or page change
   useEffect(() => {
@@ -112,14 +115,15 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
   }, [showExportDropdown]);
 
   const handleExport = async (exportType: "all_data" | "current_view") => {
-    if (!accountId) return;
+    if (!accountId || !channelId) return;
 
     setShowExportDropdown(true);
     setExportLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+        throw new Error("Invalid account ID or channel ID");
       }
 
       const params: any = {
@@ -141,7 +145,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
         params.page_size = pageSize;
       }
 
-      const result = await googleAdwordsLogsService.exportGoogleLogs(accountIdNum, params);
+      const result = await googleAdwordsLogsService.exportGoogleLogs(accountIdNum, channelIdNum, params);
 
       // Automatically download the file
       const link = document.createElement("a");
