@@ -24,6 +24,21 @@ export const useGoogleCampaignDetailShoppingAds = ({
   // Data state
   const [listingGroups, setListingGroups] = useState<any[]>([]);
   const [listingGroupsLoading, setListingGroupsLoading] = useState(false);
+  const [listingGroupsSummary, setListingGroupsSummary] = useState<{
+    total_ads?: number;
+    total_spends?: number;
+    total_sales?: number;
+    total_impressions?: number;
+    total_clicks?: number;
+    avg_acos?: number;
+    avg_roas?: number;
+    total_conversions?: number;
+    avg_conversion_rate?: number;
+    avg_cost_per_conversion?: number;
+    avg_cpc?: number;
+    avg_cost?: number;
+    avg_interaction_rate?: number;
+  } | null>(null);
   const [selectedListingGroupIds, setSelectedListingGroupIds] = useState<Set<number>>(new Set());
 
   // Pagination state
@@ -90,10 +105,12 @@ export const useGoogleCampaignDetailShoppingAds = ({
 
       setListingGroups(shoppingAds);
       setListingGroupsTotalPages(data.total_pages || 0);
+      setListingGroupsSummary(data.summary ?? null);
     } catch (error) {
       console.error("Failed to load shopping ads:", error);
       setListingGroups([]);
       setListingGroupsTotalPages(0);
+      setListingGroupsSummary(null);
     } finally {
       setListingGroupsLoading(false);
     }
@@ -261,6 +278,7 @@ export const useGoogleCampaignDetailShoppingAds = ({
     // Data
     listingGroups,
     listingGroupsLoading,
+    listingGroupsSummary,
     selectedListingGroupIds,
     
     // Pagination

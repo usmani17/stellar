@@ -8,6 +8,14 @@ import type { GoogleAd } from "./GoogleTypes";
 import { formatCurrency2Decimals, formatPercentage as formatPercentageUtil } from "../../utils/campaignDetailHelpers";
 import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal";
 import { TrashIcon } from "lucide-react";
+import { googleAdwordsAdsService } from "../../../../services/googleAdwords/googleAdwordsAds";
+import {
+  BulkUpdateConfirmationModal,
+  type BulkUpdatePreviewRow,
+  type BulkUpdateStatusDetails,
+} from "../BulkUpdateConfirmationModal";
+import { BulkActionsDropdown } from "../BulkActionsDropdown";
+import { formatStatusForDisplay } from "../../utils/googleAdsUtils";
 
 interface GoogleCampaignDetailAdsTabProps {
   ads: GoogleAd[];
@@ -35,6 +43,11 @@ interface GoogleCampaignDetailAdsTabProps {
   onUpdateAdStatus?: (adId: number, status: string) => Promise<void>;
   onStartFinalUrlEdit?: (ad: GoogleAd) => void;
   createButton?: React.ReactNode;
+  createPanel?: React.ReactNode;
+  accountId?: string;
+  channelId?: string;
+  campaignId?: string;
+  onBulkUpdateComplete?: () => void;
   formatCurrency?: (value: number | string | undefined) => string;
   formatPercentage?: (value: number | string | undefined) => string;
 }
@@ -63,6 +76,11 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
   onUpdateAdStatus,
   onStartFinalUrlEdit,
   createButton,
+  createPanel,
+  accountId,
+  channelId,
+  campaignId,
+  onBulkUpdateComplete,
   formatCurrency = formatCurrency2Decimals,
   formatPercentage = formatPercentageUtil,
 }) => {
@@ -80,6 +98,53 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
     adId: number;
     field: string;
   } | null>(null);
+
+  // Bulk edit state
+  const [showBulkConfirmationModal, setShowBulkConfirmationModal] = useState(false);
+  const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLED" | "PAUSED" | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
+
+  const getSelectedAdsData = () => ads.filter((a) => selectedAdIds.has(a.id));
+  const selectableAds = ads.filter((ad) => (ad.status || "").toUpperCase() !== "REMOVED");
+  const isAdRemoved = (ad: GoogleAd) => (ad.status || "").toUpperCase() === "REMOVED";
+
+  const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
+    if (!accountId || !channelId || selectedAdIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    const channelIdNum = parseInt(channelId, 10);
+    if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
+    const selectedData = getSelectedAdsData();
+    const adIds = selectedData.map((a) => a.ad_id);
+    try {
+      setBulkLoading(true);
+      setBulkUpdateResults(null);
+      const response = await googleAdwordsAdsService.bulkUpdateGoogleAds(
+        accountIdNum,
+        channelIdNum,
+        { adIds, action: "status", status: statusValue, campaignId }
+      );
+      setBulkUpdateResults({
+        updated: (response as { updated?: number }).updated ?? adIds.length,
+        failed: (response as { failed?: number }).failed ?? 0,
+        errors: (response as { errors?: string[] }).errors ?? [],
+      });
+      if (onBulkUpdateComplete) onBulkUpdateComplete();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedAdIds.size,
+        errors: [err?.response?.data?.error || err?.message || "Failed to update ads."],
+      });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   const handleStatusClick = (ad: GoogleAd) => {
     if (onUpdateAdStatus) {
@@ -219,6 +284,19 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
         </h2>
         <div className="flex items-center gap-2">
           {createButton}
+          {accountId && channelId && onBulkUpdateComplete && (
+            <BulkActionsDropdown
+              options={[
+                { value: "ENABLED", label: "Enable" },
+                { value: "PAUSED", label: "Pause" },
+              ]}
+              selectedCount={selectedAdIds.size}
+              onSelect={(value) => {
+                setPendingStatusAction(value as "ENABLED" | "PAUSED");
+                setShowBulkConfirmationModal(true);
+              }}
+            />
+          )}
           <button
             onClick={onToggleFilterPanel}
             className="edit-button"
@@ -280,6 +358,9 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
         </div>
       </div>
 
+      {/* Create Panel - below create button */}
+      {createPanel}
+
       {/* Filter Panel */}
       {isFilterPanelOpen && (
         <div className="mb-4">
@@ -318,8 +399,8 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                   <th className="table-header w-[35px]">
                     <div className="flex items-center justify-center">
                       <Checkbox
-                        checked={ads.length > 0 && ads.every((ad) => selectedAdIds.has(ad.id))}
-                        onChange={onSelectAll}
+                        checked={selectableAds.length > 0 && selectableAds.every((ad) => selectedAdIds.has(ad.id))}
+                        onChange={(checked) => selectableAds.forEach((ad) => onSelectAd(ad.id, checked))}
                         size="small"
                       />
                     </div>
@@ -474,7 +555,8 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedAdIds.has(ad.id)}
-                            onChange={(checked) => onSelectAd(ad.id, checked)}
+                            onChange={(checked) => !isAdRemoved(ad) && onSelectAd(ad.id, checked)}
+                            disabled={isAdRemoved(ad)}
                             size="small"
                           />
                         </div>
@@ -784,6 +866,51 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
               </div>
             </div>
           </div>
+        )}
+
+        {/* Bulk confirmation modal */}
+        {accountId && channelId && onBulkUpdateComplete && (
+          <BulkUpdateConfirmationModal
+            isOpen={showBulkConfirmationModal}
+            onClose={() => {
+              setShowBulkConfirmationModal(false);
+              setPendingStatusAction(null);
+              setBulkUpdateResults(null);
+            }}
+            entityLabel="ad"
+            entityNameColumn="Ad Name"
+            selectedCount={selectedAdIds.size}
+            bulkUpdateResults={bulkUpdateResults}
+            isValueChange={false}
+            valueChangeLabel=""
+            previewRows={getSelectedAdsData().map((ad) => {
+              const oldStatus = formatStatusForDisplay(ad.status || "ENABLED");
+              const newStatus = pendingStatusAction
+                ? formatStatusForDisplay(pendingStatusAction)
+                : oldStatus;
+              return {
+                name: (ad as GoogleAd & { name?: string }).name || `Ad ${ad.ad_id}`,
+                oldValue: oldStatus,
+                newValue: newStatus,
+              } as BulkUpdatePreviewRow;
+            })}
+            actionDetails={
+              !bulkUpdateResults && pendingStatusAction
+                ? ({
+                    type: "status",
+                    newStatus:
+                      pendingStatusAction.charAt(0) +
+                      pendingStatusAction.slice(1).toLowerCase(),
+                  } as BulkUpdateStatusDetails)
+                : null
+            }
+            loading={bulkLoading}
+            loadingMessage="Updating ads..."
+            successMessage="All ads updated successfully!"
+            onConfirm={async () => {
+              if (pendingStatusAction) await runBulkStatus(pendingStatusAction);
+            }}
+          />
         )}
 
         {/* Remove Confirmation Modal */}

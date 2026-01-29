@@ -5,6 +5,14 @@ import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Loader } from "../../../../components/ui/Loader";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
+import { googleAdwordsProductGroupsService } from "../../../../services/googleAdwords/googleAdwordsProductGroups";
+import {
+  BulkUpdateConfirmationModal,
+  type BulkUpdatePreviewRow,
+  type BulkUpdateStatusDetails,
+} from "../BulkUpdateConfirmationModal";
+import { BulkActionsDropdown } from "../BulkActionsDropdown";
+import { formatStatusForDisplay } from "../../utils/googleAdsUtils";
 
 interface GoogleProductGroup {
   id: number;
@@ -23,12 +31,16 @@ interface GoogleProductGroup {
   sales?: number | string;
 }
 
+/** Composite key = "adgroup_id-product_group_id" so selection is unique per row. */
+type ProductGroupSelectionKey = string;
+
 interface GoogleCampaignDetailProductGroupsTabProps {
   productGroups: GoogleProductGroup[];
   loading: boolean;
-  selectedProductGroupIds: Set<number>;
+  selectedProductGroupIds: Set<ProductGroupSelectionKey>;
+  getProductGroupSelectionKey: (pg: GoogleProductGroup) => ProductGroupSelectionKey;
   onSelectAll: (checked: boolean) => void;
-  onSelectProductGroup: (id: number, checked: boolean) => void;
+  onSelectProductGroup: (key: ProductGroupSelectionKey, checked: boolean) => void;
   sortBy: string;
   sortOrder: "asc" | "desc";
   onSort: (column: string) => void;
@@ -47,14 +59,19 @@ interface GoogleCampaignDetailProductGroupsTabProps {
   getSortIcon: (column: string, currentSortBy: string, currentSortOrder: "asc" | "desc") => React.ReactNode;
   formatCurrency2Decimals: (value: number | string | undefined) => string;
   formatPercentage: (value: number | string | undefined) => string;
-  onUpdateProductGroupStatus?: (productGroupId: number, status: string) => Promise<void>;
+  onUpdateProductGroupStatus?: (key: ProductGroupSelectionKey, status: string) => Promise<void>;
   createButton?: React.ReactNode;
+  createPanel?: React.ReactNode;
+  accountId?: string;
+  channelId?: string;
+  onBulkUpdateComplete?: () => void;
 }
 
 export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetailProductGroupsTabProps> = ({
   productGroups,
   loading,
   selectedProductGroupIds,
+  getProductGroupSelectionKey,
   onSelectAll,
   onSelectProductGroup,
   sortBy,
@@ -77,19 +94,85 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
   formatPercentage,
   onUpdateProductGroupStatus,
   createButton,
+  createPanel,
+  accountId,
+  channelId,
+  onBulkUpdateComplete,
 }) => {
-  const [editingProductGroupId, setEditingProductGroupId] = useState<number | null>(null);
+  const [editingProductGroupKey, setEditingProductGroupKey] = useState<ProductGroupSelectionKey | null>(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
   const [pendingChange, setPendingChange] = useState<{
-    id: number;
+    key: ProductGroupSelectionKey;
     newValue: string;
     oldValue: string;
   } | null>(null);
-  const [updatingProductGroupId, setUpdatingProductGroupId] = useState<number | null>(null);
+  const [updatingProductGroupKey, setUpdatingProductGroupKey] = useState<ProductGroupSelectionKey | null>(null);
+
+  // Bulk edit state
+  const [showBulkConfirmationModal, setShowBulkConfirmationModal] = useState(false);
+  const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLED" | "PAUSED" | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
+
+  const getSelectedProductGroupsData = () =>
+    productGroups.filter((pg) => selectedProductGroupIds.has(getProductGroupSelectionKey(pg)));
+  const selectableProductGroups = productGroups.filter(
+    (pg) => (pg.status || "").toUpperCase() !== "REMOVED"
+  );
+
+  const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
+    if (!accountId || !channelId || selectedProductGroupIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    const channelIdNum = parseInt(channelId, 10);
+    if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
+    setBulkLoading(true);
+    setBulkUpdateResults(null);
+    try {
+      const selectedRows = getSelectedProductGroupsData();
+      // Backend accepts one adGroupId per request; group by ad group and call once per ad group
+      const byAdGroup = new Map<number, GoogleProductGroup[]>();
+      for (const pg of selectedRows) {
+        const adGroupId = pg.adgroup_id ?? 0;
+        if (!byAdGroup.has(adGroupId)) byAdGroup.set(adGroupId, []);
+        byAdGroup.get(adGroupId)!.push(pg);
+      }
+      let totalUpdated = 0;
+      let totalFailed = 0;
+      const allErrors: string[] = [];
+      for (const [adGroupId, pgs] of byAdGroup) {
+        const productGroupIds = pgs.map((pg) => pg.product_group_id ?? pg.id);
+        const result = await googleAdwordsProductGroupsService.bulkUpdateGoogleProductGroups(
+          accountIdNum,
+          channelIdNum,
+          {
+            productGroupIds,
+            action: "status",
+            status: statusValue,
+            adGroupId: String(adGroupId),
+          }
+        );
+        totalUpdated += result?.updated ?? 0;
+        totalFailed += result?.failed ?? 0;
+        if (result?.errors?.length) allErrors.push(...result.errors);
+      }
+      setBulkUpdateResults({ updated: totalUpdated, failed: totalFailed, errors: allErrors });
+      if (totalUpdated > 0 && onBulkUpdateComplete) onBulkUpdateComplete();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Bulk update failed";
+      setBulkUpdateResults({ updated: 0, failed: selectedProductGroupIds.size, errors: [message] });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   const handleStatusClick = (productGroup: GoogleProductGroup) => {
     if (onUpdateProductGroupStatus) {
-      setEditingProductGroupId(productGroup.id);
+      const key = getProductGroupSelectionKey(productGroup);
+      setEditingProductGroupKey(key);
       const currentStatus = (productGroup.status || "ENABLED").toUpperCase();
       const normalizedStatus = currentStatus === "ENABLE" || currentStatus === "ENABLED" 
         ? "ENABLED" 
@@ -100,8 +183,8 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
     }
   };
 
-  const handleStatusChange = (productGroupId: number, newStatus: string) => {
-    const productGroup = productGroups.find((pg) => pg.id === productGroupId);
+  const handleStatusChange = (selectionKey: ProductGroupSelectionKey, newStatus: string) => {
+    const productGroup = productGroups.find((pg) => getProductGroupSelectionKey(pg) === selectionKey);
     if (!productGroup) return;
 
     const oldStatus = (productGroup.status || "ENABLED").toUpperCase();
@@ -109,33 +192,33 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
 
     if (newStatusUpper !== oldStatus) {
       setPendingChange({
-        id: productGroupId,
+        key: selectionKey,
         newValue: newStatusUpper,
         oldValue: oldStatus,
       });
     }
-    setEditingProductGroupId(null);
+    setEditingProductGroupKey(null);
     setEditingStatus("");
   };
 
   const confirmChange = async () => {
     if (!pendingChange || !onUpdateProductGroupStatus) return;
 
-    setUpdatingProductGroupId(pendingChange.id);
+    setUpdatingProductGroupKey(pendingChange.key);
     try {
-      await onUpdateProductGroupStatus(pendingChange.id, pendingChange.newValue);
+      await onUpdateProductGroupStatus(pendingChange.key, pendingChange.newValue);
       setPendingChange(null);
     } catch (error) {
       console.error("Failed to update product group status:", error);
       alert("Failed to update product group status. Please try again.");
     } finally {
-      setUpdatingProductGroupId(null);
+      setUpdatingProductGroupKey(null);
     }
   };
 
   const cancelChange = () => {
     setPendingChange(null);
-    setEditingProductGroupId(null);
+    setEditingProductGroupKey(null);
     setEditingStatus("");
   };
 
@@ -160,6 +243,19 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
         </h2>
         <div className="flex items-center gap-2">
           {createButton}
+          {accountId && channelId && onBulkUpdateComplete && (
+            <BulkActionsDropdown
+              options={[
+                { value: "ENABLED", label: "Enable" },
+                { value: "PAUSED", label: "Pause" },
+              ]}
+              selectedCount={selectedProductGroupIds.size}
+              onSelect={(value) => {
+                setPendingStatusAction(value as "ENABLED" | "PAUSED");
+                setShowBulkConfirmationModal(true);
+              }}
+            />
+          )}
           <button
             onClick={onToggleFilterPanel}
             className="edit-button"
@@ -199,6 +295,9 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
         </div>
       </div>
 
+      {/* Create Panel - below create button */}
+      {createPanel}
+
       {/* Filter Panel */}
       {isFilterPanelOpen && (
         <div className="mb-4">
@@ -211,6 +310,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
             initialFilters={filters}
             filterFields={[
               { value: "name", label: "Product Group Name" },
+              { value: "ad_id", label: "Shopping Ad" },
               { value: "status", label: "Status" },
               { value: "adgroup_name", label: "Ad Group Name" },
             ]}
@@ -238,8 +338,8 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                   <th className="table-header w-[35px]">
                     <div className="flex items-center justify-center">
                       <Checkbox
-                        checked={productGroups.length > 0 && productGroups.every((pg) => selectedProductGroupIds.has(pg.id))}
-                        onChange={onSelectAll}
+                        checked={selectableProductGroups.length > 0 && selectableProductGroups.every((pg) => selectedProductGroupIds.has(getProductGroupSelectionKey(pg)))}
+                        onChange={(checked) => selectableProductGroups.forEach((pg) => onSelectProductGroup(getProductGroupSelectionKey(pg), checked))}
                         size="small"
                       />
                     </div>
@@ -275,7 +375,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                   const isRemoved = productGroupStatus === "REMOVED";
                   return (
                     <tr
-                      key={productGroup.id}
+                      key={getProductGroupSelectionKey(productGroup)}
                       className={`${
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
                       } ${isRemoved ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"} transition-colors`}
@@ -283,8 +383,9 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                       <td className="table-cell">
                         <div className="flex items-center justify-center">
                           <Checkbox
-                            checked={selectedProductGroupIds.has(productGroup.id)}
-                            onChange={(checked) => onSelectProductGroup(productGroup.id, checked)}
+                            checked={selectedProductGroupIds.has(getProductGroupSelectionKey(productGroup))}
+                            onChange={(checked) => !isRemoved && onSelectProductGroup(getProductGroupSelectionKey(productGroup), checked)}
+                            disabled={isRemoved}
                             size="small"
                           />
                         </div>
@@ -301,12 +402,12 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                       </td>
                       <td className="table-cell hidden md:table-cell w-[140px] max-w-[140px]">
                         <div className="flex items-center gap-2 w-full relative">
-                          {updatingProductGroupId === productGroup.id && pendingChange ? (
+                          {updatingProductGroupKey === getProductGroupSelectionKey(productGroup) && pendingChange ? (
                             <div className="flex items-center gap-2">
                               <StatusBadge status={pendingChange.newValue} />
                               <Loader size="sm" showMessage={false} />
                             </div>
-                          ) : pendingChange?.id === productGroup.id ? (
+                          ) : pendingChange?.key === getProductGroupSelectionKey(productGroup) ? (
                             <div className="flex items-center gap-2">
                               <StatusBadge status={pendingChange.newValue} />
                               <div className="flex items-center gap-1">
@@ -350,7 +451,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                                 </button>
                               </div>
                             </div>
-                          ) : editingProductGroupId === productGroup.id && onUpdateProductGroupStatus && !isRemoved ? (
+                          ) : editingProductGroupKey === getProductGroupSelectionKey(productGroup) && onUpdateProductGroupStatus && !isRemoved ? (
                             <div className="relative z-[100000] w-full" onClick={(e) => e.stopPropagation()}>
                               <Dropdown
                                 options={[
@@ -360,7 +461,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                                 value={editingStatus}
                                 onChange={(val) => {
                                   const newValue = val as string;
-                                  handleStatusChange(productGroup.id, newValue);
+                                  handleStatusChange(getProductGroupSelectionKey(productGroup), newValue);
                                 }}
                                 defaultOpen={true}
                                 closeOnSelect={true}
@@ -484,6 +585,51 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
             </button>
           </div>
         </div>
+      )}
+
+      {/* Bulk confirmation modal */}
+      {accountId && channelId && onBulkUpdateComplete && (
+        <BulkUpdateConfirmationModal
+          isOpen={showBulkConfirmationModal}
+          onClose={() => {
+            setShowBulkConfirmationModal(false);
+            setPendingStatusAction(null);
+            setBulkUpdateResults(null);
+          }}
+          entityLabel="product group"
+          entityNameColumn="Product Group"
+          selectedCount={selectedProductGroupIds.size}
+          bulkUpdateResults={bulkUpdateResults}
+          isValueChange={false}
+          valueChangeLabel=""
+          previewRows={getSelectedProductGroupsData().map((pg) => {
+            const oldStatus = formatStatusForDisplay(pg.status || "ENABLED");
+            const newStatus = pendingStatusAction
+              ? formatStatusForDisplay(pendingStatusAction)
+              : oldStatus;
+            return {
+              name: pg.product_group_name || "All products",
+              oldValue: oldStatus,
+              newValue: newStatus,
+            } as BulkUpdatePreviewRow;
+          })}
+          actionDetails={
+            !bulkUpdateResults && pendingStatusAction
+              ? ({
+                  type: "status",
+                  newStatus:
+                    pendingStatusAction.charAt(0) +
+                    pendingStatusAction.slice(1).toLowerCase(),
+                } as BulkUpdateStatusDetails)
+              : null
+          }
+          loading={bulkLoading}
+          loadingMessage="Updating product groups..."
+          successMessage="All product groups updated successfully!"
+          onConfirm={async () => {
+            if (pendingStatusAction) await runBulkStatus(pendingStatusAction);
+          }}
+        />
       )}
     </>
   );

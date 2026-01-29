@@ -81,4 +81,6 @@ export interface IGoogleAdsTableProps<T = any> {
     field: string;
     message: string;
   } | null;
+  /** Currency code for the "currency" column (e.g. USD, AUD, EUR). Shown before Impressions. */
+  currencyCode?: string;
 }
