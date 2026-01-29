@@ -12,6 +12,14 @@ import {
 import type { GoogleNegativeKeyword } from "./GoogleTypes";
 import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal";
 import { TrashIcon } from "lucide-react";
+import { googleAdwordsNegativeKeywordsService } from "../../../../services/googleAdwords/googleAdwordsNegativeKeywords";
+import {
+  BulkUpdateConfirmationModal,
+  type BulkUpdatePreviewRow,
+  type BulkUpdateStatusDetails,
+} from "../BulkUpdateConfirmationModal";
+import { BulkActionsDropdown } from "../BulkActionsDropdown";
+import { formatStatusForDisplay } from "../../utils/googleAdsUtils";
 
 interface GoogleCampaignDetailNegativeKeywordsTabProps {
   negativeKeywords: GoogleNegativeKeyword[];
@@ -52,6 +60,10 @@ interface GoogleCampaignDetailNegativeKeywordsTabProps {
   ) => Promise<void>;
   campaignType?: string;
   createButton?: React.ReactNode;
+  createPanel?: React.ReactNode;
+  accountId?: string;
+  channelId?: string;
+  onBulkUpdateComplete?: () => void;
 }
 
 export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
@@ -82,9 +94,64 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
   onUpdateNegativeKeywordText,
   campaignType,
   createButton,
+  createPanel,
+  accountId,
+  channelId,
+  onBulkUpdateComplete,
 }) => {
   // Check if this is a Performance Max campaign
   const isPerformanceMax = campaignType?.toUpperCase() === "PERFORMANCE_MAX";
+  const [showBulkConfirmationModal, setShowBulkConfirmationModal] = useState(false);
+  const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLED" | "PAUSED" | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
+
+  const getSelectedNegativeKeywordsData = () =>
+    negativeKeywords.filter((n) => selectedNegativeKeywordIds.has(n.id));
+  const selectableNegativeKeywords = negativeKeywords.filter(
+    (n) => (n.status || "").toUpperCase() !== "REMOVED"
+  );
+  const isNegativeKeywordRemoved = (n: { status?: string }) =>
+    (n.status || "").toUpperCase() === "REMOVED";
+
+  const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
+    if (!accountId || !channelId || selectedNegativeKeywordIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    const channelIdNum = parseInt(channelId, 10);
+    if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
+    const selectedData = getSelectedNegativeKeywordsData();
+    const negativeKeywordIds = selectedData.map((n) => n.criterion_id);
+    const level = selectedData[0]?.level === "adgroup" ? "adgroup" : "campaign";
+    try {
+      setBulkLoading(true);
+      setBulkUpdateResults(null);
+      const response = await googleAdwordsNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(
+        accountIdNum,
+        channelIdNum,
+        { negativeKeywordIds, action: "status", value: statusValue, level }
+      );
+      setBulkUpdateResults({
+        updated: response.updated ?? negativeKeywordIds.length,
+        failed: response.failed ?? 0,
+        errors: response.errors ?? [],
+      });
+      if (onBulkUpdateComplete) onBulkUpdateComplete();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedNegativeKeywordIds.size,
+        errors: [err?.response?.data?.error || err?.message || "Failed to update negative keywords."],
+      });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const [editingNegativeKeywordId, setEditingNegativeKeywordId] = useState<
     number | null
   >(null);
@@ -409,6 +476,19 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
         </h2>
         <div className="flex items-center gap-2">
           {createButton}
+          {accountId && channelId && onBulkUpdateComplete && (
+            <BulkActionsDropdown
+              options={[
+                { value: "ENABLED", label: "Enable" },
+                { value: "PAUSED", label: "Pause" },
+              ]}
+              selectedCount={selectedNegativeKeywordIds.size}
+              onSelect={(value) => {
+                setPendingStatusAction(value as "ENABLED" | "PAUSED");
+                setShowBulkConfirmationModal(true);
+              }}
+            />
+          )}
           <button
             onClick={onToggleFilterPanel}
             className="edit-button"
@@ -470,6 +550,9 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
         </div>
       </div>
 
+      {/* Create Panel - below create button */}
+      {createPanel}
+
       {/* Filter Panel */}
       {isFilterPanelOpen && (
         <div className="mb-4">
@@ -509,12 +592,16 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={
-                          negativeKeywords.length > 0 &&
-                          negativeKeywords.every((nkw) =>
+                          selectableNegativeKeywords.length > 0 &&
+                          selectableNegativeKeywords.every((nkw) =>
                             selectedNegativeKeywordIds.has(nkw.id)
                           )
                         }
-                        onChange={onSelectAll}
+                        onChange={(checked) =>
+                          selectableNegativeKeywords.forEach((nkw) =>
+                            onSelectNegativeKeyword(nkw.id, checked)
+                          )
+                        }
                         size="small"
                       />
                     </div>
@@ -581,11 +668,13 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                               negativeKeyword.id
                             )}
                             onChange={(checked) =>
+                              !isNegativeKeywordRemoved(negativeKeyword) &&
                               onSelectNegativeKeyword(
                                 negativeKeyword.id,
                                 checked
                               )
                             }
+                            disabled={isRemoved}
                             size="small"
                           />
                         </div>
@@ -887,6 +976,51 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
             </div>
           </div>
         </div>
+      )}
+
+      {/* Bulk confirmation modal */}
+      {accountId && channelId && onBulkUpdateComplete && (
+        <BulkUpdateConfirmationModal
+          isOpen={showBulkConfirmationModal}
+          onClose={() => {
+            setShowBulkConfirmationModal(false);
+            setPendingStatusAction(null);
+            setBulkUpdateResults(null);
+          }}
+          entityLabel="negative keyword"
+          entityNameColumn="Keyword"
+          selectedCount={selectedNegativeKeywordIds.size}
+          bulkUpdateResults={bulkUpdateResults}
+          isValueChange={false}
+          valueChangeLabel=""
+          previewRows={getSelectedNegativeKeywordsData().map((n) => {
+            const oldStatus = formatStatusForDisplay(n.status || "ENABLED");
+            const newStatus = pendingStatusAction
+              ? formatStatusForDisplay(pendingStatusAction)
+              : oldStatus;
+            return {
+              name: n.keyword_text || n.criterion_id || "—",
+              oldValue: oldStatus,
+              newValue: newStatus,
+            } as BulkUpdatePreviewRow;
+          })}
+          actionDetails={
+            !bulkUpdateResults && pendingStatusAction
+              ? ({
+                  type: "status",
+                  newStatus:
+                    pendingStatusAction.charAt(0) +
+                    pendingStatusAction.slice(1).toLowerCase(),
+                } as BulkUpdateStatusDetails)
+              : null
+          }
+          loading={bulkLoading}
+          loadingMessage="Updating negative keywords..."
+          successMessage="All negative keywords updated successfully!"
+          onConfirm={async () => {
+            if (pendingStatusAction) await runBulkStatus(pendingStatusAction);
+          }}
+        />
       )}
 
       {/* Remove Confirmation Modal */}

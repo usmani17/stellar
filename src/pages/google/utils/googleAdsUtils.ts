@@ -217,14 +217,94 @@ export const parseDateToYYYYMMDD = (date?: string | Date | null): string => {
 // CURRENCY FORMATTING
 // ============================================================================
 
+const DEFAULT_CURRENCY = "USD";
+
+/** Common symbols. All dollar currencies (USD, CAD, AUD, NZD) use $. */
+const CURRENCY_SYMBOL_OVERRIDES: Record<string, string> = {
+  USD: "$",
+  CAD: "$",
+  AUD: "$",
+  NZD: "$",
+  GBP: "£",
+  EUR: "€",
+  INR: "₹",
+  JPY: "¥",
+};
+
 /**
- * Formats currency value for display
+ * Returns the currency symbol for a given ISO 4217 currency code.
+ * Dollar currencies (USD, CAD, AUD, NZD) return "$". Uses overrides then Intl. Defaults to USD if code is missing/invalid.
  */
-export const formatCurrency = (value?: number | null): string => {
-  if (value === undefined || value === null || isNaN(value)) {
-    return "$0.00";
+export const getCurrencySymbol = (currencyCode?: string | null): string => {
+  const code = (currencyCode || DEFAULT_CURRENCY).toUpperCase().trim();
+  if (!code) return "$";
+  if (CURRENCY_SYMBOL_OVERRIDES[code]) return CURRENCY_SYMBOL_OVERRIDES[code];
+  try {
+    const formatter = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+    const parts = formatter.formatToParts(0);
+    const symbol = parts.find((p) => p.type === "currency")?.value ?? "$";
+    return symbol;
+  } catch {
+    return "$";
   }
-  return `$${value.toFixed(2)}`;
+};
+
+/**
+ * Formats currency value for display.
+ * Dollar currencies (USD, CAD, AUD, NZD) use "$" symbol. Uses overrides when available.
+ * @param value - The number to format
+ * @param currencyCode - ISO 4217 currency code (e.g. USD, EUR). Defaults to USD.
+ */
+export const formatCurrency = (
+  value?: number | null,
+  currencyCode?: string | null
+): string => {
+  if (value === undefined || value === null || isNaN(value)) {
+    return formatCurrency(0, currencyCode);
+  }
+  const code = (currencyCode || DEFAULT_CURRENCY).toUpperCase().trim();
+  if (!code) return `$${value.toFixed(2)}`;
+  
+  // If we have an override (e.g. AUD -> "$"), use it to ensure consistent symbol
+  if (CURRENCY_SYMBOL_OVERRIDES[code]) {
+    const symbol = CURRENCY_SYMBOL_OVERRIDES[code];
+    // Format number with locale-aware number formatting, then prepend symbol
+    const formattedNumber = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+    return `${symbol}${formattedNumber}`;
+  }
+  
+  // For currencies without overrides, use Intl with currency style
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `$${value.toFixed(2)}`;
+  }
+};
+
+/**
+ * Returns a label for metrics that use currency, using the currency **symbol** (e.g. "Spend ($)", "Sales (€)").
+ * Use in column headers or summary. We show symbol only, not currency code.
+ * When multiple profiles with different currencies: use first selected profile's currency for the page/summary.
+ */
+export const getCurrencyMetricLabel = (
+  metricName: string,
+  currencyCode?: string | null
+): string => {
+  const symbol = getCurrencySymbol(currencyCode);
+  return `${metricName} (${symbol})`;
 };
 
 // ============================================================================

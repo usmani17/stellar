@@ -13,6 +13,14 @@ import type { GoogleKeyword } from "./GoogleTypes";
 import { formatCurrency2Decimals as formatCurrency2DecimalsUtil, formatPercentage as formatPercentageUtil } from "../../utils/campaignDetailHelpers";
 import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal";
 import { TrashIcon } from "lucide-react";
+import { googleAdwordsKeywordsService } from "../../../../services/googleAdwords/googleAdwordsKeywords";
+import {
+  BulkUpdateConfirmationModal,
+  type BulkUpdatePreviewRow,
+  type BulkUpdateStatusDetails,
+} from "../BulkUpdateConfirmationModal";
+import { BulkActionsDropdown } from "../BulkActionsDropdown";
+import { formatStatusForDisplay } from "../../utils/googleAdsUtils";
 
 interface GoogleCampaignDetailKeywordsTabProps {
   keywords: GoogleKeyword[];
@@ -51,6 +59,9 @@ interface GoogleCampaignDetailKeywordsTabProps {
   onStartKeywordTextEdit?: (keyword: GoogleKeyword) => void;
   onStartFinalUrlEdit?: (keyword: GoogleKeyword) => void;
   createButton?: React.ReactNode;
+  createPanel?: React.ReactNode;
+  channelId?: string;
+  onBulkUpdateComplete?: () => void;
   formatCurrency2Decimals?: (value: number | string | undefined) => string;
 }
 
@@ -86,11 +97,63 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
   onStartKeywordTextEdit,
   onStartFinalUrlEdit,
   createButton,
+  createPanel,
+  channelId,
+  onBulkUpdateComplete,
   formatCurrency2Decimals = formatCurrency2DecimalsUtil,
 }) => {
   const formatPercentage = formatPercentageUtil;
-    const [editingKeywordId, setEditingKeywordId] = useState<number | null>(null);
-    const [editingField, setEditingField] = useState<
+  const [editingKeywordId, setEditingKeywordId] = useState<number | null>(null);
+  const [showBulkConfirmationModal, setShowBulkConfirmationModal] = useState(false);
+  const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLED" | "PAUSED" | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
+
+  const getSelectedKeywordsData = () => keywords.filter((k) => selectedKeywordIds.has(k.id));
+  const selectableKeywords = keywords.filter(
+    (k) => (k.status || "").toUpperCase() !== "REMOVED"
+  );
+  const isKeywordRemoved = (k: { status?: string }) =>
+    (k.status || "").toUpperCase() === "REMOVED";
+
+  const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
+    if (!_accountId || !channelId || selectedKeywordIds.size === 0) return;
+    const accountIdNum = parseInt(_accountId, 10);
+    const channelIdNum = parseInt(channelId, 10);
+    if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
+    const selectedData = getSelectedKeywordsData();
+    const keywordIds = selectedData.map((k) => k.keyword_id);
+    try {
+      setBulkLoading(true);
+      setBulkUpdateResults(null);
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(
+        accountIdNum,
+        channelIdNum,
+        { keywordIds, action: "status", status: statusValue }
+      );
+      setBulkUpdateResults({
+        updated: (response as { updated?: number }).updated ?? keywordIds.length,
+        failed: (response as { failed?: number }).failed ?? 0,
+        errors: (response as { errors?: string[] }).errors ?? [],
+      });
+      if (onBulkUpdateComplete) onBulkUpdateComplete();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedKeywordIds.size,
+        errors: [err?.response?.data?.error || err?.message || "Failed to update keywords."],
+      });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const [editingField, setEditingField] = useState<
       "status" | "match_type" | "bid" | null
     >(null);
     const [editingStatus, setEditingStatus] = useState<string>("");
@@ -402,6 +465,19 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
         </h2>
         <div className="flex items-center gap-2">
           {createButton}
+          {_accountId && channelId && onBulkUpdateComplete && (
+            <BulkActionsDropdown
+              options={[
+                { value: "ENABLED", label: "Enable" },
+                { value: "PAUSED", label: "Pause" },
+              ]}
+              selectedCount={selectedKeywordIds.size}
+              onSelect={(value) => {
+                setPendingStatusAction(value as "ENABLED" | "PAUSED");
+                setShowBulkConfirmationModal(true);
+              }}
+            />
+          )}
           <button
             onClick={onToggleFilterPanel}
             className="edit-button"
@@ -463,6 +539,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
         </div>
       </div>
 
+        {/* Create Panel - below create button */}
+        {createPanel}
+
         {/* Filter Panel */}
         {isFilterPanelOpen && (
           <div className="mb-4">
@@ -502,10 +581,12 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                       <div className="flex items-center justify-center">
                         <Checkbox
                           checked={
-                            keywords.length > 0 &&
-                            keywords.every((kw) => selectedKeywordIds.has(kw.id))
+                            selectableKeywords.length > 0 &&
+                            selectableKeywords.every((kw) => selectedKeywordIds.has(kw.id))
                           }
-                          onChange={onSelectAll}
+                          onChange={(checked) =>
+                            selectableKeywords.forEach((kw) => onSelectKeyword(kw.id, checked))
+                          }
                           size="small"
                         />
                       </div>
@@ -678,8 +759,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                             <Checkbox
                               checked={selectedKeywordIds.has(keyword.id)}
                               onChange={(checked) =>
-                                onSelectKeyword(keyword.id, checked)
+                                !isKeywordRemoved(keyword) && onSelectKeyword(keyword.id, checked)
                               }
+                              disabled={isRemoved}
                               size="small"
                             />
                           </div>
@@ -1281,6 +1363,51 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
               </div>
             </div>
           </div>
+        )}
+
+        {/* Bulk confirmation modal */}
+        {_accountId && channelId && onBulkUpdateComplete && (
+          <BulkUpdateConfirmationModal
+            isOpen={showBulkConfirmationModal}
+            onClose={() => {
+              setShowBulkConfirmationModal(false);
+              setPendingStatusAction(null);
+              setBulkUpdateResults(null);
+            }}
+            entityLabel="keyword"
+            entityNameColumn="Keyword"
+            selectedCount={selectedKeywordIds.size}
+            bulkUpdateResults={bulkUpdateResults}
+            isValueChange={false}
+            valueChangeLabel=""
+            previewRows={getSelectedKeywordsData().map((kw) => {
+              const oldStatus = formatStatusForDisplay(kw.status || "ENABLED");
+              const newStatus = pendingStatusAction
+                ? formatStatusForDisplay(pendingStatusAction)
+                : oldStatus;
+              return {
+                name: kw.keyword_text || `Keyword ${kw.keyword_id}`,
+                oldValue: oldStatus,
+                newValue: newStatus,
+              } as BulkUpdatePreviewRow;
+            })}
+            actionDetails={
+              !bulkUpdateResults && pendingStatusAction
+                ? ({
+                    type: "status",
+                    newStatus:
+                      pendingStatusAction.charAt(0) +
+                      pendingStatusAction.slice(1).toLowerCase(),
+                  } as BulkUpdateStatusDetails)
+                : null
+            }
+            loading={bulkLoading}
+            loadingMessage="Updating keywords..."
+            successMessage="All keywords updated successfully!"
+            onConfirm={async () => {
+              if (pendingStatusAction) await runBulkStatus(pendingStatusAction);
+            }}
+          />
         )}
 
         {/* Remove Confirmation Modal */}

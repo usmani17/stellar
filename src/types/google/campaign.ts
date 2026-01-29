@@ -115,4 +115,6 @@ export interface IGoogleCampaignsTableProps {
     onEditCampaign?: (campaign: IGoogleCampaign) => void;
     editLoadingCampaignId?: string | number | null;
     isPanelOpen?: boolean; // When true, editable fields become read-only
+    /** Currency code for the currency column (e.g. USD, AUD, EUR). Shown before Impressions. */
+    currencyCode?: string;
 }

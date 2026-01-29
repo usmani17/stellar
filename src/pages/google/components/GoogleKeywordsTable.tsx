@@ -91,6 +91,7 @@ interface GoogleKeywordsTableProps {
   getStatusBadge: (status: string) => React.ReactElement;
   getMatchTypeLabel: (type?: string) => string;
   getSortIcon: (column: string) => React.ReactElement;
+  currencyCode?: string;
 }
 
 export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
@@ -126,6 +127,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
   formatPercentage,
   getStatusBadge,
   getSortIcon,
+  currencyCode,
 }) => {
   const navigate = useNavigate();
   const params = useParams<{ accountId: string }>();
@@ -367,18 +369,11 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       },
     },
     {
-      key: "spends",
-      label: "Cost",
-      type: "currency",
-      sortable: true,
-      getValue: (row: GoogleKeyword) => (row as any).spends || 0,
-    },
-    {
-      key: "sales",
-      label: "Conv. value",
-      type: "currency",
-      sortable: true,
-      getValue: (row: GoogleKeyword) => (row as any).sales || 0,
+      key: "currency",
+      label: "Currency",
+      type: "text",
+      sortable: false,
+      getValue: () => currencyCode ?? "—",
     },
     {
       key: "impressions",
@@ -395,11 +390,18 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       getValue: (row: GoogleKeyword) => (row as any).clicks || 0,
     },
     {
-      key: "ctr",
-      label: "CTR",
-      type: "percentage",
+      key: "spends",
+      label: "Cost",
+      type: "currency",
       sortable: true,
-      getValue: (row: GoogleKeyword) => (row as any).ctr || 0,
+      getValue: (row: GoogleKeyword) => (row as any).spends || 0,
+    },
+    {
+      key: "sales",
+      label: "Conv. value",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleKeyword) => (row as any).sales || 0,
     },
     {
       key: "roas",
@@ -409,11 +411,11 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       getValue: (row: GoogleKeyword) => (row as any).roas || 0,
     },
     {
-      key: "avg_cpc",
-      label: "Avg. CPC",
-      type: "currency",
+      key: "ctr",
+      label: "CTR",
+      type: "percentage",
       sortable: true,
-      getValue: (row: GoogleKeyword) => (row as any).avg_cpc || (row as any).cpc || 0,
+      getValue: (row: GoogleKeyword) => (row as any).ctr || 0,
     },
     {
       key: "conversions",
@@ -437,6 +439,13 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       getValue: (row: GoogleKeyword) => (row as any).cost_per_conversion || 0,
     },
     {
+      key: "avg_cpc",
+      label: "Avg. CPC",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleKeyword) => (row as any).avg_cpc || (row as any).cpc || 0,
+    },
+    {
       key: "avg_cost",
       label: "Avg. cost",
       type: "currency",
@@ -455,7 +464,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       sortable: true,
       getValue: (row: GoogleKeyword) => (row as any).interaction_rate || 0,
     },
-  ], [currentAccountId, navigate, onStartFinalUrlEdit]);
+  ], [currentAccountId, navigate, onStartFinalUrlEdit, currencyCode]);
 
   // Handle confirm inline edit - route to appropriate handler
   const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
@@ -547,6 +556,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       formatPercentage={formatPercentage}
       getStatusBadge={getStatusBadge}
       getSortIcon={getSortIcon}
+      currencyCode={currencyCode}
     />
   </>
   );

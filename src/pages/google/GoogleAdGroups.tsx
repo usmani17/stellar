@@ -29,7 +29,9 @@ import {
   getStatusWithDefault,
   formatStatusForDisplay,
   convertStatusToApi,
+  formatCurrency as formatCurrencyUtil,
 } from "./utils/googleAdsUtils";
+import { useGoogleProfiles } from "../../hooks/queries/useGoogleProfiles";
 
 // GoogleAdGroup interface is now imported from GoogleAdGroupsTable
 
@@ -37,6 +39,17 @@ export const GoogleAdGroups: React.FC = () => {
   const { accountId, channelId } = useParams<{ accountId: string; channelId: string }>();
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
+  const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+  const { data: profilesData } = useGoogleProfiles(channelIdNum);
+  const currencyCode = useMemo(() => {
+    const profiles = profilesData?.profiles || [];
+    const selected = profiles.find((p) => p.is_selected);
+    return selected?.currency_code || undefined;
+  }, [profilesData?.profiles]);
+  const formatCurrency = useCallback(
+    (value: number) => formatCurrencyUtil(value, currencyCode),
+    [currencyCode]
+  );
   const [adgroups, setAdgroups] = useState<GoogleAdGroup[]>([]);
   const [summary, setSummary] = useState<{
     total_adgroups: number;
@@ -1233,15 +1246,6 @@ export const GoogleAdGroups: React.FC = () => {
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
-
   const formatPercentage = (value: number) => {
     return `${value.toFixed(2)}%`;
   };
@@ -2353,6 +2357,7 @@ export const GoogleAdGroups: React.FC = () => {
                     formatPercentage={formatPercentage}
                     getStatusBadge={getStatusBadge}
                     getSortIcon={getSortIcon}
+                    currencyCode={currencyCode}
                   />
                 </div>
                 {loading && (

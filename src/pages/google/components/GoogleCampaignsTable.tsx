@@ -45,6 +45,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
   onEditCampaign,
   editLoadingCampaignId,
   isPanelOpen = false,
+  currencyCode,
 }) => {
   const navigate = useNavigate();
   const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
@@ -259,6 +260,13 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       },
     },
     {
+      key: "currency",
+      label: "Currency",
+      type: "text",
+      sortable: false,
+      getValue: () => currencyCode ?? "—",
+    },
+    {
       key: "impressions",
       label: "Impressions",
       type: "number",
@@ -340,7 +348,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       sortable: true,
       getValue: (row: IGoogleCampaign) => (row as any).interaction_rate || 0,
     },
-  ], [getChannelTypeLabel, accountId, navigate, onEditCampaign, editLoadingCampaignId]);
+  ], [getChannelTypeLabel, accountId, navigate, onEditCampaign, editLoadingCampaignId, currencyCode]);
 
   // Filter and sort columns based on visibility and order
   const columns: IColumnDefinition[] = useMemo(() => {
@@ -470,7 +478,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
         } : null}
         getId={(row: IGoogleCampaign) => row.campaign_id}
         getItemName={(row: IGoogleCampaign) => row.campaign_name || "Unnamed Campaign"}
-        emptyMessage='No campaigns found. Click "Sync Campaigns from Google Ads" to fetch campaigns.'
+        emptyMessage='No campaigns found.'
         loadingMessage="Loading campaigns..."
         onSelectAll={onSelectAll}
         onSelectItem={onSelectCampaign}
@@ -488,6 +496,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
         getStatusBadge={getStatusBadge}
         getSortIcon={getSortIcon}
         isPanelOpen={isPanelOpen}
+        currencyCode={currencyCode}
       />
       <ConfirmationModal
         isOpen={showRemoveConfirmation}

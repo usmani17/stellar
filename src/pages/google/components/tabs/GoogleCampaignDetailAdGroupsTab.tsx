@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Checkbox } from "../../../../components/ui/Checkbox";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
@@ -18,6 +18,12 @@ import {
 } from "../../utils/googleAdsUtils";
 import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal";
 import { TrashIcon } from "lucide-react";
+import {
+  BulkUpdateConfirmationModal,
+  type BulkUpdatePreviewRow,
+  type BulkUpdateActionDetails,
+  type BulkUpdateStatusDetails,
+} from "../BulkUpdateConfirmationModal";
 
 interface GoogleCampaignDetailAdGroupsTabProps {
   adgroups: GoogleAdGroup[];
@@ -55,6 +61,7 @@ interface GoogleCampaignDetailAdGroupsTabProps {
   channelId?: string;
   onBulkUpdateComplete?: () => void;
   createButton?: React.ReactNode;
+  createPanel?: React.ReactNode;
 }
 
 export const GoogleCampaignDetailAdGroupsTab: React.FC<
@@ -89,6 +96,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
   channelId,
   onBulkUpdateComplete,
   createButton,
+  createPanel,
 }) => {
   const [editingAdGroupId, setEditingAdGroupId] = useState<number | null>(null);
   const [editingField, setEditingField] = useState<"status" | "bid" | "name" | null>(
@@ -126,6 +134,145 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
     adgroupId: string | number;
     field: string;
   } | null>(null);
+
+  // Bulk edit state
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showBidPanel, setShowBidPanel] = useState(false);
+  const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLED" | "PAUSED" | null>(null);
+  const [showBulkConfirmationModal, setShowBulkConfirmationModal] = useState(false);
+  const [isBidChange, setIsBidChange] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
+  const [bidAction, setBidAction] = useState<"increase" | "decrease" | "set">("set");
+  const [bidUnit, setBidUnit] = useState<"percent" | "amount">("amount");
+  const [bidValue, setBidValue] = useState("");
+  const [upperLimit, setUpperLimit] = useState("");
+  const [lowerLimit, setLowerLimit] = useState("");
+  const bulkActionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (bulkActionsRef.current && !bulkActionsRef.current.contains(e.target as Node)) {
+        setShowBulkActions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const getSelectedAdgroupsData = () =>
+    adgroups.filter((ag) => selectedAdGroupIds.has(ag.id));
+  const selectableAdgroups = adgroups.filter(
+    (ag) => (ag.status || "").toUpperCase() !== "REMOVED"
+  );
+  const isAdGroupRemoved = (ag: { status?: string }) =>
+    (ag.status || "").toUpperCase() === "REMOVED";
+
+  const calculateNewBid = (currentBid: number): number => {
+    const valueNum = parseFloat(bidValue);
+    if (isNaN(valueNum)) return currentBid;
+    let newBid = currentBid;
+    if (bidAction === "increase") {
+      if (bidUnit === "percent") newBid = currentBid * (1 + valueNum / 100);
+      else newBid = currentBid + valueNum;
+      if (upperLimit) {
+        const upper = parseFloat(upperLimit);
+        if (!isNaN(upper)) newBid = Math.min(newBid, upper);
+      }
+    } else if (bidAction === "decrease") {
+      if (bidUnit === "percent") newBid = currentBid * (1 - valueNum / 100);
+      else newBid = currentBid - valueNum;
+      if (lowerLimit) {
+        const lower = parseFloat(lowerLimit);
+        if (!isNaN(lower)) newBid = Math.max(newBid, lower);
+      }
+    } else if (bidAction === "set") {
+      newBid = valueNum;
+    }
+    return Math.max(0, newBid);
+  };
+
+  const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
+    if (!accountId || !channelId || selectedAdGroupIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    const channelIdNum = parseInt(channelId, 10);
+    if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
+    const selectedData = getSelectedAdgroupsData();
+    const adgroupIds = selectedData.map((ag) => ag.adgroup_id);
+    try {
+      setBulkLoading(true);
+      setBulkUpdateResults(null);
+      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(
+        accountIdNum,
+        channelIdNum,
+        { adgroupIds, action: "status", status: statusValue }
+      );
+      setBulkUpdateResults({
+        updated: response.updated || 0,
+        failed: response.failed || 0,
+        errors: response.errors || [],
+      });
+      if (onBulkUpdateComplete) onBulkUpdateComplete();
+    } catch (error: any) {
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedAdGroupIds.size,
+        errors: [error?.response?.data?.error || error?.message || "Failed to update ad groups."],
+      });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const runBulkBid = async () => {
+    if (!accountId || !channelId || selectedAdGroupIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    const channelIdNum = parseInt(channelId, 10);
+    if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
+    const valueNum = parseFloat(bidValue);
+    if (isNaN(valueNum)) return;
+    const selectedData = getSelectedAdgroupsData();
+    const updates = selectedData.map((ag) => ({
+      adgroupId: ag.adgroup_id,
+      newBid: calculateNewBid(ag.cpc_bid_dollars || 0),
+    }));
+    try {
+      setBulkLoading(true);
+      setBulkUpdateResults(null);
+      let totalUpdated = 0;
+      let totalFailed = 0;
+      const allErrors: string[] = [];
+      for (const u of updates) {
+        try {
+          const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(
+            accountIdNum,
+            channelIdNum,
+            { adgroupIds: [u.adgroupId], action: "bid", bid: u.newBid }
+          );
+          if (response.updated) totalUpdated += response.updated;
+          if (response.failed) totalFailed += response.failed;
+          if (response.errors?.length) allErrors.push(...response.errors);
+        } catch (err: any) {
+          totalFailed += 1;
+          allErrors.push(err?.response?.data?.error || err?.message || "Failed");
+        }
+      }
+      setBulkUpdateResults({ updated: totalUpdated, failed: totalFailed, errors: allErrors });
+      if (onBulkUpdateComplete) onBulkUpdateComplete();
+    } catch (error: any) {
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedAdGroupIds.size,
+        errors: [error?.response?.data?.error || error?.message || "Failed to update bids."],
+      });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   const handleStatusClick = (adgroup: GoogleAdGroup) => {
     if (onUpdateAdGroupStatus) {
@@ -423,6 +570,68 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
         </h2>
         <div className="flex items-center gap-2">
           {createButton}
+          {/* Bulk Actions - only when accountId/channelId and onBulkUpdateComplete available */}
+          {accountId && channelId && onBulkUpdateComplete && (
+            <div className="relative" ref={bulkActionsRef}>
+              <Button
+                type="button"
+                variant="ghost"
+                className="edit-button"
+                onClick={() => setShowBulkActions((prev) => !prev)}
+              >
+                <svg
+                  className="w-5 h-5 text-[#072929]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                  />
+                </svg>
+                <span className="text-[10.64px] text-[#072929] font-normal">
+                  Bulk Actions
+                </span>
+              </Button>
+              {showBulkActions && (
+                <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                  <div className="overflow-y-auto">
+                    {[
+                      { value: "ENABLED", label: "Enable" },
+                      { value: "PAUSED", label: "Pause" },
+                      { value: "edit_bid", label: "Default max. CPC" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        disabled={selectedAdGroupIds.size === 0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (selectedAdGroupIds.size === 0) return;
+                          if (opt.value === "edit_bid") {
+                            setShowBidPanel(true);
+                            setShowBulkConfirmationModal(false);
+                          } else {
+                            setShowBidPanel(false);
+                            setPendingStatusAction(opt.value as "ENABLED" | "PAUSED");
+                            setIsBidChange(false);
+                            setShowBulkConfirmationModal(true);
+                          }
+                          setShowBulkActions(false);
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           <button
             onClick={onToggleFilterPanel}
             className="edit-button"
@@ -484,6 +693,133 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
         </div>
       </div>
 
+      {/* Create Panel - below create button */}
+      {createPanel}
+
+      {/* Bulk bid editor panel */}
+      {selectedAdGroupIds.size > 0 && showBidPanel && accountId && channelId && onBulkUpdateComplete && (
+        <div className="mb-4">
+          <div className="border border-gray-200 rounded-xl p-4 bg-[#f9f9f6]">
+            <div className="flex flex-wrap items-end gap-3 justify-between">
+              <div className="w-[160px]">
+                <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                  Action
+                </label>
+                <Dropdown
+                  options={[
+                    { value: "increase", label: "Increase By" },
+                    { value: "decrease", label: "Decrease By" },
+                    { value: "set", label: "Set To" },
+                  ]}
+                  value={bidAction}
+                  onChange={(val) => {
+                    const action = val as typeof bidAction;
+                    setBidAction(action);
+                    if (action === "set") setBidUnit("amount");
+                  }}
+                  buttonClassName="w-full bg-[#FEFEFB]"
+                  width="w-full"
+                />
+              </div>
+              {(bidAction === "increase" || bidAction === "decrease") && (
+                <div className="w-[140px]">
+                  <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                    Unit
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                        bidUnit === "percent" ? "bg-forest-f40 border-forest-f40" : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                      }`}
+                      onClick={() => setBidUnit("percent")}
+                    >
+                      %
+                    </button>
+                    <button
+                      type="button"
+                      className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                        bidUnit === "amount" ? "bg-forest-f40 border-forest-f40" : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                      }`}
+                      onClick={() => setBidUnit("amount")}
+                    >
+                      $
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="w-[160px]">
+                <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                  Value
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={bidValue}
+                    onChange={(e) => setBidValue(e.target.value)}
+                    className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
+                    {bidUnit === "percent" ? "%" : "$"}
+                  </span>
+                </div>
+              </div>
+              {bidAction === "increase" && (
+                <div className="w-[160px]">
+                  <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                    Upper Limit (optional)
+                  </label>
+                  <input
+                    type="number"
+                    value={upperLimit}
+                    onChange={(e) => setUpperLimit(e.target.value)}
+                    className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  />
+                </div>
+              )}
+              {bidAction === "decrease" && (
+                <div className="w-[160px]">
+                  <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                    Lower Limit (optional)
+                  </label>
+                  <input
+                    type="number"
+                    value={lowerLimit}
+                    onChange={(e) => setLowerLimit(e.target.value)}
+                    className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  />
+                </div>
+              )}
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBidPanel(false);
+                    setShowBulkActions(false);
+                  }}
+                  className="cancel-button"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!bidValue) return;
+                    setIsBidChange(true);
+                    setPendingStatusAction(null);
+                    setShowBulkConfirmationModal(true);
+                  }}
+                  disabled={bulkLoading || !bidValue}
+                  className="create-entity-button btn-sm"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filter Panel */}
       {isFilterPanelOpen && (
         <div className="mb-4">
@@ -544,10 +880,12 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={
-                          adgroups.length > 0 &&
-                          adgroups.every((ag) => selectedAdGroupIds.has(ag.id))
+                          selectableAdgroups.length > 0 &&
+                          selectableAdgroups.every((ag) => selectedAdGroupIds.has(ag.id))
                         }
-                        onChange={onSelectAll}
+                        onChange={(checked) =>
+                          selectableAdgroups.forEach((ag) => onSelectAdGroup(ag.id, checked))
+                        }
                         size="small"
                       />
                     </div>
@@ -661,8 +999,9 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                           <Checkbox
                             checked={selectedAdGroupIds.has(adgroup.id)}
                             onChange={(checked) =>
-                              onSelectAdGroup(adgroup.id, checked)
+                              !isAdGroupRemoved(adgroup) && onSelectAdGroup(adgroup.id, checked)
                             }
+                            disabled={isRemoved}
                             size="small"
                           />
                         </div>
@@ -1327,6 +1666,68 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
             </div>
           </div>
         </div>
+      )}
+
+      {/* Bulk confirmation modal - shared DRY component, full list */}
+      {accountId && channelId && onBulkUpdateComplete && (
+        <BulkUpdateConfirmationModal
+          isOpen={showBulkConfirmationModal}
+          onClose={() => {
+            setShowBulkConfirmationModal(false);
+            setPendingStatusAction(null);
+            setBulkUpdateResults(null);
+          }}
+          entityLabel="ad group"
+          entityNameColumn="Ad Group Name"
+          selectedCount={selectedAdGroupIds.size}
+          bulkUpdateResults={bulkUpdateResults}
+          isValueChange={isBidChange}
+          valueChangeLabel="Bid"
+          previewRows={(() => {
+            const selectedData = getSelectedAdgroupsData();
+            return selectedData.map((ag) => {
+              const oldBid = ag.cpc_bid_dollars || 0;
+              const oldStatus = formatStatusForDisplay(ag.status || "ENABLED");
+              const newBid = isBidChange ? calculateNewBid(oldBid) : oldBid;
+              const newStatus = pendingStatusAction
+                ? formatStatusForDisplay(pendingStatusAction)
+                : oldStatus;
+              return {
+                name: ag.adgroup_name || ag.name || "Unnamed Ad Group",
+                oldValue: isBidChange ? `$${oldBid.toFixed(2)}` : oldStatus,
+                newValue: isBidChange ? `$${newBid.toFixed(2)}` : newStatus,
+              } as BulkUpdatePreviewRow;
+            });
+          })()}
+          actionDetails={
+            !bulkUpdateResults
+              ? isBidChange
+                ? ({
+                    type: "value",
+                    action: bidAction,
+                    unit: bidUnit,
+                    value: bidValue,
+                    upperLimit,
+                    lowerLimit,
+                  } as BulkUpdateActionDetails)
+                : pendingStatusAction
+                ? ({
+                    type: "status",
+                    newStatus:
+                      pendingStatusAction.charAt(0) +
+                      pendingStatusAction.slice(1).toLowerCase(),
+                  } as BulkUpdateStatusDetails)
+                : null
+              : null
+          }
+          loading={bulkLoading}
+          loadingMessage="Updating ad groups..."
+          successMessage="All ad groups updated successfully!"
+          onConfirm={async () => {
+            if (isBidChange) await runBulkBid();
+            else if (pendingStatusAction) await runBulkStatus(pendingStatusAction);
+          }}
+        />
       )}
 
       {/* Remove Confirmation Modal */}
