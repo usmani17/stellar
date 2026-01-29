@@ -2666,7 +2666,7 @@ export const Campaigns: React.FC = () => {
                               setBudgetUnit("amount");
                             }
                           }}
-                          buttonClassName="w-full bg-[#FEFEFB]"
+                          buttonClassName="w-full bg-[#FEFEFB] edit-button"
                           width="w-full"
                         />
                       </div>
@@ -3642,42 +3642,42 @@ export const Campaigns: React.FC = () => {
                                           <input
                                             type="number"
                                             value={budgetValue}
-                                          onFocus={() => {
-                                            if (isArchived) return;
-                                            if (editingCell?.campaignId !== campaign.campaignId ||
-                                              editingCell?.field !== "budget") {
-                                              startInlineEdit(campaign, "budget");
+                                            onFocus={() => {
+                                              if (isArchived) return;
+                                              if (editingCell?.campaignId !== campaign.campaignId ||
+                                                editingCell?.field !== "budget") {
+                                                startInlineEdit(campaign, "budget");
+                                              }
+                                            }}
+                                            onChange={(e) => {
+                                              if (isArchived) return;
+                                              handleInlineEditChange(e.target.value);
+                                            }}
+                                            onBlur={(e) => {
+                                              if (isArchived) return;
+                                              const inputValue = e.target.value;
+                                              if (editingCell?.campaignId === campaign.campaignId &&
+                                                editingCell?.field === "budget") {
+                                                confirmInlineEdit(inputValue);
+                                              }
+                                            }}
+                                            onKeyDown={(e) => {
+                                              if (isArchived) return;
+                                              if (e.key === "Enter") {
+                                                e.currentTarget.blur();
+                                              } else if (e.key === "Escape") {
+                                                cancelInlineEdit();
+                                              }
+                                            }}
+                                            disabled={isArchived}
+                                            className={`inline-edit-input ${isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                              }`}
+                                            title={
+                                              isArchived
+                                                ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
+                                                : undefined
                                             }
-                                          }}
-                                          onChange={(e) => {
-                                            if (isArchived) return;
-                                            handleInlineEditChange(e.target.value);
-                                          }}
-                                          onBlur={(e) => {
-                                            if (isArchived) return;
-                                            const inputValue = e.target.value;
-                                            if (editingCell?.campaignId === campaign.campaignId &&
-                                              editingCell?.field === "budget") {
-                                              confirmInlineEdit(inputValue);
-                                            }
-                                          }}
-                                          onKeyDown={(e) => {
-                                            if (isArchived) return;
-                                            if (e.key === "Enter") {
-                                              e.currentTarget.blur();
-                                            } else if (e.key === "Escape") {
-                                              cancelInlineEdit();
-                                            }
-                                          }}
-                                          disabled={isArchived}
-                                          className={`inline-edit-input ${isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
-                                            }`}
-                                          title={
-                                            isArchived
-                                              ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
-                                              : undefined
-                                          }
-                                        />
+                                          />
                                         </div>
                                       );
                                     })()}
