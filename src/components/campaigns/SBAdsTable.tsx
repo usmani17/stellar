@@ -179,7 +179,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
             <thead>
               <tr className="bg-[#f5f5f0] border-b border-[#e8e8e3]">
                 {onSelectAll && (
-                  <th className="table-cell text-left">
+                  <th className="table-header text-left">
                     <Checkbox
                       checked={allSelected}
                       indeterminate={someSelected && !allSelected}
@@ -342,7 +342,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                             value={nameValue}
                             onFocus={() => {
                               if (editingField?.id !== ad.id ||
-                                  editingField?.field !== "name") {
+                                editingField?.field !== "name") {
                                 onEditStart?.(
                                   ad.id,
                                   "name",
@@ -382,30 +382,30 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                                   ? pendingChange.newValue === "enabled"
                                     ? "Enabled"
                                     : pendingChange.newValue === "paused"
-                                    ? "Paused"
-                                    : "Archived"
+                                      ? "Paused"
+                                      : "Archived"
                                   : statusValue}
                               </span>
                               <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
                             </div>
                           );
                         }
-                        
+
                         if (pendingChange?.id === ad.id &&
-                            pendingChange?.field === "status") {
+                          pendingChange?.field === "status") {
                           return (
                             <div className="flex items-center gap-2">
                               <span className="table-text leading-[1.26]">
                                 {pendingChange.newValue === "enabled"
                                   ? "Enabled"
                                   : pendingChange.newValue === "paused"
-                                  ? "Paused"
-                                  : "Archived"}
+                                    ? "Paused"
+                                    : "Archived"}
                               </span>
                             </div>
                           );
                         }
-                        
+
                         if (isArchived) {
                           return (
                             <div className="opacity-60">
@@ -413,22 +413,22 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                             </div>
                           );
                         }
-                        
+
                         const statusLower =
                           statusValue?.toLowerCase() || "enabled";
                         const statusValueNormalized =
                           statusLower === "enable" ||
-                          statusLower === "enabled"
+                            statusLower === "enabled"
                             ? "enabled"
                             : statusLower === "paused"
-                            ? "paused"
-                            : "archived";
-                        
+                              ? "paused"
+                              : "archived";
+
                         const currentValue = editingField?.id === ad.id &&
                           editingField?.field === "status"
                           ? editedValue
                           : statusValueNormalized;
-                        
+
                         return (
                           <Dropdown
                             options={[
@@ -440,7 +440,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                               const newValue = val as string;
                               const wasEditing = editingField?.id === ad.id &&
                                 editingField?.field === "status";
-                              
+
                               if (!wasEditing) {
                                 onEditStart?.(ad.id, "status", statusValueNormalized);
                               }

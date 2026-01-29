@@ -12,6 +12,8 @@ interface CampaignInformationProps {
   onEditEnd: (value?: string, field?: "budget" | "status" | "startDate" | "endDate") => void;
   onEditCancel: () => void;
   loading?: boolean;
+  /** When false, start date is read-only (e.g. Amazon campaign detail). Default true. */
+  canEditStartDate?: boolean;
 }
 
 export const CampaignInformation: React.FC<CampaignInformationProps> = ({
@@ -23,6 +25,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
   onEditEnd,
   onEditCancel,
   loading = false,
+  canEditStartDate = true,
 }) => {
   if (loading) {
     return (
@@ -181,47 +184,53 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
           </div>
         </div>
 
-        {/* Start Date */}
+        {/* Start Date - read-only for Amazon (canEditStartDate false) */}
         {campaignDetail.campaign.startDate && (
           <div className="flex flex-col gap-1">
             <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
               Start Date
             </label>
-            <input
-              type="date"
-              value={
-                editingField === "startDate"
-                  ? editedValue
-                  : toLocalDateString(new Date(campaignDetail.campaign.startDate + "T12:00:00"))
-              }
-              onFocus={() => {
-                if (editingField !== "startDate") {
-                  onEditField("startDate");
-                  onEditValueChange(
-                    toLocalDateString(new Date(campaignDetail.campaign.startDate + "T12:00:00")),
-                  );
+            {canEditStartDate ? (
+              <input
+                type="date"
+                value={
+                  editingField === "startDate"
+                    ? editedValue
+                    : toLocalDateString(new Date(campaignDetail.campaign.startDate + "T12:00:00"))
                 }
-              }}
-              onChange={(e) => {
-                onEditValueChange(e.target.value);
-              }}
-              onBlur={() => {
-                if (editingField === "startDate") {
-                  onEditEnd();
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.currentTarget.blur();
-                } else if (e.key === "Escape") {
-                  onEditCancel();
-                }
-              }}
-              className="inline-edit-input w-32"
-              style={{
-                width: "150px",
-              }}
-            />
+                onFocus={() => {
+                  if (editingField !== "startDate") {
+                    onEditField("startDate");
+                    onEditValueChange(
+                      toLocalDateString(new Date(campaignDetail.campaign.startDate + "T12:00:00")),
+                    );
+                  }
+                }}
+                onChange={(e) => {
+                  onEditValueChange(e.target.value);
+                }}
+                onBlur={() => {
+                  if (editingField === "startDate") {
+                    onEditEnd();
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  } else if (e.key === "Escape") {
+                    onEditCancel();
+                  }
+                }}
+                className="inline-edit-input w-32"
+                style={{
+                  width: "150px",
+                }}
+              />
+            ) : (
+              <div className="table-text leading-[1.26]">
+                {toLocalDateString(new Date(campaignDetail.campaign.startDate + "T12:00:00"))}
+              </div>
+            )}
           </div>
         )}
 

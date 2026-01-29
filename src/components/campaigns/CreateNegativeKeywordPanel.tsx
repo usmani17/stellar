@@ -307,6 +307,12 @@ export const CreateNegativeKeywordPanel: React.FC<
           Create Negative Keywords
         </h2>
 
+        {submitError && (
+          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+            {submitError}
+          </div>
+        )}
+
         {/* Single line inputs */}
         <div className="flex items-end gap-3">
           {/* Ad Group Dropdown */}

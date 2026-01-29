@@ -47,6 +47,8 @@ interface FilterPanelProps {
   accountId?: string;
   channelType?: "amazon" | "google" | "walmart" | "tiktok";
   useUppercaseState?: boolean;
+  /** When provided, overrides state/status options (e.g. for SD Negative Keywords: ["Paused", "Archived"]) */
+  stateOptions?: string[];
 }
 
 const DEFAULT_FILTER_FIELDS = [
@@ -123,6 +125,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   accountId,
   channelType,
   useUppercaseState = false,
+  stateOptions: stateOptionsProp,
 }) => {
   // Use initialFilters directly as the source of truth - no internal state sync
   // This prevents infinite loops when parent updates filters
@@ -277,13 +280,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       );
       if (existingFilter) {
         if (Array.isArray(existingFilter.value)) {
-          // Map profile names back to unique values
+          // Values are profile ids (option.value); support legacy profile names for backward compat
           const uniqueValues = existingFilter.value
-            .map((profileName: string) => {
-              const option = profileOptions.find(
-                (opt) => opt.profileName === profileName
-              );
-              return option?.value;
+            .map((val: string) => {
+              const byId = profileOptions.find((opt) => opt.value === val);
+              if (byId) return byId.value;
+              const byName = profileOptions.find((opt) => opt.profileName === val);
+              return byName?.value;
             })
             .filter((v): v is string => v !== undefined);
           if (uniqueValues.length > 0) {
@@ -439,18 +442,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         : filterValue;
 
     if (selectedField === "profile_name" && isProfileDropdown) {
+      // Store profile ids (option.value), not profile names, so CA/MX/US are distinguished
       if (isMultiSelectField && Array.isArray(selectedMultiValues)) {
-        // Convert array of unique values to array of profile names
-        filterValueToStore = selectedMultiValues.map((uniqueValue) => {
-          const option = profileOptions.find(
-            (opt) => opt.value === uniqueValue
-          );
-          return option?.profileName || uniqueValue;
-        });
+        filterValueToStore = [...selectedMultiValues];
       } else if (typeof filterValue === "string") {
-        // Convert single unique value to profile name
-        const option = profileOptions.find((opt) => opt.value === filterValue);
-        filterValueToStore = option?.profileName || filterValue;
+        filterValueToStore = filterValue;
       }
     }
 
@@ -539,6 +535,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     onApply(updatedFilters);
   };
 
+  const handleKeyDownForAdd = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddFilter();
+    }
+  };
+
   const handleClearAll = () => {
     setActiveFilters([]);
     onApply([]);
@@ -555,21 +558,21 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   };
 
   const getFilterDisplayValue = (filter: FilterItem) => {
-    // For profile_name filters, show label with country code if available
+    // For profile_name filters, value is profile id(s); show label (e.g. "TRICON TECH LLC (CA)")
     if (filter.field === "profile_name" && Array.isArray(filter.value)) {
       const displayValues = filter.value.map((val) => {
-        // val is profile name, find option by profileName
-        const option = profileOptions.find((opt) => opt.profileName === val);
-        return option ? option.label : val;
+        const option = profileOptions.find((opt) => opt.value === val);
+        if (option) return option.label;
+        const byName = profileOptions.find((opt) => opt.profileName === val);
+        return byName ? byName.label : val;
       });
       return displayValues.length > 0 ? displayValues.join(", ") : "";
     }
     if (filter.field === "profile_name" && typeof filter.value === "string") {
-      // filter.value is profile name, find option by profileName
-      const option = profileOptions.find(
-        (opt) => opt.profileName === filter.value
-      );
-      return option ? option.label : filter.value;
+      const option = profileOptions.find((opt) => opt.value === filter.value);
+      if (option) return option.label;
+      const byName = profileOptions.find((opt) => opt.profileName === filter.value);
+      return byName ? byName.label : filter.value;
     }
     // Handle array values for multi-select fields
     if (Array.isArray(filter.value)) {
@@ -836,9 +839,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               ) : isStateOrType ? (
                 <div className="max-h-[200px] overflow-y-auto border border-gray-200 rounded-lg bg-[#FEFEFB] p-2">
                   {(selectedField === "state"
-                    ? useUppercaseState
-                      ? STATUS_OPTIONS
-                      : STATE_OPTIONS
+                    ? channelType === "amazon"
+                      ? STATE_OPTIONS
+                      : useUppercaseState
+                        ? STATUS_OPTIONS
+                        : STATE_OPTIONS
                     : channelType === "tiktok"
                       ? TIKTOK_TYPE_OPTIONS
                       : TYPE_OPTIONS
@@ -949,10 +954,10 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   }))}
                   value={filterValue || undefined}
                   placeholder={`Select ${selectedField === "status"
-                      ? "Status"
-                      : selectedField === "match_type"
-                        ? "Match Type"
-                        : "Channel Type"
+                    ? "Status"
+                    : selectedField === "match_type"
+                      ? "Match Type"
+                      : "Channel Type"
                     }`}
                   onChange={(value) => setFilterValue(value)}
                   buttonClassName="edit-button w-full"
@@ -997,6 +1002,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                       onChange={(e) =>
                         setFilterValue(e.target.value.toUpperCase())
                       }
+                      onKeyDown={handleKeyDownForAdd}
                       placeholder="Enter ASIN (e.g., B08N5WRWNW)"
                       className={`w-full px-3 py-2 border rounded-lg text-[13.3px] bg-[#FEFEFB] ${filterValue && filterValue.length !== 10
                         ? "border-yellow-300"
@@ -1016,6 +1022,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   type="number"
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
+                  onKeyDown={handleKeyDownForAdd}
                   placeholder="Enter budget"
                   className="campaign-input w-full"
                 />
@@ -1024,6 +1031,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   type="text"
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
+                  onKeyDown={handleKeyDownForAdd}
                   placeholder="Enter value"
                   className="campaign-input w-full"
                 />

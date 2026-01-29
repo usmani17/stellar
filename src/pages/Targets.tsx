@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -27,8 +27,6 @@ import { Loader } from "../components/ui/Loader";
 export const Targets: React.FC = () => {
   const navigate = useNavigate();
   const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
-  const [searchParams] = useSearchParams();
-  const profileId = searchParams.get("profile_id") ?? undefined;
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
   const [targets, setTargets] = useState<Target[]>([]);
@@ -133,6 +131,20 @@ export const Targets: React.FC = () => {
     isOpen: boolean;
     message: string;
   }>({ isOpen: false, message: "" });
+
+  // Profile filter: derive profileId from filters (same as other filters; no URL sync)
+  const profileId = useMemo(() => {
+    const f = filters.find((x) => x.field === "profile_name");
+    if (!f || f.value == null || f.value === "") return null;
+    const v = Array.isArray(f.value)
+      ? f.value.length === 1
+        ? f.value[0]
+        : null
+      : f.value;
+    if (v == null || v === "" || String(v).toLowerCase() === "false")
+      return null;
+    return String(v);
+  }, [filters]);
 
   // Bulk actions state
   const [showBulkActions, setShowBulkActions] = useState(false);
@@ -273,7 +285,9 @@ export const Targets: React.FC = () => {
         };
         params.state = stateMap[filter.value as string] || filter.value;
       } else if (filter.field === "type") {
-        params.type = filter.value;
+        // Type filter can be array from multi-select; backend expects single value (SP/SB/SD)
+        const v = filter.value;
+        params.type = Array.isArray(v) ? v[0] : v;
       } else if (filter.field === "campaign_name") {
         if (filter.operator === "contains") {
           params.campaign_name__icontains = filter.value;
@@ -281,6 +295,14 @@ export const Targets: React.FC = () => {
           params.campaign_name__not_icontains = filter.value;
         } else if (filter.operator === "equals") {
           params.campaign_name = filter.value;
+        }
+      } else if (filter.field === "adgroup_name") {
+        if (filter.operator === "contains") {
+          params.adgroup_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.adgroup_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.adgroup_name = filter.value;
         }
       } else if (filter.field === "profile_name") {
         if (filter.operator === "contains") {
@@ -578,10 +600,10 @@ export const Targets: React.FC = () => {
         statusLower === "enable" || statusLower === "enabled"
           ? "Enabled"
           : statusLower === "paused"
-          ? "Paused"
-          : statusLower === "archived"
-          ? "Archived"
-          : "Enabled";
+            ? "Paused"
+            : statusLower === "archived"
+              ? "Archived"
+              : "Enabled";
       setEditedValue(normalizedStatus);
     }
   };
@@ -599,7 +621,7 @@ export const Targets: React.FC = () => {
     // Use override parameters if provided, otherwise fall back to editingCell state
     const targetIdToUse = targetIdOverride || editingCell?.targetId;
     const fieldToUse = fieldOverride || editingCell?.field;
-    
+
     if (!targetIdToUse || !fieldToUse || !accountId) return;
 
     const target = targets.find(
@@ -1011,7 +1033,7 @@ export const Targets: React.FC = () => {
                 isOpen={isFilterPanelOpen}
                 onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                 filters={filters}
-                onApply={() => {}} // Not used - FilterSectionPanel handles onApply
+                onApply={() => { }} // Not used - FilterSectionPanel handles onApply
                 filterFields={TARGET_FILTER_FIELDS}
                 initialFilters={filters}
               />
@@ -1025,7 +1047,6 @@ export const Targets: React.FC = () => {
               onApply={(newFilters) => {
                 setFilters(newFilters);
                 setCurrentPage(1); // Reset to first page when applying filters
-                // useEffect will handle the API call when filters change
               }}
               filterFields={TARGET_FILTER_FIELDS}
               initialFilters={filters}
@@ -1258,7 +1279,7 @@ export const Targets: React.FC = () => {
                             setBidUnit("amount");
                           }
                         }}
-                        buttonClassName="w-full bg-[#FEFEFB]"
+                        buttonClassName="w-full bg-[#FEFEFB] edit-button"
                         width="w-full"
                       />
                     </div>
@@ -1270,22 +1291,20 @@ export const Targets: React.FC = () => {
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                              bidUnit === "percent"
+                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "percent"
                                 ? "bg-forest-f40  border-forest-f40"
                                 : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-100"
-                            }`}
+                              }`}
                             onClick={() => setBidUnit("percent")}
                           >
                             %
                           </button>
                           <button
                             type="button"
-                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                              bidUnit === "amount"
+                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "amount"
                                 ? "bg-forest-f40  border-forest-f40"
                                 : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-100"
-                            }`}
+                              }`}
                             onClick={() => setBidUnit("amount")}
                           >
                             $
@@ -1415,9 +1434,8 @@ export const Targets: React.FC = () => {
                           <span className="text-[10.64px] text-[#556179]">
                             {hasMore
                               ? `Showing ${previewCount} of ${selectedTargetsData.length} selected targets`
-                              : `${selectedTargetsData.length} target${
-                                  selectedTargetsData.length !== 1 ? "s" : ""
-                                } selected`}
+                              : `${selectedTargetsData.length} target${selectedTargetsData.length !== 1 ? "s" : ""
+                              } selected`}
                           </span>
                         </div>
                         <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -1531,7 +1549,7 @@ export const Targets: React.FC = () => {
                           className={`table-header min-w-[115px]`}
                           onClick={() => handleSort("status")}
                         >
-                          <div className="flex items-center gap-1"> 
+                          <div className="flex items-center gap-1">
                             State
                             {getSortIcon("status")}
                           </div>
@@ -1674,43 +1692,44 @@ export const Targets: React.FC = () => {
                         ))
                       ) : (
                         <>
-                          {/* Summary Row */}
+                          {/* Summary Row - match Campaigns: explicit bg so ROAS and all cells show #f5f5f0 */}
                           {summary && (
                             <tr className="table-summary-row">
-                              <td className="table-cell"></td>
-                              <td className="table-cell table-text leading-[1.26]">
+                              <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]" data-summary-col="checkbox" />
+                              <td className="table-cell table-sticky-first-column font-medium bg-[#f5f5f0]" data-summary-col="name">
                                 Total ({summary.total_targets})
                               </td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell table-text leading-[1.26]">
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="state">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="bid">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="adgroup_name">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="campaign_name">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="profile">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="country">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="currency">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="type">—</td>
+                              <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="spends">
                                 {formatCurrency(
                                   summary.total_spends,
                                   targets[0]?.profile_currency_code
                                 )}
                               </td>
-                              <td className="table-cell table-text leading-[1.26]">
+                              <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="sales">
                                 {formatCurrency(
                                   summary.total_sales,
                                   targets[0]?.profile_currency_code
                                 )}
                               </td>
-                              <td className="table-cell table-text leading-[1.26]">
+                              <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="impressions">
                                 {summary.total_impressions.toLocaleString()}
                               </td>
-                              <td className="table-cell table-text leading-[1.26]">
+                              <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="clicks">
                                 {summary.total_clicks.toLocaleString()}
                               </td>
-                              <td className="table-cell"></td>
-                              <td className="table-cell table-text leading-[1.26]">
+                              <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="ctr">—</td>
+                              <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="acos">
                                 {summary.avg_acos.toFixed(2)}%
                               </td>
-                              <td className="table-cell table-text leading-[1.26]">
+                              <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="roas">
                                 {summary.avg_roas.toFixed(2)}
                               </td>
                             </tr>
@@ -1722,13 +1741,11 @@ export const Targets: React.FC = () => {
                             return (
                               <tr
                                 key={target.id}
-                                className={`${
-                                  !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                                } ${
-                                  isArchived
+                                className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
+                                  } ${isArchived
                                     ? "bg-gray-100 opacity-60"
                                     : "hover:bg-gray-100"
-                                } transition-colors`}
+                                  } transition-colors`}
                               >
                                 {/* Checkbox */}
                                 <td className="table-cell">
@@ -1771,9 +1788,9 @@ export const Targets: React.FC = () => {
                                   {(() => {
                                     const currentStatus = (
                                       target.status || "Enabled"
-                                    ).toLowerCase();  
+                                    ).toLowerCase();
                                     const isArchived = currentStatus === "archived";
-                                    
+
                                     if (isArchived) {
                                       return (
                                         <div className="opacity-60">
@@ -1783,23 +1800,23 @@ export const Targets: React.FC = () => {
                                         </div>
                                       );
                                     }
-                                    
+
                                     const statusLower = (
                                       target.status || "Enabled"
                                     ).toLowerCase();
                                     const normalizedStatus =
                                       statusLower === "enable" ||
-                                      statusLower === "enabled"
+                                        statusLower === "enabled"
                                         ? "Enabled"
                                         : statusLower === "paused"
-                                        ? "Paused"
-                                        : "Enabled";
-                                    
+                                          ? "Paused"
+                                          : "Enabled";
+
                                     const statusValue = editingCell?.targetId === target.targetId &&
                                       editingCell?.field === "status"
                                       ? editedValue
                                       : normalizedStatus;
-                                    
+
                                     return (
                                       <Dropdown
                                         options={[
@@ -1815,7 +1832,7 @@ export const Targets: React.FC = () => {
                                           const newValue = val as string;
                                           const wasEditing = editingCell?.targetId === target.targetId &&
                                             editingCell?.field === "status";
-                                          
+
                                           if (!wasEditing) {
                                             startInlineEdit(target, "status");
                                             // Pass target ID and field directly to avoid state timing issues
@@ -1843,16 +1860,16 @@ export const Targets: React.FC = () => {
                                       target.status || "Enabled"
                                     ).toLowerCase();
                                     const isArchived = currentStatus === "archived";
-                                    
+
                                     const bidValue = parseFloat(
                                       (typeof target.bid === "number" ? String(target.bid) : (target.bid || "$0.00")).replace(/[^0-9.]/g, "")
                                     );
-                                    
+
                                     const inputValue = editingCell?.targetId === (target.targetId || target.id) &&
                                       editingCell?.field === "bid"
                                       ? editedValue
                                       : bidValue.toString();
-                                    
+
                                     const currencyCode = (target.profile_currency_code || "USD").trim() || "USD";
                                     return (
                                       <div className="flex items-center gap-1.5">
@@ -1864,8 +1881,8 @@ export const Targets: React.FC = () => {
                                           value={inputValue}
                                           onFocus={() => {
                                             if (!isArchived &&
-                                                (editingCell?.targetId !== (target.targetId || target.id) ||
-                                                 editingCell?.field !== "bid")) {
+                                              (editingCell?.targetId !== (target.targetId || target.id) ||
+                                                editingCell?.field !== "bid")) {
                                               startInlineEdit(target, "bid");
                                             }
                                           }}
@@ -1877,7 +1894,7 @@ export const Targets: React.FC = () => {
                                             if (isArchived) return;
                                             const inputValue = e.target.value;
                                             if (editingCell?.targetId === (target.targetId || target.id) &&
-                                                editingCell?.field === "bid") {
+                                              editingCell?.field === "bid") {
                                               confirmInlineEdit(inputValue);
                                             }
                                           }}
@@ -1890,14 +1907,13 @@ export const Targets: React.FC = () => {
                                             }
                                           }}
                                           disabled={isArchived}
-                                          className={`inline-edit-input ${
-                                            isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
-                                          }`}
+                                          className={`inline-edit-input ${isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                            }`}
                                           title={
                                             isArchived
-                                            ? "Archived targets cannot be modified"
-                                            : undefined
-                                        }
+                                              ? "Archived targets cannot be modified"
+                                              : undefined
+                                          }
                                         />
                                       </div>
                                     );
@@ -1922,8 +1938,7 @@ export const Targets: React.FC = () => {
                                             channelId ?? 0,
                                             "amazon",
                                             "campaigns",
-                                            `${
-                                              target.type?.toLowerCase() || "sp"
+                                            `${target.type?.toLowerCase() || "sp"
                                             }_${target.campaignId}`
                                           )
                                         );
@@ -1939,7 +1954,7 @@ export const Targets: React.FC = () => {
                                 <td className="table-cell min-w-[150px]">
                                   <span className="table-text leading-[1.26] whitespace-nowrap">
                                     {target.profile_name &&
-                                    target.profile_name.trim() !== ""
+                                      target.profile_name.trim() !== ""
                                       ? target.profile_name
                                       : "—"}
                                   </span>
@@ -1949,7 +1964,7 @@ export const Targets: React.FC = () => {
                                 <td className="table-cell min-w-[100px]">
                                   <span className="table-text leading-[1.26] whitespace-nowrap">
                                     {target.profile_country_code &&
-                                    target.profile_country_code.trim() !== ""
+                                      target.profile_country_code.trim() !== ""
                                       ? target.profile_country_code
                                       : "—"}
                                   </span>
@@ -1959,7 +1974,7 @@ export const Targets: React.FC = () => {
                                 <td className="table-cell min-w-[80px]">
                                   <span className="table-text leading-[1.26] whitespace-nowrap">
                                     {target.profile_currency_code &&
-                                    target.profile_currency_code.trim() !== ""
+                                      target.profile_currency_code.trim() !== ""
                                       ? target.profile_currency_code
                                       : "—"}
                                   </span>
@@ -2027,8 +2042,8 @@ export const Targets: React.FC = () => {
                                   <span className="table-text leading-[1.26]">
                                     {target.roas
                                       ? `${parseFloat(target.roas).toFixed(
-                                          2
-                                        )}`
+                                        2
+                                      )}`
                                       : "0.00"}
                                   </span>
                                 </td>
@@ -2079,11 +2094,10 @@ export const Targets: React.FC = () => {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                          currentPage === pageNum
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
                             ? "bg-white text-[#136D6D] font-semibold"
                             : "text-black hover:bg-gray-100"
-                        }`}
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -2097,11 +2111,10 @@ export const Targets: React.FC = () => {
                   {totalPages > 5 && (
                     <button
                       onClick={() => handlePageChange(totalPages)}
-                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                        currentPage === totalPages
+                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
                           ? "bg-white text-[#136D6D] font-semibold"
                           : "text-black hover:bg-gray-100"
-                      }`}
+                        }`}
                     >
                       {totalPages}
                     </button>
@@ -2144,8 +2157,8 @@ export const Targets: React.FC = () => {
                 {inlineEditField === "status"
                   ? "State"
                   : inlineEditField === "bid"
-                  ? "Bid"
-                  : "Field"}{" "}
+                    ? "Bid"
+                    : "Field"}{" "}
                 will be updated:
               </p>
               <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-3">

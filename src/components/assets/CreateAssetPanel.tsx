@@ -67,6 +67,20 @@ const VIDEO_SUBTYPE_OPTIONS = [
   { value: "BACKGROUND_VIDEO", label: "Background Video" },
 ];
 
+function generateDefaultAssetName(assetType: "IMAGE" | "VIDEO"): string {
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, "0");
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const year = now.getFullYear();
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+  const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
+  const dateTime = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+  const typeLabel = assetType === "IMAGE" ? "Image" : "Video";
+  return `${typeLabel} Asset - ${dateTime}`;
+}
+
 export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
   isOpen,
   onClose,
@@ -79,7 +93,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
   fieldErrors = {},
 }) => {
   const [assetData, setAssetData] = useState<AssetInput>({
-    assetName: "",
+    assetName: generateDefaultAssetName("IMAGE"),
     assetType: "IMAGE",
     assetSubTypeList: ["LOGO"],
     brandEntityId: initialBrandEntityId,
@@ -107,6 +121,16 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
       loadBrandEntities();
     }
   }, [isOpen, accountId, profileId]);
+
+  // Auto-generate asset name when panel opens (same pattern as campaign / ad group)
+  useEffect(() => {
+    if (isOpen) {
+      setAssetData((prev) => ({
+        ...prev,
+        assetName: generateDefaultAssetName(prev.assetType),
+      }));
+    }
+  }, [isOpen]);
 
   const loadBrandEntities = async () => {
     if (!accountId) return;
@@ -141,8 +165,9 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     setAssetData((prev) => {
       const updated = { ...prev, [field]: value };
 
-      // When assetType changes, update assetSubTypeList to valid options
+      // When assetType changes, update assetSubTypeList and auto-generate asset name
       if (field === "assetType") {
+        updated.assetName = generateDefaultAssetName(value as "IMAGE" | "VIDEO");
         if (value === "IMAGE") {
           updated.assetSubTypeList = ["LOGO"]; // Default to LOGO for IMAGE
         } else if (value === "VIDEO") {
@@ -504,7 +529,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
 
   const handleCancel = () => {
     setAssetData({
-      assetName: "",
+      assetName: generateDefaultAssetName("IMAGE"),
       assetType: "IMAGE",
       assetSubTypeList: ["LOGO"],
       brandEntityId: initialBrandEntityId,

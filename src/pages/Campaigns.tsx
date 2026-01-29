@@ -5,7 +5,7 @@ import React, {
   useRef,
   useCallback,
 } from "react";
-import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -53,8 +53,6 @@ import type { FilterDefinition } from "../types/filters";
 export const Campaigns: React.FC = () => {
   const navigate = useNavigate();
   const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
-  const [searchParams] = useSearchParams();
-  const profileId = searchParams.get("profile_id") ?? undefined;
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
   const { sidebarWidth } = useSidebar();
 
@@ -67,6 +65,20 @@ export const Campaigns: React.FC = () => {
   const [sortBy, setSortBy] = useState<string>("sales");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [filters, setFilters] = useState<FilterValues>([]);
+
+  // Profile filter: derive profileId from filters (same as other filters; no URL sync)
+  const profileId = useMemo(() => {
+    const f = filters.find((x) => x.field === "profile_name");
+    if (!f || f.value == null || f.value === "") return null;
+    const v = Array.isArray(f.value)
+      ? f.value.length === 1
+        ? f.value[0]
+        : null
+      : f.value;
+    if (v == null || v === "" || String(v).toLowerCase() === "false")
+      return null;
+    return String(v);
+  }, [filters]);
   const [searchQuery, setSearchQuery] = useState<string>(""); // For input field and client-side filtering
   const [apiSearchQuery, setApiSearchQuery] = useState<string>(""); // For backend API calls
 
@@ -630,9 +642,6 @@ export const Campaigns: React.FC = () => {
     }
   }, [accountIdNum]);
 
-  // React Query handles data loading automatically
-  // No need for manual loadCampaigns functions
-
   const handleSort = (column: string) => {
     if (sortBy === column) {
       // Toggle order if clicking the same column
@@ -958,7 +967,13 @@ export const Campaigns: React.FC = () => {
             onClick: () => {
               setErrorModal({ isOpen: false, message: "" });
               navigate(
-                `/brands/${accountIdNum}/campaigns/${campaignTypeAndId}`
+                buildMarketplaceRoute(
+                  accountIdNum!,
+                  channelId ?? 0,
+                  "amazon",
+                  "campaigns",
+                  campaignTypeAndId
+                )
               );
             },
           },
@@ -2367,7 +2382,6 @@ export const Campaigns: React.FC = () => {
               onApply={(newFilters) => {
                 setFilters(newFilters);
                 setCurrentPage(1); // Reset to first page when applying filters
-                // useEffect will handle the API call when filters change
               }}
               filterFields={CAMPAIGN_FILTER_FIELDS}
               initialFilters={filters}
@@ -2658,7 +2672,7 @@ export const Campaigns: React.FC = () => {
                               setBudgetUnit("amount");
                             }
                           }}
-                          buttonClassName="w-full bg-[#FEFEFB]"
+                          buttonClassName="w-full bg-[#FEFEFB] edit-button"
                           width="w-full"
                         />
                       </div>
@@ -2769,8 +2783,9 @@ export const Campaigns: React.FC = () => {
                 <div
                   className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
                   onClick={(e) => {
-                    if (e.target === e.currentTarget) {
+                    if (e.target === e.currentTarget && !bulkLoading) {
                       setShowConfirmationModal(false);
+                      setPendingStatusAction(null);
                     }
                   }}
                 >
@@ -2959,9 +2974,11 @@ export const Campaigns: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => {
+                          if (bulkLoading) return;
                           setShowConfirmationModal(false);
                           setPendingStatusAction(null);
                         }}
+                        disabled={bulkLoading}
                         className="cancel-button"
                       >
                         Cancel
@@ -2969,21 +2986,32 @@ export const Campaigns: React.FC = () => {
                       <button
                         type="button"
                         onClick={async () => {
-                          setShowConfirmationModal(false);
-                          if (isBudgetChange) {
-                            await runBulkBudget();
-                            setShowBudgetPanel(false);
-                            setShowBulkActions(false);
-                          } else if (pendingStatusAction) {
-                            await runBulkStatus(pendingStatusAction);
-                            setShowBulkActions(false);
+                          if (bulkLoading) return;
+                          try {
+                            if (isBudgetChange) {
+                              await runBulkBudget();
+                              setShowBudgetPanel(false);
+                              setShowBulkActions(false);
+                            } else if (pendingStatusAction) {
+                              await runBulkStatus(pendingStatusAction);
+                              setShowBulkActions(false);
+                            }
+                          } finally {
+                            setShowConfirmationModal(false);
+                            setPendingStatusAction(null);
                           }
-                          setPendingStatusAction(null);
                         }}
                         disabled={bulkLoading}
-                        className="create-entity-button btn-sm"
+                        className="create-entity-button btn-sm flex items-center gap-2"
                       >
-                        {bulkLoading ? "Applying..." : "Confirm"}
+                        {bulkLoading ? (
+                          <>
+                            <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Applying...
+                          </>
+                        ) : (
+                          "Confirm"
+                        )}
                       </button>
                     </div>
                   </div>
@@ -3634,42 +3662,42 @@ export const Campaigns: React.FC = () => {
                                           <input
                                             type="number"
                                             value={budgetValue}
-                                          onFocus={() => {
-                                            if (isArchived) return;
-                                            if (editingCell?.campaignId !== campaign.campaignId ||
-                                              editingCell?.field !== "budget") {
-                                              startInlineEdit(campaign, "budget");
+                                            onFocus={() => {
+                                              if (isArchived) return;
+                                              if (editingCell?.campaignId !== campaign.campaignId ||
+                                                editingCell?.field !== "budget") {
+                                                startInlineEdit(campaign, "budget");
+                                              }
+                                            }}
+                                            onChange={(e) => {
+                                              if (isArchived) return;
+                                              handleInlineEditChange(e.target.value);
+                                            }}
+                                            onBlur={(e) => {
+                                              if (isArchived) return;
+                                              const inputValue = e.target.value;
+                                              if (editingCell?.campaignId === campaign.campaignId &&
+                                                editingCell?.field === "budget") {
+                                                confirmInlineEdit(inputValue);
+                                              }
+                                            }}
+                                            onKeyDown={(e) => {
+                                              if (isArchived) return;
+                                              if (e.key === "Enter") {
+                                                e.currentTarget.blur();
+                                              } else if (e.key === "Escape") {
+                                                cancelInlineEdit();
+                                              }
+                                            }}
+                                            disabled={isArchived}
+                                            className={`inline-edit-input ${isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                              }`}
+                                            title={
+                                              isArchived
+                                                ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
+                                                : undefined
                                             }
-                                          }}
-                                          onChange={(e) => {
-                                            if (isArchived) return;
-                                            handleInlineEditChange(e.target.value);
-                                          }}
-                                          onBlur={(e) => {
-                                            if (isArchived) return;
-                                            const inputValue = e.target.value;
-                                            if (editingCell?.campaignId === campaign.campaignId &&
-                                              editingCell?.field === "budget") {
-                                              confirmInlineEdit(inputValue);
-                                            }
-                                          }}
-                                          onKeyDown={(e) => {
-                                            if (isArchived) return;
-                                            if (e.key === "Enter") {
-                                              e.currentTarget.blur();
-                                            } else if (e.key === "Escape") {
-                                              cancelInlineEdit();
-                                            }
-                                          }}
-                                          disabled={isArchived}
-                                          className={`inline-edit-input ${isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
-                                            }`}
-                                          title={
-                                            isArchived
-                                              ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
-                                              : undefined
-                                          }
-                                        />
+                                          />
                                         </div>
                                       );
                                     })()}

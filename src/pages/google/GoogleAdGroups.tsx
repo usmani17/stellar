@@ -285,7 +285,7 @@ export const GoogleAdGroups: React.FC = () => {
     if (!channelId || isNaN(channelId)) {
       throw new Error(`Invalid channelId: ${channelId}. channelId must be a valid number.`);
     }
-    
+
     // Prevent duplicate concurrent calls
     if (isLoadingRef.current) {
       return;
@@ -586,11 +586,11 @@ export const GoogleAdGroups: React.FC = () => {
     if (adgroupIdParam && fieldKey && (fieldKey === "bid" || fieldKey === "adgroup_name" || fieldKey === "status" || fieldKey === "name")) {
       const adgroup = adgroups.find((a) => a.adgroup_id === adgroupIdParam);
       if (!adgroup) return;
-      
+
       const valueToCheck = newValueOverride !== undefined ? newValueOverride : editedValue;
       let oldValue = "";
       let newValue = valueToCheck.trim();
-      
+
       if (fieldKey === "bid") {
         const newBid = parseFloat(valueToCheck) || 0;
         const oldBid = adgroup.cpc_bid_dollars || 0;
@@ -600,7 +600,7 @@ export const GoogleAdGroups: React.FC = () => {
         oldValue = formatStatusForDisplay(adgroup.status);
         const newStatusRaw = valueToCheck.trim();
         newValue = formatStatusForDisplay(newStatusRaw);
-        
+
         // Check if status is being changed to REMOVED - show confirmation modal
         if (newStatusRaw.toUpperCase() === "REMOVED") {
           // Close the dropdown immediately when modal appears
@@ -613,7 +613,7 @@ export const GoogleAdGroups: React.FC = () => {
         oldValue = adgroup.adgroup_name || adgroup.name || "";
         newValue = valueToCheck.trim();
       }
-      
+
       setInlineEditAdGroup(adgroup);
       setInlineEditField(fieldKey === "adgroup_name" ? "name" : fieldKey);
       setInlineEditOldValue(oldValue);
@@ -648,7 +648,7 @@ export const GoogleAdGroups: React.FC = () => {
       const oldValue = getStatusWithDefault(adgroup.status).trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
-      
+
       // For status changes, show modal
       if (hasChanged) {
         // Check if status is being changed to REMOVED - show confirmation modal
@@ -659,11 +659,11 @@ export const GoogleAdGroups: React.FC = () => {
           setShowRemoveConfirmation(true);
           return;
         }
-        
+
         // Format status values for display
         const oldValueDisplay = formatStatusForDisplay(oldValue);
         const newValueDisplay = formatStatusForDisplay(newValue);
-        
+
         setInlineEditAdGroup(adgroup);
         setInlineEditField("status");
         setInlineEditOldValue(oldValueDisplay);
@@ -687,7 +687,7 @@ export const GoogleAdGroups: React.FC = () => {
     if (editingCell.field === "bid") {
       const newBid = parseFloat(valueToCheck) || 0;
       const oldBid = adgroup.cpc_bid_dollars || 0;
-      
+
       setInlineEditAdGroup(adgroup);
       setInlineEditField("bid");
       setInlineEditOldValue(formatCurrency(oldBid));
@@ -698,7 +698,7 @@ export const GoogleAdGroups: React.FC = () => {
     } else if (editingCell.field === "name" || editingCell.field === "adgroup_name") {
       const oldValue = (adgroup.adgroup_name || adgroup.name || "").trim();
       const newValue = valueToCheck.trim();
-      
+
       setInlineEditAdGroup(adgroup);
       setInlineEditField("name");
       setInlineEditOldValue(oldValue);
@@ -734,13 +734,13 @@ export const GoogleAdGroups: React.FC = () => {
       if (channelIdNum && !isNaN(channelIdNum)) {
         await loadAdgroups(accountIdNum, channelIdNum);
       }
-      
+
       setShowRemoveConfirmation(false);
       setPendingRemoveChange(null);
-      
+
       // Clear any previous errors
       setInlineEditError(null);
-      
+
       // Show success feedback
       setInlineEditSuccess({
         adgroupId: pendingRemoveChange.adgroupId,
@@ -748,13 +748,13 @@ export const GoogleAdGroups: React.FC = () => {
       });
     } catch (error: any) {
       console.error("Failed to remove adgroup:", error);
-      
+
       // Clear any previous success
       setInlineEditSuccess(null);
-      
+
       // Set error state for inline feedback
       let errorMessage = "Failed to remove adgroup. Please try again.";
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (error?.response?.data) {
@@ -768,7 +768,7 @@ export const GoogleAdGroups: React.FC = () => {
           errorMessage = error.response.data.errors[0].replace(/^AdGroup\s+\d+:\s*/i, "");
         }
       }
-      
+
       setInlineEditError({
         adgroupId: pendingRemoveChange.adgroupId,
         field: "status",
@@ -807,10 +807,10 @@ export const GoogleAdGroups: React.FC = () => {
           throw new Error("Invalid bid value");
         }
         const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
           adgroupIds: [inlineEditAdGroup.adgroup_id],
           action: "bid",
           bid: bidValue,
@@ -818,10 +818,10 @@ export const GoogleAdGroups: React.FC = () => {
       } else if (inlineEditField === "status") {
         const statusValue = convertStatusToApi(inlineEditNewValue);
         const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
           adgroupIds: [inlineEditAdGroup.adgroup_id],
           action: "status",
           status: statusValue,
@@ -832,10 +832,10 @@ export const GoogleAdGroups: React.FC = () => {
           throw new Error("Ad group name cannot be empty");
         }
         const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
           adgroupIds: [inlineEditAdGroup.adgroup_id],
           action: "name",
           name: trimmedName,
@@ -846,16 +846,16 @@ export const GoogleAdGroups: React.FC = () => {
       if (channelIdNum && !isNaN(channelIdNum)) {
         await loadAdgroups(accountIdNum, channelIdNum);
       }
-      
+
       setShowInlineEditModal(false);
       setInlineEditAdGroup(null);
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
-      
+
       // Clear any previous errors
       setInlineEditError(null);
-      
+
       // Show success feedback
       setInlineEditSuccess({
         adgroupId: inlineEditAdGroup.adgroup_id,
@@ -864,13 +864,13 @@ export const GoogleAdGroups: React.FC = () => {
       // Clear success feedback after 3 seconds
     } catch (error: any) {
       console.error("Failed to update adgroup:", error);
-      
+
       // Clear any previous success
       setInlineEditSuccess(null);
-      
+
       // Set error state for inline feedback
       let errorMessage = "Failed to update adgroup. Please try again.";
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (error?.response?.data) {
@@ -884,7 +884,7 @@ export const GoogleAdGroups: React.FC = () => {
           errorMessage = error.response.data.errors[0].replace(/^AdGroup\s+\d+:\s*/i, "");
         }
       }
-      
+
       setInlineEditError({
         adgroupId: inlineEditAdGroup.adgroup_id,
         field: inlineEditField,
@@ -904,7 +904,7 @@ export const GoogleAdGroups: React.FC = () => {
     if (!adgroup) return;
 
     setUpdatingField({ adgroupId: itemId, field: fieldKey as any });
-    
+
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) {
@@ -915,20 +915,20 @@ export const GoogleAdGroups: React.FC = () => {
         if (fieldKey === "status") {
           const statusValue = convertStatusToApi(newValue);
           const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
+          if (!channelIdNum || isNaN(channelIdNum)) {
+            throw new Error("Channel ID is required");
+          }
+          await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
             adgroupIds: [itemId],
             action: "status",
             status: statusValue,
           });
         } else if (fieldKey === "adgroup_name" || fieldKey === "name") {
           const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
+          if (!channelIdNum || isNaN(channelIdNum)) {
+            throw new Error("Channel ID is required");
+          }
+          await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
             adgroupIds: [itemId],
             action: "name",
             name: newValue,
@@ -940,10 +940,10 @@ export const GoogleAdGroups: React.FC = () => {
           throw new Error("Invalid bid value");
         }
         const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
           adgroupIds: [itemId],
           action: "bid",
           bid: bidValue,
@@ -989,7 +989,7 @@ export const GoogleAdGroups: React.FC = () => {
       }
 
       await handleConfirmChange(nameEditAdgroup.adgroup_id, "adgroup_name", nameEditValue.trim());
-      
+
       // Close modal and reset state
       setShowNameEditModal(false);
       setNameEditAdgroup(null);
@@ -1352,7 +1352,7 @@ export const GoogleAdGroups: React.FC = () => {
             {/* Header with Filter Button + Sync */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                AdGroups 
+                AdGroups
               </h1>
               <div className="flex items-center gap-2">
                 <button
@@ -1376,9 +1376,8 @@ export const GoogleAdGroups: React.FC = () => {
                     Add Filter
                   </span>
                   <svg
-                    className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                      isFilterPanelOpen ? "rotate-180" : ""
-                    }`}
+                    className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isFilterPanelOpen ? "rotate-180" : ""
+                      }`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -1424,22 +1423,22 @@ export const GoogleAdGroups: React.FC = () => {
             )}
 
             <div className="relative">
-            {/* Performance Trends Chart */}
-            <PerformanceChart
-              data={chartData}
-              toggles={chartToggles}
-              onToggle={toggleChartMetric}
-              title="Performance Trends"
-              isCollapsed={isChartCollapsed}
-              onCollapseToggle={toggleChartCollapse}
-            />
-            {loading && !isChartCollapsed && (
-                  <div className="loading-overlay">
-                    <div className="loading-overlay-content">
-                      <Loader size="md" message="Loading chart data..." />
-                    </div>
+              {/* Performance Trends Chart */}
+              <PerformanceChart
+                data={chartData}
+                toggles={chartToggles}
+                onToggle={toggleChartMetric}
+                title="Performance Trends"
+                isCollapsed={isChartCollapsed}
+                onCollapseToggle={toggleChartCollapse}
+              />
+              {loading && !isChartCollapsed && (
+                <div className="loading-overlay">
+                  <div className="loading-overlay-content">
+                    <Loader size="md" message="Loading chart data..." />
                   </div>
-                )}
+                </div>
+              )}
             </div>
 
             {/* Edit and Export Buttons - Above Table */}
@@ -1572,9 +1571,8 @@ export const GoogleAdGroups: React.FC = () => {
                           <button
                             key={opt.value}
                             type="button"
-                            className={`w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3 ${
-                              opt.disabled ? "opacity-50 cursor-not-allowed" : ""
-                            }`}
+                            className={`w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3 ${opt.disabled ? "opacity-50 cursor-not-allowed" : ""
+                              }`}
                             onClick={async (e) => {
                               e.stopPropagation();
                               e.preventDefault();
@@ -1583,8 +1581,8 @@ export const GoogleAdGroups: React.FC = () => {
                                 opt.value === "bulk_export"
                                   ? "all_data"
                                   : opt.value === "current_view"
-                                  ? "current_view"
-                                  : "selected";
+                                    ? "current_view"
+                                    : "selected";
                               // Keep dropdown open during export
                               await handleExport(exportType);
                             }}
@@ -1648,42 +1646,40 @@ export const GoogleAdGroups: React.FC = () => {
                               setBidUnit("amount");
                             }
                           }}
-                          buttonClassName="w-full bg-[#FEFEFB]"
+                          buttonClassName="w-full bg-[#FEFEFB] edit-button"
                           width="w-full"
                         />
                       </div>
                       {(bidAction === "increase" ||
                         bidAction === "decrease") && (
-                        <div className="w-[140px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Unit
-                          </label>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                bidUnit === "percent"
-                                  ? "bg-forest-f40  border-forest-f40"
-                                  : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                              }`}
-                              onClick={() => setBidUnit("percent")}
-                            >
-                              %
-                            </button>
-                            <button
-                              type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                bidUnit === "amount"
-                                  ? "bg-forest-f40  border-forest-f40"
-                                  : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                              }`}
-                              onClick={() => setBidUnit("amount")}
-                            >
-                              $
-                            </button>
+                          <div className="w-[140px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Unit
+                            </label>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "percent"
+                                    ? "bg-forest-f40  border-forest-f40"
+                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                  }`}
+                                onClick={() => setBidUnit("percent")}
+                              >
+                                %
+                              </button>
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "amount"
+                                    ? "bg-forest-f40  border-forest-f40"
+                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                  }`}
+                                onClick={() => setBidUnit("amount")}
+                              >
+                                $
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                       <div className="w-[160px]">
                         <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                           Value
@@ -1776,8 +1772,8 @@ export const GoogleAdGroups: React.FC = () => {
                       {bulkUpdateResults
                         ? "Update Results"
                         : isBidChange
-                        ? "Confirm Bid Changes"
-                        : "Confirm Status Changes"}
+                          ? "Confirm Bid Changes"
+                          : "Confirm Status Changes"}
                     </h3>
 
                     {/* Results Summary */}
@@ -1872,9 +1868,8 @@ export const GoogleAdGroups: React.FC = () => {
                             <span className="text-[10.64px] text-[#556179]">
                               {hasMore
                                 ? `Showing ${previewCount} of ${selectedAdgroupsData.length} selected adgroups`
-                                : `${selectedAdgroupsData.length} adgroup${
-                                    selectedAdgroupsData.length !== 1 ? "s" : ""
-                                  } selected`}
+                                : `${selectedAdgroupsData.length} adgroup${selectedAdgroupsData.length !== 1 ? "s" : ""
+                                } selected`}
                             </span>
                           </div>
                           <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -1938,81 +1933,81 @@ export const GoogleAdGroups: React.FC = () => {
 
                     {/* Action Details - Only show before update */}
                     {!bulkUpdateResults && (
-                    <div className="space-y-3 mb-6">
-                      {isBidChange ? (
-                        <>
+                      <div className="space-y-3 mb-6">
+                        {isBidChange ? (
+                          <>
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Action:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {bidAction === "increase"
+                                  ? "Increase By"
+                                  : bidAction === "decrease"
+                                    ? "Decrease By"
+                                    : "Set To"}
+                              </span>
+                            </div>
+
+                            {(bidAction === "increase" ||
+                              bidAction === "decrease") && (
+                                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                  <span className="text-[12.16px] text-[#556179]">
+                                    Unit:
+                                  </span>
+                                  <span className="text-[12.16px] font-semibold text-[#072929]">
+                                    {bidUnit === "percent"
+                                      ? "Percentage (%)"
+                                      : "Amount ($)"}
+                                  </span>
+                                </div>
+                              )}
+
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Value:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {bidValue} {bidUnit === "percent" ? "%" : "$"}
+                              </span>
+                            </div>
+
+                            {bidAction === "increase" && upperLimit && (
+                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span className="text-[12.16px] text-[#556179]">
+                                  Upper Limit:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                  ${upperLimit}
+                                </span>
+                              </div>
+                            )}
+
+                            {bidAction === "decrease" && lowerLimit && (
+                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span className="text-[12.16px] text-[#556179]">
+                                  Lower Limit:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                  ${lowerLimit}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
                           <div className="flex justify-between items-center py-2 border-b border-gray-200">
                             <span className="text-[12.16px] text-[#556179]">
-                              Action:
+                              New Status:
                             </span>
                             <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {bidAction === "increase"
-                                ? "Increase By"
-                                : bidAction === "decrease"
-                                ? "Decrease By"
-                                : "Set To"}
-                            </span>
-                          </div>
-
-                          {(bidAction === "increase" ||
-                            bidAction === "decrease") && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Unit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {bidUnit === "percent"
-                                  ? "Percentage (%)"
-                                  : "Amount ($)"}
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Value:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {bidValue} {bidUnit === "percent" ? "%" : "$"}
-                            </span>
-                          </div>
-
-                          {bidAction === "increase" && upperLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Upper Limit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                ${upperLimit}
-                              </span>
-                            </div>
-                          )}
-
-                          {bidAction === "decrease" && lowerLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Lower Limit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                ${lowerLimit}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                          <span className="text-[12.16px] text-[#556179]">
-                            New Status:
-                          </span>
-                          <span className="text-[12.16px] font-semibold text-[#072929]">
-                            {pendingStatusAction
-                              ? pendingStatusAction.charAt(0) +
+                              {pendingStatusAction
+                                ? pendingStatusAction.charAt(0) +
                                 pendingStatusAction.slice(1).toLowerCase()
-                              : ""}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                                : ""}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     )}
 
                     <div className="flex justify-end gap-3">
@@ -2125,7 +2120,7 @@ export const GoogleAdGroups: React.FC = () => {
                         type="button"
                         onClick={async () => {
                           if (!statusEditData || !accountId || statusEditLoading) return;
-                          
+
                           setStatusEditLoading(true);
                           try {
                             const accountIdNum = parseInt(accountId, 10);
@@ -2184,7 +2179,7 @@ export const GoogleAdGroups: React.FC = () => {
                     }
                   }}
                 >
-                  <div 
+                  <div
                     className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
                     style={{ zIndex: 100000 }}
                     onClick={(e) => e.stopPropagation()}
@@ -2258,8 +2253,8 @@ export const GoogleAdGroups: React.FC = () => {
                       {inlineEditField === "bid"
                         ? "Bid"
                         : inlineEditField === "status"
-                        ? "Status"
-                        : "Name"}{" "}
+                          ? "Status"
+                          : "Name"}{" "}
                       Change
                     </h3>
                     <div className="mb-4">
@@ -2277,8 +2272,8 @@ export const GoogleAdGroups: React.FC = () => {
                             {inlineEditField === "bid"
                               ? "Bid"
                               : inlineEditField === "status"
-                              ? "Status"
-                              : "Name"}
+                                ? "Status"
+                                : "Name"}
                             :
                           </span>
                           <div className="flex items-center gap-2">
@@ -2399,11 +2394,10 @@ export const GoogleAdGroups: React.FC = () => {
                         <button
                           key={pageNum}
                           onClick={() => setCurrentPage(pageNum)}
-                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                            currentPage === pageNum
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
                               ? "bg-white text-[#136D6D] font-semibold"
                               : "text-black hover:bg-gray-50"
-                          }`}
+                            }`}
                         >
                           {pageNum}
                         </button>
@@ -2417,11 +2411,10 @@ export const GoogleAdGroups: React.FC = () => {
                     {totalPages > 5 && currentPage < totalPages - 2 && (
                       <button
                         onClick={() => setCurrentPage(totalPages)}
-                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                          currentPage === totalPages
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
                             ? "bg-white text-[#136D6D] font-semibold"
                             : "text-black hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         {totalPages}
                       </button>

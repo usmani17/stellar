@@ -61,7 +61,7 @@ interface NegativeKeywordsTabProps {
   onToggleBulkActions: () => void;
   onCloseBulkActions: () => void;
   bulkActionsRef: React.RefObject<HTMLDivElement | null>;
-  onBulkStatusAction: (action: "enable" | "pause") => void;
+  onBulkStatusAction: (action: "enable" | "pause" | "archive") => void;
   onBulkDelete: () => void;
 
   // Inline Edit
@@ -201,11 +201,19 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
               {showBulkActions && (
                 <div className="absolute top-[42px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                   <div className="overflow-y-auto">
-                    {[
-                      { value: "enable", label: "Enabled" },
-                      { value: "pause", label: "Paused" },
-                      { value: "delete", label: "Delete" },
-                    ].map((opt) => (
+                    {(
+                      campaignType === "SB"
+                        ? [
+                            { value: "enable", label: "Enabled" },
+                            { value: "archive", label: "Archived" },
+                            { value: "delete", label: "Delete" },
+                          ]
+                        : [
+                            { value: "enable", label: "Enabled" },
+                            { value: "pause", label: "Paused" },
+                            { value: "delete", label: "Delete" },
+                          ]
+                    ).map((opt) => (
                       <button
                         key={opt.value}
                         type="button"
@@ -217,7 +225,7 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                           if (opt.value === "delete") {
                             onBulkDelete();
                           } else {
-                            onBulkStatusAction(opt.value as "enable" | "pause");
+                            onBulkStatusAction(opt.value as "enable" | "pause" | "archive");
                           }
                           onCloseBulkActions();
                         }}
@@ -287,7 +295,12 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                 { value: "keywordText", label: "Text" },
                 { value: "state", label: "Status" },
               ]}
-              useUppercaseState={true}
+              useUppercaseState={campaignType !== "SD"}
+              stateOptions={
+                campaignType === "SD" || campaignType === "SB"
+                  ? ["Paused", "Archived"]
+                  : undefined
+              }
             />
           </div>
         )}
@@ -305,7 +318,7 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
               }),
             )}
             campaignId={campaignId || ""}
-            campaignType={campaignType || undefined}
+            campaignType={campaignType === "SP" || campaignType === "SB" || campaignType === "SD" ? campaignType : undefined}
             loading={createLoading}
             submitError={createError}
             fieldErrors={createFieldErrors}
@@ -325,6 +338,7 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSort={onSort}
+            campaignType={campaignType === "SP" || campaignType === "SB" || campaignType === "SD" ? campaignType : undefined}
             editingField={editingField}
             editedValue={editedValue}
             adgroups={(allAdgroups.length > 0 ? allAdgroups : adgroups)

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "../../lib/cn";
 
 export interface DropdownOption<T = string> {
@@ -281,6 +282,11 @@ export const Dropdown = <T extends string | number = string>({
     if (!isOpen) return null;
 
     const useFixedPosition = menuPosition !== null;
+    const optionCount = filteredOptions.length;
+    const minMenuHeight =
+      useFixedPosition && optionCount > 0 && optionCount <= 8
+        ? optionCount * 36
+        : undefined;
     const positionStyle = useFixedPosition
       ? {
           position: 'fixed' as const,
@@ -289,10 +295,11 @@ export const Dropdown = <T extends string | number = string>({
           transform: align === 'center' ? 'translateX(-50%)' : 'none',
           width: menuPosition.width ? `${menuPosition.width}px` : undefined,
           minWidth: menuPosition.width ? `${menuPosition.width}px` : undefined,
+          ...(minMenuHeight != null ? { minHeight: `${minMenuHeight}px` } : {}),
         }
       : {};
 
-    return (
+    const menuContent = (
       <div
         ref={menuRef}
         className={cn(
@@ -327,9 +334,21 @@ export const Dropdown = <T extends string | number = string>({
           </div>
         )}
 
+<<<<<<< HEAD
         {/* Options List */}
         <div 
           className="overflow-y-auto overflow-x-hidden flex-1 min-h-0 dropdown-options-list"
+=======
+        {/* Options List - minHeight so all options are visible when menu uses fixed positioning (e.g. in table cells) */}
+        <div
+          className="overflow-y-auto"
+          style={{
+            maxHeight: "inherit",
+            ...(filteredOptions.length > 0 && filteredOptions.length <= 8
+              ? { minHeight: `${filteredOptions.length * 36}px` }
+              : {}),
+          }}
+>>>>>>> origin/main
         >
           {filteredOptions.length === 0 ? (
             <div className="px-3 py-2 text-[10px] text-[#556179] text-center">
@@ -363,6 +382,11 @@ export const Dropdown = <T extends string | number = string>({
         </div>
       </div>
     );
+
+    if (useFixedPosition && typeof document !== "undefined" && document.body) {
+      return createPortal(menuContent, document.body);
+    }
+    return menuContent;
   };
 
   return (
