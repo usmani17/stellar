@@ -9,6 +9,7 @@ export interface ProfileSyncStatus {
   status: "syncing" | "completed" | "idle" | "error";
   last_synced_at: string | null;
   last_synced_before?: string | null;
+  error?: string | null;
 }
 
 /** Per-ad-type status for Amazon (SP, SB); SD has no keywords. */
@@ -16,6 +17,7 @@ export interface AdTypeSyncStatus {
   status: "syncing" | "completed" | "idle" | "error";
   last_synced_at: string | null;
   last_synced_before?: string | null;
+  error?: string | null;
 }
 
 export interface SyncStatus {

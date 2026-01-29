@@ -4,10 +4,11 @@ import { useAccounts } from "../contexts/AccountsContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
-import { Loader } from "../components/ui/Loader";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { accountsSyncStatusService } from "../services/accountsSyncStatus";
 import { accountsService } from "../services/accounts";
+import api from "../services/api";
+import { ConfirmationModal } from "../components/ui/ConfirmationModal";
 import type {
   AdTypeSyncStatus,
   GoogleSyncStatusResponse,
@@ -29,9 +30,9 @@ interface ProfileRow {
   profileIdLabel: string | undefined; // customer_id, profileId, or advertiser_id
   country?: string; // countryCode for Amazon (from DB)
   currency?: string; // currency_code for Amazon (from DB)
-  campaign: { status: EntityStatus; last_synced_at: string | null };
-  keywords: { status: EntityStatus; last_synced_at: string | null };
-  adgroups: { status: EntityStatus; last_synced_at: string | null };
+  campaign: { status: EntityStatus; last_synced_at: string | null; error?: string | null };
+  keywords: { status: EntityStatus; last_synced_at: string | null; error?: string | null };
+  adgroups: { status: EntityStatus; last_synced_at: string | null; error?: string | null };
   lastSyncedAt: string | null;
 }
 
@@ -72,69 +73,224 @@ const TickIcon = ({ className = "w-3.5 h-3.5" }: { className?: string }) => (
   </svg>
 );
 
-function StatusBadge({ status }: { status: EntityStatus }) {
-  const className =
-    status === "syncing"
-      ? "bg-blue-100 text-blue-800"
-      : status === "completed"
-        ? "bg-green-100 text-green-800"
-        : status === "error"
-          ? "bg-red-100 text-red-800"
-          : "bg-gray-100 text-gray-600";
-  const label =
-    status === "syncing"
-      ? "Syncing"
-      : status === "error"
-        ? "Error"
-        : status === "idle"
-          ? "Idle"
-          : null;
-  return (
-    <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${className}`}
-    >
-      {status === "completed" ? (
+const SyncingIcon = ({ className = "w-3.5 h-3.5" }: { className?: string }) => (
+  <svg
+    className={`${className} animate-spin`}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 12a9 9 0 11-6.219-8.56" />
+  </svg>
+);
+
+const ErrorIcon = ({ className = "w-3.5 h-3.5" }: { className?: string }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
+  </svg>
+);
+
+function StatusBadge({ 
+  status, 
+  error 
+}: { 
+  status: EntityStatus;
+  error?: string | null;
+}) {
+  // Show tick mark only for "completed" status
+  if (status === "completed") {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
         <TickIcon className="w-3.5 h-3.5 flex-shrink-0" />
-      ) : (
-        label
-      )}
+      </span>
+    );
+  }
+  
+  // Show error icon with tooltip if error status
+  if (status === "error" && error) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <span className="relative [&:hover>div]:block">
+          <ErrorIcon className="w-3.5 h-3.5 flex-shrink-0 text-red-600 cursor-help" />
+          <div className="absolute bottom-full left-0 mb-2 hidden z-50 pointer-events-none">
+            <div className="bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap max-w-xs">
+              {error}
+              <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+            </div>
+          </div>
+        </span>
+        <span className="text-xs text-[#556179] font-normal">Error</span>
+      </span>
+    );
+  }
+  
+  // Show syncing icon with "Syncing" text for all other statuses
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <SyncingIcon className="w-3.5 h-3.5 flex-shrink-0 text-[#136D6D]" />
+      <span className="text-xs text-[#556179] font-normal">Syncing</span>
     </span>
   );
 }
 
-/** Amazon: show SP, SB (and SD for campaigns/adgroups; keywords have no SD) — tick + timestamp when completed */
+function SyncButton({
+  profileId,
+  profileType,
+  accountId,
+}: {
+  profileId: number;
+  profileType: Platform;
+  accountId: number;
+}) {
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSyncClick = () => {
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirm = async () => {
+    setIsLoading(true);
+    setError(null);
+    setShowConfirmModal(false);
+
+    try {
+      await api.post(`/accounts/${accountId}/profiles/trigger-sync/`, {
+        profile_id: profileId,
+        profile_type: profileType,
+      });
+    } catch (e: unknown) {
+      const errorMessage =
+        (e as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Failed to trigger sync";
+      setError(errorMessage);
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setShowConfirmModal(false);
+  };
+
+  const platformName = profileType === "google" ? "Google" : profileType === "amazon" ? "Amazon" : "TikTok";
+
+  return (
+    <>
+      <div className="flex flex-col items-start gap-1">
+        <button
+          onClick={handleSyncClick}
+          disabled={isLoading}
+          className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            isLoading
+              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+              : "bg-[#136d6d] text-white hover:bg-[#0f5a5a]"
+          }`}
+        >
+          Sync
+        </button>
+        {error && (
+          <span className="text-[10px] text-red-600 text-left max-w-[80px]">
+            {error}
+          </span>
+        )}
+      </div>
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={handleCancel}
+        onConfirm={handleConfirm}
+        title="Confirm Sync"
+        message={`Are you sure you want to sync this ${platformName} profile?`}
+        description="This will trigger a sync operation that may take a few minutes to complete."
+        confirmButtonLabel="Sync"
+        cancelButtonLabel="Cancel"
+        type="info"
+        size="sm"
+        isLoading={isLoading}
+      />
+    </>
+  );
+}
+
+/** Amazon: show SP, SB (and SD for campaigns/adgroups; keywords have no SD) — tick + timestamp when completed, syncing icon otherwise */
 function AmazonAdTypeStatus({
   adTypes,
+  isLoading = false,
 }: {
   adTypes?: {
     SP?: AdTypeSyncStatus;
     SB?: AdTypeSyncStatus;
     SD?: AdTypeSyncStatus;
   };
+  isLoading?: boolean;
 }) {
+  // Show loading placeholders when data is being fetched
+  if (isLoading) {
+    const order = ["SP", "SB", "SD"] as const;
+    return (
+      <span className="flex flex-col gap-2 mt-0.5">
+        {order.map((key) => (
+          <div key={key} className="h-5 bg-gray-200 rounded animate-pulse" style={{ width: '100px' }} />
+        ))}
+      </span>
+    );
+  }
+  
   const order = ["SP", "SB", "SD"] as const;
   const items = order
     .filter((k) => adTypes?.[k])
     .map((k) => {
       const a = adTypes![k]!;
-      const t =
-        a.last_synced_before ?? formatLastSynced(a.last_synced_at);
+      // Always use formatLastSynced to ensure "h ago" format (not "hours ago")
+      const t = formatLastSynced(a.last_synced_at);
       const isCompleted = (a.status ?? "").toLowerCase() === "completed";
-      return { key: k, time: t, isCompleted };
+      const isError = (a.status ?? "").toLowerCase() === "error";
+      return { key: k, time: t, isCompleted, isError, error: a.error };
     });
   if (items.length === 0) return null;
   return (
-    <span className="flex flex-col gap-0.5 text-[12px] text-[#556179] mt-0.5">
-      {items.map(({ key, time, isCompleted }) => (
+    <span className="flex flex-col gap-0.5 text-[13px] text-[#556179] font-normal mt-0.5">
+      {items.map(({ key, time, isCompleted, isError, error }) => (
         <span key={key} className="inline-flex items-center gap-1">
-          <span className="text-[#556179]">{key}:</span>
+          <span className="text-[13px] text-[#556179] font-normal">{key}:</span>
           {isCompleted ? (
             <>
               <TickIcon className="w-3 h-3 text-green-600 flex-shrink-0" />
-              {time !== "—" && <span>{time}</span>}
+              {time !== "—" && <span className="text-[13px] text-[#556179] font-normal">{time}</span>}
             </>
+          ) : isError && error ? (
+            <span className="inline-flex items-center gap-1">
+              <span className="relative [&:hover>div]:block">
+                <ErrorIcon className="w-3 h-3 flex-shrink-0 text-red-600 cursor-help" />
+                <div className="absolute bottom-full left-0 mb-2 hidden z-50 pointer-events-none">
+                  <div className="bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap max-w-xs">
+                    {error}
+                    <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                </div>
+              </span>
+              <span className="text-xs text-[#556179] font-normal">Error</span>
+            </span>
           ) : (
-            <span>{time !== "—" ? time : "—"}</span>
+            <>
+              <SyncingIcon className="w-3 h-3 flex-shrink-0 text-[#136D6D]" />
+              <span className="text-xs text-[#556179] font-normal">Syncing</span>
+            </>
           )}
         </span>
       ))}
@@ -152,9 +308,9 @@ function buildProfileRowsFromResponse(
     {
       name: string;
       profileIdLabel: string | undefined;
-      campaign: { status: EntityStatus; last_synced_at: string | null };
-      keywords: { status: EntityStatus; last_synced_at: string | null };
-      adgroups: { status: EntityStatus; last_synced_at: string | null };
+      campaign: { status: EntityStatus; last_synced_at: string | null; error?: string | null };
+      keywords: { status: EntityStatus; last_synced_at: string | null; error?: string | null };
+      adgroups: { status: EntityStatus; last_synced_at: string | null; error?: string | null };
     }
   >();
 
@@ -170,15 +326,16 @@ function buildProfileRowsFromResponse(
         byId.set(p.id, {
           name: p.name,
           profileIdLabel: getProfileIdLabel(p),
-          campaign: { status: "idle", last_synced_at: null },
-          keywords: { status: "idle", last_synced_at: null },
-          adgroups: { status: "idle", last_synced_at: null },
+          campaign: { status: "idle", last_synced_at: null, error: null },
+          keywords: { status: "idle", last_synced_at: null, error: null },
+          adgroups: { status: "idle", last_synced_at: null, error: null },
         });
       }
       const row = byId.get(p.id)!;
       (row as Record<string, unknown>)[key] = {
         status: (p.status as EntityStatus) ?? "idle",
         last_synced_at: p.last_synced_at ?? null,
+        error: p.error ?? null,
       };
     });
   };
@@ -231,7 +388,7 @@ interface AccountProfileItem {
 function buildProfileRowsFromAccountProfiles(
   profiles: AccountProfileItem[]
 ): ProfileRow[] {
-  const idle = { status: "idle" as EntityStatus, last_synced_at: null };
+  const idle = { status: "idle" as EntityStatus, last_synced_at: null, error: null };
   return (profiles ?? []).map((p) => {
     const platform = (p.channel_type === "google"
       ? "google"
@@ -286,10 +443,11 @@ function mergeSyncStatusIntoRows(
     (list ?? []).forEach((p) => {
       const row = byId.get(p.id);
       if (row) {
-        (row as Record<string, unknown>)[key] = {
-          status: (p.status as EntityStatus) ?? "idle",
-          last_synced_at: p.last_synced_at ?? null,
-        };
+      (row as Record<string, unknown>)[key] = {
+        status: (p.status as EntityStatus) ?? "idle",
+        last_synced_at: p.last_synced_at ?? null,
+        error: p.error ?? null,
+      };
       }
     });
   };
@@ -580,10 +738,10 @@ export const AccountProfiles: React.FC = () => {
                       </th>
                       <th className="table-header min-w-[100px]">Country</th>
                       <th className="table-header min-w-[80px]">Currency</th>
-                      <th className="table-header min-w-[120px]">Campaign</th>
-                      <th className="table-header min-w-[120px]">Keywords</th>
-                      <th className="table-header min-w-[120px]">Ad groups</th>
-                      <th className="table-header min-w-[140px]">Last synced</th>
+                      <th className="table-header min-w-[120px] align-top">Campaigns</th>
+                      <th className="table-header min-w-[120px] align-top">Ad Groups</th>
+                      <th className="table-header min-w-[120px] align-top">Keywords</th>
+                      <th className="table-header min-w-[100px] text-left">Sync</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -612,7 +770,7 @@ export const AccountProfiles: React.FC = () => {
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-20" />
                           </td>
                           <td className="table-cell">
-                            <div className="h-5 bg-gray-200 rounded animate-pulse w-24" />
+                            <div className="h-5 bg-gray-200 rounded animate-pulse w-16" />
                           </td>
                         </tr>
                       ))
@@ -623,7 +781,7 @@ export const AccountProfiles: React.FC = () => {
                           className="table-row group"
                         >
                           <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
-                            <span className="table-text leading-[1.26]">
+                            <span className="table-text leading-[1.26] text-[#556179]">
                               {row.channelName}
                             </span>
                           </td>
@@ -654,7 +812,7 @@ export const AccountProfiles: React.FC = () => {
                                   <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
                                 </svg>
                               )}
-                              <span className="table-text ">
+                              <span className="table-text text-[#556179]">
                                 {row.name ||
                                   row.profileIdLabel ||
                                   `Profile ${row.id}`}
@@ -676,93 +834,100 @@ export const AccountProfiles: React.FC = () => {
                               {row.currency ?? "—"}
                             </span>
                           </td>
-                          <td className="table-cell min-w-[120px]">
+                          <td className="table-cell min-w-[120px] align-top">
                             <div className="flex flex-col gap-0.5">
                               {syncStatusLoading ? (
-                                <Loader
-                                  size="sm"
-                                  showMessage={false}
-                                  className="gap-0"
-                                />
+                                row.platform === "amazon" ? (
+                                  <AmazonAdTypeStatus isLoading={true} />
+                                ) : (
+                                  <div className="h-5 bg-gray-200 rounded animate-pulse" style={{ width: '100px' }} />
+                                )
                               ) : (
                                 <>
-                                  <div className="inline-flex items-center gap-1.5">
-                                    <StatusBadge status={row.campaign.status} />
-                                    <span className="table-text leading-[1.26] text-[13px] text-[#556179]">
-                                      {formatLastSynced(row.campaign.last_synced_at)}
-                                    </span>
-                                  </div>
-                                  {row.platform === "amazon" && (
+                                  {row.platform === "amazon" ? (
                                     <AmazonAdTypeStatus
                                       adTypes={amazonSyncData?.campaigns?.ad_types}
                                     />
+                                  ) : (
+                                    <div className="inline-flex items-center gap-1.5">
+                                      <StatusBadge status={row.campaign.status} error={row.campaign.error} />
+                                      {row.campaign.status === "completed" && (
+                                        <span className="table-text leading-[1.26] text-[13px] text-[#556179] font-normal">
+                                          {formatLastSynced(row.campaign.last_synced_at)}
+                                        </span>
+                                      )}
+                                    </div>
                                   )}
                                 </>
                               )}
                             </div>
                           </td>
-                          <td className="table-cell min-w-[120px]">
+                          <td className="table-cell min-w-[120px] align-top">
                             <div className="flex flex-col gap-0.5">
                               {syncStatusLoading ? (
-                                <Loader
-                                  size="sm"
-                                  showMessage={false}
-                                  className="gap-0"
-                                />
+                                row.platform === "amazon" ? (
+                                  <AmazonAdTypeStatus isLoading={true} />
+                                ) : (
+                                  <div className="h-5 bg-gray-200 rounded animate-pulse" style={{ width: '100px' }} />
+                                )
                               ) : (
                                 <>
-                                  <div className="inline-flex items-center gap-1.5">
-                                    <StatusBadge status={row.keywords.status} />
-                                    <span className="table-text leading-[1.26] text-[13px] text-[#556179]">
-                                      {formatLastSynced(row.keywords.last_synced_at)}
-                                    </span>
-                                  </div>
-                                  {row.platform === "amazon" && (
-                                    <AmazonAdTypeStatus
-                                      adTypes={amazonSyncData?.keywords?.ad_types}
-                                    />
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </td>
-                          <td className="table-cell min-w-[120px]">
-                            <div className="flex flex-col gap-0.5">
-                              {syncStatusLoading ? (
-                                <Loader
-                                  size="sm"
-                                  showMessage={false}
-                                  className="gap-0"
-                                />
-                              ) : (
-                                <>
-                                  <div className="inline-flex items-center gap-1.5">
-                                    <StatusBadge status={row.adgroups.status} />
-                                    <span className="table-text leading-[1.26] text-[13px] text-[#556179]">
-                                      {formatLastSynced(row.adgroups.last_synced_at)}
-                                    </span>
-                                  </div>
-                                  {row.platform === "amazon" && (
+                                  {row.platform === "amazon" ? (
                                     <AmazonAdTypeStatus
                                       adTypes={amazonSyncData?.adgroups?.ad_types}
                                     />
+                                  ) : (
+                                    <div className="inline-flex items-center gap-1.5">
+                                      <StatusBadge status={row.adgroups.status} error={row.adgroups.error} />
+                                      {row.adgroups.status === "completed" && (
+                                        <span className="table-text leading-[1.26] text-[13px] text-[#556179] font-normal">
+                                          {formatLastSynced(row.adgroups.last_synced_at)}
+                                        </span>
+                                      )}
+                                    </div>
                                   )}
                                 </>
                               )}
                             </div>
                           </td>
-                          <td className="table-cell min-w-[140px]">
-                            {syncStatusLoading ? (
-                              <Loader
-                                size="sm"
-                                showMessage={false}
-                                className="gap-0"
-                              />
+                          <td className="table-cell min-w-[120px] align-top">
+                            {row.platform === "tiktok" ? (
+                              <span className="table-text leading-[1.26] text-[#556179]">—</span>
                             ) : (
-                              <span className="table-text leading-[1.26] whitespace-nowrap text-[#0b0f16]">
-                                {formatLastSynced(row.lastSyncedAt)}
-                              </span>
+                              <div className="flex flex-col gap-0.5">
+                                {syncStatusLoading ? (
+                                  row.platform === "amazon" ? (
+                                    <AmazonAdTypeStatus isLoading={true} />
+                                  ) : (
+                                    <div className="h-5 bg-gray-200 rounded animate-pulse" style={{ width: '100px' }} />
+                                  )
+                                ) : (
+                                  <>
+                                    {row.platform === "amazon" ? (
+                                      <AmazonAdTypeStatus
+                                        adTypes={amazonSyncData?.keywords?.ad_types}
+                                      />
+                                    ) : (
+                                      <div className="inline-flex items-center gap-1.5">
+                                        <StatusBadge status={row.keywords.status} error={row.keywords.error} />
+                                        {row.keywords.status === "completed" && (
+                                          <span className="table-text leading-[1.26] text-[13px] text-[#556179] font-normal">
+                                            {formatLastSynced(row.keywords.last_synced_at)}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
                             )}
+                          </td>
+                          <td className="table-cell min-w-[100px] text-left">
+                            <SyncButton
+                              profileId={row.id}
+                              profileType={row.platform}
+                              accountId={accountIdNum!}
+                            />
                           </td>
                         </tr>
                       ))

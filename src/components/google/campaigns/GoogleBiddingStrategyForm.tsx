@@ -50,10 +50,14 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
                 type="number"
                 step="0.01"
                 min="0"
-                value={formData.target_cpa_micros ? (formData.target_cpa_micros / 1000000).toFixed(2) : ""}
+                value={formData.target_cpa_micros || ""}
                 onChange={(e) => {
-                  const value = parseFloat(e.target.value) || 0;
-                  onChange("target_cpa_micros", Math.round(value * 1000000));
+                  const value = parseFloat(e.target.value);
+                  if (!isNaN(value) && value >= 0) {
+                    onChange("target_cpa_micros", value);
+                  } else if (e.target.value === "") {
+                    onChange("target_cpa_micros", "");
+                  }
                 }}
                 className={`campaign-input w-full ${
                   errors.target_cpa_micros ? "border-red-500" : "border-gray-200"
@@ -112,10 +116,14 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
                 type="number"
                 step="0.01"
                 min="0"
-                value={formData.target_spend_micros ? (formData.target_spend_micros / 1000000).toFixed(2) : ""}
+                value={formData.target_spend_micros || ""}
                 onChange={(e) => {
-                  const value = parseFloat(e.target.value) || 0;
-                  onChange("target_spend_micros", Math.round(value * 1000000));
+                  const value = parseFloat(e.target.value);
+                  if (!isNaN(value) && value >= 0) {
+                    onChange("target_spend_micros", value);
+                  } else if (e.target.value === "") {
+                    onChange("target_spend_micros", "");
+                  }
                 }}
                 className={`campaign-input w-full ${
                   errors.target_spend_micros ? "border-red-500" : "border-gray-200"
@@ -195,10 +203,14 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
                 step="0.1"
                 min="0"
                 max="100"
-                value={formData.target_impression_share_location_fraction_micros ? (formData.target_impression_share_location_fraction_micros / 10000).toFixed(1) : ""}
+                value={formData.target_impression_share_location_fraction_micros || ""}
                 onChange={(e) => {
-                  const value = parseFloat(e.target.value) || 0;
-                  onChange("target_impression_share_location_fraction_micros", Math.round(value * 10000));
+                  const value = parseFloat(e.target.value);
+                  if (!isNaN(value) && value >= 0) {
+                    onChange("target_impression_share_location_fraction_micros", value);
+                  } else if (e.target.value === "") {
+                    onChange("target_impression_share_location_fraction_micros", "");
+                  }
                 }}
                 className={`campaign-input w-full ${
                   errors.target_impression_share_location_fraction_micros ? "border-red-500" : "border-gray-200"
@@ -223,10 +235,14 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
                 type="number"
                 step="0.01"
                 min="0"
-                value={formData.target_impression_share_cpc_bid_ceiling_micros ? (formData.target_impression_share_cpc_bid_ceiling_micros / 1000000).toFixed(2) : ""}
+                value={formData.target_impression_share_cpc_bid_ceiling_micros || ""}
                 onChange={(e) => {
-                  const value = parseFloat(e.target.value) || 0;
-                  onChange("target_impression_share_cpc_bid_ceiling_micros", Math.round(value * 1000000));
+                  const value = parseFloat(e.target.value);
+                  if (!isNaN(value) && value >= 0) {
+                    onChange("target_impression_share_cpc_bid_ceiling_micros", value);
+                  } else if (e.target.value === "") {
+                    onChange("target_impression_share_cpc_bid_ceiling_micros", "");
+                  }
                 }}
                 className={`campaign-input w-full ${
                   errors.target_impression_share_cpc_bid_ceiling_micros ? "border-red-500" : "border-gray-200"

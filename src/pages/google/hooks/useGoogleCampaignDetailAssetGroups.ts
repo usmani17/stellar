@@ -377,6 +377,7 @@ export const useGoogleCampaignDetailAssetGroups = ({
         const refreshResponse =
           await campaignsService.refreshGoogleCampaignFromAPI(
             accountIdNum,
+            channelId ? parseInt(channelId, 10) : 0,
             campaignIdNum
           );
         refreshedCampaignData = refreshResponse.campaign;
@@ -403,6 +404,7 @@ export const useGoogleCampaignDetailAssetGroups = ({
         try {
           const campaignDetail = await googleAdwordsCampaignsService.getGoogleCampaignDetail(
             accountIdNum,
+            channelId ? parseInt(channelId, 10) : 0,
             campaignIdNum
           );
           refreshedCampaignData = campaignDetail?.campaign || null;

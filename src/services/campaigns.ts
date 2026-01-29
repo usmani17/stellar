@@ -3207,6 +3207,7 @@ export const campaignsService = {
   // Google Campaign Detail
   getGoogleCampaignDetail: async (
     accountId: number,
+    channelId: number,
     campaignId: string | number,
     startDate?: string,
     endDate?: string
@@ -3215,7 +3216,7 @@ export const campaignsService = {
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
     const queryString = params.toString();
-    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/${queryString ? `?${queryString}` : ""
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/${queryString ? `?${queryString}` : ""
       }`;
     const response = await api.get(url);
     return response.data;
@@ -3224,6 +3225,7 @@ export const campaignsService = {
   // Refresh Google Campaign from API
   refreshGoogleCampaignFromAPI: async (
     accountId: number,
+    channelId: number,
     campaignId: string | number
   ): Promise<{
     success: boolean;
@@ -3260,7 +3262,7 @@ export const campaignsService = {
       enable_local?: boolean;
     };
   }> => {
-    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/refresh/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/refresh/`;
     // Send the constant to API so it can decide whether to fetch asset groups
     const response = await api.post(url, {
       should_fetch_asset_groups: SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION,
