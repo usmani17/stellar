@@ -551,10 +551,24 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     if (!isOpen) {
       resetForm();
     } else if (mode === "edit" && initialData) {
+      // Convert micros to dollars for bidding strategy fields
+      const convertedData = {
+        ...initialData,
+        // Convert micro amounts to dollars
+        target_cpa_micros: initialData.target_cpa_micros ? initialData.target_cpa_micros / 1000000 : undefined,
+        target_spend_micros: initialData.target_spend_micros ? initialData.target_spend_micros / 1000000 : undefined,
+        target_impression_share_location_fraction_micros: initialData.target_impression_share_location_fraction_micros 
+          ? initialData.target_impression_share_location_fraction_micros / 10000 
+          : undefined,
+        target_impression_share_cpc_bid_ceiling_micros: initialData.target_impression_share_cpc_bid_ceiling_micros 
+          ? initialData.target_impression_share_cpc_bid_ceiling_micros / 1000000 
+          : undefined,
+      };
+      
       // Load initial data for edit mode
       setFormData((prev) => ({
         ...prev,
-        ...initialData,
+        ...convertedData,
       }));
       // Set logo preview if logo_url exists in initial data
       if (initialData.logo_url && typeof initialData.logo_url === "string") {
@@ -888,11 +902,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         newErrors.logo_url = "Logo URL must be a valid URL (http:// or https://)";
       }
 
-      if (!formData.final_url?.trim()) {
-        newErrors.final_url = "Final URL is required";
-      } else if (!/^https?:\/\/.+/.test(formData.final_url)) {
-        newErrors.final_url = "Final URL must be a valid URL (http:// or https://)";
-      }
+      // final_url is optional for Performance Max campaigns - no validation needed
 
       // Only validate asset group fields if SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION is true
       if (SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION) {
@@ -1148,6 +1158,15 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       // For Demand Gen, ensure only one of video_url or video_id is sent
       video_url: formData.campaign_type === "DEMAND_GEN" && formData.video_url?.trim() ? formData.video_url : undefined,
       video_id: formData.campaign_type === "DEMAND_GEN" && formData.video_id?.trim() ? formData.video_id : undefined,
+      // Convert dollars back to micros for bidding strategy fields
+      target_cpa_micros: formData.target_cpa_micros ? Math.round(formData.target_cpa_micros * 1000000) : undefined,
+      target_spend_micros: formData.target_spend_micros ? Math.round(formData.target_spend_micros * 1000000) : undefined,
+      target_impression_share_location_fraction_micros: formData.target_impression_share_location_fraction_micros 
+        ? Math.round(formData.target_impression_share_location_fraction_micros * 10000) 
+        : undefined,
+      target_impression_share_cpc_bid_ceiling_micros: formData.target_impression_share_cpc_bid_ceiling_micros 
+        ? Math.round(formData.target_impression_share_cpc_bid_ceiling_micros * 1000000) 
+        : undefined,
     };
 
     try {
@@ -1448,6 +1467,22 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   {refreshMessage.details}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Validation Errors Banner */}
+          {Object.values(errors).filter(Boolean).length > 0 && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-[13px] font-semibold text-red-600 mb-2">
+                Please fix the following errors:
+              </p>
+              <ul className="list-disc list-inside text-[12px] text-red-600 space-y-1">
+                {Object.entries(errors)
+                  .filter(([_, error]) => error)
+                  .map(([field, error]) => (
+                    <li key={field}>{error}</li>
+                  ))}
+              </ul>
             </div>
           )}
 

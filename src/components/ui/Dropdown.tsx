@@ -304,7 +304,7 @@ export const Dropdown = <T extends string | number = string>({
         ref={menuRef}
         className={cn(
           useFixedPosition ? "fixed" : "absolute",
-          "z-[999999] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden",
+          "z-[999999] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col",
           !useFixedPosition && alignClasses[align],
           !useFixedPosition && positionClasses[position],
           width,
@@ -336,9 +336,8 @@ export const Dropdown = <T extends string | number = string>({
 
         {/* Options List - minHeight so all options are visible when menu uses fixed positioning (e.g. in table cells) */}
         <div
-          className="overflow-y-auto"
+          className="overflow-y-auto flex-1"
           style={{
-            maxHeight: "inherit",
             ...(filteredOptions.length > 0 && filteredOptions.length <= 8
               ? { minHeight: `${filteredOptions.length * 36}px` }
               : {}),

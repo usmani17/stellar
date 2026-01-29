@@ -63,6 +63,11 @@ export const googleAdwordsAssetGroupsService = {
     marketing_image_url?: string;
     square_marketing_image_url?: string;
     final_urls: string[];
+    video_assets?: Array<{
+      id: number;
+      name?: string;
+      youtube_video_id?: string;
+    }>;
     asset_group_name?: string;
   }> => {
     const params = new URLSearchParams();

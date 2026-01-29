@@ -191,13 +191,18 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
             value={formData.budget_amount !== undefined && formData.budget_amount !== null ? formData.budget_amount : ""}
             onChange={(e) => {
               const value = e.target.value;
+              const numValue = parseFloat(value);
+              if (!isNaN(numValue) && numValue >= 0) {
+                onChange("budget_amount", numValue);
+              } else if (value === "") {
+                // Allow empty value while typing
+                onChange("budget_amount", "");
+              }
+            }}
+            onBlur={(e) => {
+              const value = e.target.value;
               if (value === "") {
                 onChange("budget_amount", 0);
-              } else {
-                const numValue = parseFloat(value);
-                if (!isNaN(numValue) && numValue >= 0) {
-                  onChange("budget_amount", numValue);
-                }
               }
             }}
             className={`campaign-input w-full ${
