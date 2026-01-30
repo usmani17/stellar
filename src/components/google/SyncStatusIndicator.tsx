@@ -131,7 +131,7 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
   } | null>(null);
   const indicatorRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const status = syncStatus[entityType];
   const profiles = status?.profiles || [];
@@ -222,13 +222,6 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
   if (!status) {
     return null;
   }
-
-  const entityNameMap: Record<typeof entityType, string> = {
-    campaigns: "Campaigns",
-    adgroups: "Ad Groups",
-    ads: "Ads",
-    keywords: "Keywords",
-  };
 
   // Get status text with time
   const getStatusText = () => {
