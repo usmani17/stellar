@@ -69,7 +69,7 @@ interface NegativeKeywordsTabProps {
   editedValue: string;
   onEditStart: (id: number, field: "status", currentValue: string) => void;
   onEditChange: (value: string) => void;
-  onEditEnd: (newValue?: string) => void;
+  onEditEnd: (newValue?: string, id?: number, field?: "status") => void;
   onEditCancel: () => void;
   editLoading: Set<number>;
   pendingChange: {
@@ -205,13 +205,12 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                       campaignType === "SB"
                         ? [
                             { value: "enable", label: "Enabled" },
+                            { value: "pause", label: "Paused" },
                             { value: "archive", label: "Archived" },
-                            { value: "delete", label: "Delete" },
                           ]
                         : [
                             { value: "enable", label: "Enabled" },
                             { value: "pause", label: "Paused" },
-                            { value: "delete", label: "Delete" },
                           ]
                     ).map((opt) => (
                       <button
@@ -222,11 +221,7 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           if (selectedNegativeKeywordIds.size === 0) return;
-                          if (opt.value === "delete") {
-                            onBulkDelete();
-                          } else {
-                            onBulkStatusAction(opt.value as "enable" | "pause" | "archive");
-                          }
+                          onBulkStatusAction(opt.value as "enable" | "pause" | "archive");
                           onCloseBulkActions();
                         }}
                       >

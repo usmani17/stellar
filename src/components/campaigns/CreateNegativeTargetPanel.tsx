@@ -68,8 +68,8 @@ const EXPRESSION_TYPE_SD_OPTIONS = [
 ];
 
 const STATE_OPTIONS = [
-  { value: "ENABLED", label: "ENABLED" },
-  { value: "PAUSED", label: "PAUSED" },
+  { value: "ENABLED", label: "Enabled" },
+  { value: "PAUSED", label: "Paused" },
 ];
 
 // State options for SD (lowercase)
@@ -216,7 +216,12 @@ export const CreateNegativeTargetPanel: React.FC<
     const negativeTarget: NegativeTargetInput = {
       adGroupId: currentNegativeTarget.adGroupId,
       ...(campaignType === "SB"
-        ? { expressions: expressionData } // SB uses expressions (plural)
+        ? {
+            expressions: expressionData, // SB uses expressions (plural)
+            state: (currentNegativeTarget.state?.toUpperCase() === "PAUSED"
+              ? "PAUSED"
+              : "ENABLED") as "ENABLED" | "PAUSED",
+          }
         : campaignType === "SD"
         ? {
             expression: expressionData, // SD uses expression (singular)
@@ -425,21 +430,19 @@ export const CreateNegativeTargetPanel: React.FC<
           )}
         </div>
 
-        {/* State - hidden for SB campaigns (state cannot be set at creation) */}
-        {campaignType !== "SB" && (
-          <div className="w-[140px]">
-            <label className="form-label-small">
-              State *
-            </label>
-            <Dropdown
-              options={campaignType === "SD" ? STATE_OPTIONS_SD : STATE_OPTIONS}
-              value={currentNegativeTarget.state}
-              onChange={(value) => handleChange("state", value)}
-              placeholder="Select State"
-              buttonClassName="edit-button w-full"
-            />
-          </div>
-        )}
+        {/* State - Enabled / Paused for all campaign types */}
+        <div className="w-[140px]">
+          <label className="form-label-small">
+            State *
+          </label>
+          <Dropdown
+            options={campaignType === "SD" ? STATE_OPTIONS_SD : STATE_OPTIONS}
+            value={currentNegativeTarget.state}
+            onChange={(value) => handleChange("state", value)}
+            placeholder="Select State"
+            buttonClassName="edit-button w-full"
+          />
+        </div>
 
         {/* Add Button */}
         <div className="flex items-end">
@@ -468,12 +471,9 @@ export const CreateNegativeTargetPanel: React.FC<
                 <th className="px-4 py-2 text-left text-[11.2px] font-semibold text-[#556179]">
                   Expression Value
                 </th>
-                {/* State column - only show for SP campaigns */}
-                {campaignType !== "SB" && (
-                  <th className="px-4 py-2 text-left text-[11.2px] font-semibold text-[#556179]">
-                    State
-                  </th>
-                )}
+                <th className="px-4 py-2 text-left text-[11.2px] font-semibold text-[#556179]">
+                  State
+                </th>
                 <th className="px-4 py-2 text-left text-[11.2px] font-semibold text-[#556179]">
                   Actions
                 </th>
@@ -510,12 +510,9 @@ export const CreateNegativeTargetPanel: React.FC<
                         {(ntg as any).expressionType || "—"}
                       </td>
                     )}
-                    {/* State column - only show for SP/SD campaigns */}
-                    {campaignType !== "SB" && (
-                      <td className="px-4 py-2 table-text">
-                        {ntg.state || "—"}
-                      </td>
-                    )}
+                    <td className="px-4 py-2 table-text">
+                      {ntg.state || "—"}
+                    </td>
                     <td className="px-4 py-2">
                       <button
                         type="button"

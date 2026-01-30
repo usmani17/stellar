@@ -63,6 +63,8 @@ interface CreateTargetPanelProps {
   createdTargets?: CreatedTarget[];
   failedCount?: number;
   failedTargets?: FailedTarget[];
+  /** Called when user removes a row from Added Targets; parent should clear failed state for that index */
+  onRemoveTargetAtIndex?: (index: number) => void;
 }
 
 // Expression types for SP campaigns
@@ -472,6 +474,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
   createdTargets = [],
   failedCount = 0,
   failedTargets = [],
+  onRemoveTargetAtIndex,
 }) => {
   // Get expression type options based on campaign type
   // Note: For SD campaigns, expression types are handled differently via sdExpressionStructureType
@@ -813,9 +816,11 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
     // Remove the target from the list
     setAddedTargets((prev) => prev.filter((_, i) => i !== index));
 
-    // Clear all previous target errors when removing a target
-    // This ensures a clean slate since the user is actively fixing issues
-    setTargetErrors([]);
+    // Reset failed state for this row so error is cleared
+    onRemoveTargetAtIndex?.(index);
+
+    // Clear local target errors for this row (sync with parent failedTargets update)
+    setTargetErrors((prev) => prev.filter((e) => e.index !== index));
   };
 
   const handleSubmit = () => {
@@ -1531,8 +1536,8 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
         </div>
       </div>
 
-      {/* Error Summary */}
-      {submitError && (
+      {/* Error Summary: only show for general submit errors, not when errors are per-row in Added Targets */}
+      {submitError && (!failedTargets || failedTargets.length === 0) && (
         <div className="p-4 border-b border-gray-200 bg-red-50">
           <p className="text-[13.3px] text-red-600">{submitError}</p>
           {createdTargets.length > 0 && failedCount > 0 && (

@@ -41,7 +41,7 @@ interface NegativeKeywordsTableProps {
   editedValue?: string;
   onEditStart?: (id: number, field: "status", currentValue: string) => void;
   onEditChange?: (value: string) => void;
-  onEditEnd?: (value?: string) => void;
+  onEditEnd?: (value?: string, id?: number, field?: "status") => void;
   onEditCancel?: () => void;
   inlineEditLoading?: Set<number>;
   pendingChange?: {
@@ -77,6 +77,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
   const statusOptions = isSB
     ? [
         { value: "enabled", label: "Enabled" },
+        { value: "paused", label: "Paused" },
         { value: "archived", label: "Archived" },
       ]
     : [
@@ -319,7 +320,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                         </span>
                       </td>
 
-                      {/* State */}
+                      {/* State - inline edit dropdown (same pattern as Ad Groups) */}
                       <td className="table-cell min-w-[250px]">
                         {inlineEditLoading.has(keyword.id) ? (
                           <div className="flex items-center gap-2">
@@ -349,93 +350,69 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                               }
                             />
                           </div>
-                        ) : editingField?.id === keyword.id &&
-                          editingField?.field === "status" ? (
-                          <div className="flex items-center gap-2">
-                            <Dropdown
-                              options={statusOptions}
-                              value={(() => {
-                                if (editedValue) return editedValue;
-                                const statusLower = (
-                                  keyword.status ||
-                                  keyword.state ||
-                                  "enabled"
-                                ).toLowerCase();
-                                if (isSB) {
-                                  return statusLower === "archived"
-                                    ? "archived"
-                                    : "enabled";
-                                }
-                                return statusLower === "enable" ||
-                                  statusLower === "enabled"
-                                  ? "enabled"
-                                  : "paused";
-                              })()}
-                              onChange={(val) => {
-                                // Mark that a selection was made for this keyword
-                                statusSelectionMadeRef.current = keyword.id;
-                                const newValue = val as string;
-                                onEditChange?.(newValue);
-                                // Call onEditEnd with the new value immediately when a value is selected
-                                onEditEnd?.(newValue);
-                                // Clear the ref after a short delay to allow onClose to check it
-                                setTimeout(() => {
-                                  if (
-                                    statusSelectionMadeRef.current ===
-                                    keyword.id
-                                  ) {
-                                    statusSelectionMadeRef.current = null;
-                                  }
-                                }, 200);
-                              }}
-                              onClose={() => {
-                                // Only cancel if no selection was made (clicked outside)
-                                if (
-                                  statusSelectionMadeRef.current !==
-                                    keyword.id &&
-                                  editingField?.id === keyword.id
-                                ) {
-                                  onEditCancel?.();
-                                }
-                              }}
-                              defaultOpen={true}
-                              closeOnSelect={true}
-                              buttonClassName="inline-edit-dropdown"
-                              width="w-full"
-                              align="center"
-                            />
+                        ) : isArchived ? (
+                          <div className="opacity-60">
+                            <StatusBadge status={statusValue} />
                           </div>
                         ) : (
-                          <div
-                            className={`text-[13.3px] leading-[1.26] ${
-                              isArchived
-                                ? "cursor-not-allowed opacity-60"
-                                : "cursor-pointer hover:underline"
-                            }`}
-                            onClick={() => {
-                              if (!isArchived) {
-                                const statusLower = statusValue.toLowerCase();
-                                const editStatusValue = isSB
-                                  ? statusLower === "archived"
+                          (() => {
+                            const statusLower = (
+                              keyword.status ||
+                              keyword.state ||
+                              "enabled"
+                            ).toLowerCase();
+                            const normalizedStatus = isSB
+                              ? statusLower === "archived"
+                                ? "Archived"
+                                : statusLower === "paused"
+                                  ? "Paused"
+                                  : "Enabled"
+                              : statusLower === "enable" ||
+                                  statusLower === "enabled"
+                                ? "Enabled"
+                                : statusLower === "paused"
+                                  ? "Paused"
+                                  : "Archived";
+                            const rawCurrentValue =
+                              editingField?.id === keyword.id &&
+                              editingField?.field === "status"
+                                ? editedValue
+                                : normalizedStatus.toLowerCase();
+                            const currentValue =
+                              rawCurrentValue === "enabled"
+                                ? "enabled"
+                                : rawCurrentValue === "paused"
+                                  ? "paused"
+                                  : rawCurrentValue === "archived"
                                     ? "archived"
-                                    : "enabled"
-                                  : statusLower === "enable" ||
-                                      statusLower === "enabled"
-                                    ? "enabled"
-                                    : "paused";
-                                onEditStart?.(
-                                  keyword.id,
-                                  "status",
-                                  editStatusValue,
-                                );
-                              }
-                            }}
-                          >
-                            <StatusBadge
-                              status={statusValue}
-                              uppercase={true}
-                            />
-                          </div>
+                                    : "enabled";
+
+                            return (
+                              <Dropdown
+                                options={statusOptions}
+                                value={currentValue}
+                                onChange={(val) => {
+                                  const newValue = (val as string).toLowerCase();
+                                  const wasEditing =
+                                    editingField?.id === keyword.id &&
+                                    editingField?.field === "status";
+
+                                  if (!wasEditing) {
+                                    onEditStart?.(
+                                      keyword.id,
+                                      "status",
+                                      normalizedStatus.toLowerCase(),
+                                    );
+                                  }
+                                  onEditChange?.(newValue);
+                                  onEditEnd?.(newValue, keyword.id, "status");
+                                }}
+                                buttonClassName="inline-edit-dropdown"
+                                width="w-full"
+                                align="center"
+                              />
+                            );
+                          })()
                         )}
                       </td>
 

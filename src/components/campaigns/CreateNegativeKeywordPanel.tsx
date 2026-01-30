@@ -89,7 +89,7 @@ export const CreateNegativeKeywordPanel: React.FC<
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
       keywordText: "",
       matchType: defaultMatchType as any,
-      ...(isSB ? {} : { state: "ENABLED" }), // State not set for SB at creation
+      state: "ENABLED", // Default to Enabled for both SP and SB
     });
   const [addedNegativeKeywords, setAddedNegativeKeywords] = useState<
     NegativeKeywordInput[]
@@ -138,7 +138,7 @@ export const CreateNegativeKeywordPanel: React.FC<
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
       keywordText: "",
       matchType: defaultMatchType as any,
-      ...(isSB ? {} : { state: "ENABLED" }), // State not set for SB at creation
+      state: "ENABLED",
     });
     setErrors({});
   };
@@ -167,7 +167,7 @@ export const CreateNegativeKeywordPanel: React.FC<
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
       keywordText: "",
       matchType: defaultMatchType as any,
-      ...(isSB ? {} : { state: "ENABLED" }), // State not set for SB at creation
+      state: "ENABLED",
     });
     setErrors({});
     onClose();
@@ -377,23 +377,21 @@ export const CreateNegativeKeywordPanel: React.FC<
             />
           </div>
 
-          {/* State - Only shown for SP campaigns (SB cannot set state at creation) */}
-          {!isSB && (
-            <div className="w-[140px]">
-              <label className="form-label-small">
-                State *
-              </label>
-              <Dropdown<string>
-                options={STATE_OPTIONS}
-                value={currentNegativeKeyword.state || "ENABLED"}
-                onChange={(value: string) => {
-                  handleChange("state", value as NegativeKeywordInput["state"]);
-                }}
-                placeholder="Select state"
-                buttonClassName="edit-button w-full"
-              />
-            </div>
-          )}
+          {/* State - default to Enabled */}
+          <div className="w-[140px]">
+            <label className="form-label-small">
+              State *
+            </label>
+            <Dropdown<string>
+              options={STATE_OPTIONS}
+              value={currentNegativeKeyword.state || "ENABLED"}
+              onChange={(value: string) => {
+                handleChange("state", value as NegativeKeywordInput["state"]);
+              }}
+              placeholder="Select state"
+              buttonClassName="edit-button w-full"
+            />
+          </div>
 
           {/* Add Negative Keyword Button */}
           <div className="w-[160px]">
@@ -428,11 +426,9 @@ export const CreateNegativeKeywordPanel: React.FC<
                     <th className="table-header">
                       Match Type
                     </th>
-                    {!isSB && (
-                      <th className="table-header">
-                        State
-                      </th>
-                    )}
+                    <th className="table-header">
+                      State
+                    </th>
                     <th className="table-header">
                       Action
                     </th>
@@ -498,13 +494,11 @@ export const CreateNegativeKeywordPanel: React.FC<
                             {negativeKeyword.matchType}
                           </span>
                         </td>
-                        {!isSB && (
-                          <td className="table-cell">
-                            <span className="table-text leading-[1.26]">
-                              {negativeKeyword.state || "ENABLED"}
-                            </span>
-                          </td>
-                        )}
+                        <td className="table-cell">
+                          <span className="table-text leading-[1.26]">
+                            {negativeKeyword.state || "ENABLED"}
+                          </span>
+                        </td>
                         <td className="table-cell">
                           <button
                             type="button"

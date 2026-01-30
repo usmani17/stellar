@@ -778,6 +778,18 @@ export const CampaignDetail: React.FC = () => {
     }).format(Number(value) || 0);
   };
 
+  /** Format bid/amount with decimals for confirmation modals (e.g. 0.1 → MXN 0.10). */
+  const formatCurrencyWithDecimals = (value: number, currency?: string) => {
+    const code = (currency?.trim() || profileCurrencyCode).toUpperCase();
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      currencyDisplay: "code",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    }).format(Number(value) || 0);
+  };
+
   // Read tab from query parameter on mount (one-directional: URL → tab, not tab → URL)
   // Use a ref to track if we've read the query param for this campaign
   const hasReadTabParam = useRef<string | null>(null);
@@ -856,6 +868,20 @@ export const CampaignDetail: React.FC = () => {
       loadAllAdGroups();
     }
   }, [accountId, campaignId, startDate, endDate]);
+
+  // Fetch ad groups whenever user switches to Keywords (or Targets/Negative Keywords) tab
+  // so the Create Keywords/Targets/Negative Keywords dropdowns have options (fixes SB "No options available")
+  useEffect(() => {
+    if (
+      accountId &&
+      campaignId &&
+      (activeTab === "Keywords" ||
+        activeTab === "Targets" ||
+        activeTab === "Negative Keywords")
+    ) {
+      loadAllAdGroups();
+    }
+  }, [activeTab, accountId, campaignId]);
 
   // For AUTO campaigns, check if keywords or targets exist to determine tab availability
   useEffect(() => {
@@ -2313,6 +2339,7 @@ export const CampaignDetail: React.FC = () => {
         {
           targets: formattedTargets,
         },
+        channelId ?? null,
       );
 
       // Check for partial success
@@ -2635,8 +2662,8 @@ export const CampaignDetail: React.FC = () => {
               customText: pa.customText || undefined,
               globalStoreSetting: pa.catalogSourceCountryCode
                 ? {
-                    catalogSourceCountryCode: pa.catalogSourceCountryCode,
-                  }
+                  catalogSourceCountryCode: pa.catalogSourceCountryCode,
+                }
                 : undefined,
               state: pa.state as "ENABLED" | "PAUSED",
             })),
@@ -2808,6 +2835,9 @@ export const CampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      const profileId = campaignDetail?.campaign?.profile_id ?? undefined;
+      const campaignIds = [campaignDetail.campaign.campaignId || campaignId!];
+
       if (inlineEditField === "status") {
         // Map status values
         const statusMap: Record<string, "enable" | "pause" | "archive"> = {
@@ -2818,11 +2848,17 @@ export const CampaignDetail: React.FC = () => {
         const statusValue =
           statusMap[inlineEditNewValue.toLowerCase()] || "enable";
 
-        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
-          campaignIds: [campaignDetail.campaign.campaignId || campaignId!],
-          action: "status",
-          status: statusValue,
-        });
+        await campaignsService.bulkUpdateCampaigns(
+          accountIdNum,
+          {
+            campaignIds,
+            action: "status",
+            status: statusValue,
+            ...(campaignType && { campaignType }),
+          },
+          channelId ?? null,
+          profileId,
+        );
       } else if (inlineEditField === "budget") {
         // Extract numeric value
         const budgetValue = parseFloat(inlineEditNewValue);
@@ -2830,25 +2866,43 @@ export const CampaignDetail: React.FC = () => {
           throw new Error("Invalid budget value");
         }
 
-        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
-          campaignIds: [campaignDetail.campaign.campaignId || campaignId!],
-          action: "budget",
-          budgetAction: "set",
-          unit: "amount",
-          value: budgetValue,
-        });
+        await campaignsService.bulkUpdateCampaigns(
+          accountIdNum,
+          {
+            campaignIds,
+            action: "budget",
+            budgetAction: "set",
+            unit: "amount",
+            value: budgetValue,
+            ...(campaignType && { campaignType }),
+          },
+          channelId ?? null,
+          profileId,
+        );
       } else if (inlineEditField === "startDate") {
-        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
-          campaignIds: [campaignDetail.campaign.campaignId || campaignId!],
-          action: "startDate",
-          startDate: inlineEditNewValue,
-        });
+        await campaignsService.bulkUpdateCampaigns(
+          accountIdNum,
+          {
+            campaignIds,
+            action: "startDate",
+            startDate: inlineEditNewValue,
+            ...(campaignType && { campaignType }),
+          },
+          channelId ?? null,
+          profileId,
+        );
       } else if (inlineEditField === "endDate") {
-        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
-          campaignIds: [campaignDetail.campaign.campaignId || campaignId!],
-          action: "endDate",
-          endDate: inlineEditNewValue,
-        });
+        await campaignsService.bulkUpdateCampaigns(
+          accountIdNum,
+          {
+            campaignIds,
+            action: "endDate",
+            endDate: inlineEditNewValue,
+            ...(campaignType && { campaignType }),
+          },
+          channelId ?? null,
+          profileId,
+        );
       }
 
       setShowInlineEditModal(false);
@@ -3651,7 +3705,7 @@ export const CampaignDetail: React.FC = () => {
         formData.append(
           "registrationContext[associatedPrograms][0][programName]",
           asset.registrationContext.associatedPrograms[0]?.programName ||
-            "A_PLUS",
+          "A_PLUS",
         );
         if (
           asset.registrationContext.associatedPrograms[0]?.metadata
@@ -4016,9 +4070,15 @@ export const CampaignDetail: React.FC = () => {
     setEditedSBAdValue(value);
   };
 
-  const handleSBAdEditEnd = (newValue?: string) => {
-    if (!editingSBAdField) return;
-    const ad = sbAds.find((a) => a.id === editingSBAdField.id);
+  const handleSBAdEditEnd = (newValue?: string, adId?: number, field?: "status" | "name") => {
+    // Use override parameters if provided, otherwise fall back to editingSBAdField state
+    // Same pattern as ad groups to avoid state timing when dropdown calls onEditEnd immediately after onEditStart
+    const adIdToUse = adId !== undefined ? adId : editingSBAdField?.id;
+    const fieldToUse = field !== undefined ? field : editingSBAdField?.field;
+
+    if (adIdToUse === undefined || fieldToUse === undefined) return;
+
+    const ad = sbAds.find((a) => a.id === adIdToUse);
     if (!ad) {
       setEditingSBAdField(null);
       setEditedSBAdValue("");
@@ -4031,15 +4091,24 @@ export const CampaignDetail: React.FC = () => {
     let hasChanged = false;
     let oldValue = "";
 
-    if (editingSBAdField.field === "status") {
+    if (fieldToUse === "status") {
       const statusLower = (ad.status || ad.state || "").toLowerCase();
       const currentStatus =
         statusLower === "enable" || statusLower === "enabled"
           ? "enabled"
-          : "paused";
+          : statusLower === "paused"
+            ? "paused"
+            : "archived";
       oldValue = currentStatus;
-      hasChanged = valueToCompare !== currentStatus;
-    } else if (editingSBAdField.field === "name") {
+      const newStatusLower = (valueToCompare || "").toLowerCase();
+      const normalizedNew =
+        newStatusLower === "enable" || newStatusLower === "enabled"
+          ? "enabled"
+          : newStatusLower === "paused"
+            ? "paused"
+            : "archived";
+      hasChanged = normalizedNew !== currentStatus;
+    } else if (fieldToUse === "name") {
       oldValue = ad.name || "";
       hasChanged =
         valueToCompare.trim() !== oldValue.trim() &&
@@ -4048,8 +4117,8 @@ export const CampaignDetail: React.FC = () => {
 
     if (hasChanged) {
       setPendingSBAdChange({
-        id: editingSBAdField.id,
-        field: editingSBAdField.field,
+        id: adIdToUse,
+        field: fieldToUse,
         newValue: valueToCompare,
         oldValue: oldValue,
       });
@@ -4118,9 +4187,23 @@ export const CampaignDetail: React.FC = () => {
 
       // Reload ads
       await loadSBAds();
+      const { field, oldValue, newValue } = pendingSBAdChange;
       setPendingSBAdChange(null);
       setEditingSBAdField(null);
       setEditedSBAdValue("");
+      const adGroupAction =
+        newValue?.toLowerCase() === "archived" || newValue?.toLowerCase() === "archive"
+          ? "archived"
+          : "updated";
+      showEditSummary({
+        entityType: "sbAd",
+        action: adGroupAction,
+        mode: "inline",
+        succeededCount: 1,
+        field,
+        oldValue,
+        newValue,
+      });
     } catch (error: any) {
       console.error("Error updating SB ad:", error);
       const errorMessage =
@@ -4578,9 +4661,9 @@ export const CampaignDetail: React.FC = () => {
     // This matches the pattern from Campaigns.tsx to avoid state timing issues
     const adgroupIdToUse = adgroupId !== undefined ? adgroupId : editingAdGroupField?.id;
     const fieldToUse = field !== undefined ? field : editingAdGroupField?.field;
-    
+
     if (adgroupIdToUse === undefined || fieldToUse === undefined) return;
-    
+
     const adgroup = adgroups.find((ag) => ag.id === adgroupIdToUse);
     if (!adgroup) {
       setEditingAdGroupField(null);
@@ -4787,10 +4870,10 @@ export const CampaignDetail: React.FC = () => {
   // Keyword inline edit handlers
   const handleKeywordEditStart = (
     id: number,
-    field: "status" | "bid",
+    field: "status" | "bid" | "state",
     currentValue: string,
   ) => {
-    setEditingKeywordField({ id, field });
+    setEditingKeywordField({ id, field: field === "state" ? "status" : field });
     setEditedKeywordValue(currentValue);
     setPendingKeywordChange(null);
   };
@@ -4799,9 +4882,16 @@ export const CampaignDetail: React.FC = () => {
     setEditedKeywordValue(value);
   };
 
-  const handleKeywordEditEnd = (newValue?: string) => {
-    if (!editingKeywordField) return;
-    const keyword = keywords.find((kw) => kw.id === editingKeywordField.id);
+  const handleKeywordEditEnd = (newValue?: string, keywordId?: number, field?: "state" | "bid") => {
+    // Use override parameters if provided, otherwise fall back to editingKeywordField state
+    // Same pattern as ad groups / SB ads to avoid state timing when dropdown calls onEditEnd immediately after onEditStart
+    const keywordIdToUse = keywordId !== undefined ? keywordId : editingKeywordField?.id;
+    const rawField = field !== undefined ? field : editingKeywordField?.field;
+    const fieldToUse = rawField === "state" ? "status" : rawField;
+
+    if (keywordIdToUse === undefined || (fieldToUse !== "status" && fieldToUse !== "bid")) return;
+
+    const keyword = keywords.find((kw) => kw.id === keywordIdToUse);
     if (!keyword) {
       setEditingKeywordField(null);
       setEditedKeywordValue("");
@@ -4815,34 +4905,40 @@ export const CampaignDetail: React.FC = () => {
     let hasChanged = false;
     let oldValue = "";
 
-    if (editingKeywordField.field === "status") {
-      const statusLower = keyword.status?.toLowerCase() || "enabled";
+    if (fieldToUse === "status") {
+      const statusLower = keyword.state?.toLowerCase() || "enabled";
       const currentStatus =
         statusLower === "enable" || statusLower === "enabled"
           ? "enabled"
-          : "paused";
+          : statusLower === "paused"
+            ? "paused"
+            : "archived";
       oldValue = currentStatus;
-      hasChanged = valueToCompare !== currentStatus;
-    } else if (editingKeywordField.field === "bid") {
+      const newStatusLower = (valueToCompare || "").toLowerCase();
+      const normalizedNew =
+        newStatusLower === "enable" || newStatusLower === "enabled"
+          ? "enabled"
+          : newStatusLower === "paused"
+            ? "paused"
+            : "archived";
+      hasChanged = normalizedNew !== currentStatus;
+    } else if (fieldToUse === "bid") {
       const currentBid =
         keyword.bid != null
           ? (typeof keyword.bid === "number"
-              ? String(keyword.bid)
-              : keyword.bid
-            ).replace(/[^0-9.]/g, "")
+            ? String(keyword.bid)
+            : keyword.bid
+          ).replace(/[^0-9.]/g, "")
           : "0";
-      const bidNum =
-        typeof keyword.bid === "number"
-          ? keyword.bid
-          : parseFloat(String(keyword.bid ?? "").replace(/[^0-9.-]/g, "")) || 0;
-      oldValue = formatCurrency(bidNum, keyword.profile_currency_code);
+      // Store raw numeric string so confirmation modal can show decimals (e.g. 0.1, 0.5)
+      oldValue = currentBid;
       hasChanged = valueToCompare !== currentBid && valueToCompare !== "";
     }
 
     if (hasChanged) {
       setPendingKeywordChange({
-        id: editingKeywordField.id,
-        field: editingKeywordField.field,
+        id: keywordIdToUse,
+        field: fieldToUse,
         newValue: valueToCompare,
         oldValue: oldValue,
       });
@@ -5290,19 +5386,19 @@ export const CampaignDetail: React.FC = () => {
         statusLower === "enable" || statusLower === "enabled"
           ? "enabled"
           : statusLower === "paused"
-          ? "paused"
-          : statusLower === "archived" || statusLower === "archive"
-          ? "archived"
-          : "paused";
+            ? "paused"
+            : statusLower === "archived" || statusLower === "archive"
+              ? "archived"
+              : "paused";
       oldValue = currentStatus;
       hasChanged = valueToCompare.toLowerCase() !== currentStatus;
     } else if (fieldToUse === "bid") {
       const currentBid =
         target.bid != null
           ? (typeof target.bid === "number"
-              ? String(target.bid)
-              : target.bid
-            ).replace(/[^0-9.]/g, "")
+            ? String(target.bid)
+            : target.bid
+          ).replace(/[^0-9.]/g, "")
           : "0";
       const bidNum =
         typeof target.bid === "number"
@@ -5542,25 +5638,32 @@ export const CampaignDetail: React.FC = () => {
     setEditedNegativeKeywordValue(value);
   };
 
-  const handleNegativeKeywordEditEnd = (newValue?: string) => {
-    if (!editingNegativeKeywordField) return;
-    const negativeKeyword = negativeKeywords.find(
-      (nkw) => nkw.id === editingNegativeKeywordField.id,
-    );
+  const handleNegativeKeywordEditEnd = (
+    newValue?: string,
+    id?: number,
+    field?: "status",
+  ) => {
+    // Use passed id/field when dropdown calls onEditEnd immediately after onChange (same pattern as ad groups)
+    const idToUse = id !== undefined ? id : editingNegativeKeywordField?.id;
+    const fieldToUse =
+      field !== undefined ? field : editingNegativeKeywordField?.field;
+
+    if (idToUse === undefined || fieldToUse === undefined) return;
+
+    const negativeKeyword = negativeKeywords.find((nkw) => nkw.id === idToUse);
     if (!negativeKeyword) {
       setEditingNegativeKeywordField(null);
       setEditedNegativeKeywordValue("");
       return;
     }
 
-    // Use the passed value if provided, otherwise use the state value
     const valueToCompare =
       newValue !== undefined ? newValue : editedNegativeKeywordValue;
 
     let hasChanged = false;
     let oldValue = "";
 
-    if (editingNegativeKeywordField.field === "status") {
+    if (fieldToUse === "status") {
       const statusLower = negativeKeyword.status?.toLowerCase() || "enabled";
       const currentStatus =
         campaignType === "SB"
@@ -5576,8 +5679,8 @@ export const CampaignDetail: React.FC = () => {
 
     if (hasChanged) {
       setPendingNegativeKeywordChange({
-        id: editingNegativeKeywordField.id,
-        field: editingNegativeKeywordField.field,
+        id: idToUse,
+        field: fieldToUse,
         newValue: valueToCompare,
         oldValue: oldValue,
       });
@@ -5611,10 +5714,10 @@ export const CampaignDetail: React.FC = () => {
       }
 
       if (pendingNegativeKeywordChange.field === "status") {
-        // Map status values: SB uses "enabled" | "archived", SP uses "enabled" | "paused"
+        // Map status values: SB uses "enabled" | "paused" | "archived", SP uses "enabled" | "paused"
         const statusMap: Record<string, "enable" | "pause" | "archive"> =
           campaignType === "SB"
-            ? { enabled: "enable", archived: "archive" }
+            ? { enabled: "enable", paused: "pause", archived: "archive" }
             : { enabled: "enable", paused: "pause" };
         const statusValue =
           statusMap[pendingNegativeKeywordChange.newValue.toLowerCase()] ||
@@ -5629,10 +5732,32 @@ export const CampaignDetail: React.FC = () => {
 
       // Reload negative keywords
       await loadNegativeKeywords();
+      const oldDisplay =
+        pendingNegativeKeywordChange.oldValue === "enabled"
+          ? "Enabled"
+          : pendingNegativeKeywordChange.oldValue === "archived"
+            ? "Archived"
+            : "Paused";
+      const newDisplay =
+        pendingNegativeKeywordChange.newValue === "enabled"
+          ? "Enabled"
+          : pendingNegativeKeywordChange.newValue === "archived"
+            ? "Archived"
+            : "Paused";
       setPendingNegativeKeywordChange(null);
       setEditingNegativeKeywordField(null);
       setEditedNegativeKeywordValue("");
       setShowNegativeKeywordsConfirmationModal(false);
+
+      showEditSummary({
+        entityType: "negativeKeyword",
+        action: "updated",
+        mode: "inline",
+        succeededCount: 1,
+        field: "status",
+        oldValue: oldDisplay,
+        newValue: newDisplay,
+      });
     } catch (error: any) {
       console.error("Error updating negative keyword:", error);
       const errorMessage =
@@ -5882,6 +6007,7 @@ export const CampaignDetail: React.FC = () => {
         {
           negativeTargetingClauses: formattedNegativeTargets,
         },
+        channelId ?? null,
       );
 
       // Check for partial success
@@ -6010,7 +6136,7 @@ export const CampaignDetail: React.FC = () => {
         // Fallback to errors array
         if (
           errorMessage ===
-            "Failed to create negative targets. Please try again." &&
+          "Failed to create negative targets. Please try again." &&
           responseData.errors &&
           Array.isArray(responseData.errors) &&
           responseData.errors.length > 0
@@ -6021,7 +6147,7 @@ export const CampaignDetail: React.FC = () => {
         // Fallback to error field
         if (
           errorMessage ===
-            "Failed to create negative targets. Please try again." &&
+          "Failed to create negative targets. Please try again." &&
           responseData.error
         ) {
           errorMessage = responseData.error;
@@ -6031,7 +6157,7 @@ export const CampaignDetail: React.FC = () => {
       // Final fallback to error message
       if (
         errorMessage ===
-          "Failed to create negative targets. Please try again." &&
+        "Failed to create negative targets. Please try again." &&
         error?.message
       ) {
         errorMessage = error.message;
@@ -7372,7 +7498,7 @@ export const CampaignDetail: React.FC = () => {
               // before React state has updated - matches pattern from Campaigns.tsx
               const valueToCompare = value !== undefined ? value : editedValue;
               const fieldToUse = field !== undefined ? field : editingField;
-              
+
               if (fieldToUse === "status") {
                 const rawCurrent =
                   campaignDetail.campaign.status ?? "";
@@ -7522,17 +7648,15 @@ export const CampaignDetail: React.FC = () => {
                       }
                     }}
                     disabled={isDisabled}
-                    className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 ${
-                      isDisabled
+                    className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 ${isDisabled
                         ? "cursor-not-allowed opacity-50 text-[#9CA3AF] border-transparent"
                         : "cursor-pointer"
-                    } ${
-                      activeTab === tab && !isDisabled
+                      } ${activeTab === tab && !isDisabled
                         ? "border-[#136D6D] text-[#136D6D]"
                         : !isDisabled
                           ? "border-transparent text-[#556179] hover:text-[#072929]"
                           : ""
-                    }`}
+                      }`}
                   >
                     {tab}
                   </button>
@@ -7809,9 +7933,8 @@ export const CampaignDetail: React.FC = () => {
                         Create Ads
                       </span>
                       <svg
-                        className={`w-4 h-4 !text-white transition-transform ${
-                          isCreateSBAdPanelOpen ? "rotate-180" : ""
-                        }`}
+                        className={`w-4 h-4 !text-white transition-transform ${isCreateSBAdPanelOpen ? "rotate-180" : ""
+                          }`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -7833,7 +7956,7 @@ export const CampaignDetail: React.FC = () => {
                         <Button
                           type="button"
                           variant="ghost"
-                          className="edit-button-large"
+                          className="edit-button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowSBAdsBulkActions((prev) => !prev);
@@ -8039,11 +8162,10 @@ export const CampaignDetail: React.FC = () => {
                             <button
                               key={pageNum}
                               onClick={() => handleSBAdsPageChange(pageNum)}
-                              className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                                sbAdsCurrentPage === pageNum
+                              className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${sbAdsCurrentPage === pageNum
                                   ? "bg-white text-[#136D6D] font-semibold"
                                   : "text-black hover:bg-gray-50"
-                              }`}
+                                }`}
                             >
                               {pageNum}
                             </button>
@@ -8059,11 +8181,10 @@ export const CampaignDetail: React.FC = () => {
                       {sbAdsTotalPages > 5 && (
                         <button
                           onClick={() => handleSBAdsPageChange(sbAdsTotalPages)}
-                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                            sbAdsCurrentPage === sbAdsTotalPages
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${sbAdsCurrentPage === sbAdsTotalPages
                               ? "bg-white text-[#136D6D] font-semibold"
                               : "text-black hover:bg-gray-50"
-                          }`}
+                            }`}
                         >
                           {sbAdsTotalPages}
                         </button>
@@ -8108,9 +8229,8 @@ export const CampaignDetail: React.FC = () => {
                         Create Product Ads
                       </span>
                       <svg
-                        className={`w-4 h-4 !text-white transition-transform ${
-                          isCreateProductAdPanelOpen ? "rotate-180" : ""
-                        }`}
+                        className={`w-4 h-4 !text-white transition-transform ${isCreateProductAdPanelOpen ? "rotate-180" : ""
+                          }`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -8178,9 +8298,9 @@ export const CampaignDetail: React.FC = () => {
                                   } else if (opt.value === "archive") {
                                     setPendingProductAdsStatusAction(
                                       "archive" as
-                                        | "enable"
-                                        | "pause"
-                                        | "archive",
+                                      | "enable"
+                                      | "pause"
+                                      | "archive",
                                     );
                                     setShowProductAdsStatusConfirmation(true);
                                   } else if (
@@ -8228,9 +8348,8 @@ export const CampaignDetail: React.FC = () => {
                         Add Filter
                       </span>
                       <svg
-                        className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                          isProductAdsFilterPanelOpen ? "rotate-180" : ""
-                        }`}
+                        className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isProductAdsFilterPanelOpen ? "rotate-180" : ""
+                          }`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -8351,11 +8470,10 @@ export const CampaignDetail: React.FC = () => {
                                 onClick={() =>
                                   handleProductAdsPageChange(pageNum)
                                 }
-                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                                  productadsCurrentPage === pageNum
+                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${productadsCurrentPage === pageNum
                                     ? "bg-white text-[#136D6D] font-semibold"
                                     : "text-black hover:bg-gray-50"
-                                }`}
+                                  }`}
                               >
                                 {pageNum}
                               </button>
@@ -8373,11 +8491,10 @@ export const CampaignDetail: React.FC = () => {
                             onClick={() =>
                               handleProductAdsPageChange(productadsTotalPages)
                             }
-                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                              productadsCurrentPage === productadsTotalPages
+                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${productadsCurrentPage === productadsTotalPages
                                 ? "bg-white text-[#136D6D] font-semibold"
                                 : "text-black hover:bg-gray-50"
-                            }`}
+                              }`}
                           >
                             {productadsTotalPages}
                           </button>
@@ -8453,6 +8570,15 @@ export const CampaignDetail: React.FC = () => {
                 createdTargets={createdTargets}
                 failedCount={failedTargetCount}
                 failedTargets={failedTargets}
+                onClearFailedTargetAtIndex={(index) => {
+                  setFailedTargets((prev) => {
+                    const next = prev.filter((ft) => ft.index !== index);
+                    if (next.length === 0) {
+                      setCreateTargetError(null);
+                    }
+                    return next;
+                  });
+                }}
                 showBulkActions={showTargetsBulkActions}
                 onToggleBulkActions={() => {
                   setShowTargetsBulkActions((prev) => !prev);
@@ -8616,9 +8742,8 @@ export const CampaignDetail: React.FC = () => {
                           Create Negative Targets
                         </span>
                         <svg
-                          className={`w-4 h-4 !text-white transition-transform ${
-                            isCreateNegativeTargetPanelOpen ? "rotate-180" : ""
-                          }`}
+                          className={`w-4 h-4 !text-white transition-transform ${isCreateNegativeTargetPanelOpen ? "rotate-180" : ""
+                            }`}
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -8690,8 +8815,8 @@ export const CampaignDetail: React.FC = () => {
                                     } else {
                                       setPendingNegativeTargetsStatusAction(
                                         opt.value as
-                                          | "enable"
-                                          | "pause",
+                                        | "enable"
+                                        | "pause",
                                       );
                                       setShowNegativeTargetsConfirmationModal(
                                         true,
@@ -8733,9 +8858,8 @@ export const CampaignDetail: React.FC = () => {
                           Add Filter
                         </span>
                         <svg
-                          className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                            isNegativeTargetsFilterPanelOpen ? "rotate-180" : ""
-                          }`}
+                          className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isNegativeTargetsFilterPanelOpen ? "rotate-180" : ""
+                            }`}
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -8877,11 +9001,10 @@ export const CampaignDetail: React.FC = () => {
                                 onClick={() =>
                                   handleNegativeTargetsPageChange(pageNum)
                                 }
-                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                                  negativeTargetsCurrentPage === pageNum
+                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${negativeTargetsCurrentPage === pageNum
                                     ? "bg-white text-[#136D6D] font-semibold"
                                     : "text-black hover:bg-gray-50"
-                                }`}
+                                  }`}
                               >
                                 {pageNum}
                               </button>
@@ -8890,7 +9013,7 @@ export const CampaignDetail: React.FC = () => {
                         )}
                         {negativeTargetsTotalPages > 5 &&
                           negativeTargetsCurrentPage <
-                            negativeTargetsTotalPages - 2 && (
+                          negativeTargetsTotalPages - 2 && (
                             <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
                               ...
                             </span>
@@ -8902,12 +9025,11 @@ export const CampaignDetail: React.FC = () => {
                                 negativeTargetsTotalPages,
                               )
                             }
-                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                              negativeTargetsCurrentPage ===
-                              negativeTargetsTotalPages
+                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${negativeTargetsCurrentPage ===
+                                negativeTargetsTotalPages
                                 ? "bg-white text-[#136D6D] font-semibold"
                                 : "text-black hover:bg-gray-50"
-                            }`}
+                              }`}
                           >
                             {negativeTargetsTotalPages}
                           </button>
@@ -8954,9 +9076,8 @@ export const CampaignDetail: React.FC = () => {
                         Create Asset
                       </span>
                       <svg
-                        className={`w-4 h-4 !text-white transition-transform ${
-                          isCreateAssetPanelOpen ? "rotate-180" : ""
-                        }`}
+                        className={`w-4 h-4 !text-white transition-transform ${isCreateAssetPanelOpen ? "rotate-180" : ""
+                          }`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -9106,11 +9227,10 @@ export const CampaignDetail: React.FC = () => {
                               <button
                                 key={pageNum}
                                 onClick={() => handleAssetsPageChange(pageNum)}
-                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                                  assetsCurrentPage === pageNum
+                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${assetsCurrentPage === pageNum
                                     ? "bg-white text-[#136D6D] font-semibold"
                                     : "text-black hover:bg-gray-50"
-                                }`}
+                                  }`}
                               >
                                 {pageNum}
                               </button>
@@ -9128,11 +9248,10 @@ export const CampaignDetail: React.FC = () => {
                             onClick={() =>
                               handleAssetsPageChange(assetsTotalPages)
                             }
-                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                              assetsCurrentPage === assetsTotalPages
+                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${assetsCurrentPage === assetsTotalPages
                                 ? "bg-white text-[#136D6D] font-semibold"
                                 : "text-black hover:bg-gray-50"
-                            }`}
+                              }`}
                           >
                             {assetsTotalPages}
                           </button>
@@ -9279,11 +9398,10 @@ export const CampaignDetail: React.FC = () => {
                                 onClick={() =>
                                   handleCreativesPageChange(pageNum)
                                 }
-                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                                  creativesCurrentPage === pageNum
+                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${creativesCurrentPage === pageNum
                                     ? "bg-white text-[#136D6D] font-semibold"
                                     : "text-black hover:bg-gray-50"
-                                }`}
+                                  }`}
                               >
                                 {pageNum}
                               </button>
@@ -9301,11 +9419,10 @@ export const CampaignDetail: React.FC = () => {
                             onClick={() =>
                               handleCreativesPageChange(creativesTotalPages)
                             }
-                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                              creativesCurrentPage === creativesTotalPages
+                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${creativesCurrentPage === creativesTotalPages
                                 ? "bg-white text-[#136D6D] font-semibold"
                                 : "text-black hover:bg-gray-50"
-                            }`}
+                              }`}
                           >
                             {creativesTotalPages}
                           </button>
@@ -9433,7 +9550,7 @@ export const CampaignDetail: React.FC = () => {
                       <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
                         {inlineEditField === "status"
                           ? inlineEditNewValue.charAt(0).toUpperCase() +
-                            inlineEditNewValue.slice(1)
+                          inlineEditNewValue.slice(1)
                           : inlineEditField === "budget"
                             ? formatCurrency(parseFloat(inlineEditNewValue || "0"), profileCurrencyCode)
                             : inlineEditField === "startDate" || inlineEditField === "endDate"
@@ -9502,11 +9619,10 @@ export const CampaignDetail: React.FC = () => {
                   </h3>
                   <p className="text-[14px] text-[#556179]">
                     {pendingKeywordsStatusAction
-                      ? `Are you sure you want to ${
-                          pendingKeywordsStatusAction === "enable"
-                            ? "enable"
-                            : "pause"
-                        } ${selectedKeywordIds.size} keyword(s)?`
+                      ? `Are you sure you want to ${pendingKeywordsStatusAction === "enable"
+                        ? "enable"
+                        : "pause"
+                      } ${selectedKeywordIds.size} keyword(s)?`
                       : `Are you sure you want to update the bid for ${selectedKeywordIds.size} keyword(s)?`}
                   </p>
                 </div>
@@ -9635,9 +9751,8 @@ export const CampaignDetail: React.FC = () => {
                     <span className="text-[10.64px] text-[#556179]">
                       {hasMore
                         ? `Showing ${previewCount} of ${selectedProductAdsData.length} selected product ads`
-                        : `${selectedProductAdsData.length} product ad${
-                            selectedProductAdsData.length !== 1 ? "s" : ""
-                          } selected`}
+                        : `${selectedProductAdsData.length} product ad${selectedProductAdsData.length !== 1 ? "s" : ""
+                        } selected`}
                     </span>
                   </div>
                   <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -10029,9 +10144,8 @@ export const CampaignDetail: React.FC = () => {
                       <span className="text-[10.64px] text-[#556179]">
                         {hasMore
                           ? `Showing ${previewCount} of ${selectedTargetsData.length} selected targets`
-                          : `${selectedTargetsData.length} target${
-                              selectedTargetsData.length !== 1 ? "s" : ""
-                            } selected`}
+                          : `${selectedTargetsData.length} target${selectedTargetsData.length !== 1 ? "s" : ""
+                          } selected`}
                       </span>
                     </div>
                     <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -10111,9 +10225,9 @@ export const CampaignDetail: React.FC = () => {
                                 : oldBid;
                               const newStatus = pendingTargetsStatusAction
                                 ? pendingTargetsStatusAction
-                                    .charAt(0)
-                                    .toUpperCase() +
-                                  pendingTargetsStatusAction.slice(1)
+                                  .charAt(0)
+                                  .toUpperCase() +
+                                pendingTargetsStatusAction.slice(1)
                                 : oldStatus;
 
                               return (
@@ -10163,17 +10277,17 @@ export const CampaignDetail: React.FC = () => {
 
                     {(targetsBidAction === "increase" ||
                       targetsBidAction === "decrease") && (
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                        <span className="text-[12.16px] text-[#556179]">
-                          Unit:
-                        </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {targetsBidUnit === "percent"
-                            ? "Percentage (%)"
-                            : `Amount (${targets.filter((t) => selectedTargetIds.has(t.targetId || t.id))[0]?.profile_currency_code?.trim() || "USD"})`}
-                        </span>
-                      </div>
-                    )}
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                          <span className="text-[12.16px] text-[#556179]">
+                            Unit:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {targetsBidUnit === "percent"
+                              ? "Percentage (%)"
+                              : `Amount (${targets.filter((t) => selectedTargetIds.has(t.targetId || t.id))[0]?.profile_currency_code?.trim() || "USD"})`}
+                          </span>
+                        </div>
+                      )}
 
                     <div className="flex justify-between items-center py-2 border-b border-gray-200">
                       <span className="text-[12.16px] text-[#556179]">
@@ -10185,7 +10299,7 @@ export const CampaignDetail: React.FC = () => {
                       </span>
                     </div>
 
-                      {targetsBidAction === "increase" &&
+                    {targetsBidAction === "increase" &&
                       targetsBidUpperLimit && (
                         <div className="flex justify-between items-center py-2 border-b border-gray-200">
                           <span className="text-[12.16px] text-[#556179]">
@@ -10217,7 +10331,7 @@ export const CampaignDetail: React.FC = () => {
                     <span className="text-[12.16px] font-semibold text-[#072929]">
                       {pendingTargetsStatusAction
                         ? pendingTargetsStatusAction.charAt(0).toUpperCase() +
-                          pendingTargetsStatusAction.slice(1)
+                        pendingTargetsStatusAction.slice(1)
                         : ""}
                     </span>
                   </div>
@@ -10306,13 +10420,11 @@ export const CampaignDetail: React.FC = () => {
                       <span className="text-[10.64px] text-[#556179]">
                         {hasMore
                           ? `Showing ${previewCount} of ${selectedNegativeKeywordsData.length} selected negative keywords`
-                          : `${
-                              selectedNegativeKeywordsData.length
-                            } negative keyword${
-                              selectedNegativeKeywordsData.length !== 1
-                                ? "s"
-                                : ""
-                            } selected`}
+                          : `${selectedNegativeKeywordsData.length
+                          } negative keyword${selectedNegativeKeywordsData.length !== 1
+                            ? "s"
+                            : ""
+                          } selected`}
                       </span>
                     </div>
                     <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -10462,13 +10574,11 @@ export const CampaignDetail: React.FC = () => {
                       <span className="text-[10.64px] text-[#556179]">
                         {hasMore
                           ? `Showing ${previewCount} of ${selectedNegativeTargetsData.length} selected negative targets`
-                          : `${
-                              selectedNegativeTargetsData.length
-                            } negative target${
-                              selectedNegativeTargetsData.length !== 1
-                                ? "s"
-                                : ""
-                            } selected`}
+                          : `${selectedNegativeTargetsData.length
+                          } negative target${selectedNegativeTargetsData.length !== 1
+                            ? "s"
+                            : ""
+                          } selected`}
                       </span>
                     </div>
                     <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -10495,7 +10605,7 @@ export const CampaignDetail: React.FC = () => {
                                 pendingNegativeTargetsStatusAction === "enable"
                                   ? "Enabled"
                                   : pendingNegativeTargetsStatusAction ===
-                                      "archive"
+                                    "archive"
                                     ? "Archived"
                                     : "Paused";
 
@@ -10558,9 +10668,9 @@ export const CampaignDetail: React.FC = () => {
                     if (pendingNegativeTargetsStatusAction) {
                       await handleBulkNegativeTargetsStatus(
                         pendingNegativeTargetsStatusAction as
-                          | "enable"
-                          | "pause"
-                          | "archive",
+                        | "enable"
+                        | "pause"
+                        | "archive",
                       );
                     }
                   }}
@@ -10625,9 +10735,8 @@ export const CampaignDetail: React.FC = () => {
                     <span className="text-[10.64px] text-[#556179]">
                       {hasMore
                         ? `Showing ${previewCount} of ${selectedAdGroupsData.length} selected ad groups`
-                        : `${selectedAdGroupsData.length} ad group${
-                            selectedAdGroupsData.length !== 1 ? "s" : ""
-                          } selected`}
+                        : `${selectedAdGroupsData.length} ad group${selectedAdGroupsData.length !== 1 ? "s" : ""
+                        } selected`}
                     </span>
                   </div>
                   <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -10662,9 +10771,9 @@ export const CampaignDetail: React.FC = () => {
                               : oldBid;
                             const newStatus = pendingAdGroupsStatusAction
                               ? pendingAdGroupsStatusAction
-                                  .charAt(0)
-                                  .toUpperCase() +
-                                pendingAdGroupsStatusAction.slice(1)
+                                .charAt(0)
+                                .toUpperCase() +
+                              pendingAdGroupsStatusAction.slice(1)
                               : oldStatus;
 
                             return (
@@ -10714,17 +10823,17 @@ export const CampaignDetail: React.FC = () => {
 
                   {(adGroupsBidAction === "increase" ||
                     adGroupsBidAction === "decrease") && (
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                      <span className="text-[12.16px] text-[#556179]">
-                        Unit:
-                      </span>
-                      <span className="text-[12.16px] font-semibold text-[#072929]">
-                        {adGroupsBidUnit === "percent"
-                          ? "Percentage (%)"
-                          : `Amount (${adgroups.find((ag) => selectedAdGroupIds.has(ag.adGroupId || ag.id))?.profile_currency_code?.trim() || "USD"})`}
-                      </span>
-                    </div>
-                  )}
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                        <span className="text-[12.16px] text-[#556179]">
+                          Unit:
+                        </span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {adGroupsBidUnit === "percent"
+                            ? "Percentage (%)"
+                            : `Amount (${adgroups.find((ag) => selectedAdGroupIds.has(ag.adGroupId || ag.id))?.profile_currency_code?.trim() || "USD"})`}
+                        </span>
+                      </div>
+                    )}
 
                   <div className="flex justify-between items-center py-2 border-b border-gray-200">
                     <span className="text-[12.16px] text-[#556179]">
@@ -10768,7 +10877,7 @@ export const CampaignDetail: React.FC = () => {
                   <span className="text-[12.16px] font-semibold text-[#072929]">
                     {pendingAdGroupsStatusAction
                       ? pendingAdGroupsStatusAction.charAt(0).toUpperCase() +
-                        pendingAdGroupsStatusAction.slice(1)
+                      pendingAdGroupsStatusAction.slice(1)
                       : ""}
                   </span>
                 </div>
@@ -10826,11 +10935,11 @@ export const CampaignDetail: React.FC = () => {
             oldValueDisplay = pendingAdGroupChange.oldValue.startsWith("$")
               ? pendingAdGroupChange.oldValue
               : `$${parseFloat(
-                  pendingAdGroupChange.oldValue || "0",
-                ).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}`;
+                pendingAdGroupChange.oldValue || "0",
+              ).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`;
           } else if (pendingAdGroupChange.field === "status") {
             oldValueDisplay =
               pendingAdGroupChange.oldValue === "enabled"
@@ -10851,11 +10960,11 @@ export const CampaignDetail: React.FC = () => {
             newValueDisplay = pendingAdGroupChange.newValue.startsWith("$")
               ? pendingAdGroupChange.newValue
               : `$${parseFloat(
-                  pendingAdGroupChange.newValue || "0",
-                ).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}`;
+                pendingAdGroupChange.newValue || "0",
+              ).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`;
           } else if (pendingAdGroupChange.field === "status") {
             newValueDisplay =
               pendingAdGroupChange.newValue === "enabled"
@@ -10955,7 +11064,7 @@ export const CampaignDetail: React.FC = () => {
             const bidNum = parseFloat(
               String(pendingKeywordChange.oldValue ?? "").replace(/[^0-9.-]/g, "") || "0"
             ) || 0;
-            oldValueDisplay = formatCurrency(bidNum, keyword?.profile_currency_code);
+            oldValueDisplay = formatCurrencyWithDecimals(bidNum, keyword?.profile_currency_code);
           } else if (pendingKeywordChange.field === "status") {
             oldValueDisplay =
               pendingKeywordChange.oldValue === "enabled"
@@ -10968,7 +11077,7 @@ export const CampaignDetail: React.FC = () => {
           // Format new value
           let newValueDisplay = "";
           if (pendingKeywordChange.field === "bid") {
-            newValueDisplay = formatCurrency(
+            newValueDisplay = formatCurrencyWithDecimals(
               parseFloat(pendingKeywordChange.newValue || "0") || 0,
               keyword?.profile_currency_code
             );
@@ -11282,11 +11391,11 @@ export const CampaignDetail: React.FC = () => {
             oldValueDisplay = pendingTargetChange.oldValue.startsWith("$")
               ? pendingTargetChange.oldValue
               : `$${parseFloat(
-                  pendingTargetChange.oldValue || "0",
-                ).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}`;
+                pendingTargetChange.oldValue || "0",
+              ).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`;
           } else if (pendingTargetChange.field === "status") {
             oldValueDisplay =
               pendingTargetChange.oldValue === "enabled" ? "Enabled" : "Paused";
@@ -11485,11 +11594,17 @@ export const CampaignDetail: React.FC = () => {
           const fieldLabel =
             pendingSBAdChange.field === "status" ? "Status" : "Name";
 
-          // Format old value
+          // Format old value (match ad groups: enabled / paused / archived)
           let oldValueDisplay = "";
           if (pendingSBAdChange.field === "status") {
             oldValueDisplay =
-              pendingSBAdChange.oldValue === "enabled" ? "Enabled" : "Paused";
+              pendingSBAdChange.oldValue === "enabled"
+                ? "Enabled"
+                : pendingSBAdChange.oldValue === "paused"
+                  ? "Paused"
+                  : pendingSBAdChange.oldValue === "archived"
+                    ? "Archived"
+                    : pendingSBAdChange.oldValue;
           } else if (pendingSBAdChange.field === "name") {
             oldValueDisplay = pendingSBAdChange.oldValue || "—";
           }
@@ -11498,7 +11613,13 @@ export const CampaignDetail: React.FC = () => {
           let newValueDisplay = "";
           if (pendingSBAdChange.field === "status") {
             newValueDisplay =
-              pendingSBAdChange.newValue === "enabled" ? "Enabled" : "Paused";
+              pendingSBAdChange.newValue === "enabled"
+                ? "Enabled"
+                : pendingSBAdChange.newValue === "paused"
+                  ? "Paused"
+                  : pendingSBAdChange.newValue === "archived"
+                    ? "Archived"
+                    : pendingSBAdChange.newValue;
           } else if (pendingSBAdChange.field === "name") {
             newValueDisplay = pendingSBAdChange.newValue || "—";
           }

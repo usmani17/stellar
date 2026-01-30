@@ -1280,6 +1280,7 @@ export const campaignsService = {
       | "name"
       | "portfolioId"
       | "endDate"
+      | "startDate"
       | "targetingType";
       status?: "enable" | "pause" | "archive";
       budgetAction?: "increase" | "decrease" | "set";
@@ -1291,10 +1292,13 @@ export const campaignsService = {
       name?: string;
       portfolioId?: string | null;
       endDate?: string | null;
+      startDate?: string | null;
       targetingType?: "AUTO" | "MANUAL";
       tags?: Array<{ key: string; value: string }>;
       siteRestrictions?: string | null;
       dynamicBidding?: any;
+      /** Campaign type (SP, SB, SD) for channel-scoped / campaign-detail context */
+      campaignType?: "SP" | "SB" | "SD";
     },
     channelId?: number | string | null,
     profileId?: string | number | null
@@ -1895,9 +1899,11 @@ export const campaignsService = {
         expressionType: "MANUAL";
         state: "ENABLED" | "PAUSED" | "PROPOSED";
       }>;
-    }
+    },
+    channelId?: number | string | null
   ) => {
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/create/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/campaigns/${campaignId}/targets/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },
@@ -2458,9 +2464,11 @@ export const campaignsService = {
         }>;
         state?: "ENABLED" | "PAUSED";
       }>;
-    }
+    },
+    channelId?: number | string | null
   ) => {
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/create/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/campaigns/${campaignId}/negative-targets/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },
