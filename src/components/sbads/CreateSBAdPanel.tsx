@@ -51,6 +51,7 @@ interface CreateSBAdPanelProps {
   campaignId: string;
   accountId?: number;
   profileId?: string; // Profile ID to filter assets
+  channelId?: string | number | null;
   loading?: boolean;
   submitError?: string | null;
   fieldErrors?: Record<string, string>;
@@ -89,6 +90,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
   adgroups,
   accountId,
   profileId,
+  channelId,
   loading = false,
   submitError = null,
   fieldErrors = {},
@@ -119,7 +121,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
     if (isOpen && accountId) {
       loadAssets();
     }
-  }, [isOpen, accountId, profileId]);
+  }, [isOpen, accountId, profileId, channelId]);
 
   // Update adGroupId when adgroups are loaded
   useEffect(() => {
@@ -136,11 +138,15 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
     try {
       setAssetsLoading(true);
-      const data = await campaignsService.getAssets(accountId, {
-        page: 1,
-        page_size: 100, // Get all assets for dropdown
-        ...(profileId && { profileId }), // Include profileId if available to filter assets
-      });
+      const data = await campaignsService.getAssets(
+        accountId,
+        {
+          page: 1,
+          page_size: 100, // Get all assets for dropdown
+          ...(profileId && { profileId }), // Include profileId if available to filter assets
+        },
+        channelId ?? null
+      );
       setAssets(data.assets || []);
     } catch (error) {
       console.error("Failed to load assets:", error);

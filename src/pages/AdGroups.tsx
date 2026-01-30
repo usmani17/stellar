@@ -28,10 +28,13 @@ import {
   type MetricConfig,
 } from "../components/charts/PerformanceChart";
 import { ErrorModal } from "../components/ui/ErrorModal";
+import { useEditSummaryModal } from "../hooks/useEditSummaryModal";
 import { Loader } from "../components/ui/Loader";
 import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
 
 export const AdGroups: React.FC = () => {
+  const { showEditSummary, EditSummaryModal: EditSummaryModalOutlet } =
+    useEditSummaryModal();
   const navigate = useNavigate();
   const { accountId, channelId } = useParams<{
     accountId: string;
@@ -721,6 +724,7 @@ export const AdGroups: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      let adGroupAction: "updated" | "archived" = "updated";
       if (pendingAdGroupChange.field === "status") {
         // For SD adgroups, archive uses the archive endpoint
         if (
@@ -728,6 +732,7 @@ export const AdGroups: React.FC = () => {
           (pendingAdGroupChange.newValue.toLowerCase() === "archived" ||
             pendingAdGroupChange.newValue.toLowerCase() === "archive")
         ) {
+          adGroupAction = "archived";
           await campaignsService.archiveSdAdGroup(
             accountIdNum,
             adgroup.adGroupId,
@@ -785,11 +790,22 @@ export const AdGroups: React.FC = () => {
         );
       }
 
-      // Reload adgroups
-      await loadAdGroups(accountIdNum);
+      const { field, oldValue, newValue } = pendingAdGroupChange;
       setPendingAdGroupChange(null);
       setEditingAdGroupField(null);
       setEditedAdGroupValue("");
+
+      showEditSummary({
+        entityType: "adGroup",
+        action: adGroupAction,
+        mode: "inline",
+        succeededCount: 1,
+        field,
+        oldValue,
+        newValue: adGroupAction === "archived" ? "Archived" : newValue,
+      });
+
+      await loadAdGroups(accountIdNum);
     } catch (error: any) {
       console.error("Error updating ad group:", error);
       const errorMessage =
@@ -803,7 +819,7 @@ export const AdGroups: React.FC = () => {
     } finally {
       setAdGroupEditLoading((prev) => {
         const newSet = new Set(prev);
-        newSet.delete(pendingAdGroupChange.id);
+        if (pendingAdGroupChange) newSet.delete(pendingAdGroupChange.id);
         return newSet;
       });
     }
@@ -1238,6 +1254,8 @@ export const AdGroups: React.FC = () => {
         isSuccess={errorModal.isSuccess}
         genericErrors={errorModal.genericErrors}
       />
+
+      <EditSummaryModalOutlet />
 
       {/* Inline Edit Confirmation Modal */}
       {pendingAdGroupChange &&

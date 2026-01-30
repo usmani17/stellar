@@ -58,6 +58,7 @@ import {
   type CreativeInput,
 } from "../components/creatives/CreateCreativePanel";
 import { ErrorModal } from "../components/ui/ErrorModal";
+import { useEditSummaryModal } from "../hooks/useEditSummaryModal";
 import { Tooltip } from "../components/ui/Tooltip";
 import { Button } from "../components/ui";
 import { Dropdown } from "../components/ui/Dropdown";
@@ -72,6 +73,8 @@ import {
 import { CampaignInformation } from "./campaigns/components/CampaignInformation";
 
 export const CampaignDetail: React.FC = () => {
+  const { showEditSummary, EditSummaryModal: EditSummaryModalOutlet } =
+    useEditSummaryModal();
   const { accountId, channelId, campaignTypeAndId } = useParams<{
     accountId: string;
     channelId?: string;
@@ -1429,6 +1432,7 @@ export const CampaignDetail: React.FC = () => {
     }
   }, [
     accountId,
+    channelId,
     activeTab,
     campaignType,
     assetsCurrentPage,
@@ -2847,14 +2851,24 @@ export const CampaignDetail: React.FC = () => {
         });
       }
 
-      // Reload campaign detail
-      await loadCampaignDetail();
       setShowInlineEditModal(false);
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
       setEditingField(null);
       setEditedValue("");
+
+      showEditSummary({
+        entityType: "campaign",
+        action: "updated",
+        mode: "inline",
+        succeededCount: 1,
+        field: inlineEditField,
+        oldValue: inlineEditOldValue,
+        newValue: inlineEditNewValue,
+      });
+
+      await loadCampaignDetail();
     } catch (error) {
       console.error("Error updating campaign:", error);
       alert("Failed to update campaign. Please try again.");
@@ -3154,14 +3168,18 @@ export const CampaignDetail: React.FC = () => {
       // Get profileId from campaign to filter assets
       const profileId = campaignDetail?.campaign?.profile_id;
 
-      const data = await campaignsService.getAssets(accountIdNum, {
-        page: assetsCurrentPage,
-        page_size: 10,
-        sort_by: assetsSortBy,
-        order: assetsSortOrder,
-        ...(profileId && { profileId }), // Include profileId if available
-        ...buildAssetsFilterParams(assetsFilters),
-      });
+      const data = await campaignsService.getAssets(
+        accountIdNum,
+        {
+          page: assetsCurrentPage,
+          page_size: 10,
+          sort_by: assetsSortBy,
+          order: assetsSortOrder,
+          ...(profileId && { profileId }), // Include profileId if available
+          ...buildAssetsFilterParams(assetsFilters),
+        },
+        channelId ?? null
+      );
 
       setAssets(data.assets || []);
       setAssetsTotalPages(data.total_pages || 0);
@@ -3667,9 +3685,11 @@ export const CampaignDetail: React.FC = () => {
         formData.append("mediaType", asset.mediaType);
       }
 
-      const response = await campaignsService.createAsset(
+      await campaignsService.createAsset(
         accountIdNum,
         formData,
+        undefined,
+        channelId ?? null
       );
 
       setIsCreateAssetPanelOpen(false);
@@ -3756,6 +3776,7 @@ export const CampaignDetail: React.FC = () => {
         accountIdNum,
         assetId,
         profileId,
+        channelId ?? null
       );
 
       setAssetPreviewUrl(response.previewUrl);
@@ -4716,11 +4737,22 @@ export const CampaignDetail: React.FC = () => {
         );
       }
 
-      // Reload ad groups
-      await loadAdGroups();
+      const { field, oldValue, newValue } = pendingAdGroupChange;
       setPendingAdGroupChange(null);
       setEditingAdGroupField(null);
       setEditedAdGroupValue("");
+
+      showEditSummary({
+        entityType: "adGroup",
+        action: "updated",
+        mode: "inline",
+        succeededCount: 1,
+        field,
+        oldValue,
+        newValue,
+      });
+
+      await loadAdGroups();
     } catch (error: any) {
       console.error("Error updating ad group:", error);
       const errorMessage =
@@ -4734,7 +4766,7 @@ export const CampaignDetail: React.FC = () => {
     } finally {
       setAdGroupEditLoading((prev) => {
         const newSet = new Set(prev);
-        newSet.delete(pendingAdGroupChange.id);
+        if (pendingAdGroupChange) newSet.delete(pendingAdGroupChange.id);
         return newSet;
       });
     }
@@ -4839,11 +4871,13 @@ export const CampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      let action: "updated" | "archived" = "updated";
       if (pendingKeywordChange.field === "status") {
         const newValueLower = pendingKeywordChange.newValue.toLowerCase();
 
         // Handle archive separately (uses DELETE endpoint)
         if (newValueLower === "archive") {
+          action = "archived";
           await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
             keywordIds: [keyword.keywordId],
             action: "archive",
@@ -4876,11 +4910,23 @@ export const CampaignDetail: React.FC = () => {
         });
       }
 
-      // Reload keywords
-      await loadKeywords();
+      const { field, oldValue, newValue } = pendingKeywordChange;
       setPendingKeywordChange(null);
       setEditingKeywordField(null);
       setEditedKeywordValue("");
+      setShowKeywordsConfirmationModal(false);
+
+      showEditSummary({
+        entityType: "keyword",
+        action,
+        mode: "inline",
+        succeededCount: 1,
+        field,
+        oldValue,
+        newValue: action === "archived" ? "Archived" : newValue,
+      });
+
+      await loadKeywords();
     } catch (error: any) {
       console.error("Error updating keyword:", error);
       const errorMessage =
@@ -5326,6 +5372,7 @@ export const CampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      let targetAction: "updated" | "archived" = "updated";
       if (pendingTargetChange.field === "status") {
         const newStatusLower = pendingTargetChange.newValue.toLowerCase();
 
@@ -5337,7 +5384,7 @@ export const CampaignDetail: React.FC = () => {
           console.log("confirmTargetChange: Archiving SD target", {
             targetId: target.targetId,
           });
-
+          targetAction = "archived";
           await campaignsService.archiveSdTarget(
             accountIdNum,
             String(target.targetId),
@@ -5387,12 +5434,23 @@ export const CampaignDetail: React.FC = () => {
       }
 
       console.log("confirmTargetChange: Update successful, reloading targets");
-      // Reload targets
-      await loadTargets();
+      const { field, oldValue, newValue } = pendingTargetChange;
       setPendingTargetChange(null);
       setEditingTargetField(null);
       setEditedTargetValue("");
       setShowTargetsConfirmationModal(false);
+
+      showEditSummary({
+        entityType: "target",
+        action: targetAction,
+        mode: "inline",
+        succeededCount: 1,
+        field,
+        oldValue,
+        newValue: targetAction === "archived" ? "Archived" : newValue,
+      });
+
+      await loadTargets();
     } catch (error: any) {
       console.error("Error updating target:", error);
       const errorMessage =
@@ -6197,10 +6255,19 @@ export const CampaignDetail: React.FC = () => {
         status: statusValue,
       });
 
-      await loadKeywords();
+      const count = selectedKeywordIdsArray.length;
       setSelectedKeywordIds(new Set());
       setShowKeywordsConfirmationModal(false);
       setPendingKeywordsStatusAction(null);
+
+      showEditSummary({
+        entityType: "keyword",
+        action: "updated",
+        mode: "bulk",
+        succeededCount: count,
+      });
+
+      await loadKeywords();
     } catch (error: any) {
       console.error("Failed to update keywords", error);
       setShowKeywordsConfirmationModal(false);
@@ -7860,6 +7927,7 @@ export const CampaignDetail: React.FC = () => {
                     profileId={
                       campaignDetail?.campaign?.profile_id || undefined
                     }
+                    channelId={channelId ?? null}
                     onClose={() => {
                       setIsCreateSBAdPanelOpen(false);
                       setCreateSBAdError(null);
@@ -9145,6 +9213,7 @@ export const CampaignDetail: React.FC = () => {
                       editCreative={editingCreative}
                       accountId={accountId}
                       profileId={campaignDetail?.campaign?.profile_id}
+                      channelId={channelId ?? null}
                     />
                     {createCreativeError && (
                       <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -9407,6 +9476,8 @@ export const CampaignDetail: React.FC = () => {
         fieldErrors={errorModal.fieldErrors}
         genericErrors={errorModal.genericErrors}
       />
+
+      <EditSummaryModalOutlet />
 
       {/* Confirmation Modal for Keywords Bulk Actions */}
       {/* Bulk Actions Confirmation Modal - Only show when NOT doing inline edit */}

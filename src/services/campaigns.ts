@@ -1961,54 +1961,51 @@ export const campaignsService = {
       mediaType?: string;
       brandEntityId?: string;
       profileId?: string;
-    }
+    },
+    channelId?: number | string | null
   ): Promise<any> => {
-    const response = await api.get(`/accounts/${accountId}/assets/`, {
-      params,
-    });
+    const base = buildAmazonBasePath(accountId, channelId);
+    const response = await api.get(`${base}/assets/`, { params });
     return response.data;
   },
 
   createAsset: async (
     accountId: number,
     formData: FormData,
-    onUploadProgress?: (progress: number) => void
+    onUploadProgress?: (progress: number) => void,
+    channelId?: number | string | null
   ): Promise<any> => {
-    const response = await api.post(
-      `/accounts/${accountId}/assets/create/`,
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-        onUploadProgress: (progressEvent) => {
-          if (onUploadProgress && progressEvent.total) {
-            const progress = Math.round(
-              (progressEvent.loaded * 100) / progressEvent.total
-            );
-            onUploadProgress(progress);
-          }
-        },
-      }
-    );
+    const base = buildAmazonBasePath(accountId, channelId);
+    const response = await api.post(`${base}/assets/create/`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onUploadProgress && progressEvent.total) {
+          const progress = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          onUploadProgress(progress);
+        }
+      },
+    });
     return response.data;
   },
 
   getAssetPreview: async (
     accountId: number,
     assetId: string,
-    profileId: string
+    profileId: string,
+    channelId?: number | string | null
   ): Promise<{
     previewUrl: string;
     contentType?: string | null;
     assetData: any;
   }> => {
-    const response = await api.get(
-      `/accounts/${accountId}/assets/${assetId}/preview/`,
-      {
-        params: { profileId },
-      }
-    );
+    const base = buildAmazonBasePath(accountId, channelId);
+    const response = await api.get(`${base}/assets/${assetId}/preview/`, {
+      params: { profileId },
+    });
     return response.data;
   },
 

@@ -45,12 +45,15 @@ import {
 } from "../components/campaigns/CreateCampaignPanel";
 import ExportIcon from "../assets/export-icon.svg";
 import { ErrorModal } from "../components/ui/ErrorModal";
+import { useEditSummaryModal } from "../hooks/useEditSummaryModal";
 import { Loader } from "../components/ui/Loader";
 import { filtersService } from "../services/filters";
 import { accountsService } from "../services/accounts";
 import type { FilterDefinition } from "../types/filters";
 
 export const Campaigns: React.FC = () => {
+  const { showEditSummary, EditSummaryModal: EditSummaryModalOutlet } =
+    useEditSummaryModal();
   const navigate = useNavigate();
   const { accountId, channelId } = useParams<{ accountId: string; channelId?: string }>();
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
@@ -813,11 +816,24 @@ export const Campaigns: React.FC = () => {
         });
       }
 
+      const field = inlineEditField;
+      const oldValue = inlineEditOldValue;
+      const newValue = inlineEditNewValue;
       setShowInlineEditModal(false);
       setInlineEditCampaign(null);
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
+
+      showEditSummary({
+        entityType: "campaign",
+        action: "updated",
+        mode: "inline",
+        succeededCount: 1,
+        field,
+        oldValue,
+        newValue,
+      });
     } catch (error: any) {
       console.error("Error updating campaign:", error);
       const errorMessage =
@@ -834,11 +850,18 @@ export const Campaigns: React.FC = () => {
   const runBulkStatus = async (statusValue: "enable" | "pause") => {
     if (!accountIdNum || selectedCampaigns.size === 0) return;
 
+    const count = selectedCampaigns.size;
     try {
       await bulkUpdateMutation.mutateAsync({
         campaignIds: Array.from(selectedCampaigns),
         action: "status",
         status: statusValue,
+      });
+      showEditSummary({
+        entityType: "campaign",
+        action: "updated",
+        mode: "bulk",
+        succeededCount: count,
       });
     } catch (error: any) {
       console.error("Failed to update campaigns", error);
@@ -856,6 +879,7 @@ export const Campaigns: React.FC = () => {
   const runBulkDelete = async () => {
     if (!accountIdNum || selectedCampaigns.size === 0) return;
 
+    const count = selectedCampaigns.size;
     try {
       await bulkDeleteMutation.mutateAsync({
         campaignIds: Array.from(selectedCampaigns),
@@ -864,6 +888,12 @@ export const Campaigns: React.FC = () => {
       // Clear selection after successful delete
       setSelectedCampaigns(new Set());
       setShowDeleteModal(false);
+      showEditSummary({
+        entityType: "campaign",
+        action: "deleted",
+        mode: "bulk",
+        succeededCount: count,
+      });
     } catch (error: any) {
       console.error("Failed to delete campaigns", error);
       const errorMessage =
@@ -888,6 +918,7 @@ export const Campaigns: React.FC = () => {
     const upper = upperLimit ? parseFloat(upperLimit) : undefined;
     const lower = lowerLimit ? parseFloat(lowerLimit) : undefined;
 
+    const count = selectedCampaigns.size;
     try {
       await bulkUpdateMutation.mutateAsync({
         campaignIds: Array.from(selectedCampaigns),
@@ -897,6 +928,12 @@ export const Campaigns: React.FC = () => {
         value: valueNum,
         upperLimit: upper,
         lowerLimit: lower,
+      });
+      showEditSummary({
+        entityType: "campaign",
+        action: "updated",
+        mode: "bulk",
+        succeededCount: count,
       });
     } catch (error: any) {
       console.error("Failed to update budgets", error);
@@ -2292,6 +2329,8 @@ export const Campaigns: React.FC = () => {
         genericErrors={errorModal.genericErrors}
         actionButton={errorModal.actionButton}
       />
+
+      <EditSummaryModalOutlet />
 
       {/* Sidebar */}
       <Sidebar />
