@@ -58,8 +58,7 @@ export const GoogleSearchCampaignForm: React.FC<GoogleSearchCampaignFormProps> =
   onTrackingUrlTemplateChange,
   onFinalUrlSuffixChange,
   onCustomParametersChange,
-  selectedConversionActions: _selectedConversionActions = [], // used when Conversion Actions section is enabled
-  onSelectConversionActionsClick: _onSelectConversionActionsClick, // used when Conversion Actions section is enabled
+  // selectedConversionActions, onSelectConversionActionsClick — used when Conversion Actions section is enabled
   errors = {},
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>("bidding");

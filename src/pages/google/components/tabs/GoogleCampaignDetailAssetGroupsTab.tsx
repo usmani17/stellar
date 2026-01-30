@@ -55,6 +55,10 @@ interface GoogleCampaignDetailAssetGroupsTabProps {
   onEditAssetGroup?: (assetGroup: GoogleAssetGroup) => void;
   editLoadingAssetGroupId?: number | null;
   onUpdateAssetGroupStatus?: (assetGroupId: number, status: string) => Promise<void>;
+  onBulkUpdateAssetGroupStatus?: (
+    assetGroupIds: (string | number)[],
+    status: "ENABLED" | "PAUSED"
+  ) => Promise<{ updated: number; failed: number; errors: string[] }>;
   profileId?: number; // Profile ID for asset management
   campaignId?: string | number; // Campaign ID for asset management
   onViewAssets?: (assetGroup: GoogleAssetGroup) => void;
@@ -105,6 +109,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
   onEditAssetGroup,
   editLoadingAssetGroupId,
   onUpdateAssetGroupStatus,
+  onBulkUpdateAssetGroupStatus,
   profileId,
   campaignId,
   onViewAssets,
@@ -135,26 +140,33 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
     (ag.status || "").toUpperCase() === "REMOVED";
 
   const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
-    if (!onUpdateAssetGroupStatus || selectedAssetGroupIds.size === 0) return;
+    if ((!onUpdateAssetGroupStatus && !onBulkUpdateAssetGroupStatus) || selectedAssetGroupIds.size === 0) return;
     const selectedData = getSelectedAssetGroupsData();
-    let totalUpdated = 0;
-    let totalFailed = 0;
-    const allErrors: string[] = [];
     setBulkLoading(true);
     setBulkUpdateResults(null);
     try {
-      for (const ag of selectedData) {
-        try {
-          await onUpdateAssetGroupStatus(ag.id, statusValue);
-          totalUpdated += 1;
-        } catch (err: unknown) {
-          totalFailed += 1;
-          const e = err as { message?: string };
-          allErrors.push(e?.message || "Failed");
+      if (onBulkUpdateAssetGroupStatus) {
+        const assetGroupIds = selectedData.map((ag) => ag.asset_group_id).filter((id): id is number => id != null);
+        const result = await onBulkUpdateAssetGroupStatus(assetGroupIds, statusValue);
+        setBulkUpdateResults({ updated: result.updated, failed: result.failed, errors: result.errors ?? [] });
+        if (onBulkUpdateComplete) onBulkUpdateComplete();
+      } else if (onUpdateAssetGroupStatus) {
+        let totalUpdated = 0;
+        let totalFailed = 0;
+        const allErrors: string[] = [];
+        for (const ag of selectedData) {
+          try {
+            await onUpdateAssetGroupStatus(ag.id, statusValue);
+            totalUpdated += 1;
+          } catch (err: unknown) {
+            totalFailed += 1;
+            const e = err as { message?: string };
+            allErrors.push(e?.message || "Failed");
+          }
         }
+        setBulkUpdateResults({ updated: totalUpdated, failed: totalFailed, errors: allErrors });
+        if (onBulkUpdateComplete) onBulkUpdateComplete();
       }
-      setBulkUpdateResults({ updated: totalUpdated, failed: totalFailed, errors: allErrors });
-      if (onBulkUpdateComplete) onBulkUpdateComplete();
     } finally {
       setBulkLoading(false);
     }
@@ -297,7 +309,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
         </h2>
         <div className="flex items-center gap-2">
           {createButton}
-          {onUpdateAssetGroupStatus && onBulkUpdateComplete && (
+          {(onUpdateAssetGroupStatus || onBulkUpdateAssetGroupStatus) && onBulkUpdateComplete && (
             <BulkActionsDropdown
               options={[
                 { value: "ENABLED", label: "Enable" },
@@ -1009,7 +1021,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
       )}
 
       {/* Bulk confirmation modal */}
-      {onUpdateAssetGroupStatus && onBulkUpdateComplete && (
+      {(onUpdateAssetGroupStatus || onBulkUpdateAssetGroupStatus) && onBulkUpdateComplete && (
         <BulkUpdateConfirmationModal
           isOpen={showBulkConfirmationModal}
           onClose={() => {

@@ -12,8 +12,9 @@ const MARKETPLACES = [
 ];
 
 export const LogHistory: React.FC = () => {
-  const { accountId, campaignId } = useParams<{
+  const { accountId, channelId, campaignId } = useParams<{
     accountId?: string;
+    channelId?: string;
     campaignId?: string;
   }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -107,6 +108,7 @@ export const LogHistory: React.FC = () => {
             {/* Single Logs Table */}
             <LogsTable
               accountId={accountId}
+              channelId={marketplaceFromUrl === "google" ? channelId : undefined}
               campaignId={urlCampaignId}
               marketplace={marketplaceForTable}
               showHeader={false}

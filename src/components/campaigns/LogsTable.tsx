@@ -4,9 +4,11 @@ import { Button } from "../ui";
 import { Dropdown } from "../ui/Dropdown";
 import { Loader } from "../ui/Loader";
 import { logsService } from "../../services/logs";
+import { googleAdwordsLogsService } from "../../services/googleAdwords/googleAdwordsLogs";
 
 interface LogsTableProps {
   accountId?: string;
+  channelId?: string; // Required for Google marketplace logs
   campaignId?: string;
   marketplace?: string; // 'amazon', 'google', 'tiktok' - if not provided, shows all
   showHeader?: boolean;
@@ -15,12 +17,13 @@ interface LogsTableProps {
 
 export const LogsTable: React.FC<LogsTableProps> = ({
   accountId,
+  channelId,
   campaignId,
   marketplace,
   showHeader = true,
   showExport = true,
 }) => {
-  const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
+  const { startDateStr, endDateStr } = useDateRange();
   const [logs, setLogs] = useState<
     Array<{
       id: number;
@@ -42,6 +45,44 @@ export const LogsTable: React.FC<LogsTableProps> = ({
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   const [exportLoading, setExportLoading] = useState(false);
 
+  // Transform log entry to component format (shared for both APIs)
+  const transformLogEntry = (log: {
+    id: number;
+    entity_type?: string;
+    entity?: string;
+    field_name?: string;
+    field?: string;
+    old_value?: string;
+    new_value?: string;
+    changed_by_name?: string;
+    changed_by?: string | number;
+    changed_at?: string;
+    method?: string;
+    marketplace?: string;
+  }) => ({
+    id: log.id,
+    entity: log.entity_type || log.entity || "Unknown",
+    field: log.field_name || log.field || "Unknown",
+    oldValue: log.old_value || "",
+    newValue: log.new_value || "",
+    changedBy: log.changed_by_name || log.changed_by || "Unknown",
+    changedAt: (() => {
+      try {
+        const date = new Date(log.changed_at || "");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+        return `${month}-${day}-${year} ${hours}:${minutes}`;
+      } catch {
+        return log.changed_at || "";
+      }
+    })(),
+    method: log.method || "Inline",
+    marketplace: log.marketplace || undefined,
+  });
+
   // Load logs - memoized with useCallback to avoid infinite loops
   const loadLogs = useCallback(async () => {
     if (!accountId) {
@@ -49,7 +90,14 @@ export const LogsTable: React.FC<LogsTableProps> = ({
       return;
     }
 
-    // Always show loading state when fetching
+    // For Google logs, channelId is required
+    if (marketplace === "google" && !channelId) {
+      setLoading(false);
+      setLogs([]);
+      setTotalPages(1);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -58,57 +106,46 @@ export const LogsTable: React.FC<LogsTableProps> = ({
         throw new Error("Invalid account ID");
       }
 
-      const response = await logsService.getLogs(accountIdNum, {
-        campaign_id: campaignId,
-        marketplace: marketplace,
-        page: currentPage,
-        page_size: pageSize,
-        start_date: startDateStr,
-        end_date: endDateStr,
-      });
-
-      // Transform API response to match component format
-      const transformedLogs: Array<{
-        id: number;
-        entity: string;
-        field: string;
-        oldValue: string;
-        newValue: string;
-        changedBy: string | number;
-        changedAt: string;
-        method: string;
-        marketplace?: string;
-      }> = response.logs.map((log) => ({
-        id: log.id,
-        entity: log.entity_type || log.entity || "Unknown",
-        field: log.field_name || log.field || "Unknown",
-        oldValue: log.old_value || "",
-        newValue: log.new_value || "",
-        changedBy: log.changed_by_name || log.changed_by || "Unknown",
-        changedAt: (() => {
-          try {
-            const date = new Date(log.changed_at || "");
-            // Format as MM-DD-YYYY HH:mm to match Figma design
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            const year = date.getFullYear();
-            const hours = String(date.getHours()).padStart(2, "0");
-            const minutes = String(date.getMinutes()).padStart(2, "0");
-            return `${month}-${day}-${year} ${hours}:${minutes}`;
-          } catch (e) {
-            return log.changed_at || "";
+      if (marketplace === "google" && channelId) {
+        const channelIdNum = parseInt(channelId, 10);
+        if (isNaN(channelIdNum)) {
+          setLogs([]);
+          setTotalPages(1);
+          setLoading(false);
+          return;
+        }
+        const response = await googleAdwordsLogsService.getGoogleLogs(
+          accountIdNum,
+          channelIdNum,
+          {
+            campaign_id: campaignId,
+            page: currentPage,
+            page_size: pageSize,
+            start_date: startDateStr,
+            end_date: endDateStr,
           }
-        })(),
-        method: log.method || "Inline",
-        marketplace: log.marketplace || undefined,
-      }));
-
-      setLogs(transformedLogs);
-      setTotalPages(response.total_pages || 1);
+        );
+        const transformedLogs = response.logs.map((log) =>
+          transformLogEntry({ ...log, marketplace: "google" })
+        );
+        setLogs(transformedLogs);
+        setTotalPages(response.total_pages || 1);
+      } else {
+        const response = await logsService.getLogs(accountIdNum, {
+          campaign_id: campaignId,
+          marketplace: marketplace,
+          page: currentPage,
+          page_size: pageSize,
+          start_date: startDateStr,
+          end_date: endDateStr,
+        });
+        const transformedLogs = response.logs.map(transformLogEntry);
+        setLogs(transformedLogs);
+        setTotalPages(response.total_pages || 1);
+      }
       setLoading(false);
     } catch (error: any) {
       console.error("Error loading logs:", error);
-      // Log more details for debugging
       if (error?.response) {
         console.error("API Error Response:", error.response.data);
         console.error("API Error Status:", error.response.status);
@@ -119,6 +156,7 @@ export const LogsTable: React.FC<LogsTableProps> = ({
     }
   }, [
     accountId,
+    channelId,
     campaignId,
     marketplace,
     startDateStr,
@@ -179,30 +217,32 @@ export const LogsTable: React.FC<LogsTableProps> = ({
         throw new Error("Invalid account ID");
       }
 
-      // Build params from current filters and date range
       const params: any = {
         start_date: startDateStr,
         end_date: endDateStr,
+        export_type: exportType,
       };
-
-      // Add campaign_id if provided
-      if (campaignId) {
-        params.campaign_id = campaignId;
-      }
-
-      // Add pagination for current_view
+      if (campaignId) params.campaign_id = campaignId;
       if (exportType === "current_view") {
         params.page = currentPage;
         params.page_size = pageSize;
       }
 
-      // Call export API
-      const result = await logsService.exportLogs(accountIdNum, {
-        ...params,
-        export_type: exportType,
-      });
+      let result: { url: string; filename: string };
+      if (marketplace === "google" && channelId) {
+        const channelIdNum = parseInt(channelId, 10);
+        if (isNaN(channelIdNum)) {
+          throw new Error("Invalid channel ID for Google logs");
+        }
+        result = await googleAdwordsLogsService.exportGoogleLogs(
+          accountIdNum,
+          channelIdNum,
+          params
+        );
+      } else {
+        result = await logsService.exportLogs(accountIdNum, params);
+      }
 
-      // Automatically download the file
       const link = document.createElement("a");
       link.href = result.url;
       link.download = result.filename;
@@ -210,7 +250,6 @@ export const LogsTable: React.FC<LogsTableProps> = ({
       link.click();
       document.body.removeChild(link);
 
-      // Close dropdown after a short delay to show success
       setTimeout(() => {
         setShowExportDropdown(false);
       }, 500);

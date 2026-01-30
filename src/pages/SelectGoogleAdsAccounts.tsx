@@ -290,12 +290,15 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
 
   // Get selectable accounts (non-manager accounts) from filtered list
   const selectableAccounts = filteredAccounts.filter((a) => !a.is_manager);
-  const selectedCount = selectableAccounts.filter((a) =>
+  // Selected in current view (filtered by search) – for "Select All" checkbox and label
+  const selectedInViewCount = selectableAccounts.filter((a) =>
     selectedCustomerIds.has(a.customer_id)
   ).length;
+  // Total selected across all accounts – for Save button and summary (never misleading when searching)
+  const totalSelectedCount = selectedCustomerIds.size;
 
   const toggleAll = () => {
-    if (selectedCount === selectableAccounts.length) {
+    if (selectedInViewCount === selectableAccounts.length) {
       // Deselect all selectable accounts
       const newSelected = new Set(selectedCustomerIds);
       selectableAccounts.forEach((a) => newSelected.delete(a.customer_id));
@@ -426,20 +429,59 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                   />
                 </div>
 
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={
-                        selectableAccounts.length > 0 &&
-                        selectedCount === selectableAccounts.length
+                {/* Select All + selected count + Save/Cancel in one compact bar */}
+                <div className="mb-4 flex items-center justify-between flex-wrap gap-3 py-3 px-4 rounded-xl bg-[#F5F5F5] border border-[#E8E8E3]">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={
+                          selectableAccounts.length > 0 &&
+                          selectedInViewCount === selectableAccounts.length
+                        }
+                        onChange={toggleAll}
+                        className="w-4 h-4 text-[#072929] border-[#E6E6E6] rounded focus:ring-[#072929]"
+                      />
+                      <label className="text-[14px] font-medium text-[#072929]">
+                        {searchQuery.trim()
+                          ? `Select all in results (${selectedInViewCount}/${selectableAccounts.length})`
+                          : `Select All (${selectedInViewCount}/${selectableAccounts.length})`}
+                      </label>
+                    </div>
+                    {totalSelectedCount > 0 ? (
+                      <span className="text-[14px] font-semibold text-[#072929]">
+                        {totalSelectedCount} selected in total
+                      </span>
+                    ) : (
+                      <span className="text-[14px] text-[#556179]">
+                        No accounts selected
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        navigate(
+                          accountIdForBack != null
+                            ? `/brands/${accountIdForBack}/integrations`
+                            : "/brands"
+                        )
                       }
-                      onChange={toggleAll}
-                      className="w-4 h-4 text-[#072929] border-[#E6E6E6] rounded focus:ring-[#072929]"
-                    />
-                    <label className="text-[14px] font-medium text-[#072929]">
-                      Select All ({selectedCount}/{selectableAccounts.length})
-                    </label>
+                      disabled={saving}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleSave}
+                      disabled={saving || totalSelectedCount === 0}
+                    >
+                      {saving
+                        ? "Saving..."
+                        : `Save ${totalSelectedCount} Account${
+                            totalSelectedCount !== 1 ? "s" : ""
+                          }`}
+                    </Button>
                   </div>
                 </div>
 
@@ -617,12 +659,12 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                   </Button>
                   <Button
                     onClick={handleSave}
-                    disabled={saving || selectedCount === 0}
+                    disabled={saving || totalSelectedCount === 0}
                   >
                     {saving
                       ? "Saving..."
-                      : `Save ${selectedCount} Account${
-                          selectedCount !== 1 ? "s" : ""
+                      : `Save ${totalSelectedCount} Account${
+                          totalSelectedCount !== 1 ? "s" : ""
                         }`}
                   </Button>
                 </div>
