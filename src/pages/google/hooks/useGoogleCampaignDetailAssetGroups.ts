@@ -292,11 +292,12 @@ export const useGoogleCampaignDetailAssetGroups = ({
         throw new Error("Invalid account ID, channel ID, or campaign ID");
       }
 
+      const payload = profileId != null ? { ...entity, profile_id: profileId } : entity;
       const response = await googleAdwordsCampaignsService.createGooglePmaxAssetGroup(
         accountIdNum,
         channelIdNum,
         campaignIdNum,
-        entity
+        payload
       );
 
       if (response.error) {
@@ -341,7 +342,7 @@ export const useGoogleCampaignDetailAssetGroups = ({
     } finally {
       setCreatePmaxAssetGroupLoading(false);
     }
-  }, [accountId, channelId, campaignId, loadAssetGroups, onError]);
+  }, [accountId, channelId, campaignId, profileId, loadAssetGroups, onError]);
 
   // Handler for editing asset group (fetches data when edit button is clicked)
   const handleEditAssetGroup = useCallback(async (assetGroup: any) => {
@@ -517,6 +518,43 @@ export const useGoogleCampaignDetailAssetGroups = ({
       throw error;
     }
   }, [accountId, channelId, profileId, campaignId, assetGroups, onError]);
+
+  // Handler for bulk updating asset group statuses (one API call, then refresh)
+  const handleBulkUpdateAssetGroupStatus = useCallback(async (
+    assetGroupIds: (string | number)[],
+    status: "ENABLED" | "PAUSED"
+  ): Promise<{ updated: number; failed: number; errors: string[] }> => {
+    if (!accountId || !channelId || !profileId || !campaignId || assetGroupIds.length === 0) {
+      return { updated: 0, failed: assetGroupIds.length, errors: [] };
+    }
+    const accountIdNum = parseInt(accountId, 10);
+    const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+    const campaignIdNum = parseInt(campaignId, 10);
+    if (isNaN(accountIdNum) || !channelIdNum || !profileId || isNaN(campaignIdNum)) {
+      if (onError) {
+        onError({ title: "Error", message: "Invalid account, channel, profile, or campaign ID", isSuccess: false });
+      }
+      return { updated: 0, failed: assetGroupIds.length, errors: ["Invalid IDs"] };
+    }
+    try {
+      const result = await googleAdwordsAssetGroupsService.bulkUpdateAssetGroupStatus(
+        accountIdNum,
+        channelIdNum,
+        profileId,
+        campaignIdNum,
+        assetGroupIds,
+        status
+      );
+      await loadAssetGroups();
+      return result;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error ?? error.message ?? "Bulk update failed";
+      if (onError) {
+        onError({ title: "Error", message: errorMessage, isSuccess: false });
+      }
+      throw error;
+    }
+  }, [accountId, channelId, profileId, campaignId, loadAssetGroups, onError]);
 
   // Handler for updating asset group
   const handleUpdateAssetGroup = useCallback(async (entity: PmaxAssetGroupInput) => {
@@ -726,6 +764,7 @@ export const useGoogleCampaignDetailAssetGroups = ({
     handleCreatePmaxAssetGroup,
     handleEditAssetGroup,
     handleUpdateAssetGroupStatus,
+    handleBulkUpdateAssetGroupStatus,
     handleUpdateAssetGroup,
     handleCloseEditPanel,
     handleViewAssets,

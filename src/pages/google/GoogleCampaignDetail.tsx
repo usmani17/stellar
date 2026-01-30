@@ -302,7 +302,7 @@ export const GoogleCampaignDetail: React.FC = () => {
       campaignDetail.campaign.advertising_channel_type.toUpperCase();
 
     if (channelType === "PERFORMANCE_MAX") {
-      return ["Overview", "Asset Groups", "Audience Signal", "Negative Keywords", "Logs"];
+      return ["Overview", "Asset Groups", "Negative Keywords", "Logs"];
     } else if (channelType === "SHOPPING") {
       return ["Overview", "Ad Groups", "Product Groups", "Shopping Ads", "Logs"];
     } else {
@@ -591,6 +591,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     handleCreatePmaxAssetGroup,
     handleEditAssetGroup,
     handleUpdateAssetGroupStatus,
+    handleBulkUpdateAssetGroupStatus,
     handleUpdateAssetGroup,
     handleCloseEditPanel,
     handleViewAssets,
@@ -1389,6 +1390,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onEditAssetGroup={handleEditAssetGroup}
                     editLoadingAssetGroupId={editLoadingAssetGroupId}
                     onUpdateAssetGroupStatus={handleUpdateAssetGroupStatus}
+                    onBulkUpdateAssetGroupStatus={handleBulkUpdateAssetGroupStatus}
                     profileId={profileId || undefined}
                     campaignId={campaignId}
                     onViewAssets={handleViewAssets}

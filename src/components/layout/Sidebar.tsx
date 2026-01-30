@@ -985,12 +985,16 @@ export const Sidebar: React.FC = () => {
                 )}
               </Link>
               <Link
-                to={accountId ? `/brands/${accountId}/google/logs` : "/brands"}
+                to={
+                  accountId
+                    ? buildMarketplaceRoute(accountId, googleChannelId, "google", "logs")
+                    : "/brands"
+                }
                 onClick={(e) =>
                   handleMarketplaceClick("google", e, () =>
                     accountId
-                      ? `/brands/${accountId}/google/logs`
-                      : "/brands/1/google/logs",
+                      ? buildMarketplaceRoute(accountId, googleChannelId, "google", "logs")
+                      : buildMarketplaceRoute(1, googleChannelId, "google", "logs"),
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${

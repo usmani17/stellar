@@ -139,6 +139,7 @@ export const googleAdwordsCampaignsService = {
     channelId: number,
     campaignId: number,
     payload: {
+      profile_id?: number; // Optional; use this profile (must belong to channel). If omitted, backend uses selected profile.
       asset_group: {
         name: string;
         final_url?: string; // Optional
