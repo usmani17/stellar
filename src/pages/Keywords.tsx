@@ -325,7 +325,9 @@ export const Keywords: React.FC = () => {
           params.campaign_name = filter.value;
         }
       } else if (filter.field === "profile_name") {
-        if (filter.operator === "contains") {
+        if (Array.isArray(filter.value)) {
+          params.profile_id__in = filter.value;
+        } else if (filter.operator === "contains") {
           params.profile_name__icontains = filter.value;
         } else if (filter.operator === "not_contains") {
           params.profile_name__not_icontains = filter.value;
@@ -936,6 +938,39 @@ export const Keywords: React.FC = () => {
     }
   };
 
+  /** Compute new bid for a keyword using Action, Unit, Value, and optional Upper/Lower limits. */
+  const computeNewBidForKeyword = (keyword: Keyword): number => {
+    const currentBid = parseFloat(
+      (typeof keyword.bid === "number" ? String(keyword.bid) : (keyword.bid || "$0.00")).replace(/[^0-9.]/g, "")
+    );
+    const valueNum = parseFloat(bidValue);
+    if (isNaN(valueNum)) return currentBid;
+
+    let newBid = currentBid;
+    if (bidAction === "set") {
+      newBid = valueNum;
+    } else if (bidAction === "increase") {
+      newBid = bidUnit === "percent"
+        ? currentBid * (1 + valueNum / 100)
+        : currentBid + valueNum;
+    } else if (bidAction === "decrease") {
+      newBid = bidUnit === "percent"
+        ? currentBid * (1 - valueNum / 100)
+        : currentBid - valueNum;
+    }
+
+    if (upperLimit) {
+      const upper = parseFloat(upperLimit);
+      if (!isNaN(upper)) newBid = Math.min(newBid, upper);
+    }
+    if (lowerLimit) {
+      const lower = parseFloat(lowerLimit);
+      if (!isNaN(lower)) newBid = Math.max(newBid, lower);
+    }
+    newBid = Math.max(newBid, 0);
+    return Math.round(newBid * 100) / 100;
+  };
+
   const runBulkBid = async () => {
     if (!accountId || selectedKeywords.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -999,14 +1034,15 @@ export const Keywords: React.FC = () => {
         });
       }
 
-      // Update each keyword individually
-      for (const update of updates) {
-        await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
-          keywordIds: [update.keywordId],
-          action: "bid",
-          bid: update.newBid,
-        });
-      }
+      // Send one bulk request with all keywords and their new bids
+      const keywordIds = updates.map(u => u.keywordId);
+      const bids = updates.map(u => ({ keywordId: u.keywordId, bid: u.newBid }));
+      
+      await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
+        keywordIds,
+        action: "bid",
+        bids,
+      });
 
       const count = updates.length;
       await loadKeywords(accountIdNum);
@@ -1165,16 +1201,24 @@ export const Keywords: React.FC = () => {
     return [];
   }, [chartDataFromApi]);
 
+  const selectableKeywords = keywords.filter(
+    (k) => (k.state ?? "").toLowerCase() !== "archived"
+  );
   const allSelected =
-    keywords.length > 0 &&
-    keywords.every((k) => selectedKeywords.has(k.keywordId || k.id));
+    selectableKeywords.length > 0 &&
+    selectableKeywords.every((k) =>
+      selectedKeywords.has(k.keywordId || k.id)
+    );
   const someSelected =
-    keywords.some((k) => selectedKeywords.has(k.keywordId || k.id)) &&
-    !allSelected;
+    selectableKeywords.some((k) =>
+      selectedKeywords.has(k.keywordId || k.id)
+    ) && !allSelected;
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const allIds = new Set(keywords.map((k) => k.keywordId || k.id));
+      const allIds = new Set(
+        selectableKeywords.map((k) => k.keywordId || k.id)
+      );
       setSelectedKeywords(allIds);
     } else {
       setSelectedKeywords(new Set());
@@ -1599,7 +1643,7 @@ export const Keywords: React.FC = () => {
             {/* Confirmation Modal */}
             {showConfirmationModal && (
               <div
-                className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+                className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
                 onClick={(e) => {
                   if (e.target === e.currentTarget) {
                     setShowConfirmationModal(false);
@@ -1657,6 +1701,9 @@ export const Keywords: React.FC = () => {
                                   Current{" "}
                                   {isBidChange ? "Keyword Bid" : "Status"}
                                 </th>
+                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                  New {isBidChange ? "Bid" : "Status"}
+                                </th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1672,8 +1719,19 @@ export const Keywords: React.FC = () => {
                                     </td>
                                     <td className="px-4 py-2 text-[10.64px] text-[#072929]">
                                       {isBidChange
-                                        ? keyword.bid || "$0.00"
+                                        ? formatCurrency(keyword.bid ?? 0, keyword.profile_currency_code)
                                         : keyword.state || "Enabled"}
+                                    </td>
+                                    <td className="px-4 py-2 text-[10.64px] text-[#072929] font-medium">
+                                      {isBidChange
+                                        ? formatCurrency(computeNewBidForKeyword(keyword), keyword.profile_currency_code)
+                                        : pendingStatusAction === "enable"
+                                          ? "Enabled"
+                                          : pendingStatusAction === "pause"
+                                            ? "Paused"
+                                            : pendingStatusAction === "archive"
+                                              ? "Archived"
+                                              : "—"}
                                     </td>
                                   </tr>
                                 ))}
@@ -1720,7 +1778,7 @@ export const Keywords: React.FC = () => {
             {/* Delete Confirmation Modal */}
             {showDeleteConfirmation && (
               <div
-                className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+                className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
                 onClick={(e) => {
                   if (e.target === e.currentTarget) {
                     setShowDeleteConfirmation(false);
@@ -1993,14 +2051,16 @@ export const Keywords: React.FC = () => {
                                     : "hover:bg-gray-50"
                                   } transition-colors`}
                               >
-                                {/* Checkbox */}
+                                {/* Checkbox - archived keywords cannot be selected */}
                                 <td className="table-cell">
                                   <div className="flex items-center justify-center">
                                     <Checkbox
                                       checked={selectedKeywords.has(
                                         keyword.keywordId || keyword.id
                                       )}
+                                      disabled={isArchived}
                                       onChange={(checked) => {
+                                        if (isArchived) return;
                                         const keywordId =
                                           keyword.keywordId || keyword.id;
                                         if (checked) {
@@ -2390,7 +2450,7 @@ export const Keywords: React.FC = () => {
       {/* Inline Edit Confirmation Modal for Keywords (new system) */}
       {showInlineEditModal && inlineEditKeyword && inlineEditField && (
         <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
           onClick={(e) => {
             if (e.target === e.currentTarget && !inlineEditLoading) {
               setShowInlineEditModal(false);
@@ -2461,7 +2521,7 @@ export const Keywords: React.FC = () => {
       {/* Inline Edit Confirmation Modal for Keywords (old system - kept for backward compatibility) */}
       {pendingKeywordChange && (
         <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
           onClick={(e) => {
             if (
               e.target === e.currentTarget &&

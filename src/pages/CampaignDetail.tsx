@@ -773,8 +773,8 @@ export const CampaignDetail: React.FC = () => {
       style: "currency",
       currency: code,
       currencyDisplay: "code",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(Number(value) || 0);
   };
 
@@ -5498,11 +5498,15 @@ export const CampaignDetail: React.FC = () => {
             statusValue,
           });
 
-          await campaignsService.bulkUpdateTargets(accountIdNum, {
-            targetIds: [String(target.targetId)],
-            action: "status",
-            status: statusValue,
-          });
+          await campaignsService.bulkUpdateTargets(
+            accountIdNum,
+            {
+              targetIds: [String(target.targetId)],
+              action: "status",
+              status: statusValue,
+            },
+            channelId ?? null
+          );
         }
       } else if (pendingTargetChange.field === "bid") {
         // Extract numeric value - clean any formatting
@@ -5522,11 +5526,15 @@ export const CampaignDetail: React.FC = () => {
           cleanedValue,
         });
 
-        await campaignsService.bulkUpdateTargets(accountIdNum, {
-          targetIds: [String(target.targetId)],
-          action: "bid",
-          bid: bidValue,
-        });
+        await campaignsService.bulkUpdateTargets(
+          accountIdNum,
+          {
+            targetIds: [String(target.targetId)],
+            action: "bid",
+            bid: bidValue,
+          },
+          channelId ?? null
+        );
       }
 
       console.log("confirmTargetChange: Update successful, reloading targets");
@@ -6007,7 +6015,6 @@ export const CampaignDetail: React.FC = () => {
         {
           negativeTargetingClauses: formattedNegativeTargets,
         },
-        channelId ?? null,
       );
 
       // Check for partial success
@@ -6212,11 +6219,15 @@ export const CampaignDetail: React.FC = () => {
         }
       } else {
         // Use bulk update for enable/pause
-        await campaignsService.bulkUpdateTargets(accountIdNum, {
-          targetIds: selectedTargetIdsArray,
-          action: "status",
-          status: statusValue,
-        });
+        await campaignsService.bulkUpdateTargets(
+          accountIdNum,
+          {
+            targetIds: selectedTargetIdsArray,
+            action: "status",
+            status: statusValue,
+          },
+          channelId ?? null
+        );
       }
 
       await loadTargets();
@@ -6316,13 +6327,14 @@ export const CampaignDetail: React.FC = () => {
         });
       }
 
-      for (const update of updates) {
-        await campaignsService.bulkUpdateTargets(accountIdNum, {
-          targetIds: [update.targetId],
-          action: "bid",
-          bid: update.newBid,
-        });
-      }
+      // Single request with all targets and their bids (like ad groups)
+      const targetIds = updates.map((u) => u.targetId);
+      const bids = updates.map((u) => ({ targetId: u.targetId, bid: u.newBid }));
+      await campaignsService.bulkUpdateTargets(
+        accountIdNum,
+        { targetIds, action: "bid", bids },
+        channelId ?? null
+      );
 
       await loadTargets();
       setSelectedTargetIds(new Set());
@@ -7649,8 +7661,8 @@ export const CampaignDetail: React.FC = () => {
                     }}
                     disabled={isDisabled}
                     className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 ${isDisabled
-                        ? "cursor-not-allowed opacity-50 text-[#9CA3AF] border-transparent"
-                        : "cursor-pointer"
+                      ? "cursor-not-allowed opacity-50 text-[#9CA3AF] border-transparent"
+                      : "cursor-pointer"
                       } ${activeTab === tab && !isDisabled
                         ? "border-[#136D6D] text-[#136D6D]"
                         : !isDisabled
@@ -8163,8 +8175,8 @@ export const CampaignDetail: React.FC = () => {
                               key={pageNum}
                               onClick={() => handleSBAdsPageChange(pageNum)}
                               className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${sbAdsCurrentPage === pageNum
-                                  ? "bg-white text-[#136D6D] font-semibold"
-                                  : "text-black hover:bg-gray-50"
+                                ? "bg-white text-[#136D6D] font-semibold"
+                                : "text-black hover:bg-gray-50"
                                 }`}
                             >
                               {pageNum}
@@ -8182,8 +8194,8 @@ export const CampaignDetail: React.FC = () => {
                         <button
                           onClick={() => handleSBAdsPageChange(sbAdsTotalPages)}
                           className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${sbAdsCurrentPage === sbAdsTotalPages
-                              ? "bg-white text-[#136D6D] font-semibold"
-                              : "text-black hover:bg-gray-50"
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
                             }`}
                         >
                           {sbAdsTotalPages}
@@ -8471,8 +8483,8 @@ export const CampaignDetail: React.FC = () => {
                                   handleProductAdsPageChange(pageNum)
                                 }
                                 className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${productadsCurrentPage === pageNum
-                                    ? "bg-white text-[#136D6D] font-semibold"
-                                    : "text-black hover:bg-gray-50"
+                                  ? "bg-white text-[#136D6D] font-semibold"
+                                  : "text-black hover:bg-gray-50"
                                   }`}
                               >
                                 {pageNum}
@@ -8492,8 +8504,8 @@ export const CampaignDetail: React.FC = () => {
                               handleProductAdsPageChange(productadsTotalPages)
                             }
                             className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${productadsCurrentPage === productadsTotalPages
-                                ? "bg-white text-[#136D6D] font-semibold"
-                                : "text-black hover:bg-gray-50"
+                              ? "bg-white text-[#136D6D] font-semibold"
+                              : "text-black hover:bg-gray-50"
                               }`}
                           >
                             {productadsTotalPages}
@@ -9002,8 +9014,8 @@ export const CampaignDetail: React.FC = () => {
                                   handleNegativeTargetsPageChange(pageNum)
                                 }
                                 className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${negativeTargetsCurrentPage === pageNum
-                                    ? "bg-white text-[#136D6D] font-semibold"
-                                    : "text-black hover:bg-gray-50"
+                                  ? "bg-white text-[#136D6D] font-semibold"
+                                  : "text-black hover:bg-gray-50"
                                   }`}
                               >
                                 {pageNum}
@@ -9026,9 +9038,9 @@ export const CampaignDetail: React.FC = () => {
                               )
                             }
                             className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${negativeTargetsCurrentPage ===
-                                negativeTargetsTotalPages
-                                ? "bg-white text-[#136D6D] font-semibold"
-                                : "text-black hover:bg-gray-50"
+                              negativeTargetsTotalPages
+                              ? "bg-white text-[#136D6D] font-semibold"
+                              : "text-black hover:bg-gray-50"
                               }`}
                           >
                             {negativeTargetsTotalPages}
@@ -9228,8 +9240,8 @@ export const CampaignDetail: React.FC = () => {
                                 key={pageNum}
                                 onClick={() => handleAssetsPageChange(pageNum)}
                                 className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${assetsCurrentPage === pageNum
-                                    ? "bg-white text-[#136D6D] font-semibold"
-                                    : "text-black hover:bg-gray-50"
+                                  ? "bg-white text-[#136D6D] font-semibold"
+                                  : "text-black hover:bg-gray-50"
                                   }`}
                               >
                                 {pageNum}
@@ -9249,8 +9261,8 @@ export const CampaignDetail: React.FC = () => {
                               handleAssetsPageChange(assetsTotalPages)
                             }
                             className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${assetsCurrentPage === assetsTotalPages
-                                ? "bg-white text-[#136D6D] font-semibold"
-                                : "text-black hover:bg-gray-50"
+                              ? "bg-white text-[#136D6D] font-semibold"
+                              : "text-black hover:bg-gray-50"
                               }`}
                           >
                             {assetsTotalPages}
@@ -9399,8 +9411,8 @@ export const CampaignDetail: React.FC = () => {
                                   handleCreativesPageChange(pageNum)
                                 }
                                 className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${creativesCurrentPage === pageNum
-                                    ? "bg-white text-[#136D6D] font-semibold"
-                                    : "text-black hover:bg-gray-50"
+                                  ? "bg-white text-[#136D6D] font-semibold"
+                                  : "text-black hover:bg-gray-50"
                                   }`}
                               >
                                 {pageNum}
@@ -9420,8 +9432,8 @@ export const CampaignDetail: React.FC = () => {
                               handleCreativesPageChange(creativesTotalPages)
                             }
                             className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${creativesCurrentPage === creativesTotalPages
-                                ? "bg-white text-[#136D6D] font-semibold"
-                                : "text-black hover:bg-gray-50"
+                              ? "bg-white text-[#136D6D] font-semibold"
+                              : "text-black hover:bg-gray-50"
                               }`}
                           >
                             {creativesTotalPages}

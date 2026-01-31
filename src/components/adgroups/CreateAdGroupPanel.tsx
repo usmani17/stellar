@@ -671,7 +671,14 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
           disabled={addedAdGroups.length === 0 || loading}
           className="create-entity-button"
         >
-          {loading ? "Creating..." : "Create AdGroups"}
+          {loading ? (
+            <>
+              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
+              Creating...
+            </>
+          ) : (
+            "Create AdGroups"
+          )}
         </button>
       </div>
     </div>

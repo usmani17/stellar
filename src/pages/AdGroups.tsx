@@ -993,11 +993,17 @@ export const AdGroups: React.FC = () => {
     try {
       setBulkLoading(true);
 
-      // Get selected adgroups with their current default bids
+      // Get selected adgroups with their current default bids. Only SD (and SP) ad groups have default bid; SB does not — skip SB for bulk default bid.
       const selectedAdgroupsData = getSelectedAdgroupsData();
-      const updates: Array<{ adgroupId: string | number; newBid: number }> = [];
+      const updates: Array<{ adgroupId: string | number; newBid: number; campaignType: "SP" | "SD" }> = [];
 
       for (const adgroup of selectedAdgroupsData) {
+        const agType = getCampaignTypeFromAdgroup(adgroup);
+        if (agType === "SB") {
+          // SB ad groups have no default bid; skip
+          continue;
+        }
+
         // Extract current bid (API may return string like "$0.00" or number)
         const bidStr =
           typeof adgroup.default_bid === "string"
@@ -1041,36 +1047,44 @@ export const AdGroups: React.FC = () => {
         // Prevent negative or zero
         newBid = Math.max(newBid, 0);
 
-        if (adgroup.adGroupId) {
+        if (adgroup.adGroupId && (agType === "SP" || agType === "SD")) {
           updates.push({
             adgroupId: adgroup.adGroupId,
             newBid: Math.round(newBid * 100) / 100,
+            campaignType: agType,
           });
         }
       }
 
-      // Update each adgroup individually and aggregate success/error counts
-      const bulkCampaignType = getCampaignTypeFromAdgroup(selectedAdgroupsData[0]);
-      let totalUpdated = 0;
-      let totalFailed = 0;
-      const allErrors: Array<{ adgroupId?: string | number; error?: string }> = [];
-      for (const update of updates) {
-        const res = await campaignsService.bulkUpdateAdGroups(
-          accountIdNum,
-          {
-            adgroupIds: [update.adgroupId],
-            action: "default_bid",
-            value: update.newBid,
-            campaignType: bulkCampaignType,
-          },
-          channelId ?? null
-        );
-        totalUpdated += res?.updated ?? 0;
-        totalFailed += res?.failed ?? 0;
-        if (res?.errors?.length) {
-          allErrors.push(...res.errors);
-        }
+      if (updates.length === 0) {
+        // All selected were SB; only SD/SP ad groups have default bid
+        setShowConfirmationModal(false);
+        setShowBidPanel(false);
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Default bid only applies to Sponsored Products (SP) and Sponsored Display (SD) ad groups. Selected Sponsored Brands (SB) ad groups were skipped.",
+        });
+        setBulkLoading(false);
+        return;
       }
+
+      // Send one bulk request with all adgroups and their new bids
+      const adgroupIds = updates.map((u) => u.adgroupId);
+      const bids = updates.map((u) => ({ adgroupId: u.adgroupId, bid: u.newBid }));
+
+      const res = await campaignsService.bulkUpdateAdGroups(
+        accountIdNum,
+        {
+          adgroupIds,
+          action: "default_bid",
+          bids,
+        },
+        channelId ?? null
+      );
+      const totalUpdated = res?.updated ?? 0;
+      const totalFailed = res?.failed ?? 0;
+      const allErrors: Array<{ adgroupId?: string | number; error?: string }> = res?.errors ?? [];
       showBulkResult(
         totalUpdated,
         totalFailed,
@@ -1113,6 +1127,21 @@ export const AdGroups: React.FC = () => {
       ?? (ag as { type?: string; campaignType?: string; campaign_type?: string }).campaign_type
       ?? "SP";
     return (String(t).toUpperCase() === "SB" ? "SB" : String(t).toUpperCase() === "SD" ? "SD" : "SP") as "SP" | "SB" | "SD";
+  };
+
+  const formatCurrency = (value: string | number, currency?: string) => {
+    const numValue =
+      typeof value === "string"
+        ? parseFloat(String(value).replace(/[^0-9.-]+/g, ""))
+        : Number(value);
+    const code = currency?.trim() ? currency.trim().toUpperCase() : "USD";
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      currencyDisplay: "code",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(numValue || 0);
   };
 
   const calculateNewBid = (currentBid: number): number => {
@@ -1178,18 +1207,15 @@ export const AdGroups: React.FC = () => {
   }, [chartDataFromApi]);
 
   const handleSelectAllAdGroups = (checked: boolean) => {
-    console.log(
-      "handleSelectAllAdGroups called",
-      checked,
-      "adgroups.length:",
-      adgroups.length
-    );
     if (checked) {
-      const allIds = new Set(adgroups.map((ag) => ag.adGroupId || ag.id));
-      console.log("Selecting all - allIds:", Array.from(allIds));
+      const selectable = adgroups.filter(
+        (ag) => (ag.status ?? "").toLowerCase() !== "archived"
+      );
+      const allIds = new Set(
+        selectable.map((ag) => ag.adGroupId || ag.id)
+      );
       setSelectedAdgroups(allIds);
     } else {
-      console.log("Deselecting all");
       setSelectedAdgroups(new Set());
     }
   };
@@ -1323,7 +1349,7 @@ export const AdGroups: React.FC = () => {
 
           return (
             <div
-              className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+              className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
               onClick={(e) => {
                 if (
                   e.target === e.currentTarget &&
@@ -1493,22 +1519,22 @@ export const AdGroups: React.FC = () => {
                   <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                     <div className="overflow-y-auto">
                       {(() => {
-                        // Only hide "Edit Default Bid" when all *selected* adgroups are SD (SD has no default bid)
+                        // Show "Edit Default Bid" only when at least one selected ad group is SD or SP (they have default bid). Hide when all are SB (SB has no default bid).
                         const selectedData = getSelectedAdgroupsData();
-                        const allSelectedAreSd =
+                        const allSelectedAreSb =
                           selectedData.length > 0 &&
                           selectedData.every((ag) => {
                             const t = (ag as { type?: string; campaignType?: string; campaign_type?: string }).type
                               ?? (ag as { type?: string; campaignType?: string; campaign_type?: string }).campaignType
                               ?? (ag as { type?: string; campaignType?: string; campaign_type?: string }).campaign_type;
-                            return String(t ?? "").toUpperCase() === "SD";
+                            return String(t ?? "").toUpperCase() === "SB";
                           });
 
                         return [
                           { value: "enable", label: "Enabled" },
                           { value: "pause", label: "Paused" },
                           { value: "archive", label: "Archived" },
-                          ...(allSelectedAreSd ? [] : [{ value: "edit_bid", label: "Edit Default Bid" }]),
+                          ...(allSelectedAreSb ? [] : [{ value: "edit_bid", label: "Edit Default Bid" }]),
                         ];
                       })().map((opt) => (
                         <button
@@ -1784,7 +1810,7 @@ export const AdGroups: React.FC = () => {
             {/* Confirmation Modal */}
             {showConfirmationModal && (
               <div
-                className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+                className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
                 onClick={(e) => {
                   if (e.target === e.currentTarget) {
                     setShowConfirmationModal(false);
@@ -1885,12 +1911,12 @@ export const AdGroups: React.FC = () => {
                                       </td>
                                       <td className="px-4 py-2 text-[10.64px] text-[#556179]">
                                         {isBidChange
-                                          ? `$${oldBid.toFixed(2)}`
+                                          ? formatCurrency(oldBid, ag.profile_currency_code)
                                           : oldStatus}
                                       </td>
                                       <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
                                         {isBidChange
-                                          ? `$${newBid.toFixed(2)}`
+                                          ? formatCurrency(newBid, ag.profile_currency_code)
                                           : newStatus}
                                       </td>
                                     </tr>

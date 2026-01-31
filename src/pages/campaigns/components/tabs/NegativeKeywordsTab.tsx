@@ -152,9 +152,8 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                 Create Negative Keywords
               </span>
               <svg
-                className={`w-4 h-4 !text-white transition-transform ${
-                  isCreatePanelOpen ? "rotate-180" : ""
-                }`}
+                className={`w-4 h-4 !text-white transition-transform ${isCreatePanelOpen ? "rotate-180" : ""
+                  }`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -204,14 +203,15 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                     {(
                       campaignType === "SB"
                         ? [
-                            { value: "enable", label: "Enabled" },
-                            { value: "pause", label: "Paused" },
-                            { value: "archive", label: "Archived" },
-                          ]
+                          { value: "enable", label: "Enabled" },
+                          { value: "archive", label: "Archived" },
+                          { value: "delete", label: "Delete" },
+                        ]
                         : [
-                            { value: "enable", label: "Enabled" },
-                            { value: "pause", label: "Paused" },
-                          ]
+                          { value: "enable", label: "Enabled" },
+                          { value: "pause", label: "Paused" },
+                          { value: "delete", label: "Delete" },
+                        ]
                     ).map((opt) => (
                       <button
                         key={opt.value}
@@ -221,7 +221,11 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           if (selectedNegativeKeywordIds.size === 0) return;
-                          onBulkStatusAction(opt.value as "enable" | "pause" | "archive");
+                          if (opt.value === "delete") {
+                            onBulkDelete();
+                          } else {
+                            onBulkStatusAction(opt.value as "enable" | "pause" | "archive");
+                          }
                           onCloseBulkActions();
                         }}
                       >
@@ -258,9 +262,8 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                 Add Filter
               </span>
               <svg
-                className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                  isFilterPanelOpen ? "rotate-180" : ""
-                }`}
+                className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isFilterPanelOpen ? "rotate-180" : ""
+                  }`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"

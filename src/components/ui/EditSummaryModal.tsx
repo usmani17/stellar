@@ -22,6 +22,7 @@ export const EditSummaryModal: React.FC<EditSummaryModalProps> = ({
   if (!isOpen || !result) return null;
 
   const { title, summary, details, variant } = result;
+  const isError = variant === "error";
   const isPartial = variant === "partial";
 
   return (
@@ -35,10 +36,24 @@ export const EditSummaryModal: React.FC<EditSummaryModalProps> = ({
           <div className="flex items-center justify-center mb-4">
             <div
               className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                isPartial ? "bg-amber-50" : "bg-green-50"
+                isError ? "bg-red-50" : isPartial ? "bg-amber-50" : "bg-green-50"
               }`}
             >
-              {isPartial ? (
+              {isError ? (
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              ) : isPartial ? (
                 <svg
                   className="w-6 h-6 text-amber-600"
                   fill="none"

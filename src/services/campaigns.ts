@@ -266,7 +266,8 @@ export interface KeywordsQueryParams {
   adgroup_name?: string;
   adgroup_name__icontains?: string;
   adgroup_name__not_icontains?: string;
-  // Profile name filters
+  // Profile filters (profile_id__in for multi-select profile IDs)
+  profile_id__in?: (string | number)[];
   profile_name?: string;
   profile_name__icontains?: string;
   profile_name__not_icontains?: string;
@@ -740,8 +741,10 @@ export const campaignsService = {
       filters.campaign_name__not_icontains =
         params.campaign_name__not_icontains;
     }
-    // Profile name filters
-    if (params?.profile_name) {
+    // Profile filters (profile_id__in for multi-select; profile_name for text)
+    if (params?.profile_id__in?.length) {
+      filters.profile_id__in = params.profile_id__in;
+    } else if (params?.profile_name) {
       filters.profile_name = params.profile_name;
     }
     if (params?.profile_name__icontains) {
@@ -922,8 +925,10 @@ export const campaignsService = {
       filters.campaign_name__not_icontains =
         params.campaign_name__not_icontains;
     }
-    // Profile name filters
-    if (params?.profile_name) {
+    // Profile filters (profile_id__in for multi-select; profile_name for text)
+    if (params?.profile_id__in?.length) {
+      filters.profile_id__in = params.profile_id__in;
+    } else if (params?.profile_name) {
       filters.profile_name = params.profile_name;
     }
     if (params?.profile_name__icontains) {
@@ -1359,6 +1364,7 @@ export const campaignsService = {
       value?: number;
       name?: string;
       campaignType?: "SP" | "SB" | "SD";
+      bids?: Array<{ adgroupId: string | number; bid: number }>;
     },
     channelId: number | string | null
   ) => {
@@ -1449,8 +1455,10 @@ export const campaignsService = {
     if (params?.adgroup_name__not_icontains) {
       filters.adgroup_name__not_icontains = params.adgroup_name__not_icontains;
     }
-    // Profile name filters
-    if (params?.profile_name) {
+    // Profile filters (profile_id__in for multi-select; profile_name for text)
+    if (params?.profile_id__in?.length) {
+      filters.profile_id__in = params.profile_id__in;
+    } else if (params?.profile_name) {
       filters.profile_name = params.profile_name;
     }
     if (params?.profile_name__icontains) {
@@ -1599,8 +1607,10 @@ export const campaignsService = {
     if (params?.adgroup_name__not_icontains) {
       filters.adgroup_name__not_icontains = params.adgroup_name__not_icontains;
     }
-    // Profile name filters
-    if (params?.profile_name) {
+    // Profile filters (profile_id__in for multi-select; profile_name for text)
+    if (params?.profile_id__in?.length) {
+      filters.profile_id__in = params.profile_id__in;
+    } else if (params?.profile_name) {
       filters.profile_name = params.profile_name;
     }
     if (params?.profile_name__icontains) {
@@ -1677,6 +1687,7 @@ export const campaignsService = {
       action: "status" | "bid" | "archive";
       status?: "enable" | "pause";
       bid?: number;
+      bids?: Array<{ keywordId: string | number; bid: number }>;
     }
   ) => {
     const base = buildAmazonBasePath(accountId, channelId);
@@ -2182,8 +2193,10 @@ export const campaignsService = {
     if (params?.adgroup_name__not_icontains) {
       filters.adgroup_name__not_icontains = params.adgroup_name__not_icontains;
     }
-    // Profile name filters
-    if (params?.profile_name) {
+    // Profile filters (profile_id__in for multi-select; profile_name for text)
+    if (params?.profile_id__in?.length) {
+      filters.profile_id__in = params.profile_id__in;
+    } else if (params?.profile_name) {
       filters.profile_name = params.profile_name;
     }
     if (params?.profile_name__icontains) {
@@ -2332,8 +2345,10 @@ export const campaignsService = {
     if (params?.adgroup_name__not_icontains) {
       filters.adgroup_name__not_icontains = params.adgroup_name__not_icontains;
     }
-    // Profile name filters
-    if (params?.profile_name) {
+    // Profile filters (profile_id__in for multi-select; profile_name for text)
+    if (params?.profile_id__in?.length) {
+      filters.profile_id__in = params.profile_id__in;
+    } else if (params?.profile_name) {
       filters.profile_name = params.profile_name;
     }
     if (params?.profile_name__icontains) {
@@ -2409,9 +2424,13 @@ export const campaignsService = {
       action: "status" | "bid";
       status?: "enable" | "pause"; // ARCHIVED is not supported for targets
       bid?: number;
-    }
+      /** Per-target bids for one request (action=bid). When provided, one request updates all with their respective bids. */
+      bids?: Array<{ targetId: string | number; bid: number }>;
+    },
+    channelId?: number | string | null
   ) => {
-    const url = `/accounts/${accountId}/targets/bulk-update/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/targets/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },
@@ -2464,11 +2483,9 @@ export const campaignsService = {
         }>;
         state?: "ENABLED" | "PAUSED";
       }>;
-    },
-    channelId?: number | string | null
+    }
   ) => {
-    const base = buildAmazonBasePath(accountId, channelId);
-    const url = `${base}/campaigns/${campaignId}/negative-targets/create/`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },

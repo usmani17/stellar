@@ -202,6 +202,14 @@ export const Campaigns: React.FC = () => {
     return allCampaigns;
   }, [campaignsResponse, searchQuery, apiSearchQuery, accountId]);
 
+  const selectableCampaigns = useMemo(
+    () =>
+      campaigns.filter(
+        (c) => (c.status ?? "").toLowerCase() !== "archived"
+      ),
+    [campaigns]
+  );
+
   const summary = useMemo(() => {
     return campaignsResponse?.summary || null;
   }, [campaignsResponse]);
@@ -850,18 +858,26 @@ export const Campaigns: React.FC = () => {
   const runBulkStatus = async (statusValue: "enable" | "pause") => {
     if (!accountIdNum || selectedCampaigns.size === 0) return;
 
-    const count = selectedCampaigns.size;
     try {
-      await bulkUpdateMutation.mutateAsync({
+      const response = await bulkUpdateMutation.mutateAsync({
         campaignIds: Array.from(selectedCampaigns),
         action: "status",
         status: statusValue,
       });
+      const succeededCount = response?.updated ?? 0;
+      const failedCount = response?.failed ?? 0;
       showEditSummary({
         entityType: "campaign",
         action: "updated",
         mode: "bulk",
-        succeededCount: count,
+        succeededCount,
+        failedCount: failedCount > 0 ? failedCount : undefined,
+        details: (response?.errors as Array<{ campaignId?: string | number; error?: string }> | undefined)?.slice(0, 5).map((e) => {
+          const campaign = campaigns.find((c) => String(c.campaignId) === String(e.campaignId));
+          const name = campaign?.campaign_name ?? campaign?.name ?? null;
+          const label = name ? `${name} (${e.campaignId ?? "—"})` : `Campaign ${e.campaignId ?? "—"}`;
+          return { label, value: e.error ?? "Unknown error" };
+        }),
       });
     } catch (error: any) {
       console.error("Failed to update campaigns", error);
@@ -879,11 +895,13 @@ export const Campaigns: React.FC = () => {
   const runBulkDelete = async () => {
     if (!accountIdNum || selectedCampaigns.size === 0) return;
 
-    const count = selectedCampaigns.size;
     try {
-      await bulkDeleteMutation.mutateAsync({
+      const response = await bulkDeleteMutation.mutateAsync({
         campaignIds: Array.from(selectedCampaigns),
       });
+
+      const succeededCount = response?.deleted ?? 0;
+      const failedCount = response?.failed ?? 0;
 
       // Clear selection after successful delete
       setSelectedCampaigns(new Set());
@@ -892,7 +910,14 @@ export const Campaigns: React.FC = () => {
         entityType: "campaign",
         action: "deleted",
         mode: "bulk",
-        succeededCount: count,
+        succeededCount,
+        failedCount: failedCount > 0 ? failedCount : undefined,
+        details: (response?.errors as Array<{ campaignId?: string | number; error?: string }> | undefined)?.slice(0, 5).map((e) => {
+          const campaign = campaigns.find((c) => String(c.campaignId) === String(e.campaignId));
+          const name = campaign?.campaign_name ?? campaign?.name ?? null;
+          const label = name ? `${name} (${e.campaignId ?? "—"})` : `Campaign ${e.campaignId ?? "—"}`;
+          return { label, value: e.error ?? "Unknown error" };
+        }),
       });
     } catch (error: any) {
       console.error("Failed to delete campaigns", error);
@@ -918,9 +943,8 @@ export const Campaigns: React.FC = () => {
     const upper = upperLimit ? parseFloat(upperLimit) : undefined;
     const lower = lowerLimit ? parseFloat(lowerLimit) : undefined;
 
-    const count = selectedCampaigns.size;
     try {
-      await bulkUpdateMutation.mutateAsync({
+      const response = await bulkUpdateMutation.mutateAsync({
         campaignIds: Array.from(selectedCampaigns),
         action: "budget",
         budgetAction,
@@ -929,11 +953,20 @@ export const Campaigns: React.FC = () => {
         upperLimit: upper,
         lowerLimit: lower,
       });
+      const succeededCount = response?.updated ?? 0;
+      const failedCount = response?.failed ?? 0;
       showEditSummary({
         entityType: "campaign",
         action: "updated",
         mode: "bulk",
-        succeededCount: count,
+        succeededCount,
+        failedCount: failedCount > 0 ? failedCount : undefined,
+        details: (response?.errors as Array<{ campaignId?: string | number; error?: string }> | undefined)?.slice(0, 5).map((e) => {
+          const campaign = campaigns.find((c) => String(c.campaignId) === String(e.campaignId));
+          const name = campaign?.campaign_name ?? campaign?.name ?? null;
+          const label = name ? `${name} (${e.campaignId ?? "—"})` : `Campaign ${e.campaignId ?? "—"}`;
+          return { label, value: e.error ?? "Unknown error" };
+        }),
       });
     } catch (error: any) {
       console.error("Failed to update budgets", error);
@@ -1182,25 +1215,27 @@ export const Campaigns: React.FC = () => {
         updatePayload.budget = newBudget;
       }
 
-      // 4. Check if budgetType changed
-      const originalBudgetType = original.budgetType || "";
-      const newBudgetType = data.budgetType || "";
-      const normalizeBudgetType = (bt: string) => bt.toLowerCase();
-      if (
-        normalizeBudgetType(newBudgetType) !==
-        normalizeBudgetType(originalBudgetType) &&
-        (normalizeBudgetType(newBudgetType) === "daily" ||
-          normalizeBudgetType(newBudgetType) === "lifetime")
-      ) {
-        // For SD campaigns, use lowercase; for SP/SB, use uppercase
-        if (data.type === "SD") {
-          updatePayload.budgetType = normalizeBudgetType(newBudgetType) as
-            | "daily"
-            | "lifetime";
-        } else {
-          updatePayload.budgetType = newBudgetType.toUpperCase() as
-            | "DAILY"
-            | "LIFETIME";
+      // 4. Check if budgetType changed (SB: budget type is readonly after creation, skip)
+      if (data.type !== "SB") {
+        const originalBudgetType = original.budgetType || "";
+        const newBudgetType = data.budgetType || "";
+        const normalizeBudgetType = (bt: string) => bt.toLowerCase();
+        if (
+          normalizeBudgetType(newBudgetType) !==
+          normalizeBudgetType(originalBudgetType) &&
+          (normalizeBudgetType(newBudgetType) === "daily" ||
+            normalizeBudgetType(newBudgetType) === "lifetime")
+        ) {
+          // For SD campaigns, use lowercase; for SP, use uppercase
+          if (data.type === "SD") {
+            updatePayload.budgetType = normalizeBudgetType(newBudgetType) as
+              | "daily"
+              | "lifetime";
+          } else {
+            updatePayload.budgetType = newBudgetType.toUpperCase() as
+              | "DAILY"
+              | "LIFETIME";
+          }
         }
       }
 
@@ -2225,8 +2260,8 @@ export const Campaigns: React.FC = () => {
       style: "currency",
       currency: code,
       currencyDisplay: "code", // e.g. "MXN 0" instead of "MX$0" to avoid double currency symbol
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(value);
   };
 
@@ -2536,9 +2571,8 @@ export const Campaigns: React.FC = () => {
                       <div className="overflow-y-auto">
                         {[
                           { value: "enable", label: "Enabled" },
-                          { value: "pause", label: "Pause" },
+                          { value: "pause", label: "Paused" },
                           { value: "edit_budget", label: "Edit Budget" },
-                          { value: "delete", label: "Delete" },
                         ].map((opt) => (
                           <button
                             key={opt.value}
@@ -2550,9 +2584,6 @@ export const Campaigns: React.FC = () => {
                               if (selectedCampaigns.size === 0) return;
                               if (opt.value === "edit_budget") {
                                 setShowBudgetPanel(true);
-                              } else if (opt.value === "delete") {
-                                setShowBudgetPanel(false);
-                                setShowDeleteModal(true);
                               } else {
                                 setShowBudgetPanel(false);
                                 setPendingStatusAction(
@@ -2820,7 +2851,7 @@ export const Campaigns: React.FC = () => {
               {/* Confirmation Modal */}
               {showConfirmationModal && (
                 <div
-                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
                   onClick={(e) => {
                     if (e.target === e.currentTarget && !bulkLoading) {
                       setShowConfirmationModal(false);
@@ -3060,7 +3091,7 @@ export const Campaigns: React.FC = () => {
               {/* Delete Confirmation Modal */}
               {showDeleteModal && (
                 <div
-                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
                   onClick={(e) => {
                     if (e.target === e.currentTarget && !bulkLoading) {
                       setShowDeleteModal(false);
@@ -3110,7 +3141,7 @@ export const Campaigns: React.FC = () => {
               {/* Inline Edit Confirmation Modal */}
               {showInlineEditModal && inlineEditCampaign && inlineEditField && (
                 <div
-                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
                       setShowInlineEditModal(false);
@@ -3230,18 +3261,26 @@ export const Campaigns: React.FC = () => {
                             <div className="flex items-center justify-center">
                               <Checkbox
                                 checked={
-                                  selectedCampaigns.size === campaigns.length &&
-                                  campaigns.length > 0
+                                  selectableCampaigns.length > 0 &&
+                                  selectableCampaigns.every((c) =>
+                                    selectedCampaigns.has(c.campaignId)
+                                  )
                                 }
                                 indeterminate={
-                                  selectedCampaigns.size > 0 &&
-                                  selectedCampaigns.size < campaigns.length
+                                  selectableCampaigns.some((c) =>
+                                    selectedCampaigns.has(c.campaignId)
+                                  ) &&
+                                  !selectableCampaigns.every((c) =>
+                                    selectedCampaigns.has(c.campaignId)
+                                  )
                                 }
                                 onChange={(checked) => {
                                   if (checked) {
                                     setSelectedCampaigns(
                                       new Set(
-                                        campaigns.map((c) => c.campaignId)
+                                        selectableCampaigns.map(
+                                          (c) => c.campaignId
+                                        )
                                       )
                                     );
                                   } else {
@@ -3480,7 +3519,9 @@ export const Campaigns: React.FC = () => {
                                         checked={selectedCampaigns.has(
                                           campaign.campaignId
                                         )}
+                                        disabled={isArchived}
                                         onChange={(checked) => {
+                                          if (isArchived) return;
                                           if (checked) {
                                             setSelectedCampaigns((prev) => {
                                               const newSet = new Set(prev);
@@ -3750,11 +3791,15 @@ export const Campaigns: React.FC = () => {
                                       ).toUpperCase();
                                       const isArchived = currentStatus === "ARCHIVED";
                                       const isSDCampaign = campaign.type === "SD";
+                                      // SP campaigns only support DAILY; budget type is not editable
+                                      const isSPCampaign = campaign.type === "SP";
+                                      // SB campaigns: budget type is readonly after creation
+                                      const isSBCampaign = campaign.type === "SB";
 
-                                      if (isArchived || isSDCampaign) {
+                                      if (isArchived || isSDCampaign || isSPCampaign || isSBCampaign) {
                                         return (
-                                          <span className="table-text leading-[1.26] opacity-60">
-                                            {campaign.budgetType || "—"}
+                                          <span className={`table-text leading-[1.26] ${isArchived || isSPCampaign ? "opacity-60" : ""}`}>
+                                            {isSPCampaign ? "DAILY" : (campaign.budgetType || "—")}
                                           </span>
                                         );
                                       }

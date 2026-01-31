@@ -85,7 +85,7 @@ export interface EditSummaryResult {
   title: string;
   summary: string;
   details: EditSummaryDetail[];
-  variant: "success" | "partial";
+  variant: "success" | "partial" | "error";
 }
 
 export function buildEditSummary(opts: EditSummaryOptions): EditSummaryResult {
@@ -120,6 +120,7 @@ export function buildEditSummary(opts: EditSummaryOptions): EditSummaryResult {
 
   // Bulk
   const hasFailure = failedCount > 0;
+  const allFailed = hasFailure && succeededCount === 0;
   let summary: string;
   if (!hasFailure) {
     const n = succeededCount;
@@ -130,7 +131,7 @@ export function buildEditSummary(opts: EditSummaryOptions): EditSummaryResult {
       summary = `${succeededCount} ${plural} ${action} successfully. ${failedCount} failed.`;
     } else {
       const verb = { updated: "update", created: "create", deleted: "delete", archived: "archive" }[action] ?? action;
-      summary = `All ${failedCount} ${plural} failed to ${verb}.`;
+      summary = `All ${failedCount > 1 ? failedCount + " " : ""}${failedCount === 1 ? singular : plural} failed to ${verb}.`;
     }
   }
 
@@ -139,10 +140,24 @@ export function buildEditSummary(opts: EditSummaryOptions): EditSummaryResult {
     details.push({ label: "Failed", value: String(failedCount) });
   }
 
+  // Determine variant: error if all failed, partial if some failed, success if none failed
+  let variant: "success" | "partial" | "error";
+  let title: string;
+  if (allFailed) {
+    variant = "error";
+    title = "Update failed";
+  } else if (hasFailure) {
+    variant = "partial";
+    title = "Partial success";
+  } else {
+    variant = "success";
+    title = "Update complete";
+  }
+
   return {
-    title: hasFailure ? "Summary" : "Update complete",
+    title,
     summary,
     details,
-    variant: hasFailure ? "partial" : "success",
+    variant,
   };
 }
