@@ -33,6 +33,7 @@ import {
 import { type AdGroupInput } from "../components/adgroups/CreateAdGroupPanel";
 import { type KeywordInput } from "../components/keywords/CreateKeywordPanel";
 import { type TargetInput } from "../components/targets/CreateTargetPanel";
+import { normalizeStatusDisplay } from "../utils/statusHelpers";
 import {
   CreateNegativeKeywordPanel,
   type NegativeKeywordInput,
@@ -9561,8 +9562,7 @@ export const CampaignDetail: React.FC = () => {
                       </td>
                       <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
                         {inlineEditField === "status"
-                          ? inlineEditNewValue.charAt(0).toUpperCase() +
-                          inlineEditNewValue.slice(1)
+                          ? normalizeStatusDisplay(inlineEditNewValue)
                           : inlineEditField === "budget"
                             ? formatCurrency(parseFloat(inlineEditNewValue || "0"), profileCurrencyCode)
                             : inlineEditField === "startDate" || inlineEditField === "endDate"
@@ -10342,8 +10342,7 @@ export const CampaignDetail: React.FC = () => {
                     </span>
                     <span className="text-[12.16px] font-semibold text-[#072929]">
                       {pendingTargetsStatusAction
-                        ? pendingTargetsStatusAction.charAt(0).toUpperCase() +
-                        pendingTargetsStatusAction.slice(1)
+                        ? normalizeStatusDisplay(pendingTargetsStatusAction)
                         : ""}
                     </span>
                   </div>
@@ -10888,8 +10887,7 @@ export const CampaignDetail: React.FC = () => {
                   </span>
                   <span className="text-[12.16px] font-semibold text-[#072929]">
                     {pendingAdGroupsStatusAction
-                      ? pendingAdGroupsStatusAction.charAt(0).toUpperCase() +
-                      pendingAdGroupsStatusAction.slice(1)
+                      ? normalizeStatusDisplay(pendingAdGroupsStatusAction)
                       : ""}
                   </span>
                 </div>

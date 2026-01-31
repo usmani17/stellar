@@ -50,6 +50,7 @@ import { Loader } from "../components/ui/Loader";
 import { filtersService } from "../services/filters";
 import { accountsService } from "../services/accounts";
 import type { FilterDefinition } from "../types/filters";
+import { normalizeStatusDisplay } from "../utils/statusHelpers";
 
 export const Campaigns: React.FC = () => {
   const { showEditSummary, EditSummaryModal: EditSummaryModalOutlet } =
@@ -2928,10 +2929,7 @@ export const Campaigns: React.FC = () => {
                                       ? calculateNewBudget(oldBudget)
                                       : oldBudget;
                                     const newStatus = pendingStatusAction
-                                      ? pendingStatusAction
-                                        .charAt(0)
-                                        .toUpperCase() +
-                                      pendingStatusAction.slice(1)
+                                      ? normalizeStatusDisplay(pendingStatusAction)
                                       : oldStatus;
 
                                     return (
@@ -3030,12 +3028,11 @@ export const Campaigns: React.FC = () => {
                           <span className="text-[12.16px] text-[#556179]">
                             New Status:
                           </span>
-                          <span className="text-[12.16px] font-semibold text-[#072929]">
-                            {pendingStatusAction
-                              ? pendingStatusAction.charAt(0).toUpperCase() +
-                              pendingStatusAction.slice(1)
-                              : ""}
-                          </span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {pendingStatusAction
+                            ? normalizeStatusDisplay(pendingStatusAction)
+                            : ""}
+                        </span>
                         </div>
                       )}
                     </div>

@@ -12,6 +12,7 @@ import { StatusBadge } from "../components/ui/StatusBadge";
 import { Dropdown } from "../components/ui/Dropdown";
 import { Button } from "../components/ui";
 import { type FilterValues } from "../components/filters/FilterPanel";
+import { normalizeStatusDisplay } from "../utils/statusHelpers";
 import {
   FilterSection,
   FilterSectionPanel,
@@ -1550,13 +1551,9 @@ export const Targets: React.FC = () => {
                                       </td>
                                     ) : (
                                       <td className="px-4 py-2 text-[10.64px] text-[#072929] font-medium">
-                                        {pendingStatusAction === "enable"
-                                          ? "Enabled"
-                                          : pendingStatusAction === "pause"
-                                            ? "Paused"
-                                            : pendingStatusAction === "archive"
-                                              ? "Archived"
-                                              : "—"}
+                                        {pendingStatusAction
+                                          ? normalizeStatusDisplay(pendingStatusAction)
+                                          : "—"}
                                       </td>
                                     )}
                                   </tr>
