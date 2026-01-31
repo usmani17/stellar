@@ -3740,7 +3740,7 @@ export const CampaignDetail: React.FC = () => {
         formData.append("mediaType", asset.mediaType);
       }
 
-      await campaignsService.createAsset(
+      const data = await campaignsService.createAsset(
         accountIdNum,
         formData,
         undefined,
@@ -3752,7 +3752,9 @@ export const CampaignDetail: React.FC = () => {
       setErrorModal({
         isOpen: true,
         title: "Success",
-        message: "Asset uploaded successfully!",
+        message: data?.updated
+          ? "Status updated successfully"
+          : "Asset uploaded successfully!",
         isSuccess: true,
       });
 
@@ -3877,6 +3879,7 @@ export const CampaignDetail: React.FC = () => {
         response.created += imageResponse.created || 0;
         response.failed += imageResponse.failed || 0;
         response.ads = [...(response.ads || []), ...(imageResponse.ads || [])];
+        // Image failed_ads indices are 0..imageAds.length-1 (same as original list)
         response.failed_ads = [
           ...(response.failed_ads || []),
           ...(imageResponse.failed_ads || []),
@@ -3893,9 +3896,14 @@ export const CampaignDetail: React.FC = () => {
         response.created += videoResponse.created || 0;
         response.failed += videoResponse.failed || 0;
         response.ads = [...(response.ads || []), ...(videoResponse.ads || [])];
+        // Video failed_ads indices are 0..videoAds.length-1; map to original list index
+        const videoIndexOffset = imageAds.length;
         response.failed_ads = [
           ...(response.failed_ads || []),
-          ...(videoResponse.failed_ads || []),
+          ...(videoResponse.failed_ads || []).map((f: any) => ({
+            ...f,
+            index: videoIndexOffset + (f.index ?? 0),
+          })),
         ];
       }
 
@@ -3918,14 +3926,30 @@ export const CampaignDetail: React.FC = () => {
         await loadSBAds();
       } else {
         // Partial success or all failed - show summary and keep panel open
-        if (created > 0 && failed > 0) {
-          setErrorModal({
-            isOpen: true,
-            title: "Summary",
-            message: `${created} ad(s) created successfully. ${failed} ad(s) failed.`,
-            isSuccess: false,
-          });
+        const totalSubmitted = ads.length;
+        let modalMessage: string;
+        if (totalSubmitted === 1) {
+          // Single ad: show the actual error in the popup
+          const firstFailed = response.failed_ads?.[0];
+          const firstError = firstFailed?.errors?.[0];
+          const errMsg =
+            firstError?.message ||
+            (Array.isArray(response.errors) && response.errors[0]) ||
+            `${created} ad(s) created. ${failed} ad(s) failed.`;
+          modalMessage = typeof errMsg === "string" ? errMsg : `${created} ad(s) created. ${failed} ad(s) failed.`;
+        } else {
+          // Multiple ads: show only counts
+          modalMessage =
+            created > 0
+              ? `${created} ad(s) created successfully. ${failed} ad(s) failed.`
+              : `${failed} ad(s) failed.`;
         }
+        setErrorModal({
+          isOpen: true,
+          title: totalSubmitted === 1 ? "Error" : "Summary",
+          message: modalMessage,
+          isSuccess: false,
+        });
 
         // Reload SB ads even on partial success to show newly created ones
         if (created > 0) {
@@ -3945,16 +3969,36 @@ export const CampaignDetail: React.FC = () => {
     } catch (error: any) {
       console.error("Failed to create SB ads:", error);
 
-      // Extract error message
-      let errorMessage = "Failed to create ads. Please try again.";
+      const data = error?.response?.data;
 
-      if (error?.response?.data) {
-        if (error.response.data.error) {
-          errorMessage = error.response.data.error;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        } else if (Array.isArray(error.response.data.errors)) {
-          errorMessage = error.response.data.errors.join(", ");
+      // When backend returns 400 with failed_ads (e.g. all ads failed), use that so the panel can show errors and Edit
+      if (data && Array.isArray(data.failed_ads) && data.failed_ads.length > 0) {
+        setCreatedSBAds(data.ads || []);
+        setFailedSBAdCount(data.failed || 0);
+        setFailedSBAds(data.failed_ads);
+        if (data.field_errors) {
+          setCreateSBAdFieldErrors(data.field_errors);
+        }
+      }
+
+      // Popup message: single ad failed → show actual error; multiple ads → show counts only
+      const failedCount = data?.failed ?? 0;
+      const createdCount = data?.created ?? 0;
+      let errorMessage = "Failed to create ads. Please try again.";
+      if (data) {
+        if (failedCount === 1) {
+          const firstFailed = data.failed_ads?.[0];
+          const firstError = firstFailed?.errors?.[0];
+          const msg = firstError?.message ?? (Array.isArray(data.errors) ? data.errors[0] : null);
+          if (msg) errorMessage = typeof msg === "string" ? msg : data.errors?.join(", ");
+          else if (data.error) errorMessage = data.error;
+          else if (data.message) errorMessage = data.message;
+          else if (Array.isArray(data.errors)) errorMessage = data.errors.join(", ");
+        } else {
+          errorMessage =
+            createdCount > 0
+              ? `${createdCount} ad(s) created successfully. ${failedCount} ad(s) failed.`
+              : `${failedCount} ad(s) failed.`;
         }
       } else if (error?.message) {
         errorMessage = error.message;
@@ -3964,7 +4008,7 @@ export const CampaignDetail: React.FC = () => {
 
       setErrorModal({
         isOpen: true,
-        title: "Error",
+        title: failedCount === 1 ? "Error" : "Summary",
         message: errorMessage,
         isSuccess: false,
       });

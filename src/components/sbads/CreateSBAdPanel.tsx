@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { Checkbox } from "../ui/Checkbox";
+import { Loader } from "../ui/Loader";
 import { campaignsService } from "../../services/campaigns";
 import type { Asset } from "../campaigns/AssetsTable";
 
@@ -10,9 +11,10 @@ export interface SBAdInput {
   adGroupId: string;
   adType?: "IMAGE" | "VIDEO"; // New field for ad type
   videoAdType?: "PRODUCT" | "BRAND"; // For VIDEO ads: PRODUCT or BRAND
+  /** Landing page: either url (simple/Store/custom page) or asins (product list). Mutually exclusive. Brand video ads only support Store page (url). */
   landingPage?: {
     asins?: string[];
-    pageType?: "PRODUCT_LIST";
+    pageType?: "PRODUCT_LIST" | "STORE" | "CUSTOM_URL" | "DETAIL_PAGE";
     url?: string;
   };
   creative?: {
@@ -79,7 +81,12 @@ const VIDEO_AD_TYPE_OPTIONS = [
   { value: "BRAND", label: "Brand Video" },
 ];
 
-const PAGE_TYPE_OPTIONS = [{ value: "PRODUCT_LIST", label: "PRODUCT_LIST" }];
+const LANDING_PAGE_TYPE_OPTIONS = [
+  { value: "STORE", label: "Store (URL)" },
+  { value: "CUSTOM_URL", label: "Custom URL" },
+  { value: "PRODUCT_LIST", label: "Product list (ASINs)" },
+  { value: "DETAIL_PAGE", label: "Detail page (ASINs)" },
+];
 
 const CREATIVE_PROPERTIES_OPTIONS = [{ value: "HEADLINE", label: "HEADLINE" }];
 
@@ -116,6 +123,30 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
   const [assets, setAssets] = useState<Asset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
 
+  const [currentAd, setCurrentAd] = useState<SBAdInput>({
+    name: generateDefaultAdName(),
+    state: "ENABLED",
+    adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
+    adType: "IMAGE",
+    videoAdType: "PRODUCT",
+    landingPage: {
+      asins: [],
+      pageType: "CUSTOM_URL",
+      url: "",
+    },
+    creative: {
+      brandLogoCrop: { top: 0, left: 0, width: 100, height: 100 },
+      asins: ["", "", ""],
+      brandName: "",
+      brandLogoAssetID: "",
+      headline: "",
+      consentToTranslate: false,
+      creativePropertiesToOptimize: [],
+      customImages: [],
+      videoAssetIds: [],
+    },
+  });
+
   // Fetch assets when component opens
   useEffect(() => {
     if (isOpen && accountId) {
@@ -145,7 +176,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           page_size: 100, // Get all assets for dropdown
           ...(profileId && { profileId }), // Include profileId if available to filter assets
         },
-        channelId ?? null
+        channelId ?? null,
       );
       setAssets(data.assets || []);
     } catch (error) {
@@ -155,39 +186,30 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       setAssetsLoading(false);
     }
   };
-  const [currentAd, setCurrentAd] = useState<SBAdInput>({
-    name: generateDefaultAdName(),
-    state: "ENABLED",
-    adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
-    adType: "IMAGE", // Default to IMAGE - form is editable by default
-    videoAdType: "PRODUCT", // Default to PRODUCT for video ads
-    landingPage: {
-      asins: [],
-      pageType: "PRODUCT_LIST",
-      url: "",
-    },
-    creative: {
-      brandLogoCrop: {
-        top: 0,
-        left: 0,
-        width: 100,
-        height: 100,
-      },
-      asins: ["", "", ""], // Initialize with 3 empty strings for 3 ASIN fields
-      brandName: "",
-      brandLogoAssetID: "",
-      headline: "",
-      consentToTranslate: false,
-      creativePropertiesToOptimize: [],
-      customImages: [],
-      videoAssetIds: [], // For video ads
-    },
-  });
 
   const [addedAds, setAddedAds] = useState<SBAdInput[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showJsonPreview, setShowJsonPreview] = useState(false);
   const [videoAssetSearch, setVideoAssetSearch] = useState<string>("");
+  /** Brand Logo Crop accordion: closed by default. Crop is optional; if not supplied, defaults to whole image. */
+  const [isBrandLogoCropExpanded, setIsBrandLogoCropExpanded] =
+    useState<boolean>(false);
+  /** Custom image crop accordions: per-image index, closed by default. */
+  const [customImageCropExpandedIndices, setCustomImageCropExpandedIndices] =
+    useState<Set<number>>(new Set());
+  /** True when the form holds an ad that was loaded for re-editing (so we put it back when editing another ad). */
+  const [formHasReEditedAd, setFormHasReEditedAd] = useState(false);
+
+  // On partial success (some ads created, some failed), remove successfully created ads from the list
+  useEffect(() => {
+    if (failedAds.length > 0 && createdAds.length > 0) {
+      const sortedFailed = [...failedAds].sort(
+        (a, b) => Number(a.index) - Number(b.index),
+      );
+      const failedOnly = sortedFailed.map((f) => f.ad);
+      setAddedAds(failedOnly);
+    }
+  }, [failedAds, createdAds]);
 
   const handleChange = (field: string, value: any) => {
     if (field.includes(".")) {
@@ -306,6 +328,14 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       };
       return updated;
     });
+    setCustomImageCropExpandedIndices((prev) => {
+      const next = new Set<number>();
+      prev.forEach((i) => {
+        if (i < index) next.add(i);
+        if (i > index) next.add(i - 1);
+      });
+      return next;
+    });
   };
 
   const handleCustomImageChange = (
@@ -318,13 +348,27 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       const images = [...(updated.creative?.customImages || [])];
       if (field.includes(".")) {
         const [parent, child] = field.split(".");
-        images[index] = {
-          ...images[index],
-          [parent]: {
-            ...(images[index] as any)[parent],
-            [child]: value,
-          },
-        };
+        if (parent === "crop") {
+          // Merge with existing crop and defaults so we don't lose other fields; allow 0 for any coordinate
+          const existing = (images[index] as any)?.crop;
+          const defaults = { top: 0, left: 0, width: 100, height: 100 };
+          images[index] = {
+            ...images[index],
+            crop: {
+              ...defaults,
+              ...existing,
+              [child]: value,
+            },
+          };
+        } else {
+          images[index] = {
+            ...images[index],
+            [parent]: {
+              ...(images[index] as any)[parent],
+              [child]: value,
+            },
+          };
+        }
       } else {
         images[index] = {
           ...images[index],
@@ -392,11 +436,46 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         newErrors.videoAssetIds =
           "At least one video asset ID is required for video ads";
       }
-      // Brand video ads require landing page URL
+      // Brand video ads only support Store page (url); asins not allowed
       if (currentAd.videoAdType === "BRAND") {
-        if (!currentAd.landingPage?.url) {
+        if (!currentAd.landingPage?.url?.trim()) {
           newErrors.landingPageUrl =
-            "Landing page URL is required for brand video ads";
+            "Landing page URL is required for brand video ads (Store page only)";
+        }
+      }
+    }
+
+    // Landing page: pageType required. url and asins mutually exclusive per pageType. At least one (url or asins) required.
+    if (currentAd.adType !== "VIDEO" || currentAd.videoAdType !== "BRAND") {
+      const pageType = currentAd.landingPage?.pageType;
+      const hasUrl = Boolean(currentAd.landingPage?.url?.trim());
+      const asinsList = (currentAd.landingPage?.asins || []).filter((a) =>
+        a.trim(),
+      );
+      const hasAsins = asinsList.length > 0;
+
+      if (!pageType) {
+        newErrors.landingPage = "Landing page type is required";
+      } else if (pageType === "STORE" || pageType === "CUSTOM_URL") {
+        if (hasAsins) {
+          newErrors.landingPage =
+            "ASINs not allowed for this landing page type. Use URL only.";
+        }
+        if (!hasUrl) {
+          newErrors.landingPage =
+            newErrors.landingPage ||
+            "Landing page URL is required for Store or Custom URL";
+        }
+      } else if (pageType === "PRODUCT_LIST" || pageType === "DETAIL_PAGE") {
+        if (hasUrl) {
+          newErrors.landingPage =
+            "Invalid landing page configuration for " +
+            pageType +
+            ". Use ASINs only, not URL.";
+        }
+        if (!hasAsins) {
+          newErrors.landingPageAsins =
+            "At least one ASIN is required for " + pageType;
         }
       }
     }
@@ -419,27 +498,22 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       videoAdType: currentAd.videoAdType,
     };
 
-    // Add landingPage if it has any data
-    // Note: url and asins are mutually exclusive - only include one
-    if (currentAd.landingPage) {
-      const hasAsins =
-        currentAd.landingPage.asins &&
-        currentAd.landingPage.asins.filter((a) => a.trim()).length > 0;
-      const hasUrl =
-        currentAd.landingPage.url && currentAd.landingPage.url.trim();
-
-      if (hasAsins || hasUrl) {
-        cleanedAd.landingPage = {
-          pageType: currentAd.landingPage.pageType || "PRODUCT_LIST",
-        };
-
-        // Only include asins OR url, not both (mutually exclusive)
-        if (hasAsins && currentAd.landingPage?.asins) {
-          cleanedAd.landingPage.asins = currentAd.landingPage.asins.filter(
-            (a) => a.trim(),
-          );
-        } else if (hasUrl && currentAd.landingPage?.url) {
-          cleanedAd.landingPage.url = currentAd.landingPage.url.trim();
+    // Add landingPage per API: pageType required. Only url OR only asins — never both. Mutual exclusivity by pageType.
+    if (currentAd.landingPage?.pageType) {
+      const pageType = currentAd.landingPage.pageType;
+      if (pageType === "STORE" || pageType === "CUSTOM_URL") {
+        const url = currentAd.landingPage.url?.trim();
+        if (url) {
+          cleanedAd.landingPage = { pageType, url };
+          // Do not include asins
+        }
+      } else if (pageType === "PRODUCT_LIST" || pageType === "DETAIL_PAGE") {
+        const asins = (currentAd.landingPage.asins || []).filter((a) =>
+          a.trim(),
+        );
+        if (asins.length > 0) {
+          cleanedAd.landingPage = { pageType, asins };
+          // Do not include url
         }
       }
     }
@@ -538,6 +612,8 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
     setAddedAds((prev) => [...prev, cleanedAd]);
 
     // Reset form for next ad
+    setIsBrandLogoCropExpanded(false);
+    setCustomImageCropExpandedIndices(new Set());
     setCurrentAd({
       name: generateDefaultAdName(),
       state: "ENABLED",
@@ -546,7 +622,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       videoAdType: "PRODUCT", // Reset to default
       landingPage: {
         asins: [],
-        pageType: "PRODUCT_LIST",
+        pageType: "CUSTOM_URL",
         url: "",
       },
       creative: {
@@ -567,10 +643,33 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       },
     });
     setErrors({});
+    setFormHasReEditedAd(false);
   };
 
   const handleRemoveAd = (index: number) => {
     setAddedAds((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleEditAd = (index: number) => {
+    const adToEdit = addedAds[index];
+    if (formHasReEditedAd) {
+      // Put current form (previously edited ad with updates) back into the list, then remove the clicked ad
+      setAddedAds((prev) => {
+        const withoutClicked = prev.filter((_, i) => i !== index);
+        return [...withoutClicked, currentAd];
+      });
+    } else {
+      setAddedAds((prev) => prev.filter((_, i) => i !== index));
+    }
+    setCurrentAd(adToEdit);
+    setFormHasReEditedAd(true);
+    setErrors({});
+    setTimeout(() => {
+      const panel = document.querySelector('[data-panel="create-sb-ad"]');
+      if (panel) {
+        panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 100);
   };
 
   const handleSubmit = () => {
@@ -584,6 +683,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
   const handleCancel = () => {
     setAddedAds([]);
+    setFormHasReEditedAd(false);
+    setIsBrandLogoCropExpanded(false);
+    setCustomImageCropExpandedIndices(new Set());
     setCurrentAd({
       name: "",
       state: "ENABLED",
@@ -592,7 +694,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       videoAdType: "PRODUCT",
       landingPage: {
         asins: [],
-        pageType: "PRODUCT_LIST",
+        pageType: "CUSTOM_URL",
         url: "",
       },
       creative: {
@@ -704,7 +806,15 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="create-panel">
+    <div className="create-panel relative" data-panel="create-sb-ad">
+      {/* Loading overlay when creating SB ads */}
+      {loading && (
+        <div className="loading-overlay rounded-xl z-10">
+          <div className="loading-overlay-content">
+            <Loader size="md" message="Creating ads..." />
+          </div>
+        </div>
+      )}
       {/* Form */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
@@ -1305,7 +1415,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     </div>
                     <div>
                       <label className="block text-[10px] text-gray-600 mb-1">
-                        URL
+                        URL (Optional)
                       </label>
                       <input
                         type="text"
@@ -1318,80 +1428,121 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                       />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] text-gray-600 mb-1">
-                      Crop
-                    </label>
-                    <div className="grid grid-cols-4 gap-2">
-                      <div>
-                        <label className="block text-[9px] text-gray-500 mb-1">
-                          Top
-                        </label>
-                        <input
-                          type="number"
-                          value={image.crop?.top || 0}
-                          onChange={(e) =>
-                            handleCustomImageChange(
-                              index,
-                              "crop.top",
-                              parseInt(e.target.value) || 0,
-                            )
-                          }
-                          className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+                  {/* Crop coordinates – accordion, closed by default */}
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomImageCropExpandedIndices((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(index)) next.delete(index);
+                          else next.add(index);
+                          return next;
+                        });
+                      }}
+                      className="flex items-center gap-2 w-full py-1.5 hover:opacity-80 transition-opacity cursor-pointer text-left"
+                    >
+                      <span className="text-[11.2px] font-semibold text-[#072929]">
+                        Crop (Optional)
+                      </span>
+                      <svg
+                        className={`w-4 h-4 text-[#072929] shrink-0 transition-transform ${
+                          customImageCropExpandedIndices.has(index)
+                            ? "rotate-180"
+                            : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
                         />
+                      </svg>
+                    </button>
+                    {customImageCropExpandedIndices.has(index) && (
+                      <div className="pt-2 grid grid-cols-4 gap-2">
+                        <div>
+                          <label className="block text-[9px] text-gray-500 mb-1">
+                            Top
+                          </label>
+                          <input
+                            type="number"
+                            value={image.crop?.top ?? ""}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const num = raw === "" ? 0 : parseInt(raw, 10);
+                              handleCustomImageChange(
+                                index,
+                                "crop.top",
+                                raw === "" || Number.isNaN(num) ? 0 : num,
+                              );
+                            }}
+                            className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] text-gray-500 mb-1">
+                            Left
+                          </label>
+                          <input
+                            type="number"
+                            value={image.crop?.left ?? ""}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const num = raw === "" ? 0 : parseInt(raw, 10);
+                              handleCustomImageChange(
+                                index,
+                                "crop.left",
+                                raw === "" || Number.isNaN(num) ? 0 : num,
+                              );
+                            }}
+                            className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] text-gray-500 mb-1">
+                            Width
+                          </label>
+                          <input
+                            type="number"
+                            value={image.crop?.width ?? ""}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const num = raw === "" ? 100 : parseInt(raw, 10);
+                              handleCustomImageChange(
+                                index,
+                                "crop.width",
+                                raw === "" || Number.isNaN(num) ? 100 : num,
+                              );
+                            }}
+                            className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] text-gray-500 mb-1">
+                            Height
+                          </label>
+                          <input
+                            type="number"
+                            value={image.crop?.height ?? ""}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const num = raw === "" ? 100 : parseInt(raw, 10);
+                              handleCustomImageChange(
+                                index,
+                                "crop.height",
+                                raw === "" || Number.isNaN(num) ? 100 : num,
+                              );
+                            }}
+                            className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-[9px] text-gray-500 mb-1">
-                          Left
-                        </label>
-                        <input
-                          type="number"
-                          value={image.crop?.left || 0}
-                          onChange={(e) =>
-                            handleCustomImageChange(
-                              index,
-                              "crop.left",
-                              parseInt(e.target.value) || 0,
-                            )
-                          }
-                          className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] text-gray-500 mb-1">
-                          Width
-                        </label>
-                        <input
-                          type="number"
-                          value={image.crop?.width || 100}
-                          onChange={(e) =>
-                            handleCustomImageChange(
-                              index,
-                              "crop.width",
-                              parseInt(e.target.value) || 100,
-                            )
-                          }
-                          className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] text-gray-500 mb-1">
-                          Height
-                        </label>
-                        <input
-                          type="number"
-                          value={image.crop?.height || 100}
-                          onChange={(e) =>
-                            handleCustomImageChange(
-                              index,
-                              "crop.height",
-                              parseInt(e.target.value) || 100,
-                            )
-                          }
-                          className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
-                        />
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1405,78 +1556,111 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
             </div>
           )}
 
-          {/* Brand Logo Crop - For IMAGE ads and BRAND video ads */}
+          {/* Brand Logo Crop - Accordion (closed by default). For IMAGE ads and BRAND video ads. Optional; if not supplied, defaults to whole image. Min 400x400. */}
           {(currentAd.adType === "IMAGE" ||
             (currentAd.adType === "VIDEO" &&
               currentAd.videoAdType === "BRAND")) && (
             <div className="mb-4">
-              <label className="form-label-small">Brand Logo Crop</label>
-              <div className="grid grid-cols-4 gap-2">
-                <div>
-                  <label className="block text-[10px] text-gray-600 mb-1">
-                    Top
-                  </label>
-                  <input
-                    type="number"
-                    value={currentAd.creative?.brandLogoCrop?.top || 0}
-                    onChange={(e) =>
-                      handleChange(
-                        "creative.brandLogoCrop.top",
-                        parseInt(e.target.value) || 0,
-                      )
-                    }
-                    className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
-                  />
+              <button
+                type="button"
+                onClick={() =>
+                  setIsBrandLogoCropExpanded(!isBrandLogoCropExpanded)
+                }
+                className="flex items-center gap-2 w-full mb-2 hover:opacity-80 transition-opacity cursor-pointer text-left"
+              >
+                <h3 className="text-[14px] font-semibold text-[#072929] flex items-center gap-2">
+                  Brand Logo Crop
+                  <svg
+                    className={`w-5 h-5 text-[#072929] shrink-0 transition-transform ${
+                      isBrandLogoCropExpanded ? "rotate-180" : ""
+                    }`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </h3>
+                <span className="text-[#556179] font-normal text-[14px]">
+                  (Optional – defaults to whole image; min 400×400)
+                </span>
+              </button>
+
+              {isBrandLogoCropExpanded && (
+                <div className="pt-2">
+                  <div className="grid grid-cols-4 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-600 mb-1">
+                        Top
+                      </label>
+                      <input
+                        type="number"
+                        value={currentAd.creative?.brandLogoCrop?.top || 0}
+                        onChange={(e) =>
+                          handleChange(
+                            "creative.brandLogoCrop.top",
+                            parseInt(e.target.value) || 0,
+                          )
+                        }
+                        className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-600 mb-1">
+                        Left
+                      </label>
+                      <input
+                        type="number"
+                        value={currentAd.creative?.brandLogoCrop?.left || 0}
+                        onChange={(e) =>
+                          handleChange(
+                            "creative.brandLogoCrop.left",
+                            parseInt(e.target.value) || 0,
+                          )
+                        }
+                        className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-600 mb-1">
+                        Width
+                      </label>
+                      <input
+                        type="number"
+                        value={currentAd.creative?.brandLogoCrop?.width || 100}
+                        onChange={(e) =>
+                          handleChange(
+                            "creative.brandLogoCrop.width",
+                            parseInt(e.target.value) || 100,
+                          )
+                        }
+                        className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-600 mb-1">
+                        Height
+                      </label>
+                      <input
+                        type="number"
+                        value={currentAd.creative?.brandLogoCrop?.height || 100}
+                        onChange={(e) =>
+                          handleChange(
+                            "creative.brandLogoCrop.height",
+                            parseInt(e.target.value) || 100,
+                          )
+                        }
+                        className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[10px] text-gray-600 mb-1">
-                    Left
-                  </label>
-                  <input
-                    type="number"
-                    value={currentAd.creative?.brandLogoCrop?.left || 0}
-                    onChange={(e) =>
-                      handleChange(
-                        "creative.brandLogoCrop.left",
-                        parseInt(e.target.value) || 0,
-                      )
-                    }
-                    className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-gray-600 mb-1">
-                    Width
-                  </label>
-                  <input
-                    type="number"
-                    value={currentAd.creative?.brandLogoCrop?.width || 100}
-                    onChange={(e) =>
-                      handleChange(
-                        "creative.brandLogoCrop.width",
-                        parseInt(e.target.value) || 100,
-                      )
-                    }
-                    className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-gray-600 mb-1">
-                    Height
-                  </label>
-                  <input
-                    type="number"
-                    value={currentAd.creative?.brandLogoCrop?.height || 100}
-                    onChange={(e) =>
-                      handleChange(
-                        "creative.brandLogoCrop.height",
-                        parseInt(e.target.value) || 100,
-                      )
-                    }
-                    className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
-                  />
-                </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -1771,105 +1955,192 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           )}
         </div>
 
-        {/* Landing Page Section */}
+        {/* Landing Page Section - url and asins are mutually exclusive. Brand video only supports Store page (url). */}
         <div className="mb-4 pt-4 border-t border-gray-200">
           <h3 className="section-title mb-4">Landing Page</h3>
 
-          <div className="flex items-end gap-3 mb-4">
-            <div className="w-[180px]">
-              <label className="form-label-small">Page Type</label>
-              <Dropdown<string>
-                options={PAGE_TYPE_OPTIONS}
-                value={currentAd.landingPage?.pageType || "PRODUCT_LIST"}
-                onChange={(value) =>
-                  handleChange("landingPage.pageType", value)
-                }
-                placeholder="Select page type"
-                buttonClassName="edit-button w-full"
-              />
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="form-label-small">
-                URL{" "}
-                {currentAd.adType === "VIDEO" &&
-                currentAd.videoAdType === "BRAND"
-                  ? "*"
-                  : ""}
-              </label>
-              <input
-                type="text"
-                value={currentAd.landingPage?.url || ""}
-                onChange={(e) =>
-                  handleChange("landingPage.url", e.target.value)
-                }
-                placeholder="https://www.amazon.com/s?me=TEST"
-                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                  currentAd.adType === "VIDEO" &&
-                  currentAd.videoAdType === "BRAND" &&
-                  errors.landingPageUrl
-                    ? "border-red-500"
-                    : "border-gray-200"
-                }`}
-              />
-              {currentAd.adType === "VIDEO" &&
-                currentAd.videoAdType === "BRAND" &&
-                errors.landingPageUrl && (
+          {currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" ? (
+            <>
+              <p className="text-[11.2px] text-[#556179] mb-3">
+                Brand video ads only support Store page as landing page. Do not
+                use Product ASINs.
+              </p>
+              <div className="flex-1 min-w-[200px]">
+                <label className="form-label-small">URL *</label>
+                <input
+                  type="text"
+                  value={currentAd.landingPage?.url || ""}
+                  onChange={(e) =>
+                    handleChange("landingPage.url", e.target.value)
+                  }
+                  placeholder="https://www.amazon.com/stores/..."
+                  className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    errors.landingPageUrl ? "border-red-500" : "border-gray-200"
+                  }`}
+                />
+                {errors.landingPageUrl && (
                   <p className="text-[10px] text-red-500 mt-1">
                     {errors.landingPageUrl}
                   </p>
                 )}
-            </div>
-          </div>
-
-          <div>
-            <label className="form-label-small">ASINs (Optional)</label>
-            {(currentAd.landingPage?.asins || []).map((asin, index) => (
-              <div key={index} className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  value={asin}
-                  onChange={(e) =>
-                    handleArrayChange(
-                      "landingPage.asins",
-                      index,
-                      e.target.value,
-                    )
-                  }
-                  placeholder="B01EXAMPLE"
-                  className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleRemoveArrayItem("landingPage.asins", index)
-                  }
-                  className="px-3 py-2.5 text-red-500 hover:text-red-700 transition-colors"
-                  title="Remove"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
               </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => handleAddArrayItem("landingPage.asins")}
-              className="text-[11.2px] text-[#136D6D] hover:text-[#0e5a5a]"
-            >
-              + Add ASIN
-            </button>
-          </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-3">
+                <div>
+                  <label className="form-label-small">
+                    Landing page type *
+                  </label>
+                  <Dropdown
+                    options={LANDING_PAGE_TYPE_OPTIONS}
+                    value={currentAd.landingPage?.pageType || "CUSTOM_URL"}
+                    onChange={(value) => {
+                      const newPageType = value as
+                        | "PRODUCT_LIST"
+                        | "STORE"
+                        | "CUSTOM_URL"
+                        | "DETAIL_PAGE";
+                      const isUrlType =
+                        newPageType === "STORE" || newPageType === "CUSTOM_URL";
+
+                      setCurrentAd((prev) => ({
+                        ...prev,
+                        landingPage: {
+                          ...prev.landingPage,
+                          pageType: newPageType,
+                          // Clear the opposite field when switching
+                          ...(isUrlType ? { asins: [] } : { url: "" }),
+                          // Initialize asins with one empty field if switching to asins
+                          ...(!isUrlType &&
+                          (!prev.landingPage?.asins ||
+                            prev.landingPage.asins.length === 0)
+                            ? { asins: [""] }
+                            : {}),
+                        },
+                      }));
+                    }}
+                    placeholder="Select landing page type"
+                    className="w-full"
+                  />
+                  <p className="text-[10.64px] text-[#556179] mt-1.5">
+                    Choose Store or Custom URL to provide a landing page URL, or
+                    Product list/Detail page to provide ASINs. One is required.
+                  </p>
+                </div>
+
+                {/* Show URL field for STORE or CUSTOM_URL */}
+                {(currentAd.landingPage?.pageType === "STORE" ||
+                  currentAd.landingPage?.pageType === "CUSTOM_URL") && (
+                  <div>
+                    <label className="form-label-small">
+                      Landing page URL *
+                    </label>
+                    <input
+                      type="text"
+                      value={currentAd.landingPage?.url || ""}
+                      onChange={(e) =>
+                        handleChange("landingPage.url", e.target.value)
+                      }
+                      placeholder={
+                        currentAd.landingPage?.pageType === "STORE"
+                          ? "https://www.amazon.com/stores/..."
+                          : "https://www.amazon.com/s?me=TEST or custom landing page URL"
+                      }
+                      className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                        errors.landingPage
+                          ? "border-red-500"
+                          : "border-gray-200"
+                      }`}
+                    />
+                    <p className="text-[10.64px] text-[#556179] mt-1.5">
+                      {currentAd.landingPage?.pageType === "STORE"
+                        ? "URL of an existing Amazon Store page."
+                        : "URL of a custom landing page. The page must include the ASINs of at least three products advertised in the campaign."}
+                    </p>
+                    {errors.landingPage && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.landingPage}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Show ASINs field for PRODUCT_LIST or DETAIL_PAGE */}
+                {(currentAd.landingPage?.pageType === "PRODUCT_LIST" ||
+                  currentAd.landingPage?.pageType === "DETAIL_PAGE") && (
+                  <div>
+                    <label className="form-label-small">Product ASINs *</label>
+                    {(currentAd.landingPage?.asins || []).map((asin, index) => (
+                      <div key={index} className="flex gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={asin}
+                          onChange={(e) =>
+                            handleArrayChange(
+                              "landingPage.asins",
+                              index,
+                              e.target.value,
+                            )
+                          }
+                          placeholder="B01EXAMPLE"
+                          className={`flex-1 w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                            errors.landingPageAsins
+                              ? "border-red-500"
+                              : "border-gray-200"
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleRemoveArrayItem("landingPage.asins", index)
+                          }
+                          className="px-3 py-2.5 text-red-500 hover:text-red-700 transition-colors"
+                          title="Remove"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => handleAddArrayItem("landingPage.asins")}
+                      className="text-[11.2px] text-[#136D6D] hover:text-[#0e5a5a]"
+                    >
+                      + Add ASIN
+                    </button>
+                    <p className="text-[10.64px] text-[#556179] mt-1.5">
+                      {currentAd.landingPage?.pageType === "PRODUCT_LIST"
+                        ? "Product list landing page with multiple products."
+                        : "Detail page for a specific product."}
+                    </p>
+                    {errors.landingPageAsins && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.landingPageAsins}
+                      </p>
+                    )}
+                    {errors.landingPage && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.landingPage}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Add Ad Button and Test Button */}
@@ -1886,7 +2157,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
             onClick={handleAddAd}
             className="create-entity-button text-[12px]"
           >
-            Add Ad
+            {formHasReEditedAd ? "Update" : "Add Ad"}
           </button>
         </div>
       </div>
@@ -1907,65 +2178,125 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {addedAds.map((ad, index) => (
-                    <tr
-                      key={index}
-                      className={`${
-                        index !== addedAds.length - 1
-                          ? "border-b border-[#e8e8e3]"
-                          : ""
-                      } hover:bg-gray-50 transition-colors`}
-                    >
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {ad.name}
-                        </span>
-                      </td>
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {ad.state}
-                        </span>
-                      </td>
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {getAdGroupName(ad.adGroupId)}
-                        </span>
-                      </td>
-                      <td className="table-cell">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveAd(index)}
-                          className="text-red-500 hover:text-red-700 transition-colors"
-                          title="Remove"
+                  {addedAds.map((ad, index) => {
+                    // Find errors for this ad by matching index (backend may send index as number or string)
+                    const adErrors = failedAds.find(
+                      (failed) => Number(failed.index) === index,
+                    );
+                    const hasErrors =
+                      adErrors &&
+                      Array.isArray(adErrors.errors) &&
+                      adErrors.errors.length > 0;
+
+                    return (
+                      <React.Fragment key={index}>
+                        <tr
+                          className={`${
+                            !hasErrors && index !== addedAds.length - 1
+                              ? "border-b border-[#e8e8e3]"
+                              : ""
+                          } hover:bg-gray-50 transition-colors`}
                         >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+                          <td className="table-cell">
+                            <span className="table-text leading-[1.26]">
+                              {ad.name}
+                            </span>
+                          </td>
+                          <td className="table-cell">
+                            <span className="table-text leading-[1.26]">
+                              {ad.state}
+                            </span>
+                          </td>
+                          <td className="table-cell">
+                            <span className="table-text leading-[1.26]">
+                              {getAdGroupName(ad.adGroupId)}
+                            </span>
+                          </td>
+                          <td className="table-cell">
+                            <div className="flex items-center gap-2">
+                              {hasErrors && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditAd(index)}
+                                  className="text-[#136D6D] hover:text-[#0e5a5a] transition-colors"
+                                  title="Edit this ad to fix errors"
+                                >
+                                  <svg
+                                    className="w-4 h-4 shrink-0"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveAd(index)}
+                                className="text-red-500 hover:text-red-700 transition-colors"
+                                title="Remove"
+                              >
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {hasErrors && (
+                          <tr
+                            className={`${index !== addedAds.length - 1 ? "border-b border-[#e8e8e3]" : ""}`}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                            <td colSpan={4} className="px-4 py-2 bg-red-50">
+                              <div className="space-y-1">
+                                {adErrors.errors.map(
+                                  (error: any, errorIndex: number) => {
+                                    const msg =
+                                      typeof error.message === "string"
+                                        ? error.message
+                                        : String(error?.message ?? "");
+                                    return (
+                                      <p
+                                        key={errorIndex}
+                                        className="text-[11px] text-red-600 whitespace-pre-wrap"
+                                      >
+                                        {msg}
+                                        {error.field && (
+                                          <span className="text-red-500 font-medium ml-1">
+                                            : {error.field}
+                                          </span>
+                                        )}
+                                      </p>
+                                    );
+                                  },
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Error Message */}
-      {submitError && (
-        <div className="px-4 py-3 bg-red-50 border-t border-red-200">
-          <p className="text-[12px] text-red-600">{submitError}</p>
         </div>
       )}
 
