@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Dropdown } from "../ui/Dropdown";
+import { Loader } from "../ui/Loader";
 
 export interface NegativeTargetInput {
   adGroupId: string;
@@ -288,7 +289,14 @@ export const CreateNegativeTargetPanel: React.FC<
     if (!isOpen) return null;
 
     return (
-      <div className="create-panel p-4">
+      <div className="create-panel p-4 relative">
+        {loading && (
+          <div className="loading-overlay rounded-xl z-10">
+            <div className="loading-overlay-content">
+              <Loader size="md" message="Creating negative targets..." />
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-[16px] font-semibold text-[#072929]">
             Create Negative Targets

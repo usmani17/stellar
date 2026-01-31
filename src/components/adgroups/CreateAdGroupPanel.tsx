@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
+import { Loader } from "../ui/Loader";
 
 export interface AdGroupInput {
   name: string;
@@ -347,7 +348,14 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="create-panel">
+    <div className="create-panel relative">
+      {loading && (
+        <div className="loading-overlay rounded-xl z-10">
+          <div className="loading-overlay-content">
+            <Loader size="md" message="Creating ad groups..." />
+          </div>
+        </div>
+      )}
       {/* Form */}
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-[16px] font-semibold text-[#072929] mb-4">

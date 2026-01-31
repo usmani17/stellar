@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { Checkbox } from "../ui/Checkbox";
 import { Chip } from "../ui/Chip";
+import { Loader } from "../ui/Loader";
 
 export interface TargetInput {
   adGroupId: string;
@@ -986,7 +987,14 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="create-panel">
+    <div className="create-panel relative">
+      {loading && (
+        <div className="loading-overlay rounded-xl z-10">
+          <div className="loading-overlay-content">
+            <Loader size="md" message="Creating targets..." />
+          </div>
+        </div>
+      )}
       {/* Form */}
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-[16px] font-semibold text-[#072929] mb-4">

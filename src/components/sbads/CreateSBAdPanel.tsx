@@ -1040,6 +1040,27 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 value={currentAd.creative?.brandLogoAssetID || ""}
                 onChange={(value) => {
                   handleChange("creative.brandLogoAssetID", value);
+                  // Auto-populate width and height from asset metadata
+                  const selectedAsset = assets.find((a) => a.assetId === value);
+                  if (
+                    selectedAsset?.fileMetadata?.width != null &&
+                    selectedAsset?.fileMetadata?.height != null
+                  ) {
+                    const width = selectedAsset.fileMetadata.width;
+                    const height = selectedAsset.fileMetadata.height;
+                    setCurrentAd((prev) => ({
+                      ...prev,
+                      creative: {
+                        ...prev.creative,
+                        brandLogoCrop: {
+                          top: prev.creative?.brandLogoCrop?.top ?? 0,
+                          left: prev.creative?.brandLogoCrop?.left ?? 0,
+                          width,
+                          height,
+                        },
+                      },
+                    }));
+                  }
                 }}
                 placeholder={assetsLoading ? "Loading..." : "Select Asset"}
                 buttonClassName={`edit-button w-full px-4 py-2.5 ${
@@ -1383,6 +1404,42 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                             "assetId",
                             value || "",
                           );
+                          // Auto-populate width and height from asset metadata
+                          const selectedAsset = assets.find(
+                            (a) => a.assetId === value,
+                          );
+                          if (
+                            selectedAsset?.fileMetadata?.width != null &&
+                            selectedAsset?.fileMetadata?.height != null
+                          ) {
+                            const width = selectedAsset.fileMetadata.width;
+                            const height = selectedAsset.fileMetadata.height;
+                            setCurrentAd((prev) => {
+                              const updatedCustomImages = [
+                                ...(prev.creative?.customImages || []),
+                              ];
+                              if (updatedCustomImages[index]) {
+                                const existingCrop =
+                                  updatedCustomImages[index].crop;
+                                updatedCustomImages[index] = {
+                                  ...updatedCustomImages[index],
+                                  crop: {
+                                    top: existingCrop?.top ?? 0,
+                                    left: existingCrop?.left ?? 0,
+                                    width,
+                                    height,
+                                  },
+                                };
+                              }
+                              return {
+                                ...prev,
+                                creative: {
+                                  ...prev.creative,
+                                  customImages: updatedCustomImages,
+                                },
+                              };
+                            });
+                          }
                         }}
                         placeholder={
                           assetsLoading ? "Loading..." : "Select Asset"
@@ -2214,28 +2271,26 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                           </td>
                           <td className="table-cell">
                             <div className="flex items-center gap-2">
-                              {hasErrors && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditAd(index)}
-                                  className="text-[#136D6D] hover:text-[#0e5a5a] transition-colors"
-                                  title="Edit this ad to fix errors"
+                              <button
+                                type="button"
+                                onClick={() => handleEditAd(index)}
+                                className="text-[#136D6D] hover:text-[#0e5a5a] transition-colors"
+                                title="Edit this ad"
+                              >
+                                <svg
+                                  className="w-4 h-4 shrink-0"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
                                 >
-                                  <svg
-                                    className="w-4 h-4 shrink-0"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                    />
-                                  </svg>
-                                </button>
-                              )}
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                  />
+                                </svg>
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveAd(index)}
