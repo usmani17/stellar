@@ -66,6 +66,7 @@ interface AdGroupsTabProps {
   bulkActionsRef: React.RefObject<HTMLDivElement | null>;
   onBulkStatusAction: (action: "enable" | "pause" | "archive") => void;
   onBulkDelete: () => void;
+  onBulkEditBid: () => void;
 
   // Bid Panel
   showBidPanel: boolean;
@@ -227,10 +228,8 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
                   {[
                     { value: "enable", label: "Enabled" },
                     { value: "pause", label: "Paused" },
-                    ...(campaignType !== "SB" && campaignType !== "SD"
-                      ? [
-                        { value: "edit_bid", label: "Edit Default Bid" },
-                      ]
+                    ...(campaignType !== "SB"
+                      ? [{ value: "edit_bid", label: "Edit Default Bid" }]
                       : []),
                     ...(campaignType === "SD"
                       ? [{ value: "archive", label: "Archive" }]

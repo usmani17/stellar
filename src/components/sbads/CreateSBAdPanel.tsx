@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { Checkbox } from "../ui/Checkbox";
 import { Loader } from "../ui/Loader";
+import { ImageCropModal, type CropCoordinates } from "../ui/ImageCropModal";
 import { campaignsService } from "../../services/campaigns";
 import type { Asset } from "../campaigns/AssetsTable";
 
@@ -199,6 +200,63 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
     useState<Set<number>>(new Set());
   /** True when the form holds an ad that was loaded for re-editing (so we put it back when editing another ad). */
   const [formHasReEditedAd, setFormHasReEditedAd] = useState(false);
+  /** Track custom image dimension warnings: index -> warning message */
+  const [customImageWarnings, setCustomImageWarnings] = useState<
+    Record<number, string>
+  >({});
+  /** Crop modal: which image index and URL */
+  const [cropModalState, setCropModalState] = useState<{
+    isOpen: boolean;
+    imageIndex: number;
+    imageUrl: string;
+  }>({ isOpen: false, imageIndex: 0, imageUrl: "" });
+  /** Brand logo crop modal */
+  const [brandLogoCropModalOpen, setBrandLogoCropModalOpen] = useState(false);
+  const [brandLogoCropImageUrl, setBrandLogoCropImageUrl] = useState("");
+  /** Brand logo dimension error when < 400x400 */
+  const [brandLogoDimensionError, setBrandLogoDimensionError] = useState<
+    string | null
+  >(null);
+  /** Brand logo optional crop hint when > 400x400 */
+  const [brandLogoOptionalCropHint, setBrandLogoOptionalCropHint] = useState<
+    string | null
+  >(null);
+
+  // Re-check brand logo dimensions when brand logo asset or assets list changes (e.g. when loading ad for edit)
+  useEffect(() => {
+    const assetId = currentAd.creative?.brandLogoAssetID?.trim();
+    if (!assetId) {
+      setBrandLogoDimensionError(null);
+      setBrandLogoOptionalCropHint(null);
+      return;
+    }
+    const selectedAsset = assets.find((a) => a.assetId === assetId);
+    if (
+      selectedAsset?.fileMetadata?.width != null &&
+      selectedAsset?.fileMetadata?.height != null
+    ) {
+      const width = selectedAsset.fileMetadata.width;
+      const height = selectedAsset.fileMetadata.height;
+      const BRAND_LOGO_MIN = 400;
+      if (width < BRAND_LOGO_MIN || height < BRAND_LOGO_MIN) {
+        setBrandLogoDimensionError(
+          `Brand logo must be at least 400×400 pixels. Current: ${width}×${height}. Please select a larger image.`,
+        );
+        setBrandLogoOptionalCropHint(null);
+      } else {
+        setBrandLogoDimensionError(null);
+        setBrandLogoOptionalCropHint(
+          `Image (${width}×${height}) is larger than 400×400. Optionally crop for best results.`,
+        );
+      }
+    } else {
+      setBrandLogoDimensionError(null);
+      setBrandLogoOptionalCropHint(null);
+    }
+  }, [
+    currentAd.creative?.brandLogoAssetID,
+    assets,
+  ]);
 
   // On partial success (some ads created, some failed), remove successfully created ads from the list
   useEffect(() => {
@@ -408,11 +466,66 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       !currentAd.creative.brandLogoAssetID.trim()
     ) {
       newErrors.brandLogoAssetID = "Brand logo asset ID is required";
+    } else if (brandLogoDimensionError) {
+      newErrors.brandLogoAssetID = brandLogoDimensionError;
     }
 
     if (!currentAd.creative?.headline || !currentAd.creative.headline.trim()) {
       newErrors.headline = "Headline is required";
     }
+
+    // Check for custom image dimension warnings (undersized images)
+    const hasUndersizedImages = Object.values(customImageWarnings).some(
+      (warning) => warning.includes("below"),
+    );
+    if (hasUndersizedImages) {
+      newErrors.customImages =
+        "One or more custom images have dimensions below the minimum required (1200x628). Please select larger images.";
+    }
+
+    // Validate custom image crop coordinates for images that need cropping
+    const customImages = currentAd.creative?.customImages || [];
+    customImages.forEach((image, index) => {
+      if (image.assetId) {
+        const asset = assets.find((a) => a.assetId === image.assetId);
+        if (
+          asset?.fileMetadata?.width != null &&
+          asset?.fileMetadata?.height != null
+        ) {
+          const imgWidth = asset.fileMetadata.width;
+          const imgHeight = asset.fileMetadata.height;
+          // If image is larger than 1200x628, validate crop coordinates
+          if (imgWidth > 1200 || imgHeight > 628) {
+            const crop = image.crop;
+            const requiredAspect = 1200 / 628;
+            const cropAspect = crop
+              ? crop.width / crop.height
+              : 0;
+            const aspectMatches =
+              crop &&
+              Math.abs(cropAspect - requiredAspect) < 0.01;
+            if (!crop || !aspectMatches) {
+              if (!newErrors.customImages) {
+                newErrors.customImages = `Image ${index + 1} requires crop coordinates with 1200×628 aspect ratio. Use "Crop Image" to set.`;
+              }
+            }
+            // Validate crop doesn't exceed image bounds
+            if (crop) {
+              if (
+                crop.left < 0 ||
+                crop.top < 0 ||
+                crop.left + crop.width > imgWidth ||
+                crop.top + crop.height > imgHeight
+              ) {
+                if (!newErrors.customImages) {
+                  newErrors.customImages = `Image ${index + 1} crop coordinates exceed image boundaries.`;
+                }
+              }
+            }
+          }
+        }
+      }
+    });
 
     // Validate Creative ASINs - at least one required, max 3
     const creativeAsins = currentAd.creative?.asins || [];
@@ -614,6 +727,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
     // Reset form for next ad
     setIsBrandLogoCropExpanded(false);
     setCustomImageCropExpandedIndices(new Set());
+    setCustomImageWarnings({});
     setCurrentAd({
       name: generateDefaultAdName(),
       state: "ENABLED",
@@ -686,6 +800,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
     setFormHasReEditedAd(false);
     setIsBrandLogoCropExpanded(false);
     setCustomImageCropExpandedIndices(new Set());
+    setCustomImageWarnings({});
+    setBrandLogoDimensionError(null);
+    setBrandLogoOptionalCropHint(null);
     setCurrentAd({
       name: "",
       state: "ENABLED",
@@ -1040,7 +1157,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 value={currentAd.creative?.brandLogoAssetID || ""}
                 onChange={(value) => {
                   handleChange("creative.brandLogoAssetID", value);
-                  // Auto-populate width and height from asset metadata
+                  setBrandLogoDimensionError(null);
+                  setBrandLogoOptionalCropHint(null);
+
                   const selectedAsset = assets.find((a) => a.assetId === value);
                   if (
                     selectedAsset?.fileMetadata?.width != null &&
@@ -1048,6 +1167,18 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                   ) {
                     const width = selectedAsset.fileMetadata.width;
                     const height = selectedAsset.fileMetadata.height;
+                    const BRAND_LOGO_MIN = 400;
+
+                    if (width < BRAND_LOGO_MIN || height < BRAND_LOGO_MIN) {
+                      setBrandLogoDimensionError(
+                        `Brand logo must be at least 400×400 pixels. Current: ${width}×${height}. Please select a larger image.`,
+                      );
+                    } else {
+                      setBrandLogoOptionalCropHint(
+                        `Image (${width}×${height}) is larger than 400×400. Optionally crop for best results.`,
+                      );
+                    }
+
                     setCurrentAd((prev) => ({
                       ...prev,
                       creative: {
@@ -1060,6 +1191,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         },
                       },
                     }));
+                  } else if (!value) {
+                    setBrandLogoDimensionError(null);
+                    setBrandLogoOptionalCropHint(null);
                   }
                 }}
                 placeholder={assetsLoading ? "Loading..." : "Select Asset"}
@@ -1089,9 +1223,61 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 disabled={assetsLoading || assets.length === 0}
               />
               {errors.brandLogoAssetID && (
-                <p className="text-[10px] text-red-500 mt-1">
+                <p className="text-[10px] text-red-500 mt-1 font-semibold">
                   {errors.brandLogoAssetID}
                 </p>
+              )}
+              {brandLogoOptionalCropHint && !brandLogoDimensionError && (
+                <div className="mt-1">
+                  <p className="text-[10px] text-yellow-600">
+                    {brandLogoOptionalCropHint}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const assetId =
+                        currentAd.creative?.brandLogoAssetID || "";
+                      const selectedAsset = assets.find(
+                        (a) => a.assetId === assetId,
+                      );
+                      let imageUrl =
+                        selectedAsset?.storageLocationUrls?.defaultUrl;
+
+                      if (
+                        !imageUrl &&
+                        accountId &&
+                        profileId &&
+                        assetId
+                      ) {
+                        try {
+                          const preview =
+                            await campaignsService.getAssetPreview(
+                              accountId,
+                              assetId,
+                              String(profileId),
+                              channelId ?? null,
+                            );
+                          imageUrl = preview?.previewUrl || "";
+                        } catch {
+                          imageUrl = "";
+                        }
+                      }
+
+                      if (!imageUrl) {
+                        setBrandLogoOptionalCropHint(
+                          "Could not load image for cropping. Please ensure the asset has a preview.",
+                        );
+                        return;
+                      }
+
+                      setBrandLogoCropImageUrl(imageUrl);
+                      setBrandLogoCropModalOpen(true);
+                    }}
+                    className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] font-medium mt-0.5"
+                  >
+                    Crop Brand Logo
+                  </button>
+                </div>
               )}
             </div>
 
@@ -1331,6 +1517,11 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               <label className="form-label-small">
                 Custom Images (Optional)
               </label>
+              {errors.customImages && (
+                <p className="text-[10px] text-red-500 mb-2 font-semibold">
+                  {errors.customImages}
+                </p>
+              )}
               {(currentAd.creative?.customImages || []).map((image, index) => (
                 <div
                   key={index}
@@ -1404,7 +1595,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                             "assetId",
                             value || "",
                           );
-                          // Auto-populate width and height from asset metadata
+                          // Auto-populate crop coordinates based on asset dimensions
                           const selectedAsset = assets.find(
                             (a) => a.assetId === value,
                           );
@@ -1414,20 +1605,79 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                           ) {
                             const width = selectedAsset.fileMetadata.width;
                             const height = selectedAsset.fileMetadata.height;
+                            const REQUIRED_WIDTH = 1200;
+                            const REQUIRED_HEIGHT = 628;
+
+                            // Clear any previous warning for this index
+                            setCustomImageWarnings((prev) => {
+                              const updated = { ...prev };
+                              delete updated[index];
+                              return updated;
+                            });
+
+                            // Case 1: Dimensions less than required minimum
+                            if (
+                              width < REQUIRED_WIDTH ||
+                              height < REQUIRED_HEIGHT
+                            ) {
+                              setCustomImageWarnings((prev) => ({
+                                ...prev,
+                                [index]: `Image dimensions (${width}x${height}) are below the minimum required (${REQUIRED_WIDTH}x${REQUIRED_HEIGHT}). Please select a larger image.`,
+                              }));
+                              // Don't set crop coordinates for undersized images
+                              return;
+                            }
+
+                            // Case 2: Dimensions exactly match required
+                            if (
+                              width === REQUIRED_WIDTH &&
+                              height === REQUIRED_HEIGHT
+                            ) {
+                              setCurrentAd((prev) => {
+                                const updatedCustomImages = [
+                                  ...(prev.creative?.customImages || []),
+                                ];
+                                if (updatedCustomImages[index]) {
+                                  updatedCustomImages[index] = {
+                                    ...updatedCustomImages[index],
+                                    crop: {
+                                      top: 0,
+                                      left: 0,
+                                      width: REQUIRED_WIDTH,
+                                      height: REQUIRED_HEIGHT,
+                                    },
+                                  };
+                                }
+                                return {
+                                  ...prev,
+                                  creative: {
+                                    ...prev.creative,
+                                    customImages: updatedCustomImages,
+                                  },
+                                };
+                              });
+                              return;
+                            }
+
+                            // Case 3: Dimensions larger than required - user must crop
+                            // Set warning to inform user they need to crop
+                            setCustomImageWarnings((prev) => ({
+                              ...prev,
+                              [index]: `Image dimensions (${width}x${height}) are larger than required (${REQUIRED_WIDTH}x${REQUIRED_HEIGHT}). Please set crop coordinates with 1200x628 aspect ratio.`,
+                            }));
+                            // Initialize crop with full image dimensions for user to adjust
                             setCurrentAd((prev) => {
                               const updatedCustomImages = [
                                 ...(prev.creative?.customImages || []),
                               ];
                               if (updatedCustomImages[index]) {
-                                const existingCrop =
-                                  updatedCustomImages[index].crop;
                                 updatedCustomImages[index] = {
                                   ...updatedCustomImages[index],
                                   crop: {
-                                    top: existingCrop?.top ?? 0,
-                                    left: existingCrop?.left ?? 0,
-                                    width,
-                                    height,
+                                    top: 0,
+                                    left: 0,
+                                    width: REQUIRED_WIDTH,
+                                    height: REQUIRED_HEIGHT,
                                   },
                                 };
                               }
@@ -1469,6 +1719,64 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         )}
                         disabled={assetsLoading || assets.length === 0}
                       />
+                      {customImageWarnings[index] && (
+                        <div className="mt-1">
+                          <p
+                            className={`text-[10px] ${
+                              customImageWarnings[index].includes("below")
+                                ? "text-red-600 font-semibold"
+                                : "text-yellow-600"
+                            }`}
+                          >
+                            {customImageWarnings[index]}
+                          </p>
+                          {customImageWarnings[index].includes("larger than required") && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const selectedAsset = assets.find(
+                                  (a) => a.assetId === image.assetId,
+                                );
+                                let imageUrl =
+                                  image.url ||
+                                  selectedAsset?.storageLocationUrls?.defaultUrl;
+
+                                if (!imageUrl && accountId && profileId && image.assetId) {
+                                  try {
+                                    const preview = await campaignsService.getAssetPreview(
+                                      accountId,
+                                      image.assetId,
+                                      String(profileId),
+                                      channelId ?? null,
+                                    );
+                                    imageUrl = preview?.previewUrl || "";
+                                  } catch {
+                                    imageUrl = "";
+                                  }
+                                }
+
+                                if (!imageUrl) {
+                                  setCustomImageWarnings((prev) => ({
+                                    ...prev,
+                                    [index]:
+                                      "Could not load image for cropping. Please provide a URL or ensure the asset has a preview.",
+                                  }));
+                                  return;
+                                }
+
+                                setCropModalState({
+                                  isOpen: true,
+                                  imageIndex: index,
+                                  imageUrl,
+                                });
+                              }}
+                              className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] font-medium mt-1"
+                            >
+                              Crop Image
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-[10px] text-gray-600 mb-1">
@@ -2355,6 +2663,44 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         </div>
       )}
 
+      {/* Image Crop Modal */}
+      <ImageCropModal
+        isOpen={cropModalState.isOpen}
+        onClose={() =>
+          setCropModalState({ isOpen: false, imageIndex: 0, imageUrl: "" })
+        }
+        imageUrl={cropModalState.imageUrl}
+        onConfirm={(crop: CropCoordinates) => {
+          const idx = cropModalState.imageIndex;
+          handleCustomImageChange(idx, "crop", crop);
+          setCustomImageWarnings((prev) => {
+            const updated = { ...prev };
+            delete updated[idx];
+            return updated;
+          });
+          setCropModalState({ isOpen: false, imageIndex: 0, imageUrl: "" });
+        }}
+      />
+
+      {/* Brand Logo Crop Modal */}
+      <ImageCropModal
+        isOpen={brandLogoCropModalOpen}
+        onClose={() => {
+          setBrandLogoCropModalOpen(false);
+          setBrandLogoCropImageUrl("");
+        }}
+        imageUrl={brandLogoCropImageUrl}
+        requiredWidth={400}
+        requiredHeight={400}
+        title="Crop Brand Logo"
+        onConfirm={(crop: CropCoordinates) => {
+          handleChange("creative.brandLogoCrop", crop);
+          setBrandLogoOptionalCropHint(null);
+          setBrandLogoCropModalOpen(false);
+          setBrandLogoCropImageUrl("");
+        }}
+      />
+
       {/* Footer Actions */}
       <div className="p-4 flex items-center justify-end gap-3">
         <button type="button" onClick={handleCancel} className="cancel-button">
@@ -2363,7 +2709,11 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={addedAds.length === 0 || loading}
+          disabled={
+            addedAds.length === 0 ||
+            loading ||
+            !!brandLogoDimensionError
+          }
           className="apply-button"
         >
           {loading ? "Creating..." : "Create All Ads"}

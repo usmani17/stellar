@@ -5,7 +5,12 @@ import { Loader } from "../ui/Loader";
 export interface NegativeKeywordInput {
   adGroupId: string;
   keywordText: string;
-  matchType: "NEGATIVE_BROAD" | "NEGATIVE_EXACT" | "NEGATIVE_PHRASE" | "negativeExact" | "negativePhrase";
+  matchType:
+    | "NEGATIVE_BROAD"
+    | "NEGATIVE_EXACT"
+    | "NEGATIVE_PHRASE"
+    | "negativeExact"
+    | "negativePhrase";
   nativeLanguageKeyword?: string;
   nativeLanguageLocale?: string;
   state?: "ENABLED" | "PAUSED"; // Optional for SB campaigns (cannot be set at creation)
@@ -81,10 +86,12 @@ export const CreateNegativeKeywordPanel: React.FC<
   failedNegativeKeywords = [],
 }) => {
   // Determine match type options based on campaign type
-  const matchTypeOptions = campaignType === "SB" ? MATCH_TYPE_OPTIONS_SB : MATCH_TYPE_OPTIONS_SP;
-  const defaultMatchType = campaignType === "SB" ? "negativeExact" : "NEGATIVE_BROAD";
+  const matchTypeOptions =
+    campaignType === "SB" ? MATCH_TYPE_OPTIONS_SB : MATCH_TYPE_OPTIONS_SP;
+  const defaultMatchType =
+    campaignType === "SB" ? "negativeExact" : "NEGATIVE_BROAD";
   const isSB = campaignType === "SB";
-  
+
   const [currentNegativeKeyword, setCurrentNegativeKeyword] =
     useState<NegativeKeywordInput>({
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
@@ -104,7 +111,7 @@ export const CreateNegativeKeywordPanel: React.FC<
 
   const handleChange = (
     field: keyof NegativeKeywordInput,
-    value: string | undefined
+    value: string | undefined,
   ) => {
     if (value === undefined) return;
     setCurrentNegativeKeyword((prev) => ({ ...prev, [field]: value }));
@@ -134,7 +141,10 @@ export const CreateNegativeKeywordPanel: React.FC<
       return;
     }
 
-    setAddedNegativeKeywords([...addedNegativeKeywords, currentNegativeKeyword]);
+    setAddedNegativeKeywords([
+      ...addedNegativeKeywords,
+      currentNegativeKeyword,
+    ]);
     setCurrentNegativeKeyword({
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
       keywordText: "",
@@ -146,11 +156,11 @@ export const CreateNegativeKeywordPanel: React.FC<
 
   const handleRemoveNegativeKeyword = (index: number) => {
     setAddedNegativeKeywords(
-      addedNegativeKeywords.filter((_, i) => i !== index)
+      addedNegativeKeywords.filter((_, i) => i !== index),
     );
     // Clear errors for this index
     setNegativeKeywordErrors(
-      negativeKeywordErrors.filter((e) => e.index !== index)
+      negativeKeywordErrors.filter((e) => e.index !== index),
     );
   };
 
@@ -203,7 +213,7 @@ export const CreateNegativeKeywordPanel: React.FC<
         } else {
           // If no specific errors, add a generic error
           const exists = newNegativeKeywordErrors.some(
-            (e) => e.index === failedIndex && e.field === "keywordText"
+            (e) => e.index === failedIndex && e.field === "keywordText",
           );
           if (!exists) {
             newNegativeKeywordErrors.push({
@@ -225,11 +235,11 @@ export const CreateNegativeKeywordPanel: React.FC<
       const createdIndices = new Set(
         createdNegativeKeywords
           .map((ck) => ck.index)
-          .filter((idx) => idx !== undefined && idx !== null)
+          .filter((idx) => idx !== undefined && idx !== null),
       );
 
       setAddedNegativeKeywords((prev) =>
-        prev.filter((_, index) => !createdIndices.has(index))
+        prev.filter((_, index) => !createdIndices.has(index)),
       );
     }
   }, [createdNegativeKeywords]);
@@ -325,9 +335,7 @@ export const CreateNegativeKeywordPanel: React.FC<
         <div className="flex items-end gap-3">
           {/* Ad Group Dropdown */}
           <div className="flex-1 min-w-[180px]">
-            <label className="form-label-small">
-              Ad Group *
-            </label>
+            <label className="form-label-small">Ad Group *</label>
             <Dropdown<string>
               options={adgroups.map((ag) => ({
                 value: ag.adGroupId,
@@ -347,9 +355,7 @@ export const CreateNegativeKeywordPanel: React.FC<
 
           {/* Keyword Text */}
           <div className="flex-1 min-w-[200px]">
-            <label className="form-label-small">
-              Keyword Text *
-            </label>
+            <label className="form-label-small">Keyword Text *</label>
             <input
               type="text"
               value={currentNegativeKeyword.keywordText}
@@ -368,16 +374,14 @@ export const CreateNegativeKeywordPanel: React.FC<
 
           {/* Match Type */}
           <div className="w-[180px]">
-            <label className="form-label-small">
-              Match Type *
-            </label>
+            <label className="form-label-small">Match Type *</label>
             <Dropdown<string>
               options={matchTypeOptions}
               value={currentNegativeKeyword.matchType}
               onChange={(value) =>
                 handleChange(
                   "matchType",
-                  value as NegativeKeywordInput["matchType"]
+                  value as NegativeKeywordInput["matchType"],
                 )
               }
               placeholder="Select match type"
@@ -387,9 +391,7 @@ export const CreateNegativeKeywordPanel: React.FC<
 
           {/* State - default to Enabled */}
           <div className="w-[140px]">
-            <label className="form-label-small">
-              State *
-            </label>
+            <label className="form-label-small">State *</label>
             <Dropdown<string>
               options={STATE_OPTIONS}
               value={currentNegativeKeyword.state || "ENABLED"}
@@ -425,21 +427,11 @@ export const CreateNegativeKeywordPanel: React.FC<
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b border-[#e8e8e3]">
-                    <th className="table-header">
-                      Ad Group
-                    </th>
-                    <th className="table-header">
-                      Keyword Text
-                    </th>
-                    <th className="table-header">
-                      Match Type
-                    </th>
-                    <th className="table-header">
-                      State
-                    </th>
-                    <th className="table-header">
-                      Action
-                    </th>
+                    <th className="table-header">Ad Group</th>
+                    <th className="table-header">Keyword Text</th>
+                    <th className="table-header">Match Type</th>
+                    <th className="table-header">State</th>
+                    <th className="table-header">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -447,11 +439,11 @@ export const CreateNegativeKeywordPanel: React.FC<
                     const isLastRow =
                       index === addedNegativeKeywords.length - 1;
                     const rowErrors = negativeKeywordErrors.filter(
-                      (e) => e.index === index
+                      (e) => e.index === index,
                     );
                     const hasError = rowErrors.length > 0;
                     const isFailedKeyword = failedNegativeKeywords.some(
-                      (fk) => fk.index === index
+                      (fk) => fk.index === index,
                     );
                     const shouldHighlight = hasError || isFailedKeyword;
 
@@ -485,12 +477,12 @@ export const CreateNegativeKeywordPanel: React.FC<
                               {negativeKeyword.keywordText}
                             </span>
                             {rowErrors.find(
-                              (e) => e.field === "keywordText"
+                              (e) => e.field === "keywordText",
                             ) && (
                               <span className="text-[10px] text-red-500 mt-1">
                                 {
                                   rowErrors.find(
-                                    (e) => e.field === "keywordText"
+                                    (e) => e.field === "keywordText",
                                   )?.message
                                 }
                               </span>

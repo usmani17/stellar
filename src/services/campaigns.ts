@@ -2512,19 +2512,18 @@ export const campaignsService = {
     return response.data;
   },
 
+  /** Request body: array of creatives. Each item: { adGroupId, properties, creativeType?, consentToTranslate? }. */
   createSdCreatives: async (
     accountId: number,
-    data: {
+    payload: Array<{
       adGroupId: number;
-      creatives: Array<{
-        creativeType: "IMAGE" | "VIDEO";
-        properties: any;
-        consentToTranslate?: boolean;
-      }>;
-    }
+      creativeType?: "IMAGE" | "VIDEO";
+      properties: any;
+      consentToTranslate?: boolean;
+    }>
   ) => {
     const url = `/accounts/${accountId}/sd/creatives/create/`;
-    const response = await api.post(url, data);
+    const response = await api.post(url, payload);
     console.log("[createSdCreatives] Amazon API Response:", response.data);
     return response.data;
   },
