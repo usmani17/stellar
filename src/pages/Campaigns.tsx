@@ -51,6 +51,7 @@ import { filtersService } from "../services/filters";
 import { accountsService } from "../services/accounts";
 import type { FilterDefinition } from "../types/filters";
 import { normalizeStatusDisplay } from "../utils/statusHelpers";
+import { buildGroupedCampaignPayload } from "../utils/campaignBulkPayload";
 
 export const Campaigns: React.FC = () => {
   const { showEditSummary, EditSummaryModal: EditSummaryModalOutlet } =
@@ -328,6 +329,11 @@ export const Campaigns: React.FC = () => {
   const [pendingStatusAction, setPendingStatusAction] = useState<
     "enable" | "pause" | null
   >(null);
+  const [selectedCampaignsFetched, setSelectedCampaignsFetched] = useState<
+    Campaign[] | null
+  >(null);
+  const [selectedCampaignsFetching, setSelectedCampaignsFetching] =
+    useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isBudgetChange, setIsBudgetChange] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -777,6 +783,17 @@ export const Campaigns: React.FC = () => {
   const runInlineEdit = async () => {
     if (!inlineEditCampaign || !inlineEditField || !accountIdNum) return;
 
+    const payload = buildGroupedCampaignPayload([
+      {
+        campaignId: inlineEditCampaign.campaignId,
+        profile_id: inlineEditCampaign.profile_id ?? (inlineEditCampaign as any).profileId,
+        type: inlineEditCampaign.type ?? "SP",
+      },
+    ]);
+    if (Object.keys(payload).length === 0) {
+      throw new Error("Missing profile_id or campaignId for inline edit");
+    }
+
     try {
       if (inlineEditField === "status") {
         // Map status values - Note: "archive" is not allowed via API
@@ -788,7 +805,7 @@ export const Campaigns: React.FC = () => {
         const statusValue = statusMap[inlineEditNewValue] || "enable";
 
         await bulkUpdateMutation.mutateAsync({
-          campaignIds: [inlineEditCampaign.campaignId],
+          payload,
           action: "status",
           status: statusValue,
         });
@@ -802,14 +819,14 @@ export const Campaigns: React.FC = () => {
         }
 
         await bulkUpdateMutation.mutateAsync({
-          campaignIds: [inlineEditCampaign.campaignId],
+          payload,
           action: "budget",
           budgetAction: "set",
           unit: "amount",
           value: budgetValue,
         });
       } else if (inlineEditField === "budgetType") {
-        // Map budgetType values to uppercase
+        // Map budgetType values to uppercase - bulk_update only supports status/budget; use updateCampaign
         const budgetTypeMap: Record<string, "DAILY" | "LIFETIME"> = {
           Daily: "DAILY",
           DAILY: "DAILY",
@@ -818,11 +835,13 @@ export const Campaigns: React.FC = () => {
         };
         const budgetTypeValue = budgetTypeMap[inlineEditNewValue] || "DAILY";
 
-        await bulkUpdateMutation.mutateAsync({
-          campaignIds: [inlineEditCampaign.campaignId],
-          action: "budgetType",
-          budgetType: budgetTypeValue,
-        });
+        await campaignsService.updateCampaign(
+          accountIdNum,
+          inlineEditCampaign.campaignId,
+          { budgetType: budgetTypeValue },
+          channelId ?? null,
+          inlineEditCampaign.profile_id ?? (inlineEditCampaign as any).profileId
+        );
       }
 
       const field = inlineEditField;
@@ -839,6 +858,7 @@ export const Campaigns: React.FC = () => {
         action: "updated",
         mode: "inline",
         succeededCount: 1,
+        entityName: inlineEditCampaign.campaign_name || inlineEditCampaign.campaignId?.toString() || "Campaign",
         field,
         oldValue,
         newValue,
@@ -856,26 +876,125 @@ export const Campaigns: React.FC = () => {
     }
   };
 
+  const getSucceededCampaignIds = (res: any): string[] => {
+    const successes = res?.successes ?? [];
+    return successes
+      .filter((s: any) => {
+        const r = s.response;
+        if (Array.isArray(r)) return r[0]?.code === "SUCCESS";
+        if (r?.campaigns) {
+          const errs = r.campaigns?.error ?? [];
+          const succ = r.campaigns?.success ?? [];
+          return errs.length === 0 && succ.length > 0;
+        }
+        return false;
+      })
+      .map((s: any) => String(s.campaignId));
+  };
+
+  /** Parse succeeded items from backend response (field, oldValue, newValue, campaignName). Fallback to frontend data. */
+  const parseSucceededItemsFromResponse = (
+    response: any,
+    actionType: "status" | "budget",
+    statusValue?: "enable" | "pause",
+    campaignMapFallback?: Map<string, { campaign_name?: string; name?: string; status?: string; daily_budget?: number; profile_currency_code?: string }>
+  ): Array<{ label: string; field: string; oldValue: string; newValue: string }> => {
+    const successes = response?.successes ?? [];
+    const items: Array<{ label: string; field: string; oldValue: string; newValue: string }> = [];
+    for (const s of successes) {
+      const r = s.response;
+      const isSuccess = Array.isArray(r)
+        ? r[0]?.code === "SUCCESS"
+        : !!(r?.campaigns && (r.campaigns?.error ?? []).length === 0 && (r.campaigns?.success ?? []).length > 0);
+      if (!isSuccess) continue;
+
+      const id = String(s.campaignId);
+      const fromBackend = s.field != null && (s.oldValue != null || s.newValue != null);
+      if (fromBackend) {
+        let oldVal = s.oldValue ?? "—";
+        let newVal = s.newValue ?? "—";
+        const isBudgetField = (s.field ?? "").toLowerCase() === "budget";
+        if (isBudgetField) {
+          const c = campaignMapFallback?.get(id);
+          const currency = (c?.profile_currency_code ?? (c as any)?.profile_currency_code) as string | undefined;
+          const formatIfNeeded = (v: string) => {
+            if (v == null || v === "—") return v;
+            const num = parseFloat(String(v).replace(/[^0-9.]/g, ""));
+            if (!isNaN(num) && !String(v).match(/[A-Za-z$]/)) return formatCurrency(num, currency);
+            return v;
+          };
+          oldVal = formatIfNeeded(oldVal);
+          newVal = formatIfNeeded(newVal);
+        }
+        items.push({
+          label: s.campaignName ?? `Campaign ${id}`,
+          field: s.field ?? "—",
+          oldValue: oldVal,
+          newValue: newVal,
+        });
+      } else {
+        const c = campaignMapFallback?.get(id);
+        const name = c?.campaign_name ?? (c as any)?.name ?? null;
+        if (actionType === "status") {
+          const oldStatus = c?.status ?? (c as any)?.status ?? "enabled";
+          items.push({
+            label: name ?? `Campaign ${id}`,
+            field: "State",
+            oldValue: normalizeStatusDisplay(oldStatus),
+            newValue: statusValue ? normalizeStatusDisplay(statusValue) : "—",
+          });
+        } else {
+          const oldBudget = (c?.daily_budget ?? (c as any)?.daily_budget ?? 0) as number;
+          const newBudget = calculateNewBudget(oldBudget);
+          const currency = (c?.profile_currency_code ?? (c as any)?.profile_currency_code) as string | undefined;
+          items.push({
+            label: name ?? `Campaign ${id}`,
+            field: "Budget",
+            oldValue: formatCurrency(oldBudget, currency),
+            newValue: formatCurrency(newBudget, currency),
+          });
+        }
+      }
+    }
+    return items;
+  };
+
   const runBulkStatus = async (statusValue: "enable" | "pause") => {
     if (!accountIdNum || selectedCampaigns.size === 0) return;
 
+    const selectedCampaignList = getSelectedCampaignsData();
+    const payload = buildGroupedCampaignPayload(selectedCampaignList);
+    if (Object.keys(payload).length === 0) return;
+
     try {
       const response = await bulkUpdateMutation.mutateAsync({
-        campaignIds: Array.from(selectedCampaigns),
+        payload,
         action: "status",
         status: statusValue,
       });
       const succeededCount = response?.updated ?? 0;
       const failedCount = response?.failed ?? 0;
+      const campaignMap = new Map(
+        selectedCampaignList.map((c) => [String(c.campaignId ?? (c as any).id), c])
+      );
+      const allSucceededItems = parseSucceededItemsFromResponse(
+        response,
+        "status",
+        statusValue,
+        campaignMap
+      );
+      const succeededItems = allSucceededItems.slice(0, 10);
+      setSelectedCampaigns(new Set());
       showEditSummary({
         entityType: "campaign",
         action: "updated",
         mode: "bulk",
         succeededCount,
         failedCount: failedCount > 0 ? failedCount : undefined,
+        succeededItems,
         details: (response?.errors as Array<{ campaignId?: string | number; error?: string }> | undefined)?.slice(0, 5).map((e) => {
-          const campaign = campaigns.find((c) => String(c.campaignId) === String(e.campaignId));
-          const name = campaign?.campaign_name ?? campaign?.name ?? null;
+          const campaign = getSelectedCampaignsData().find((c) => String(c.campaignId ?? (c as any).id) === String(e.campaignId));
+          const name = campaign?.campaign_name ?? (campaign as any)?.name ?? null;
           const label = name ? `${name} (${e.campaignId ?? "—"})` : `Campaign ${e.campaignId ?? "—"}`;
           return { label, value: e.error ?? "Unknown error" };
         }),
@@ -907,15 +1026,31 @@ export const Campaigns: React.FC = () => {
       // Clear selection after successful delete
       setSelectedCampaigns(new Set());
       setShowDeleteModal(false);
+      const selectedForDelete = getSelectedCampaignsData();
+      const deleteCampaignMap = new Map(
+        selectedForDelete.map((c) => [String(c.campaignId ?? (c as any).id), c])
+      );
+      const deleteSucceededIds = (response?.successes ?? []).map((s: any) => String(s.campaignId));
+      const deleteSucceededItems = deleteSucceededIds.slice(0, 10).map((id: string) => {
+        const c = deleteCampaignMap.get(id);
+        const name = c?.campaign_name ?? (c as any)?.name ?? null;
+        return {
+          label: name ?? `Campaign ${id}`,
+          field: "Action",
+          oldValue: "—",
+          newValue: "Deleted",
+        };
+      });
       showEditSummary({
         entityType: "campaign",
         action: "deleted",
         mode: "bulk",
         succeededCount,
         failedCount: failedCount > 0 ? failedCount : undefined,
+        succeededItems: deleteSucceededItems,
         details: (response?.errors as Array<{ campaignId?: string | number; error?: string }> | undefined)?.slice(0, 5).map((e) => {
-          const campaign = campaigns.find((c) => String(c.campaignId) === String(e.campaignId));
-          const name = campaign?.campaign_name ?? campaign?.name ?? null;
+          const campaign = selectedForDelete.find((c) => String(c.campaignId ?? (c as any).id) === String(e.campaignId));
+          const name = campaign?.campaign_name ?? (campaign as any)?.name ?? null;
           const label = name ? `${name} (${e.campaignId ?? "—"})` : `Campaign ${e.campaignId ?? "—"}`;
           return { label, value: e.error ?? "Unknown error" };
         }),
@@ -944,9 +1079,13 @@ export const Campaigns: React.FC = () => {
     const upper = upperLimit ? parseFloat(upperLimit) : undefined;
     const lower = lowerLimit ? parseFloat(lowerLimit) : undefined;
 
+    const selectedCampaignList = getSelectedCampaignsData();
+    const payload = buildGroupedCampaignPayload(selectedCampaignList);
+    if (Object.keys(payload).length === 0) return;
+
     try {
       const response = await bulkUpdateMutation.mutateAsync({
-        campaignIds: Array.from(selectedCampaigns),
+        payload,
         action: "budget",
         budgetAction,
         unit: budgetUnit,
@@ -956,15 +1095,27 @@ export const Campaigns: React.FC = () => {
       });
       const succeededCount = response?.updated ?? 0;
       const failedCount = response?.failed ?? 0;
+      const campaignMap = new Map(
+        selectedCampaignList.map((c) => [String(c.campaignId ?? (c as any).id), c])
+      );
+      const allSucceededItems = parseSucceededItemsFromResponse(
+        response,
+        "budget",
+        undefined,
+        campaignMap
+      );
+      const succeededItems = allSucceededItems.slice(0, 10);
+      setSelectedCampaigns(new Set());
       showEditSummary({
         entityType: "campaign",
         action: "updated",
         mode: "bulk",
         succeededCount,
         failedCount: failedCount > 0 ? failedCount : undefined,
+        succeededItems,
         details: (response?.errors as Array<{ campaignId?: string | number; error?: string }> | undefined)?.slice(0, 5).map((e) => {
-          const campaign = campaigns.find((c) => String(c.campaignId) === String(e.campaignId));
-          const name = campaign?.campaign_name ?? campaign?.name ?? null;
+          const campaign = getSelectedCampaignsData().find((c) => String(c.campaignId ?? (c as any).id) === String(e.campaignId));
+          const name = campaign?.campaign_name ?? (campaign as any)?.name ?? null;
           const label = name ? `${name} (${e.campaignId ?? "—"})` : `Campaign ${e.campaignId ?? "—"}`;
           return { label, value: e.error ?? "Unknown error" };
         }),
@@ -2161,10 +2312,50 @@ export const Campaigns: React.FC = () => {
     }
   };
 
-  // Get selected campaigns data for confirmation modal
-  const getSelectedCampaignsData = () => {
-    return campaigns.filter((campaign) =>
-      selectedCampaigns.has(campaign.campaignId)
+  // Fetch selected campaigns when confirmation modal opens (handles cross-page selection)
+  useEffect(() => {
+    if (
+      !showConfirmationModal ||
+      selectedCampaigns.size === 0 ||
+      !accountIdNum
+    ) {
+      if (!showConfirmationModal) setSelectedCampaignsFetched(null);
+      return;
+    }
+    let cancelled = false;
+    setSelectedCampaignsFetching(true);
+    campaignsService
+      .getCampaignsByIds(
+        accountIdNum,
+        Array.from(selectedCampaigns),
+        channelId ?? null,
+        profileId ?? null
+      )
+      .then((res) => {
+        if (!cancelled) setSelectedCampaignsFetched(res.campaigns ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedCampaignsFetched([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSelectedCampaignsFetching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    showConfirmationModal,
+    selectedCampaigns.size,
+    accountIdNum,
+    channelId,
+    profileId,
+  ]);
+
+  // Get selected campaigns data for confirmation modal (uses fetched data when modal is open)
+  const getSelectedCampaignsData = (): Campaign[] => {
+    if (selectedCampaignsFetched !== null) return selectedCampaignsFetched;
+    return campaigns.filter((c) =>
+      selectedCampaigns.has(String(c.campaignId ?? (c as any).id))
     );
   };
 
@@ -2882,7 +3073,12 @@ export const Campaigns: React.FC = () => {
                     </div>
 
                     {/* Campaign Preview Table */}
-                    {(() => {
+                    {selectedCampaignsFetching ? (
+                      <div className="mb-6 py-8 text-center text-[12.16px] text-[#556179]">
+                        Loading selected campaigns...
+                      </div>
+                    ) : (
+                    (() => {
                       const selectedCampaignsData = getSelectedCampaignsData();
                       const previewCount = Math.min(
                         10,
@@ -2959,7 +3155,8 @@ export const Campaigns: React.FC = () => {
                           </div>
                         </div>
                       );
-                    })()}
+                    })()
+                    )}
 
                     <div className="space-y-3 mb-6">
                       {isBudgetChange ? (
@@ -3068,7 +3265,7 @@ export const Campaigns: React.FC = () => {
                             setPendingStatusAction(null);
                           }
                         }}
-                        disabled={bulkLoading}
+                        disabled={bulkLoading || selectedCampaignsFetching}
                         className="create-entity-button btn-sm flex items-center gap-2"
                       >
                         {bulkLoading ? (
@@ -3642,14 +3839,11 @@ export const Campaigns: React.FC = () => {
                                     </span>
                                   </td>
 
-                                  {/* Targeting Type - Only show for SP campaigns */}
+                                  {/* Targeting Type - Only show when value exists */}
                                   <td className="table-cell min-w-[120px]">
                                     <span className="table-text leading-[1.26] whitespace-nowrap">
-                                      {campaign.type === "SP"
-                                        ? (campaign.targetingType ||
-                                          campaign.targeting_type ||
-                                          "—")
-                                        : "—"}
+                                      {(campaign.targetingType ||
+                                        campaign.targeting_type) ?? ""}
                                     </span>
                                   </td>
 

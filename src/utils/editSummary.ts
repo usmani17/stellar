@@ -58,9 +58,22 @@ function fieldLabel(field: string): string {
   return map[field] ?? field.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
 }
 
+/**
+ * Row for the edit summary table.
+ * Use label + field + oldValue + newValue for entity change rows.
+ * Use label + value for legacy/summary rows (value maps to newValue when field empty).
+ */
 export interface EditSummaryDetail {
+  /** Entity name (e.g. campaign name). */
   label: string;
-  value: string;
+  /** What changed (e.g. "State", "Budget"). Empty for summary rows. */
+  field?: string;
+  /** Previous value (e.g. "Enabled"). */
+  oldValue?: string;
+  /** New value (e.g. "Paused"). */
+  newValue?: string;
+  /** Legacy: single value (used when field/oldValue/newValue not provided). */
+  value?: string;
 }
 
 export interface EditSummaryOptions {
@@ -71,14 +84,23 @@ export interface EditSummaryOptions {
   succeededCount: number;
   /** Failed count. Omit when all succeeded. */
   failedCount?: number;
+  /** Inline only: entity name to display (e.g. campaign name). Falls back to entity type label. */
+  entityName?: string;
   /** Inline only: field changed (e.g. status, bid). */
   field?: string;
   /** Inline only: previous value. */
   oldValue?: string;
   /** Inline only: new value. */
   newValue?: string;
-  /** Optional extra rows. */
+  /** Optional extra rows (e.g. for failed items). */
   details?: EditSummaryDetail[];
+  /** Bulk only: succeeded entities (up to 10). field/oldValue/newValue for 4-column layout. */
+  succeededItems?: Array<{
+    label: string;
+    field?: string;
+    oldValue?: string;
+    newValue?: string;
+  }>;
 }
 
 export interface EditSummaryResult {
@@ -92,23 +114,23 @@ export function buildEditSummary(opts: EditSummaryOptions): EditSummaryResult {
   const { entityType, action, mode, succeededCount, failedCount = 0 } = opts;
   const singular = ENTITY_LABELS[entityType];
   const plural = ENTITY_LABELS_PLURAL[entityType];
-  const details: EditSummaryDetail[] = [...(opts.details ?? [])];
+  const details: EditSummaryDetail[] = [];
 
   if (mode === "inline") {
+    const entityLabel = opts.entityName ?? singular;
     const base = `${singular} ${action} successfully.`;
     if (opts.field && (opts.oldValue != null || opts.newValue != null)) {
       const field = fieldLabel(opts.field);
-      const change =
-        opts.oldValue != null && opts.newValue != null
-          ? `${opts.oldValue} → ${opts.newValue}`
-          : opts.newValue != null
-            ? opts.newValue
-            : opts.oldValue ?? "";
-      details.unshift({ label: field, value: change });
+      details.unshift({
+        label: entityLabel,
+        field,
+        oldValue: opts.oldValue ?? "—",
+        newValue: opts.newValue ?? "—",
+      });
     }
     const summary =
       details.length > 0
-        ? `${base} ${details.map((d) => `${d.label}: ${d.value}`).join(".")}`
+        ? `${base} ${details.map((d) => `${d.field}: ${d.oldValue ?? ""} → ${d.newValue ?? ""}`).join(".")}`
         : base;
     return {
       title: "Update complete",
@@ -135,9 +157,52 @@ export function buildEditSummary(opts: EditSummaryOptions): EditSummaryResult {
     }
   }
 
-  details.push({ label: "Succeeded", value: String(succeededCount) });
+  // Add succeeded item rows (up to 10) with entity name | field | old value | new value
+  const succeededItems = opts.succeededItems ?? [];
+  const maxSucceededNames = 10;
+  for (let i = 0; i < Math.min(succeededItems.length, maxSucceededNames); i++) {
+    const item = succeededItems[i];
+    details.push({
+      label: item.label,
+      field: item.field ?? "—",
+      oldValue: item.oldValue ?? "—",
+      newValue: item.newValue ?? "—",
+    });
+  }
+  if (succeededItems.length > maxSucceededNames) {
+    details.push({
+      label: `... and ${succeededItems.length - maxSucceededNames} more`,
+      field: "—",
+      oldValue: "—",
+      newValue: "—",
+    });
+  }
+
+  details.push({
+    label: "Succeeded",
+    field: "—",
+    oldValue: "—",
+    newValue: String(succeededCount),
+  });
   if (failedCount > 0) {
-    details.push({ label: "Failed", value: String(failedCount) });
+    details.push({
+      label: "Failed",
+      field: "—",
+      oldValue: "—",
+      newValue: String(failedCount),
+    });
+  }
+
+  // Add failed item details (errors): entity name | Error | — | message
+  if (opts.details?.length) {
+    for (const d of opts.details) {
+      details.push({
+        label: d.label,
+        field: "Error",
+        oldValue: "—",
+        newValue: d.value ?? d.newValue ?? "—",
+      });
+    }
   }
 
   // Determine variant: error if all failed, partial if some failed, success if none failed

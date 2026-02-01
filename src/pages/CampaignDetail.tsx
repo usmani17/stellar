@@ -34,6 +34,8 @@ import { type AdGroupInput } from "../components/adgroups/CreateAdGroupPanel";
 import { type KeywordInput } from "../components/keywords/CreateKeywordPanel";
 import { type TargetInput } from "../components/targets/CreateTargetPanel";
 import { normalizeStatusDisplay } from "../utils/statusHelpers";
+import { buildGroupedCampaignPayload } from "../utils/campaignBulkPayload";
+import { buildGroupedPayload } from "../utils/groupedPayload";
 import {
   CreateNegativeKeywordPanel,
   type NegativeKeywordInput,
@@ -2837,7 +2839,16 @@ export const CampaignDetail: React.FC = () => {
       }
 
       const profileId = campaignDetail?.campaign?.profile_id ?? undefined;
-      const campaignIds = [campaignDetail.campaign.campaignId || campaignId!];
+      const campType = (campaignType || campaignDetail?.campaign?.type || "SP").toUpperCase() as "SP" | "SB" | "SD";
+      const campaignIdVal = campaignDetail.campaign.campaignId || campaignId!;
+      const payload = buildGroupedCampaignPayload([
+        {
+          campaignId: campaignIdVal,
+          profile_id: profileId,
+          type: campType,
+        },
+      ]);
+      if (Object.keys(payload).length === 0) throw new Error("Missing profile_id or campaignId");
 
       if (inlineEditField === "status") {
         // Map status values
@@ -2851,18 +2862,15 @@ export const CampaignDetail: React.FC = () => {
 
         await campaignsService.bulkUpdateCampaigns(
           accountIdNum,
-          {
-            campaignIds,
-            action: "status",
-            status: statusValue,
-            ...(campaignType && { campaignType }),
-          },
+          { payload, action: "status", status: statusValue },
           channelId ?? null,
           profileId,
         );
       } else if (inlineEditField === "budget") {
-        // Extract numeric value
-        const budgetValue = parseFloat(inlineEditNewValue);
+        // Extract numeric value (handle formatted strings like "USD 2,201.00")
+        const budgetValue = parseFloat(
+          String(inlineEditNewValue || "").replace(/[^0-9.]/g, "") || "0"
+        );
         if (isNaN(budgetValue)) {
           throw new Error("Invalid budget value");
         }
@@ -2870,36 +2878,23 @@ export const CampaignDetail: React.FC = () => {
         await campaignsService.bulkUpdateCampaigns(
           accountIdNum,
           {
-            campaignIds,
+            payload,
             action: "budget",
             budgetAction: "set",
             unit: "amount",
             value: budgetValue,
-            ...(campaignType && { campaignType }),
           },
           channelId ?? null,
           profileId,
         );
-      } else if (inlineEditField === "startDate") {
-        await campaignsService.bulkUpdateCampaigns(
+      } else if (inlineEditField === "startDate" || inlineEditField === "endDate") {
+        // Backend bulk_update only supports status and budget; use updateCampaign for single campaign
+        await campaignsService.updateCampaign(
           accountIdNum,
+          campaignIdVal,
           {
-            campaignIds,
-            action: "startDate",
-            startDate: inlineEditNewValue,
-            ...(campaignType && { campaignType }),
-          },
-          channelId ?? null,
-          profileId,
-        );
-      } else if (inlineEditField === "endDate") {
-        await campaignsService.bulkUpdateCampaigns(
-          accountIdNum,
-          {
-            campaignIds,
-            action: "endDate",
-            endDate: inlineEditNewValue,
-            ...(campaignType && { campaignType }),
+            ...(inlineEditField === "startDate" && { startDate: inlineEditNewValue }),
+            ...(inlineEditField === "endDate" && { endDate: inlineEditNewValue || null }),
           },
           channelId ?? null,
           profileId,
@@ -2918,6 +2913,7 @@ export const CampaignDetail: React.FC = () => {
         action: "updated",
         mode: "inline",
         succeededCount: 1,
+        entityName: campaignDetail?.campaign?.name ?? (campaignDetail?.campaign as any)?.campaign_name ?? campaignDetail?.campaign?.campaignId?.toString() ?? "Campaign",
         field: inlineEditField,
         oldValue: inlineEditOldValue,
         newValue: inlineEditNewValue,
@@ -4780,42 +4776,80 @@ export const CampaignDetail: React.FC = () => {
           const statusValue =
             statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "ENABLED";
 
+          const profileId =
+            adgroup.profile_id ??
+            (adgroup as { profileId?: string }).profileId ??
+            (campaignDetail?.campaign as { profile_id?: string })?.profile_id;
+          const payload = buildGroupedPayload([
+            {
+              entityId: adgroup.adGroupId,
+              profile_id: profileId,
+              type: campaignType ?? "SP",
+            },
+          ]);
+          if (Object.keys(payload).length === 0)
+            throw new Error("Missing profile_id or adGroupId");
+
           await campaignsService.bulkUpdateAdGroups(
             accountIdNum,
             {
-              adgroupIds: [adgroup.adGroupId],
+              payload,
               action: "status",
               status: statusValue,
-              campaignType: campaignType as "SP" | "SB" | "SD",
             },
             channelId ?? null
           );
         }
       } else if (pendingAdGroupChange.field === "default_bid") {
-        // Extract numeric value
         const bidValue = parseFloat(pendingAdGroupChange.newValue);
         if (isNaN(bidValue)) {
           throw new Error("Invalid bid value");
         }
 
+        const profileId =
+          adgroup.profile_id ??
+          (adgroup as { profileId?: string }).profileId ??
+          (campaignDetail?.campaign as { profile_id?: string })?.profile_id;
+        const payload = buildGroupedPayload([
+          {
+            entityId: adgroup.adGroupId,
+            profile_id: profileId,
+            type: campaignType ?? "SP",
+          },
+        ]);
+        if (Object.keys(payload).length === 0)
+          throw new Error("Missing profile_id or adGroupId");
+
         await campaignsService.bulkUpdateAdGroups(
           accountIdNum,
           {
-            adgroupIds: [adgroup.adGroupId],
+            payload,
             action: "default_bid",
             value: bidValue,
-            campaignType: campaignType as "SP" | "SB" | "SD",
           },
           channelId ?? null
         );
       } else if (pendingAdGroupChange.field === "name") {
+        const profileId =
+          adgroup.profile_id ??
+          (adgroup as { profileId?: string }).profileId ??
+          (campaignDetail?.campaign as { profile_id?: string })?.profile_id;
+        const payload = buildGroupedPayload([
+          {
+            entityId: adgroup.adGroupId,
+            profile_id: profileId,
+            type: campaignType ?? "SP",
+          },
+        ]);
+        if (Object.keys(payload).length === 0)
+          throw new Error("Missing profile_id or adGroupId");
+
         await campaignsService.bulkUpdateAdGroups(
           accountIdNum,
           {
-            adgroupIds: [adgroup.adGroupId],
+            payload,
             action: "name",
             name: pendingAdGroupChange.newValue.trim(),
-            campaignType: campaignType as "SP" | "SB" | "SD",
           },
           channelId ?? null
         );
@@ -4826,14 +4860,19 @@ export const CampaignDetail: React.FC = () => {
       setEditingAdGroupField(null);
       setEditedAdGroupValue("");
 
+      const isStatusField = field === "status";
+      const displayOld = isStatusField ? normalizeStatusDisplay(oldValue) : oldValue;
+      const displayNew = isStatusField ? normalizeStatusDisplay(newValue) : newValue;
+
       showEditSummary({
         entityType: "adGroup",
         action: "updated",
         mode: "inline",
         succeededCount: 1,
+        entityName: adgroup.name ?? adgroup.campaign_name ?? "Ad Group",
         field,
-        oldValue,
-        newValue,
+        oldValue: displayOld,
+        newValue: displayNew,
       });
 
       await loadAdGroups();
@@ -7198,9 +7237,18 @@ export const CampaignDetail: React.FC = () => {
         return;
       }
 
+      const selectedAdGroupsData = adgroups.filter(
+        (ag) =>
+          selectedAdGroupIds.has(ag.adGroupId || ag.id) &&
+          !isAdGroupArchived(ag),
+      );
+      const adgroupMap = new Map(
+        selectedAdGroupsData.map((ag) => [String(ag.adGroupId ?? ag.id), ag]),
+      );
+
       // For SD campaigns, archive uses bulk delete endpoint
       if (statusValue === "archive" && campaignType === "SD") {
-        await campaignsService.bulkDeleteAdGroups(
+        const res = await campaignsService.bulkDeleteAdGroups(
           accountIdNum,
           {
             adGroupIdFilter: {
@@ -7210,8 +7258,34 @@ export const CampaignDetail: React.FC = () => {
           },
           channelId ?? null
         );
+        const successList = res?.adGroups?.success ?? res?.adgroups?.success ?? [];
+        const errorList = res?.adGroups?.error ?? res?.adgroups?.error ?? [];
+        const succeededItems = successList.slice(0, 10).map((s: { adGroupId?: string }) => {
+          const id = String(s.adGroupId ?? "");
+          const ag = adgroupMap.get(id);
+          return {
+            label: ag?.name ?? `Ad Group ${id}`,
+            field: "Action",
+            oldValue: "—",
+            newValue: "Archived",
+          };
+        });
+        showEditSummary({
+          entityType: "adGroup",
+          action: "deleted",
+          mode: "bulk",
+          succeededCount: successList.length,
+          failedCount: errorList.length > 0 ? errorList.length : undefined,
+          succeededItems,
+          details: errorList.slice(0, 5).map((e: { adGroupId?: string; message?: string }) => {
+            const ag = selectedAdGroupsData.find((a) => String(a.adGroupId ?? a.id) === String(e.adGroupId));
+            return {
+              label: ag?.name ? `${ag.name} (${e.adGroupId ?? "—"})` : `Ad Group ${e.adGroupId ?? "—"}`,
+              value: e.message ?? "Unknown error",
+            };
+          }),
+        });
       } else {
-        // Convert to uppercase for API: enable -> ENABLED, pause -> PAUSED
         const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
           enable: "ENABLED",
           pause: "PAUSED",
@@ -7220,16 +7294,65 @@ export const CampaignDetail: React.FC = () => {
         };
         const apiStatus = statusMap[statusValue.toLowerCase()] || "ENABLED";
 
-        await campaignsService.bulkUpdateAdGroups(
+        const profileId =
+          (campaignDetail?.campaign as { profile_id?: string })?.profile_id ??
+          selectedAdGroupsData[0]?.profile_id ??
+          (selectedAdGroupsData[0] as { profileId?: string })?.profileId;
+
+        const payload = buildGroupedPayload(
+          selectedAdGroupsData.map((ag) => ({
+            entityId: ag.adGroupId ?? ag.id,
+            profile_id:
+              ag.profile_id ??
+              (ag as { profileId?: string }).profileId ??
+              profileId,
+            type: (campaignType ?? "SP") as "SP" | "SB" | "SD",
+          })),
+        );
+        if (Object.keys(payload).length === 0) return;
+
+        const res = await campaignsService.bulkUpdateAdGroups(
           accountIdNum,
           {
-            adgroupIds: selectedAdGroupIdsArray,
+            payload,
             action: "status",
             status: apiStatus,
-            campaignType: campaignType as "SP" | "SB" | "SD",
           },
           channelId ?? null
         );
+        const succeededCount = res?.updated ?? 0;
+        const failedCount = res?.failed ?? 0;
+        const isStatusField = (f: string) =>
+          (f ?? "").toLowerCase() === "state" || (f ?? "").toLowerCase() === "status";
+        const succeededItems = (res?.successes ?? []).slice(0, 10).map((s: any) => {
+          const id = String(s.adgroupId ?? s.adGroupId ?? "");
+          const ag = adgroupMap.get(id);
+          const fieldVal = s.field ?? "State";
+          const oldVal = s.oldValue ?? "—";
+          const newVal = s.newValue ?? "—";
+          return {
+            label: s.adgroupName ?? ag?.name ?? `Ad Group ${id}`,
+            field: fieldVal,
+            oldValue: isStatusField(fieldVal) ? normalizeStatusDisplay(oldVal) : oldVal,
+            newValue: isStatusField(fieldVal) ? normalizeStatusDisplay(newVal) : newVal,
+          };
+        });
+        showEditSummary({
+          entityType: "adGroup",
+          action: "updated",
+          mode: "bulk",
+          succeededCount,
+          failedCount: failedCount > 0 ? failedCount : undefined,
+          succeededItems,
+          details: (res?.errors ?? []).slice(0, 5).map((e: any) => {
+            const id = String(e.adgroupId ?? e.adGroupId ?? "—");
+            const ag = selectedAdGroupsData.find((a) => String(a.adGroupId ?? a.id) === id);
+            return {
+              label: ag?.name ? `${ag.name} (${id})` : `Ad Group ${id}`,
+              value: e.error ?? "Unknown error",
+            };
+          }),
+        });
       }
 
       await loadAdGroups();
@@ -7321,7 +7444,11 @@ export const CampaignDetail: React.FC = () => {
         });
         return;
       }
-      const updates: Array<{ adgroupId: string | number; newBid: number }> = [];
+      const updates: Array<{
+        adgroupId: string | number;
+        newBid: number;
+        profile_id?: string;
+      }> = [];
 
       for (const adgroup of selectedAdGroupsData) {
         if (!adgroup.adGroupId) continue;
@@ -7337,21 +7464,44 @@ export const CampaignDetail: React.FC = () => {
         updates.push({
           adgroupId: adgroup.adGroupId,
           newBid: newBid,
+          profile_id:
+            adgroup.profile_id ??
+            (adgroup as { profileId?: string }).profileId ??
+            (campaignDetail?.campaign as { profile_id?: string })?.profile_id,
         });
       }
 
-      for (const update of updates) {
-        await campaignsService.bulkUpdateAdGroups(
-          accountIdNum,
-          {
-            adgroupIds: [update.adgroupId],
-            action: "default_bid",
-            value: update.newBid,
-            campaignType: campaignType as "SP" | "SB" | "SD",
-          },
-          channelId ?? null
-        );
-      }
+      const profileId =
+        (campaignDetail?.campaign as { profile_id?: string })?.profile_id ??
+        updates[0]?.profile_id;
+      const payload = buildGroupedPayload(
+        updates.map((u) => ({
+          entityId: u.adgroupId,
+          profile_id: u.profile_id ?? profileId,
+          type: (campaignType ?? "SP") as "SP" | "SB" | "SD",
+        })),
+      );
+      const payloadFiltered = Object.fromEntries(
+        Object.entries(payload).filter(
+          ([, v]) => v && Object.keys(v).length > 0,
+        ),
+      );
+      if (Object.keys(payloadFiltered).length === 0) return;
+
+      const bids = updates.map((u) => ({
+        adgroupId: u.adgroupId,
+        bid: u.newBid,
+      }));
+
+      await campaignsService.bulkUpdateAdGroups(
+        accountIdNum,
+        {
+          payload: payloadFiltered,
+          action: "default_bid",
+          bids,
+        },
+        channelId ?? null
+      );
 
       await loadAdGroups();
       setSelectedAdGroupIds(new Set());
@@ -7544,7 +7694,9 @@ export const CampaignDetail: React.FC = () => {
                   setInlineEditOldValue(
                     formatCurrency(oldBudget, campaignDetail.campaign.profile_currency_code)
                   );
-                  setInlineEditNewValue(valueToCompare);
+                  setInlineEditNewValue(
+                    formatCurrency(budgetValue, campaignDetail.campaign.profile_currency_code)
+                  );
                   setShowInlineEditModal(true);
                 } else {
                   setEditingField(null);
@@ -9564,10 +9716,10 @@ export const CampaignDetail: React.FC = () => {
                         {inlineEditField === "status"
                           ? normalizeStatusDisplay(inlineEditNewValue)
                           : inlineEditField === "budget"
-                            ? formatCurrency(parseFloat(inlineEditNewValue || "0"), profileCurrencyCode)
+                            ? inlineEditNewValue
                             : inlineEditField === "startDate" || inlineEditField === "endDate"
                               ? new Date(inlineEditNewValue).toLocaleDateString()
-                              : formatCurrency(parseFloat(inlineEditNewValue || "0"), profileCurrencyCode)}
+                              : formatCurrency(parseFloat(String(inlineEditNewValue || "0").replace(/[^0-9.]/g, "") || "0", profileCurrencyCode)}
                       </td>
                     </tr>
                   </tbody>

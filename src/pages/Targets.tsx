@@ -13,6 +13,7 @@ import { Dropdown } from "../components/ui/Dropdown";
 import { Button } from "../components/ui";
 import { type FilterValues } from "../components/filters/FilterPanel";
 import { normalizeStatusDisplay } from "../utils/statusHelpers";
+import { buildGroupedPayload } from "../utils/groupedPayload";
 import {
   FilterSection,
   FilterSectionPanel,
@@ -166,6 +167,8 @@ export const Targets: React.FC = () => {
     "enable" | "pause" | "archive" | null
   >(null);
   const [isBidChange, setIsBidChange] = useState(false);
+  const [selectedTargetsFetched, setSelectedTargetsFetched] = useState<Target[] | null>(null);
+  const [selectedTargetsFetching, setSelectedTargetsFetching] = useState(false);
 
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
@@ -255,6 +258,41 @@ export const Targets: React.FC = () => {
     endDate,
     filters,
   ]);
+
+  useEffect(() => {
+    if (
+      !showConfirmationModal ||
+      selectedTargets.size === 0 ||
+      !accountId ||
+      !channelId
+    ) {
+      setSelectedTargetsFetched(null);
+      return;
+    }
+    const ids = Array.from(selectedTargets);
+    let cancelled = false;
+    setSelectedTargetsFetching(true);
+    campaignsService
+      .getTargetsByIds(
+        parseInt(accountId, 10),
+        ids,
+        channelId ? parseInt(channelId, 10) : null
+      )
+      .then((res) => {
+        if (!cancelled && res?.targets) {
+          setSelectedTargetsFetched(res.targets);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedTargetsFetched(null);
+      })
+      .finally(() => {
+        if (!cancelled) setSelectedTargetsFetching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showConfirmationModal, selectedTargets, accountId, channelId]);
 
   const buildFilterParams = (filterList: FilterValues) => {
     const params: any = {};
@@ -696,42 +734,35 @@ export const Targets: React.FC = () => {
     setInlineEditLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
+      if (isNaN(accountIdNum)) throw new Error("Invalid account ID");
+
+      const payload = buildGroupedPayload([
+        {
+          entityId: inlineEditTarget.targetId ?? inlineEditTarget.id,
+          profile_id: inlineEditTarget.profile_id ?? (inlineEditTarget as { profileId?: string }).profileId,
+          type: getTargetCampaignType(inlineEditTarget),
+        },
+      ]);
+      if (Object.keys(payload).length === 0) throw new Error("Missing profile_id or targetId");
 
       if (inlineEditField === "status") {
-        // Map status values
         const statusMap: Record<string, "enable" | "pause" | "archive"> = {
           Enabled: "enable",
           Paused: "pause",
           Archived: "archive",
         };
         const statusValue = statusMap[inlineEditNewValue] || "enable";
-
         await campaignsService.bulkUpdateTargets(
           accountIdNum,
-          {
-            targetIds: [inlineEditTarget.targetId || inlineEditTarget.id],
-            action: "status",
-            status: statusValue,
-          },
+          { payload, action: "status", status: statusValue },
           channelId ?? null
         );
       } else if (inlineEditField === "bid") {
-        // Extract numeric value from formatted string
-        const bidValue = parseFloat(inlineEditNewValue.replace(/[^0-9.]/g, ""));
-        if (isNaN(bidValue)) {
-          throw new Error("Invalid bid value");
-        }
-
+        const bidVal = parseFloat(inlineEditNewValue.replace(/[^0-9.]/g, ""));
+        if (isNaN(bidVal)) throw new Error("Invalid bid value");
         await campaignsService.bulkUpdateTargets(
           accountIdNum,
-          {
-            targetIds: [inlineEditTarget.targetId || inlineEditTarget.id],
-            action: "bid",
-            bid: bidValue,
-          },
+          { payload, action: "bid", bid: bidVal },
           channelId ?? null
         );
       }
@@ -739,6 +770,10 @@ export const Targets: React.FC = () => {
       const field = inlineEditField;
       const oldValue = inlineEditOldValue;
       const newValue = inlineEditNewValue;
+      const isStatusField = field === "status";
+      const displayOld = isStatusField ? normalizeStatusDisplay(oldValue) : oldValue;
+      const displayNew = isStatusField ? normalizeStatusDisplay(newValue) : newValue;
+
       setShowInlineEditModal(false);
       setInlineEditTarget(null);
       setInlineEditField(null);
@@ -750,15 +785,19 @@ export const Targets: React.FC = () => {
         action: "updated",
         mode: "inline",
         succeededCount: 1,
+        entityName: inlineEditTarget.name || "Target",
         field,
-        oldValue,
-        newValue,
+        oldValue: displayOld,
+        newValue: displayNew,
       });
 
       await loadTargets(accountIdNum);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating target:", error);
-      alert("Failed to update target. Please try again.");
+      setErrorModal({
+        isOpen: true,
+        message: error?.response?.data?.error ?? error?.message ?? "Failed to update target. Please try again.",
+      });
     } finally {
       setInlineEditLoading(false);
     }
@@ -851,27 +890,40 @@ export const Targets: React.FC = () => {
 
     try {
       setBulkLoading(true);
-      // Get targetIds from selected targets - use targetId from the target objects
       const selectedTargetsData = getSelectedTargetsData();
-      const targetIds = selectedTargetsData
-        .map((t) => t.targetId || t.id)
-        .filter(Boolean);
+      const payload = buildGroupedPayload(
+        selectedTargetsData.map((t) => ({
+          entityId: t.targetId ?? t.id,
+          profile_id: t.profile_id ?? (t as { profileId?: string }).profileId,
+          type: getTargetCampaignType(t),
+        }))
+      );
+      if (Object.keys(payload).length === 0) {
+        setBulkLoading(false);
+        return;
+      }
 
-      const response = await campaignsService.bulkUpdateTargets(
+      const res = await campaignsService.bulkUpdateTargets(
         accountIdNum,
         {
-          targetIds: targetIds,
-          action: "status",
+          payload,
+          action: statusValue === "archive" ? "archive" : "status",
           status: statusValue,
         },
         channelId ?? null
       );
-      const succeededCount = response?.updated ?? 0;
-      const failedCount = response?.failed ?? 0;
+      const succeededCount = res?.updated ?? 0;
+      const failedCount = res?.failed ?? 0;
+      const targetMap = new Map(
+        selectedTargetsData.map((t) => [String(t.targetId ?? t.id), t])
+      );
+      const succeededItems = parseSucceededItemsFromResponse(res, targetMap).slice(0, 10);
+
       await loadTargets(accountIdNum);
       setSelectedTargets(new Set());
       setShowConfirmationModal(false);
       setPendingStatusAction(null);
+      setSelectedTargetsFetched(null);
       const action = statusValue === "archive" ? "archived" : "updated";
       showEditSummary({
         entityType: "target",
@@ -879,18 +931,20 @@ export const Targets: React.FC = () => {
         mode: "bulk",
         succeededCount,
         failedCount: failedCount > 0 ? failedCount : undefined,
-        details: (response?.errors as Array<{ targetId?: string | number; error?: string }> | undefined)
+        succeededItems,
+        details: (res?.errors as Array<{ targetId?: string; targetName?: string; error?: string }> | undefined)
           ?.slice(0, 5)
-          .map((e) => {
-            const target = targets.find((t) => String(t.targetId || t.id) === String(e.targetId));
-            const name = target?.name ?? null;
-            const label = name ? `${name} (${e.targetId ?? "—"})` : `Target ${e.targetId ?? "—"}`;
-            return { label, value: e.error ?? "Unknown error" };
-          }),
+          .map((e) => ({
+            label: e.targetName ? `${e.targetName} (${e.targetId ?? "—"})` : `Target ${e.targetId ?? "—"}`,
+            value: e.error ?? "Unknown error",
+          })),
       });
     } catch (error: any) {
       console.error("Failed to update targets", error);
-      alert("Failed to update targets. Please try again.");
+      setErrorModal({
+        isOpen: true,
+        message: error?.response?.data?.error ?? error?.message ?? "Failed to update targets. Please try again.",
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -902,33 +956,41 @@ export const Targets: React.FC = () => {
     if (isNaN(accountIdNum)) return;
 
     const valueNum = parseFloat(bidValue);
-    if (isNaN(valueNum)) {
-      return;
-    }
+    if (isNaN(valueNum)) return;
 
     try {
       setBulkLoading(true);
-
-      // Get selected targets; use shared helpers so current/new bid match modal and respect limits
       const selectedTargetsData = getSelectedTargetsData();
-      const targetIds: Array<string | number> = [];
       const bids: Array<{ targetId: string | number; bid: number }> = [];
-
       for (const target of selectedTargetsData) {
         const tid = target.targetId || target.id;
-        const newBid = computeNewBidForTarget(target);
-        targetIds.push(tid);
-        bids.push({ targetId: tid, bid: newBid });
+        bids.push({ targetId: tid, bid: computeNewBidForTarget(target) });
       }
 
-      // Single request with all targets and their bids (like ad groups)
-      const response = await campaignsService.bulkUpdateTargets(
+      const payload = buildGroupedPayload(
+        selectedTargetsData.map((t) => ({
+          entityId: t.targetId ?? t.id,
+          profile_id: t.profile_id ?? (t as { profileId?: string }).profileId,
+          type: getTargetCampaignType(t),
+        }))
+      );
+      if (Object.keys(payload).length === 0) {
+        setBulkLoading(false);
+        return;
+      }
+
+      const res = await campaignsService.bulkUpdateTargets(
         accountIdNum,
-        { targetIds, action: "bid", bids },
+        { payload, action: "bid", bids },
         channelId ?? null
       );
-      const succeededCount = response?.updated ?? 0;
-      const failedCount = response?.failed ?? 0;
+      const succeededCount = res?.updated ?? 0;
+      const failedCount = res?.failed ?? 0;
+      const targetMap = new Map(
+        selectedTargetsData.map((t) => [String(t.targetId ?? t.id), t])
+      );
+      const succeededItems = parseSucceededItemsFromResponse(res, targetMap).slice(0, 10);
+
       await loadTargets(accountIdNum);
       setSelectedTargets(new Set());
       setShowConfirmationModal(false);
@@ -936,30 +998,87 @@ export const Targets: React.FC = () => {
       setBidValue("");
       setUpperLimit("");
       setLowerLimit("");
+      setSelectedTargetsFetched(null);
       showEditSummary({
         entityType: "target",
         action: "updated",
         mode: "bulk",
         succeededCount,
         failedCount: failedCount > 0 ? failedCount : undefined,
-        details: (response?.errors as Array<{ targetId?: string | number; error?: string }> | undefined)
+        succeededItems,
+        details: (res?.errors as Array<{ targetId?: string; targetName?: string; error?: string }> | undefined)
           ?.slice(0, 5)
-          .map((e) => {
-            const target = targets.find((t) => String(t.targetId || t.id) === String(e.targetId));
-            const name = target?.name ?? null;
-            const label = name ? `${name} (${e.targetId ?? "—"})` : `Target ${e.targetId ?? "—"}`;
-            return { label, value: e.error ?? "Unknown error" };
-          }),
+          .map((e) => ({
+            label: e.targetName ? `${e.targetName} (${e.targetId ?? "—"})` : `Target ${e.targetId ?? "—"}`,
+            value: e.error ?? "Unknown error",
+          })),
       });
     } catch (error: any) {
       console.error("Failed to update targets", error);
-      alert("Failed to update targets. Please try again.");
+      setErrorModal({
+        isOpen: true,
+        message: error?.response?.data?.error ?? error?.message ?? "Failed to update targets. Please try again.",
+      });
     } finally {
       setBulkLoading(false);
     }
   };
 
-  const getSelectedTargetsData = () => {
+  const getTargetCampaignType = (t: Target): "SP" | "SB" | "SD" => {
+    const typ = t.type ?? "SP";
+    return (String(typ).toUpperCase() === "SB" ? "SB" : String(typ).toUpperCase() === "SD" ? "SD" : "SP") as "SP" | "SB" | "SD";
+  };
+
+  const parseSucceededItemsFromResponse = (
+    response: {
+      successes?: Array<{
+        targetId?: string | number;
+        targetName?: string;
+        field?: string;
+        oldValue?: string;
+        newValue?: string;
+      }>;
+    },
+    targetMap?: Map<string, Target>
+  ): Array<{ label: string; field: string; oldValue: string; newValue: string }> => {
+    const successes = response?.successes ?? [];
+    const items: Array<{ label: string; field: string; oldValue: string; newValue: string }> = [];
+    const isStatusField = (f: string) =>
+      (f ?? "").toLowerCase() === "state" || (f ?? "").toLowerCase() === "status";
+
+    for (const s of successes) {
+      const id = String(s.targetId ?? "");
+      const fromBackend = s.field != null && (s.oldValue != null || s.newValue != null);
+      const fieldVal = s.field ?? "—";
+      const oldVal = s.oldValue ?? "—";
+      const newVal = s.newValue ?? "—";
+      const normOld = isStatusField(fieldVal) ? normalizeStatusDisplay(oldVal) : oldVal;
+      const normNew = isStatusField(fieldVal) ? normalizeStatusDisplay(newVal) : newVal;
+      if (fromBackend) {
+        items.push({
+          label: s.targetName ?? `Target ${id}`,
+          field: fieldVal,
+          oldValue: normOld,
+          newValue: normNew,
+        });
+      } else if (targetMap) {
+        const tgt = targetMap.get(id);
+        const name = tgt?.name ?? `Target ${id}`;
+        items.push({
+          label: name,
+          field: fieldVal,
+          oldValue: normOld,
+          newValue: normNew,
+        });
+      }
+    }
+    return items;
+  };
+
+  const getSelectedTargetsData = (): Target[] => {
+    if (selectedTargetsFetched && selectedTargetsFetched.length > 0) {
+      return selectedTargetsFetched;
+    }
     return targets.filter((t) => selectedTargets.has(t.targetId || t.id));
   };
 
@@ -1465,9 +1584,16 @@ export const Targets: React.FC = () => {
                 }}
               >
                 <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
-                  {bulkLoading && (
+                  {(bulkLoading || selectedTargetsFetching) && (
                     <div className="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10 rounded-xl backdrop-blur-sm">
-                      <Loader size="md" message="Updating targets..." />
+                      <Loader
+                        size="md"
+                        message={
+                          selectedTargetsFetching
+                            ? "Loading selected targets..."
+                            : "Updating targets..."
+                        }
+                      />
                     </div>
                   )}
                   <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
@@ -1572,8 +1698,9 @@ export const Targets: React.FC = () => {
                         setShowConfirmationModal(false);
                         setPendingStatusAction(null);
                         setIsBidChange(false);
+                        setSelectedTargetsFetched(null);
                       }}
-                      disabled={bulkLoading}
+                      disabled={bulkLoading || selectedTargetsFetching}
                       className="cancel-button"
                     >
                       Cancel
@@ -1586,10 +1713,14 @@ export const Targets: React.FC = () => {
                           runBulkStatus(pendingStatusAction);
                         }
                       }}
-                      disabled={bulkLoading}
+                      disabled={bulkLoading || selectedTargetsFetching}
                       className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0e5a5a] disabled:opacity-50"
                     >
-                      {bulkLoading ? "Updating..." : "Confirm"}
+                      {selectedTargetsFetching
+                        ? "Loading..."
+                        : bulkLoading
+                          ? "Updating..."
+                          : "Confirm"}
                     </button>
                   </div>
                 </div>

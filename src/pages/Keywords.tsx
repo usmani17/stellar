@@ -13,6 +13,7 @@ import { Dropdown } from "../components/ui/Dropdown";
 import { Button } from "../components/ui";
 import { type FilterValues } from "../components/filters/FilterPanel";
 import { normalizeStatusDisplay } from "../utils/statusHelpers";
+import { buildGroupedPayload } from "../utils/groupedPayload";
 import {
   FilterSection,
   FilterSectionPanel,
@@ -173,6 +174,8 @@ export const Keywords: React.FC = () => {
     keywordId?: string | number;
   } | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [selectedKeywordsFetched, setSelectedKeywordsFetched] = useState<Keyword[] | null>(null);
+  const [selectedKeywordsFetching, setSelectedKeywordsFetching] = useState(false);
 
   // Inline edit state (matching adgroups pattern)
   const [editingKeywordField, setEditingKeywordField] = useState<{
@@ -280,6 +283,41 @@ export const Keywords: React.FC = () => {
     endDate,
     filters,
   ]);
+
+  useEffect(() => {
+    if (
+      !showConfirmationModal ||
+      selectedKeywords.size === 0 ||
+      !accountId ||
+      !channelId
+    ) {
+      setSelectedKeywordsFetched(null);
+      return;
+    }
+    const ids = Array.from(selectedKeywords);
+    let cancelled = false;
+    setSelectedKeywordsFetching(true);
+    campaignsService
+      .getKeywordsByIds(
+        parseInt(accountId, 10),
+        ids,
+        channelId ? parseInt(channelId, 10) : null
+      )
+      .then((res) => {
+        if (!cancelled && res?.keywords) {
+          setSelectedKeywordsFetched(res.keywords);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedKeywordsFetched(null);
+      })
+      .finally(() => {
+        if (!cancelled) setSelectedKeywordsFetching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showConfirmationModal, selectedKeywords, accountId, channelId]);
 
   const buildFilterParams = (filterList: FilterValues) => {
     const params: any = {};
@@ -748,8 +786,16 @@ export const Keywords: React.FC = () => {
       }
 
       let action: "updated" | "archived" = "updated";
+      const payload = buildGroupedPayload([
+        {
+          entityId: inlineEditKeyword.keywordId ?? inlineEditKeyword.id,
+          profile_id: inlineEditKeyword.profile_id ?? (inlineEditKeyword as { profileId?: string }).profileId,
+          type: getKeywordCampaignType(inlineEditKeyword),
+        },
+      ]);
+      if (Object.keys(payload).length === 0) throw new Error("Missing profile_id or keywordId");
+
       if (inlineEditField === "state") {
-        // Map status values
         const statusMap: Record<string, "enable" | "pause" | "archive"> = {
           Enabled: "enable",
           Paused: "pause",
@@ -759,19 +805,16 @@ export const Keywords: React.FC = () => {
         if (statusValue === "archive") action = "archived";
 
         await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
-          keywordIds: [inlineEditKeyword.keywordId],
+          payload,
           action: "status",
           status: statusValue,
         });
       } else if (inlineEditField === "bid") {
-        // Extract numeric value from formatted string
         const bidValue = parseFloat(inlineEditNewValue.replace(/[^0-9.]/g, ""));
-        if (isNaN(bidValue)) {
-          throw new Error("Invalid bid value");
-        }
+        if (isNaN(bidValue)) throw new Error("Invalid bid value");
 
         await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
-          keywordIds: [inlineEditKeyword.keywordId],
+          payload,
           action: "bid",
           bid: bidValue,
         });
@@ -780,6 +823,10 @@ export const Keywords: React.FC = () => {
       const field = inlineEditField;
       const oldValue = inlineEditOldValue;
       const newValue = inlineEditNewValue;
+      const isStatusField = field === "status" || field === "state";
+      const displayOld = isStatusField ? normalizeStatusDisplay(oldValue) : oldValue;
+      const displayNew = action === "archived" ? "Archived" : isStatusField ? normalizeStatusDisplay(newValue) : newValue;
+
       setShowInlineEditModal(false);
       setInlineEditKeyword(null);
       setInlineEditField(null);
@@ -792,9 +839,10 @@ export const Keywords: React.FC = () => {
         action,
         mode: "inline",
         succeededCount: 1,
+        entityName: inlineEditKeyword.name || "Keyword",
         field,
-        oldValue,
-        newValue: action === "archived" ? "Archived" : newValue,
+        oldValue: displayOld,
+        newValue: displayNew,
       });
 
       await loadKeywords(accountIdNum);
@@ -874,18 +922,69 @@ export const Keywords: React.FC = () => {
     }
   }, [editingCell, showInlineEditModal]);
 
+  const getKeywordCampaignType = (k: Keyword): "SP" | "SB" | "SD" => {
+    const t = k.type ?? "SP";
+    return (String(t).toUpperCase() === "SB" ? "SB" : String(t).toUpperCase() === "SD" ? "SD" : "SP") as "SP" | "SB" | "SD";
+  };
+
+  const parseSucceededItemsFromResponse = (
+    response: {
+      successes?: Array<{
+        keywordId?: string | number;
+        keywordName?: string;
+        field?: string;
+        oldValue?: string;
+        newValue?: string;
+      }>;
+    },
+    keywordMap?: Map<string, Keyword>
+  ): Array<{ label: string; field: string; oldValue: string; newValue: string }> => {
+    const successes = response?.successes ?? [];
+    const items: Array<{ label: string; field: string; oldValue: string; newValue: string }> = [];
+    const isStatusField = (f: string) =>
+      (f ?? "").toLowerCase() === "state" || (f ?? "").toLowerCase() === "status";
+
+    for (const s of successes) {
+      const id = String(s.keywordId ?? "");
+      const fromBackend = s.field != null && (s.oldValue != null || s.newValue != null);
+      const fieldVal = s.field ?? "—";
+      const oldVal = s.oldValue ?? "—";
+      const newVal = s.newValue ?? "—";
+      const normOld = isStatusField(fieldVal) ? normalizeStatusDisplay(oldVal) : oldVal;
+      const normNew = isStatusField(fieldVal) ? normalizeStatusDisplay(newVal) : newVal;
+      if (fromBackend) {
+        items.push({
+          label: s.keywordName ?? `Keyword ${id}`,
+          field: fieldVal,
+          oldValue: normOld,
+          newValue: normNew,
+        });
+      } else if (keywordMap) {
+        const kw = keywordMap.get(id);
+        const name = kw?.name ?? `Keyword ${id}`;
+        items.push({
+          label: name,
+          field: fieldVal,
+          oldValue: normOld,
+          newValue: normNew,
+        });
+      }
+    }
+    return items;
+  };
+
   const formatCurrency = (value: string | number, currency?: string) => {
     const numValue =
       typeof value === "string"
-        ? parseFloat(value.replace(/[^0-9.-]+/g, ""))
+        ? parseFloat(String(value).replace(/[^0-9.-]+/g, ""))
         : Number(value);
     const code = currency?.trim() ? currency.trim().toUpperCase() : "USD";
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: code,
       currencyDisplay: "code",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(numValue || 0);
   };
 
@@ -901,28 +1000,50 @@ export const Keywords: React.FC = () => {
 
     try {
       setBulkLoading(true);
-      // Get keywordIds from selected keywords - use keywordId from the keyword objects
       const selectedKeywordsData = getSelectedKeywordsData();
-      const keywordIds = selectedKeywordsData
-        .map((k) => k.keywordId || k.id)
-        .filter(Boolean);
+      const payload = buildGroupedPayload(
+        selectedKeywordsData.map((k) => ({
+          entityId: k.keywordId ?? k.id,
+          profile_id: k.profile_id ?? (k as { profileId?: string }).profileId,
+          type: getKeywordCampaignType(k),
+        }))
+      );
+      if (Object.keys(payload).length === 0) {
+        setBulkLoading(false);
+        return;
+      }
 
-      await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
-        keywordIds: keywordIds,
+      const res = await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
+        payload,
         action: "status",
         status: statusValue,
       });
-      const count = keywordIds.length;
+      const succeededCount = res?.updated ?? 0;
+      const failedCount = res?.failed ?? 0;
+      const keywordMap = new Map(
+        selectedKeywordsData.map((k) => [String(k.keywordId ?? k.id), k])
+      );
+      const succeededItems = parseSucceededItemsFromResponse(res, keywordMap).slice(0, 10);
+
       await loadKeywords(accountIdNum);
       setSelectedKeywords(new Set());
       setShowConfirmationModal(false);
       setPendingStatusAction(null);
+      setSelectedKeywordsFetched(null);
       const action = statusValue === "archive" ? "archived" : "updated";
       showEditSummary({
         entityType: "keyword",
         action,
         mode: "bulk",
-        succeededCount: count,
+        succeededCount,
+        failedCount: failedCount > 0 ? failedCount : undefined,
+        succeededItems,
+        details: (res?.errors as Array<{ keywordId?: string; keywordName?: string; error?: string }> | undefined)
+          ?.slice(0, 5)
+          .map((e) => ({
+            label: e.keywordName ? `${e.keywordName} (${e.keywordId ?? "—"})` : `Keyword ${e.keywordId ?? "—"}`,
+            value: e.error ?? "Unknown error",
+          })),
       });
     } catch (error: any) {
       console.error("Failed to update keywords", error);
@@ -1035,17 +1156,31 @@ export const Keywords: React.FC = () => {
         });
       }
 
-      // Send one bulk request with all keywords and their new bids
-      const keywordIds = updates.map(u => u.keywordId);
-      const bids = updates.map(u => ({ keywordId: u.keywordId, bid: u.newBid }));
-      
-      await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
-        keywordIds,
+      const payload = buildGroupedPayload(
+        selectedKeywordsData.map((k) => ({
+          entityId: k.keywordId ?? k.id,
+          profile_id: k.profile_id ?? (k as { profileId?: string }).profileId,
+          type: getKeywordCampaignType(k),
+        }))
+      );
+      if (Object.keys(payload).length === 0) {
+        setBulkLoading(false);
+        return;
+      }
+      const bids = updates.map((u) => ({ keywordId: u.keywordId, bid: u.newBid }));
+
+      const res = await campaignsService.bulkUpdateKeywords(accountIdNum, channelId ?? null, {
+        payload,
         action: "bid",
         bids,
       });
+      const succeededCount = res?.updated ?? 0;
+      const failedCount = res?.failed ?? 0;
+      const keywordMap = new Map(
+        selectedKeywordsData.map((k) => [String(k.keywordId ?? k.id), k])
+      );
+      const succeededItems = parseSucceededItemsFromResponse(res, keywordMap).slice(0, 10);
 
-      const count = updates.length;
       await loadKeywords(accountIdNum);
       setSelectedKeywords(new Set());
       setShowConfirmationModal(false);
@@ -1053,11 +1188,20 @@ export const Keywords: React.FC = () => {
       setBidValue("");
       setUpperLimit("");
       setLowerLimit("");
+      setSelectedKeywordsFetched(null);
       showEditSummary({
         entityType: "keyword",
         action: "updated",
         mode: "bulk",
-        succeededCount: count,
+        succeededCount,
+        failedCount: failedCount > 0 ? failedCount : undefined,
+        succeededItems,
+        details: (res?.errors as Array<{ keywordId?: string; keywordName?: string; error?: string }> | undefined)
+          ?.slice(0, 5)
+          .map((e) => ({
+            label: e.keywordName ? `${e.keywordName} (${e.keywordId ?? "—"})` : `Keyword ${e.keywordId ?? "—"}`,
+            value: e.error ?? "Unknown error",
+          })),
       });
     } catch (error: any) {
       console.error("Failed to update keywords", error);
@@ -1074,7 +1218,10 @@ export const Keywords: React.FC = () => {
     }
   };
 
-  const getSelectedKeywordsData = () => {
+  const getSelectedKeywordsData = (): Keyword[] => {
+    if (selectedKeywordsFetched && selectedKeywordsFetched.length > 0) {
+      return selectedKeywordsFetched;
+    }
     return keywords.filter((k) => selectedKeywords.has(k.keywordId || k.id));
   };
 
@@ -1651,7 +1798,19 @@ export const Keywords: React.FC = () => {
                   }
                 }}
               >
-                <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
+                  {(bulkLoading || selectedKeywordsFetching) && (
+                    <div className="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10 rounded-xl backdrop-blur-sm">
+                      <Loader
+                        size="md"
+                        message={
+                          selectedKeywordsFetching
+                            ? "Loading selected keywords..."
+                            : "Updating keywords..."
+                        }
+                      />
+                    </div>
+                  )}
                   <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
                     {isBidChange
                       ? "Confirm Keyword Bid Changes"
@@ -1748,8 +1907,9 @@ export const Keywords: React.FC = () => {
                         setShowConfirmationModal(false);
                         setPendingStatusAction(null);
                         setIsBidChange(false);
+                        setSelectedKeywordsFetched(null);
                       }}
-                      disabled={bulkLoading}
+                      disabled={bulkLoading || selectedKeywordsFetching}
                       className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
                     >
                       Cancel
@@ -1762,10 +1922,14 @@ export const Keywords: React.FC = () => {
                           runBulkStatus(pendingStatusAction);
                         }
                       }}
-                      disabled={bulkLoading}
+                      disabled={bulkLoading || selectedKeywordsFetching}
                       className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0e5a5a] disabled:opacity-50"
                     >
-                      {bulkLoading ? "Updating..." : "Confirm"}
+                      {selectedKeywordsFetching
+                        ? "Loading..."
+                        : bulkLoading
+                          ? "Updating..."
+                          : "Confirm"}
                     </button>
                   </div>
                 </div>

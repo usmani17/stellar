@@ -199,6 +199,7 @@ export interface Keyword {
   adgroup_name?: string;
   campaign_name?: string;
   campaignId?: string | number;
+  profile_id?: string;
   profile_name?: string;
   profile_country_code?: string;
   profile_currency_code?: string;
@@ -366,6 +367,7 @@ export interface Target {
   adgroup_name?: string;
   campaign_name?: string;
   campaignId?: string | number;
+  profile_id?: string;
   profile_name?: string;
   profile_country_code?: string;
   profile_currency_code?: string;
@@ -531,6 +533,20 @@ export const campaignsService = {
     const base = buildAmazonBasePath(accountId, channelId);
     const url = appendProfileId(`${base}/campaigns/`, profileId);
     const response = await api.post<CampaignsResponse>(url, { filters });
+    return response.data;
+  },
+
+  getCampaignsByIds: async (
+    accountId: number,
+    campaignIds: Array<string | number>,
+    channelId?: number | string | null,
+    profileId?: string | number | null
+  ): Promise<{ campaigns: Campaign[] }> => {
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = appendProfileId(`${base}/campaigns/by-ids/`, profileId);
+    const response = await api.post<{ campaigns: Campaign[] }>(url, {
+      campaignIds,
+    });
     return response.data;
   },
 
@@ -1277,33 +1293,18 @@ export const campaignsService = {
   bulkUpdateCampaigns: async (
     accountId: number,
     payload: {
-      campaignIds: Array<string | number>;
-      action:
-      | "status"
-      | "budget"
-      | "budgetType"
-      | "name"
-      | "portfolioId"
-      | "endDate"
-      | "startDate"
-      | "targetingType";
+      /** Grouped by profile_id -> campaign_type (SP/SB/SD) -> campaign_ids */
+      payload: Record<
+        string,
+        Partial<Record<"SP" | "SB" | "SD", Array<string | number>>>
+      >;
+      action: "status" | "budget";
       status?: "enable" | "pause" | "archive";
       budgetAction?: "increase" | "decrease" | "set";
-      budgetType?: "DAILY" | "LIFETIME";
       unit?: "percent" | "amount";
       value?: number;
       upperLimit?: number;
       lowerLimit?: number;
-      name?: string;
-      portfolioId?: string | null;
-      endDate?: string | null;
-      startDate?: string | null;
-      targetingType?: "AUTO" | "MANUAL";
-      tags?: Array<{ key: string; value: string }>;
-      siteRestrictions?: string | null;
-      dynamicBidding?: any;
-      /** Campaign type (SP, SB, SD) for channel-scoped / campaign-detail context */
-      campaignType?: "SP" | "SB" | "SD";
     },
     channelId?: number | string | null,
     profileId?: string | number | null
@@ -1355,10 +1356,24 @@ export const campaignsService = {
     return response.data;
   },
 
+  getAdGroupsByIds: async (
+    accountId: number,
+    adgroupIds: Array<string | number>,
+    channelId: number | string | null
+  ): Promise<{ adgroups: AdGroup[] }> => {
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/adgroups/by-ids/`;
+    const response = await api.post<{ adgroups: AdGroup[] }>(url, {
+      adgroupIds,
+    });
+    return response.data;
+  },
+
   bulkUpdateAdGroups: async (
     accountId: number,
     payload: {
-      adgroupIds: Array<string | number>;
+      payload?: Record<string, Partial<Record<"SP" | "SB" | "SD", Array<string | number>>>>;
+      adgroupIds?: Array<string | number>;
       action: "status" | "default_bid" | "name";
       status?: "ENABLED" | "PAUSED";
       value?: number;
@@ -1679,11 +1694,25 @@ export const campaignsService = {
     return response.data;
   },
 
+  getKeywordsByIds: async (
+    accountId: number,
+    keywordIds: Array<string | number>,
+    channelId: number | string | null
+  ): Promise<{ keywords: Keyword[] }> => {
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/keywords/by-ids/`;
+    const response = await api.post<{ keywords: Keyword[] }>(url, {
+      keywordIds,
+    });
+    return response.data;
+  },
+
   bulkUpdateKeywords: async (
     accountId: number,
     channelId: number | string | null,
     payload: {
-      keywordIds: Array<string | number>;
+      payload?: Record<string, Partial<Record<"SP" | "SB" | "SD", Array<string | number>>>>;
+      keywordIds?: Array<string | number>;
       action: "status" | "bid" | "archive";
       status?: "enable" | "pause";
       bid?: number;
@@ -2417,12 +2446,26 @@ export const campaignsService = {
     return response.data;
   },
 
+  getTargetsByIds: async (
+    accountId: number,
+    targetIds: Array<string | number>,
+    channelId: number | string | null
+  ): Promise<{ targets: Target[] }> => {
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/targets/by-ids/`;
+    const response = await api.post<{ targets: Target[] }>(url, {
+      targetIds,
+    });
+    return response.data;
+  },
+
   bulkUpdateTargets: async (
     accountId: number,
     payload: {
-      targetIds: Array<string | number>;
-      action: "status" | "bid";
-      status?: "enable" | "pause"; // ARCHIVED is not supported for targets
+      payload?: Record<string, Partial<Record<"SP" | "SB" | "SD", Array<string | number>>>>;
+      targetIds?: Array<string | number>;
+      action: "status" | "bid" | "archive";
+      status?: "enable" | "pause" | "archive";
       bid?: number;
       /** Per-target bids for one request (action=bid). When provided, one request updates all with their respective bids. */
       bids?: Array<{ targetId: string | number; bid: number }>;
