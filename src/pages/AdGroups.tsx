@@ -31,6 +31,7 @@ import {
 } from "../components/charts/PerformanceChart";
 import { ErrorModal } from "../components/ui/ErrorModal";
 import { useEditSummaryModal } from "../hooks/useEditSummaryModal";
+import { formatMoneyForEditSummary } from "../utils/editSummary";
 import { Loader } from "../components/ui/Loader";
 import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
 
@@ -918,6 +919,8 @@ export const AdGroups: React.FC = () => {
     const isStatusField = (f: string) =>
       (f ?? "").toLowerCase() === "state" || (f ?? "").toLowerCase() === "status";
 
+    const isBidField = (f: string) =>
+      (f ?? "").toLowerCase() === "bid" || (f ?? "").toLowerCase() === "default_bid";
     for (const s of successes) {
       const id = String(s.adgroupId ?? "");
       const fromBackend =
@@ -925,8 +928,14 @@ export const AdGroups: React.FC = () => {
       const fieldVal = s.field ?? "—";
       const oldVal = s.oldValue ?? "—";
       const newVal = s.newValue ?? "—";
-      const normOld = isStatusField(fieldVal) ? normalizeStatusDisplay(oldVal) : oldVal;
-      const normNew = isStatusField(fieldVal) ? normalizeStatusDisplay(newVal) : newVal;
+      const ag = adgroupMap?.get(id);
+      const currency = ag?.profile_currency_code;
+      let normOld = isStatusField(fieldVal) ? normalizeStatusDisplay(oldVal) : oldVal;
+      let normNew = isStatusField(fieldVal) ? normalizeStatusDisplay(newVal) : newVal;
+      if (isBidField(fieldVal)) {
+        normOld = formatMoneyForEditSummary(oldVal, currency) || normOld;
+        normNew = formatMoneyForEditSummary(newVal, currency) || normNew;
+      }
       if (fromBackend) {
         items.push({
           label: s.adgroupName ?? `Ad Group ${id}`,
@@ -935,7 +944,6 @@ export const AdGroups: React.FC = () => {
           newValue: normNew,
         });
       } else if (adgroupMap) {
-        const ag = adgroupMap.get(id);
         const name = ag?.name ?? `Ad Group ${id}`;
         items.push({
           label: name,

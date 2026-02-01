@@ -3,6 +3,27 @@
  * across Amazon pages (Campaigns, AdGroups, Keywords, Targets, CampaignDetail).
  */
 
+import { formatCurrency } from "./formatters";
+
+/** Format old/new value with currency when field is Budget or Bid. */
+export function formatMoneyForEditSummary(
+  value: string | number | undefined | null,
+  currency?: string
+): string {
+  if (value == null || value === "" || value === "—") return "—";
+  const num = typeof value === "number"
+    ? value
+    : parseFloat(String(value).replace(/[^0-9.-]/g, ""));
+  if (isNaN(num)) return String(value);
+  return formatCurrency(num, currency ?? "USD");
+}
+
+/** Check if field is a money field (budget, bid, default_bid). */
+export function isMoneyField(field: string | undefined): boolean {
+  const f = (field ?? "").toLowerCase();
+  return f === "budget" || f === "bid" || f === "default_bid";
+}
+
 export type EntityType =
   | "campaign"
   | "adGroup"

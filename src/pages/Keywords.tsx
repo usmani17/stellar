@@ -25,6 +25,7 @@ import {
 } from "../components/charts/PerformanceChart";
 import { ErrorModal } from "../components/ui/ErrorModal";
 import { useEditSummaryModal } from "../hooks/useEditSummaryModal";
+import { formatMoneyForEditSummary } from "../utils/editSummary";
 import { Loader } from "../components/ui/Loader";
 import { logsService } from "../services/logs";
 
@@ -944,14 +945,21 @@ export const Keywords: React.FC = () => {
     const isStatusField = (f: string) =>
       (f ?? "").toLowerCase() === "state" || (f ?? "").toLowerCase() === "status";
 
+    const isBidField = (f: string) => (f ?? "").toLowerCase() === "bid";
     for (const s of successes) {
       const id = String(s.keywordId ?? "");
       const fromBackend = s.field != null && (s.oldValue != null || s.newValue != null);
       const fieldVal = s.field ?? "—";
       const oldVal = s.oldValue ?? "—";
       const newVal = s.newValue ?? "—";
-      const normOld = isStatusField(fieldVal) ? normalizeStatusDisplay(oldVal) : oldVal;
-      const normNew = isStatusField(fieldVal) ? normalizeStatusDisplay(newVal) : newVal;
+      const kw = keywordMap?.get(id);
+      const currency = kw?.profile_currency_code;
+      let normOld = isStatusField(fieldVal) ? normalizeStatusDisplay(oldVal) : oldVal;
+      let normNew = isStatusField(fieldVal) ? normalizeStatusDisplay(newVal) : newVal;
+      if (isBidField(fieldVal)) {
+        normOld = formatMoneyForEditSummary(oldVal, currency) || normOld;
+        normNew = formatMoneyForEditSummary(newVal, currency) || normNew;
+      }
       if (fromBackend) {
         items.push({
           label: s.keywordName ?? `Keyword ${id}`,
@@ -960,7 +968,6 @@ export const Keywords: React.FC = () => {
           newValue: normNew,
         });
       } else if (keywordMap) {
-        const kw = keywordMap.get(id);
         const name = kw?.name ?? `Keyword ${id}`;
         items.push({
           label: name,

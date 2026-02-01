@@ -1,17 +1,40 @@
 /**
+ * Normalize currency to ISO 4217 code for consistency.
+ * Uses profile_currency_code from API; maps common symbols to codes.
+ */
+export const normalizeCurrencyCode = (currency: string | undefined | null): string => {
+  const raw = (currency ?? "").trim().toUpperCase();
+  if (!raw) return "USD";
+  // Already a 3-letter ISO code
+  if (raw.length === 3) return raw;
+  // Map symbols to ISO codes for consistency ($ -> USD, MX$ -> MXN, CA$ -> CAD)
+  const symbolMap: Record<string, string> = {
+    "$": "USD",
+    "US$": "USD",
+    "MX$": "MXN",
+    "CA$": "CAD",
+  };
+  if (symbolMap[raw]) return symbolMap[raw];
+  // Pass through valid 3-letter ISO codes from profile_currency_code
+  return raw.length === 3 ? raw : "USD";
+};
+
+/**
  * Format a number as currency.
+ * Uses profile_currency_code from API response (USD, MXN, CAD, etc.)
  * @param value - The number to format
- * @param currency - ISO 4217 currency code (e.g. USD, AUD). Defaults to USD.
- * @returns Formatted currency string (e.g., "$1,234.56" or "A$1,234.56")
+ * @param currency - ISO 4217 code or symbol from profile_currency_code
+ * @returns Formatted currency string (e.g., "$1,234.56", "MX$1,234.56")
  */
 export const formatCurrency = (
   value: number,
   currency: string = "USD"
 ): string => {
-  const code = currency && currency.trim() ? currency.trim().toUpperCase() : "USD";
+  const code = normalizeCurrencyCode(currency);
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: code,
+    currencyDisplay: "code",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);

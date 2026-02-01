@@ -52,6 +52,7 @@ import { accountsService } from "../services/accounts";
 import type { FilterDefinition } from "../types/filters";
 import { normalizeStatusDisplay } from "../utils/statusHelpers";
 import { buildGroupedCampaignPayload } from "../utils/campaignBulkPayload";
+import { formatCurrency } from "../utils/formatters";
 
 export const Campaigns: React.FC = () => {
   const { showEditSummary, EditSummaryModal: EditSummaryModalOutlet } =
@@ -897,7 +898,7 @@ export const Campaigns: React.FC = () => {
     response: any,
     actionType: "status" | "budget",
     statusValue?: "enable" | "pause",
-    campaignMapFallback?: Map<string, { campaign_name?: string; name?: string; status?: string; daily_budget?: number; profile_currency_code?: string }>
+    campaignMapFallback?: Map<string, { campaign_name?: string; name?: string; status?: string; daily_budget?: number; profile_currency_code?: string; budgetType?: string }>
   ): Array<{ label: string; field: string; oldValue: string; newValue: string }> => {
     const successes = response?.successes ?? [];
     const items: Array<{ label: string; field: string; oldValue: string; newValue: string }> = [];
@@ -917,14 +918,18 @@ export const Campaigns: React.FC = () => {
         if (isBudgetField) {
           const c = campaignMapFallback?.get(id);
           const currency = (c?.profile_currency_code ?? (c as any)?.profile_currency_code) as string | undefined;
-          const formatIfNeeded = (v: string) => {
+          const formatBudgetWithCurrency = (v: string) => {
             if (v == null || v === "—") return v;
             const num = parseFloat(String(v).replace(/[^0-9.]/g, ""));
-            if (!isNaN(num) && !String(v).match(/[A-Za-z$]/)) return formatCurrency(num, currency);
-            return v;
+            if (isNaN(num)) return v;
+            const budgetTypeMatch = String(v).match(/\((daily|lifetime|DAILY|LIFETIME)\)/i);
+            const budgetType = budgetTypeMatch
+              ? ` (${(budgetTypeMatch[1] ?? budgetTypeMatch[0].slice(1, -1)).toUpperCase()})`
+              : "";
+            return formatCurrency(num, currency) + budgetType;
           };
-          oldVal = formatIfNeeded(oldVal);
-          newVal = formatIfNeeded(newVal);
+          oldVal = formatBudgetWithCurrency(oldVal);
+          newVal = formatBudgetWithCurrency(newVal);
         }
         items.push({
           label: s.campaignName ?? `Campaign ${id}`,
@@ -947,11 +952,13 @@ export const Campaigns: React.FC = () => {
           const oldBudget = (c?.daily_budget ?? (c as any)?.daily_budget ?? 0) as number;
           const newBudget = calculateNewBudget(oldBudget);
           const currency = (c?.profile_currency_code ?? (c as any)?.profile_currency_code) as string | undefined;
+          const budgetType = (c?.budgetType ?? (c as any)?.budgetType ?? "DAILY") as string;
+          const suffix = budgetType ? ` (${String(budgetType).toUpperCase()})` : "";
           items.push({
             label: name ?? `Campaign ${id}`,
             field: "Budget",
-            oldValue: formatCurrency(oldBudget, currency),
-            newValue: formatCurrency(newBudget, currency),
+            oldValue: formatCurrency(oldBudget, currency) + suffix,
+            newValue: formatCurrency(newBudget, currency) + suffix,
           });
         }
       }
@@ -2446,17 +2453,6 @@ export const Campaigns: React.FC = () => {
     );
   };
 
-  const formatCurrency = (value: number, currency?: string) => {
-    const code = currency?.trim() ? currency.trim().toUpperCase() : "USD";
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: code,
-      currencyDisplay: "code", // e.g. "MXN 0" instead of "MX$0" to avoid double currency symbol
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
-
   const formatPercentage = (value: number) => {
     return `${value.toFixed(1)}%`;
   };
@@ -3118,7 +3114,9 @@ export const Campaigns: React.FC = () => {
                                   .slice(0, 10)
                                   .map((campaign) => {
                                     const oldBudget =
-                                      campaign.daily_budget || 0;
+                                      campaign.daily_budget ?? (campaign as any)?.daily_budget ?? 0;
+                                    const currency =
+                                      campaign.profile_currency_code ?? (campaign as any)?.profile_currency_code ?? "USD";
                                     const oldStatus =
                                       campaign.status || "Enabled";
                                     const newBudget = isBudgetChange
@@ -3130,21 +3128,20 @@ export const Campaigns: React.FC = () => {
 
                                     return (
                                       <tr
-                                        key={campaign.campaignId}
+                                        key={campaign.campaignId ?? (campaign as any)?.id}
                                         className="border-b border-gray-200 last:border-b-0"
                                       >
                                         <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                          {campaign.campaign_name ||
-                                            "Unnamed Campaign"}
+                                          {(campaign.campaign_name ?? (campaign as any)?.name) || "Unnamed Campaign"}
                                         </td>
                                         <td className="px-4 py-2 text-[10.64px] text-[#556179]">
                                           {isBudgetChange
-                                            ? formatCurrency(oldBudget, campaign.profile_currency_code)
+                                            ? formatCurrency(Number(oldBudget), currency)
                                             : oldStatus}
                                         </td>
                                         <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
                                           {isBudgetChange
-                                            ? formatCurrency(newBudget, campaign.profile_currency_code)
+                                            ? formatCurrency(Number(newBudget), currency)
                                             : newStatus}
                                         </td>
                                       </tr>
@@ -3193,8 +3190,9 @@ export const Campaigns: React.FC = () => {
                               Value:
                             </span>
                             <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {budgetValue}{" "}
-                              {budgetUnit === "percent" ? "%" : "$"}
+                              {budgetUnit === "percent"
+                                ? `${budgetValue}%`
+                                : formatCurrency(parseFloat(budgetValue) || 0, getSelectedCampaignsData()[0]?.profile_currency_code ?? (getSelectedCampaignsData()[0] as any)?.profile_currency_code)}
                             </span>
                           </div>
 
@@ -3204,7 +3202,7 @@ export const Campaigns: React.FC = () => {
                                 Upper Limit:
                               </span>
                               <span className="text-[12.16px] font-semibold text-[#072929]">
-                                ${upperLimit}
+                                {formatCurrency(parseFloat(upperLimit) || 0, getSelectedCampaignsData()[0]?.profile_currency_code ?? (getSelectedCampaignsData()[0] as any)?.profile_currency_code)}
                               </span>
                             </div>
                           )}
@@ -3215,7 +3213,7 @@ export const Campaigns: React.FC = () => {
                                 Lower Limit:
                               </span>
                               <span className="text-[12.16px] font-semibold text-[#072929]">
-                                ${lowerLimit}
+                                {formatCurrency(parseFloat(lowerLimit) || 0, getSelectedCampaignsData()[0]?.profile_currency_code ?? (getSelectedCampaignsData()[0] as any)?.profile_currency_code)}
                               </span>
                             </div>
                           )}

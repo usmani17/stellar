@@ -62,6 +62,7 @@ import {
 } from "../components/creatives/CreateCreativePanel";
 import { ErrorModal } from "../components/ui/ErrorModal";
 import { useEditSummaryModal } from "../hooks/useEditSummaryModal";
+import { formatMoneyForEditSummary } from "../utils/editSummary";
 import { Tooltip } from "../components/ui/Tooltip";
 import { Button } from "../components/ui";
 import { Dropdown } from "../components/ui/Dropdown";
@@ -7448,17 +7449,26 @@ export const CampaignDetail: React.FC = () => {
         const failedCount = res?.failed ?? 0;
         const isStatusField = (f: string) =>
           (f ?? "").toLowerCase() === "state" || (f ?? "").toLowerCase() === "status";
+        const isBidField = (f: string) =>
+          (f ?? "").toLowerCase() === "bid" || (f ?? "").toLowerCase() === "default_bid";
         const succeededItems = (res?.successes ?? []).slice(0, 10).map((s: any) => {
           const id = String(s.adgroupId ?? s.adGroupId ?? "");
           const ag = adgroupMap.get(id);
           const fieldVal = s.field ?? "State";
           const oldVal = s.oldValue ?? "—";
           const newVal = s.newValue ?? "—";
+          const currency = ag?.profile_currency_code ?? (ag as any)?.profile_currency_code;
+          let displayOld = isStatusField(fieldVal) ? normalizeStatusDisplay(oldVal) : oldVal;
+          let displayNew = isStatusField(fieldVal) ? normalizeStatusDisplay(newVal) : newVal;
+          if (isBidField(fieldVal)) {
+            displayOld = formatMoneyForEditSummary(oldVal, currency) || displayOld;
+            displayNew = formatMoneyForEditSummary(newVal, currency) || displayNew;
+          }
           return {
             label: s.adgroupName ?? ag?.name ?? `Ad Group ${id}`,
             field: fieldVal,
-            oldValue: isStatusField(fieldVal) ? normalizeStatusDisplay(oldVal) : oldVal,
-            newValue: isStatusField(fieldVal) ? normalizeStatusDisplay(newVal) : newVal,
+            oldValue: displayOld,
+            newValue: displayNew,
           };
         });
         showEditSummary({

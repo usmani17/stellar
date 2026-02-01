@@ -25,6 +25,7 @@ import {
 } from "../components/charts/PerformanceChart";
 import { ErrorModal } from "../components/ui/ErrorModal";
 import { useEditSummaryModal } from "../hooks/useEditSummaryModal";
+import { formatMoneyForEditSummary } from "../utils/editSummary";
 import { Loader } from "../components/ui/Loader";
 
 export const Targets: React.FC = () => {
@@ -1046,14 +1047,22 @@ export const Targets: React.FC = () => {
     const isStatusField = (f: string) =>
       (f ?? "").toLowerCase() === "state" || (f ?? "").toLowerCase() === "status";
 
+    const isBidField = (f: string) =>
+      (f ?? "").toLowerCase() === "bid" || (f ?? "").toLowerCase() === "default_bid";
     for (const s of successes) {
       const id = String(s.targetId ?? "");
       const fromBackend = s.field != null && (s.oldValue != null || s.newValue != null);
       const fieldVal = s.field ?? "—";
       const oldVal = s.oldValue ?? "—";
       const newVal = s.newValue ?? "—";
-      const normOld = isStatusField(fieldVal) ? normalizeStatusDisplay(oldVal) : oldVal;
-      const normNew = isStatusField(fieldVal) ? normalizeStatusDisplay(newVal) : newVal;
+      const tgt = targetMap?.get(id);
+      const currency = tgt?.profile_currency_code;
+      let normOld = isStatusField(fieldVal) ? normalizeStatusDisplay(oldVal) : oldVal;
+      let normNew = isStatusField(fieldVal) ? normalizeStatusDisplay(newVal) : newVal;
+      if (isBidField(fieldVal)) {
+        normOld = formatMoneyForEditSummary(oldVal, currency) || normOld;
+        normNew = formatMoneyForEditSummary(newVal, currency) || normNew;
+      }
       if (fromBackend) {
         items.push({
           label: s.targetName ?? `Target ${id}`,
@@ -1062,7 +1071,6 @@ export const Targets: React.FC = () => {
           newValue: normNew,
         });
       } else if (targetMap) {
-        const tgt = targetMap.get(id);
         const name = tgt?.name ?? `Target ${id}`;
         items.push({
           label: name,
