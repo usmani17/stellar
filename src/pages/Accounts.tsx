@@ -11,7 +11,7 @@ import {
 } from "../hooks/mutations/useAccountMutations";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
-import { Button, Card, DeleteConfirmationModal, Menu } from "../components/ui";
+import { Button, Card, DeleteConfirmationModal, Loader, Menu } from "../components/ui";
 import { Banner } from "../components/ui/Banner";
 import AmazonIcon from "../assets/images/amazon-fill.svg";
 import GoogleIcon from "../assets/images/ri_google-fill.svg";
@@ -81,7 +81,7 @@ export const Accounts: React.FC = () => {
   useEffect(() => {
     const channelSuccess = localStorage.getItem('channel_created_success');
     const profilesSuccess = localStorage.getItem('profiles_saved_success');
-    
+
     if (channelSuccess) {
       try {
         const { message } = JSON.parse(channelSuccess);
@@ -123,7 +123,8 @@ export const Accounts: React.FC = () => {
       });
       setNewAccountName("");
       setShowCreateAccount(false);
-      // React Query automatically invalidates and refetches brands list
+      setSuccessMessage("Brand created successfully!");
+      setTimeout(() => setSuccessMessage(null), 5000);
     } catch (error: any) {
       alert(error.response?.data?.error || "Failed to create brand");
     }
@@ -165,7 +166,8 @@ export const Accounts: React.FC = () => {
 
     try {
       await deleteAccountMutation.mutateAsync(id);
-      // React Query automatically invalidates and refetches accounts list
+      setSuccessMessage("Brand deleted successfully!");
+      setTimeout(() => setSuccessMessage(null), 5000);
     } catch (error: any) {
       console.error("Failed to delete account:", error);
       alert(error.response?.data?.error || "Failed to delete account");
@@ -536,9 +538,8 @@ export const Accounts: React.FC = () => {
                         return (
                           <tr
                             key={account.id}
-                            className={`table-row group ${
-                              isDeleting ? "opacity-50" : ""
-                            }`}
+                            className={`table-row group ${isDeleting ? "opacity-50" : ""
+                              }`}
                           >
                             <td className="table-cell">
                               {editingAccount?.accountId === account.id ? (
@@ -755,40 +756,12 @@ export const Accounts: React.FC = () => {
                 updateAccountMutation.isPending ||
                 deleteAccountMutation.isPending ||
                 (accountsLoading && accounts.length > 0)) && (
-                <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
-                  <div className="flex flex-col items-center gap-2">
-                    <svg
-                      className="animate-spin h-8 w-8 text-[#136d6d]"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    <p className="text-[14px] text-[#556179]">
-                      {createAccountMutation.isPending
-                        ? "Creating account..."
-                        : updateAccountMutation.isPending
-                        ? "Updating account..."
-                        : deleteAccountMutation.isPending
-                        ? "Deleting account..."
-                        : "Refreshing accounts..."}
-                    </p>
-                  </div>
-                </div>
-              )}
+                  <>
+                    <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
+                      <Loader size="md" message="Loading accounts..." />
+                    </div>
+                  </>
+                )}
             </div>
           </div>
         </div>

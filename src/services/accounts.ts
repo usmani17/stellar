@@ -58,9 +58,10 @@ export const accountsService = {
     return [];
   },
 
-  createAccount: async (data: CreateAccountData): Promise<Account> => {
-    const response = await api.post<Account>("/accounts/", data);
-    return response.data;
+  createAccount: async (data: CreateAccountData): Promise<Account[]> => {
+    const response = await api.post<Account[]>("/accounts/", data);
+    const res = response.data;
+    return Array.isArray(res) ? res : (res as any)?.results ?? [];
   },
 
   updateAccount: async (
