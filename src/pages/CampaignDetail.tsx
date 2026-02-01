@@ -9719,7 +9719,15 @@ export const CampaignDetail: React.FC = () => {
                             ? inlineEditNewValue
                             : inlineEditField === "startDate" || inlineEditField === "endDate"
                               ? new Date(inlineEditNewValue).toLocaleDateString()
-                              : formatCurrency(parseFloat(String(inlineEditNewValue || "0").replace(/[^0-9.]/g, "") || "0", profileCurrencyCode)}
+                              : formatCurrency(
+                                  parseFloat(
+                                    (inlineEditNewValue || "0").replace(
+                                      new RegExp("[^0-9.]", "g"),
+                                      ""
+                                    ) || "0"
+                                  ),
+                                  profileCurrencyCode
+                                )}
                       </td>
                     </tr>
                   </tbody>
