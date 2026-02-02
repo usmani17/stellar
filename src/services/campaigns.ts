@@ -199,6 +199,7 @@ export interface Keyword {
   adgroup_name?: string;
   campaign_name?: string;
   campaignId?: string | number;
+  profile_id?: string;
   profile_name?: string;
   profile_country_code?: string;
   profile_currency_code?: string;
@@ -266,7 +267,8 @@ export interface KeywordsQueryParams {
   adgroup_name?: string;
   adgroup_name__icontains?: string;
   adgroup_name__not_icontains?: string;
-  // Profile name filters
+  // Profile filters (profile_id__in for multi-select profile IDs)
+  profile_id__in?: (string | number)[];
   profile_name?: string;
   profile_name__icontains?: string;
   profile_name__not_icontains?: string;
@@ -365,6 +367,7 @@ export interface Target {
   adgroup_name?: string;
   campaign_name?: string;
   campaignId?: string | number;
+  profile_id?: string;
   profile_name?: string;
   profile_country_code?: string;
   profile_currency_code?: string;
@@ -530,6 +533,20 @@ export const campaignsService = {
     const base = buildAmazonBasePath(accountId, channelId);
     const url = appendProfileId(`${base}/campaigns/`, profileId);
     const response = await api.post<CampaignsResponse>(url, { filters });
+    return response.data;
+  },
+
+  getCampaignsByIds: async (
+    accountId: number,
+    campaignIds: Array<string | number>,
+    channelId?: number | string | null,
+    profileId?: string | number | null
+  ): Promise<{ campaigns: Campaign[] }> => {
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = appendProfileId(`${base}/campaigns/by-ids/`, profileId);
+    const response = await api.post<{ campaigns: Campaign[] }>(url, {
+      campaignIds,
+    });
     return response.data;
   },
 
@@ -740,8 +757,10 @@ export const campaignsService = {
       filters.campaign_name__not_icontains =
         params.campaign_name__not_icontains;
     }
-    // Profile name filters
-    if (params?.profile_name) {
+    // Profile filters (profile_id__in for multi-select; profile_name for text)
+    if (params?.profile_id__in?.length) {
+      filters.profile_id__in = params.profile_id__in;
+    } else if (params?.profile_name) {
       filters.profile_name = params.profile_name;
     }
     if (params?.profile_name__icontains) {
@@ -922,8 +941,10 @@ export const campaignsService = {
       filters.campaign_name__not_icontains =
         params.campaign_name__not_icontains;
     }
-    // Profile name filters
-    if (params?.profile_name) {
+    // Profile filters (profile_id__in for multi-select; profile_name for text)
+    if (params?.profile_id__in?.length) {
+      filters.profile_id__in = params.profile_id__in;
+    } else if (params?.profile_name) {
       filters.profile_name = params.profile_name;
     }
     if (params?.profile_name__icontains) {
@@ -1272,29 +1293,18 @@ export const campaignsService = {
   bulkUpdateCampaigns: async (
     accountId: number,
     payload: {
-      campaignIds: Array<string | number>;
-      action:
-      | "status"
-      | "budget"
-      | "budgetType"
-      | "name"
-      | "portfolioId"
-      | "endDate"
-      | "targetingType";
+      /** Grouped by profile_id -> campaign_type (SP/SB/SD) -> campaign_ids */
+      payload: Record<
+        string,
+        Partial<Record<"SP" | "SB" | "SD", Array<string | number>>>
+      >;
+      action: "status" | "budget";
       status?: "enable" | "pause" | "archive";
       budgetAction?: "increase" | "decrease" | "set";
-      budgetType?: "DAILY" | "LIFETIME";
       unit?: "percent" | "amount";
       value?: number;
       upperLimit?: number;
       lowerLimit?: number;
-      name?: string;
-      portfolioId?: string | null;
-      endDate?: string | null;
-      targetingType?: "AUTO" | "MANUAL";
-      tags?: Array<{ key: string; value: string }>;
-      siteRestrictions?: string | null;
-      dynamicBidding?: any;
     },
     channelId?: number | string | null,
     profileId?: string | number | null
@@ -1346,15 +1356,30 @@ export const campaignsService = {
     return response.data;
   },
 
+  getAdGroupsByIds: async (
+    accountId: number,
+    adgroupIds: Array<string | number>,
+    channelId: number | string | null
+  ): Promise<{ adgroups: AdGroup[] }> => {
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/adgroups/by-ids/`;
+    const response = await api.post<{ adgroups: AdGroup[] }>(url, {
+      adgroupIds,
+    });
+    return response.data;
+  },
+
   bulkUpdateAdGroups: async (
     accountId: number,
     payload: {
-      adgroupIds: Array<string | number>;
+      payload?: Record<string, Partial<Record<"SP" | "SB" | "SD", Array<string | number>>>>;
+      adgroupIds?: Array<string | number>;
       action: "status" | "default_bid" | "name";
       status?: "ENABLED" | "PAUSED";
       value?: number;
       name?: string;
       campaignType?: "SP" | "SB" | "SD";
+      bids?: Array<{ adgroupId: string | number; bid: number }>;
     },
     channelId: number | string | null
   ) => {
@@ -1445,8 +1470,10 @@ export const campaignsService = {
     if (params?.adgroup_name__not_icontains) {
       filters.adgroup_name__not_icontains = params.adgroup_name__not_icontains;
     }
-    // Profile name filters
-    if (params?.profile_name) {
+    // Profile filters (profile_id__in for multi-select; profile_name for text)
+    if (params?.profile_id__in?.length) {
+      filters.profile_id__in = params.profile_id__in;
+    } else if (params?.profile_name) {
       filters.profile_name = params.profile_name;
     }
     if (params?.profile_name__icontains) {
@@ -1595,8 +1622,10 @@ export const campaignsService = {
     if (params?.adgroup_name__not_icontains) {
       filters.adgroup_name__not_icontains = params.adgroup_name__not_icontains;
     }
-    // Profile name filters
-    if (params?.profile_name) {
+    // Profile filters (profile_id__in for multi-select; profile_name for text)
+    if (params?.profile_id__in?.length) {
+      filters.profile_id__in = params.profile_id__in;
+    } else if (params?.profile_name) {
       filters.profile_name = params.profile_name;
     }
     if (params?.profile_name__icontains) {
@@ -1665,14 +1694,29 @@ export const campaignsService = {
     return response.data;
   },
 
+  getKeywordsByIds: async (
+    accountId: number,
+    keywordIds: Array<string | number>,
+    channelId: number | string | null
+  ): Promise<{ keywords: Keyword[] }> => {
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/keywords/by-ids/`;
+    const response = await api.post<{ keywords: Keyword[] }>(url, {
+      keywordIds,
+    });
+    return response.data;
+  },
+
   bulkUpdateKeywords: async (
     accountId: number,
     channelId: number | string | null,
     payload: {
-      keywordIds: Array<string | number>;
+      payload?: Record<string, Partial<Record<"SP" | "SB" | "SD", Array<string | number>>>>;
+      keywordIds?: Array<string | number>;
       action: "status" | "bid" | "archive";
       status?: "enable" | "pause";
       bid?: number;
+      bids?: Array<{ keywordId: string | number; bid: number }>;
     }
   ) => {
     const base = buildAmazonBasePath(accountId, channelId);
@@ -1895,9 +1939,11 @@ export const campaignsService = {
         expressionType: "MANUAL";
         state: "ENABLED" | "PAUSED" | "PROPOSED";
       }>;
-    }
+    },
+    channelId?: number | string | null
   ) => {
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/create/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/campaigns/${campaignId}/targets/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },
@@ -2176,8 +2222,10 @@ export const campaignsService = {
     if (params?.adgroup_name__not_icontains) {
       filters.adgroup_name__not_icontains = params.adgroup_name__not_icontains;
     }
-    // Profile name filters
-    if (params?.profile_name) {
+    // Profile filters (profile_id__in for multi-select; profile_name for text)
+    if (params?.profile_id__in?.length) {
+      filters.profile_id__in = params.profile_id__in;
+    } else if (params?.profile_name) {
       filters.profile_name = params.profile_name;
     }
     if (params?.profile_name__icontains) {
@@ -2326,8 +2374,10 @@ export const campaignsService = {
     if (params?.adgroup_name__not_icontains) {
       filters.adgroup_name__not_icontains = params.adgroup_name__not_icontains;
     }
-    // Profile name filters
-    if (params?.profile_name) {
+    // Profile filters (profile_id__in for multi-select; profile_name for text)
+    if (params?.profile_id__in?.length) {
+      filters.profile_id__in = params.profile_id__in;
+    } else if (params?.profile_name) {
       filters.profile_name = params.profile_name;
     }
     if (params?.profile_name__icontains) {
@@ -2396,16 +2446,34 @@ export const campaignsService = {
     return response.data;
   },
 
+  getTargetsByIds: async (
+    accountId: number,
+    targetIds: Array<string | number>,
+    channelId: number | string | null
+  ): Promise<{ targets: Target[] }> => {
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/targets/by-ids/`;
+    const response = await api.post<{ targets: Target[] }>(url, {
+      targetIds,
+    });
+    return response.data;
+  },
+
   bulkUpdateTargets: async (
     accountId: number,
     payload: {
-      targetIds: Array<string | number>;
-      action: "status" | "bid";
-      status?: "enable" | "pause"; // ARCHIVED is not supported for targets
+      payload?: Record<string, Partial<Record<"SP" | "SB" | "SD", Array<string | number>>>>;
+      targetIds?: Array<string | number>;
+      action: "status" | "bid" | "archive";
+      status?: "enable" | "pause" | "archive";
       bid?: number;
-    }
+      /** Per-target bids for one request (action=bid). When provided, one request updates all with their respective bids. */
+      bids?: Array<{ targetId: string | number; bid: number }>;
+    },
+    channelId?: number | string | null
   ) => {
-    const url = `/accounts/${accountId}/targets/bulk-update/`;
+    const base = buildAmazonBasePath(accountId, channelId);
+    const url = `${base}/targets/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },
@@ -2487,19 +2555,18 @@ export const campaignsService = {
     return response.data;
   },
 
+  /** Request body: array of creatives. Each item: { adGroupId, properties, creativeType?, consentToTranslate? }. */
   createSdCreatives: async (
     accountId: number,
-    data: {
+    payload: Array<{
       adGroupId: number;
-      creatives: Array<{
-        creativeType: "IMAGE" | "VIDEO";
-        properties: any;
-        consentToTranslate?: boolean;
-      }>;
-    }
+      creativeType?: "IMAGE" | "VIDEO";
+      properties: any;
+      consentToTranslate?: boolean;
+    }>
   ) => {
     const url = `/accounts/${accountId}/sd/creatives/create/`;
-    const response = await api.post(url, data);
+    const response = await api.post(url, payload);
     console.log("[createSdCreatives] Amazon API Response:", response.data);
     return response.data;
   },

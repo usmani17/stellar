@@ -22,6 +22,7 @@ export const EditSummaryModal: React.FC<EditSummaryModalProps> = ({
   if (!isOpen || !result) return null;
 
   const { title, summary, details, variant } = result;
+  const isError = variant === "error";
   const isPartial = variant === "partial";
 
   return (
@@ -30,15 +31,29 @@ export const EditSummaryModal: React.FC<EditSummaryModalProps> = ({
         className="absolute inset-0 bg-black/40 transition-opacity"
         onClick={onClose}
       />
-      <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+      <div className="relative bg-white rounded-xl shadow-2xl max-w-3xl w-full mx-4 border border-[#E8E8E3]">
         <div className="p-6">
           <div className="flex items-center justify-center mb-4">
             <div
               className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                isPartial ? "bg-amber-50" : "bg-green-50"
+                isError ? "bg-red-50" : isPartial ? "bg-amber-50" : "bg-green-50"
               }`}
             >
-              {isPartial ? (
+              {isError ? (
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              ) : isPartial ? (
                 <svg
                   className="w-6 h-6 text-amber-600"
                   fill="none"
@@ -76,8 +91,24 @@ export const EditSummaryModal: React.FC<EditSummaryModalProps> = ({
             {summary}
           </p>
           {details.length > 0 && (
-            <div className="mb-4 border border-[#e8e8e3] rounded-lg bg-[#f9f9f6] overflow-hidden">
-              <table className="w-full text-left">
+            <div className="mb-4 border border-[#e8e8e3] rounded-lg bg-[#f9f9f6] overflow-x-auto">
+              <table className="w-full text-left min-w-[480px]">
+                <thead>
+                  <tr className="border-b border-[#e8e8e3] bg-[#f0f0eb]">
+                    <th className="py-2 px-3 text-[10px] font-semibold text-[#556179] uppercase tracking-wide text-left w-[35%]">
+                      Entity name
+                    </th>
+                    <th className="py-2 px-3 text-[10px] font-semibold text-[#556179] uppercase tracking-wide text-left w-[15%]">
+                      Field
+                    </th>
+                    <th className="py-2 px-3 text-[10px] font-semibold text-[#556179] uppercase tracking-wide text-left w-[25%]">
+                      Old value
+                    </th>
+                    <th className="py-2 px-3 text-[10px] font-semibold text-[#556179] uppercase tracking-wide text-left w-[25%]">
+                      New value
+                    </th>
+                  </tr>
+                </thead>
                 <tbody>
                   {details.map((d, i) => (
                     <tr
@@ -88,11 +119,17 @@ export const EditSummaryModal: React.FC<EditSummaryModalProps> = ({
                           : ""
                       }
                     >
-                      <td className="py-2 px-3 text-[13px] font-medium text-[#0b0f16] w-1/3">
+                      <td className="py-1.5 px-3 text-[11px] font-medium text-[#0b0f16] align-top whitespace-nowrap">
                         {d.label}
                       </td>
-                      <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
-                        {d.value}
+                      <td className="py-1.5 px-3 text-[11px] text-[#0b0f16] align-top whitespace-nowrap">
+                        {d.field ?? "—"}
+                      </td>
+                      <td className="py-1.5 px-3 text-[11px] text-[#0b0f16] align-top whitespace-nowrap">
+                        {d.oldValue ?? "—"}
+                      </td>
+                      <td className="py-1.5 px-3 text-[11px] text-[#0b0f16] align-top whitespace-nowrap">
+                        {d.newValue ?? d.value ?? "—"}
                       </td>
                     </tr>
                   ))}

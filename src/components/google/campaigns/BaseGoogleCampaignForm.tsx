@@ -72,8 +72,8 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
               loadingProfiles
                 ? "Loading accounts..."
                 : !Array.isArray(googleProfiles) || googleProfiles.length === 0
-                ? "No Google Ads accounts available"
-                : "Select Google Ads account"
+                  ? "No Google Ads accounts available"
+                  : "Select Google Ads account"
             }
             buttonClassName="edit-button w-full"
             searchable={Array.isArray(googleProfiles) && googleProfiles.length > 5}
@@ -82,8 +82,8 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
               loadingProfiles
                 ? "Loading..."
                 : profilesError
-                ? profilesError
-                : "No Google Ads accounts found. Please enable Google Ads accounts first."
+                  ? profilesError
+                  : "No Google Ads accounts found. Please enable Google Ads accounts first."
             }
             disabled={mode === "edit" || loadingProfiles || !Array.isArray(googleProfiles) || googleProfiles.length === 0}
           />
@@ -167,9 +167,8 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
             name="name"
             value={formData.name}
             onChange={(e) => onChange("name", e.target.value)}
-            className={`campaign-input w-full ${
-              errors.name ? "border-red-500" : ""
-            }`}
+            className={`campaign-input w-full ${errors.name ? "border-red-500" : ""
+              }`}
             placeholder="Enter campaign name"
           />
           {errors.name && (
@@ -205,9 +204,8 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
                 onChange("budget_amount", 0);
               }
             }}
-            className={`campaign-input w-full ${
-              errors.budget_amount ? "border-red-500" : ""
-            }`}
+            className={`campaign-input w-full ${errors.budget_amount ? "border-red-500" : ""
+              }`}
             placeholder="0.00"
           />
           {errors.budget_amount && (
@@ -230,9 +228,8 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
                 onChange={(e) => {
                   onChange("budget_name", e.target.value);
                 }}
-                className={`campaign-input w-full ${
-                  errors.budget_name ? "border-red-500" : ""
-                }`}
+                className={`campaign-input w-full ${errors.budget_name ? "border-red-500" : ""
+                  }`}
                 placeholder="Enter custom budget name"
               />
               <button
@@ -275,7 +272,7 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
         {/* Start Date */}
         <div>
           <label className="form-label">
-            Start Date
+            Start Date*
           </label>
           {(() => {
             // Check if start date is today or in the past (only in edit mode)
@@ -286,16 +283,15 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
               startDate.setHours(0, 0, 0, 0);
               return startDate <= today;
             })() : false;
-            
+
             return (
               <input
                 type="date"
                 value={formData.start_date || ""}
                 onChange={(e) => onChange("start_date", e.target.value)}
                 disabled={isReadonly}
-                className={`campaign-input w-full ${
-                  isReadonly ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
-                }`}
+                className={`campaign-input w-full ${isReadonly ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
+                  }`}
                 title={isReadonly ? "Start date cannot be changed if it's today or in the past" : ""}
               />
             );
@@ -311,9 +307,8 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
             type="date"
             value={formData.end_date || ""}
             onChange={(e) => onChange("end_date", e.target.value)}
-            className={`campaign-input w-full ${
-              errors.end_date ? "border-red-500" : ""
-            }`}
+            className={`campaign-input w-full ${errors.end_date ? "border-red-500" : ""
+              }`}
           />
         </div>
 

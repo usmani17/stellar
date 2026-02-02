@@ -12,6 +12,8 @@ import { StatusBadge } from "../components/ui/StatusBadge";
 import { Dropdown } from "../components/ui/Dropdown";
 import { Button } from "../components/ui";
 import { type FilterValues } from "../components/filters/FilterPanel";
+import { normalizeStatusDisplay } from "../utils/statusHelpers";
+import { buildGroupedPayload } from "../utils/groupedPayload";
 import {
   FilterSection,
   FilterSectionPanel,
@@ -23,6 +25,7 @@ import {
 } from "../components/charts/PerformanceChart";
 import { ErrorModal } from "../components/ui/ErrorModal";
 import { useEditSummaryModal } from "../hooks/useEditSummaryModal";
+import { formatMoneyForEditSummary } from "../utils/editSummary";
 import { Loader } from "../components/ui/Loader";
 
 export const Targets: React.FC = () => {
@@ -165,6 +168,8 @@ export const Targets: React.FC = () => {
     "enable" | "pause" | "archive" | null
   >(null);
   const [isBidChange, setIsBidChange] = useState(false);
+  const [selectedTargetsFetched, setSelectedTargetsFetched] = useState<Target[] | null>(null);
+  const [selectedTargetsFetching, setSelectedTargetsFetching] = useState(false);
 
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
@@ -254,6 +259,41 @@ export const Targets: React.FC = () => {
     endDate,
     filters,
   ]);
+
+  useEffect(() => {
+    if (
+      !showConfirmationModal ||
+      selectedTargets.size === 0 ||
+      !accountId ||
+      !channelId
+    ) {
+      setSelectedTargetsFetched(null);
+      return;
+    }
+    const ids = Array.from(selectedTargets);
+    let cancelled = false;
+    setSelectedTargetsFetching(true);
+    campaignsService
+      .getTargetsByIds(
+        parseInt(accountId, 10),
+        ids,
+        channelId ? parseInt(channelId, 10) : null
+      )
+      .then((res) => {
+        if (!cancelled && res?.targets) {
+          setSelectedTargetsFetched(res.targets);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedTargetsFetched(null);
+      })
+      .finally(() => {
+        if (!cancelled) setSelectedTargetsFetching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showConfirmationModal, selectedTargets, accountId, channelId]);
 
   const buildFilterParams = (filterList: FilterValues) => {
     const params: any = {};
@@ -695,41 +735,46 @@ export const Targets: React.FC = () => {
     setInlineEditLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
+      if (isNaN(accountIdNum)) throw new Error("Invalid account ID");
+
+      const payload = buildGroupedPayload([
+        {
+          entityId: inlineEditTarget.targetId ?? inlineEditTarget.id,
+          profile_id: inlineEditTarget.profile_id ?? (inlineEditTarget as { profileId?: string }).profileId,
+          type: getTargetCampaignType(inlineEditTarget),
+        },
+      ]);
+      if (Object.keys(payload).length === 0) throw new Error("Missing profile_id or targetId");
 
       if (inlineEditField === "status") {
-        // Map status values
         const statusMap: Record<string, "enable" | "pause" | "archive"> = {
           Enabled: "enable",
           Paused: "pause",
           Archived: "archive",
         };
         const statusValue = statusMap[inlineEditNewValue] || "enable";
-
-        await campaignsService.bulkUpdateTargets(accountIdNum, {
-          targetIds: [inlineEditTarget.targetId || inlineEditTarget.id],
-          action: "status",
-          status: statusValue,
-        });
+        await campaignsService.bulkUpdateTargets(
+          accountIdNum,
+          { payload, action: "status", status: statusValue },
+          channelId ?? null
+        );
       } else if (inlineEditField === "bid") {
-        // Extract numeric value from formatted string
-        const bidValue = parseFloat(inlineEditNewValue.replace(/[^0-9.]/g, ""));
-        if (isNaN(bidValue)) {
-          throw new Error("Invalid bid value");
-        }
-
-        await campaignsService.bulkUpdateTargets(accountIdNum, {
-          targetIds: [inlineEditTarget.targetId || inlineEditTarget.id],
-          action: "bid",
-          bid: bidValue,
-        });
+        const bidVal = parseFloat(inlineEditNewValue.replace(/[^0-9.]/g, ""));
+        if (isNaN(bidVal)) throw new Error("Invalid bid value");
+        await campaignsService.bulkUpdateTargets(
+          accountIdNum,
+          { payload, action: "bid", bid: bidVal },
+          channelId ?? null
+        );
       }
 
       const field = inlineEditField;
       const oldValue = inlineEditOldValue;
       const newValue = inlineEditNewValue;
+      const isStatusField = field === "status";
+      const displayOld = isStatusField ? normalizeStatusDisplay(oldValue) : oldValue;
+      const displayNew = isStatusField ? normalizeStatusDisplay(newValue) : newValue;
+
       setShowInlineEditModal(false);
       setInlineEditTarget(null);
       setInlineEditField(null);
@@ -741,15 +786,19 @@ export const Targets: React.FC = () => {
         action: "updated",
         mode: "inline",
         succeededCount: 1,
+        entityName: inlineEditTarget.name || "Target",
         field,
-        oldValue,
-        newValue,
+        oldValue: displayOld,
+        newValue: displayNew,
       });
 
       await loadTargets(accountIdNum);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating target:", error);
-      alert("Failed to update target. Please try again.");
+      setErrorModal({
+        isOpen: true,
+        message: error?.response?.data?.error ?? error?.message ?? "Failed to update target. Please try again.",
+      });
     } finally {
       setInlineEditLoading(false);
     }
@@ -825,8 +874,8 @@ export const Targets: React.FC = () => {
       style: "currency",
       currency: code,
       currencyDisplay: "code",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(numValue || 0);
   };
 
@@ -842,32 +891,61 @@ export const Targets: React.FC = () => {
 
     try {
       setBulkLoading(true);
-      // Get targetIds from selected targets - use targetId from the target objects
       const selectedTargetsData = getSelectedTargetsData();
-      const targetIds = selectedTargetsData
-        .map((t) => t.targetId || t.id)
-        .filter(Boolean);
+      const payload = buildGroupedPayload(
+        selectedTargetsData.map((t) => ({
+          entityId: t.targetId ?? t.id,
+          profile_id: t.profile_id ?? (t as { profileId?: string }).profileId,
+          type: getTargetCampaignType(t),
+        }))
+      );
+      if (Object.keys(payload).length === 0) {
+        setBulkLoading(false);
+        return;
+      }
 
-      await campaignsService.bulkUpdateTargets(accountIdNum, {
-        targetIds: targetIds,
-        action: "status",
-        status: statusValue,
-      });
-      const count = targetIds.length;
+      const res = await campaignsService.bulkUpdateTargets(
+        accountIdNum,
+        {
+          payload,
+          action: statusValue === "archive" ? "archive" : "status",
+          status: statusValue,
+        },
+        channelId ?? null
+      );
+      const succeededCount = res?.updated ?? 0;
+      const failedCount = res?.failed ?? 0;
+      const targetMap = new Map(
+        selectedTargetsData.map((t) => [String(t.targetId ?? t.id), t])
+      );
+      const succeededItems = parseSucceededItemsFromResponse(res, targetMap).slice(0, 10);
+
       await loadTargets(accountIdNum);
       setSelectedTargets(new Set());
       setShowConfirmationModal(false);
       setPendingStatusAction(null);
+      setSelectedTargetsFetched(null);
       const action = statusValue === "archive" ? "archived" : "updated";
       showEditSummary({
         entityType: "target",
         action,
         mode: "bulk",
-        succeededCount: count,
+        succeededCount,
+        failedCount: failedCount > 0 ? failedCount : undefined,
+        succeededItems,
+        details: (res?.errors as Array<{ targetId?: string; targetName?: string; error?: string }> | undefined)
+          ?.slice(0, 5)
+          .map((e) => ({
+            label: e.targetName ? `${e.targetName} (${e.targetId ?? "—"})` : `Target ${e.targetId ?? "—"}`,
+            value: e.error ?? "Unknown error",
+          })),
       });
     } catch (error: any) {
       console.error("Failed to update targets", error);
-      alert("Failed to update targets. Please try again.");
+      setErrorModal({
+        isOpen: true,
+        message: error?.response?.data?.error ?? error?.message ?? "Failed to update targets. Please try again.",
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -879,73 +957,41 @@ export const Targets: React.FC = () => {
     if (isNaN(accountIdNum)) return;
 
     const valueNum = parseFloat(bidValue);
-    if (isNaN(valueNum)) {
-      return;
-    }
+    if (isNaN(valueNum)) return;
 
     try {
       setBulkLoading(true);
-
-      // Get selected targets with their current bids
       const selectedTargetsData = getSelectedTargetsData();
-      const updates: Array<{ targetId: string | number; newBid: number }> = [];
-
+      const bids: Array<{ targetId: string | number; bid: number }> = [];
       for (const target of selectedTargetsData) {
-        // Extract current bid from formatted string
-        const currentBid = parseFloat(
-          (typeof target.bid === "number" ? String(target.bid) : (target.bid || "$0.00")).replace(/[^0-9.]/g, "")
-        );
-        let newBid = currentBid;
-
-        if (bidAction === "set") {
-          newBid = valueNum;
-        } else if (bidAction === "increase") {
-          if (bidUnit === "percent") {
-            newBid = currentBid * (1 + valueNum / 100.0);
-          } else {
-            newBid = currentBid + valueNum;
-          }
-        } else if (bidAction === "decrease") {
-          if (bidUnit === "percent") {
-            newBid = currentBid * (1 - valueNum / 100.0);
-          } else {
-            newBid = currentBid - valueNum;
-          }
-        }
-
-        // Apply optional limits
-        if (upperLimit) {
-          const upper = parseFloat(upperLimit);
-          if (!isNaN(upper)) {
-            newBid = Math.min(newBid, upper);
-          }
-        }
-        if (lowerLimit) {
-          const lower = parseFloat(lowerLimit);
-          if (!isNaN(lower)) {
-            newBid = Math.max(newBid, lower);
-          }
-        }
-
-        // Prevent negative or zero
-        newBid = Math.max(newBid, 0);
-
-        updates.push({
-          targetId: target.targetId || target.id,
-          newBid: Math.round(newBid * 100) / 100,
-        });
+        const tid = target.targetId || target.id;
+        bids.push({ targetId: tid, bid: computeNewBidForTarget(target) });
       }
 
-      // Update each target individually
-      for (const update of updates) {
-        await campaignsService.bulkUpdateTargets(accountIdNum, {
-          targetIds: [update.targetId],
-          action: "bid",
-          bid: update.newBid,
-        });
+      const payload = buildGroupedPayload(
+        selectedTargetsData.map((t) => ({
+          entityId: t.targetId ?? t.id,
+          profile_id: t.profile_id ?? (t as { profileId?: string }).profileId,
+          type: getTargetCampaignType(t),
+        }))
+      );
+      if (Object.keys(payload).length === 0) {
+        setBulkLoading(false);
+        return;
       }
 
-      const count = updates.length;
+      const res = await campaignsService.bulkUpdateTargets(
+        accountIdNum,
+        { payload, action: "bid", bids },
+        channelId ?? null
+      );
+      const succeededCount = res?.updated ?? 0;
+      const failedCount = res?.failed ?? 0;
+      const targetMap = new Map(
+        selectedTargetsData.map((t) => [String(t.targetId ?? t.id), t])
+      );
+      const succeededItems = parseSucceededItemsFromResponse(res, targetMap).slice(0, 10);
+
       await loadTargets(accountIdNum);
       setSelectedTargets(new Set());
       setShowConfirmationModal(false);
@@ -953,22 +999,132 @@ export const Targets: React.FC = () => {
       setBidValue("");
       setUpperLimit("");
       setLowerLimit("");
+      setSelectedTargetsFetched(null);
       showEditSummary({
         entityType: "target",
         action: "updated",
         mode: "bulk",
-        succeededCount: count,
+        succeededCount,
+        failedCount: failedCount > 0 ? failedCount : undefined,
+        succeededItems,
+        details: (res?.errors as Array<{ targetId?: string; targetName?: string; error?: string }> | undefined)
+          ?.slice(0, 5)
+          .map((e) => ({
+            label: e.targetName ? `${e.targetName} (${e.targetId ?? "—"})` : `Target ${e.targetId ?? "—"}`,
+            value: e.error ?? "Unknown error",
+          })),
       });
     } catch (error: any) {
       console.error("Failed to update targets", error);
-      alert("Failed to update targets. Please try again.");
+      setErrorModal({
+        isOpen: true,
+        message: error?.response?.data?.error ?? error?.message ?? "Failed to update targets. Please try again.",
+      });
     } finally {
       setBulkLoading(false);
     }
   };
 
-  const getSelectedTargetsData = () => {
+  const getTargetCampaignType = (t: Target): "SP" | "SB" | "SD" => {
+    const typ = t.type ?? "SP";
+    return (String(typ).toUpperCase() === "SB" ? "SB" : String(typ).toUpperCase() === "SD" ? "SD" : "SP") as "SP" | "SB" | "SD";
+  };
+
+  const parseSucceededItemsFromResponse = (
+    response: {
+      successes?: Array<{
+        targetId?: string | number;
+        targetName?: string;
+        field?: string;
+        oldValue?: string;
+        newValue?: string;
+      }>;
+    },
+    targetMap?: Map<string, Target>
+  ): Array<{ label: string; field: string; oldValue: string; newValue: string }> => {
+    const successes = response?.successes ?? [];
+    const items: Array<{ label: string; field: string; oldValue: string; newValue: string }> = [];
+    const isStatusField = (f: string) =>
+      (f ?? "").toLowerCase() === "state" || (f ?? "").toLowerCase() === "status";
+
+    const isBidField = (f: string) =>
+      (f ?? "").toLowerCase() === "bid" || (f ?? "").toLowerCase() === "default_bid";
+    for (const s of successes) {
+      const id = String(s.targetId ?? "");
+      const fromBackend = s.field != null && (s.oldValue != null || s.newValue != null);
+      const fieldVal = s.field ?? "—";
+      const oldVal = s.oldValue ?? "—";
+      const newVal = s.newValue ?? "—";
+      const tgt = targetMap?.get(id);
+      const currency = tgt?.profile_currency_code;
+      let normOld = isStatusField(fieldVal) ? normalizeStatusDisplay(oldVal) : oldVal;
+      let normNew = isStatusField(fieldVal) ? normalizeStatusDisplay(newVal) : newVal;
+      if (isBidField(fieldVal)) {
+        normOld = formatMoneyForEditSummary(oldVal, currency) || normOld;
+        normNew = formatMoneyForEditSummary(newVal, currency) || normNew;
+      }
+      if (fromBackend) {
+        items.push({
+          label: s.targetName ?? `Target ${id}`,
+          field: fieldVal,
+          oldValue: normOld,
+          newValue: normNew,
+        });
+      } else if (targetMap) {
+        const name = tgt?.name ?? `Target ${id}`;
+        items.push({
+          label: name,
+          field: fieldVal,
+          oldValue: normOld,
+          newValue: normNew,
+        });
+      }
+    }
+    return items;
+  };
+
+  const getSelectedTargetsData = (): Target[] => {
+    if (selectedTargetsFetched && selectedTargetsFetched.length > 0) {
+      return selectedTargetsFetched;
+    }
     return targets.filter((t) => selectedTargets.has(t.targetId || t.id));
+  };
+
+  /** Parse current bid from target (handles string "USD 1", number, etc.). */
+  const parseTargetBid = (target: Target): number => {
+    const raw = typeof target.bid === "number" ? String(target.bid) : (target.bid || "0");
+    return parseFloat(String(raw).replace(/[^0-9.]/g, "")) || 0;
+  };
+
+  /** Compute new bid for a target using Action, Unit, Value, and optional Upper/Lower limits. */
+  const computeNewBidForTarget = (target: Target): number => {
+    const currentBid = parseTargetBid(target);
+    const valueNum = parseFloat(bidValue);
+    if (isNaN(valueNum)) return currentBid;
+
+    let newBid = currentBid;
+    if (bidAction === "set") {
+      newBid = valueNum;
+    } else if (bidAction === "increase") {
+      newBid = bidUnit === "percent"
+        ? currentBid * (1 + valueNum / 100)
+        : currentBid + valueNum;
+    } else if (bidAction === "decrease") {
+      newBid = bidUnit === "percent"
+        ? currentBid * (1 - valueNum / 100)
+        : currentBid - valueNum;
+    }
+
+    if (upperLimit) {
+      const upper = parseFloat(upperLimit);
+      if (!isNaN(upper)) newBid = Math.min(newBid, upper);
+    }
+    if (lowerLimit) {
+      const lower = parseFloat(lowerLimit);
+      if (!isNaN(lower)) newBid = Math.max(newBid, lower);
+    }
+    newBid = Math.max(newBid, 0);
+    return Math.round(newBid * 100) / 100;
   };
 
   // Generate chart data based on targets and date range
@@ -993,16 +1149,24 @@ export const Targets: React.FC = () => {
     return [];
   }, [chartDataFromApi]);
 
+  const selectableTargets = targets.filter(
+    (t) => (t.status ?? "").toLowerCase() !== "archived"
+  );
   const allSelected =
-    targets.length > 0 &&
-    targets.every((t) => selectedTargets.has(t.targetId || t.id));
+    selectableTargets.length > 0 &&
+    selectableTargets.every((t) =>
+      selectedTargets.has(t.targetId || t.id)
+    );
   const someSelected =
-    targets.some((t) => selectedTargets.has(t.targetId || t.id)) &&
-    !allSelected;
+    selectableTargets.some((t) =>
+      selectedTargets.has(t.targetId || t.id)
+    ) && !allSelected;
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const allIds = new Set(targets.map((t) => t.targetId || t.id));
+      const allIds = new Set(
+        selectableTargets.map((t) => t.targetId || t.id)
+      );
       setSelectedTargets(allIds);
     } else {
       setSelectedTargets(new Set());
@@ -1420,7 +1584,7 @@ export const Targets: React.FC = () => {
             {/* Confirmation Modal */}
             {showConfirmationModal && (
               <div
-                className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+                className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
                 onClick={(e) => {
                   if (e.target === e.currentTarget) {
                     setShowConfirmationModal(false);
@@ -1428,9 +1592,16 @@ export const Targets: React.FC = () => {
                 }}
               >
                 <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
-                  {bulkLoading && (
+                  {(bulkLoading || selectedTargetsFetching) && (
                     <div className="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10 rounded-xl backdrop-blur-sm">
-                      <Loader size="md" message="Updating targets..." />
+                      <Loader
+                        size="md"
+                        message={
+                          selectedTargetsFetching
+                            ? "Loading selected targets..."
+                            : "Updating targets..."
+                        }
+                      />
                     </div>
                   )}
                   <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
@@ -1481,6 +1652,15 @@ export const Targets: React.FC = () => {
                                 <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
                                   Current {isBidChange ? "Bid" : "Status"}
                                 </th>
+                                {isBidChange ? (
+                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                    New Bid
+                                  </th>
+                                ) : (
+                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                    New Status
+                                  </th>
+                                )}
                               </tr>
                             </thead>
                             <tbody>
@@ -1496,11 +1676,20 @@ export const Targets: React.FC = () => {
                                     </td>
                                     <td className="px-4 py-2 text-[10.64px] text-[#072929]">
                                       {isBidChange
-                                        ? typeof target.bid === "number"
-                                          ? formatCurrency(target.bid, target.profile_currency_code)
-                                          : (target.bid || "$0.00")
-                                        : target.status || "Enabled"}
+                                        ? formatCurrency(parseTargetBid(target), target.profile_currency_code)
+                                        : (target.status || "Enabled")}
                                     </td>
+                                    {isBidChange ? (
+                                      <td className="px-4 py-2 text-[10.64px] text-[#072929] font-medium">
+                                        {formatCurrency(computeNewBidForTarget(target), target.profile_currency_code)}
+                                      </td>
+                                    ) : (
+                                      <td className="px-4 py-2 text-[10.64px] text-[#072929] font-medium">
+                                        {pendingStatusAction
+                                          ? normalizeStatusDisplay(pendingStatusAction)
+                                          : "—"}
+                                      </td>
+                                    )}
                                   </tr>
                                 ))}
                             </tbody>
@@ -1517,8 +1706,9 @@ export const Targets: React.FC = () => {
                         setShowConfirmationModal(false);
                         setPendingStatusAction(null);
                         setIsBidChange(false);
+                        setSelectedTargetsFetched(null);
                       }}
-                      disabled={bulkLoading}
+                      disabled={bulkLoading || selectedTargetsFetching}
                       className="cancel-button"
                     >
                       Cancel
@@ -1531,10 +1721,14 @@ export const Targets: React.FC = () => {
                           runBulkStatus(pendingStatusAction);
                         }
                       }}
-                      disabled={bulkLoading}
+                      disabled={bulkLoading || selectedTargetsFetching}
                       className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0e5a5a] disabled:opacity-50"
                     >
-                      {bulkLoading ? "Updating..." : "Confirm"}
+                      {selectedTargetsFetching
+                        ? "Loading..."
+                        : bulkLoading
+                          ? "Updating..."
+                          : "Confirm"}
                     </button>
                   </div>
                 </div>
@@ -1551,7 +1745,7 @@ export const Targets: React.FC = () => {
                     </p>
                   </div>
                 ) : (
-                  <table className="min-w-[1200px] w-full">
+                  <table className="min-w-[1430px] w-full">
                     <thead>
                       <tr className="border-b border-[#e8e8e3]">
                         {/* Checkbox Header */}
@@ -1568,7 +1762,7 @@ export const Targets: React.FC = () => {
 
                         {/* Target Name */}
                         <th
-                          className={`table-header min-w-[150px] max-w-[200px]`}
+                          className="table-header min-w-[310px] max-w-[430px]"
                           onClick={() => handleSort("name")}
                         >
                           <div className="flex items-center gap-1">
@@ -1590,7 +1784,7 @@ export const Targets: React.FC = () => {
 
                         {/* Bid */}
                         <th
-                          className={`table-header min-w-[100px]`}
+                          className="table-header min-w-[130px]"
                           onClick={() => handleSort("bid")}
                         >
                           <div className="flex items-center gap-1">
@@ -1626,7 +1820,7 @@ export const Targets: React.FC = () => {
 
                         {/* Type */}
                         <th
-                          className="table-header"
+                          className="table-header min-w-[70px]"
                           onClick={() => handleSort("type")}
                         >
                           <div className="flex items-center gap-1">
@@ -1718,7 +1912,7 @@ export const Targets: React.FC = () => {
                       {loading && targets.length === 0 ? (
                         Array.from({ length: 5 }).map((_, index) => (
                           <tr key={`skeleton-${index}`} className="table-row">
-                            <td className="table-cell" colSpan={15}>
+                            <td className="table-cell" colSpan={17}>
                               <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                             </td>
                           </tr>
@@ -1739,7 +1933,7 @@ export const Targets: React.FC = () => {
                               <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="profile">—</td>
                               <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="country">—</td>
                               <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="currency">—</td>
-                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0]" data-summary-col="type">—</td>
+                              <td className="table-cell table-text leading-[1.26] bg-[#f5f5f0] min-w-[70px]" data-summary-col="type">—</td>
                               <td className="table-cell table-text leading-[1.26] text-left bg-[#f5f5f0]" data-summary-col="spends">
                                 {formatCurrency(
                                   summary.total_spends,
@@ -1780,14 +1974,16 @@ export const Targets: React.FC = () => {
                                     : "hover:bg-gray-100"
                                   } transition-colors`}
                               >
-                                {/* Checkbox */}
+                                {/* Checkbox - archived targets cannot be selected */}
                                 <td className="table-cell">
                                   <div className="flex items-center justify-center">
                                     <Checkbox
                                       checked={selectedTargets.has(
                                         target.targetId || target.id
                                       )}
+                                      disabled={isArchived}
                                       onChange={(checked) => {
+                                        if (isArchived) return;
                                         const targetId =
                                           target.targetId || target.id;
                                         if (checked) {
@@ -1810,8 +2006,11 @@ export const Targets: React.FC = () => {
                                 </td>
 
                                 {/* Target Name */}
-                                <td className="table-cell min-w-[150px] max-w-[200px]">
-                                  <span className="table-text leading-[1.26] text-left truncate block w-full">
+                                <td className="table-cell min-w-[310px] max-w-[430px]">
+                                  <span
+                                    className="table-text leading-[1.26] text-left truncate block w-full"
+                                    title={target.name || "Unnamed Target"}
+                                  >
                                     {target.name || "Unnamed Target"}
                                   </span>
                                 </td>
@@ -1887,7 +2086,7 @@ export const Targets: React.FC = () => {
                                 </td>
 
                                 {/* Bid */}
-                                <td className="table-cell">
+                                <td className="table-cell min-w-[130px]">
                                   {(() => {
                                     const currentStatus = (
                                       target.status || "Enabled"
@@ -1912,6 +2111,8 @@ export const Targets: React.FC = () => {
                                         <input
                                           type="number"
                                           value={inputValue}
+                                          min={0}
+                                          step={0.01}
                                           onFocus={() => {
                                             if (!isArchived &&
                                               (editingCell?.targetId !== (target.targetId || target.id) ||
@@ -1940,7 +2141,7 @@ export const Targets: React.FC = () => {
                                             }
                                           }}
                                           disabled={isArchived}
-                                          className={`inline-edit-input ${isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                          className={`inline-edit-input min-w-[5.5rem] w-28 ${isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
                                             }`}
                                           title={
                                             isArchived
@@ -2014,8 +2215,8 @@ export const Targets: React.FC = () => {
                                 </td>
 
                                 {/* Type */}
-                                <td className="table-cell">
-                                  <span className="table-text leading-[1.26]">
+                                <td className="table-cell min-w-[70px]">
+                                  <span className="table-text leading-[1.26] whitespace-nowrap">
                                     {target.type || "SP"}
                                   </span>
                                 </td>
@@ -2168,10 +2369,10 @@ export const Targets: React.FC = () => {
         </div>
       </div>
 
-      {/* Inline Edit Confirmation Modal */}
+      {/* Inline Edit Confirmation Modal - z-[200] above table sticky summary (z-[120]) */}
       {showInlineEditModal && inlineEditTarget && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000]"
           onClick={() => {
             if (!inlineEditLoading) {
               setShowInlineEditModal(false);

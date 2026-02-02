@@ -3,6 +3,7 @@ import {
   campaignsService,
   type CampaignsQueryParams,
 } from "../../services/campaigns";
+import { buildGroupedCampaignPayload } from "../../utils/campaignBulkPayload";
 import { queryKeys } from "../queries/queryKeys";
 
 /**
@@ -18,15 +19,14 @@ export const useBulkUpdateCampaigns = (
 
   return useMutation({
     mutationFn: async (payload: {
-      campaignIds: Array<string | number>;
-      action: "status" | "budget" | "budgetType" | "endDate" | "portfolioId" | "targetingType" | "name" | "tags" | "siteRestrictions" | "dynamicBidding";
-      status?: "enable" | "pause";
+      payload: Record<string, Partial<Record<"SP" | "SB" | "SD", Array<string | number>>>>;
+      action: "status" | "budget";
+      status?: "enable" | "pause" | "archive";
       budgetAction?: "increase" | "decrease" | "set";
       unit?: "percent" | "amount";
       value?: number;
       upperLimit?: number;
       lowerLimit?: number;
-      budgetType?: "DAILY" | "LIFETIME";
       endDate?: string | null;
       portfolioId?: string | number | null;
       targetingType?: "AUTO" | "MANUAL";
@@ -134,6 +134,7 @@ export const useUpdateCampaign = (
   return useMutation({
     mutationFn: async (payload: {
       campaignId: string | number;
+      campaignType?: "SP" | "SB" | "SD";
       data: {
         name?: string;
         budget?: number;
@@ -144,6 +145,19 @@ export const useUpdateCampaign = (
         targetingType?: "AUTO" | "MANUAL";
       };
     }) => {
+      const campType = (payload.campaignType || "SP").toUpperCase() as "SP" | "SB" | "SD";
+      const profileIdStr = profileId ? String(profileId) : undefined;
+      const bulkPayload = buildGroupedCampaignPayload([
+        {
+          campaignId: payload.campaignId,
+          profile_id: profileIdStr,
+          type: campType,
+        },
+      ]);
+      if (Object.keys(bulkPayload).length === 0) {
+        throw new Error("Profile ID required for campaign update");
+      }
+
       const updates: Promise<any>[] = [];
 
       if (payload.data.budget !== undefined) {
@@ -151,7 +165,7 @@ export const useUpdateCampaign = (
           campaignsService.bulkUpdateCampaigns(
             accountId,
             {
-              campaignIds: [payload.campaignId],
+              payload: bulkPayload,
               action: "budget",
               budgetAction: "set",
               unit: "amount",
@@ -163,60 +177,19 @@ export const useUpdateCampaign = (
         );
       }
 
-      if (payload.data.budgetType) {
-        updates.push(
-          campaignsService.bulkUpdateCampaigns(
-            accountId,
-            {
-              campaignIds: [payload.campaignId],
-              action: "budgetType",
-              budgetType: payload.data.budgetType,
-            },
-            channelId,
-            profileId
-          )
-        );
-      }
+      // budgetType, endDate, portfolioId, targetingType - backend bulk only supports status/budget; use updateCampaign
+      const singleUpdateFields: Record<string, any> = {};
+      if (payload.data.budgetType) singleUpdateFields.budgetType = payload.data.budgetType;
+      if (payload.data.endDate !== undefined) singleUpdateFields.endDate = payload.data.endDate;
+      if (payload.data.portfolioId !== undefined) singleUpdateFields.portfolioId = payload.data.portfolioId;
+      if (payload.data.targetingType) singleUpdateFields.targetingType = payload.data.targetingType;
 
-      if (payload.data.endDate !== undefined) {
+      if (Object.keys(singleUpdateFields).length > 0) {
         updates.push(
-          campaignsService.bulkUpdateCampaigns(
+          campaignsService.updateCampaign(
             accountId,
-            {
-              campaignIds: [payload.campaignId],
-              action: "endDate",
-              endDate: payload.data.endDate,
-            },
-            channelId,
-            profileId
-          )
-        );
-      }
-
-      if (payload.data.portfolioId !== undefined) {
-        updates.push(
-          campaignsService.bulkUpdateCampaigns(
-            accountId,
-            {
-              campaignIds: [payload.campaignId],
-              action: "portfolioId",
-              portfolioId: payload.data.portfolioId,
-            },
-            channelId,
-            profileId
-          )
-        );
-      }
-
-      if (payload.data.targetingType) {
-        updates.push(
-          campaignsService.bulkUpdateCampaigns(
-            accountId,
-            {
-              campaignIds: [payload.campaignId],
-              action: "targetingType",
-              targetingType: payload.data.targetingType,
-            },
+            payload.campaignId,
+            singleUpdateFields,
             channelId,
             profileId
           )

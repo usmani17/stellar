@@ -9,11 +9,10 @@ import { queryKeys } from "../queries/queryKeys";
 export const useCreateAccount = () => {
   const queryClient = useQueryClient();
   
-  return useMutation<Account, Error, CreateAccountData>({
+  return useMutation<Account[], Error, CreateAccountData>({
     mutationFn: accountsService.createAccount,
-    onSuccess: () => {
-      // Invalidate accounts list to refetch updated data
-      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.lists() });
+    onSuccess: (accounts) => {
+      queryClient.setQueryData<Account[]>(queryKeys.accounts.lists(), accounts);
     },
   });
 };
@@ -48,9 +47,11 @@ export const useDeleteAccount = () => {
   
   return useMutation<void, Error, number>({
     mutationFn: accountsService.deleteAccount,
-    onSuccess: () => {
-      // Invalidate accounts list to refetch updated data
-      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.lists() });
+    onSuccess: (_, deletedId) => {
+      queryClient.setQueryData<Account[]>(queryKeys.accounts.lists(), (old) => {
+        if (!old) return [];
+        return old.filter((a) => a.id !== deletedId);
+      });
     },
   });
 };

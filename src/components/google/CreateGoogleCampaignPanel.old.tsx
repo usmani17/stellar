@@ -161,21 +161,21 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   const [merchantAccountOptions, setMerchantAccountOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingMerchantAccounts, setLoadingMerchantAccounts] = useState(false);
   const [merchantAccountsError, setMerchantAccountsError] = useState<string | null>(null);
-  
+
   // Location targeting state
   const [locationOptions, setLocationOptions] = useState<Array<{ value: string; label: string; id: string; type: string; countryCode: string }>>([]);
   const [loadingLocations, setLoadingLocations] = useState(false);
-  
+
   // Language targeting state
   const [languageOptions, setLanguageOptions] = useState<Array<{ value: string; label: string; id: string }>>([]);
   const [loadingLanguages, setLoadingLanguages] = useState(false);
-  
+
   // Profile selection state
   const [googleProfiles, setGoogleProfiles] = useState<Array<{ value: string; label: string; customer_id: string; customer_id_raw: string }>>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string>("");
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const [profilesError, setProfilesError] = useState<string | null>(null);
-  
+
   // Budget selection state
   const [budgetOptions, setBudgetOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingBudgets, setLoadingBudgets] = useState(false);
@@ -236,7 +236,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         // Get channels for the account
         const channels = await accountsService.getAccountChannels(accountIdNum);
         const googleChannel = channels.find(ch => ch.channel_type === "google");
-        
+
         if (!googleChannel) {
           setProfilesError("No Google channel found for this account");
           setLoadingProfiles(false);
@@ -246,12 +246,12 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         // Get profiles for the Google channel - backend filters to only selected profiles
         const profilesData = await accountsService.getGoogleProfiles(googleChannel.id, true);
         const allProfiles = profilesData.profiles || [];
-        
+
         const profiles = allProfiles.map((profile: any) => {
           const customerIdRaw = profile.customer_id_raw || profile.customer_id?.replace(/-/g, '') || '';
           const customerIdFormatted = profile.customer_id || customerIdRaw;
           const profileName = profile.name || customerIdFormatted;
-          
+
           return {
             value: customerIdRaw,
             label: `${profileName} (${customerIdFormatted})${profile.is_manager ? ' - Manager' : ''}`,
@@ -273,7 +273,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             customer_id: profileToSelect.customer_id,
           }));
         }
-        
+
         // If only one profile, ensure it's selected
         if (profiles.length === 1 && selectedProfileId !== profiles[0].value) {
           const profileToSelect = profiles[0];
@@ -307,13 +307,13 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     try {
       const accountIdNum = parseInt(accountId, 10);
       const budgets = await googleAdwordsCampaignsService.getGoogleBudgets(accountIdNum);
-      
+
       // Format budgets for dropdown
       const options = budgets.map((budget) => ({
         value: budget.name,
         label: `${budget.name} ($${budget.amount_dollars?.toFixed(2) || '0.00'})`,
       }));
-      
+
       // Add "Custom" option at the beginning
       setBudgetOptions([
         { value: "__CUSTOM__", label: "Custom..." },
@@ -355,7 +355,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       // Use selected profile's customer_id to fetch merchant accounts
       const accounts = await campaignsService.getGoogleMerchantAccounts(accountIdNum, selectedProfileId);
       setMerchantAccountOptions(accounts);
-      
+
       if (accounts.length === 0) {
         setMerchantAccountsError("No Merchant Center accounts found. Please link a Merchant Center account to your Google Ads account.");
       } else {
@@ -448,7 +448,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         countryCode,
         selectedProfileId
       );
-      
+
       const formattedLocations = locations.map((loc) => ({
         value: loc.id,
         label: `${loc.name} (${loc.type})`,
@@ -456,7 +456,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         type: loc.type,
         countryCode: loc.countryCode || "",
       }));
-      
+
       setLocationOptions(formattedLocations);
     } catch (error: any) {
       console.error("Error fetching location targets:", error);
@@ -503,13 +503,13 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         accountIdNum,
         selectedProfileId
       );
-      
+
       const formattedLanguages = languages.map((lang) => ({
         value: lang.id,
         label: lang.name,
         id: lang.id,
       }));
-      
+
       setLanguageOptions(formattedLanguages);
     } catch (error: any) {
       console.error("Error fetching language constants:", error);
@@ -700,7 +700,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   ) => {
     setFormData((prev) => {
       const updated = { ...prev, [field]: value };
-      
+
       // When campaign type changes, update default bidding strategy
       if (field === "campaign_type") {
         // Prevent switching to VIDEO (read-only)
@@ -710,7 +710,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           });
           return prev; // Don't update if trying to select VIDEO
         }
-        
+
         const defaultStrategy = getDefaultBiddingStrategy(value);
         // Only set default if bidding_strategy_type is not already set or if current value is not valid for new type
         const availableStrategies = getAvailableBiddingStrategies(value);
@@ -720,7 +720,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         if (!prev.bidding_strategy_type || !currentStrategyValid) {
           updated.bidding_strategy_type = defaultStrategy;
         }
-        
+
         // Initialize headlines/descriptions for Performance Max and Demand Gen
         if (value === "PERFORMANCE_MAX" || value === "DEMAND_GEN") {
           if (!updated.headlines || updated.headlines.length < 3) {
@@ -730,7 +730,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             updated.descriptions = Array(2).fill("");
           }
         }
-        
+
         // Initialize channel controls for Demand Gen
         if (value === "DEMAND_GEN" && !updated.channel_controls) {
           updated.channel_controls = {
@@ -742,7 +742,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             youtube_shorts: true,
           };
         }
-        
+
         // Initialize network settings for Display
         if (value === "DISPLAY" && !updated.network_settings) {
           updated.network_settings = {
@@ -752,7 +752,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             target_partner_search_network: false,
           };
         }
-        
+
         // Initialize network settings for Search (Google Search and Search Network enabled by default)
         if (value === "SEARCH" && !updated.network_settings) {
           updated.network_settings = {
@@ -763,7 +763,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           };
         }
       }
-      
+
       // When bidding strategy changes, clear strategy-specific fields if not needed
       // and set defaults for strategies that need them
       if (field === "bidding_strategy_type") {
@@ -784,13 +784,13 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           updated.target_impression_share_cpc_bid_ceiling_micros = undefined;
         }
       }
-      
+
       return updated;
     });
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
-    
+
     // Update logo preview when logo_url changes (for Performance Max and Demand Gen)
     if (field === "logo_url" && (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN")) {
       const urlValue = typeof value === "string" ? value.trim() : "";
@@ -801,7 +801,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         setLogoPreview(null);
       }
     }
-    
+
     // Update marketing image preview when marketing_image_url changes
     if (field === "marketing_image_url") {
       const urlValue = typeof value === "string" ? value.trim() : "";
@@ -812,7 +812,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         setMarketingImagePreview(null);
       }
     }
-    
+
     // Update square marketing image preview when square_marketing_image_url changes
     if (field === "square_marketing_image_url") {
       const urlValue = typeof value === "string" ? value.trim() : "";
@@ -1079,13 +1079,13 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       url_custom_parameters:
         formData.url_custom_parameters && formData.url_custom_parameters.length > 0
           ? formData.url_custom_parameters.filter(
-              (param) =>
-                param &&
-                typeof param.key === "string" &&
-                typeof param.value === "string" &&
-                param.key.trim() &&
-                param.value.trim()
-            )
+            (param) =>
+              param &&
+              typeof param.key === "string" &&
+              typeof param.value === "string" &&
+              param.key.trim() &&
+              param.value.trim()
+          )
           : undefined,
       // Remove fields for non-SEARCH campaigns
       adgroup_name: formData.campaign_type === "DISPLAY" ? formData.adgroup_name : formData.campaign_type === "SEARCH" ? formData.adgroup_name : undefined,
@@ -1138,7 +1138,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     startDate.setDate(today.getDate() + 14); // 14 days from now
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 1); // 1 day after start date
-    
+
     setFormData({
       campaign_type: "PERFORMANCE_MAX",
       name: `PMAX Campaign Stellar FE - ${dateStr} - 1`,
@@ -1180,7 +1180,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     startDate.setDate(today.getDate() + 14); // 14 days from now
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 1); // 1 day after start date
-    
+
     setFormData({
       campaign_type: "SHOPPING",
       name: `Shopping Campaign Stellar FE - ${dateStr} - 1`,
@@ -1210,7 +1210,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     startDate.setDate(today.getDate() + 14); // 14 days from now
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 1); // 1 day after start date
-    
+
     setFormData({
       campaign_type: "SEARCH",
       name: `Search Campaign Stellar FE - ${dateStr} - 1`,
@@ -1240,23 +1240,22 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   return (
     <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]">
       <form onSubmit={handleSubmit}>
-      <div className="p-4 border-b border-gray-200">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-[16px] font-semibold text-[#072929]">
-          {mode === "edit" ? "Edit Google Campaign" : "Create Google Campaign"}
-        </h2>
-      </div>
-      
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[16px] font-semibold text-[#072929]">
+              {mode === "edit" ? "Edit Google Campaign" : "Create Google Campaign"}
+            </h2>
+          </div>
+
           {/* Refresh Message */}
           {refreshMessage && mode === "edit" && (
             <div
-              className={`mb-4 p-3 rounded-lg border cursor-pointer transition-all ${
-                refreshMessage.type === "loading"
+              className={`mb-4 p-3 rounded-lg border cursor-pointer transition-all ${refreshMessage.type === "loading"
                   ? "bg-blue-50 border-blue-200 text-blue-800"
                   : refreshMessage.type === "success"
-                  ? "bg-green-50 border-green-200 text-green-800"
-                  : "bg-yellow-50 border-yellow-200 text-yellow-800"
-              }`}
+                    ? "bg-green-50 border-green-200 text-green-800"
+                    : "bg-yellow-50 border-yellow-200 text-yellow-800"
+                }`}
               onClick={() => setShowRefreshDetails(!showRefreshDetails)}
             >
               <div className="flex items-center justify-between">
@@ -1315,9 +1314,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 </div>
                 {refreshMessage.details && (
                   <svg
-                    className={`h-4 w-4 transition-transform ${
-                      showRefreshDetails ? "rotate-180" : ""
-                    }`}
+                    className={`h-4 w-4 transition-transform ${showRefreshDetails ? "rotate-180" : ""
+                      }`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -1359,8 +1357,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     loadingProfiles
                       ? "Loading accounts..."
                       : googleProfiles.length === 0
-                      ? "No Google Ads accounts available"
-                      : "Select Google Ads account"
+                        ? "No Google Ads accounts available"
+                        : "Select Google Ads account"
                   }
                   buttonClassName="w-full"
                   searchable={googleProfiles.length > 5}
@@ -1369,8 +1367,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     loadingProfiles
                       ? "Loading..."
                       : profilesError
-                      ? profilesError
-                      : "No Google Ads accounts found. Please enable Google Ads accounts first."
+                        ? profilesError
+                        : "No Google Ads accounts found. Please enable Google Ads accounts first."
                   }
                   disabled={loadingProfiles}
                 />
@@ -1403,32 +1401,32 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 />
                 {/* Quick Fill Buttons for Testing */}
                 {mode !== "edit" && (
-                <div className="flex gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={quickFillPerformanceMax}
-                    className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[10px] hover:bg-blue-200 transition-colors"
-                    title="Quick fill Performance Max campaign with test data"
-                  >
-                    Quick Fill PMax
-                  </button>
-                  <button
-                    type="button"
-                    onClick={quickFillShopping}
-                    className="px-2 py-1 bg-green-100 text-green-700 rounded text-[10px] hover:bg-green-200 transition-colors"
-                    title="Quick fill Shopping campaign with test data"
-                  >
-                    Quick Fill Shopping
-                  </button>
-                  <button
-                    type="button"
-                    onClick={quickFillSearch}
-                    className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-[10px] hover:bg-purple-200 transition-colors"
-                    title="Quick fill Search campaign with test data"
-                  >
-                    Quick Fill Search
-                  </button>
-                  {/* <button
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={quickFillPerformanceMax}
+                      className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[10px] hover:bg-blue-200 transition-colors"
+                      title="Quick fill Performance Max campaign with test data"
+                    >
+                      Quick Fill PMax
+                    </button>
+                    <button
+                      type="button"
+                      onClick={quickFillShopping}
+                      className="px-2 py-1 bg-green-100 text-green-700 rounded text-[10px] hover:bg-green-200 transition-colors"
+                      title="Quick fill Shopping campaign with test data"
+                    >
+                      Quick Fill Shopping
+                    </button>
+                    <button
+                      type="button"
+                      onClick={quickFillSearch}
+                      className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-[10px] hover:bg-purple-200 transition-colors"
+                      title="Quick fill Search campaign with test data"
+                    >
+                      Quick Fill Search
+                    </button>
+                    {/* <button
                     type="button"
                     onClick={quickFillDemandGen}
                     className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-[10px] hover:bg-orange-200 transition-colors"
@@ -1436,7 +1434,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   >
                     Quick Fill Demand Gen
                   </button> */}
-                  {/* <button
+                    {/* <button
                     type="button"
                     onClick={quickFillDisplay}
                     className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-[10px] hover:bg-indigo-200 transition-colors"
@@ -1444,7 +1442,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   >
                     Quick Fill Display
                   </button> */}
-                </div>
+                  </div>
                 )}
               </div>
               {errors.campaign_type && (
@@ -1463,9 +1461,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleChange("name", e.target.value)}
-                className={`campaign-input w-full ${
-                  errors.name ? "border-red-500" : ""
-                }`}
+                className={`campaign-input w-full ${errors.name ? "border-red-500" : ""
+                  }`}
                 placeholder="Enter campaign name"
               />
               {errors.name && (
@@ -1486,9 +1483,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 onChange={(e) =>
                   handleChange("budget_amount", parseFloat(e.target.value) || 0)
                 }
-                className={`campaign-input w-full ${
-                  errors.budget_amount ? "border-red-500" : ""
-                }`}
+                className={`campaign-input w-full ${errors.budget_amount ? "border-red-500" : ""
+                  }`}
                 placeholder="0.00"
               />
               {errors.budget_amount && (
@@ -1511,9 +1507,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     onChange={(e) => {
                       handleChange("budget_name", e.target.value);
                     }}
-                    className={`campaign-input w-full ${
-                      errors.budget_name ? "border-red-500" : ""
-                    }`}
+                    className={`campaign-input w-full ${errors.budget_name ? "border-red-500" : ""
+                      }`}
                     placeholder="Enter custom budget name"
                   />
                   <button
@@ -1556,7 +1551,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             {/* Start Date */}
             <div>
               <label className="form-label">
-                Start Date
+                Start Date*
               </label>
               {(() => {
                 // Check if start date is today or in the past (only in edit mode)
@@ -1567,16 +1562,15 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   startDate.setHours(0, 0, 0, 0);
                   return startDate <= today;
                 })() : false;
-                
+
                 return (
                   <input
                     type="date"
                     value={formData.start_date || ""}
                     onChange={(e) => handleChange("start_date", e.target.value)}
                     disabled={isReadonly}
-                    className={`campaign-input w-full ${
-                      isReadonly ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
-                    }`}
+                    className={`campaign-input w-full ${isReadonly ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
+                      }`}
                     title={isReadonly ? "Start date cannot be changed if it's today or in the past" : ""}
                   />
                 );
@@ -1592,9 +1586,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 type="date"
                 value={formData.end_date || ""}
                 onChange={(e) => handleChange("end_date", e.target.value)}
-                className={`campaign-input w-full ${
-                  errors.end_date ? "border-red-500" : ""
-                }`}
+                className={`campaign-input w-full ${errors.end_date ? "border-red-500" : ""
+                  }`}
               />
             </div>
 
@@ -1639,9 +1632,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     const value = parseFloat(e.target.value) || 0;
                     handleChange("target_cpa_micros", Math.round(value * 1000000));
                   }}
-                  className={`campaign-input w-full ${
-                    errors.target_cpa_micros ? "border-red-500" : "border-gray-200"
-                  }`}
+                  className={`campaign-input w-full ${errors.target_cpa_micros ? "border-red-500" : "border-gray-200"
+                    }`}
                   placeholder="1.00"
                 />
                 {errors.target_cpa_micros && (
@@ -1670,9 +1662,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     const value = parseFloat(e.target.value) || 0;
                     handleChange("target_roas", value);
                   }}
-                  className={`campaign-input w-full ${
-                    errors.target_roas ? "border-red-500" : "border-gray-200"
-                  }`}
+                  className={`campaign-input w-full ${errors.target_roas ? "border-red-500" : "border-gray-200"
+                    }`}
                   placeholder="3.0"
                 />
                 {errors.target_roas && (
@@ -1724,9 +1715,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       const value = parseFloat(e.target.value) || 0;
                       handleChange("target_impression_share_location_fraction_micros", Math.round(value * 10000));
                     }}
-                    className={`campaign-input w-full ${
-                      errors.target_impression_share_location_fraction_micros ? "border-red-500" : "border-gray-200"
-                    }`}
+                    className={`campaign-input w-full ${errors.target_impression_share_location_fraction_micros ? "border-red-500" : "border-gray-200"
+                      }`}
                     placeholder="2.0"
                   />
                   {errors.target_impression_share_location_fraction_micros && (
@@ -1752,9 +1742,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       const value = parseFloat(e.target.value) || 0;
                       handleChange("target_impression_share_cpc_bid_ceiling_micros", Math.round(value * 1000000));
                     }}
-                    className={`campaign-input w-full ${
-                      errors.target_impression_share_cpc_bid_ceiling_micros ? "border-red-500" : "border-gray-200"
-                    }`}
+                    className={`campaign-input w-full ${errors.target_impression_share_cpc_bid_ceiling_micros ? "border-red-500" : "border-gray-200"
+                      }`}
                     placeholder="3.00"
                   />
                   {errors.target_impression_share_cpc_bid_ceiling_micros && (
@@ -1777,52 +1766,50 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
               {/* Final URL */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                <label className="form-label">
-                  Final URL *
-                </label>
-                <input
-                  type="url"
-                  value={formData.final_url || ""}
-                  onChange={(e) => handleChange("final_url", e.target.value)}
-                  className={`campaign-input w-full ${
-                    errors.final_url ? "border-red-500" : "border-gray-200"
-                  }`}
-                  placeholder="https://example.com"
-                />
-                {errors.final_url && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.final_url}
-                  </p>
-                )}
+                  <label className="form-label">
+                    Final URL *
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.final_url || ""}
+                    onChange={(e) => handleChange("final_url", e.target.value)}
+                    className={`campaign-input w-full ${errors.final_url ? "border-red-500" : "border-gray-200"
+                      }`}
+                    placeholder="https://example.com"
+                  />
+                  {errors.final_url && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.final_url}
+                    </p>
+                  )}
                 </div>
                 <div>
-                <label className="form-label">
-                  Asset Group Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.asset_group_name || ""}
-                  onChange={(e) =>
-                    handleChange("asset_group_name", e.target.value)
-                  }
-                  className={`campaign-input w-full ${
-                    errors.asset_group_name ? "border-red-500" : ""
-                  }`}
-                  placeholder="Optional asset group name"
-                />
-                {errors.asset_group_name && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.asset_group_name}
-                  </p>
-                )}
-              </div>
+                  <label className="form-label">
+                    Asset Group Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.asset_group_name || ""}
+                    onChange={(e) =>
+                      handleChange("asset_group_name", e.target.value)
+                    }
+                    className={`campaign-input w-full ${errors.asset_group_name ? "border-red-500" : ""
+                      }`}
+                    placeholder="Optional asset group name"
+                  />
+                  {errors.asset_group_name && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.asset_group_name}
+                    </p>
+                  )}
+                </div>
 
               </div>
 
-              
+
               {/* Headlines */}
               <div>
-                  <label className="form-label">
+                <label className="form-label">
                   Headlines * (3-15 required)
                   <span className="text-[10px] text-[#556179] font-normal ml-2">
                     ({formData.headlines?.filter((h) => h.trim()).length || 0}/15)
@@ -1837,9 +1824,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                         onChange={(e) =>
                           updateHeadline(index, e.target.value)
                         }
-                        className={`campaign-input w-full ${
-                          errors.headlines ? "border-red-500" : ""
-                        }`}
+                        className={`campaign-input w-full ${errors.headlines ? "border-red-500" : ""
+                          }`}
                         placeholder={`Headline ${index + 1}`}
                       />
                       {formData.headlines && formData.headlines.length > 1 && (
@@ -1900,9 +1886,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                           updateDescription(index, e.target.value)
                         }
                         rows={2}
-                        className={`campaign-input w-full ${
-                          errors.descriptions ? "border-red-500" : ""
-                        }`}
+                        className={`campaign-input w-full ${errors.descriptions ? "border-red-500" : ""
+                          }`}
                         placeholder={`Description ${index + 1}`}
                       />
                       {formData.descriptions &&
@@ -1960,9 +1945,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     onChange={(e) =>
                       handleChange("business_name", e.target.value)
                     }
-                    className={`campaign-input w-full ${
-                      errors.business_name ? "border-red-300" : "border-gray-200"
-                    }`}
+                    className={`campaign-input w-full ${errors.business_name ? "border-red-300" : "border-gray-200"
+                      }`}
                     placeholder="Required business name"
                   />
                   {errors.business_name && (
@@ -1982,15 +1966,14 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     onChange={(e) =>
                       handleChange("long_headline", e.target.value)
                     }
-                    className={`campaign-input w-full ${
-                      errors.long_headline ? "border-red-500" : ""
-                    }`}
+                    className={`campaign-input w-full ${errors.long_headline ? "border-red-500" : ""
+                      }`}
                     placeholder="Optional long headline"
                   />
                 </div>
 
                 <div>
-                    <label className="form-label">
+                  <label className="form-label">
                     Logo (URL or Upload) *
                   </label>
                   <div className="space-y-2">
@@ -1998,9 +1981,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       type="url"
                       value={formData.logo_url || ""}
                       onChange={(e) => handleChange("logo_url", e.target.value)}
-                      className={`campaign-input w-full ${
-                        errors.logo_url ? "border-red-500" : ""
-                      }`}
+                      className={`campaign-input w-full ${errors.logo_url ? "border-red-500" : ""
+                        }`}
                       placeholder="https://example.com/logo.png"
                     />
                     {errors.logo_url && (
@@ -2027,40 +2009,40 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                               setLogoPreview(null);
                               return;
                             }
-                            
+
                             // Validate image dimensions (must be square, minimum 128x128)
                             try {
                               const img = new Image();
                               const objectUrl = URL.createObjectURL(file);
-                              
+
                               await new Promise((resolve, reject) => {
                                 img.onload = () => {
                                   URL.revokeObjectURL(objectUrl);
                                   const width = img.width;
                                   const height = img.height;
-                                  
+
                                   // Check if square (1:1 aspect ratio)
                                   if (width !== height) {
-                                    setErrors({ 
-                                      ...errors, 
-                                      logo_url: `Logo must be square (1:1 aspect ratio). Current dimensions: ${width}x${height}px. Please use a square image.` 
+                                    setErrors({
+                                      ...errors,
+                                      logo_url: `Logo must be square (1:1 aspect ratio). Current dimensions: ${width}x${height}px. Please use a square image.`
                                     });
                                     setLogoPreview(null);
                                     reject(new Error("Not square"));
                                     return;
                                   }
-                                  
+
                                   // Check minimum size
                                   if (width < 128 || height < 128) {
-                                    setErrors({ 
-                                      ...errors, 
-                                      logo_url: `Logo must be at least 128x128 pixels. Current dimensions: ${width}x${height}px. Recommended: 128x128px or larger.` 
+                                    setErrors({
+                                      ...errors,
+                                      logo_url: `Logo must be at least 128x128 pixels. Current dimensions: ${width}x${height}px. Recommended: 128x128px or larger.`
                                     });
                                     setLogoPreview(null);
                                     reject(new Error("Too small"));
                                     return;
                                   }
-                                  
+
                                   // Create preview using FileReader
                                   const reader = new FileReader();
                                   reader.onloadend = () => {
@@ -2070,26 +2052,26 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                                     setLogoPreview(null);
                                   };
                                   reader.readAsDataURL(file);
-                                  
+
                                   resolve(null);
                                 };
-                                
+
                                 img.onerror = () => {
                                   URL.revokeObjectURL(objectUrl);
                                   setErrors({ ...errors, logo_url: "Failed to load image. Please try a different file." });
                                   setLogoPreview(null);
                                   reject(new Error("Image load failed"));
                                 };
-                                
+
                                 img.src = objectUrl;
                               });
-                              
+
                               // If dimension validation passed, proceed with upload
                               try {
                                 // Upload file
                                 const formData = new FormData();
                                 formData.append("file", file);
-                                
+
                                 const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api"}/accounts/upload/logo/`, {
                                   method: "POST",
                                   headers: {
@@ -2097,16 +2079,16 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                                   },
                                   body: formData,
                                 });
-                                
+
                                 const responseData = await response.json();
-                                
+
                                 if (!response.ok) {
                                   const errorMessage = responseData.error || responseData.message || "Upload failed";
                                   setErrors({ ...errors, logo_url: errorMessage });
                                   setLogoPreview(null);
                                   return;
                                 }
-                                
+
                                 if (responseData.url) {
                                   handleChange("logo_url", responseData.url);
                                   setErrors({ ...errors, logo_url: undefined });
@@ -2181,9 +2163,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     onChange={(e) =>
                       handleChange("marketing_image_url", e.target.value)
                     }
-                    className={`campaign-input w-full ${
-                      errors.marketing_image_url ? "border-red-500" : ""
-                    }`}
+                    className={`campaign-input w-full ${errors.marketing_image_url ? "border-red-500" : ""
+                      }`}
                     placeholder="https://example.com/image.png"
                   />
                   {/* Marketing Image Preview */}
@@ -2222,9 +2203,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     onChange={(e) =>
                       handleChange("square_marketing_image_url", e.target.value)
                     }
-                    className={`campaign-input w-full ${
-                      errors.square_marketing_image_url ? "border-red-500" : ""
-                    }`}
+                    className={`campaign-input w-full ${errors.square_marketing_image_url ? "border-red-500" : ""
+                      }`}
                     placeholder="https://example.com/square-image.png"
                   />
                   {/* Square Marketing Image Preview */}
@@ -2311,8 +2291,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       loadingMerchantAccounts
                         ? "Loading merchant accounts..."
                         : merchantAccountOptions.length === 0
-                        ? "No merchant accounts available"
-                        : "Select merchant account"
+                          ? "No merchant accounts available"
+                          : "Select merchant account"
                     }
                     buttonClassName="edit-button w-full"
                     searchable={true}
@@ -2321,8 +2301,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       loadingMerchantAccounts
                         ? "Loading..."
                         : merchantAccountsError
-                        ? merchantAccountsError
-                        : "No Merchant Center accounts found. Please link a Merchant Center account to your Google Ads account."
+                          ? merchantAccountsError
+                          : "No Merchant Center accounts found. Please link a Merchant Center account to your Google Ads account."
                     }
                     disabled={loadingMerchantAccounts || (mode === "edit" && formData.campaign_type === "SHOPPING")}
                   />
@@ -2382,9 +2362,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       onChange={(e) =>
                         handleChange("enable_local", e.target.checked)
                       }
-                      className={`w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40 ${
-                        errors.enable_local ? "border-red-500" : ""
-                      }`}
+                      className={`w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40 ${errors.enable_local ? "border-red-500" : ""
+                        }`}
                     />
                     <span className="form-label mb-0">
                       Enable Local
@@ -2402,204 +2381,134 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           {(formData.campaign_type === "SHOPPING" ||
             formData.campaign_type === "SEARCH" ||
             formData.campaign_type === "PERFORMANCE_MAX") && (
-            <>
-              <div className="mt-6 space-y-4">
-                <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                  Location Targeting
-                </h3>
-
-                {/* Target Locations */}
-                <div>
-                  <label className="form-label">
-                    Target Locations
-                  </label>
-                  {errors.location_ids && (
-                    <p className="text-[10px] text-red-500 -mt-1 mb-2">
-                      {errors.location_ids}
-                    </p>
-                  )}
-                  <Dropdown<string>
-                    options={locationOptions.filter(
-                      (opt) => !formData.excluded_location_ids?.includes(opt.value)
-                    )}
-                    value=""
-                    onChange={(value) => {
-                      const currentIds = formData.location_ids || [];
-                      const valueNum = parseInt(value, 10);
-                      if (!isNaN(valueNum) && !currentIds.includes(valueNum)) {
-                        // Remove from excluded locations if it exists there
-                        const excludedIds = (formData.excluded_location_ids || []).filter(id => id !== value);
-                        handleChange("excluded_location_ids", excludedIds.length > 0 ? excludedIds : undefined);
-                        // Add to target locations
-                        handleChange("location_ids", [...currentIds, valueNum]);
-                      }
-                    }}
-                    placeholder={
-                      loadingLocations
-                        ? "Loading locations..."
-                        : locationOptions.length === 0
-                        ? "No locations found"
-                        : "Select locations to target"
-                    }
-                    buttonClassName="edit-button w-full"
-                    searchable={true}
-                    searchPlaceholder="Search locations..."
-                    emptyMessage={
-                      loadingLocations
-                        ? "Loading..."
-                        : "Start typing to search for locations"
-                    }
-                    disabled={loadingLocations}
-                  />
-                  {formData.location_ids && formData.location_ids.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {formData.location_ids.map((locId) => {
-                        const location = locationOptions.find(l => l.value === String(locId));
-                        return (
-                          <span
-                            key={locId}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-[#136D6D] text-white text-[11px] rounded"
-                          >
-                            {location?.label || locId}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newIds = (formData.location_ids || []).filter(id => id !== locId);
-                                handleChange("location_ids", newIds.length > 0 ? newIds : undefined);
-                              }}
-                              className="hover:text-red-200"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Exclude Locations */}
-                <div>
-                  <label className="form-label">
-                    Exclude Locations
-                  </label>
-                  <Dropdown<string>
-                    options={locationOptions.filter(
-                      (opt) => {
-                        const optValueNum = parseInt(opt.value, 10);
-                        return !isNaN(optValueNum) && !formData.location_ids?.includes(optValueNum);
-                      }
-                    )}
-                    value=""
-                    onChange={(value) => {
-                      const currentIds = formData.excluded_location_ids || [];
-                      if (!currentIds.includes(value)) {
-                        // Remove from target locations if it exists there
-                        const valueNum = parseInt(value, 10);
-                        const targetIds = !isNaN(valueNum) 
-                          ? (formData.location_ids || []).filter(id => id !== valueNum)
-                          : (formData.location_ids || []);
-                        handleChange("location_ids", targetIds.length > 0 ? targetIds : undefined);
-                        // Add to excluded locations
-                        handleChange("excluded_location_ids", [...currentIds, value]);
-                      }
-                    }}
-                    placeholder="Select locations to exclude"
-                    buttonClassName="edit-button w-full"
-                    searchable={true}
-                    searchPlaceholder="Search locations to exclude..."
-                    emptyMessage={
-                      loadingLocations
-                        ? "Loading..."
-                        : "Start typing to search for locations"
-                    }
-                    disabled={loadingLocations}
-                  />
-                  {formData.excluded_location_ids && formData.excluded_location_ids.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {formData.excluded_location_ids.map((locId) => {
-                        const location = locationOptions.find(l => l.value === locId);
-                        return (
-                          <span
-                            key={locId}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-red-600 text-white text-[11px] rounded"
-                          >
-                            {location?.label || locId}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newIds = (formData.excluded_location_ids || []).filter(id => id !== locId);
-                                handleChange("excluded_location_ids", newIds.length > 0 ? newIds : undefined);
-                              }}
-                              className="hover:text-red-200"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Language Targeting - Available for SEARCH and PERFORMANCE_MAX campaigns */}
-              {(formData.campaign_type === "SEARCH" || formData.campaign_type === "PERFORMANCE_MAX") && (
+              <>
                 <div className="mt-6 space-y-4">
                   <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                    Language Targeting
+                    Location Targeting
                   </h3>
 
+                  {/* Target Locations */}
                   <div>
                     <label className="form-label">
-                      Target Languages
+                      Target Locations
                     </label>
-                    {errors.language_ids && (
+                    {errors.location_ids && (
                       <p className="text-[10px] text-red-500 -mt-1 mb-2">
-                        {errors.language_ids}
+                        {errors.location_ids}
                       </p>
                     )}
                     <Dropdown<string>
-                      options={languageOptions}
+                      options={locationOptions.filter(
+                        (opt) => !formData.excluded_location_ids?.includes(opt.value)
+                      )}
                       value=""
                       onChange={(value) => {
-                        const currentIds = formData.language_ids || [];
-                        if (!currentIds.includes(value)) {
-                          handleChange("language_ids", [...currentIds, value]);
+                        const currentIds = formData.location_ids || [];
+                        const valueNum = parseInt(value, 10);
+                        if (!isNaN(valueNum) && !currentIds.includes(valueNum)) {
+                          // Remove from excluded locations if it exists there
+                          const excludedIds = (formData.excluded_location_ids || []).filter(id => id !== value);
+                          handleChange("excluded_location_ids", excludedIds.length > 0 ? excludedIds : undefined);
+                          // Add to target locations
+                          handleChange("location_ids", [...currentIds, valueNum]);
                         }
                       }}
                       placeholder={
-                        loadingLanguages
-                          ? "Loading languages..."
-                          : languageOptions.length === 0
-                          ? "No languages found"
-                          : "Select languages to target"
+                        loadingLocations
+                          ? "Loading locations..."
+                          : locationOptions.length === 0
+                            ? "No locations found"
+                            : "Select locations to target"
                       }
                       buttonClassName="edit-button w-full"
                       searchable={true}
-                      searchPlaceholder="Search languages..."
+                      searchPlaceholder="Search locations..."
                       emptyMessage={
-                        loadingLanguages
+                        loadingLocations
                           ? "Loading..."
-                          : "Start typing to search for languages"
+                          : "Start typing to search for locations"
                       }
-                      disabled={loadingLanguages}
+                      disabled={loadingLocations}
                     />
-                    {formData.language_ids && formData.language_ids.length > 0 && (
+                    {formData.location_ids && formData.location_ids.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {formData.language_ids.map((langId) => {
-                          const language = languageOptions.find(l => l.value === langId);
+                        {formData.location_ids.map((locId) => {
+                          const location = locationOptions.find(l => l.value === String(locId));
                           return (
                             <span
-                              key={langId}
+                              key={locId}
                               className="inline-flex items-center gap-1 px-2 py-1 bg-[#136D6D] text-white text-[11px] rounded"
                             >
-                              {language?.label || langId}
+                              {location?.label || locId}
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const newIds = (formData.language_ids || []).filter(id => id !== langId);
-                                  handleChange("language_ids", newIds.length > 0 ? newIds : undefined);
+                                  const newIds = (formData.location_ids || []).filter(id => id !== locId);
+                                  handleChange("location_ids", newIds.length > 0 ? newIds : undefined);
+                                }}
+                                className="hover:text-red-200"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Exclude Locations */}
+                  <div>
+                    <label className="form-label">
+                      Exclude Locations
+                    </label>
+                    <Dropdown<string>
+                      options={locationOptions.filter(
+                        (opt) => {
+                          const optValueNum = parseInt(opt.value, 10);
+                          return !isNaN(optValueNum) && !formData.location_ids?.includes(optValueNum);
+                        }
+                      )}
+                      value=""
+                      onChange={(value) => {
+                        const currentIds = formData.excluded_location_ids || [];
+                        if (!currentIds.includes(value)) {
+                          // Remove from target locations if it exists there
+                          const valueNum = parseInt(value, 10);
+                          const targetIds = !isNaN(valueNum)
+                            ? (formData.location_ids || []).filter(id => id !== valueNum)
+                            : (formData.location_ids || []);
+                          handleChange("location_ids", targetIds.length > 0 ? targetIds : undefined);
+                          // Add to excluded locations
+                          handleChange("excluded_location_ids", [...currentIds, value]);
+                        }
+                      }}
+                      placeholder="Select locations to exclude"
+                      buttonClassName="edit-button w-full"
+                      searchable={true}
+                      searchPlaceholder="Search locations to exclude..."
+                      emptyMessage={
+                        loadingLocations
+                          ? "Loading..."
+                          : "Start typing to search for locations"
+                      }
+                      disabled={loadingLocations}
+                    />
+                    {formData.excluded_location_ids && formData.excluded_location_ids.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {formData.excluded_location_ids.map((locId) => {
+                          const location = locationOptions.find(l => l.value === locId);
+                          return (
+                            <span
+                              key={locId}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-red-600 text-white text-[11px] rounded"
+                            >
+                              {location?.label || locId}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newIds = (formData.excluded_location_ids || []).filter(id => id !== locId);
+                                  handleChange("excluded_location_ids", newIds.length > 0 ? newIds : undefined);
                                 }}
                                 className="hover:text-red-200"
                               >
@@ -2612,109 +2521,225 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     )}
                   </div>
                 </div>
-              )}
 
-              {/* Shopping Network info - matches Google UI (Search Network only) */}
-              {formData.campaign_type === "SHOPPING" && (
-                <div className="mt-6 space-y-4">
-                  <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                    Network
-                  </h3>
-                  <div className="border border-gray-200 rounded-lg p-4 bg-white">
-                    <h4 className="text-[13px] font-semibold text-[#072929] mb-2">
-                      Google Search Network
-                    </h4>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={true}
-                        disabled
-                        className="w-4 h-4 accent-forest-f40 border-gray-300 rounded"
-                      />
-                      <span className="text-[12px] text-[#072929]">
-                        Enabled by default for Shopping campaigns
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {/* Network Settings and Device Targeting - Available for SEARCH campaigns */}
-              {formData.campaign_type === "SEARCH" && (
-                <>
-                  {/* Network Settings */}
+                {/* Language Targeting - Available for SEARCH and PERFORMANCE_MAX campaigns */}
+                {(formData.campaign_type === "SEARCH" || formData.campaign_type === "PERFORMANCE_MAX") && (
                   <div className="mt-6 space-y-4">
                     <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                      Network Settings
+                      Language Targeting
                     </h3>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Search Network card (always on in Google UI) */}
-                      <div className="border border-gray-200 rounded-lg p-4 bg-white">
-                        <h4 className="text-[13px] font-semibold text-[#072929] mb-1">
-                          Search Network
-                        </h4>
-                        <p className="text-[11px] text-[#556179] mb-3">
-                          Ads can appear near Google Search results and other Google sites
-                          when people search for terms that are relevant to your keywords.
-                          Search Network is always enabled for Search campaigns.
+                    <div>
+                      <label className="form-label">
+                        Target Languages
+                      </label>
+                      {errors.language_ids && (
+                        <p className="text-[10px] text-red-500 -mt-1 mb-2">
+                          {errors.language_ids}
                         </p>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={formData.network_settings?.target_partner_search_network ?? false}
-                            onChange={(e) =>
-                              handleChange("network_settings", {
-                                // Always keep core Search network on; this checkbox only controls partners
-                                target_google_search: true,
-                                target_search_network: true,
-                                target_content_network:
-                                  formData.network_settings?.target_content_network ?? false,
-                                target_partner_search_network: e.target.checked,
-                              })
-                            }
-                            className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
-                          />
-                          <span className="text-[12px] text-[#072929]">
-                            Include Google search partners
-                          </span>
-                        </label>
-                      </div>
-
-                      {/* Display Network card */}
-                      <div className="border border-gray-200 rounded-lg p-4 bg-white">
-                        <h4 className="text-[13px] font-semibold text-[#072929] mb-1">
-                          Display Network
-                        </h4>
-                        <p className="text-[11px] text-[#556179] mb-3">
-                          Easy way to get additional conversions at similar or lower costs than
-                          Search with unused Search budget.
-                        </p>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={formData.network_settings?.target_content_network ?? false}
-                            onChange={(e) =>
-                              handleChange("network_settings", {
-                                // Keep core Search network on; this checkbox only controls Display Network
-                                target_google_search: true,
-                                target_search_network: true,
-                                target_partner_search_network:
-                                  formData.network_settings?.target_partner_search_network ?? false,
-                                target_content_network: e.target.checked,
-                              })
-                            }
-                            className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
-                          />
-                          <span className="text-[12px] text-[#072929]">
-                            Include Google Display Network
-                          </span>
-                        </label>
-                      </div>
+                      )}
+                      <Dropdown<string>
+                        options={languageOptions}
+                        value=""
+                        onChange={(value) => {
+                          const currentIds = formData.language_ids || [];
+                          if (!currentIds.includes(value)) {
+                            handleChange("language_ids", [...currentIds, value]);
+                          }
+                        }}
+                        placeholder={
+                          loadingLanguages
+                            ? "Loading languages..."
+                            : languageOptions.length === 0
+                              ? "No languages found"
+                              : "Select languages to target"
+                        }
+                        buttonClassName="edit-button w-full"
+                        searchable={true}
+                        searchPlaceholder="Search languages..."
+                        emptyMessage={
+                          loadingLanguages
+                            ? "Loading..."
+                            : "Start typing to search for languages"
+                        }
+                        disabled={loadingLanguages}
+                      />
+                      {formData.language_ids && formData.language_ids.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {formData.language_ids.map((langId) => {
+                            const language = languageOptions.find(l => l.value === langId);
+                            return (
+                              <span
+                                key={langId}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-[#136D6D] text-white text-[11px] rounded"
+                              >
+                                {language?.label || langId}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newIds = (formData.language_ids || []).filter(id => id !== langId);
+                                    handleChange("language_ids", newIds.length > 0 ? newIds : undefined);
+                                  }}
+                                  className="hover:text-red-200"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
+                )}
 
-                  {/* Device Targeting */}
+                {/* Shopping Network info - matches Google UI (Search Network only) */}
+                {formData.campaign_type === "SHOPPING" && (
+                  <div className="mt-6 space-y-4">
+                    <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
+                      Network
+                    </h3>
+                    <div className="border border-gray-200 rounded-lg p-4 bg-white">
+                      <h4 className="text-[13px] font-semibold text-[#072929] mb-2">
+                        Google Search Network
+                      </h4>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={true}
+                          disabled
+                          className="w-4 h-4 accent-forest-f40 border-gray-300 rounded"
+                        />
+                        <span className="text-[12px] text-[#072929]">
+                          Enabled by default for Shopping campaigns
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Network Settings and Device Targeting - Available for SEARCH campaigns */}
+                {formData.campaign_type === "SEARCH" && (
+                  <>
+                    {/* Network Settings */}
+                    <div className="mt-6 space-y-4">
+                      <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
+                        Network Settings
+                      </h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Search Network card (always on in Google UI) */}
+                        <div className="border border-gray-200 rounded-lg p-4 bg-white">
+                          <h4 className="text-[13px] font-semibold text-[#072929] mb-1">
+                            Search Network
+                          </h4>
+                          <p className="text-[11px] text-[#556179] mb-3">
+                            Ads can appear near Google Search results and other Google sites
+                            when people search for terms that are relevant to your keywords.
+                            Search Network is always enabled for Search campaigns.
+                          </p>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.network_settings?.target_partner_search_network ?? false}
+                              onChange={(e) =>
+                                handleChange("network_settings", {
+                                  // Always keep core Search network on; this checkbox only controls partners
+                                  target_google_search: true,
+                                  target_search_network: true,
+                                  target_content_network:
+                                    formData.network_settings?.target_content_network ?? false,
+                                  target_partner_search_network: e.target.checked,
+                                })
+                              }
+                              className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
+                            />
+                            <span className="text-[12px] text-[#072929]">
+                              Include Google search partners
+                            </span>
+                          </label>
+                        </div>
+
+                        {/* Display Network card */}
+                        <div className="border border-gray-200 rounded-lg p-4 bg-white">
+                          <h4 className="text-[13px] font-semibold text-[#072929] mb-1">
+                            Display Network
+                          </h4>
+                          <p className="text-[11px] text-[#556179] mb-3">
+                            Easy way to get additional conversions at similar or lower costs than
+                            Search with unused Search budget.
+                          </p>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.network_settings?.target_content_network ?? false}
+                              onChange={(e) =>
+                                handleChange("network_settings", {
+                                  // Keep core Search network on; this checkbox only controls Display Network
+                                  target_google_search: true,
+                                  target_search_network: true,
+                                  target_partner_search_network:
+                                    formData.network_settings?.target_partner_search_network ?? false,
+                                  target_content_network: e.target.checked,
+                                })
+                              }
+                              className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
+                            />
+                            <span className="text-[12px] text-[#072929]">
+                              Include Google Display Network
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Device Targeting */}
+                    <div className="mt-6 space-y-4">
+                      <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
+                        Device Targeting
+                      </h3>
+
+                      <div>
+                        <label className="form-label">
+                          Target Devices
+                        </label>
+                        <div className="space-y-2">
+                          {[
+                            { value: "MOBILE", label: "Mobile" },
+                            { value: "DESKTOP", label: "Desktop" },
+                            { value: "TABLET", label: "Tablet" },
+                            { value: "CONNECTED_TV", label: "Connected TV" },
+                          ].map((device) => (
+                            <div key={device.value} className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={formData.device_ids?.includes(device.value) ?? false}
+                                onChange={(e) => {
+                                  const currentIds = formData.device_ids || [];
+                                  if (e.target.checked) {
+                                    handleChange("device_ids", [...currentIds, device.value]);
+                                  } else {
+                                    handleChange("device_ids", currentIds.filter(id => id !== device.value));
+                                  }
+                                }}
+                                className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
+                              />
+                              <label className="form-label mb-0">
+                                {device.label}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-[#556179] mt-2">
+                          Select devices to target. If none selected, ads will show on all devices.
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Device Targeting - Available for PERFORMANCE_MAX campaigns */}
+                {formData.campaign_type === "PERFORMANCE_MAX" && (
                   <div className="mt-6 space-y-4">
                     <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
                       Device Targeting
@@ -2756,55 +2781,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       </p>
                     </div>
                   </div>
-                </>
-              )}
-
-              {/* Device Targeting - Available for PERFORMANCE_MAX campaigns */}
-              {formData.campaign_type === "PERFORMANCE_MAX" && (
-                <div className="mt-6 space-y-4">
-                  <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                    Device Targeting
-                  </h3>
-
-                  <div>
-                    <label className="form-label">
-                      Target Devices
-                    </label>
-                    <div className="space-y-2">
-                      {[
-                        { value: "MOBILE", label: "Mobile" },
-                        { value: "DESKTOP", label: "Desktop" },
-                        { value: "TABLET", label: "Tablet" },
-                        { value: "CONNECTED_TV", label: "Connected TV" },
-                      ].map((device) => (
-                        <div key={device.value} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={formData.device_ids?.includes(device.value) ?? false}
-                            onChange={(e) => {
-                              const currentIds = formData.device_ids || [];
-                              if (e.target.checked) {
-                                handleChange("device_ids", [...currentIds, device.value]);
-                              } else {
-                                handleChange("device_ids", currentIds.filter(id => id !== device.value));
-                              }
-                            }}
-                            className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
-                          />
-                          <label className="form-label mb-0">
-                            {device.label}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-[10px] text-[#556179] mt-2">
-                      Select devices to target. If none selected, ads will show on all devices.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+                )}
+              </>
+            )}
 
           {/* Campaign URL options - available for all API-created campaign types */}
           {formData.campaign_type !== "VIDEO" && (
@@ -2942,9 +2921,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   type="url"
                   value={formData.final_url || ""}
                   onChange={(e) => handleChange("final_url", e.target.value)}
-                  className={`campaign-input w-full ${
-                    errors.final_url ? "border-red-500" : "border-gray-200"
-                  }`}
+                  className={`campaign-input w-full ${errors.final_url ? "border-red-500" : "border-gray-200"
+                    }`}
                   placeholder="https://example.com"
                 />
                 {errors.final_url && (
@@ -2992,7 +2970,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       <span className="text-[13px] text-[#072929]">Video URL</span>
                     </label>
                   </div>
-                  
+
                   {(!formData.video_url || formData.video_id) && (
                     <div>
                       <input
@@ -3004,9 +2982,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                             handleChange("video_url", "");
                           }
                         }}
-                        className={`campaign-input w-full ${
-                          errors.video_id ? "border-red-500" : "border-gray-200"
-                        }`}
+                        className={`campaign-input w-full ${errors.video_id ? "border-red-500" : "border-gray-200"
+                          }`}
                         placeholder="dQw4w9WgXcQ"
                       />
                       {errors.video_id && (
@@ -3019,7 +2996,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       </p>
                     </div>
                   )}
-                  
+
                   {(!formData.video_id || formData.video_url) && (
                     <div>
                       <input
@@ -3031,9 +3008,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                             handleChange("video_id", "");
                           }
                         }}
-                        className={`campaign-input w-full ${
-                          errors.video_url ? "border-red-500" : "border-gray-200"
-                        }`}
+                        className={`campaign-input w-full ${errors.video_url ? "border-red-500" : "border-gray-200"
+                          }`}
                         placeholder="https://example.com/video.mp4"
                       />
                       {errors.video_url && (
@@ -3058,9 +3034,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   type="url"
                   value={formData.logo_url || ""}
                   onChange={(e) => handleChange("logo_url", e.target.value)}
-                  className={`campaign-input w-full ${
-                    errors.logo_url ? "border-red-500" : "border-gray-200"
-                  }`}
+                  className={`campaign-input w-full ${errors.logo_url ? "border-red-500" : "border-gray-200"
+                    }`}
                   placeholder="https://example.com/logo.png"
                 />
                 {errors.logo_url && (
@@ -3092,9 +3067,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   type="text"
                   value={formData.business_name || ""}
                   onChange={(e) => handleChange("business_name", e.target.value)}
-                  className={`campaign-input w-full ${
-                    errors.business_name ? "border-red-500" : "border-gray-200"
-                  }`}
+                  className={`campaign-input w-full ${errors.business_name ? "border-red-500" : "border-gray-200"
+                    }`}
                   placeholder="My Business Name"
                 />
                 {errors.business_name && (

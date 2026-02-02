@@ -834,14 +834,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       newErrors.profileId = "Profile is required";
     }
 
-    // Portfolio is required when portfolios exist (optional for SP and SB campaigns)
-    if (
-      formData.type === "SD" &&
-      portfolioOptions.length > 0 &&
-      !formData.portfolioId
-    ) {
-      newErrors.portfolioId = "Portfolio is required";
-    }
+    // Portfolio is optional for all campaign types (SP, SB, SD).
 
     // Start Date is required
     if (!formData.startDate || !formData.startDate.trim()) {
@@ -1507,7 +1500,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       )}
                     </div>
 
-                    {/* Budget Type */}
+                    {/* Budget Type - readonly for SB in edit mode (cannot be updated after creation) */}
                     <div>
                       <label className="form-label">
                         Budget Type <span>*</span>
@@ -1533,7 +1526,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         onChange={(value) => handleChange("budgetType", value)}
                         placeholder="Select"
                         buttonClassName="edit-button w-full"
+                        disabled={mode === "edit" && formData.type === "SB"}
                       />
+                      {mode === "edit" && formData.type === "SB" && (
+                        <p className="text-[10px] text-amber-600 mt-1">
+                          Budget Type is readonly for SB campaigns and cannot be updated after creation.
+                        </p>
+                      )}
                     </div>
 
                     {/* State */}
