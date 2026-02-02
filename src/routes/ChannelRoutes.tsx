@@ -5,6 +5,7 @@ import { SelectGoogleAdsAccounts } from "../pages/SelectGoogleAdsAccounts";
 import { SelectAmazonProfiles } from "../pages/SelectAmazonProfiles";
 import { SelectTikTokProfiles } from "../pages/SelectTikTokProfiles";
 import { ListAmazonProfiles } from "../pages/ListAmazonProfiles";
+import { MetaListProfiles } from "../pages/MetaListProfiles";
 
 function ChannelRoutes() {
     return (
@@ -32,6 +33,16 @@ function ChannelRoutes() {
                 element={
                     <ProtectedRoute>
                         <SelectTikTokProfiles />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/channels/:channelId/meta-list-profiles"
+                element={
+                    <ProtectedRoute>
+                        <Layout>
+                            <MetaListProfiles />
+                        </Layout>
                     </ProtectedRoute>
                 }
             />

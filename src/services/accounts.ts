@@ -3,7 +3,7 @@ import api from "./api";
 export interface Channel {
   id: number;
   channel_name: string;
-  channel_type: "amazon" | "google" | "walmart" | "tiktok";
+  channel_type: "amazon" | "google" | "walmart" | "tiktok" | "meta";
   status: "active" | "inactive" | "pending";
   account: number;
   account_id?: number;
@@ -156,6 +156,30 @@ export const accountsService = {
       state,
     });
     console.log("Google OAuth callback service response:", response.data);
+    return response.data;
+  },
+
+  // Meta OAuth
+  initiateMetaOAuth: async (
+    accountId: number
+  ): Promise<{ auth_url: string }> => {
+    const response = await api.get<{ auth_url: string }>(
+      `/meta/oauth/initiate/?account_id=${accountId}`
+    );
+    return response.data;
+  },
+
+  handleMetaOAuthCallback: async (
+    code: string,
+    state?: string
+  ): Promise<Channel> => {
+    const response = await api.post<Channel>(
+      "/meta/oauth/callback/",
+      {
+        code,
+        state,
+      }
+    );
     return response.data;
   },
 
@@ -324,6 +348,42 @@ export const accountsService = {
   ): Promise<any> => {
     const response = await api.post(
       `/accounts/channels/${channelId}/tiktok-profiles/save/`,
+      {
+        profile_ids: profileIds,
+        profiles: profiles || [],
+      }
+    );
+    return response.data;
+  },
+
+  // Meta profiles
+  fetchMetaProfiles: async (
+    channelId: number
+  ): Promise<{
+    profiles: any[];
+    excluded_profiles?: Array<{
+      profileId: string;
+      account_id?: string;
+      name: string;
+      channel_id: number;
+      channel_name: string;
+      account_name: string;
+    }>;
+    total_fetched?: number;
+    existing_count?: number;
+    available_count?: number;
+  }> => {
+    const response = await api.get(`/meta/channels/${channelId}/profiles/`);
+    return response.data;
+  },
+
+  saveMetaProfiles: async (
+    channelId: number,
+    profileIds: string[],
+    profiles?: any[]
+  ): Promise<any> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/profiles/save/`,
       {
         profile_ids: profileIds,
         profiles: profiles || [],
