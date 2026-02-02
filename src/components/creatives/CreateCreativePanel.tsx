@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { Checkbox } from "../ui/Checkbox";
 import { ImageCropModal, type CropCoordinates } from "../ui/ImageCropModal";
+import { AssetPickerPopup } from "../ui/AssetPickerPopup";
 import { campaignsService } from "../../services/campaigns";
 import type { Asset } from "../campaigns/AssetsTable";
 
@@ -219,6 +220,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
   const [assetsLoading, setAssetsLoading] = useState(false);
   const prevIsOpenForCreate = useRef(false);
 
+  // Cropping Coordinates sections hidden (JSX only); crop modals still available
+  const SHOW_CROPPING_COORDS_SECTIONS = false;
   // Accordion state for Cropping Coordinates (Optional) only - icon next to title, closed by default
   const [brandLogoCroppingOpen, setBrandLogoCroppingOpen] = useState(false);
   const [customImageRectCroppingOpen, setCustomImageRectCroppingOpen] =
@@ -234,6 +237,14 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
   const [rectCropImageUrl, setRectCropImageUrl] = useState("");
   const [squareCropModalOpen, setSquareCropModalOpen] = useState(false);
   const [squareCropImageUrl, setSquareCropImageUrl] = useState("");
+  /** Which asset picker is open: brandLogo, rect, square, or array (arrayKey + index) */
+  const [sdAssetPickerContext, setSdAssetPickerContext] = useState<
+    | null
+    | "brandLogo"
+    | "rectCustomImage"
+    | "squareCustomImage"
+    | { arrayKey: "squareImages" | "horizontalImages" | "verticalImages"; index: number }
+  >(null);
   const [arrayCropModal, setArrayCropModal] = useState<{
     arrayKey: "squareImages" | "horizontalImages" | "verticalImages";
     index: number;
@@ -1957,12 +1968,22 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
                     {/* Asset ID and Version */}
                     <div className="mb-3">
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-1">
-                        Logo Asset{" "}
-                        <span className="text-gray-400 font-normal">
-                          (Required)
-                        </span>
-                      </label>
+                      <div className="flex items-center gap-2 mb-1">
+                        <label className="block text-[11.2px] font-semibold text-[#556179]">
+                          Logo Asset{" "}
+                          <span className="text-gray-400 font-normal">
+                            (Required)
+                          </span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setSdAssetPickerContext("brandLogo")}
+                          disabled={!accountId}
+                          className="text-[11px] font-medium text-[#136D6D] hover:text-[#0e5a5a] whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Browse assets
+                        </button>
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Dropdown<string>
@@ -2050,10 +2071,15 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       {brandLogoOptionalCropHint &&
                         !brandLogoDimensionError &&
                         !errors["properties.brandLogo"] && (
-                          <div className="mt-1 flex flex-wrap items-center gap-2">
-                            <p className="text-[10px] text-yellow-600">
-                              {brandLogoOptionalCropHint}
-                            </p>
+                          <p className="text-[10px] text-yellow-600 mt-1">
+                            {brandLogoOptionalCropHint}
+                          </p>
+                        )}
+                      {currentCreative.properties.brandLogo?.assetId &&
+                        currentCreative.properties.brandLogo?.assetVersion &&
+                        !brandLogoDimensionError &&
+                        !errors["properties.brandLogo"] && (
+                          <div className="mt-1">
                             <button
                               type="button"
                               onClick={async () => {
@@ -2104,250 +2130,44 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                               }}
                               className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] font-medium underline"
                             >
-                              Crop image
+                              {currentCreative.properties.brandLogo?.croppingCoordinates
+                                ? "Crop image again"
+                                : "Crop image"}
                             </button>
                           </div>
                         )}
                     </div>
 
-                    {/* Cropping Coordinates (Optional) - nested accordion */}
-                    <div className="mt-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setBrandLogoCroppingOpen((o) => !o)
-                        }
-                        className="flex items-center gap-2 w-full py-1.5 hover:opacity-80 transition-opacity cursor-pointer text-left"
-                      >
-                        <svg
-                          className={`w-4 h-4 text-[#556179] shrink-0 transition-transform ${
-                            brandLogoCroppingOpen ? "rotate-180" : ""
-                          }`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                        <span className="text-[11.2px] font-semibold text-[#556179]">
-                          Cropping Coordinates{" "}
-                          <span className="text-gray-400 font-normal">
-                            (Optional)
-                          </span>
-                        </span>
-                      </button>
-                      {brandLogoCroppingOpen && (
-                        <div className="pt-2">
-                          <div className="grid grid-cols-4 gap-2">
-                            <div>
-                              <label className="block text-[10px] text-gray-500 mb-1">
-                                Top
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                step="1"
-                                value={
-                                  currentCreative.properties.brandLogo
-                                    ?.croppingCoordinates?.top ?? ""
-                                }
-                                onChange={(e) => {
-                                  const value =
-                                    e.target.value === ""
-                                      ? undefined
-                                      : parseInt(e.target.value, 10);
-                                  const currentCrop =
-                                    currentCreative.properties.brandLogo
-                                      ?.croppingCoordinates || {};
-                                  const newCrop = { ...currentCrop };
-                                  if (value !== undefined && !isNaN(value)) {
-                                    newCrop.top = value;
-                                  } else {
-                                    delete newCrop.top;
-                                  }
-                                  handleChange("properties.brandLogo", {
-                                    ...currentCreative.properties.brandLogo,
-                                    croppingCoordinates:
-                                      Object.keys(newCrop).length > 0
-                                        ? newCrop
-                                        : undefined,
-                                  });
-                                }}
-                                className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                                placeholder="0"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] text-gray-500 mb-1">
-                                Left
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                step="1"
-                                value={
-                                  currentCreative.properties.brandLogo
-                                    ?.croppingCoordinates?.left ?? ""
-                                }
-                                onChange={(e) => {
-                                  const value =
-                                    e.target.value === ""
-                                      ? undefined
-                                      : parseInt(e.target.value, 10);
-                                  const currentCrop =
-                                    currentCreative.properties.brandLogo
-                                      ?.croppingCoordinates || {};
-                                  const newCrop = { ...currentCrop };
-                                  if (value !== undefined && !isNaN(value)) {
-                                    newCrop.left = value;
-                                  } else {
-                                    delete newCrop.left;
-                                  }
-                                  handleChange("properties.brandLogo", {
-                                    ...currentCreative.properties.brandLogo,
-                                    croppingCoordinates:
-                                      Object.keys(newCrop).length > 0
-                                        ? newCrop
-                                        : undefined,
-                                  });
-                                }}
-                                className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                                placeholder="0"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] text-gray-500 mb-1">
-                                Width
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                step="1"
-                                value={
-                                  currentCreative.properties.brandLogo
-                                    ?.croppingCoordinates?.width ?? ""
-                                }
-                                onChange={(e) => {
-                                  const value =
-                                    e.target.value === ""
-                                      ? undefined
-                                      : parseInt(e.target.value, 10);
-                                  const currentCrop =
-                                    currentCreative.properties.brandLogo
-                                      ?.croppingCoordinates || {};
-                                  const newCrop = { ...currentCrop };
-                                  if (value !== undefined && !isNaN(value)) {
-                                    newCrop.width = value;
-                                  } else {
-                                    delete newCrop.width;
-                                  }
-                                  handleChange("properties.brandLogo", {
-                                    ...currentCreative.properties.brandLogo,
-                                    croppingCoordinates:
-                                      Object.keys(newCrop).length > 0
-                                        ? newCrop
-                                        : undefined,
-                                  });
-                                }}
-                                className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                                placeholder="0"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] text-gray-500 mb-1">
-                                Height
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                step="1"
-                                value={
-                                  currentCreative.properties.brandLogo
-                                    ?.croppingCoordinates?.height ?? ""
-                                }
-                                onChange={(e) => {
-                                  const value =
-                                    e.target.value === ""
-                                      ? undefined
-                                      : parseInt(e.target.value, 10);
-                                  const currentCrop =
-                                    currentCreative.properties.brandLogo
-                                      ?.croppingCoordinates || {};
-                                  const newCrop = { ...currentCrop };
-                                  if (value !== undefined && !isNaN(value)) {
-                                    newCrop.height = value;
-                                  } else {
-                                    delete newCrop.height;
-                                  }
-                                  handleChange("properties.brandLogo", {
-                                    ...currentCreative.properties.brandLogo,
-                                    croppingCoordinates:
-                                      Object.keys(newCrop).length > 0
-                                        ? newCrop
-                                        : undefined,
-                                  });
-                                }}
-                                className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                                placeholder="0"
-                              />
-                            </div>
-                          </div>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Optional. Min crop 600×100 px, aspect ratio 6:1.
-                            All values integers &gt;= 0.
-                          </p>
-                          {errors[
-                            "properties.brandLogo.croppingCoordinates.top"
-                          ] && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {
-                                errors[
-                                  "properties.brandLogo.croppingCoordinates.top"
-                                ]
-                              }
-                            </p>
-                          )}
-                          {errors[
-                            "properties.brandLogo.croppingCoordinates.left"
-                          ] && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {
-                                errors[
-                                  "properties.brandLogo.croppingCoordinates.left"
-                                ]
-                              }
-                            </p>
-                          )}
-                          {errors[
-                            "properties.brandLogo.croppingCoordinates.width"
-                          ] && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {
-                                errors[
-                                  "properties.brandLogo.croppingCoordinates.width"
-                                ]
-                              }
-                            </p>
-                          )}
-                          {errors[
-                            "properties.brandLogo.croppingCoordinates.height"
-                          ] && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {
-                                errors[
-                                  "properties.brandLogo.croppingCoordinates.height"
-                                ]
-                              }
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    {/* Cropping Coordinates - hidden */}
+                    {SHOW_CROPPING_COORDS_SECTIONS && (
+                      <div className="mt-2">
+                        <button type="button" className="hidden">Cropping Coordinates</button>
+                      </div>
+                    )}
+                    {accountId && sdAssetPickerContext === "brandLogo" && (
+                      <AssetPickerPopup
+                        isOpen={true}
+                        onClose={() => setSdAssetPickerContext(null)}
+                        onSelect={(asset) => {
+                          setSdAssetPickerContext(null);
+                          const value = asset.assetId || "";
+                          handleChange("properties.brandLogo", {
+                            ...currentCreative.properties.brandLogo,
+                            assetId: value,
+                            assetVersion: value ? "version_v1" : currentCreative.properties.brandLogo?.assetVersion || "",
+                            croppingCoordinates: undefined,
+                          });
+                          if (!assets.some((a) => a.assetId === value)) {
+                            setAssets((prev) => [asset, ...prev]);
+                          }
+                        }}
+                        accountId={parseInt(accountId, 10)}
+                        channelId={channelId ?? null}
+                        profileId={profileId ?? null}
+                        imageOnly
+                        title="Browse brand logo assets"
+                      />
+                    )}
                   </div>
                 )}
 
@@ -2385,10 +2205,20 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       {currentCreative.properties.customImage
                         ?.rectCustomImage ? (
                         <div>
-                          <label className="block text-[11.2px] font-semibold text-[#556179] mb-2">
-                            Rectangular Custom Image{" "}
-                            {rectRequired && <span className="text-red-500">*</span>}
-                          </label>
+                          <div className="flex items-center gap-2 mb-2">
+                            <label className="block text-[11.2px] font-semibold text-[#556179]">
+                              Rectangular Custom Image{" "}
+                              {rectRequired && <span className="text-red-500">*</span>}
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setSdAssetPickerContext("rectCustomImage")}
+                              disabled={!accountId}
+                              className="text-[11px] font-medium text-[#136D6D] hover:text-[#0e5a5a] whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Browse assets
+                            </button>
+                          </div>
                           <div className="grid grid-cols-2 gap-2 mb-2">
                             <Dropdown<string>
                               options={assets
@@ -2505,10 +2335,15 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                           {rectOptionalCropHint &&
                             !rectDimensionError &&
                             !errors["properties.customImage.rectCustomImage"] && (
-                              <div className="mt-1 flex flex-wrap items-center gap-2">
-                                <p className="text-[10px] text-yellow-600">
-                                  {rectOptionalCropHint}
-                                </p>
+                              <p className="text-[10px] text-yellow-600 mt-1">
+                                {rectOptionalCropHint}
+                              </p>
+                            )}
+                          {currentCreative.properties.customImage?.rectCustomImage?.assetId &&
+                            currentCreative.properties.customImage?.rectCustomImage?.assetVersion &&
+                            !rectDimensionError &&
+                            !errors["properties.customImage.rectCustomImage"] && (
+                              <div className="mt-1">
                                 <button
                                   type="button"
                                   onClick={async () => {
@@ -2559,240 +2394,14 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                   }}
                                   className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] font-medium underline"
                                 >
-                                  Crop image
+                                  {currentCreative.properties.customImage?.rectCustomImage?.croppingCoordinates
+                                    ? "Crop image again"
+                                    : "Crop image"}
                                 </button>
                               </div>
                             )}
-                          {/* Cropping Coordinates (Optional) - nested accordion for Rect */}
-                          <div className="mt-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setCustomImageRectCroppingOpen((o) => !o)
-                              }
-                              className="flex items-center gap-2 w-full py-1.5 hover:opacity-80 transition-opacity cursor-pointer text-left"
-                            >
-                              <svg
-                                className={`w-4 h-4 text-[#556179] shrink-0 transition-transform ${
-                                  customImageRectCroppingOpen
-                                    ? "rotate-180"
-                                    : ""
-                                }`}
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 9l-7 7-7-7"
-                                />
-                              </svg>
-                              <span className="text-[11.2px] font-semibold text-[#556179]">
-                                Cropping Coordinates{" "}
-                                <span className="text-gray-400 font-normal">
-                                  (Optional)
-                                </span>
-                              </span>
-                            </button>
-                            {customImageRectCroppingOpen && (
-                              <div className="pt-2 grid grid-cols-4 gap-2">
-                                <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">
-                                    Top
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={
-                                      currentCreative.properties.customImage
-                                        ?.rectCustomImage?.croppingCoordinates
-                                        ?.top ?? ""
-                                    }
-                                    onChange={(e) => {
-                                      const value =
-                                        e.target.value === ""
-                                          ? undefined
-                                          : parseInt(e.target.value, 10);
-                                      const currentCrop =
-                                        currentCreative.properties.customImage
-                                          ?.rectCustomImage
-                                          ?.croppingCoordinates || {};
-                                      const newCrop = { ...currentCrop };
-                                      if (
-                                        value !== undefined &&
-                                        !isNaN(value)
-                                      ) {
-                                        newCrop.top = value;
-                                      } else {
-                                        delete newCrop.top;
-                                      }
-                                      handleChange("properties.customImage", {
-                                        ...currentCreative.properties
-                                          .customImage,
-                                        rectCustomImage: {
-                                          ...currentCreative.properties
-                                            .customImage?.rectCustomImage,
-                                          croppingCoordinates:
-                                            Object.keys(newCrop).length > 0
-                                              ? newCrop
-                                              : undefined,
-                                        },
-                                      });
-                                    }}
-                                    className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                                    placeholder="0"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">
-                                    Left
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={
-                                      currentCreative.properties.customImage
-                                        ?.rectCustomImage?.croppingCoordinates
-                                        ?.left ?? ""
-                                    }
-                                    onChange={(e) => {
-                                      const value =
-                                        e.target.value === ""
-                                          ? undefined
-                                          : parseInt(e.target.value, 10);
-                                      const currentCrop =
-                                        currentCreative.properties.customImage
-                                          ?.rectCustomImage
-                                          ?.croppingCoordinates || {};
-                                      const newCrop = { ...currentCrop };
-                                      if (
-                                        value !== undefined &&
-                                        !isNaN(value)
-                                      ) {
-                                        newCrop.left = value;
-                                      } else {
-                                        delete newCrop.left;
-                                      }
-                                      handleChange("properties.customImage", {
-                                        ...currentCreative.properties
-                                          .customImage,
-                                        rectCustomImage: {
-                                          ...currentCreative.properties
-                                            .customImage?.rectCustomImage,
-                                          croppingCoordinates:
-                                            Object.keys(newCrop).length > 0
-                                              ? newCrop
-                                              : undefined,
-                                        },
-                                      });
-                                    }}
-                                    className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                                    placeholder="0"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">
-                                    Width
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={
-                                      currentCreative.properties.customImage
-                                        ?.rectCustomImage?.croppingCoordinates
-                                        ?.width ?? ""
-                                    }
-                                    onChange={(e) => {
-                                      const value =
-                                        e.target.value === ""
-                                          ? undefined
-                                          : parseInt(e.target.value, 10);
-                                      const currentCrop =
-                                        currentCreative.properties.customImage
-                                          ?.rectCustomImage
-                                          ?.croppingCoordinates || {};
-                                      const newCrop = { ...currentCrop };
-                                      if (
-                                        value !== undefined &&
-                                        !isNaN(value)
-                                      ) {
-                                        newCrop.width = value;
-                                      } else {
-                                        delete newCrop.width;
-                                      }
-                                      handleChange("properties.customImage", {
-                                        ...currentCreative.properties
-                                          .customImage,
-                                        rectCustomImage: {
-                                          ...currentCreative.properties
-                                            .customImage?.rectCustomImage,
-                                          croppingCoordinates:
-                                            Object.keys(newCrop).length > 0
-                                              ? newCrop
-                                              : undefined,
-                                        },
-                                      });
-                                    }}
-                                    className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                                    placeholder="0"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">
-                                    Height
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={
-                                      currentCreative.properties.customImage
-                                        ?.rectCustomImage?.croppingCoordinates
-                                        ?.height ?? ""
-                                    }
-                                    onChange={(e) => {
-                                      const value =
-                                        e.target.value === ""
-                                          ? undefined
-                                          : parseInt(e.target.value, 10);
-                                      const currentCrop =
-                                        currentCreative.properties.customImage
-                                          ?.rectCustomImage
-                                          ?.croppingCoordinates || {};
-                                      const newCrop = { ...currentCrop };
-                                      if (
-                                        value !== undefined &&
-                                        !isNaN(value)
-                                      ) {
-                                        newCrop.height = value;
-                                      } else {
-                                        delete newCrop.height;
-                                      }
-                                      handleChange("properties.customImage", {
-                                        ...currentCreative.properties
-                                          .customImage,
-                                        rectCustomImage: {
-                                          ...currentCreative.properties
-                                            .customImage?.rectCustomImage,
-                                          croppingCoordinates:
-                                            Object.keys(newCrop).length > 0
-                                              ? newCrop
-                                              : undefined,
-                                        },
-                                      });
-                                    }}
-                                    className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                                    placeholder="0"
-                                  />
-                                </div>
-                              </div>
-                            )}
-                          </div>
+                          {/* Cropping Coordinates - hidden */}
+                          {SHOW_CROPPING_COORDS_SECTIONS && <div className="mt-2" />}
                         </div>
                       ) : (
                         <div>
@@ -2831,10 +2440,20 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
                       {/* Square Custom Image - required only when not using squareImages */}
                       <div>
-                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2">
-                          Square Custom Image{" "}
-                          {squareRequired && <span className="text-red-500">*</span>}
-                        </label>
+                        <div className="flex items-center gap-2 mb-2">
+                          <label className="block text-[11.2px] font-semibold text-[#556179]">
+                            Square Custom Image{" "}
+                            {squareRequired && <span className="text-red-500">*</span>}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setSdAssetPickerContext("squareCustomImage")}
+                            disabled={!accountId}
+                            className="text-[11px] font-medium text-[#136D6D] hover:text-[#0e5a5a] whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Browse assets
+                          </button>
+                        </div>
                         <div className="grid grid-cols-2 gap-2 mb-2">
                           <Dropdown<string>
                             options={assets
@@ -2948,15 +2567,18 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                               squareDimensionError}
                           </p>
                         )}
-                        {currentCreative.properties.customImage?.squareCustomImage?.assetId &&
+                        {squareOptionalCropHint &&
                           !squareDimensionError &&
                           !errors["properties.customImage.squareCustomImage"] && (
-                            <div className="mt-1 flex flex-wrap items-center gap-2">
-                              {squareOptionalCropHint && (
-                                <p className="text-[10px] text-yellow-600">
-                                  {squareOptionalCropHint}
-                                </p>
-                              )}
+                            <p className="text-[10px] text-yellow-600 mt-1">
+                              {squareOptionalCropHint}
+                            </p>
+                          )}
+                        {currentCreative.properties.customImage?.squareCustomImage?.assetId &&
+                          currentCreative.properties.customImage?.squareCustomImage?.assetVersion &&
+                          !squareDimensionError &&
+                          !errors["properties.customImage.squareCustomImage"] && (
+                            <div className="mt-1">
                               <button
                                 type="button"
                                 onClick={async () => {
@@ -3007,241 +2629,145 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                 }}
                                 className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] font-medium underline"
                               >
-                                Crop image
+                                {currentCreative.properties.customImage?.squareCustomImage?.croppingCoordinates
+                                  ? "Crop image again"
+                                  : "Crop image"}
                               </button>
                             </div>
                           )}
-                        {/* Cropping Coordinates (Optional) - nested accordion for Square */}
-                        <div className="mt-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setCustomImageSquareCroppingOpen((o) => !o)
-                            }
-                            className="flex items-center gap-2 w-full py-1.5 hover:opacity-80 transition-opacity cursor-pointer text-left"
-                          >
-                            <svg
-                              className={`w-4 h-4 text-[#556179] shrink-0 transition-transform ${
-                                customImageSquareCroppingOpen
-                                  ? "rotate-180"
-                                  : ""
-                              }`}
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 9l-7 7-7-7"
-                              />
-                            </svg>
-                            <span className="text-[11.2px] font-semibold text-[#556179]">
-                              Cropping Coordinates{" "}
-                              <span className="text-gray-400 font-normal">
-                                (Optional)
-                              </span>
-                            </span>
-                          </button>
-                          {customImageSquareCroppingOpen && (
-                            <div className="pt-2 grid grid-cols-4 gap-2">
-                              <div>
-                                <label className="block text-[10px] text-gray-500 mb-1">
-                                  Top
-                                </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  value={
-                                    currentCreative.properties.customImage
-                                      ?.squareCustomImage?.croppingCoordinates
-                                      ?.top ?? ""
-                                  }
-                                  onChange={(e) => {
-                                    const value =
-                                      e.target.value === ""
-                                        ? undefined
-                                        : parseInt(e.target.value, 10);
-                                    const currentCrop =
-                                      currentCreative.properties.customImage
-                                        ?.squareCustomImage
-                                        ?.croppingCoordinates || {};
-                                    const newCrop = { ...currentCrop };
-                                    if (
-                                      value !== undefined &&
-                                      !isNaN(value)
-                                    ) {
-                                      newCrop.top = value;
-                                    } else {
-                                      delete newCrop.top;
-                                    }
-                                    handleChange("properties.customImage", {
-                                      ...currentCreative.properties
-                                        .customImage,
-                                      squareCustomImage: {
-                                        ...currentCreative.properties
-                                          .customImage?.squareCustomImage,
-                                        croppingCoordinates:
-                                          Object.keys(newCrop).length > 0
-                                            ? newCrop
-                                            : undefined,
-                                      },
-                                    });
-                                  }}
-                                  className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                                  placeholder="0"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] text-gray-500 mb-1">
-                                  Left
-                                </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  value={
-                                    currentCreative.properties.customImage
-                                      ?.squareCustomImage?.croppingCoordinates
-                                      ?.left ?? ""
-                                  }
-                                  onChange={(e) => {
-                                    const value =
-                                      e.target.value === ""
-                                        ? undefined
-                                        : parseInt(e.target.value, 10);
-                                    const currentCrop =
-                                      currentCreative.properties.customImage
-                                        ?.squareCustomImage
-                                        ?.croppingCoordinates || {};
-                                    const newCrop = { ...currentCrop };
-                                    if (
-                                      value !== undefined &&
-                                      !isNaN(value)
-                                    ) {
-                                      newCrop.left = value;
-                                    } else {
-                                      delete newCrop.left;
-                                    }
-                                    handleChange("properties.customImage", {
-                                      ...currentCreative.properties
-                                        .customImage,
-                                      squareCustomImage: {
-                                        ...currentCreative.properties
-                                          .customImage?.squareCustomImage,
-                                        croppingCoordinates:
-                                          Object.keys(newCrop).length > 0
-                                            ? newCrop
-                                            : undefined,
-                                      },
-                                    });
-                                  }}
-                                  className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                                  placeholder="0"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] text-gray-500 mb-1">
-                                  Width
-                                </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  value={
-                                    currentCreative.properties.customImage
-                                      ?.squareCustomImage?.croppingCoordinates
-                                      ?.width ?? ""
-                                  }
-                                  onChange={(e) => {
-                                    const value =
-                                      e.target.value === ""
-                                        ? undefined
-                                        : parseInt(e.target.value, 10);
-                                    const currentCrop =
-                                      currentCreative.properties.customImage
-                                        ?.squareCustomImage
-                                        ?.croppingCoordinates || {};
-                                    const newCrop = { ...currentCrop };
-                                    if (
-                                      value !== undefined &&
-                                      !isNaN(value)
-                                    ) {
-                                      newCrop.width = value;
-                                    } else {
-                                      delete newCrop.width;
-                                    }
-                                    handleChange("properties.customImage", {
-                                      ...currentCreative.properties
-                                        .customImage,
-                                      squareCustomImage: {
-                                        ...currentCreative.properties
-                                          .customImage?.squareCustomImage,
-                                        croppingCoordinates:
-                                          Object.keys(newCrop).length > 0
-                                            ? newCrop
-                                            : undefined,
-                                      },
-                                    });
-                                  }}
-                                  className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                                  placeholder="0"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] text-gray-500 mb-1">
-                                  Height
-                                </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  value={
-                                    currentCreative.properties.customImage
-                                      ?.squareCustomImage?.croppingCoordinates
-                                      ?.height ?? ""
-                                  }
-                                  onChange={(e) => {
-                                    const value =
-                                      e.target.value === ""
-                                        ? undefined
-                                        : parseInt(e.target.value, 10);
-                                    const currentCrop =
-                                      currentCreative.properties.customImage
-                                        ?.squareCustomImage
-                                        ?.croppingCoordinates || {};
-                                    const newCrop = { ...currentCrop };
-                                    if (
-                                      value !== undefined &&
-                                      !isNaN(value)
-                                    ) {
-                                      newCrop.height = value;
-                                    } else {
-                                      delete newCrop.height;
-                                    }
-                                    handleChange("properties.customImage", {
-                                      ...currentCreative.properties
-                                        .customImage,
-                                      squareCustomImage: {
-                                        ...currentCreative.properties
-                                          .customImage?.squareCustomImage,
-                                        croppingCoordinates:
-                                          Object.keys(newCrop).length > 0
-                                            ? newCrop
-                                            : undefined,
-                                      },
-                                    });
-                                  }}
-                                  className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px] bg-white"
-                                  placeholder="0"
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        {/* Cropping Coordinates - hidden */}
+                        {SHOW_CROPPING_COORDS_SECTIONS && <div className="mt-2" />}
                       </div>
+
+                      {/* Asset picker popup for rect / square / array */}
+                      {accountId &&
+                        (sdAssetPickerContext === "rectCustomImage" ||
+                          sdAssetPickerContext === "squareCustomImage" ||
+                          (typeof sdAssetPickerContext === "object" &&
+                            sdAssetPickerContext !== null)) && (
+                        <AssetPickerPopup
+                          isOpen={true}
+                          onClose={() => setSdAssetPickerContext(null)}
+                          onSelect={(asset) => {
+                            const value = asset.assetId || "";
+                            const ctx = sdAssetPickerContext;
+                            setSdAssetPickerContext(null);
+                            if (!assets.some((a) => a.assetId === value)) {
+                              setAssets((prev) => [asset, ...prev]);
+                            }
+                            if (ctx === "rectCustomImage") {
+                              const w = asset.fileMetadata?.width;
+                              const h = asset.fileMetadata?.height;
+                              const meetsMin =
+                                w != null &&
+                                h != null &&
+                                w >= RECT_MIN_WIDTH &&
+                                h >= RECT_MIN_HEIGHT;
+                              setCurrentCreative((prev) => ({
+                                ...prev,
+                                properties: {
+                                  ...prev.properties,
+                                  customImage: {
+                                    ...prev.properties.customImage,
+                                    rectCustomImage: {
+                                      assetId: value,
+                                      assetVersion: value ? "version_v1" : prev.properties.customImage?.rectCustomImage?.assetVersion || "",
+                                      croppingCoordinates:
+                                        meetsMin && w != null && h != null
+                                          ? { top: 0, left: 0, width: w, height: h }
+                                          : undefined,
+                                    },
+                                  },
+                                },
+                              }));
+                            } else if (ctx === "squareCustomImage") {
+                              const w = asset.fileMetadata?.width;
+                              const h = asset.fileMetadata?.height;
+                              const meetsMin =
+                                w != null &&
+                                h != null &&
+                                w >= SQUARE_MIN_WIDTH &&
+                                h >= SQUARE_MIN_HEIGHT;
+                              setCurrentCreative((prev) => ({
+                                ...prev,
+                                properties: {
+                                  ...prev.properties,
+                                  customImage: {
+                                    ...prev.properties.customImage,
+                                    squareCustomImage: {
+                                      assetId: value,
+                                      assetVersion: value ? "version_v1" : prev.properties.customImage?.squareCustomImage?.assetVersion || "",
+                                      croppingCoordinates:
+                                        meetsMin && w != null && h != null
+                                          ? { top: 0, left: 0, width: w, height: h }
+                                          : undefined,
+                                    },
+                                  },
+                                },
+                              }));
+                            } else if (
+                              typeof ctx === "object" &&
+                              ctx !== null &&
+                              "arrayKey" in ctx &&
+                              "index" in ctx
+                            ) {
+                              const { arrayKey, index } = ctx;
+                              const rules =
+                                arrayKey === "horizontalImages"
+                                  ? { minW: RECT_MIN_WIDTH, minH: RECT_MIN_HEIGHT }
+                                  : arrayKey === "squareImages"
+                                    ? { minW: SQUARE_MIN_WIDTH, minH: SQUARE_MIN_HEIGHT }
+                                    : { minW: VERTICAL_MIN_WIDTH, minH: VERTICAL_MIN_HEIGHT };
+                              const sw = asset.fileMetadata?.width;
+                              const sh = asset.fileMetadata?.height;
+                              const meetsMin =
+                                sw != null &&
+                                sh != null &&
+                                (arrayKey === "verticalImages"
+                                  ? Math.max(sw, sh) >= rules.minH && Math.min(sw, sh) >= rules.minW
+                                  : sw >= rules.minW && sh >= rules.minH);
+                              setCurrentCreative((prev) => {
+                                const images =
+                                  prev.properties.customImage?.[arrayKey] || [];
+                                const newImages = [...images];
+                                if (!newImages[index]) {
+                                  newImages[index] = { assetId: "", assetVersion: "" };
+                                }
+                                newImages[index] = {
+                                  ...newImages[index],
+                                  assetId: value,
+                                  assetVersion: value ? "version_v1" : newImages[index].assetVersion || "",
+                                  croppingCoordinates:
+                                    meetsMin && sw != null && sh != null
+                                      ? { top: 0, left: 0, width: sw, height: sh }
+                                      : undefined,
+                                };
+                                return {
+                                  ...prev,
+                                  properties: {
+                                    ...prev.properties,
+                                    customImage: {
+                                      ...prev.properties.customImage,
+                                      [arrayKey]: newImages,
+                                    },
+                                  },
+                                };
+                              });
+                            }
+                          }}
+                          accountId={parseInt(accountId, 10)}
+                          channelId={channelId ?? null}
+                          profileId={profileId ?? null}
+                          imageOnly
+                          title={
+                            sdAssetPickerContext === "rectCustomImage"
+                              ? "Browse rectangular image assets"
+                              : sdAssetPickerContext === "squareCustomImage"
+                                ? "Browse square image assets"
+                                : "Browse image assets"
+                          }
+                        />
+                      )}
 
                       {/* Helper function to render image array */}
                       {(() => {
@@ -3322,9 +2848,24 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                   className="mb-3 p-3 border border-[#EBEBEB] rounded-lg bg-white"
                                 >
                                   <div className="flex items-center justify-between mb-2">
-                                    <span className="text-[12px] font-medium text-[#222124]">
-                                      {label.slice(0, -1)} #{idx + 1}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[12px] font-medium text-[#222124]">
+                                        {label.slice(0, -1)} #{idx + 1}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setSdAssetPickerContext({
+                                            arrayKey,
+                                            index: idx,
+                                          })
+                                        }
+                                        disabled={!accountId}
+                                        className="text-[11px] font-medium text-[#136D6D] hover:text-[#0e5a5a] whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        Browse assets
+                                      </button>
+                                    </div>
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -3486,248 +3027,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                       </button>
                                     </div>
                                   )}
-                                  {/* Cropping Coordinates (Optional) - accordion */}
-                                  <div className="mt-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const key = `${arrayKey}-${idx}`;
-                                        setCustomImageArrayCroppingOpen(
-                                          (prev) => {
-                                            const next = new Set(prev);
-                                            if (next.has(key)) next.delete(key);
-                                            else next.add(key);
-                                            return next;
-                                          },
-                                        );
-                                      }}
-                                      className="flex items-center gap-2 w-full py-1.5 hover:opacity-80 transition-opacity cursor-pointer text-left"
-                                    >
-                                      <svg
-                                        className={`w-4 h-4 text-[#556179] shrink-0 transition-transform ${
-                                          customImageArrayCroppingOpen.has(
-                                            `${arrayKey}-${idx}`,
-                                          )
-                                            ? "rotate-180"
-                                            : ""
-                                        }`}
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M19 9l-7 7-7-7"
-                                        />
-                                      </svg>
-                                      <span className="text-[11.2px] font-semibold text-[#556179]">
-                                        Cropping Coordinates{" "}
-                                        <span className="text-gray-400 font-normal">
-                                          (Optional)
-                                        </span>
-                                      </span>
-                                    </button>
-                                    {customImageArrayCroppingOpen.has(
-                                      `${arrayKey}-${idx}`,
-                                    ) && (
-                                    <div className="pt-2 grid grid-cols-4 gap-2">
-                                    <div>
-                                      <label className="block text-[10px] text-gray-500 mb-1">
-                                        Top
-                                      </label>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        step="1"
-                                        value={
-                                          img.croppingCoordinates?.top ?? ""
-                                        }
-                                        onChange={(e) => {
-                                          const value =
-                                            e.target.value === ""
-                                              ? undefined
-                                              : parseInt(e.target.value, 10);
-                                          const currentCrop =
-                                            img.croppingCoordinates || {};
-                                          const newCrop = { ...currentCrop };
-                                          if (
-                                            value !== undefined &&
-                                            !isNaN(value)
-                                          ) {
-                                            newCrop.top = value;
-                                          } else {
-                                            delete newCrop.top;
-                                          }
-                                          const newImages = [...images];
-                                          newImages[idx] = {
-                                            ...img,
-                                            croppingCoordinates:
-                                              Object.keys(newCrop).length > 0
-                                                ? newCrop
-                                                : undefined,
-                                          };
-                                          handleChange(
-                                            "properties.customImage",
-                                            {
-                                              ...currentCreative.properties
-                                                .customImage,
-                                              [arrayKey]: newImages,
-                                            },
-                                          );
-                                        }}
-                                        className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px]"
-                                        placeholder="0"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="block text-[10px] text-gray-500 mb-1">
-                                        Left
-                                      </label>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        step="1"
-                                        value={
-                                          img.croppingCoordinates?.left ?? ""
-                                        }
-                                        onChange={(e) => {
-                                          const value =
-                                            e.target.value === ""
-                                              ? undefined
-                                              : parseInt(e.target.value, 10);
-                                          const currentCrop =
-                                            img.croppingCoordinates || {};
-                                          const newCrop = { ...currentCrop };
-                                          if (
-                                            value !== undefined &&
-                                            !isNaN(value)
-                                          ) {
-                                            newCrop.left = value;
-                                          } else {
-                                            delete newCrop.left;
-                                          }
-                                          const newImages = [...images];
-                                          newImages[idx] = {
-                                            ...img,
-                                            croppingCoordinates:
-                                              Object.keys(newCrop).length > 0
-                                                ? newCrop
-                                                : undefined,
-                                          };
-                                          handleChange(
-                                            "properties.customImage",
-                                            {
-                                              ...currentCreative.properties
-                                                .customImage,
-                                              [arrayKey]: newImages,
-                                            },
-                                          );
-                                        }}
-                                        className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px]"
-                                        placeholder="0"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="block text-[10px] text-gray-500 mb-1">
-                                        Width
-                                      </label>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        step="1"
-                                        value={
-                                          img.croppingCoordinates?.width ?? ""
-                                        }
-                                        onChange={(e) => {
-                                          const value =
-                                            e.target.value === ""
-                                              ? undefined
-                                              : parseInt(e.target.value, 10);
-                                          const currentCrop =
-                                            img.croppingCoordinates || {};
-                                          const newCrop = { ...currentCrop };
-                                          if (
-                                            value !== undefined &&
-                                            !isNaN(value)
-                                          ) {
-                                            newCrop.width = value;
-                                          } else {
-                                            delete newCrop.width;
-                                          }
-                                          const newImages = [...images];
-                                          newImages[idx] = {
-                                            ...img,
-                                            croppingCoordinates:
-                                              Object.keys(newCrop).length > 0
-                                                ? newCrop
-                                                : undefined,
-                                          };
-                                          handleChange(
-                                            "properties.customImage",
-                                            {
-                                              ...currentCreative.properties
-                                                .customImage,
-                                              [arrayKey]: newImages,
-                                            },
-                                          );
-                                        }}
-                                        className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px]"
-                                        placeholder="0"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="block text-[10px] text-gray-500 mb-1">
-                                        Height
-                                      </label>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        step="1"
-                                        value={
-                                          img.croppingCoordinates?.height ?? ""
-                                        }
-                                        onChange={(e) => {
-                                          const value =
-                                            e.target.value === ""
-                                              ? undefined
-                                              : parseInt(e.target.value, 10);
-                                          const currentCrop =
-                                            img.croppingCoordinates || {};
-                                          const newCrop = { ...currentCrop };
-                                          if (
-                                            value !== undefined &&
-                                            !isNaN(value)
-                                          ) {
-                                            newCrop.height = value;
-                                          } else {
-                                            delete newCrop.height;
-                                          }
-                                          const newImages = [...images];
-                                          newImages[idx] = {
-                                            ...img,
-                                            croppingCoordinates:
-                                              Object.keys(newCrop).length > 0
-                                                ? newCrop
-                                                : undefined,
-                                          };
-                                          handleChange(
-                                            "properties.customImage",
-                                            {
-                                              ...currentCreative.properties
-                                                .customImage,
-                                              [arrayKey]: newImages,
-                                            },
-                                          );
-                                        }}
-                                        className="w-full px-2 py-1 border border-[#EBEBEB] rounded text-[12px]"
-                                        placeholder="0"
-                                      />
-                                    </div>
-                                    </div>
-                                    )}
-                                  </div>
+                                  {/* Cropping Coordinates - hidden */}
+                                  {SHOW_CROPPING_COORDS_SECTIONS && <div className="mt-2" />}
                                 </div>
                               );
                               })}

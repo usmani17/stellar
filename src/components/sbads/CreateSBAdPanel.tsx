@@ -3,6 +3,7 @@ import { Dropdown } from "../ui/Dropdown";
 import { Checkbox } from "../ui/Checkbox";
 import { Loader } from "../ui/Loader";
 import { ImageCropModal, type CropCoordinates } from "../ui/ImageCropModal";
+import { AssetPickerPopup } from "../ui/AssetPickerPopup";
 import { campaignsService } from "../../services/campaigns";
 import type { Asset } from "../campaigns/AssetsTable";
 
@@ -221,6 +222,12 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
   const [brandLogoOptionalCropHint, setBrandLogoOptionalCropHint] = useState<
     string | null
   >(null);
+  /** Brand logo asset picker popup (browse assets) */
+  const [brandLogoAssetPickerOpen, setBrandLogoAssetPickerOpen] =
+    useState(false);
+  /** Custom image asset picker: index of the custom image row being browsed, or null if closed */
+  const [customImageAssetPickerIndex, setCustomImageAssetPickerIndex] =
+    useState<number | null>(null);
 
   // Re-check brand logo dimensions when brand logo asset or assets list changes (e.g. when loading ad for edit)
   useEffect(() => {
@@ -253,10 +260,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       setBrandLogoDimensionError(null);
       setBrandLogoOptionalCropHint(null);
     }
-  }, [
-    currentAd.creative?.brandLogoAssetID,
-    assets,
-  ]);
+  }, [currentAd.creative?.brandLogoAssetID, assets]);
 
   // On partial success (some ads created, some failed), remove successfully created ads from the list
   useEffect(() => {
@@ -498,12 +502,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           if (imgWidth > 1200 || imgHeight > 628) {
             const crop = image.crop;
             const requiredAspect = 1200 / 628;
-            const cropAspect = crop
-              ? crop.width / crop.height
-              : 0;
+            const cropAspect = crop ? crop.width / crop.height : 0;
             const aspectMatches =
-              crop &&
-              Math.abs(cropAspect - requiredAspect) < 0.01;
+              crop && Math.abs(cropAspect - requiredAspect) < 0.01;
             if (!crop || !aspectMatches) {
               if (!newErrors.customImages) {
                 newErrors.customImages = `Image ${index + 1} requires crop coordinates with 1200×628 aspect ratio. Use "Crop Image" to set.`;
@@ -966,8 +967,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               value={currentAd.name}
               onChange={(e) => handleChange("name", e.target.value)}
               placeholder="Enter ad name"
-              className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${errors.name ? "border-red-500" : "border-gray-200"
-                }`}
+              className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                errors.name ? "border-red-500" : "border-gray-200"
+              }`}
             />
             {errors.name && (
               <p className="text-[10px] text-red-500 mt-1">{errors.name}</p>
@@ -1109,8 +1111,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                   handleChange("creative.brandName", e.target.value)
                 }
                 placeholder="My Brand"
-                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${errors.brandName ? "border-red-500" : "border-gray-200"
-                  }`}
+                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  errors.brandName ? "border-red-500" : "border-gray-200"
+                }`}
               />
               {errors.brandName && (
                 <p className="text-[10px] text-red-500 mt-1">
@@ -1121,7 +1124,17 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
             {/* Brand Logo Asset ID */}
             <div>
-              <label className="form-label-small">Brand Logo Asset ID *</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="form-label-small">Brand Logo Asset ID *</label>
+                <button
+                  type="button"
+                  onClick={() => setBrandLogoAssetPickerOpen(true)}
+                  disabled={!accountId}
+                  className="text-[11px] font-medium text-[#136D6D] hover:text-[#0e5a5a] whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Browse assets
+                </button>
+              </div>
               <Dropdown<string>
                 options={assets
                   .filter((asset) => {
@@ -1195,8 +1208,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                   }
                 }}
                 placeholder={assetsLoading ? "Loading..." : "Select Asset"}
-                buttonClassName={`edit-button w-full px-4 py-2.5 ${errors.brandLogoAssetID ? "border-red-500" : "border-gray-200"
-                  }`}
+                buttonClassName={`edit-button w-full px-4 py-2.5 ${
+                  errors.brandLogoAssetID ? "border-red-500" : "border-gray-200"
+                }`}
                 menuClassName="max-w-full"
                 optionClassName="truncate"
                 renderOption={(option, isSelected) => (
@@ -1219,63 +1233,110 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 )}
                 disabled={assetsLoading || assets.length === 0}
               />
+              {accountId && (
+                <AssetPickerPopup
+                  isOpen={brandLogoAssetPickerOpen}
+                  onClose={() => setBrandLogoAssetPickerOpen(false)}
+                  onSelect={(asset) => {
+                    const value = asset.assetId || "";
+                    handleChange("creative.brandLogoAssetID", value);
+                    setBrandLogoDimensionError(null);
+                    setBrandLogoOptionalCropHint(null);
+                    if (!assets.some((a) => a.assetId === value)) {
+                      setAssets((prev) => [asset, ...prev]);
+                    }
+                    if (
+                      asset.fileMetadata?.width != null &&
+                      asset.fileMetadata?.height != null
+                    ) {
+                      const width = asset.fileMetadata.width;
+                      const height = asset.fileMetadata.height;
+                      const BRAND_LOGO_MIN = 400;
+                      if (width < BRAND_LOGO_MIN || height < BRAND_LOGO_MIN) {
+                        setBrandLogoDimensionError(
+                          `Brand logo must be at least 400×400 pixels. Current: ${width}×${height}. Please select a larger image.`,
+                        );
+                      } else {
+                        setBrandLogoOptionalCropHint(
+                          `Image (${width}×${height}) is larger than 400×400. Optionally crop for best results.`,
+                        );
+                      }
+                      setCurrentAd((prev) => ({
+                        ...prev,
+                        creative: {
+                          ...prev.creative,
+                          brandLogoCrop: {
+                            top: prev.creative?.brandLogoCrop?.top ?? 0,
+                            left: prev.creative?.brandLogoCrop?.left ?? 0,
+                            width,
+                            height,
+                          },
+                        },
+                      }));
+                    }
+                  }}
+                  accountId={accountId}
+                  channelId={channelId}
+                  profileId={profileId}
+                  imageOnly
+                  title="Browse brand logo assets"
+                />
+              )}
               {errors.brandLogoAssetID && (
                 <p className="text-[10px] text-red-500 mt-1 font-semibold">
                   {errors.brandLogoAssetID}
                 </p>
               )}
               {brandLogoOptionalCropHint && !brandLogoDimensionError && (
-                <div className="mt-1">
-                  <p className="text-[10px] text-yellow-600">
-                    {brandLogoOptionalCropHint}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const assetId =
-                        currentAd.creative?.brandLogoAssetID || "";
-                      const selectedAsset = assets.find(
-                        (a) => a.assetId === assetId,
-                      );
-                      let imageUrl =
-                        selectedAsset?.storageLocationUrls?.defaultUrl;
-
-                      if (
-                        !imageUrl &&
-                        accountId &&
-                        profileId &&
-                        assetId
-                      ) {
-                        try {
-                          const preview =
-                            await campaignsService.getAssetPreview(
-                              accountId,
-                              assetId,
-                              String(profileId),
-                              channelId ?? null,
-                            );
-                          imageUrl = preview?.previewUrl || "";
-                        } catch {
-                          imageUrl = "";
-                        }
-                      }
-
-                      if (!imageUrl) {
-                        setBrandLogoOptionalCropHint(
-                          "Could not load image for cropping. Please ensure the asset has a preview.",
-                        );
-                        return;
-                      }
-
-                      setBrandLogoCropImageUrl(imageUrl);
-                      setBrandLogoCropModalOpen(true);
-                    }}
-                    className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] font-medium mt-0.5"
-                  >
-                    Crop Brand Logo
-                  </button>
-                </div>
+                <p className="text-[10px] text-yellow-600 mt-1">
+                  {brandLogoOptionalCropHint}
+                </p>
               )}
+              {currentAd.creative?.brandLogoAssetID?.trim() &&
+                !brandLogoDimensionError && (
+                  <div className="mt-1">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const assetId =
+                          currentAd.creative?.brandLogoAssetID || "";
+                        const selectedAsset = assets.find(
+                          (a) => a.assetId === assetId,
+                        );
+                        let imageUrl =
+                          selectedAsset?.storageLocationUrls?.defaultUrl;
+
+                        if (!imageUrl && accountId && profileId && assetId) {
+                          try {
+                            const preview =
+                              await campaignsService.getAssetPreview(
+                                accountId,
+                                assetId,
+                                String(profileId),
+                                channelId ?? null,
+                              );
+                            imageUrl = preview?.previewUrl || "";
+                          } catch {
+                            imageUrl = "";
+                          }
+                        }
+
+                        if (!imageUrl) {
+                          setBrandLogoOptionalCropHint(
+                            "Could not load image for cropping. Please ensure the asset has a preview.",
+                          );
+                          return;
+                        }
+
+                        setBrandLogoCropImageUrl(imageUrl);
+                        setBrandLogoCropModalOpen(true);
+                      }}
+                      className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] font-medium"
+                    >
+                      {"Crop"}
+                    </button>
+                  </div>
+                )}
             </div>
 
             {/* Headline */}
@@ -1288,8 +1349,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                   handleChange("creative.headline", e.target.value)
                 }
                 placeholder="Shop Our Best Products"
-                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${errors.headline ? "border-red-500" : "border-gray-200"
-                  }`}
+                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  errors.headline ? "border-red-500" : "border-gray-200"
+                }`}
               />
               {errors.headline && (
                 <p className="text-[10px] text-red-500 mt-1">
@@ -1320,10 +1382,11 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         handleChange("creative.asins", newAsins.slice(0, 3));
                       }}
                       placeholder={`ASIN ${index + 1} (e.g., B01EXAMPLE)`}
-                      className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${errors.creativeAsins
-                        ? "border-red-500"
-                        : "border-gray-200"
-                        }`}
+                      className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                        errors.creativeAsins
+                          ? "border-red-500"
+                          : "border-gray-200"
+                      }`}
                     />
                   </div>
                 );
@@ -1456,10 +1519,10 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     isVideoByMediaType
                   );
                 }).length === 0 && (
-                    <p className="text-[11.2px] text-gray-500 text-center py-4">
-                      No video assets available
-                    </p>
-                  )}
+                  <p className="text-[11.2px] text-gray-500 text-center py-4">
+                    No video assets available
+                  </p>
+                )}
               </div>
               {/* Display selected video asset IDs */}
               {currentAd.creative?.videoAssetIds &&
@@ -1549,9 +1612,19 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                     <div>
-                      <label className="block text-[10px] text-gray-600 mb-1">
-                        Asset ID
-                      </label>
+                      <div className="flex items-center gap-2 mb-1">
+                        <label className="block text-[10px] text-gray-600">
+                          Asset ID
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setCustomImageAssetPickerIndex(index)}
+                          disabled={!accountId}
+                          className="text-[10px] font-medium text-[#136D6D] hover:text-[#0e5a5a] whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Browse assets
+                        </button>
+                      </div>
                       <Dropdown<string>
                         options={assets
                           .filter((asset) => {
@@ -1717,58 +1790,14 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                       {customImageWarnings[index] && (
                         <div className="mt-1">
                           <p
-                            className={`text-[10px] ${customImageWarnings[index].includes("below")
-                              ? "text-red-600 font-semibold"
-                              : "text-yellow-600"
-                              }`}
+                            className={`text-[10px] ${
+                              customImageWarnings[index].includes("below")
+                                ? "text-red-600 font-semibold"
+                                : "text-yellow-600"
+                            }`}
                           >
                             {customImageWarnings[index]}
                           </p>
-                          {customImageWarnings[index].includes("larger than required") && (
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                const selectedAsset = assets.find(
-                                  (a) => a.assetId === image.assetId,
-                                );
-                                let imageUrl =
-                                  image.url ||
-                                  selectedAsset?.storageLocationUrls?.defaultUrl;
-
-                                if (!imageUrl && accountId && profileId && image.assetId) {
-                                  try {
-                                    const preview = await campaignsService.getAssetPreview(
-                                      accountId,
-                                      image.assetId,
-                                      String(profileId),
-                                      channelId ?? null,
-                                    );
-                                    imageUrl = preview?.previewUrl || "";
-                                  } catch {
-                                    imageUrl = "";
-                                  }
-                                }
-
-                                if (!imageUrl) {
-                                  setCustomImageWarnings((prev) => ({
-                                    ...prev,
-                                    [index]:
-                                      "Could not load image for cropping. Please provide a URL or ensure the asset has a preview.",
-                                  }));
-                                  return;
-                                }
-
-                                setCropModalState({
-                                  isOpen: true,
-                                  imageIndex: index,
-                                  imageUrl,
-                                });
-                              }}
-                              className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] font-medium mt-1"
-                            >
-                              Crop Image
-                            </button>
-                          )}
                         </div>
                       )}
                     </div>
@@ -1787,123 +1816,167 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                       />
                     </div>
                   </div>
-                  {/* Crop coordinates – accordion, closed by default */}
-                  <div className="mt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCustomImageCropExpandedIndices((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(index)) next.delete(index);
-                          else next.add(index);
-                          return next;
-                        });
-                      }}
-                      className="flex items-center gap-2 w-full py-1.5 hover:opacity-80 transition-opacity cursor-pointer text-left"
-                    >
-                      <span className="text-[11.2px] font-semibold text-[#072929]">
+                  {/* Crop coordinates – hidden; use "Crop image" button to crop / re-crop any number of times */}
+                  {false && (
+                    <div className="mt-2">
+                      <button type="button" className="hidden">
                         Crop (Optional)
-                      </span>
-                      <svg
-                        className={`w-4 h-4 text-[#072929] shrink-0 transition-transform ${customImageCropExpandedIndices.has(index)
-                          ? "rotate-180"
-                          : ""
-                          }`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
+                      </button>
+                    </div>
+                  )}
+                  {/* Always show Crop image button when asset is selected so user can crop or re-crop */}
+                  {image.assetId && (
+                    <div className="mt-1">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const selectedAsset = assets.find(
+                            (a) => a.assetId === image.assetId,
+                          );
+                          let imageUrl =
+                            image.url ||
+                            selectedAsset?.storageLocationUrls?.defaultUrl;
+
+                          if (
+                            !imageUrl &&
+                            accountId &&
+                            profileId &&
+                            image.assetId
+                          ) {
+                            try {
+                              const preview =
+                                await campaignsService.getAssetPreview(
+                                  accountId,
+                                  image.assetId,
+                                  String(profileId),
+                                  channelId ?? null,
+                                );
+                              imageUrl = preview?.previewUrl || "";
+                            } catch {
+                              imageUrl = "";
+                            }
+                          }
+
+                          if (!imageUrl) {
+                            setCustomImageWarnings((prev) => ({
+                              ...prev,
+                              [index]:
+                                "Could not load image for cropping. Please provide a URL or ensure the asset has a preview.",
+                            }));
+                            return;
+                          }
+
+                          setCropModalState({
+                            isOpen: true,
+                            imageIndex: index,
+                            imageUrl,
+                          });
+                        }}
+                        className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] font-medium"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-                    {customImageCropExpandedIndices.has(index) && (
-                      <div className="pt-2 grid grid-cols-4 gap-2">
-                        <div>
-                          <label className="block text-[9px] text-gray-500 mb-1">
-                            Top
-                          </label>
-                          <input
-                            type="number"
-                            value={image.crop?.top ?? ""}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              const num = raw === "" ? 0 : parseInt(raw, 10);
-                              handleCustomImageChange(
-                                index,
-                                "crop.top",
-                                raw === "" || Number.isNaN(num) ? 0 : num,
-                              );
-                            }}
-                            className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[9px] text-gray-500 mb-1">
-                            Left
-                          </label>
-                          <input
-                            type="number"
-                            value={image.crop?.left ?? ""}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              const num = raw === "" ? 0 : parseInt(raw, 10);
-                              handleCustomImageChange(
-                                index,
-                                "crop.left",
-                                raw === "" || Number.isNaN(num) ? 0 : num,
-                              );
-                            }}
-                            className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[9px] text-gray-500 mb-1">
-                            Width
-                          </label>
-                          <input
-                            type="number"
-                            value={image.crop?.width ?? ""}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              const num = raw === "" ? 100 : parseInt(raw, 10);
-                              handleCustomImageChange(
-                                index,
-                                "crop.width",
-                                raw === "" || Number.isNaN(num) ? 100 : num,
-                              );
-                            }}
-                            className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[9px] text-gray-500 mb-1">
-                            Height
-                          </label>
-                          <input
-                            type="number"
-                            value={image.crop?.height ?? ""}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              const num = raw === "" ? 100 : parseInt(raw, 10);
-                              handleCustomImageChange(
-                                index,
-                                "crop.height",
-                                raw === "" || Number.isNaN(num) ? 100 : num,
-                              );
-                            }}
-                            className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                        {"Crop image"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
+              {accountId && customImageAssetPickerIndex !== null && (
+                <AssetPickerPopup
+                  isOpen={true}
+                  onClose={() => setCustomImageAssetPickerIndex(null)}
+                  onSelect={(asset) => {
+                    const index = customImageAssetPickerIndex;
+                    setCustomImageAssetPickerIndex(null);
+                    const value = asset.assetId || "";
+                    handleCustomImageChange(index, "assetId", value);
+                    if (!assets.some((a) => a.assetId === value)) {
+                      setAssets((prev) => [asset, ...prev]);
+                    }
+                    const REQUIRED_WIDTH = 1200;
+                    const REQUIRED_HEIGHT = 628;
+                    setCustomImageWarnings((prev) => {
+                      const updated = { ...prev };
+                      delete updated[index];
+                      return updated;
+                    });
+                    if (
+                      asset.fileMetadata?.width != null &&
+                      asset.fileMetadata?.height != null
+                    ) {
+                      const width = asset.fileMetadata.width;
+                      const height = asset.fileMetadata.height;
+                      if (width < REQUIRED_WIDTH || height < REQUIRED_HEIGHT) {
+                        setCustomImageWarnings((prev) => ({
+                          ...prev,
+                          [index]: `Image dimensions (${width}x${height}) are below the minimum required (${REQUIRED_WIDTH}x${REQUIRED_HEIGHT}). Please select a larger image.`,
+                        }));
+                        return;
+                      }
+                      if (
+                        width === REQUIRED_WIDTH &&
+                        height === REQUIRED_HEIGHT
+                      ) {
+                        setCurrentAd((prev) => {
+                          const updatedCustomImages = [
+                            ...(prev.creative?.customImages || []),
+                          ];
+                          if (updatedCustomImages[index]) {
+                            updatedCustomImages[index] = {
+                              ...updatedCustomImages[index],
+                              crop: {
+                                top: 0,
+                                left: 0,
+                                width: REQUIRED_WIDTH,
+                                height: REQUIRED_HEIGHT,
+                              },
+                            };
+                          }
+                          return {
+                            ...prev,
+                            creative: {
+                              ...prev.creative,
+                              customImages: updatedCustomImages,
+                            },
+                          };
+                        });
+                        return;
+                      }
+                      setCustomImageWarnings((prev) => ({
+                        ...prev,
+                        [index]: `Image dimensions (${width}x${height}) are larger than required (${REQUIRED_WIDTH}x${REQUIRED_HEIGHT}). Please set crop coordinates with 1200x628 aspect ratio.`,
+                      }));
+                      setCurrentAd((prev) => {
+                        const updatedCustomImages = [
+                          ...(prev.creative?.customImages || []),
+                        ];
+                        if (updatedCustomImages[index]) {
+                          updatedCustomImages[index] = {
+                            ...updatedCustomImages[index],
+                            crop: {
+                              top: 0,
+                              left: 0,
+                              width: REQUIRED_WIDTH,
+                              height: REQUIRED_HEIGHT,
+                            },
+                          };
+                        }
+                        return {
+                          ...prev,
+                          creative: {
+                            ...prev.creative,
+                            customImages: updatedCustomImages,
+                          },
+                        };
+                      });
+                    }
+                  }}
+                  accountId={accountId}
+                  channelId={channelId}
+                  profileId={profileId}
+                  imageOnly
+                  title="Browse custom image assets"
+                />
+              )}
               <button
                 type="button"
                 onClick={handleAddCustomImage}
@@ -1914,10 +1987,11 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
             </div>
           )}
 
-          {/* Brand Logo Crop - Accordion (closed by default). For IMAGE ads and BRAND video ads. Optional; if not supplied, defaults to whole image. Min 400x400. */}
-          {(currentAd.adType === "IMAGE" ||
-            (currentAd.adType === "VIDEO" &&
-              currentAd.videoAdType === "BRAND")) && (
+          {/* Brand Logo Crop - Hidden from SB Ads collection */}
+          {false &&
+            (currentAd.adType === "IMAGE" ||
+              (currentAd.adType === "VIDEO" &&
+                currentAd.videoAdType === "BRAND")) && (
               <div className="mb-4">
                 <button
                   type="button"
@@ -1929,8 +2003,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                   <h3 className="text-[14px] font-semibold text-[#072929] flex items-center gap-2">
                     Brand Logo Crop
                     <svg
-                      className={`w-5 h-5 text-[#072929] shrink-0 transition-transform ${isBrandLogoCropExpanded ? "rotate-180" : ""
-                        }`}
+                      className={`w-5 h-5 text-[#072929] shrink-0 transition-transform ${
+                        isBrandLogoCropExpanded ? "rotate-180" : ""
+                      }`}
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -1989,7 +2064,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         </label>
                         <input
                           type="number"
-                          value={currentAd.creative?.brandLogoCrop?.width || 100}
+                          value={
+                            currentAd.creative?.brandLogoCrop?.width || 100
+                          }
                           onChange={(e) =>
                             handleChange(
                               "creative.brandLogoCrop.width",
@@ -2005,7 +2082,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         </label>
                         <input
                           type="number"
-                          value={currentAd.creative?.brandLogoCrop?.height || 100}
+                          value={
+                            currentAd.creative?.brandLogoCrop?.height || 100
+                          }
                           onChange={(e) =>
                             handleChange(
                               "creative.brandLogoCrop.height",
@@ -2223,7 +2302,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 Creative Properties to Optimize (Optional)
                 {currentAd.creative?.creativePropertiesToOptimize &&
                   currentAd.creative.creativePropertiesToOptimize.length >
-                  0 && (
+                    0 && (
                     <span className="ml-2 text-[10px] text-[#556179] font-normal">
                       ({currentAd.creative.creativePropertiesToOptimize.length}{" "}
                       selected)
@@ -2331,8 +2410,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     handleChange("landingPage.url", e.target.value)
                   }
                   placeholder="https://www.amazon.com/stores/..."
-                  className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${errors.landingPageUrl ? "border-red-500" : "border-gray-200"
-                    }`}
+                  className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    errors.landingPageUrl ? "border-red-500" : "border-gray-200"
+                  }`}
                 />
                 {errors.landingPageUrl && (
                   <p className="text-[10px] text-red-500 mt-1">
@@ -2367,11 +2447,11 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                           pageType: newPageType,
                           // Clear the opposite field when switching
                           ...(isUrlType ? { asins: [] } : { url: "" }),
-                          // Initialize asins with one empty field if switching to asins
+                          // Initialize asins with 3 empty fields when switching to PRODUCT_LIST/DETAIL_PAGE
                           ...(!isUrlType &&
-                            (!prev.landingPage?.asins ||
-                              prev.landingPage.asins.length === 0)
-                            ? { asins: [""] }
+                          (!prev.landingPage?.asins ||
+                            prev.landingPage.asins.length === 0)
+                            ? { asins: ["", "", ""] }
                             : {}),
                         },
                       }));
@@ -2388,110 +2468,87 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 {/* Show URL field for STORE or CUSTOM_URL */}
                 {(currentAd.landingPage?.pageType === "STORE" ||
                   currentAd.landingPage?.pageType === "CUSTOM_URL") && (
-                    <div>
-                      <label className="form-label-small">
-                        Landing page URL *
-                      </label>
-                      <input
-                        type="text"
-                        value={currentAd.landingPage?.url || ""}
-                        onChange={(e) =>
-                          handleChange("landingPage.url", e.target.value)
-                        }
-                        placeholder={
-                          currentAd.landingPage?.pageType === "STORE"
-                            ? "https://www.amazon.com/stores/..."
-                            : "https://www.amazon.com/s?me=TEST or custom landing page URL"
-                        }
-                        className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${errors.landingPage
+                  <div>
+                    <label className="form-label-small">
+                      Landing page URL *
+                    </label>
+                    <input
+                      type="text"
+                      value={currentAd.landingPage?.url || ""}
+                      onChange={(e) =>
+                        handleChange("landingPage.url", e.target.value)
+                      }
+                      placeholder={
+                        currentAd.landingPage?.pageType === "STORE"
+                          ? "https://www.amazon.com/stores/..."
+                          : "https://www.amazon.com/s?me=TEST or custom landing page URL"
+                      }
+                      className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                        errors.landingPage
                           ? "border-red-500"
                           : "border-gray-200"
-                          }`}
-                      />
-                      <p className="text-[10.64px] text-[#556179] mt-1.5">
-                        {currentAd.landingPage?.pageType === "STORE"
-                          ? "URL of an existing Amazon Store page."
-                          : "URL of a custom landing page. The page must include the ASINs of at least three products advertised in the campaign."}
+                      }`}
+                    />
+                    <p className="text-[10.64px] text-[#556179] mt-1.5">
+                      {currentAd.landingPage?.pageType === "STORE"
+                        ? "URL of an existing Amazon Store page."
+                        : "URL of a custom landing page. The page must include the ASINs of at least three products advertised in the campaign."}
+                    </p>
+                    {errors.landingPage && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.landingPage}
                       </p>
-                      {errors.landingPage && (
-                        <p className="text-[10px] text-red-500 mt-1">
-                          {errors.landingPage}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                    )}
+                  </div>
+                )}
 
-                {/* Show ASINs field for PRODUCT_LIST or DETAIL_PAGE */}
+                {/* Show exactly 3 ASIN fields for PRODUCT_LIST or DETAIL_PAGE */}
                 {(currentAd.landingPage?.pageType === "PRODUCT_LIST" ||
                   currentAd.landingPage?.pageType === "DETAIL_PAGE") && (
-                    <div>
-                      <label className="form-label-small">Product ASINs *</label>
-                      {(currentAd.landingPage?.asins || []).map((asin, index) => (
+                  <div>
+                    <label className="form-label-small">
+                      Product ASINs * (3 fields)
+                    </label>
+                    {[0, 1, 2].map((index) => {
+                      const asins = currentAd.landingPage?.asins || [];
+                      const padded = [...asins, "", "", ""].slice(0, 3);
+                      return (
                         <div key={index} className="flex gap-2 mb-2">
                           <input
                             type="text"
-                            value={asin}
-                            onChange={(e) =>
-                              handleArrayChange(
-                                "landingPage.asins",
-                                index,
-                                e.target.value,
-                              )
-                            }
-                            placeholder="B01EXAMPLE"
-                            className={`flex-1 w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${errors.landingPageAsins
-                              ? "border-red-500"
-                              : "border-gray-200"
-                              }`}
+                            value={padded[index] || ""}
+                            onChange={(e) => {
+                              const newAsins = [...padded];
+                              newAsins[index] = e.target.value;
+                              handleChange("landingPage.asins", newAsins);
+                            }}
+                            placeholder={`ASIN ${index + 1} (e.g. B01EXAMPLE)`}
+                            className={`flex-1 w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                              errors.landingPageAsins
+                                ? "border-red-500"
+                                : "border-gray-200"
+                            }`}
                           />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleRemoveArrayItem("landingPage.asins", index)
-                            }
-                            className="px-3 py-2.5 text-red-500 hover:text-red-700 transition-colors"
-                            title="Remove"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
                         </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => handleAddArrayItem("landingPage.asins")}
-                        className="text-[11.2px] text-[#136D6D] hover:text-[#0e5a5a]"
-                      >
-                        + Add ASIN
-                      </button>
-                      <p className="text-[10.64px] text-[#556179] mt-1.5">
-                        {currentAd.landingPage?.pageType === "PRODUCT_LIST"
-                          ? "Product list landing page with multiple products."
-                          : "Detail page for a specific product."}
+                      );
+                    })}
+                    <p className="text-[10.64px] text-[#556179] mt-1.5">
+                      {currentAd.landingPage?.pageType === "PRODUCT_LIST"
+                        ? "Product list landing page with multiple products."
+                        : "Detail page for a specific product."}
+                    </p>
+                    {errors.landingPageAsins && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.landingPageAsins}
                       </p>
-                      {errors.landingPageAsins && (
-                        <p className="text-[10px] text-red-500 mt-1">
-                          {errors.landingPageAsins}
-                        </p>
-                      )}
-                      {errors.landingPage && (
-                        <p className="text-[10px] text-red-500 mt-1">
-                          {errors.landingPage}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                    )}
+                    {errors.landingPage && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.landingPage}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -2545,10 +2602,11 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     return (
                       <React.Fragment key={index}>
                         <tr
-                          className={`${!hasErrors && index !== addedAds.length - 1
-                            ? "border-b border-[#e8e8e3]"
-                            : ""
-                            } hover:bg-gray-50 transition-colors`}
+                          className={`${
+                            !hasErrors && index !== addedAds.length - 1
+                              ? "border-b border-[#e8e8e3]"
+                              : ""
+                          } hover:bg-gray-50 transition-colors`}
                         >
                           <td className="table-cell">
                             <span className="table-text leading-[1.26]">
@@ -2698,9 +2756,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           type="button"
           onClick={handleSubmit}
           disabled={
-            addedAds.length === 0 ||
-            loading ||
-            !!brandLogoDimensionError
+            addedAds.length === 0 || loading || !!brandLogoDimensionError
           }
           className="apply-button"
         >
