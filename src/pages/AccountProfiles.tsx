@@ -5,7 +5,11 @@ import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
-import { accountsSyncStatusService } from "../services/accountsSyncStatus";
+import {
+  accountsSyncStatusService,
+  transformEntitySyncStatusToLegacy,
+  getPerProfileAmazonAdTypes,
+} from "../services/accountsSyncStatus";
 import { accountsService } from "../services/accounts";
 import api from "../services/api";
 import { ConfirmationModal } from "../components/ui/ConfirmationModal";
@@ -28,12 +32,17 @@ interface ProfileRow {
   channelName: string; // Integration/channel name (first column)
   name: string;
   profileIdLabel: string | undefined; // customer_id, profileId, or advertiser_id
+  customer_id_raw?: string; // Google: raw customer ID for sync status lookup
   country?: string; // countryCode for Amazon (from DB)
   currency?: string; // currency_code for Amazon (from DB)
   campaign: { status: EntityStatus; last_synced_at: string | null; error?: string | null };
   keywords: { status: EntityStatus; last_synced_at: string | null; error?: string | null };
   adgroups: { status: EntityStatus; last_synced_at: string | null; error?: string | null };
   lastSyncedAt: string | null;
+  /** Amazon only: per-profile SP/SB/SD ad_types for each entity (from new API format) */
+  campaignAdTypes?: { SP?: AdTypeSyncStatus; SB?: AdTypeSyncStatus; SD?: AdTypeSyncStatus };
+  adgroupAdTypes?: { SP?: AdTypeSyncStatus; SB?: AdTypeSyncStatus; SD?: AdTypeSyncStatus };
+  keywordAdTypes?: { SP?: AdTypeSyncStatus; SB?: AdTypeSyncStatus; SD?: AdTypeSyncStatus };
 }
 
 function formatLastSynced(iso: string | null): string {
@@ -378,6 +387,7 @@ interface AccountProfileItem {
   name?: string;
   profileId?: string;
   customer_id?: string;
+  customer_id_raw?: string;
   advertiser_id?: string;
   advertiser_name?: string;
   countryCode?: string;
@@ -401,6 +411,11 @@ function buildProfileRowsFromAccountProfiles(
       p.profileId ?? p.customer_id ?? p.advertiser_id ?? undefined;
     const country = p.countryCode ?? "";
     const currency = p.currency_code ?? p.currency ?? "";
+    const customerIdRaw =
+      p.customer_id_raw ??
+      (platform === "google" && p.customer_id
+        ? p.customer_id.replace(/-/g, "")
+        : undefined);
     return {
       platform,
       id: p.id,
@@ -408,6 +423,7 @@ function buildProfileRowsFromAccountProfiles(
       channelName: p.channel_name ?? p.channel_type ?? "—",
       name,
       profileIdLabel,
+      customer_id_raw: customerIdRaw,
       country,
       currency,
       campaign: idle,
@@ -479,12 +495,7 @@ export const AccountProfiles: React.FC = () => {
     : null;
 
   const [allProfiles, setAllProfiles] = useState<AccountProfileItem[]>([]);
-  const [googleSyncData, setGoogleSyncData] =
-    useState<GoogleSyncStatusResponse | null>(null);
-  const [amazonSyncData, setAmazonSyncData] =
-    useState<PlatformSyncStatusResponse | null>(null);
-  const [tiktokSyncData, setTiktokSyncData] =
-    useState<PlatformSyncStatusResponse | null>(null);
+  const [entitySyncData, setEntitySyncData] = useState<import("../services/accountsSyncStatus").EntitySyncStatusResponseNew | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncStatusLoading, setSyncStatusLoading] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -510,28 +521,34 @@ export const AccountProfiles: React.FC = () => {
 
   const profileRows = useMemo(() => {
     const rows = buildProfileRowsFromAccountProfiles(allProfiles);
+    if (!entitySyncData) {
+      return rows;
+    }
+    const legacy = transformEntitySyncStatusToLegacy(entitySyncData, rows);
     const googleRows = mergeSyncStatusIntoRows(
       rows.filter((r) => r.platform === "google"),
-      googleSyncData,
+      legacy.google ?? null,
       "google"
     );
-    const amazonRows = mergeSyncStatusIntoRows(
+    let amazonRows = mergeSyncStatusIntoRows(
       rows.filter((r) => r.platform === "amazon"),
-      amazonSyncData,
+      legacy.amazon ?? null,
       "amazon"
     );
+    amazonRows = amazonRows.map((row) => {
+      const { campaignAdTypes, adgroupAdTypes, keywordAdTypes } = getPerProfileAmazonAdTypes(
+        entitySyncData,
+        row
+      );
+      return { ...row, campaignAdTypes, adgroupAdTypes, keywordAdTypes };
+    });
     const tiktokRows = mergeSyncStatusIntoRows(
       rows.filter((r) => r.platform === "tiktok"),
-      tiktokSyncData,
+      legacy.tiktok ?? null,
       "tiktok"
     );
     return [...googleRows, ...amazonRows, ...tiktokRows];
-  }, [
-    allProfiles,
-    googleSyncData,
-    amazonSyncData,
-    tiktokSyncData,
-  ]);
+  }, [allProfiles, entitySyncData]);
 
   const filteredProfileRows = useMemo(() => {
     if (selectedIntegrationChannelId === "all") return profileRows;
@@ -564,9 +581,7 @@ export const AccountProfiles: React.FC = () => {
     setSyncStatusLoading(false);
     setSyncError(null);
     setAllProfiles([]);
-    setGoogleSyncData(null);
-    setAmazonSyncData(null);
-    setTiktokSyncData(null);
+    setEntitySyncData(null);
 
     const loadAllProfiles = async () => {
       try {
@@ -593,9 +608,7 @@ export const AccountProfiles: React.FC = () => {
         .getEntitySyncStatus(accountIdNum)
         .then((res) => {
           if (cancelled) return;
-          setGoogleSyncData(res.google ?? null);
-          setAmazonSyncData(res.amazon ?? null);
-          setTiktokSyncData(res.tiktok ?? null);
+          setEntitySyncData(res);
         })
         .catch((e: unknown) => {
           if (!cancelled) {
@@ -846,7 +859,7 @@ export const AccountProfiles: React.FC = () => {
                                 <>
                                   {row.platform === "amazon" ? (
                                     <AmazonAdTypeStatus
-                                      adTypes={amazonSyncData?.campaigns?.ad_types}
+                                      adTypes={row.campaignAdTypes}
                                     />
                                   ) : (
                                     <div className="inline-flex items-center gap-1.5">
@@ -874,7 +887,7 @@ export const AccountProfiles: React.FC = () => {
                                 <>
                                   {row.platform === "amazon" ? (
                                     <AmazonAdTypeStatus
-                                      adTypes={amazonSyncData?.adgroups?.ad_types}
+                                      adTypes={row.adgroupAdTypes}
                                     />
                                   ) : (
                                     <div className="inline-flex items-center gap-1.5">
@@ -905,7 +918,7 @@ export const AccountProfiles: React.FC = () => {
                                   <>
                                     {row.platform === "amazon" ? (
                                       <AmazonAdTypeStatus
-                                        adTypes={amazonSyncData?.keywords?.ad_types}
+                                        adTypes={row.keywordAdTypes}
                                       />
                                     ) : (
                                       <div className="inline-flex items-center gap-1.5">
