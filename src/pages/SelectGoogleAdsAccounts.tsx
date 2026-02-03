@@ -18,9 +18,166 @@ interface GoogleAdsAccount {
   currency_code?: string;
   timezone?: string;
   is_manager?: boolean;
-  manager_customer_id?: string | null; // Customer ID of the manager account this profile belongs to
-  status?: string; // Account status: ENABLED, CANCELED, SUSPENDED, CLOSED, etc.
-  is_selected?: boolean; // Present when loaded from DB
+  manager_customer_id?: string | null;
+  status?: string;
+  is_selected?: boolean;
+}
+
+/** Node from backend hierarchy (account + children) */
+interface GoogleAdsAccountWithChildren extends GoogleAdsAccount {
+  children?: GoogleAdsAccountWithChildren[];
+}
+
+function flattenHierarchy(nodes: GoogleAdsAccountWithChildren[]): GoogleAdsAccount[] {
+  return nodes.flatMap((n) => {
+    const { children = [], ...rest } = n;
+    return [{ ...rest }, ...flattenHierarchy(children)];
+  });
+}
+
+/** Normalize customer ID for comparison (backend may send dashed or raw) */
+function normId(id: string | null | undefined): string {
+  return (id ?? "").replace(/-/g, "");
+}
+
+/** Keep nodes that are in allowedIds or have a kept descendant. Uses normalized IDs for matching. */
+function filterHierarchy(
+  nodes: GoogleAdsAccountWithChildren[],
+  allowedIds: Set<string>
+): GoogleAdsAccountWithChildren[] {
+  const result: GoogleAdsAccountWithChildren[] = [];
+  for (const n of nodes) {
+    const childList = filterHierarchy(n.children || [], allowedIds);
+    const kept = allowedIds.has(normId(n.customer_id)) || childList.length > 0;
+    if (!kept) continue;
+    result.push({ ...n, children: childList });
+  }
+  return result;
+}
+
+function HierarchyNode({
+  node,
+  selectedCustomerIds,
+  toggleSelection,
+  collapsedManagers,
+  toggleManagerCollapse,
+  depth,
+}: {
+  node: GoogleAdsAccountWithChildren;
+  selectedCustomerIds: Set<string>;
+  toggleSelection: (id: string) => void;
+  collapsedManagers: Set<string>;
+  toggleManagerCollapse: (id: string) => void;
+  depth: number;
+}) {
+  const children = node.children || [];
+  const sortedChildren = useMemo(
+    () =>
+      [...children].sort((a, b) =>
+        (a.name || a.customer_id || "").localeCompare(b.name || b.customer_id || "", undefined, { sensitivity: "base" })
+      ),
+    [children]
+  );
+  const isManager = node.is_manager;
+  const isCollapsed = collapsedManagers.has(node.customer_id);
+  const marginLeft = depth > 0 ? 24 : 0;
+  const hasNoChildren = isManager && children.length === 0;
+
+  if (isManager) {
+    return (
+      <div key={node.customer_id} className="space-y-2" style={marginLeft ? { marginLeft } : undefined}>
+        <div
+          className={`rounded-2xl p-4 border transition-colors ${
+            hasNoChildren
+              ? "bg-[#EEEEEE] border-[#E0E0E0] cursor-not-allowed opacity-75"
+              : "bg-[#F5F5F5] border-[#D0D0C8] cursor-pointer hover:bg-[#EDEDED]"
+          }`}
+          onClick={() => !hasNoChildren && toggleManagerCollapse(node.customer_id)}
+        >
+          <div className="flex items-center gap-3">
+            <input type="checkbox" checked={false} disabled className="w-4 h-4 opacity-50 cursor-not-allowed" onClick={(e) => e.stopPropagation()} readOnly />
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <h3 className={`text-[16px] font-semibold ${hasNoChildren ? "text-[#9E9E9E]" : "text-[#556179]"}`}>{node.name}</h3>
+                <span className="px-2 py-0.5 text-[11px] font-medium bg-[#E8F4F8] text-[#0066CC] rounded-full border border-[#B3D9E6]">Manager Account</span>
+                {node.status && node.status !== "ENABLED" && (
+                  <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-[#EEEEEE] text-[#616161] border border-[#BDBDBD]">{node.status}</span>
+                )}
+                <span className={`text-[12px] ${hasNoChildren ? "text-[#9E9E9E]" : "text-[#556179]"}`}>
+                  ({children.length} {children.length === 1 ? "account" : "accounts"})
+                  {hasNoChildren && " — disabled (no child accounts)"}
+                </span>
+              </div>
+              <div className="flex gap-4 text-[14px] text-[#556179] flex-wrap">
+                <span>Customer ID: {node.customer_id}</span>
+                {node.currency_code && <span>Currency: {node.currency_code}</span>}
+                {node.timezone && <span>Timezone: {node.timezone}</span>}
+              </div>
+            </div>
+            {!hasNoChildren && (
+              <div className="flex items-center justify-center">
+                <svg className={`w-5 h-5 text-[#556179] transition-transform ${isCollapsed ? "" : "rotate-90"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            )}
+          </div>
+        </div>
+        {!hasNoChildren && !isCollapsed && sortedChildren.length > 0 && (
+          <div className="space-y-2" style={{ marginLeft: 24 }}>
+            {sortedChildren.map((child) => (
+              <HierarchyNode
+                key={child.customer_id}
+                node={child}
+                selectedCustomerIds={selectedCustomerIds}
+                toggleSelection={toggleSelection}
+                collapsedManagers={collapsedManagers}
+                toggleManagerCollapse={toggleManagerCollapse}
+                depth={depth + 1}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const isSelected = selectedCustomerIds.has(node.customer_id);
+  const isDisabled = node.status === "CLOSED" || node.status === "CANCELED";
+  return (
+    <div
+      key={node.customer_id}
+      className={`bg-[#FEFEFB] border rounded-2xl p-4 transition-all ${
+        isDisabled ? "opacity-70 border-[#E0E0E0] cursor-not-allowed" : isSelected ? "border-[#072929] bg-[#F0F0ED] cursor-pointer" : "border-[#E8E8E3] hover:border-[#D0D0C8] cursor-pointer"
+      }`}
+      style={marginLeft ? { marginLeft } : undefined}
+      onClick={() => !isDisabled && toggleSelection(node.customer_id)}
+    >
+      <div className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          disabled={isDisabled}
+          onChange={() => !isDisabled && toggleSelection(node.customer_id)}
+          onClick={(e) => e.stopPropagation()}
+          className={`mt-1 w-4 h-4 text-[#072929] border-[#E6E6E6] rounded focus:ring-[#072929] ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+        />
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <h3 className={`text-[16px] font-medium ${isDisabled ? "text-[#9E9E9E]" : "text-[#072929]"}`}>{node.name}</h3>
+            {node.status && node.status !== "ENABLED" && (
+              <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-[#EEEEEE] text-[#616161] border border-[#BDBDBD]">{node.status}</span>
+            )}
+          </div>
+          <div className="flex gap-4 text-[14px] text-[#556179] flex-wrap">
+            <span>Customer ID: {node.customer_id}</span>
+            {node.currency_code && <span>Currency: {node.currency_code}</span>}
+            {node.timezone && <span>Timezone: {node.timezone}</span>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export const SelectGoogleAdsAccounts: React.FC = () => {
@@ -42,9 +199,13 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
 
   const accounts = useMemo(() => profilesData?.profiles || [], [profilesData?.profiles]);
 
-  // Profiles fetched from API (not saved to DB yet); when set, we display these instead of DB accounts
   const [fetchedProfiles, setFetchedProfiles] = useState<GoogleAdsAccount[] | null>(null);
-  const displayAccounts = fetchedProfiles ?? accounts;
+  const [fetchedHierarchy, setFetchedHierarchy] = useState<GoogleAdsAccountWithChildren[] | null>(null);
+
+  const displayAccounts = useMemo(() => {
+    if (fetchedHierarchy?.length) return flattenHierarchy(fetchedHierarchy);
+    return fetchedProfiles ?? accounts;
+  }, [fetchedHierarchy, fetchedProfiles, accounts]);
 
   const accountIdForBack: string | number | undefined =
     (location.state as { accountId?: string })?.accountId ??
@@ -104,10 +265,10 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
     setError(null);
 
     try {
-      // Always fetch from Google Ads API (no DB write; show on frontend only until user saves)
-      const profiles = await accountsService.fetchGoogleProfiles(channelIdNum);
+      const { profiles, hierarchy } = await accountsService.fetchGoogleProfiles(channelIdNum);
       setFetchedProfiles(profiles ?? []);
-      
+      setFetchedHierarchy(hierarchy?.length ? hierarchy : null);
+
       // Preserve previous selection from DB when refreshing from API
       if (accounts.length > 0) {
         const selectedIds = new Set<string>();
@@ -117,7 +278,6 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
         setSelectedCustomerIds(selectedIds);
       }
     } catch (err: any) {
-      console.error("Failed to auto-fetch Google profiles:", err);
       setError(
         err.response?.data?.error ||
           err.message ||
@@ -161,7 +321,7 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
       }
 
       // Filter to only selected profiles and their managers (if any)
-      const allProfiles = fetchedProfiles ?? accounts;
+      const allProfiles = displayAccounts;
       const selectedProfiles = allProfiles.filter((p) => selectedIds.includes(p.customer_id));
       
       // Find manager profiles for selected profiles
@@ -243,9 +403,18 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
   const childAccounts = filteredAccounts.filter((a) => !a.is_manager);
   const standaloneAccounts = childAccounts.filter((a) => !a.manager_customer_id);
 
+  /** Sort by name A–Z (case-insensitive) */
+  const sortByName = (a: { name?: string; customer_id?: string }, b: { name?: string; customer_id?: string }) =>
+    (a.name || a.customer_id || "").localeCompare(b.name || b.customer_id || "", undefined, { sensitivity: "base" });
+
+  const childAccountsSorted = useMemo(
+    () => [...childAccounts].sort(sortByName),
+    [childAccounts]
+  );
+
   // Group children by normalized manager_customer_id so we never drop children whose manager
   // ID format doesn't match; then resolve manager from displayAccounts or use a synthetic label.
-  const childrenByManagerNorm = childAccounts.reduce(
+  const childrenByManagerNorm = childAccountsSorted.reduce(
     (acc, child) => {
       const norm = normalizeCustomerId(child.manager_customer_id);
       if (!norm) return acc;
@@ -266,7 +435,7 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
 
   const accountsByManager: Record<string, { manager: GoogleAdsAccount; children: GoogleAdsAccount[] }> = {};
   Object.keys(childrenByManagerNorm).forEach((managerIdNorm) => {
-    const children = childrenByManagerNorm[managerIdNorm];
+    const children = [...(childrenByManagerNorm[managerIdNorm] || [])].sort(sortByName);
     const manager = managerByNormId[managerIdNorm];
     const labelId = children[0]?.manager_customer_id ?? managerIdNorm;
     const resolvedManager: GoogleAdsAccount = manager ?? {
@@ -281,6 +450,26 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
     accountsByManager[key] = { manager: resolvedManager, children };
   });
 
+  /** Exclude from standalone list any account that is already shown as a manager (account can be manager OR ads, not both in list); sort A–Z by name */
+  const standaloneOnly = useMemo(() => {
+    const managerIds = new Set(Object.values(accountsByManager).map(({ manager }) => manager.customer_id));
+    const list = standaloneAccounts.filter((a) => !managerIds.has(a.customer_id));
+    return [...list].sort(sortByName);
+  }, [standaloneAccounts, accountsByManager]);
+
+  /** Manager groups sorted A–Z by manager name (for fallback list) */
+  const accountsByManagerSorted = useMemo(
+    () =>
+      Object.values(accountsByManager).sort((a, b) =>
+        (a.manager.name || a.manager.customer_id || "").localeCompare(
+          b.manager.name || b.manager.customer_id || "",
+          undefined,
+          { sensitivity: "base" }
+        )
+      ),
+    [accountsByManager]
+  );
+
   // Only ENABLED (and optionally other non-closed) non-manager accounts are selectable
   const selectableAccounts = filteredAccounts.filter(
     (a) => !a.is_manager && a.status !== "CLOSED" && a.status !== "CANCELED"
@@ -293,6 +482,31 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
   ).length;
   // Total selected across all accounts – for Save button and summary (never misleading when searching)
   const totalSelectedCount = selectedCustomerIds.size;
+
+  const filteredHierarchyRoots = useMemo(() => {
+    if (!fetchedHierarchy?.length) return [];
+    // Use normalized IDs so hierarchy nodes match even if backend uses dashed vs raw format
+    const ids = new Set(filteredAccounts.map((a) => normId(a.customer_id)));
+    return filterHierarchy(fetchedHierarchy, ids);
+  }, [fetchedHierarchy, filteredAccounts]);
+
+  /** Tree roots sorted A–Z by name */
+  const filteredHierarchyRootsSorted = useMemo(
+    () =>
+      [...filteredHierarchyRoots].sort((a, b) =>
+        (a.name || a.customer_id || "").localeCompare(b.name || b.customer_id || "", undefined, { sensitivity: "base" })
+      ),
+    [filteredHierarchyRoots]
+  );
+
+  /** Prefer flat list when many accounts so we just loop and show all; use tree only for small lists (expandable hierarchy) */
+  const USE_TREE_ABOVE_COUNT = 80;
+  const useTreeView = useMemo(() => {
+    if (filteredAccounts.length > USE_TREE_ABOVE_COUNT) return false;
+    if (filteredHierarchyRoots.length === 0) return false;
+    const flatTreeCount = flattenHierarchy(filteredHierarchyRoots).length;
+    return flatTreeCount >= filteredAccounts.length;
+  }, [filteredHierarchyRoots, filteredAccounts.length]);
 
   const toggleAll = () => {
     if (selectedInViewCount === selectableAccounts.length) {
@@ -325,9 +539,9 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
       setRefreshing(true);
       setError(null);
 
-      // Fetch from Google Ads API only (no DB write); show on frontend
-      const googleProfiles = await accountsService.fetchGoogleProfiles(channelIdNum);
-      setFetchedProfiles(googleProfiles ?? []);
+      const { profiles, hierarchy } = await accountsService.fetchGoogleProfiles(channelIdNum);
+      setFetchedProfiles(profiles ?? []);
+      setFetchedHierarchy(hierarchy?.length ? hierarchy : null);
 
       // Preserve previous selection when refreshing: reinit from DB if we had saved selection
       if (accounts.length > 0) {
@@ -483,8 +697,22 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                 </div>
 
                 <div className="space-y-3 mb-6">
-                  {/* Render manager accounts with their children */}
-                  {Object.values(accountsByManager).map(({ manager, children }) => {
+                  {useTreeView ? (
+                    filteredHierarchyRootsSorted.map((root) => (
+                      <HierarchyNode
+                        key={root.customer_id}
+                        node={root}
+                        selectedCustomerIds={selectedCustomerIds}
+                        toggleSelection={toggleSelection}
+                        collapsedManagers={collapsedManagers}
+                        toggleManagerCollapse={toggleManagerCollapse}
+                        depth={0}
+                      />
+                    ))
+                  ) : (
+                    <>
+                  {/* Render manager accounts with their children (flat fallback) */}
+                  {accountsByManagerSorted.map(({ manager, children }) => {
                     const isCollapsed = collapsedManagers.has(manager.customer_id);
                     return (
                       <div key={manager.customer_id} className="space-y-2">
@@ -608,9 +836,9 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                   })}
                   
                   {/* Standalone accounts (no manager) */}
-                  {standaloneAccounts.length > 0 && (
+                  {standaloneOnly.length > 0 && (
                     <div className="space-y-2">
-                      {standaloneAccounts.map((account) => {
+                      {standaloneOnly.map((account) => {
                         const isSelected = selectedCustomerIds.has(account.customer_id);
                         const isDisabled = account.status === "CLOSED" || account.status === "CANCELED";
                         return (
@@ -660,6 +888,8 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                         );
                       })}
                     </div>
+                  )}
+                    </>
                   )}
                 </div>
 
