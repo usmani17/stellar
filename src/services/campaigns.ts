@@ -2007,6 +2007,10 @@ export const campaignsService = {
       mediaType?: string;
       brandEntityId?: string;
       profileId?: string;
+      search?: string;
+      contentType?: string;
+      /** Filter by assetType column: "IMAGE" | "VIDEO" */
+      assetType?: string;
     },
     channelId?: number | string | null
   ): Promise<any> => {

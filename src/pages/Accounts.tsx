@@ -30,7 +30,7 @@ export const Accounts: React.FC = () => {
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [oauthLoading, setOauthLoading] = useState<{
     accountId: number;
-    provider: "amazon" | "google" | "tiktok";
+    provider: "amazon" | "google" | "tiktok" | "meta";
   } | null>(null);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [newAccountName, setNewAccountName] = useState("");
@@ -216,6 +216,21 @@ export const Accounts: React.FC = () => {
     } catch (err: any) {
       setOauthError(
         err.response?.data?.error || "Failed to initiate TikTok OAuth"
+      );
+      setOauthLoading(null);
+    }
+  };
+
+  const handleConnectMeta = async (accountId: number) => {
+    setOauthError(null);
+    setOauthLoading({ accountId, provider: "meta" });
+
+    try {
+      const { auth_url } = await accountsService.initiateMetaOAuth(accountId);
+      window.location.href = auth_url;
+    } catch (err: any) {
+      setOauthError(
+        err.response?.data?.error || "Failed to initiate Meta OAuth"
       );
       setOauthLoading(null);
     }
@@ -671,6 +686,24 @@ export const Accounts: React.FC = () => {
                                   </svg>
                                   <span className="text-[12px] font-medium text-[#072929]">
                                     TikTok
+                                  </span>
+                                </button>
+                                <button
+                                  onClick={() => handleConnectMeta(account.id)}
+                                  disabled={isConnecting || isDeleting}
+                                  className="flex items-center gap-2 px-3 py-1.5 h-[32px] rounded-lg border border-gray-200 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Connect Meta"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                                  </svg>
+                                  <span className="text-[12px] font-medium text-[#072929]">
+                                    Meta
                                   </span>
                                 </button>
                               </div>
