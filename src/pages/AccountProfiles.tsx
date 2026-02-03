@@ -21,9 +21,10 @@ import type {
 import type { PlatformSyncStatusResponse } from "../services/accountsSyncStatus";
 import GoogleIcon from "../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../assets/images/amazon-fill.svg";
+import MetaIcon from "../assets/images/mingcute_meta-line.svg";
 
 type EntityStatus = "syncing" | "completed" | "idle" | "error";
-type Platform = "google" | "amazon" | "tiktok";
+type Platform = "google" | "amazon" | "tiktok" | "meta";
 
 interface ProfileRow {
   platform: Platform;
@@ -197,7 +198,7 @@ function SyncButton({
     setShowConfirmModal(false);
   };
 
-  const platformName = profileType === "google" ? "Google" : profileType === "amazon" ? "Amazon" : "TikTok";
+  const platformName = profileType === "google" ? "Google" : profileType === "amazon" ? "Amazon" : profileType === "meta" ? "Meta" : "TikTok";
 
   return (
     <>
@@ -386,6 +387,7 @@ interface AccountProfileItem {
   id: number;
   name?: string;
   profileId?: string;
+  ad_account_id?: string;
   customer_id?: string;
   customer_id_raw?: string;
   advertiser_id?: string;
@@ -404,11 +406,13 @@ function buildProfileRowsFromAccountProfiles(
       ? "google"
       : p.channel_type === "tiktok"
         ? "tiktok"
-        : "amazon") as Platform;
+        : p.channel_type === "meta"
+          ? "meta"
+          : "amazon") as Platform;
     const name =
       p.name ?? p.advertiser_name ?? "";
     const profileIdLabel =
-      p.profileId ?? p.customer_id ?? p.advertiser_id ?? undefined;
+      p.profileId ?? p.ad_account_id ?? p.customer_id ?? p.advertiser_id ?? undefined;
     const country = p.countryCode ?? "";
     const currency = p.currency_code ?? p.currency ?? "";
     const customerIdRaw =
@@ -547,7 +551,8 @@ export const AccountProfiles: React.FC = () => {
       legacy.tiktok ?? null,
       "tiktok"
     );
-    return [...googleRows, ...amazonRows, ...tiktokRows];
+    const metaRows = rows.filter((r) => r.platform === "meta");
+    return [...googleRows, ...amazonRows, ...tiktokRows, ...metaRows];
   }, [allProfiles, entitySyncData]);
 
   const filteredProfileRows = useMemo(() => {
@@ -723,7 +728,7 @@ export const AccountProfiles: React.FC = () => {
                     </h3>
                     <p className="text-sm text-[#556179] text-center leading-relaxed">
                       {profileRows.length === 0
-                        ? "There are no profiles for this account yet. Connect Google, Amazon, or TikTok in Integrations and select profiles to see them here."
+                        ? "There are no profiles for this account yet. Connect Google, Amazon, TikTok, or Meta in Integrations and select profiles to see them here."
                         : "No profiles match the selected integration. Choose \"All\" to see every profile."}
                     </p>
                     {profileRows.length === 0 && (
@@ -825,6 +830,13 @@ export const AccountProfiles: React.FC = () => {
                                   <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
                                 </svg>
                               )}
+                              {row.platform === "meta" && (
+                                <img
+                                  src={MetaIcon}
+                                  alt="Meta"
+                                  className="w-5 h-5 flex-shrink-0"
+                                />
+                              )}
                               <span className="table-text text-[#556179]">
                                 {row.name ||
                                   row.profileIdLabel ||
@@ -849,7 +861,9 @@ export const AccountProfiles: React.FC = () => {
                           </td>
                           <td className="table-cell min-w-[120px] align-top">
                             <div className="flex flex-col gap-0.5">
-                              {syncStatusLoading ? (
+                              {row.platform === "meta" ? (
+                                <span className="table-text leading-[1.26] text-[#556179]">—</span>
+                              ) : syncStatusLoading ? (
                                 row.platform === "amazon" ? (
                                   <AmazonAdTypeStatus isLoading={true} />
                                 ) : (
@@ -877,7 +891,9 @@ export const AccountProfiles: React.FC = () => {
                           </td>
                           <td className="table-cell min-w-[120px] align-top">
                             <div className="flex flex-col gap-0.5">
-                              {syncStatusLoading ? (
+                              {row.platform === "meta" ? (
+                                <span className="table-text leading-[1.26] text-[#556179]">—</span>
+                              ) : syncStatusLoading ? (
                                 row.platform === "amazon" ? (
                                   <AmazonAdTypeStatus isLoading={true} />
                                 ) : (
@@ -904,8 +920,14 @@ export const AccountProfiles: React.FC = () => {
                             </div>
                           </td>
                           <td className="table-cell min-w-[120px] align-top">
-                            {row.platform === "tiktok" ? (
+                            {row.platform === "tiktok" || row.platform === "meta" ? (
                               <span className="table-text leading-[1.26] text-[#556179]">—</span>
+                            ) : syncStatusLoading ? (
+                              row.platform === "amazon" ? (
+                                <AmazonAdTypeStatus isLoading={true} />
+                              ) : (
+                                <div className="h-5 bg-gray-200 rounded animate-pulse" style={{ width: '100px' }} />
+                              )
                             ) : (
                               <div className="flex flex-col gap-0.5">
                                 {syncStatusLoading ? (
@@ -936,11 +958,15 @@ export const AccountProfiles: React.FC = () => {
                             )}
                           </td>
                           <td className="table-cell min-w-[100px] text-left">
-                            <SyncButton
-                              profileId={row.id}
-                              profileType={row.platform}
-                              accountId={accountIdNum!}
-                            />
+                            {row.platform !== "meta" ? (
+                              <SyncButton
+                                profileId={row.id}
+                                profileType={row.platform}
+                                accountId={accountIdNum!}
+                              />
+                            ) : (
+                              <span className="table-text text-[#556179]">—</span>
+                            )}
                           </td>
                         </tr>
                       ))
