@@ -970,66 +970,53 @@ export const AdGroups: React.FC = () => {
         .map((ag) => ag.adGroupId || ag.id)
         .filter(Boolean);
 
-      // For archive, check if any selected adgroups are SD type
-      // If archive is selected, use bulk delete endpoint (which handles SD archive correctly)
+      // For archive, use bulk delete endpoint (backend handles archiving for all types: SP, SB, SD)
       if (statusValue === "archive") {
-        // Check if any adgroup is SD type by checking campaign type or schema
-        const hasSdAdgroups = selectedAdgroupsData.some(
-          (ag) =>
-            (ag.type ?? (ag as { campaignType?: string }).campaignType ?? (ag as { campaign_type?: string }).campaign_type) === "SD"
-        );
-
-        // For SD adgroups, archive uses bulk delete endpoint
-        if (hasSdAdgroups) {
-          const res = await campaignsService.bulkDeleteAdGroups(
-            accountIdNum,
-            {
-              adGroupIdFilter: {
-                include: adgroupIds,
-              },
-              campaignType: "SD",
+        const res = await campaignsService.bulkDeleteAdGroups(
+          accountIdNum,
+          {
+            adGroupIdFilter: {
+              include: adgroupIds,
             },
-            channelId ?? null
-          );
-          const successList = res?.adGroups?.success ?? [];
-          const errorList = res?.adGroups?.error ?? [];
-          const adgroupMap = new Map(
-            selectedAdgroupsData.map((ag) => [
-              String(ag.adGroupId ?? ag.id),
-              ag,
-            ])
-          );
-          const succeededItems = successList.slice(0, 10).map((s: { adGroupId?: string }) => {
-            const id = String(s.adGroupId ?? "");
-            const ag = adgroupMap.get(id);
-            return {
-              label: ag?.name ?? `Ad Group ${id}`,
-              field: "Action",
-              oldValue: "—",
-              newValue: "Archived",
-            };
-          });
-          showEditSummary({
-            entityType: "adGroup",
-            action: "deleted",
-            mode: "bulk",
-            succeededCount: successList.length,
-            failedCount: errorList.length > 0 ? errorList.length : undefined,
-            succeededItems,
-            details: errorList.slice(0, 5).map((e: { adGroupId?: string; message?: string }) => {
-              const ag = selectedAdgroupsData.find(
-                (a) => String(a.adGroupId ?? a.id) === String(e.adGroupId)
-              );
-              const label = ag?.name
-                ? `${ag.name} (${e.adGroupId ?? "—"})`
-                : `Ad Group ${e.adGroupId ?? "—"}`;
-              return { label, value: e.message ?? "Unknown error" };
-            }),
-          });
-        } else {
-          // For non-SD adgroups, archive is not supported via status update
-          throw new Error("Archive is only supported for Sponsored Display (SD) ad groups");
-        }
+            // Don't restrict to specific campaign type - backend handles all types appropriately
+          },
+          channelId ?? null
+        );
+        const successList = res?.adGroups?.success ?? [];
+        const errorList = res?.adGroups?.error ?? [];
+        const adgroupMap = new Map(
+          selectedAdgroupsData.map((ag) => [
+            String(ag.adGroupId ?? ag.id),
+            ag,
+          ])
+        );
+        const succeededItems = successList.slice(0, 10).map((s: { adGroupId?: string }) => {
+          const id = String(s.adGroupId ?? "");
+          const ag = adgroupMap.get(id);
+          return {
+            label: ag?.name ?? `Ad Group ${id}`,
+            field: "Action",
+            oldValue: "—",
+            newValue: "Archived",
+          };
+        });
+        showEditSummary({
+          entityType: "adGroup",
+          action: "deleted",
+          mode: "bulk",
+          succeededCount: successList.length,
+          failedCount: errorList.length > 0 ? errorList.length : undefined,
+          succeededItems,
+          details: errorList.slice(0, 5).map((e: { adGroupId?: string; message?: string }) => {
+            const ag = selectedAdgroupsData.find(
+              (a) => String(a.adGroupId ?? a.id) === String(e.adGroupId)
+            );
+            const label = ag?.name
+              ? `${ag.name} (${e.adGroupId ?? "—"})`
+              : `Ad Group ${e.adGroupId ?? "—"}`;
+            return { label, value: e.message ?? "Unknown error" };
+          }),
+        });
       } else {
         const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
           enable: "ENABLED",
