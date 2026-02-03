@@ -131,12 +131,11 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
   };
 
   const toggleSelection = (customerId: string) => {
-    // Prevent selection of manager accounts
     const account = displayAccounts.find((a) => a.customer_id === customerId);
-    if (account?.is_manager) {
-      return; // Don't allow selection of manager accounts
-    }
-    
+    if (account?.is_manager) return;
+    // Don't allow selection of CLOSED or CANCELED accounts
+    if (account?.status === "CLOSED" || account?.status === "CANCELED") return;
+
     const newSelected = new Set(selectedCustomerIds);
     if (newSelected.has(customerId)) {
       newSelected.delete(customerId);
@@ -226,13 +225,8 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
   };
 
 
-  // Filter out closed/canceled accounts (use display list: API-only or DB)
-  const activeAccounts = displayAccounts.filter(
-    (a) => a.status !== "CLOSED" && a.status !== "CANCELED"
-  );
-
-  // Filter by search query
-  const filteredAccounts = activeAccounts.filter((account) => {
+  // Show all accounts (including CLOSED/CANCELED); filter by search only
+  const filteredAccounts = displayAccounts.filter((account) => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -242,54 +236,57 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
     );
   });
 
-  // Group filtered accounts by manager
+  // Normalize customer ID for comparison (API may return dashed or raw)
+  const normalizeCustomerId = (id: string | null | undefined) => (id ?? "").replace(/-/g, "");
+
   const managerAccounts = filteredAccounts.filter((a) => a.is_manager);
   const childAccounts = filteredAccounts.filter((a) => !a.is_manager);
   const standaloneAccounts = childAccounts.filter((a) => !a.manager_customer_id);
-  
-  // Group child accounts by their manager
-  // Only show managers that have at least one child account
-  const accountsByManager = managerAccounts.reduce((acc, manager) => {
-    const children = childAccounts.filter(
-      (child) => child.manager_customer_id === manager.customer_id
-    );
-    // Only include manager if it has at least one child account
-    if (children.length > 0) {
-      acc[manager.customer_id] = {
-        manager,
-        children,
-      };
-    }
-    return acc;
-  }, {} as Record<string, { manager: GoogleAdsAccount; children: GoogleAdsAccount[] }>);
 
-  // Also include managers that have children matching the search (even if manager doesn't match)
-  // This ensures that if a child matches the search, its parent manager is shown
-  const managerIdsWithChildren = new Set(
-    childAccounts
-      .map((c) => c.manager_customer_id)
-      .filter((id): id is string => Boolean(id))
+  // Group children by normalized manager_customer_id so we never drop children whose manager
+  // ID format doesn't match; then resolve manager from displayAccounts or use a synthetic label.
+  const childrenByManagerNorm = childAccounts.reduce(
+    (acc, child) => {
+      const norm = normalizeCustomerId(child.manager_customer_id);
+      if (!norm) return acc;
+      if (!acc[norm]) acc[norm] = [];
+      acc[norm].push(child);
+      return acc;
+    },
+    {} as Record<string, GoogleAdsAccount[]>
   );
-  managerIdsWithChildren.forEach((managerId) => {
-    if (!accountsByManager[managerId]) {
-      const manager = displayAccounts.find((a) => a.customer_id === managerId && a.is_manager);
-      if (manager && manager.status !== "CLOSED" && manager.status !== "CANCELED") {
-        const children = childAccounts.filter(
-          (child) => child.manager_customer_id === managerId
-        );
-        // Only add manager if it has at least one child
-        if (children.length > 0) {
-          accountsByManager[managerId] = {
-            manager,
-            children,
-          };
-        }
-      }
-    }
+
+  const managerByNormId = managerAccounts.reduce(
+    (acc, m) => {
+      acc[normalizeCustomerId(m.customer_id)] = m;
+      return acc;
+    },
+    {} as Record<string, GoogleAdsAccount>
+  );
+
+  const accountsByManager: Record<string, { manager: GoogleAdsAccount; children: GoogleAdsAccount[] }> = {};
+  Object.keys(childrenByManagerNorm).forEach((managerIdNorm) => {
+    const children = childrenByManagerNorm[managerIdNorm];
+    const manager = managerByNormId[managerIdNorm];
+    const labelId = children[0]?.manager_customer_id ?? managerIdNorm;
+    const resolvedManager: GoogleAdsAccount = manager ?? {
+      customer_id: labelId.includes("-") ? labelId : (labelId.length >= 10 ? `${labelId.slice(0, 3)}-${labelId.slice(3, 6)}-${labelId.slice(6)}` : labelId),
+      customer_id_raw: managerIdNorm,
+      resource_name: "",
+      name: `Accounts (${labelId})`,
+      is_manager: true,
+      manager_customer_id: null,
+    };
+    const key = manager?.customer_id ?? `manager-${managerIdNorm}`;
+    accountsByManager[key] = { manager: resolvedManager, children };
   });
 
-  // Get selectable accounts (non-manager accounts) from filtered list
-  const selectableAccounts = filteredAccounts.filter((a) => !a.is_manager);
+  // Only ENABLED (and optionally other non-closed) non-manager accounts are selectable
+  const selectableAccounts = filteredAccounts.filter(
+    (a) => !a.is_manager && a.status !== "CLOSED" && a.status !== "CANCELED"
+  );
+  // Total non-manager accounts (selectable + unselectable) – for "Select All" denominator
+  const totalNonManagerAccounts = childAccounts.length;
   // Selected in current view (filtered by search) – for "Select All" checkbox and label
   const selectedInViewCount = selectableAccounts.filter((a) =>
     selectedCustomerIds.has(a.customer_id)
@@ -413,7 +410,7 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                 <p className="text-[14px] text-[#556179] mb-4">
                   {searchQuery.trim()
                     ? "No accounts match your search. Try a different search term."
-                    : "No active accounts found. Please check your Google Ads account connection."}
+                    : "No accounts found. Please check your Google Ads account connection."}
                 </p>
               </div>
             ) : (
@@ -444,8 +441,8 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                       />
                       <label className="text-[14px] font-medium text-[#072929]">
                         {searchQuery.trim()
-                          ? `Select all in results (${selectedInViewCount}/${selectableAccounts.length})`
-                          : `Select All (${selectedInViewCount}/${selectableAccounts.length})`}
+                          ? `Select all in results (${selectedInViewCount}/${totalNonManagerAccounts})`
+                          : `Select All (${selectedInViewCount}/${totalNonManagerAccounts})`}
                       </label>
                     </div>
                     {totalSelectedCount > 0 ? (
@@ -505,13 +502,18 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                               onClick={(e) => e.stopPropagation()}
                             />
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
                                 <h3 className="text-[16px] font-semibold text-[#556179]">
                                   {manager.name}
                                 </h3>
                                 <span className="px-2 py-0.5 text-[11px] font-medium bg-[#E8F4F8] text-[#0066CC] rounded-full border border-[#B3D9E6]">
                                   Manager Account
                                 </span>
+                                {manager.status && manager.status !== "ENABLED" && (
+                                  <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-[#EEEEEE] text-[#616161] border border-[#BDBDBD]">
+                                    {manager.status}
+                                  </span>
+                                )}
                                 <span className="text-[12px] text-[#556179]">
                                   ({children.length} {children.length === 1 ? "account" : "accounts"})
                                 </span>
@@ -552,29 +554,38 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                           <div className="ml-6 space-y-2">
                             {children.map((child) => {
                             const isSelected = selectedCustomerIds.has(child.customer_id);
+                            const isDisabled = child.status === "CLOSED" || child.status === "CANCELED";
                             return (
                               <div
                                 key={child.customer_id}
-                                className={`bg-[#FEFEFB] border rounded-2xl p-4 cursor-pointer transition-all ${
-                                  isSelected
-                                    ? "border-[#072929] bg-[#F0F0ED]"
-                                    : "border-[#E8E8E3] hover:border-[#D0D0C8]"
+                                className={`bg-[#FEFEFB] border rounded-2xl p-4 transition-all ${
+                                  isDisabled
+                                    ? "opacity-70 border-[#E0E0E0] cursor-not-allowed"
+                                    : isSelected
+                                    ? "border-[#072929] bg-[#F0F0ED] cursor-pointer"
+                                    : "border-[#E8E8E3] hover:border-[#D0D0C8] cursor-pointer"
                                 }`}
-                                onClick={() => toggleSelection(child.customer_id)}
+                                onClick={() => !isDisabled && toggleSelection(child.customer_id)}
                               >
                                 <div className="flex items-start gap-3">
                                   <input
                                     type="checkbox"
                                     checked={isSelected}
-                                    onChange={() => toggleSelection(child.customer_id)}
+                                    disabled={isDisabled}
+                                    onChange={() => !isDisabled && toggleSelection(child.customer_id)}
                                     onClick={(e) => e.stopPropagation()}
-                                    className="mt-1 w-4 h-4 text-[#072929] border-[#E6E6E6] rounded focus:ring-[#072929]"
+                                    className={`mt-1 w-4 h-4 text-[#072929] border-[#E6E6E6] rounded focus:ring-[#072929] ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
                                   />
                                   <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <h3 className="text-[16px] font-medium text-[#072929]">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                      <h3 className={`text-[16px] font-medium ${isDisabled ? "text-[#9E9E9E]" : "text-[#072929]"}`}>
                                         {child.name}
                                       </h3>
+                                      {child.status && child.status !== "ENABLED" && (
+                                        <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-[#EEEEEE] text-[#616161] border border-[#BDBDBD]">
+                                          {child.status}
+                                        </span>
+                                      )}
                                     </div>
                                     <div className="flex gap-4 text-[14px] text-[#556179] flex-wrap">
                                       <span>Customer ID: {child.customer_id}</span>
@@ -601,29 +612,38 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                     <div className="space-y-2">
                       {standaloneAccounts.map((account) => {
                         const isSelected = selectedCustomerIds.has(account.customer_id);
+                        const isDisabled = account.status === "CLOSED" || account.status === "CANCELED";
                         return (
                           <div
                             key={account.customer_id}
-                            className={`bg-[#FEFEFB] border rounded-2xl p-4 cursor-pointer transition-all ${
-                              isSelected
-                                ? "border-[#072929] bg-[#F0F0ED]"
-                                : "border-[#E8E8E3] hover:border-[#D0D0C8]"
+                            className={`bg-[#FEFEFB] border rounded-2xl p-4 transition-all ${
+                              isDisabled
+                                ? "opacity-70 border-[#E0E0E0] cursor-not-allowed"
+                                : isSelected
+                                ? "border-[#072929] bg-[#F0F0ED] cursor-pointer"
+                                : "border-[#E8E8E3] hover:border-[#D0D0C8] cursor-pointer"
                             }`}
-                            onClick={() => toggleSelection(account.customer_id)}
+                            onClick={() => !isDisabled && toggleSelection(account.customer_id)}
                           >
                             <div className="flex items-start gap-3">
                               <input
                                 type="checkbox"
                                 checked={isSelected}
-                                onChange={() => toggleSelection(account.customer_id)}
+                                disabled={isDisabled}
+                                onChange={() => !isDisabled && toggleSelection(account.customer_id)}
                                 onClick={(e) => e.stopPropagation()}
-                                className="mt-1 w-4 h-4 text-[#072929] border-[#E6E6E6] rounded focus:ring-[#072929]"
+                                className={`mt-1 w-4 h-4 text-[#072929] border-[#E6E6E6] rounded focus:ring-[#072929] ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
                               />
                               <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h3 className="text-[16px] font-medium text-[#072929]">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                  <h3 className={`text-[16px] font-medium ${isDisabled ? "text-[#9E9E9E]" : "text-[#072929]"}`}>
                                     {account.name}
                                   </h3>
+                                  {account.status && account.status !== "ENABLED" && (
+                                    <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-[#EEEEEE] text-[#616161] border border-[#BDBDBD]">
+                                      {account.status}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex gap-4 text-[14px] text-[#556179] flex-wrap">
                                   <span>Customer ID: {account.customer_id}</span>
