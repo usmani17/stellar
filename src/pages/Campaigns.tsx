@@ -3089,85 +3089,85 @@ export const Campaigns: React.FC = () => {
                         Loading selected campaigns...
                       </div>
                     ) : (
-                    (() => {
-                      const selectedCampaignsData = getSelectedCampaignsData();
-                      const previewCount = Math.min(
-                        10,
-                        selectedCampaignsData.length
-                      );
-                      const hasMore = selectedCampaignsData.length > 10;
+                      (() => {
+                        const selectedCampaignsData = getSelectedCampaignsData();
+                        const previewCount = Math.min(
+                          10,
+                          selectedCampaignsData.length
+                        );
+                        const hasMore = selectedCampaignsData.length > 10;
 
-                      return (
-                        <div className="mb-6">
-                          <div className="mb-2">
-                            <span className="text-[10.64px] text-[#556179]">
-                              {hasMore
-                                ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
-                                : `${selectedCampaignsData.length} campaign${selectedCampaignsData.length !== 1
-                                  ? "s"
-                                  : ""
-                                } selected`}
-                            </span>
-                          </div>
-                          <div className="border border-gray-200 rounded-lg overflow-hidden">
-                            <table className="w-full">
-                              <thead className="bg-sandstorm-s20">
-                                <tr>
-                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    Campaign Name
-                                  </th>
-                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    Old Value
-                                  </th>
-                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    New Value
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {selectedCampaignsData
-                                  .slice(0, 10)
-                                  .map((campaign) => {
-                                    const oldBudget =
-                                      campaign.daily_budget ?? (campaign as any)?.daily_budget ?? 0;
-                                    const currency =
-                                      campaign.profile_currency_code ?? (campaign as any)?.profile_currency_code ?? "USD";
-                                    const oldStatus =
-                                      campaign.status || "Enabled";
-                                    const newBudget = isBudgetChange
-                                      ? calculateNewBudget(oldBudget)
-                                      : oldBudget;
-                                    const newStatus = pendingStatusAction
-                                      ? normalizeStatusDisplay(pendingStatusAction)
-                                      : oldStatus;
+                        return (
+                          <div className="mb-6">
+                            <div className="mb-2">
+                              <span className="text-[10.64px] text-[#556179]">
+                                {hasMore
+                                  ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
+                                  : `${selectedCampaignsData.length} campaign${selectedCampaignsData.length !== 1
+                                    ? "s"
+                                    : ""
+                                  } selected`}
+                              </span>
+                            </div>
+                            <div className="border border-gray-200 rounded-lg overflow-hidden">
+                              <table className="w-full">
+                                <thead className="bg-sandstorm-s20">
+                                  <tr>
+                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                      Campaign Name
+                                    </th>
+                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                      Old Value
+                                    </th>
+                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                      New Value
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {selectedCampaignsData
+                                    .slice(0, 10)
+                                    .map((campaign) => {
+                                      const oldBudget =
+                                        campaign.daily_budget ?? (campaign as any)?.daily_budget ?? 0;
+                                      const currency =
+                                        campaign.profile_currency_code ?? (campaign as any)?.profile_currency_code ?? "USD";
+                                      const oldStatus =
+                                        campaign.status || "Enabled";
+                                      const newBudget = isBudgetChange
+                                        ? calculateNewBudget(oldBudget)
+                                        : oldBudget;
+                                      const newStatus = pendingStatusAction
+                                        ? normalizeStatusDisplay(pendingStatusAction)
+                                        : oldStatus;
 
-                                    return (
-                                      <tr
-                                        key={campaign.campaignId ?? (campaign as any)?.id}
-                                        className="border-b border-gray-200 last:border-b-0"
-                                      >
-                                        <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                          {(campaign.campaign_name ?? (campaign as any)?.name) || "Unnamed Campaign"}
-                                        </td>
-                                        <td className="px-4 py-2 text-[10.64px] text-[#556179]">
-                                          {isBudgetChange
-                                            ? formatCurrency(Number(oldBudget), currency)
-                                            : oldStatus}
-                                        </td>
-                                        <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
-                                          {isBudgetChange
-                                            ? formatCurrency(Number(newBudget), currency)
-                                            : newStatus}
-                                        </td>
-                                      </tr>
-                                    );
-                                  })}
-                              </tbody>
-                            </table>
+                                      return (
+                                        <tr
+                                          key={campaign.campaignId ?? (campaign as any)?.id}
+                                          className="border-b border-gray-200 last:border-b-0"
+                                        >
+                                          <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                            {(campaign.campaign_name ?? (campaign as any)?.name) || "Unnamed Campaign"}
+                                          </td>
+                                          <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                            {isBudgetChange
+                                              ? formatCurrency(Number(oldBudget), currency)
+                                              : oldStatus}
+                                          </td>
+                                          <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                            {isBudgetChange
+                                              ? formatCurrency(Number(newBudget), currency)
+                                              : newStatus}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                </tbody>
+                              </table>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })()
+                        );
+                      })()
                     )}
 
                     <div className="space-y-3 mb-6">
@@ -3238,11 +3238,11 @@ export const Campaigns: React.FC = () => {
                           <span className="text-[12.16px] text-[#556179]">
                             New Status:
                           </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {pendingStatusAction
-                            ? normalizeStatusDisplay(pendingStatusAction)
-                            : ""}
-                        </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {pendingStatusAction
+                              ? normalizeStatusDisplay(pendingStatusAction)
+                              : ""}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -3888,7 +3888,7 @@ export const Campaigns: React.FC = () => {
                                           : statusLower === "paused"
                                             ? "Paused"
                                             : statusLower === "archive" ||
-                                                statusLower === "archived"
+                                              statusLower === "archived"
                                               ? "Archived"
                                               : "Enabled";
 
@@ -4175,10 +4175,7 @@ export const Campaigns: React.FC = () => {
                     {totalPages > 5 && currentPage < totalPages - 2 && (
                       <button
                         onClick={() => handlePageChange(totalPages)}
-                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
-                          ? "bg-white text-[#136D6D] font-semibold"
-                          : "text-black hover:bg-gray-50"
-                          }`}
+                        className="px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer text-black hover:bg-gray-50"
                       >
                         {totalPages}
                       </button>

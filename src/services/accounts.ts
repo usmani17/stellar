@@ -226,11 +226,18 @@ export const accountsService = {
     return response.data;
   },
 
-  fetchGoogleProfiles: async (channelId: number): Promise<any[]> => {
-    const response = await api.get<{ profiles: any[] }>(
+  fetchGoogleProfiles: async (
+    channelId: number
+  ): Promise<{ profiles: any[]; hierarchy: any[] }> => {
+    const response = await api.get<{ profiles: any[]; hierarchy: any[] }>(
       `/accounts/channels/${channelId}/google-profiles/fetch/`
     );
-    return response.data.profiles || [];
+    const profiles = response.data.profiles || [];
+    const hierarchy = response.data.hierarchy || [];
+    return {
+      profiles,
+      hierarchy,
+    };
   },
 
   saveGoogleProfiles: async (
