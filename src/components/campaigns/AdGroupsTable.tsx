@@ -168,12 +168,18 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
       </svg>
     );
   };
+  const selectableAdgroups = adgroups.filter(
+    (ag) => (ag.status ?? "").toLowerCase() !== "archived"
+  );
   const allSelected =
-    adgroups.length > 0 &&
-    adgroups.every((ag) => selectedIds.has(ag.adGroupId || ag.id));
+    selectableAdgroups.length > 0 &&
+    selectableAdgroups.every((ag) =>
+      selectedIds.has(ag.adGroupId || ag.id)
+    );
   const someSelected =
-    adgroups.some((ag) => selectedIds.has(ag.adGroupId || ag.id)) &&
-    !allSelected;
+    selectableAdgroups.some((ag) =>
+      selectedIds.has(ag.adGroupId || ag.id)
+    ) && !allSelected;
 
   const handleSelectAll = (checked: boolean) => {
     console.log("handleSelectAll", checked);
@@ -506,19 +512,21 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           isArchived ? "bg-gray-100 opacity-60" : ""
                         }`}
                       >
-                        {/* Checkbox */}
+                        {/* Checkbox - archived ad groups cannot be selected */}
                         <td className="table-cell">
                           <div className="flex items-center justify-center">
                             <Checkbox
                               checked={selectedIds.has(
                                 adgroup.adGroupId || adgroup.id,
                               )}
-                              onChange={(checked) =>
+                              disabled={isArchived}
+                              onChange={(checked) => {
+                                if (isArchived) return;
                                 handleSelect(
                                   adgroup.adGroupId || adgroup.id,
                                   checked,
-                                )
-                              }
+                                );
+                              }}
                               size="small"
                             />
                           </div>
@@ -597,38 +605,43 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         {showCampaignColumn && (
                           <td className="table-cell min-w-[225px] max-w-[300px]">
                             {adgroup.campaignId && accountId ? (
-                              <Link
-                                to={`/brands/${accountId}/amazon/campaigns/${(adgroup.type || "sp").toLowerCase()}_${adgroup.campaignId}`}
-                                className="table-edit-link text-left block w-full"
-                                style={{
-                                  whiteSpace: "normal",
-                                  overflow: "visible",
-                                  textOverflow: "clip",
-                                  wordBreak: "break-word",
-                                  pointerEvents: "auto",
-                                  cursor: "pointer",
-                                }}
-                                title={
-                                  adgroup.campaign_name ||
-                                  "View campaign details"
-                                }
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Force navigation even if on same route
-                                  const targetPath = `/brands/${accountId}/amazon/campaigns/${(adgroup.type || "sp").toLowerCase()}_${adgroup.campaignId}`;
-                                  // Only prevent default and navigate if it's a regular click (not Ctrl/Cmd/middle click)
-                                  if (
-                                    !e.metaKey &&
-                                    !e.ctrlKey &&
-                                    e.button !== 1
-                                  ) {
-                                    e.preventDefault();
-                                    navigate(targetPath);
-                                  }
-                                }}
-                              >
-                                {adgroup.campaign_name || "—"}
-                              </Link>
+                              (() => {
+                                const campaignTypeAndId = `${(adgroup.type || "sp").toLowerCase()}_${adgroup.campaignId}`;
+                                const targetPath = channelId
+                                  ? `/brands/${accountId}/${channelId}/amazon/campaigns/${campaignTypeAndId}`
+                                  : `/brands/${accountId}/amazon/campaigns/${campaignTypeAndId}`;
+                                return (
+                                  <Link
+                                    to={targetPath}
+                                    className="table-edit-link text-left block w-full"
+                                    style={{
+                                      whiteSpace: "normal",
+                                      overflow: "visible",
+                                      textOverflow: "clip",
+                                      wordBreak: "break-word",
+                                      pointerEvents: "auto",
+                                      cursor: "pointer",
+                                    }}
+                                    title={
+                                      adgroup.campaign_name ||
+                                      "View campaign details"
+                                    }
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (
+                                        !e.metaKey &&
+                                        !e.ctrlKey &&
+                                        e.button !== 1
+                                      ) {
+                                        e.preventDefault();
+                                        navigate(targetPath);
+                                      }
+                                    }}
+                                  >
+                                    {adgroup.campaign_name || "—"}
+                                  </Link>
+                                );
+                              })()
                             ) : (
                               <span className="table-text leading-[1.26] text-left whitespace-normal break-words block w-full">
                                 {adgroup.campaign_name || "—"}
@@ -788,10 +801,19 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           })()}
                         </td>
 
-                        {/* Default Bid - Hide for SB campaigns */}
+                        {/* Default Bid - Hide column when campaignType is SB (campaign detail). Per row: show "--" for SB ad groups (no default bid); editable for SD/SP */}
                         {campaignType !== "SB" && (
                           <td className="table-cell whitespace-nowrap">
                             {(() => {
+                              const rowType = String(
+                                (adgroup as { type?: string; campaignType?: string; campaign_type?: string }).type ??
+                                  (adgroup as { type?: string; campaignType?: string; campaign_type?: string }).campaignType ??
+                                  (adgroup as { type?: string; campaignType?: string; campaign_type?: string }).campaign_type ??
+                                  ""
+                              ).toUpperCase();
+                              if (rowType === "SB") {
+                                return <span className="table-text text-gray-500">—</span>;
+                              }
                               if (inlineEditLoading.has(adgroup.id)) {
                                 const currency = adgroup.profile_currency_code;
                                 return (

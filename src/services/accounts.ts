@@ -3,7 +3,7 @@ import api from "./api";
 export interface Channel {
   id: number;
   channel_name: string;
-  channel_type: "amazon" | "google" | "walmart" | "tiktok";
+  channel_type: "amazon" | "google" | "walmart" | "tiktok" | "meta";
   status: "active" | "inactive" | "pending";
   account: number;
   account_id?: number;
@@ -58,9 +58,10 @@ export const accountsService = {
     return [];
   },
 
-  createAccount: async (data: CreateAccountData): Promise<Account> => {
-    const response = await api.post<Account>("/accounts/", data);
-    return response.data;
+  createAccount: async (data: CreateAccountData): Promise<Account[]> => {
+    const response = await api.post<Account[]>("/accounts/", data);
+    const res = response.data;
+    return Array.isArray(res) ? res : (res as any)?.results ?? [];
   },
 
   updateAccount: async (
@@ -158,6 +159,30 @@ export const accountsService = {
     return response.data;
   },
 
+  // Meta OAuth
+  initiateMetaOAuth: async (
+    accountId: number
+  ): Promise<{ auth_url: string }> => {
+    const response = await api.get<{ auth_url: string }>(
+      `/meta/oauth/initiate/?account_id=${accountId}`
+    );
+    return response.data;
+  },
+
+  handleMetaOAuthCallback: async (
+    code: string,
+    state?: string
+  ): Promise<Channel> => {
+    const response = await api.post<Channel>(
+      "/meta/oauth/callback/",
+      {
+        code,
+        state,
+      }
+    );
+    return response.data;
+  },
+
   // TikTok OAuth
   initiateTikTokOAuth: async (
     accountId: number
@@ -201,11 +226,18 @@ export const accountsService = {
     return response.data;
   },
 
-  fetchGoogleProfiles: async (channelId: number): Promise<any[]> => {
-    const response = await api.get<{ profiles: any[] }>(
+  fetchGoogleProfiles: async (
+    channelId: number
+  ): Promise<{ profiles: any[]; hierarchy: any[] }> => {
+    const response = await api.get<{ profiles: any[]; hierarchy: any[] }>(
       `/accounts/channels/${channelId}/google-profiles/fetch/`
     );
-    return response.data.profiles || [];
+    const profiles = response.data.profiles || [];
+    const hierarchy = response.data.hierarchy || [];
+    return {
+      profiles,
+      hierarchy,
+    };
   },
 
   saveGoogleProfiles: async (
@@ -323,6 +355,42 @@ export const accountsService = {
   ): Promise<any> => {
     const response = await api.post(
       `/accounts/channels/${channelId}/tiktok-profiles/save/`,
+      {
+        profile_ids: profileIds,
+        profiles: profiles || [],
+      }
+    );
+    return response.data;
+  },
+
+  // Meta profiles
+  fetchMetaProfiles: async (
+    channelId: number
+  ): Promise<{
+    profiles: any[];
+    excluded_profiles?: Array<{
+      profileId: string;
+      account_id?: string;
+      name: string;
+      channel_id: number;
+      channel_name: string;
+      account_name: string;
+    }>;
+    total_fetched?: number;
+    existing_count?: number;
+    available_count?: number;
+  }> => {
+    const response = await api.get(`/meta/channels/${channelId}/profiles/`);
+    return response.data;
+  },
+
+  saveMetaProfiles: async (
+    channelId: number,
+    profileIds: string[],
+    profiles?: any[]
+  ): Promise<any> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/profiles/save/`,
       {
         profile_ids: profileIds,
         profiles: profiles || [],

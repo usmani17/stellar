@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
+import { Loader } from "../ui/Loader";
 
 export interface AdGroupInput {
   name: string;
@@ -207,10 +208,10 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
     const createdIndices = new Set(
       createdAdGroups
         .map((cag) => cag.index)
-        .filter((idx) => idx !== undefined && idx !== null)
+        .filter((idx) => idx !== undefined && idx !== null),
     );
     const removedBefore = Array.from(createdIndices).filter(
-      (idx) => idx < originalIndex
+      (idx) => idx < originalIndex,
     ).length;
     return originalIndex - removedBefore;
   };
@@ -248,7 +249,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
 
               // Check if error already exists for this index+field to avoid duplicates
               const exists = newAdGroupErrors.some(
-                (e) => e.index === adjustedIndex && e.field === field
+                (e) => e.index === adjustedIndex && e.field === field,
               );
               if (!exists) {
                 newAdGroupErrors.push({
@@ -261,7 +262,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
           } else {
             // If no specific errors, add a generic error to ensure the row is marked
             const exists = newAdGroupErrors.some(
-              (e) => e.index === adjustedIndex && e.field === "name"
+              (e) => e.index === adjustedIndex && e.field === "name",
             );
             if (!exists) {
               newAdGroupErrors.push({
@@ -296,7 +297,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
 
           // Check if error already exists for this index+field
           const exists = newAdGroupErrors.some(
-            (e) => e.index === adjustedIndex && e.field === field
+            (e) => e.index === adjustedIndex && e.field === field,
           );
           if (!exists) {
             newAdGroupErrors.push({
@@ -318,7 +319,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
       const createdIndices = new Set(
         createdAdGroups
           .map((cag) => cag.index)
-          .filter((idx) => idx !== undefined && idx !== null)
+          .filter((idx) => idx !== undefined && idx !== null),
       );
 
       // Remove adgroups at the indices that were successfully created
@@ -347,7 +348,14 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="create-panel">
+    <div className="create-panel relative">
+      {loading && (
+        <div className="loading-overlay rounded-xl z-10">
+          <div className="loading-overlay-content">
+            <Loader size="md" message="Creating ad groups..." />
+          </div>
+        </div>
+      )}
       {/* Form */}
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-[16px] font-semibold text-[#072929] mb-4">
@@ -358,9 +366,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
         <div className="flex items-end gap-3">
           {/* Ad Group Name */}
           <div className="flex-1 min-w-[200px]">
-            <label className="form-label-small">
-              Ad Group Name *
-            </label>
+            <label className="form-label-small">Ad Group Name *</label>
             <input
               type="text"
               value={currentAdGroup.name}
@@ -378,9 +384,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
           {/* Default Bid - Only show for SP and SD campaigns */}
           {campaignType !== "SB" && (
             <div className="flex-1 min-w-[140px]">
-              <label className="form-label-small">
-                Default Bid *
-              </label>
+              <label className="form-label-small">Default Bid *</label>
               <input
                 type="number"
                 value={currentAdGroup.defaultBid || ""}
@@ -404,9 +408,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
 
           {/* State */}
           <div className="flex-1 min-w-[140px]">
-            <label className="form-label-small">
-              State *
-            </label>
+            <label className="form-label-small">State *</label>
             <Dropdown<string>
               options={
                 campaignType === "SD" ? STATE_OPTIONS_SD : STATE_OPTIONS_SP_SB
@@ -423,16 +425,14 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
           {/* Bid Optimization - Only for SD campaigns */}
           {campaignType === "SD" && (
             <div className="flex-1 min-w-[160px]">
-              <label className="form-label-small">
-                Bid Optimization *
-              </label>
+              <label className="form-label-small">Bid Optimization *</label>
               <Dropdown<string>
                 options={BID_OPTIMIZATION_OPTIONS}
                 value={currentAdGroup.bidOptimization || "clicks"}
                 onChange={(value) =>
                   handleChange(
                     "bidOptimization",
-                    value as "reach" | "clicks" | "conversions"
+                    value as "reach" | "clicks" | "conversions",
                   )
                 }
                 placeholder="Select bid optimization"
@@ -449,9 +449,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
           {/* Creative Type - Only for SD campaigns */}
           {campaignType === "SD" && (
             <div className="flex-1 min-w-[140px]">
-              <label className="form-label-small">
-                Creative Type
-              </label>
+              <label className="form-label-small">Creative Type</label>
               <Dropdown<string>
                 options={CREATIVE_TYPE_OPTIONS}
                 value={currentAdGroup.creativeType || "IMAGE"}
@@ -471,7 +469,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
               onClick={handleAddAdGroup}
               className="create-entity-button"
             >
-              Add 
+              Add
             </button>
           </div>
         </div>
@@ -507,7 +505,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                     const isLastRow = index === addedAdGroups.length - 1;
                     // Check if this adgroup has errors
                     const adGroupRowErrors = adGroupErrors.filter(
-                      (e) => e.index === index
+                      (e) => e.index === index,
                     );
                     const hasErrors = adGroupRowErrors.length > 0;
 
@@ -517,7 +515,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                         return false;
                       // Get the adjusted index for this failed adgroup
                       const adjustedFailedIndex = getAdjustedErrorIndex(
-                        fag.index
+                        fag.index,
                       );
                       return adjustedFailedIndex === index;
                     });
@@ -658,11 +656,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
 
       {/* Footer Actions */}
       <div className="p-4 flex items-center justify-end gap-3">
-        <button
-          type="button"
-          onClick={handleCancel}
-          className="cancel-button"
-        >
+        <button type="button" onClick={handleCancel} className="cancel-button">
           Cancel
         </button>
         <button
@@ -671,7 +665,14 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
           disabled={addedAdGroups.length === 0 || loading}
           className="create-entity-button"
         >
-          {loading ? "Creating..." : "Create AdGroups"}
+          {loading ? (
+            <>
+              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
+              Creating...
+            </>
+          ) : (
+            "Create AdGroups"
+          )}
         </button>
       </div>
     </div>

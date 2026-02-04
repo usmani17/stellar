@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Dropdown } from "../ui/Dropdown";
+import { Loader } from "../ui/Loader";
 
 export interface KeywordInput {
   adGroupId: string;
@@ -152,10 +153,10 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
     const createdIndices = new Set(
       createdKeywords
         .map((ck) => ck.index)
-        .filter((idx) => idx !== undefined && idx !== null)
+        .filter((idx) => idx !== undefined && idx !== null),
     );
     const removedBefore = Array.from(createdIndices).filter(
-      (idx) => idx < originalIndex
+      (idx) => idx < originalIndex,
     ).length;
     return originalIndex - removedBefore;
   };
@@ -182,7 +183,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
                 const exists = newKeywordErrors.some(
                   (e) =>
                     e.index === adjustedIndex &&
-                    e.field === (err.field as keyof KeywordInput)
+                    e.field === (err.field as keyof KeywordInput),
                 );
                 if (!exists) {
                   newKeywordErrors.push({
@@ -194,7 +195,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
               } else {
                 // General error for this keyword - apply to first field
                 const exists = newKeywordErrors.some(
-                  (e) => e.index === adjustedIndex && e.field === "keywordText"
+                  (e) => e.index === adjustedIndex && e.field === "keywordText",
                 );
                 if (!exists) {
                   newKeywordErrors.push({
@@ -208,7 +209,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
           } else {
             // If no specific errors, add a generic error to ensure the row is marked
             const exists = newKeywordErrors.some(
-              (e) => e.index === adjustedIndex && e.field === "keywordText"
+              (e) => e.index === adjustedIndex && e.field === "keywordText",
             );
             if (!exists) {
               newKeywordErrors.push({
@@ -233,7 +234,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
         const createdIndices = new Set(
           createdKeywords
             .map((ck) => ck.index)
-            .filter((idx) => idx !== undefined && idx !== null)
+            .filter((idx) => idx !== undefined && idx !== null),
         );
 
         // Remove keywords at the indices that were successfully created
@@ -334,7 +335,14 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="create-panel">
+    <div className="create-panel relative">
+      {loading && (
+        <div className="loading-overlay rounded-xl z-10">
+          <div className="loading-overlay-content">
+            <Loader size="md" message="Creating keywords..." />
+          </div>
+        </div>
+      )}
       {/* Form */}
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-[16px] font-semibold text-[#072929] mb-4">
@@ -345,9 +353,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
         <div className="flex items-end gap-3">
           {/* Ad Group Dropdown */}
           <div className="flex-1 min-w-[180px] w-full">
-            <label className="form-label-small">
-              Ad Group *
-            </label>
+            <label className="form-label-small">Ad Group *</label>
             <Dropdown<string>
               options={adgroups.map((ag) => ({
                 value: ag.adGroupId,
@@ -367,9 +373,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
 
           {/* Keyword Text */}
           <div className="flex-1 min-w-[200px]">
-            <label className="form-label-small">
-              Keyword Text *
-            </label>
+            <label className="form-label-small">Keyword Text *</label>
             <input
               type="text"
               value={currentKeyword.keywordText}
@@ -388,9 +392,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
 
           {/* Match Type */}
           <div className="w-[140px]">
-            <label className="form-label-small">
-              Match Type *
-            </label>
+            <label className="form-label-small">Match Type *</label>
             <Dropdown<string>
               options={MATCH_TYPE_OPTIONS}
               value={currentKeyword.matchType}
@@ -404,9 +406,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
 
           {/* Bid */}
           <div className="w-[120px]">
-            <label className="form-label-small">
-              Bid *
-            </label>
+            <label className="form-label-small">Bid *</label>
             <input
               type="number"
               value={currentKeyword.bid || ""}
@@ -427,9 +427,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
 
           {/* State */}
           <div className="w-[140px]">
-            <label className="form-label-small">
-              State *
-            </label>
+            <label className="form-label-small">State *</label>
             <Dropdown<string>
               options={STATE_OPTIONS}
               value={currentKeyword.state}
@@ -465,31 +463,19 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b border-[#e8e8e3]">
-                    <th className="table-header">
-                      Ad Group
-                    </th>
-                    <th className="table-header">
-                      Keyword Text
-                    </th>
-                    <th className="table-header">
-                      Match Type
-                    </th>
-                    <th className="table-header">
-                      Bid
-                    </th>
-                    <th className="table-header">
-                      State
-                    </th>
-                    <th className="table-header">
-                      Action
-                    </th>
+                    <th className="table-header">Ad Group</th>
+                    <th className="table-header">Keyword Text</th>
+                    <th className="table-header">Match Type</th>
+                    <th className="table-header">Bid</th>
+                    <th className="table-header">State</th>
+                    <th className="table-header">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {addedKeywords.map((keyword, index) => {
                     const isLastRow = index === addedKeywords.length - 1;
                     const rowErrors = keywordErrors.filter(
-                      (e) => e.index === index
+                      (e) => e.index === index,
                     );
                     const hasError = rowErrors.length > 0;
                     // Check if this keyword failed by comparing with adjusted indices
@@ -498,7 +484,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
                         return false;
                       // Get the adjusted index for this failed keyword
                       const adjustedFailedIndex = getAdjustedErrorIndex(
-                        fk.index
+                        fk.index,
                       );
                       return adjustedFailedIndex === index;
                     });
@@ -535,12 +521,12 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
                               {keyword.keywordText}
                             </span>
                             {rowErrors.find(
-                              (e) => e.field === "keywordText"
+                              (e) => e.field === "keywordText",
                             ) && (
                               <span className="text-[10px] text-red-500 mt-1">
                                 {
                                   rowErrors.find(
-                                    (e) => e.field === "keywordText"
+                                    (e) => e.field === "keywordText",
                                   )?.message
                                 }
                               </span>
@@ -620,11 +606,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
 
       {/* Footer Actions */}
       <div className="p-4 flex items-center justify-end gap-3">
-        <button
-          type="button"
-          onClick={handleCancel}
-          className="cancel-button"
-        >
+        <button type="button" onClick={handleCancel} className="cancel-button">
           Cancel
         </button>
         <button

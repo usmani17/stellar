@@ -11,7 +11,7 @@ import {
 } from "../hooks/mutations/useAccountMutations";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
-import { Button, Card, DeleteConfirmationModal, Menu } from "../components/ui";
+import { Button, Card, DeleteConfirmationModal, Loader, Menu } from "../components/ui";
 import { Banner } from "../components/ui/Banner";
 import AmazonIcon from "../assets/images/amazon-fill.svg";
 import GoogleIcon from "../assets/images/ri_google-fill.svg";
@@ -30,7 +30,7 @@ export const Accounts: React.FC = () => {
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [oauthLoading, setOauthLoading] = useState<{
     accountId: number;
-    provider: "amazon" | "google" | "tiktok";
+    provider: "amazon" | "google" | "tiktok" | "meta";
   } | null>(null);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [newAccountName, setNewAccountName] = useState("");
@@ -81,7 +81,7 @@ export const Accounts: React.FC = () => {
   useEffect(() => {
     const channelSuccess = localStorage.getItem('channel_created_success');
     const profilesSuccess = localStorage.getItem('profiles_saved_success');
-    
+
     if (channelSuccess) {
       try {
         const { message } = JSON.parse(channelSuccess);
@@ -123,7 +123,8 @@ export const Accounts: React.FC = () => {
       });
       setNewAccountName("");
       setShowCreateAccount(false);
-      // React Query automatically invalidates and refetches brands list
+      setSuccessMessage("Brand created successfully!");
+      setTimeout(() => setSuccessMessage(null), 5000);
     } catch (error: any) {
       alert(error.response?.data?.error || "Failed to create brand");
     }
@@ -165,7 +166,8 @@ export const Accounts: React.FC = () => {
 
     try {
       await deleteAccountMutation.mutateAsync(id);
-      // React Query automatically invalidates and refetches accounts list
+      setSuccessMessage("Brand deleted successfully!");
+      setTimeout(() => setSuccessMessage(null), 5000);
     } catch (error: any) {
       console.error("Failed to delete account:", error);
       alert(error.response?.data?.error || "Failed to delete account");
@@ -214,6 +216,21 @@ export const Accounts: React.FC = () => {
     } catch (err: any) {
       setOauthError(
         err.response?.data?.error || "Failed to initiate TikTok OAuth"
+      );
+      setOauthLoading(null);
+    }
+  };
+
+  const handleConnectMeta = async (accountId: number) => {
+    setOauthError(null);
+    setOauthLoading({ accountId, provider: "meta" });
+
+    try {
+      const { auth_url } = await accountsService.initiateMetaOAuth(accountId);
+      window.location.href = auth_url;
+    } catch (err: any) {
+      setOauthError(
+        err.response?.data?.error || "Failed to initiate Meta OAuth"
       );
       setOauthLoading(null);
     }
@@ -536,9 +553,8 @@ export const Accounts: React.FC = () => {
                         return (
                           <tr
                             key={account.id}
-                            className={`table-row group ${
-                              isDeleting ? "opacity-50" : ""
-                            }`}
+                            className={`table-row group ${isDeleting ? "opacity-50" : ""
+                              }`}
                           >
                             <td className="table-cell">
                               {editingAccount?.accountId === account.id ? (
@@ -672,6 +688,24 @@ export const Accounts: React.FC = () => {
                                     TikTok
                                   </span>
                                 </button>
+                                <button
+                                  onClick={() => handleConnectMeta(account.id)}
+                                  disabled={isConnecting || isDeleting}
+                                  className="flex items-center gap-2 px-3 py-1.5 h-[32px] rounded-lg border border-gray-200 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Connect Meta"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                                  </svg>
+                                  <span className="text-[12px] font-medium text-[#072929]">
+                                    Meta
+                                  </span>
+                                </button>
                               </div>
                             </td>
                             <td className="table-cell">
@@ -755,40 +789,12 @@ export const Accounts: React.FC = () => {
                 updateAccountMutation.isPending ||
                 deleteAccountMutation.isPending ||
                 (accountsLoading && accounts.length > 0)) && (
-                <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
-                  <div className="flex flex-col items-center gap-2">
-                    <svg
-                      className="animate-spin h-8 w-8 text-[#136d6d]"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    <p className="text-[14px] text-[#556179]">
-                      {createAccountMutation.isPending
-                        ? "Creating account..."
-                        : updateAccountMutation.isPending
-                        ? "Updating account..."
-                        : deleteAccountMutation.isPending
-                        ? "Deleting account..."
-                        : "Refreshing accounts..."}
-                    </p>
-                  </div>
-                </div>
-              )}
+                  <>
+                    <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
+                      <Loader size="md" message="Loading accounts..." />
+                    </div>
+                  </>
+                )}
             </div>
           </div>
         </div>

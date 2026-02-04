@@ -18,6 +18,8 @@ import { StatusBadge } from "../components/ui/StatusBadge";
 import { Dropdown } from "../components/ui/Dropdown";
 import { Button } from "../components/ui";
 import { type FilterValues } from "../components/filters/FilterPanel";
+import { normalizeStatusDisplay } from "../utils/statusHelpers";
+import { buildGroupedPayload } from "../utils/groupedPayload";
 import {
   FilterSection,
   FilterSectionPanel,
@@ -28,10 +30,14 @@ import {
   type MetricConfig,
 } from "../components/charts/PerformanceChart";
 import { ErrorModal } from "../components/ui/ErrorModal";
+import { useEditSummaryModal } from "../hooks/useEditSummaryModal";
+import { formatMoneyForEditSummary } from "../utils/editSummary";
 import { Loader } from "../components/ui/Loader";
 import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
 
 export const AdGroups: React.FC = () => {
+  const { showEditSummary, EditSummaryModal: EditSummaryModalOutlet } =
+    useEditSummaryModal();
   const navigate = useNavigate();
   const { accountId, channelId } = useParams<{
     accountId: string;
@@ -140,6 +146,9 @@ export const AdGroups: React.FC = () => {
   const [errorModal, setErrorModal] = useState<{
     isOpen: boolean;
     message: string;
+    isSuccess?: boolean;
+    genericErrors?: string[];
+    title?: string;
   }>({ isOpen: false, message: "" });
 
   // Profile filter: derive profileId from filters (same as other filters; no URL sync)
@@ -172,6 +181,11 @@ export const AdGroups: React.FC = () => {
     "enable" | "pause" | "archive" | null
   >(null);
   const [isBidChange, setIsBidChange] = useState(false);
+  const [selectedAdgroupsFetched, setSelectedAdgroupsFetched] = useState<
+    AdGroup[] | null
+  >(null);
+  const [selectedAdgroupsFetching, setSelectedAdgroupsFetching] =
+    useState(false);
 
   // Inline edit state - matching AdGroupsTable pattern
   const [editingAdGroupField, setEditingAdGroupField] = useState<{
@@ -671,10 +685,14 @@ export const AdGroups: React.FC = () => {
             : "archived";
       hasChanged = normalizedNew !== currentStatus;
     } else if (fieldToUse === "default_bid") {
-      const currentBid = adgroup.default_bid
-        ? adgroup.default_bid.replace(/[^0-9.]/g, "")
-        : "0";
-      oldValue = adgroup.default_bid || "$0.00";
+      const bidStr =
+        typeof adgroup.default_bid === "string"
+          ? adgroup.default_bid
+          : adgroup.default_bid != null
+            ? String(adgroup.default_bid)
+            : "$0.00";
+      const currentBid = bidStr.replace(/[^0-9.]/g, "") || "0";
+      oldValue = bidStr;
       hasChanged = valueToCompare !== currentBid && valueToCompare !== "";
     } else if (fieldToUse === "name") {
       oldValue = adgroup.name || "";
@@ -714,19 +732,21 @@ export const AdGroups: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      let adGroupAction: "updated" | "archived" = "updated";
       if (pendingAdGroupChange.field === "status") {
         // For SD adgroups, archive uses the archive endpoint
         if (
-          (adgroup.type === "SD" || adgroup.campaignType === "SD" || adgroup.campaign_type === "SD") &&
+          ((adgroup.type ?? (adgroup as { campaignType?: string }).campaignType ?? (adgroup as { campaign_type?: string }).campaign_type) === "SD") &&
           (pendingAdGroupChange.newValue.toLowerCase() === "archived" ||
             pendingAdGroupChange.newValue.toLowerCase() === "archive")
         ) {
+          adGroupAction = "archived";
           await campaignsService.archiveSdAdGroup(
             accountIdNum,
-            adgroup.adGroupId
+            adgroup.adGroupId,
+            channelId ?? null
           );
         } else {
-          // Map status values to uppercase
           const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
             enabled: "ENABLED",
             paused: "PAUSED",
@@ -736,37 +756,92 @@ export const AdGroups: React.FC = () => {
           const statusValue =
             statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "ENABLED";
 
-          await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-            adgroupIds: [adgroup.adGroupId],
-            action: "status",
-            status: statusValue,
-          });
+          const payload = buildGroupedPayload([
+            {
+              entityId: adgroup.adGroupId,
+              profile_id: adgroup.profile_id ?? (adgroup as { profileId?: string }).profileId,
+              type: getCampaignTypeFromAdgroup(adgroup),
+            },
+          ]);
+          if (Object.keys(payload).length === 0) throw new Error("Missing profile_id or adGroupId");
+
+          await campaignsService.bulkUpdateAdGroups(
+            accountIdNum,
+            {
+              payload,
+              action: "status",
+              status: statusValue,
+            },
+            channelId ?? null
+          );
         }
       } else if (pendingAdGroupChange.field === "default_bid") {
-        // Extract numeric value
         const bidValue = parseFloat(pendingAdGroupChange.newValue);
         if (isNaN(bidValue)) {
           throw new Error("Invalid bid value");
         }
 
-        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-          adgroupIds: [adgroup.adGroupId],
-          action: "default_bid",
-          value: bidValue,
-        });
+        const payload = buildGroupedPayload([
+          {
+            entityId: adgroup.adGroupId,
+            profile_id: adgroup.profile_id ?? (adgroup as { profileId?: string }).profileId,
+            type: getCampaignTypeFromAdgroup(adgroup),
+          },
+        ]);
+        if (Object.keys(payload).length === 0) throw new Error("Missing profile_id or adGroupId");
+
+        await campaignsService.bulkUpdateAdGroups(
+          accountIdNum,
+          {
+            payload,
+            action: "default_bid",
+            value: bidValue,
+          },
+          channelId ?? null
+        );
       } else if (pendingAdGroupChange.field === "name") {
-        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-          adgroupIds: [adgroup.adGroupId],
-          action: "name",
-          name: pendingAdGroupChange.newValue.trim(),
-        });
+        const payload = buildGroupedPayload([
+          {
+            entityId: adgroup.adGroupId,
+            profile_id: adgroup.profile_id ?? (adgroup as { profileId?: string }).profileId,
+            type: getCampaignTypeFromAdgroup(adgroup),
+          },
+        ]);
+        if (Object.keys(payload).length === 0) throw new Error("Missing profile_id or adGroupId");
+
+        await campaignsService.bulkUpdateAdGroups(
+          accountIdNum,
+          {
+            payload,
+            action: "name",
+            name: pendingAdGroupChange.newValue.trim(),
+          },
+          channelId ?? null
+        );
       }
 
-      // Reload adgroups
-      await loadAdGroups(accountIdNum);
+      const { field, oldValue, newValue } = pendingAdGroupChange;
       setPendingAdGroupChange(null);
       setEditingAdGroupField(null);
       setEditedAdGroupValue("");
+
+      const isStatusField = field === "status";
+      const displayOld = isStatusField ? normalizeStatusDisplay(oldValue) : oldValue;
+      const displayNew =
+        adGroupAction === "archived" ? "Archived" : isStatusField ? normalizeStatusDisplay(newValue) : newValue;
+
+      showEditSummary({
+        entityType: "adGroup",
+        action: adGroupAction,
+        mode: "inline",
+        succeededCount: 1,
+        entityName: adgroup.name || adgroup.campaign_name || "Ad Group",
+        field,
+        oldValue: displayOld,
+        newValue: displayNew,
+      });
+
+      await loadAdGroups(accountIdNum);
     } catch (error: any) {
       console.error("Error updating ad group:", error);
       const errorMessage =
@@ -780,7 +855,7 @@ export const AdGroups: React.FC = () => {
     } finally {
       setAdGroupEditLoading((prev) => {
         const newSet = new Set(prev);
-        newSet.delete(pendingAdGroupChange.id);
+        if (pendingAdGroupChange) newSet.delete(pendingAdGroupChange.id);
         return newSet;
       });
     }
@@ -822,6 +897,65 @@ export const AdGroups: React.FC = () => {
     setCurrentPage(newPage);
   };
 
+  const parseSucceededItemsFromResponse = (
+    response: {
+      successes?: Array<{
+        adgroupId?: string | number;
+        adgroupName?: string;
+        field?: string;
+        oldValue?: string;
+        newValue?: string;
+      }>;
+    },
+    adgroupMap?: Map<string, AdGroup>
+  ): Array<{ label: string; field: string; oldValue: string; newValue: string }> => {
+    const successes = response?.successes ?? [];
+    const items: Array<{
+      label: string;
+      field: string;
+      oldValue: string;
+      newValue: string;
+    }> = [];
+    const isStatusField = (f: string) =>
+      (f ?? "").toLowerCase() === "state" || (f ?? "").toLowerCase() === "status";
+
+    const isBidField = (f: string) =>
+      (f ?? "").toLowerCase() === "bid" || (f ?? "").toLowerCase() === "default_bid";
+    for (const s of successes) {
+      const id = String(s.adgroupId ?? "");
+      const fromBackend =
+        s.field != null && (s.oldValue != null || s.newValue != null);
+      const fieldVal = s.field ?? "—";
+      const oldVal = s.oldValue ?? "—";
+      const newVal = s.newValue ?? "—";
+      const ag = adgroupMap?.get(id);
+      const currency = ag?.profile_currency_code;
+      let normOld = isStatusField(fieldVal) ? normalizeStatusDisplay(oldVal) : oldVal;
+      let normNew = isStatusField(fieldVal) ? normalizeStatusDisplay(newVal) : newVal;
+      if (isBidField(fieldVal)) {
+        normOld = formatMoneyForEditSummary(oldVal, currency) || normOld;
+        normNew = formatMoneyForEditSummary(newVal, currency) || normNew;
+      }
+      if (fromBackend) {
+        items.push({
+          label: s.adgroupName ?? `Ad Group ${id}`,
+          field: fieldVal,
+          oldValue: normOld,
+          newValue: normNew,
+        });
+      } else if (adgroupMap) {
+        const name = ag?.name ?? `Ad Group ${id}`;
+        items.push({
+          label: name,
+          field: fieldVal,
+          oldValue: normOld,
+          newValue: normNew,
+        });
+      }
+    }
+    return items;
+  };
+
   // Bulk action handlers
   const runBulkStatus = async (statusValue: "enable" | "pause" | "archive") => {
     if (!accountId || selectedAdgroups.size === 0) return;
@@ -841,22 +975,62 @@ export const AdGroups: React.FC = () => {
       if (statusValue === "archive") {
         // Check if any adgroup is SD type by checking campaign type or schema
         const hasSdAdgroups = selectedAdgroupsData.some(
-          (ag) => ag.type === "SD" || ag.campaignType === "SD" || ag.campaign_type === "SD"
+          (ag) =>
+            (ag.type ?? (ag as { campaignType?: string }).campaignType ?? (ag as { campaign_type?: string }).campaign_type) === "SD"
         );
 
         // For SD adgroups, archive uses bulk delete endpoint
         if (hasSdAdgroups) {
-          await campaignsService.bulkDeleteAdGroups(accountIdNum, {
-            adGroupIdFilter: {
-              include: adgroupIds,
+          const res = await campaignsService.bulkDeleteAdGroups(
+            accountIdNum,
+            {
+              adGroupIdFilter: {
+                include: adgroupIds,
+              },
+              campaignType: "SD",
             },
+            channelId ?? null
+          );
+          const successList = res?.adGroups?.success ?? [];
+          const errorList = res?.adGroups?.error ?? [];
+          const adgroupMap = new Map(
+            selectedAdgroupsData.map((ag) => [
+              String(ag.adGroupId ?? ag.id),
+              ag,
+            ])
+          );
+          const succeededItems = successList.slice(0, 10).map((s: { adGroupId?: string }) => {
+            const id = String(s.adGroupId ?? "");
+            const ag = adgroupMap.get(id);
+            return {
+              label: ag?.name ?? `Ad Group ${id}`,
+              field: "Action",
+              oldValue: "—",
+              newValue: "Archived",
+            };
+          });
+          showEditSummary({
+            entityType: "adGroup",
+            action: "deleted",
+            mode: "bulk",
+            succeededCount: successList.length,
+            failedCount: errorList.length > 0 ? errorList.length : undefined,
+            succeededItems,
+            details: errorList.slice(0, 5).map((e: { adGroupId?: string; message?: string }) => {
+              const ag = selectedAdgroupsData.find(
+                (a) => String(a.adGroupId ?? a.id) === String(e.adGroupId)
+              );
+              const label = ag?.name
+                ? `${ag.name} (${e.adGroupId ?? "—"})`
+                : `Ad Group ${e.adGroupId ?? "—"}`;
+              return { label, value: e.message ?? "Unknown error" };
+            }),
           });
         } else {
           // For non-SD adgroups, archive is not supported via status update
           throw new Error("Archive is only supported for Sponsored Display (SD) ad groups");
         }
       } else {
-        // Convert to uppercase for API: enable -> ENABLED, pause -> PAUSED
         const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
           enable: "ENABLED",
           pause: "PAUSED",
@@ -865,14 +1039,56 @@ export const AdGroups: React.FC = () => {
         };
         const apiStatus = statusMap[statusValue.toLowerCase()] || "ENABLED";
 
-        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-          adgroupIds: adgroupIds,
-          action: "status",
-          status: apiStatus,
+        const payload = buildGroupedPayload(
+          selectedAdgroupsData.map((ag) => ({
+            entityId: ag.adGroupId ?? ag.id,
+            profile_id: ag.profile_id ?? (ag as { profileId?: string }).profileId,
+            type: getCampaignTypeFromAdgroup(ag),
+          }))
+        );
+        if (Object.keys(payload).length === 0) return;
+
+        const res = await campaignsService.bulkUpdateAdGroups(
+          accountIdNum,
+          {
+            payload,
+            action: "status",
+            status: apiStatus,
+          },
+          channelId ?? null
+        );
+        const succeededCount = res?.updated ?? 0;
+        const failedCount = res?.failed ?? 0;
+        const adgroupMap = new Map(
+          selectedAdgroupsData.map((ag) => [
+            String(ag.adGroupId ?? ag.id),
+            ag,
+          ])
+        );
+        const succeededItems = parseSucceededItemsFromResponse(res, adgroupMap).slice(0, 10);
+
+        showEditSummary({
+          entityType: "adGroup",
+          action: "updated",
+          mode: "bulk",
+          succeededCount,
+          failedCount: failedCount > 0 ? failedCount : undefined,
+          succeededItems,
+          details: (res?.errors as Array<{ adgroupId?: string | number; error?: string }> | undefined)?.slice(0, 5).map((e) => {
+            const ag = getSelectedAdgroupsData().find(
+              (a) => String(a.adGroupId ?? a.id) === String(e.adgroupId)
+            );
+            const name = ag?.name ?? null;
+            const label = name
+              ? `${name} (${e.adgroupId ?? "—"})`
+              : `Ad Group ${e.adgroupId ?? "—"}`;
+            return { label, value: e.error ?? "Unknown error" };
+          }),
         });
       }
       await loadAdGroups(accountIdNum);
       setSelectedAdgroups(new Set());
+      setSelectedAdgroupsFetched(null);
       setShowConfirmationModal(false);
       setPendingStatusAction(null);
     } catch (error: any) {
@@ -904,15 +1120,25 @@ export const AdGroups: React.FC = () => {
     try {
       setBulkLoading(true);
 
-      // Get selected adgroups with their current default bids
+      // Get selected adgroups with their current default bids. Only SD (and SP) ad groups have default bid; SB does not — skip SB for bulk default bid.
       const selectedAdgroupsData = getSelectedAdgroupsData();
-      const updates: Array<{ adgroupId: string | number; newBid: number }> = [];
+      const updates: Array<{ adgroupId: string | number; newBid: number; campaignType: "SP" | "SD" }> = [];
 
       for (const adgroup of selectedAdgroupsData) {
-        // Extract current bid from formatted string
-        const currentBid = parseFloat(
-          (adgroup.default_bid || "$0.00").replace(/[^0-9.]/g, "")
-        );
+        const agType = getCampaignTypeFromAdgroup(adgroup);
+        if (agType === "SB") {
+          // SB ad groups have no default bid; skip
+          continue;
+        }
+
+        // Extract current bid (API may return string like "$0.00" or number)
+        const bidStr =
+          typeof adgroup.default_bid === "string"
+            ? adgroup.default_bid
+            : adgroup.default_bid != null
+              ? String(adgroup.default_bid)
+              : "$0.00";
+        const currentBid = parseFloat(bidStr.replace(/[^0-9.]/g, "") || "0");
         let newBid = currentBid;
 
         if (bidAction === "set") {
@@ -948,25 +1174,85 @@ export const AdGroups: React.FC = () => {
         // Prevent negative or zero
         newBid = Math.max(newBid, 0);
 
-        if (adgroup.adGroupId) {
+        if (adgroup.adGroupId && (agType === "SP" || agType === "SD")) {
           updates.push({
             adgroupId: adgroup.adGroupId,
             newBid: Math.round(newBid * 100) / 100,
+            campaignType: agType,
           });
         }
       }
 
-      // Update each adgroup individually
-      for (const update of updates) {
-        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-          adgroupIds: [update.adgroupId],
-          action: "default_bid",
-          value: update.newBid,
+      if (updates.length === 0) {
+        // All selected were SB; only SD/SP ad groups have default bid
+        setShowConfirmationModal(false);
+        setShowBidPanel(false);
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Default bid only applies to Sponsored Products (SP) and Sponsored Display (SD) ad groups. Selected Sponsored Brands (SB) ad groups were skipped.",
         });
+        setBulkLoading(false);
+        return;
       }
+
+      const payload = buildGroupedPayload(
+        updates.map((u) => ({
+          entityId: u.adgroupId,
+          profile_id: selectedAdgroupsData.find(
+            (ag) => String(ag.adGroupId ?? ag.id) === String(u.adgroupId)
+          )?.profile_id,
+          type: u.campaignType,
+        }))
+      );
+      const payloadFiltered = Object.fromEntries(
+        Object.entries(payload).filter(([, v]) => v && Object.keys(v).length > 0)
+      );
+      if (Object.keys(payloadFiltered).length === 0) return;
+
+      const bids = updates.map((u) => ({ adgroupId: u.adgroupId, bid: u.newBid }));
+
+      const res = await campaignsService.bulkUpdateAdGroups(
+        accountIdNum,
+        {
+          payload: payloadFiltered,
+          action: "default_bid",
+          bids,
+        },
+        channelId ?? null
+      );
+      const succeededCount = res?.updated ?? 0;
+      const failedCount = res?.failed ?? 0;
+      const adgroupMap = new Map(
+        selectedAdgroupsData.map((ag) => [
+          String(ag.adGroupId ?? ag.id),
+          ag,
+        ])
+      );
+      const succeededItems = parseSucceededItemsFromResponse(res, adgroupMap).slice(0, 10);
+
+      showEditSummary({
+        entityType: "adGroup",
+        action: "updated",
+        mode: "bulk",
+        succeededCount,
+        failedCount: failedCount > 0 ? failedCount : undefined,
+        succeededItems,
+        details: (res?.errors as Array<{ adgroupId?: string | number; error?: string }> | undefined)?.slice(0, 5).map((e) => {
+          const ag = getSelectedAdgroupsData().find(
+            (a) => String(a.adGroupId ?? a.id) === String(e.adgroupId)
+          );
+          const name = ag?.name ?? null;
+          const label = name
+            ? `${name} (${e.adgroupId ?? "—"})`
+            : `Ad Group ${e.adgroupId ?? "—"}`;
+          return { label, value: e.error ?? "Unknown error" };
+        }),
+      });
 
       await loadAdGroups(accountIdNum);
       setSelectedAdgroups(new Set());
+      setSelectedAdgroupsFetched(null);
       setShowConfirmationModal(false);
       setShowBidPanel(false);
       setBidValue("");
@@ -988,8 +1274,72 @@ export const AdGroups: React.FC = () => {
     }
   };
 
-  const getSelectedAdgroupsData = () => {
-    return adgroups.filter((ag) => selectedAdgroups.has(ag.adGroupId || ag.id));
+  const getSelectedAdgroupsData = (): AdGroup[] => {
+    if (selectedAdgroupsFetched && selectedAdgroupsFetched.length > 0) {
+      return selectedAdgroupsFetched;
+    }
+    return adgroups.filter((ag) =>
+      selectedAdgroups.has(ag.adGroupId || ag.id)
+    );
+  };
+
+  useEffect(() => {
+    if (
+      !showConfirmationModal ||
+      selectedAdgroups.size === 0 ||
+      !accountId ||
+      !channelId
+    ) {
+      setSelectedAdgroupsFetched(null);
+      return;
+    }
+    const ids = Array.from(selectedAdgroups);
+    let cancelled = false;
+    setSelectedAdgroupsFetching(true);
+    campaignsService
+      .getAdGroupsByIds(
+        parseInt(accountId, 10),
+        ids,
+        channelId ? parseInt(channelId, 10) : null
+      )
+      .then((res) => {
+        if (!cancelled && res?.adgroups) {
+          setSelectedAdgroupsFetched(res.adgroups);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedAdgroupsFetched(null);
+      })
+      .finally(() => {
+        if (!cancelled) setSelectedAdgroupsFetching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showConfirmationModal, selectedAdgroups, accountId, channelId]);
+
+  const getCampaignTypeFromAdgroup = (ag: AdGroup | undefined): "SP" | "SB" | "SD" => {
+    if (!ag) return "SP";
+    const t = (ag as { type?: string; campaignType?: string; campaign_type?: string }).type
+      ?? (ag as { type?: string; campaignType?: string; campaign_type?: string }).campaignType
+      ?? (ag as { type?: string; campaignType?: string; campaign_type?: string }).campaign_type
+      ?? "SP";
+    return (String(t).toUpperCase() === "SB" ? "SB" : String(t).toUpperCase() === "SD" ? "SD" : "SP") as "SP" | "SB" | "SD";
+  };
+
+  const formatCurrency = (value: string | number, currency?: string) => {
+    const numValue =
+      typeof value === "string"
+        ? parseFloat(String(value).replace(/[^0-9.-]+/g, ""))
+        : Number(value);
+    const code = currency?.trim() ? currency.trim().toUpperCase() : "USD";
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      currencyDisplay: "code",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(numValue || 0);
   };
 
   const calculateNewBid = (currentBid: number): number => {
@@ -1055,18 +1405,15 @@ export const AdGroups: React.FC = () => {
   }, [chartDataFromApi]);
 
   const handleSelectAllAdGroups = (checked: boolean) => {
-    console.log(
-      "handleSelectAllAdGroups called",
-      checked,
-      "adgroups.length:",
-      adgroups.length
-    );
     if (checked) {
-      const allIds = new Set(adgroups.map((ag) => ag.adGroupId || ag.id));
-      console.log("Selecting all - allIds:", Array.from(allIds));
+      const selectable = adgroups.filter(
+        (ag) => (ag.status ?? "").toLowerCase() !== "archived"
+      );
+      const allIds = new Set(
+        selectable.map((ag) => ag.adGroupId || ag.id)
+      );
       setSelectedAdgroups(allIds);
     } else {
-      console.log("Deselecting all");
       setSelectedAdgroups(new Set());
     }
   };
@@ -1114,12 +1461,25 @@ export const AdGroups: React.FC = () => {
         </div>
       )}
 
-      {/* Error Modal */}
+      {/* Error Modal / Bulk result summary */}
       <ErrorModal
         isOpen={errorModal.isOpen}
-        onClose={() => setErrorModal({ isOpen: false, message: "" })}
+        onClose={() =>
+          setErrorModal({
+            isOpen: false,
+            message: "",
+            isSuccess: undefined,
+            genericErrors: undefined,
+            title: undefined,
+          })
+        }
+        title={errorModal.title}
         message={errorModal.message}
+        isSuccess={errorModal.isSuccess}
+        genericErrors={errorModal.genericErrors}
       />
+
+      <EditSummaryModalOutlet />
 
       {/* Inline Edit Confirmation Modal */}
       {pendingAdGroupChange &&
@@ -1187,7 +1547,7 @@ export const AdGroups: React.FC = () => {
 
           return (
             <div
-              className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+              className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
               onClick={(e) => {
                 if (
                   e.target === e.currentTarget &&
@@ -1357,18 +1717,22 @@ export const AdGroups: React.FC = () => {
                   <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                     <div className="overflow-y-auto">
                       {(() => {
-                        // Check if all adgroups are SD type - if so, exclude Default Bid
-                        const allAdgroupsAreSd = adgroups.length > 0 &&
-                          adgroups.every((ag) => {
-                            const type = ag.type || ag.campaignType || ag.campaign_type;
-                            return type === "SD";
+                        // Show "Edit Default Bid" only when at least one selected ad group is SD or SP (they have default bid). Hide when all are SB (SB has no default bid).
+                        const selectedData = getSelectedAdgroupsData();
+                        const allSelectedAreSb =
+                          selectedData.length > 0 &&
+                          selectedData.every((ag) => {
+                            const t = (ag as { type?: string; campaignType?: string; campaign_type?: string }).type
+                              ?? (ag as { type?: string; campaignType?: string; campaign_type?: string }).campaignType
+                              ?? (ag as { type?: string; campaignType?: string; campaign_type?: string }).campaign_type;
+                            return String(t ?? "").toUpperCase() === "SB";
                           });
 
                         return [
                           { value: "enable", label: "Enabled" },
                           { value: "pause", label: "Paused" },
                           { value: "archive", label: "Archived" },
-                          ...(allAdgroupsAreSd ? [] : [{ value: "edit_bid", label: "Edit Default Bid" }]),
+                          ...(allSelectedAreSb ? [] : [{ value: "edit_bid", label: "Edit Default Bid" }]),
                         ];
                       })().map((opt) => (
                         <button
@@ -1644,17 +2008,25 @@ export const AdGroups: React.FC = () => {
             {/* Confirmation Modal */}
             {showConfirmationModal && (
               <div
-                className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+                className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
                 onClick={(e) => {
                   if (e.target === e.currentTarget) {
+                    setSelectedAdgroupsFetched(null);
                     setShowConfirmationModal(false);
                   }
                 }}
               >
                 <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
-                  {bulkLoading && (
+                  {(bulkLoading || selectedAdgroupsFetching) && (
                     <div className="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10 rounded-xl backdrop-blur-sm">
-                      <Loader size="md" message="Updating adgroups..." />
+                      <Loader
+                        size="md"
+                        message={
+                          selectedAdgroupsFetching
+                            ? "Loading selected ad groups..."
+                            : "Updating adgroups..."
+                        }
+                      />
                     </div>
                   )}
                   <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
@@ -1715,26 +2087,26 @@ export const AdGroups: React.FC = () => {
                               {selectedAdgroupsData
                                 .slice(0, previewCount)
                                 .map((ag) => {
+                                  const bidStr =
+                                    typeof ag.default_bid === "string"
+                                      ? ag.default_bid
+                                      : ag.default_bid != null
+                                        ? String(ag.default_bid)
+                                        : "$0.00";
                                   const oldBid = parseFloat(
-                                    (ag.default_bid || "$0.00").replace(
-                                      /[^0-9.]/g,
-                                      ""
-                                    )
+                                    bidStr.replace(/[^0-9.]/g, "") || "0"
                                   );
-                                  const oldStatus = ag.status || "Enabled";
+                                  const oldStatus = normalizeStatusDisplay(ag.status || "Enabled");
                                   const newBid = isBidChange
                                     ? calculateNewBid(oldBid)
                                     : oldBid;
                                   const newStatus = pendingStatusAction
-                                    ? pendingStatusAction
-                                      .charAt(0)
-                                      .toUpperCase() +
-                                    pendingStatusAction.slice(1)
+                                    ? normalizeStatusDisplay(pendingStatusAction)
                                     : oldStatus;
 
                                   return (
                                     <tr
-                                      key={ag.id}
+                                      key={ag.adGroupId ?? ag.id}
                                       className="border-b border-gray-200 last:border-b-0"
                                     >
                                       <td className="px-4 py-2 text-[10.64px] text-[#072929]">
@@ -1742,12 +2114,12 @@ export const AdGroups: React.FC = () => {
                                       </td>
                                       <td className="px-4 py-2 text-[10.64px] text-[#556179]">
                                         {isBidChange
-                                          ? `$${oldBid.toFixed(2)}`
+                                          ? formatCurrency(oldBid, ag.profile_currency_code)
                                           : oldStatus}
                                       </td>
                                       <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
                                         {isBidChange
-                                          ? `$${newBid.toFixed(2)}`
+                                          ? formatCurrency(newBid, ag.profile_currency_code)
                                           : newStatus}
                                       </td>
                                     </tr>
@@ -1827,12 +2199,11 @@ export const AdGroups: React.FC = () => {
                         <span className="text-[12.16px] text-[#556179]">
                           New Status:
                         </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {pendingStatusAction
-                            ? pendingStatusAction.charAt(0).toUpperCase() +
-                            pendingStatusAction.slice(1)
-                            : ""}
-                        </span>
+                      <span className="text-[12.16px] font-semibold text-[#072929]">
+                        {pendingStatusAction
+                          ? normalizeStatusDisplay(pendingStatusAction)
+                          : ""}
+                      </span>
                       </div>
                     )}
                   </div>
@@ -1841,11 +2212,12 @@ export const AdGroups: React.FC = () => {
                   <div className="flex justify-end gap-3">
                     <button
                       onClick={() => {
+                        setSelectedAdgroupsFetched(null);
                         setShowConfirmationModal(false);
                         setPendingStatusAction(null);
                         setIsBidChange(false);
                       }}
-                      disabled={bulkLoading}
+                      disabled={bulkLoading || selectedAdgroupsFetching}
                       className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                     >
                       Cancel
@@ -1858,10 +2230,14 @@ export const AdGroups: React.FC = () => {
                           runBulkStatus(pendingStatusAction);
                         }
                       }}
-                      disabled={bulkLoading}
+                      disabled={bulkLoading || selectedAdgroupsFetching}
                       className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0e5a5a] disabled:opacity-50"
                     >
-                      {bulkLoading ? "Updating..." : "Confirm"}
+                      {selectedAdgroupsFetching
+                        ? "Loading..."
+                        : bulkLoading
+                          ? "Updating..."
+                          : "Confirm"}
                     </button>
                   </div>
                 </div>
@@ -1941,13 +2317,11 @@ export const AdGroups: React.FC = () => {
                       ...
                     </span>
                   )}
-                  {totalPages > 5 && (
+                  {/* Only show separate last-page button when last page is not already in the sliding window */}
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
                     <button
                       onClick={() => handlePageChange(totalPages)}
-                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
-                          ? "bg-white text-[#136D6D] font-semibold"
-                          : "text-black hover:bg-gray-50"
-                        }`}
+                      className="px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer text-black hover:bg-gray-50"
                     >
                       {totalPages}
                     </button>

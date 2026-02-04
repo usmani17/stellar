@@ -63,6 +63,11 @@ export const googleAdwordsAssetGroupsService = {
     marketing_image_url?: string;
     square_marketing_image_url?: string;
     final_urls: string[];
+    video_assets?: Array<{
+      id: number;
+      name?: string;
+      youtube_video_id?: string;
+    }>;
     asset_group_name?: string;
   }> => {
     const params = new URLSearchParams();
@@ -88,7 +93,7 @@ export const googleAdwordsAssetGroupsService = {
     return response.data;
   },
 
-  // Update asset group status
+  // Update asset group status (single)
   updateAssetGroupStatus: async (
     accountId: number,
     channelId: number,
@@ -101,6 +106,25 @@ export const googleAdwordsAssetGroupsService = {
     const response = await api.post(url, {
       status: status,
       profile_id: profileId,
+      asset_group_id: assetGroupId,
+    });
+    return response.data;
+  },
+
+  // Bulk update asset group statuses (one API call)
+  bulkUpdateAssetGroupStatus: async (
+    accountId: number,
+    channelId: number,
+    profileId: number,
+    campaignId: string | number,
+    assetGroupIds: (string | number)[],
+    status: "ENABLED" | "PAUSED"
+  ): Promise<{ updated: number; failed: number; errors: string[] }> => {
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/bulk-update-asset-groups/`;
+    const response = await api.post(url, {
+      status: status,
+      profile_id: profileId,
+      asset_group_ids: assetGroupIds.map(String),
     });
     return response.data;
   },

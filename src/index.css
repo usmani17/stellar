@@ -491,11 +491,13 @@ body input[type="submit"]:disabled {
   padding: 4px;
   border-radius: 4px;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.2s;
 }
 
 .group:hover .table-edit-icon {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .table-edit-icon:hover {

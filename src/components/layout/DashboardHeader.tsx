@@ -78,9 +78,8 @@ const AccountChannelsList: React.FC<{
                   );
                   onClose();
                 }}
-                className={`w-full flex items-center gap-2 text-left px-3 py-2 text-[12.32px] hover:bg-gray-50 transition-colors ${
-                  index === 0 ? "rounded-tr-[10px]" : ""
-                } ${index === channels.length - 1 ? "rounded-br-[10px]" : ""}`}
+                className={`w-full flex items-center gap-2 text-left px-3 py-2 text-[12.32px] hover:bg-gray-50 transition-colors ${index === 0 ? "rounded-tr-[10px]" : ""
+                  } ${index === channels.length - 1 ? "rounded-br-[10px]" : ""}`}
               >
                 {channel.channel_type === "amazon" && (
                   <img
@@ -261,7 +260,7 @@ export const DashboardHeader: React.FC = () => {
   const isProfilePage = location.pathname === "/profile";
   const isIntegrationsPage = /^\/brands\/\d+\/integrations$/.test(location.pathname);
   const isAccountSelectionPage =
-    /^\/channels\/\d+\/(select-google-accounts|select-tiktok-profiles|list-profiles)$/.test(
+    /^\/channels\/\d+\/(select-google-accounts|select-tiktok-profiles|select-meta-profiles|list-profiles)$/.test(
       location.pathname,
     );
   const shouldHideDatePicker =
@@ -280,10 +279,10 @@ export const DashboardHeader: React.FC = () => {
   const urlChannelId = getChannelIdFromUrl(location.pathname);
   const selectedChannel = selectedAccount
     ? (urlChannelId != null
-        ? selectedAccountChannels.find((ch) => ch.id === urlChannelId)
-        : selectedAccountChannels.find(
-            (ch) => ch.channel_type === currentMarketplace,
-          ))
+      ? selectedAccountChannels.find((ch) => ch.id === urlChannelId)
+      : selectedAccountChannels.find(
+        (ch) => ch.channel_type === currentMarketplace,
+      ))
     : null;
 
   return (
@@ -316,7 +315,7 @@ export const DashboardHeader: React.FC = () => {
               style={{
                 backgroundColor: getInitialColor(
                   selectedAccount?.name?.[0]?.toUpperCase() ||
-                    (accounts.length === 0 ? "!" : "A"),
+                  (accounts.length === 0 ? "!" : "A"),
                 ),
               }}
             >
@@ -359,9 +358,8 @@ export const DashboardHeader: React.FC = () => {
               )}
             </div>
             <svg
-              className={`w-4 h-4 text-[#072929] transition-transform ${
-                isAccountDropdownOpen ? "rotate-180" : ""
-              }`}
+              className={`w-4 h-4 text-[#072929] transition-transform ${isAccountDropdownOpen ? "rotate-180" : ""
+                }`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -443,11 +441,10 @@ export const DashboardHeader: React.FC = () => {
                             setIsAccountDropdownOpen(false);
                             setExpandedAccountId(null);
                           }}
-                          className={`w-full flex items-center gap-2 px-3 py-2 text-[12.32px] text-left ${
-                            expandedAccountId === account.id
+                          className={`w-full flex items-center gap-2 px-3 py-2 text-[12.32px] text-left ${expandedAccountId === account.id
                               ? "bg-gray-50"
                               : "hover:bg-gray-50"
-                          }`}
+                            }`}
                         >
                           <div
                             className="w-5 h-5 rounded text-white text-[10px] flex items-center justify-center font-semibold flex-shrink-0"
@@ -540,9 +537,8 @@ export const DashboardHeader: React.FC = () => {
                   {formatDateRange()}
                 </span>
                 <svg
-                  className={`w-4 h-4 text-[#556179] transition-transform ${
-                    isDatePickerOpen ? "rotate-180" : ""
-                  }`}
+                  className={`w-4 h-4 text-[#556179] transition-transform ${isDatePickerOpen ? "rotate-180" : ""
+                    }`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"

@@ -40,11 +40,9 @@ export const useCampaigns = (
       return response;
     },
     enabled: !!accountId, // Only run query if accountId is provided
-    staleTime: 5 * 60 * 1000, // 5 minutes - same as global config
-    gcTime: 10 * 60 * 1000, // 10 minutes - same as global config
-    // Refetch on mount if data is stale (after staleTime)
-    refetchOnMount: true,
-    // Refetch on window focus if data is stale
+    staleTime: 0, // Always consider stale - fetch fresh data when navigating to campaigns
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnMount: "always", // Always refetch from DB when Campaigns page mounts (e.g. sidebar nav click)
     refetchOnWindowFocus: true,
   });
 };

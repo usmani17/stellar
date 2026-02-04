@@ -278,16 +278,17 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
           </div>
         )}
 
-        {/* Targeting Type - Show for SP and SB campaigns only (not SD) */}
-        {campaignDetail.campaign.type !== "SD" && (
+        {/* Targeting Type - Show only when value exists (SP/SB may have it; hide if missing) */}
+        {campaignDetail.campaign.type !== "SD" &&
+          (campaignDetail.campaign.targetingType ||
+            campaignDetail.campaign.targeting_type) && (
           <div className="flex flex-col gap-1">
             <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
               Targeting Type
             </label>
             <div className="table-text leading-[1.26]">
               {campaignDetail.campaign.targetingType ||
-                campaignDetail.campaign.targeting_type ||
-                "—"}
+                campaignDetail.campaign.targeting_type}
             </div>
           </div>
         )}

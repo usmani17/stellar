@@ -13,7 +13,7 @@ import { LogHistory } from "../pages/LogHistory";
 function GoogleRoutes() {
     return (
         <>
-            {/* Routes with channelId */}
+            {/* Routes with channelId - use /brands/:accountId/:channelId/google/logs (sidebar links already use full URL) */}
             <Route
                 path="/brands/:accountId/:channelId/google/campaigns"
                 element={

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { accountsService } from "../services/accounts";
 import type { Channel } from "../services/accounts";
 import { useAccounts } from "../contexts/AccountsContext";
@@ -8,10 +8,11 @@ import { useChannels } from "../hooks/queries/useChannels";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
-import { Button, Menu, DeleteConfirmationModal } from "../components/ui";
+import { Button, Menu, DeleteConfirmationModal, Loader } from "../components/ui";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import AmazonIcon from "../assets/images/amazon-fill.svg";
 import GoogleIcon from "../assets/images/ri_google-fill.svg";
+import MetaIcon from "../assets/images/mingcute_meta-line.svg";
 import { Banner } from "../components/ui/Banner";
 
 export const Channels: React.FC = () => {
@@ -30,7 +31,7 @@ export const Channels: React.FC = () => {
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [oauthLoading, setOauthLoading] = useState<{
     accountId: number;
-    provider: "amazon" | "google" | "tiktok";
+    provider: "amazon" | "google" | "tiktok" | "meta";
   } | null>(null);
   const [editingChannel, setEditingChannel] = useState<{
     channelId: number;
@@ -168,6 +169,22 @@ export const Channels: React.FC = () => {
     } catch (err: any) {
       setOauthError(
         err.response?.data?.error || "Failed to initiate TikTok OAuth"
+      );
+      setOauthLoading(null);
+    }
+  };
+
+  const handleConnectMeta = async () => {
+    if (!account) return;
+    setOauthError(null);
+    setOauthLoading({ accountId: account.id, provider: "meta" });
+
+    try {
+      const { auth_url } = await accountsService.initiateMetaOAuth(account.id);
+      window.location.href = auth_url;
+    } catch (err: any) {
+      setOauthError(
+        err.response?.data?.error || "Failed to initiate Meta OAuth"
       );
       setOauthLoading(null);
     }
@@ -378,6 +395,18 @@ export const Channels: React.FC = () => {
                       onClick: handleConnectTikTok,
                       disabled: isConnecting,
                     },
+                    {
+                      label: "Meta",
+                      icon: (
+                        <img
+                          src={MetaIcon}
+                          alt="Meta"
+                          className="w-5 h-5"
+                        />
+                      ),
+                      onClick: handleConnectMeta,
+                      disabled: isConnecting,
+                    },
                   ]}
                   align="left"
                 />
@@ -436,34 +465,39 @@ export const Channels: React.FC = () => {
                             <td className="table-cell group">
                               {editingChannel?.channelId === channel.id &&
                                 editingChannel.field === "channel_name" ? (
-                                <input
-                                  type="text"
-                                  value={editedChannelName}
-                                  onChange={(e) =>
-                                    setEditedChannelName(e.target.value)
-                                  }
-                                  onBlur={(e) => {
-                                    const inputValue = e.target.value.trim();
-                                    if (
-                                      inputValue === channel.channel_name ||
-                                      inputValue === ""
-                                    ) {
-                                      cancelEditChannelName();
-                                    } else {
-                                      confirmEditChannelName(inputValue);
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={editedChannelName}
+                                    onChange={(e) =>
+                                      setEditedChannelName(e.target.value)
                                     }
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.currentTarget.blur();
-                                    } else if (e.key === "Escape") {
-                                      cancelEditChannelName();
-                                    }
-                                  }}
-                                  autoFocus
-                                  disabled={updatingChannel}
-                                  className="w-full px-2 py-1 text-[14px] text-[#0b0f16] border border-[#136d6d] rounded focus:outline-none focus:ring-2 focus:ring-[#136d6d] bg-white"
-                                />
+                                    onBlur={(e) => {
+                                      const inputValue = e.target.value.trim();
+                                      if (
+                                        inputValue === channel.channel_name ||
+                                        inputValue === ""
+                                      ) {
+                                        cancelEditChannelName();
+                                      } else {
+                                        confirmEditChannelName(inputValue);
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                      } else if (e.key === "Escape") {
+                                        cancelEditChannelName();
+                                      }
+                                    }}
+                                    autoFocus
+                                    disabled={updatingChannel}
+                                    className="flex-1 min-w-0 px-2 py-1 text-[14px] text-[#0b0f16] border border-[#136d6d] rounded focus:outline-none focus:ring-2 focus:ring-[#136d6d] bg-white disabled:opacity-70"
+                                  />
+                                  {updatingChannel && (
+                                    <Loader size="sm" showMessage={false} className="flex-shrink-0" />
+                                  )}
+                                </div>
                               ) : (
                                 <div className="flex items-center gap-2">
                                   {channel.channel_type === "amazon" && (
@@ -490,30 +524,27 @@ export const Channels: React.FC = () => {
                                       <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
                                     </svg>
                                   )}
-                                  <button
-                                    onClick={() => {
-                                      if (channel.channel_type === "amazon") {
-                                        navigate(
-                                          `/brands/${accountId}/campaigns`
-                                        );
-                                      } else if (
-                                        channel.channel_type === "google"
-                                      ) {
-                                        navigate(
-                                          `/brands/${accountId}/${channel.id}/google/campaigns`
-                                        );
-                                      } else if (
-                                        channel.channel_type === "tiktok"
-                                      ) {
-                                        navigate(
-                                          `/brands/${accountId}/tiktok/campaigns`
-                                        );
-                                      }
-                                    }}
+                                  {channel.channel_type === "meta" && (
+                                    <img
+                                      src={MetaIcon}
+                                      alt="Meta"
+                                      className="w-5 h-5 flex-shrink-0"
+                                    />
+                                  )}
+                                  <Link
+                                    to={
+                                      channel.channel_type === "amazon"
+                                        ? `/brands/${accountId}/${channel.id}/amazon/campaigns`
+                                        : channel.channel_type === "google"
+                                          ? `/brands/${accountId}/${channel.id}/google/campaigns`
+                                          : channel.channel_type === "tiktok"
+                                            ? `/brands/${accountId}/tiktok/campaigns`
+                                            : "#"
+                                    }
                                     className="table-edit-link"
                                   >
                                     {channel.channel_name}
-                                  </button>
+                                  </Link>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -576,6 +607,12 @@ export const Channels: React.FC = () => {
                                     ) {
                                       navigate(
                                         `/channels/${channel.id}/select-tiktok-profiles`
+                                      );
+                                    } else if (
+                                      channel.channel_type === "meta"
+                                    ) {
+                                      navigate(
+                                        `/channels/${channel.id}/meta-list-profiles`
                                       );
                                     } else {
                                       navigate(

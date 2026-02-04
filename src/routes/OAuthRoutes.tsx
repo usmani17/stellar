@@ -2,6 +2,7 @@ import { Route } from "react-router-dom";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import { AmazonOAuthCallback } from "../pages/AmazonOAuthCallback";
 import { GoogleOAuthCallback } from "../pages/GoogleOAuthCallback";
+import { MetaOAuthCallback } from "../pages/MetaOAuthCallback";
 import { TikTokOAuthCallback } from "../pages/TikTokOAuthCallback";
 import { Auth0Callback } from "../pages/Auth0Callback";
 
@@ -14,6 +15,14 @@ function OAuthRoutes() {
                 element={
                     <ProtectedRoute>
                         <AmazonOAuthCallback />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/meta-oauth-callback"
+                element={
+                    <ProtectedRoute>
+                        <MetaOAuthCallback />
                     </ProtectedRoute>
                 }
             />

@@ -26,12 +26,12 @@ interface KeywordsTableProps {
     currentValue: string,
   ) => void;
   onEditChange?: (value: string) => void;
-  onEditEnd?: (value?: string) => void;
+  onEditEnd?: (value?: string, keywordId?: number, field?: "state" | "bid") => void;
   onEditCancel?: () => void;
   inlineEditLoading?: Set<number>;
   pendingChange?: {
     id: number;
-    field: "state" | "bid";
+    field: "state" | "bid" | "status";
     newValue: string;
     oldValue: string;
   } | null;
@@ -289,7 +289,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                             return (
                               <div className="flex items-center gap-2">
                                 <span className="table-text leading-[1.26]">
-                                  {pendingChange?.field === "state"
+                                  {pendingChange?.field === "state" || pendingChange?.field === "status"
                                     ? pendingChange.newValue === "enabled"
                                       ? "Enabled"
                                       : pendingChange.newValue === "paused"
@@ -304,7 +304,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
 
                           if (
                             pendingChange?.id === keyword.id &&
-                            pendingChange?.field === "state"
+                            pendingChange?.field === "state" || pendingChange?.field === "status"
                           ) {
                             return (
                               <div className="flex items-center gap-2">
@@ -361,7 +361,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                                   );
                                 }
                                 onEditChange?.(newValue);
-                                onEditEnd?.(newValue);
+                                onEditEnd?.(newValue, keyword.id, "state");
                               }}
                               buttonClassName="inline-edit-dropdown"
                               width="w-full"
@@ -447,7 +447,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                                   editingField?.id === keyword.id &&
                                   editingField?.field === "bid"
                                 ) {
-                                  onEditEnd?.(inputValue);
+                                  onEditEnd?.(inputValue, keyword.id, "bid");
                                 }
                               }}
                               onKeyDown={(e) => {
@@ -455,6 +455,8 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                                 if (e.key === "Enter" || e.key === "Escape") {
                                   onEditEnd?.(
                                     (e.target as HTMLInputElement).value,
+                                    keyword.id,
+                                    "bid",
                                   );
                                 }
                               }}

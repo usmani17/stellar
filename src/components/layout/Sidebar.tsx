@@ -30,7 +30,14 @@ import KeywordsIcon from "../../assets/images/keywords.svg";
 import KeywordsWhiteIcon from "../../assets/images/keywords-white.svg";
 import TargetsIcon from "../../assets/images/targets.svg";
 import TargetsWhiteIcon from "../../assets/images/targets-white.svg";
-import ChartPieSliceIcon from "../../assets/images/ChartPieSlice.svg";
+import BrandsIcon from "../../assets/images/brands.svg";
+import BrandsActiveIcon from "../../assets/images/brands-active.svg";
+import IntegrationsIcon from "../../assets/images/integrations.svg";
+import IntegrationsActiveIcon from "../../assets/images/integrations-active.svg";
+import ProfilesIcon from "../../assets/images/profiles.svg";
+import ProfilesActiveIcon from "../../assets/images/profiles-active.svg";
+import UsersIcon from "../../assets/images/users.svg";
+import UsersActiveIcon from "../../assets/images/users-active.svg";
 
 const BRANDS_SECTION_STORAGE_KEY = "brands-section-collapsed";
 const AMAZON_SECTION_STORAGE_KEY = "amazon-section-collapsed";
@@ -399,6 +406,11 @@ export const Sidebar: React.FC = () => {
                     }`}
                     title="Brands"
                   >
+                    <img
+                      src={isActive("/brands") ? BrandsActiveIcon : BrandsIcon}
+                      alt=""
+                      className="w-5 h-5 shrink-0"
+                    />
                     <span className="text-[12.32px] font-normal leading-[16px]">
                       Brands
                     </span>
@@ -423,6 +435,11 @@ export const Sidebar: React.FC = () => {
                     }`}
                     title="Integrations"
                   >
+                    <img
+                      src={isActive("/brands/integrations") ? IntegrationsActiveIcon : IntegrationsIcon}
+                      alt=""
+                      className="w-5 h-5 shrink-0"
+                    />
                     <span className="text-[12.32px] font-normal leading-[16px]">
                       Integrations
                     </span>
@@ -447,6 +464,11 @@ export const Sidebar: React.FC = () => {
                     }`}
                     title="Profiles"
                   >
+                    <img
+                      src={isActive("/brands/profiles") ? ProfilesActiveIcon : ProfilesIcon}
+                      alt=""
+                      className="w-5 h-5 shrink-0"
+                    />
                     <span className="text-[12.32px] font-normal leading-[16px]">
                       Profiles
                     </span>
@@ -471,6 +493,11 @@ export const Sidebar: React.FC = () => {
                     }`}
                     title="Users"
                   >
+                    <img
+                      src={isActive("/brands/users") ? UsersActiveIcon : UsersIcon}
+                      alt=""
+                      className="w-5 h-5 shrink-0"
+                    />
                     <span className="text-[12.32px] font-normal leading-[16px]">
                       Users
                     </span>
@@ -489,11 +516,9 @@ export const Sidebar: React.FC = () => {
               title="Brands"
             >
               <img
-                src={ChartPieSliceIcon}
+                src={isActive("/brands") ? BrandsActiveIcon : BrandsIcon}
                 alt=""
-                className={`w-5 h-5 shrink-0 ${
-                  isActive("/brands") ? "brightness-0 invert" : ""
-                }`}
+                className="w-5 h-5 shrink-0"
               />
             </Link>
           )}
@@ -985,12 +1010,16 @@ export const Sidebar: React.FC = () => {
                 )}
               </Link>
               <Link
-                to={accountId ? `/brands/${accountId}/google/logs` : "/brands"}
+                to={
+                  accountId
+                    ? buildMarketplaceRoute(accountId, googleChannelId, "google", "logs")
+                    : "/brands"
+                }
                 onClick={(e) =>
                   handleMarketplaceClick("google", e, () =>
                     accountId
-                      ? `/brands/${accountId}/google/logs`
-                      : "/brands/1/google/logs",
+                      ? buildMarketplaceRoute(accountId, googleChannelId, "google", "logs")
+                      : buildMarketplaceRoute(1, googleChannelId, "google", "logs"),
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${

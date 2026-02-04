@@ -73,24 +73,38 @@ export const Dropdown = <T extends string | number = string>({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; width?: number } | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{
+    top: number;
+    left: number;
+    width?: number;
+    maxHeight?: number;
+  } | null>(null);
 
   const selectedOption = options.find((opt) => opt.value === value) || null;
+
+  // Max height for dropdown menu (px) - match common Tailwind max-h-[300px]
+  const MENU_MAX_HEIGHT = 300;
+  const VIEWPORT_PADDING = 8;
 
   // Detect if dropdown is in a scrollable container and calculate fixed position
   useEffect(() => {
     if (isOpen && dropdownRef.current) {
       const updatePosition = () => {
         if (!dropdownRef.current) return;
-        
+
         const buttonRect = dropdownRef.current.getBoundingClientRect();
         const scrollableParent = (() => {
           let parent = dropdownRef.current?.parentElement;
           while (parent) {
             const style = window.getComputedStyle(parent);
-            if (style.overflow === 'auto' || style.overflow === 'scroll' || 
-                style.overflowY === 'auto' || style.overflowY === 'scroll' ||
-                style.overflowX === 'auto' || style.overflowX === 'scroll') {
+            if (
+              style.overflow === "auto" ||
+              style.overflow === "scroll" ||
+              style.overflowY === "auto" ||
+              style.overflowY === "scroll" ||
+              style.overflowX === "auto" ||
+              style.overflowX === "scroll"
+            ) {
               return parent;
             }
             parent = parent.parentElement;
@@ -100,17 +114,46 @@ export const Dropdown = <T extends string | number = string>({
 
         if (scrollableParent) {
           // Use fixed positioning to escape overflow container
-          const menuHeight = menuRef.current?.offsetHeight || 200;
-          const top = position === 'top' 
-            ? buttonRect.top - menuHeight - 8
-            : buttonRect.bottom + 8;
-          const left = align === 'center'
-            ? buttonRect.left + buttonRect.width / 2
-            : align === 'right'
-            ? buttonRect.right
-            : buttonRect.left;
-          
-          setMenuPosition({ top, left, width: buttonRect.width });
+          const menuHeight = menuRef.current?.offsetHeight ?? MENU_MAX_HEIGHT;
+          const spaceBelow = window.innerHeight - buttonRect.bottom - VIEWPORT_PADDING;
+          const spaceAbove = buttonRect.top - VIEWPORT_PADDING;
+
+          let top: number;
+          let maxHeight: number;
+
+          if (position === "top") {
+            top = buttonRect.top - menuHeight - VIEWPORT_PADDING;
+            maxHeight = Math.min(MENU_MAX_HEIGHT, spaceAbove);
+          } else {
+            // position === 'bottom' or default: open below unless not enough space
+            if (spaceBelow < Math.min(200, menuHeight)) {
+              // Open above when not enough space below
+              const heightAbove = Math.min(MENU_MAX_HEIGHT, spaceAbove);
+              top = buttonRect.top - heightAbove - VIEWPORT_PADDING;
+              maxHeight = heightAbove;
+            } else {
+              top = buttonRect.bottom + VIEWPORT_PADDING;
+              maxHeight = Math.min(MENU_MAX_HEIGHT, spaceBelow);
+            }
+          }
+
+          // Clamp top so menu stays in viewport
+          top = Math.max(VIEWPORT_PADDING, Math.min(top, window.innerHeight - VIEWPORT_PADDING - 100));
+
+          const menuWidth = buttonRect.width;
+          let left: number;
+          if (align === "center") {
+            left = buttonRect.left + buttonRect.width / 2;
+          } else if (align === "right") {
+            // Align menu right edge with button right edge
+            left = buttonRect.right - menuWidth;
+          } else {
+            left = buttonRect.left;
+          }
+          // Clamp horizontal so menu stays in viewport
+          left = Math.max(VIEWPORT_PADDING, Math.min(left, window.innerWidth - menuWidth - VIEWPORT_PADDING));
+
+          setMenuPosition({ top, left, width: menuWidth, maxHeight });
         } else {
           setMenuPosition(null);
         }
@@ -118,14 +161,16 @@ export const Dropdown = <T extends string | number = string>({
 
       // Calculate position after a short delay to ensure menu is rendered
       const timeoutId = setTimeout(updatePosition, 0);
-      // Also update on window resize/scroll
-      window.addEventListener('scroll', updatePosition, true);
-      window.addEventListener('resize', updatePosition);
+      // Second pass once menu has layout (for correct height)
+      const timeoutId2 = setTimeout(updatePosition, 50);
+      window.addEventListener("scroll", updatePosition, true);
+      window.addEventListener("resize", updatePosition);
 
       return () => {
         clearTimeout(timeoutId);
-        window.removeEventListener('scroll', updatePosition, true);
-        window.removeEventListener('resize', updatePosition);
+        clearTimeout(timeoutId2);
+        window.removeEventListener("scroll", updatePosition, true);
+        window.removeEventListener("resize", updatePosition);
       };
     } else {
       setMenuPosition(null);
@@ -289,12 +334,15 @@ export const Dropdown = <T extends string | number = string>({
         : undefined;
     const positionStyle = useFixedPosition
       ? {
-          position: 'fixed' as const,
+          position: "fixed" as const,
           top: `${menuPosition.top}px`,
-          left: align === 'center' ? `${menuPosition.left}px` : `${menuPosition.left}px`,
-          transform: align === 'center' ? 'translateX(-50%)' : 'none',
+          left: align === "center" ? `${menuPosition.left}px` : `${menuPosition.left}px`,
+          transform: align === "center" ? "translateX(-50%)" : "none",
           width: menuPosition.width ? `${menuPosition.width}px` : undefined,
           minWidth: menuPosition.width ? `${menuPosition.width}px` : undefined,
+          ...(menuPosition.maxHeight != null
+            ? { maxHeight: `${menuPosition.maxHeight}px` }
+            : {}),
           ...(minMenuHeight != null ? { minHeight: `${minMenuHeight}px` } : {}),
         }
       : {};
@@ -304,7 +352,7 @@ export const Dropdown = <T extends string | number = string>({
         ref={menuRef}
         className={cn(
           useFixedPosition ? "fixed" : "absolute",
-          "z-[999999] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden",
+          "z-[999999] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col",
           !useFixedPosition && alignClasses[align],
           !useFixedPosition && positionClasses[position],
           width,
@@ -341,9 +389,8 @@ export const Dropdown = <T extends string | number = string>({
 =======
         {/* Options List - minHeight so all options are visible when menu uses fixed positioning (e.g. in table cells) */}
         <div
-          className="overflow-y-auto"
+          className="overflow-y-auto flex-1"
           style={{
-            maxHeight: "inherit",
             ...(filteredOptions.length > 0 && filteredOptions.length <= 8
               ? { minHeight: `${filteredOptions.length * 36}px` }
               : {}),
