@@ -1,7 +1,43 @@
-import React, { useRef, useEffect } from "react";
-import { useAssistant } from "../../contexts/AssistantContext";
-import { Plus, Mic, BarChart3, Pencil } from "lucide-react";
+import React, { useRef, useEffect, useState } from "react";
+import { useAssistant, type ThreadHistoryItem } from "../../contexts/AssistantContext";
+import { Plus, Mic, BarChart3, Pencil, ChevronDown, Check } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
+
+// Helper function to group threads by date
+const groupThreadsByDate = (threads: ThreadHistoryItem[]): Record<string, ThreadHistoryItem[]> => {
+  const groups: Record<string, ThreadHistoryItem[]> = {};
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  threads.forEach(thread => {
+    const threadDate = new Date(thread.created_at);
+    const threadDateStr = threadDate.toDateString();
+    const todayStr = today.toDateString();
+    const yesterdayStr = yesterday.toDateString();
+    
+    let groupKey: string;
+    if (threadDateStr === todayStr) {
+      groupKey = 'Today';
+    } else if (threadDateStr === yesterdayStr) {
+      groupKey = 'Yesterday';
+    } else {
+      // Format as "Jan 15, 2026"
+      groupKey = threadDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+    }
+    
+    if (!groups[groupKey]) {
+      groups[groupKey] = [];
+    }
+    groups[groupKey].push(thread);
+  });
+  
+  return groups;
+};
 
 interface AssistantPanelProps {
   className?: string;
@@ -37,13 +73,32 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     setInputValue,
     sendMessage,
     suggestedPrompts,
-    clearMessages,
     currentThinkingSteps,
     isStreaming,
+    // Thread history features
+    threads,
+    currentThread,
+    isLoadingThreads,
+    selectThread,
+    startNewThread,
   } = useAssistant();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isThreadDropdownOpen, setIsThreadDropdownOpen] = useState(false);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsThreadDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -68,19 +123,97 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     }
   };
 
+  const handleThreadSelect = async (threadId: string) => {
+    await selectThread(threadId);
+    setIsThreadDropdownOpen(false);
+  };
+
+  const handleNewThread = () => {
+    startNewThread();
+    setIsThreadDropdownOpen(false);
+  };
+
+  const groupedThreads = groupThreadsByDate(threads);
   const hasMessages = messages.length > 0;
 
   return (
     <div
       className={`flex flex-col h-full bg-[var(--color-semantic-background-primary)] shadow-lg ${className}`}
     >
-      {/* Header */}
+      {/* Header with Thread Selector */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1" ref={dropdownRef}>
           <img src={StellarLogo} alt="Stellar" className="h-8 w-8" />
+          
+          {/* Thread Selector Dropdown */}
+          <div className="relative flex-1">
+            <button
+              onClick={() => setIsThreadDropdownOpen(!isThreadDropdownOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors max-w-[250px]"
+            >
+              <span className="truncate">
+                {currentThread?.title || 'New conversation'}
+              </span>
+              <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${isThreadDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isThreadDropdownOpen && (
+              <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                {/* New Thread Button */}
+                <button
+                  onClick={handleNewThread}
+                  className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-200 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New conversation</span>
+                </button>
+
+                {/* Loading State */}
+                {isLoadingThreads ? (
+                  <div className="px-4 py-3 text-sm text-gray-500">
+                    Loading conversations...
+                  </div>
+                ) : threads.length === 0 ? (
+                  <div className="px-4 py-3 text-sm text-gray-500">
+                    No previous conversations
+                  </div>
+                ) : (
+                  /* Thread List Grouped by Date */
+                  Object.entries(groupedThreads).map(([dateGroup, groupThreads]) => (
+                    <div key={dateGroup}>
+                      {/* Date Group Header */}
+                      <div className="px-4 py-2 text-xs font-medium text-gray-600 bg-gray-50">
+                        {dateGroup}
+                      </div>
+                      
+                      {/* Threads in Group */}
+                      {groupThreads.map((thread) => (
+                        <button
+                          key={thread.thread_id}
+                          onClick={() => handleThreadSelect(thread.thread_id)}
+                          className={`w-full flex items-center justify-between px-4 py-3 text-sm text-left transition-colors ${
+                            currentThread?.thread_id === thread.thread_id
+                              ? 'bg-blue-50 text-blue-900'
+                              : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className="truncate flex-1">{thread.title}</span>
+                          {currentThread?.thread_id === thread.thread_id && (
+                            <Check className="w-4 h-4 text-blue-600 flex-shrink-0 ml-2" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </div>
+        
         <button
-          onClick={clearMessages}
+          onClick={handleNewThread}
           className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           title="New conversation"
         >

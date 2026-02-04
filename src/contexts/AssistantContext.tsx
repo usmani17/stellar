@@ -3,9 +3,13 @@ import React, {
   useContext,
   useState,
   useCallback,
+  useEffect,
   type ReactNode,
 } from "react";
 import { useParams } from "react-router-dom";
+import { useAuth } from "./AuthContext";
+import { threadsService, type Thread } from "../services/ai/threads";
+import { runsService } from "../services/ai/runs";
 
 export interface Message {
   id: string;
@@ -20,6 +24,14 @@ export interface Message {
 export interface SuggestedPrompt {
   id: string;
   text: string;
+}
+
+export interface ThreadHistoryItem {
+  thread_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  messages?: any[]; // Store the original messages from the API
 }
 
 interface AssistantContextType {
@@ -38,6 +50,13 @@ interface AssistantContextType {
   suggestedPrompts: SuggestedPrompt[];
   currentThinkingSteps: string[];
   isStreaming: boolean;
+  // Thread history features
+  threads: ThreadHistoryItem[];
+  currentThread: ThreadHistoryItem | null;
+  isLoadingThreads: boolean;
+  loadThreads: () => Promise<void>;
+  selectThread: (threadId: string) => Promise<void>;
+  startNewThread: () => void;
 }
 
 const AssistantContext = createContext<AssistantContextType | undefined>(
@@ -51,50 +70,101 @@ const DEFAULT_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   { id: "4", text: "Compare campaign efficiency" },
 ];
 
-// Helper functions for AI agent integration
-const extractText = (content: any): string => {
-  if (typeof content === 'string') return content;
-  if (Array.isArray(content)) {
-    return content.map((part) => {
-      if (typeof part === 'string') return part;
-      if (part && typeof part === 'object' && part.text) return part.text;
-      return '';
-    }).filter(Boolean).join('');
-  }
-  return '';
-};
-
-const looksLikeUpdates = (data: any): boolean => {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
-  const keys = Object.keys(data);
-  if (keys.length === 0) return false;
-  // Known node names from your AI agent workflow
-  const knownNodes = ['Router', 'Clarify', 'kb_retriever', 'Analyst', 'neon_tool', 'evidence_set', 'Planner', 'Validator', 'Narrator'];
-  return keys.some(k => knownNodes.includes(k));
-};
-
 export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const { accountId, channelId } = useParams<{ accountId: string; channelId: string }>();
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [currentThinkingSteps, setCurrentThinkingSteps] = useState<string[]>([]);
+  const [threadId, setThreadId] = useState<string | null>(null);
   const [suggestedPrompts] = useState<SuggestedPrompt[]>(
     DEFAULT_SUGGESTED_PROMPTS
   );
+  
+  // Thread history state
+  const [threads, setThreads] = useState<ThreadHistoryItem[]>([]);
+  const [currentThread, setCurrentThread] = useState<ThreadHistoryItem | null>(null);
+  const [isLoadingThreads, setIsLoadingThreads] = useState(false);
 
-  // Get AI agent base URL from environment variable
-  const getBaseUrl = (): string => {
-    const baseUrl = import.meta.env.VITE_AI_AGENT_BASE_URL;
-    if (!baseUrl) {
-      throw new Error('VITE_AI_AGENT_BASE_URL environment variable is not set');
+  // Load threads when user changes or assistant opens
+  const loadThreads = useCallback(async () => {
+    if (!user?.id) return;
+    
+    setIsLoadingThreads(true);
+    try {
+      const threadList = await threadsService.searchThreads({
+        metadata: { user_id: user.id },
+        sort_by: 'updated_at',
+        sort_order: 'desc',
+        limit: 50
+      });
+      
+      const historyItems: ThreadHistoryItem[] = threadList.map((thread: any) => ({
+        thread_id: thread.thread_id,
+        title: (thread.metadata?.title as string) || 'Untitled conversation',
+        created_at: thread.created_at,
+        updated_at: thread.updated_at,
+        messages: thread.values?.messages || []
+      }));
+      
+      setThreads(historyItems);
+    } catch (error) {
+      console.error('Failed to load threads:', error);
+    } finally {
+      setIsLoadingThreads(false);
     }
-    return baseUrl.replace(/\/$/, ''); // Remove trailing slash
-  };
+  }, [user?.id]);
+
+  // Load threads when assistant opens
+  useEffect(() => {
+    if (isOpen && user?.id) {
+      loadThreads();
+    }
+  }, [isOpen, user?.id, loadThreads]);
+
+  // Select and load a specific thread
+  const selectThread = useCallback(async (selectedThreadId: string) => {
+    setIsLoading(true);
+    try {
+      // Find thread in list
+      const thread = threads.find(t => t.thread_id === selectedThreadId);
+      if (thread) {
+        setCurrentThread(thread);
+        setThreadId(selectedThreadId);
+        
+        // Convert API messages to our Message format
+        const convertedMessages: Message[] = (thread.messages || []).map((msg: any, index: number) => ({
+          id: msg.id || `msg-${selectedThreadId}-${index}`,
+          role: msg.type === 'human' ? 'user' : 'assistant',
+          content: msg.content,
+          timestamp: new Date(thread.updated_at) // Use thread updated time as fallback
+        }));
+        
+        setMessages(convertedMessages);
+      } else {
+        // Fallback if thread not found in local list
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error('Failed to select thread:', error);
+      setMessages([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [threads]);
+
+  // Start a new thread
+  const startNewThread = useCallback(() => {
+    setThreadId(null);
+    setCurrentThread(null);
+    setMessages([]);
+    setCurrentThinkingSteps([]);
+  }, []);
 
   const toggleAssistant = useCallback(() => {
     setIsOpen((prev) => !prev);
@@ -123,6 +193,8 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
 
   const clearMessages = useCallback(() => {
     setMessages([]);
+    setThreadId(null);
+    setCurrentThread(null);
   }, []);
 
   const sendMessage = useCallback(
@@ -137,175 +209,91 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
       setCurrentThinkingSteps([]);
 
       try {
-        const baseUrl = getBaseUrl();
+        let currentThreadId = threadId;
 
-        // Create thread
-        const threadResponse = await fetch(`${baseUrl}/threads`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
-        });
-
-        if (!threadResponse.ok) {
-          throw new Error(`Failed to create thread: ${threadResponse.status}`);
-        }
-
-        const threadData = await threadResponse.json();
-        const threadId = threadData.thread_id;
-
-        // Start streaming
-        const streamResponse = await fetch(`${baseUrl}/threads/${threadId}/runs/stream`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            assistant_id: 'chat',
-            input: { messages: [{ role: 'user', content }]},
-            metadata : {
-              account_id: accountId ? parseInt(accountId) : undefined, 
+        // Create thread only if we don't have one
+        if (!currentThreadId) {
+          const threadData = await threadsService.createThread({
+            metadata: {
+              user_id: user?.id,
+              account_id: accountId ? parseInt(accountId) : undefined,
               channel_id: channelId ? parseInt(channelId) : undefined,
-              auth_token: '123123123'
-            },
-            config: { configurable: {} },
-            stream_mode: ['values', 'updates']
-          })
-        });
-
-        if (!streamResponse.ok) {
-          throw new Error(`Stream failed: ${streamResponse.status}`);
+              auth_token: '123123123',
+              title: content.slice(0, 50) + (content.length > 50 ? '...' : '')
+            }
+          });
+          currentThreadId = threadData.thread_id;
+          setThreadId(currentThreadId);
+          
+          // Set current thread info
+          const newThreadItem: ThreadHistoryItem = {
+            thread_id: threadData.thread_id,
+            title: content.slice(0, 50) + (content.length > 50 ? '...' : ''),
+            created_at: threadData.created_at,
+            updated_at: threadData.updated_at
+          };
+          setCurrentThread(newThreadItem);
+          setThreads(prev => [newThreadItem, ...prev]);
         }
 
-        const reader = streamResponse.body?.getReader();
-        if (!reader) {
-          throw new Error('No stream reader available');
-        }
-
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let currentEvent : any = null;
         let currentAssistantMessage: Message | null = null;
-        let analysisText = '';
-        let thinkingSteps: string[] = [];
-        let runId: string | null = null;
 
-        setIsLoading(false); // Switch from loading to streaming
-
-        const processChunk = async (): Promise<void> => {
-          const chunk = await reader.read();
-          if (chunk.done) return;
-
-          buffer += decoder.decode(chunk.value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              currentEvent = line.slice(7).trim();
-              continue;
+        // Start streaming with callbacks
+        await runsService.streamRun(currentThreadId, {
+          assistant_id: 'chat',
+          input: { messages: [{ role: 'user', content }] },
+          metadata: {
+            user_id: user?.id,
+            account_id: accountId ? parseInt(accountId) : undefined,
+            channel_id: channelId ? parseInt(channelId) : undefined,
+            auth_token: '123123123'
+          },
+          config: { configurable: {} },
+          stream_mode: ['values', 'updates']
+        }, {
+          onLoadingChange: (loading) => {
+            setIsLoading(loading);
+          },
+          onThinkingStep: (steps) => {
+            setCurrentThinkingSteps(steps);
+          },
+          onMessage: (messageContent, analysisText, thinkingSteps, runId) => {
+            if (currentAssistantMessage) {
+              // Update existing message
+              setMessages(prev => {
+                const updated = [...prev];
+                const lastMessage = updated[updated.length - 1];
+                if (lastMessage && lastMessage.role === 'assistant') {
+                  lastMessage.content = messageContent;
+                  lastMessage.analysisText = analysisText;
+                  lastMessage.thinkingSteps = thinkingSteps;
+                }
+                return updated;
+              });
+            } else {
+              // Create new assistant message
+              currentAssistantMessage = {
+                id: runId ? `msg-${runId}` : `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                role: 'assistant',
+                content: messageContent,
+                timestamp: new Date(),
+                analysisText,
+                thinkingSteps
+              };
+              setMessages(prev => [...prev, currentAssistantMessage!]);
             }
-
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                
-                // Handle metadata events (run_id, attempt, etc.)
-                if (currentEvent === 'metadata') {
-                  if (data.run_id) {
-                    runId = data.run_id;
-                  }
-                  continue;
-                }
-                
-                if (data.error) {
-                  const errorMsg = data.message || data.error || 'Unknown error';
-                  addMessage("assistant", errorMsg);
-                  setMessages(prev => {
-                    const updated = [...prev];
-                    if (updated.length > 0) {
-                      updated[updated.length - 1].isError = true;
-                    }
-                    return updated;
-                  });
-                  return;
-                }
-
-                const isUpdates = currentEvent === 'updates' || 
-                  (currentEvent !== 'values' && looksLikeUpdates(data));
-
-                if (isUpdates && data && typeof data === 'object') {
-                  // Handle thinking steps updates from Router, Narrator, etc.
-                  Object.keys(data).forEach(nodeName => {
-                    if (!thinkingSteps.includes(nodeName)) {
-                      thinkingSteps.push(nodeName);
-                      setCurrentThinkingSteps([...thinkingSteps]);
-                    }
-                  });
-                }
-
-                if (currentEvent === 'values' || !isUpdates) {
-                  // Handle analysis text
-                  if (data.analysis !== undefined || data.corrected_analysis !== undefined) {
-                    const newAnalysisText = (data.corrected_analysis && data.corrected_analysis.trim()) 
-                      ? data.corrected_analysis 
-                      : (data.analysis || '');
-                    if (newAnalysisText && newAnalysisText.trim()) {
-                      analysisText = newAnalysisText.trim();
-                    }
-                  }
-
-                  // Handle messages - find the latest AI message
-                  if (data.messages && Array.isArray(data.messages)) {
-                    let aiMessage = null;
-                    // Look for the latest AI message in the array
-                    for (let j = data.messages.length - 1; j >= 0; j--) {
-                      const msg = data.messages[j];
-                      if (msg && msg.type === 'ai' && msg.content) {
-                        aiMessage = msg;
-                        break;
-                      }
-                    }
-
-                    if (aiMessage) {
-                      const messageContent = extractText(aiMessage.content);
-                      if (messageContent && messageContent.trim()) {
-                        if (currentAssistantMessage) {
-                          // Update existing message
-                          setMessages(prev => {
-                            const updated = [...prev];
-                            const lastMessage = updated[updated.length - 1];
-                            if (lastMessage && lastMessage.role === 'assistant') {
-                              lastMessage.content = messageContent;
-                              lastMessage.analysisText = analysisText || undefined;
-                              lastMessage.thinkingSteps = thinkingSteps.length > 0 ? [...thinkingSteps] : undefined;
-                            }
-                            return updated;
-                          });
-                        } else {
-                          // Create new assistant message
-                          currentAssistantMessage = {
-                            id: runId ? `msg-${runId}` : `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                            role: 'assistant',
-                            content: messageContent,
-                            timestamp: new Date(),
-                            analysisText: analysisText || undefined,
-                            thinkingSteps: thinkingSteps.length > 0 ? [...thinkingSteps] : undefined
-                          };
-                          setMessages(prev => [...prev, currentAssistantMessage!]);
-                        }
-                      }
-                    }
-                  }
-                }
-              } catch (parseError) {
-                console.error('Error parsing SSE data:', parseError);
+          },
+          onError: (errorMsg) => {
+            addMessage("assistant", errorMsg);
+            setMessages(prev => {
+              const updated = [...prev];
+              if (updated.length > 0) {
+                updated[updated.length - 1].isError = true;
               }
-              currentEvent = null;
-            }
+              return updated;
+            });
           }
-
-          return processChunk();
-        };
-
-        await processChunk();
+        });
 
       } catch (error) {
         console.error("Error sending message:", error);
@@ -347,6 +335,13 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
         suggestedPrompts,
         currentThinkingSteps,
         isStreaming,
+        // Thread history features
+        threads,
+        currentThread,
+        isLoadingThreads,
+        loadThreads,
+        selectThread,
+        startNewThread,
       }}
     >
       {children}
