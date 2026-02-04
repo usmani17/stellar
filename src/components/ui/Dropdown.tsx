@@ -86,35 +86,81 @@ export const Dropdown = <T extends string | number = string>({
   const MENU_MAX_HEIGHT = 300;
   const VIEWPORT_PADDING = 8;
 
-  // Detect if dropdown is in a scrollable container and calculate fixed position
+  // Detect if dropdown is in a scrollable container or table and calculate fixed position
   useEffect(() => {
     if (isOpen && dropdownRef.current) {
       const updatePosition = () => {
         if (!dropdownRef.current) return;
 
         const buttonRect = dropdownRef.current.getBoundingClientRect();
+        
+        // Check if dropdown is inside a table (td, th, tr, tbody, thead, tfoot, table)
+        const isInTable = (() => {
+          let element: HTMLElement | null = dropdownRef.current;
+          while (element) {
+            const tagName = element.tagName;
+            if (
+              tagName === "TD" || 
+              tagName === "TH" || 
+              tagName === "TR" || 
+              tagName === "TBODY" || 
+              tagName === "THEAD" || 
+              tagName === "TFOOT" || 
+              tagName === "TABLE"
+            ) {
+              return true;
+            }
+            // Also check for table-related classes
+            if (element.classList.contains("table-container") || 
+                element.classList.contains("table-cell")) {
+              return true;
+            }
+            element = element.parentElement;
+          }
+          return false;
+        })();
+
         const scrollableParent = (() => {
           let parent = dropdownRef.current?.parentElement;
           while (parent) {
             const style = window.getComputedStyle(parent);
+            // Check for overflow properties that could clip content
             if (
               style.overflow === "auto" ||
               style.overflow === "scroll" ||
+              style.overflow === "hidden" ||
               style.overflowY === "auto" ||
               style.overflowY === "scroll" ||
+              style.overflowY === "hidden" ||
               style.overflowX === "auto" ||
-              style.overflowX === "scroll"
+              style.overflowX === "scroll" ||
+              style.overflowX === "hidden"
             ) {
               return parent;
+            }
+            // Check for position that creates a stacking context
+            if (style.position === "relative" || style.position === "absolute" || style.position === "fixed") {
+              // If it's a positioned element with overflow, it could clip
+              const overflow = style.overflow || style.overflowY || style.overflowX;
+              if (overflow && overflow !== "visible") {
+                return parent;
+              }
             }
             parent = parent.parentElement;
           }
           return null;
         })();
 
-        if (scrollableParent) {
+        // Always use fixed positioning if in table or scrollable container
+        if (isInTable || scrollableParent) {
           // Use fixed positioning to escape overflow container
-          const menuHeight = menuRef.current?.offsetHeight ?? MENU_MAX_HEIGHT;
+          // Estimate menu height based on options (36px per option + padding)
+          const estimatedMenuHeight = Math.min(
+            options.length * 36 + 8, // 36px per option + 8px padding
+            MENU_MAX_HEIGHT
+          );
+          const actualMenuHeight = menuRef.current?.offsetHeight ?? estimatedMenuHeight;
+          
           const spaceBelow = window.innerHeight - buttonRect.bottom - VIEWPORT_PADDING;
           const spaceAbove = buttonRect.top - VIEWPORT_PADDING;
 
@@ -122,19 +168,16 @@ export const Dropdown = <T extends string | number = string>({
           let maxHeight: number;
 
           if (position === "top") {
-            top = buttonRect.top - menuHeight - VIEWPORT_PADDING;
+            // Force open above
+            top = buttonRect.top - actualMenuHeight - VIEWPORT_PADDING;
             maxHeight = Math.min(MENU_MAX_HEIGHT, spaceAbove);
           } else {
-            // position === 'bottom' or default: open below unless not enough space
-            if (spaceBelow < Math.min(200, menuHeight)) {
-              // Open above when not enough space below
-              const heightAbove = Math.min(MENU_MAX_HEIGHT, spaceAbove);
-              top = buttonRect.top - heightAbove - VIEWPORT_PADDING;
-              maxHeight = heightAbove;
-            } else {
-              top = buttonRect.bottom + VIEWPORT_PADDING;
-              maxHeight = Math.min(MENU_MAX_HEIGHT, spaceBelow);
-            }
+            // position === 'bottom' or default: ALWAYS open below
+            // Open below the button, even with limited space - the dropdown will scroll if needed
+            top = buttonRect.bottom + VIEWPORT_PADDING;
+            // Use available space below, with a minimum of 200px to show at least a few options
+            // The dropdown will scroll if content is taller than available space
+            maxHeight = Math.min(MENU_MAX_HEIGHT, Math.max(spaceBelow, 200));
           }
 
           // Clamp top so menu stays in viewport
@@ -163,19 +206,22 @@ export const Dropdown = <T extends string | number = string>({
       const timeoutId = setTimeout(updatePosition, 0);
       // Second pass once menu has layout (for correct height)
       const timeoutId2 = setTimeout(updatePosition, 50);
+      // Third pass after menu is fully rendered and measured
+      const timeoutId3 = setTimeout(updatePosition, 100);
       window.addEventListener("scroll", updatePosition, true);
       window.addEventListener("resize", updatePosition);
 
       return () => {
         clearTimeout(timeoutId);
         clearTimeout(timeoutId2);
+        clearTimeout(timeoutId3);
         window.removeEventListener("scroll", updatePosition, true);
         window.removeEventListener("resize", updatePosition);
       };
     } else {
       setMenuPosition(null);
     }
-  }, [isOpen, align, position]);
+  }, [isOpen, align, position, options.length]);
 
   // Open dropdown if defaultOpen is true
   useEffect(() => {
@@ -382,11 +428,6 @@ export const Dropdown = <T extends string | number = string>({
           </div>
         )}
 
-<<<<<<< HEAD
-        {/* Options List */}
-        <div 
-          className="overflow-y-auto overflow-x-hidden flex-1 min-h-0 dropdown-options-list"
-=======
         {/* Options List - minHeight so all options are visible when menu uses fixed positioning (e.g. in table cells) */}
         <div
           className="overflow-y-auto flex-1"
@@ -395,7 +436,6 @@ export const Dropdown = <T extends string | number = string>({
               ? { minHeight: `${filteredOptions.length * 36}px` }
               : {}),
           }}
->>>>>>> origin/main
         >
           {filteredOptions.length === 0 ? (
             <div className="px-3 py-2 text-[10px] text-[#556179] text-center">
