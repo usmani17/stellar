@@ -1103,3 +1103,64 @@ body input[type="submit"]:disabled {
 .add-button:hover {
   background-color: #0e5a5a;
 }
+
+/* Scrollbar utility classes */
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.interactive-scrollbar {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: transparent transparent; /* Firefox - initially hidden */
+  transition: scrollbar-color 0.3s ease;
+}
+
+.interactive-scrollbar::-webkit-scrollbar {
+  width: 8px; /* Chrome, Safari, Opera */
+}
+
+.interactive-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* Initially hidden */
+  transition: background 0.3s ease;
+}
+
+.interactive-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent; /* Initially hidden */
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+/* Show scrollbar on hover or when scrolling */
+.interactive-scrollbar:hover {
+  scrollbar-color: rgba(107, 114, 128, 0.5) transparent; /* Firefox */
+}
+
+.interactive-scrollbar:hover::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1); /* Chrome, Safari, Opera */
+}
+
+.interactive-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.5); /* Chrome, Safari, Opera */
+}
+
+.interactive-scrollbar:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7); /* Chrome, Safari, Opera - darker on thumb hover */
+}
+
+/* Show scrollbar temporarily when scrolling - requires JavaScript to add/remove 'scrolling' class */
+.interactive-scrollbar.scrolling {
+  scrollbar-color: rgba(107, 114, 128, 0.5) transparent; /* Firefox */
+}
+
+.interactive-scrollbar.scrolling::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1); /* Chrome, Safari, Opera */
+}
+
+.interactive-scrollbar.scrolling::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.5); /* Chrome, Safari, Opera */
+}

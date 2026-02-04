@@ -1103,8 +1103,8 @@ export const GoogleCampaignDetail: React.FC = () => {
         {/* Header */}
         <DashboardHeader />
 
-        {/* Main Content Area */}
-        <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
+        {/* Main Content Area - Add top padding for fixed header */}
+        <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-white overflow-x-hidden min-w-0">
           <div className="space-y-6">
             {/* Campaign Header - Matching Campaigns page style */}
             <div className="flex items-center justify-between gap-4">

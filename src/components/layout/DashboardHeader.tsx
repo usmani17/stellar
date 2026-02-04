@@ -5,6 +5,7 @@ import { useAccounts } from "../../contexts/AccountsContext";
 import { useChannels } from "../../hooks/queries/useChannels";
 import { useAuth } from "../../contexts/AuthContext";
 import { useDateRange } from "../../contexts/DateRangeContext";
+import { useSidebar } from "../../contexts/SidebarContext";
 import {
   buildMarketplaceRoute,
   getMarketplaceFromUrl,
@@ -17,6 +18,7 @@ import CustomDateRangePicker from "../ui/CustomDateRangePicker";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
+import { AssistantTrigger } from "./Assistant";
 
 // Generate a color based on the first letter of the brand name
 const getInitialColor = (initial: string): string => {
@@ -128,6 +130,7 @@ export const DashboardHeader: React.FC = () => {
   const { user, logout } = useAuth();
   const { accounts } = useAccounts();
   const { startDate, endDate, setDateRange, formatDateRange } = useDateRange();
+  const { sidebarWidth } = useSidebar();
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams<{ accountId?: string; channelId?: string }>();
@@ -294,7 +297,7 @@ export const DashboardHeader: React.FC = () => {
     : null;
 
   return (
-    <div className="h-20 bg-white border-b border-[rgba(0,0,0,0.1)] flex items-center px-7">
+    <div className="h-20 bg-white border-b border-[rgba(0,0,0,0.1)] flex items-center px-7 fixed top-0 left-0 right-0 z-30" style={{ marginLeft: `${sidebarWidth}px` }}>
       {/* ACCOUNT */}
       {!isProfilePage && (
         <div
@@ -590,6 +593,8 @@ export const DashboardHeader: React.FC = () => {
             </div>
           </>
         )}
+        {/* Assistant Trigger */}
+        <AssistantTrigger />
       </div>
 
       {/* User Settings - Bottom Left (Fixed Position) */}
