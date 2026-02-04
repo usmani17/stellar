@@ -328,7 +328,7 @@ export const Campaigns: React.FC = () => {
   const [lowerLimit, setLowerLimit] = useState<string>("");
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [pendingStatusAction, setPendingStatusAction] = useState<
-    "enable" | "pause" | null
+    "enable" | "pause" | "archive" | null
   >(null);
   const [selectedCampaignsFetched, setSelectedCampaignsFetched] = useState<
     Campaign[] | null
@@ -691,7 +691,9 @@ export const Campaigns: React.FC = () => {
           ? "Enabled"
           : statusLower === "paused"
             ? "Paused"
-            : "Enabled";
+            : statusLower === "archive" || statusLower === "archived"
+              ? "Archived"
+              : "Enabled";
       setEditedValue(normalizedStatus);
     }
   };
@@ -797,11 +799,12 @@ export const Campaigns: React.FC = () => {
 
     try {
       if (inlineEditField === "status") {
-        // Map status values - Note: "archive" is not allowed via API
-        const statusMap: Record<string, "enable" | "pause"> = {
+        // Map status values - archive uses bulk update with status: "archive"
+        const statusMap: Record<string, "enable" | "pause" | "archive"> = {
           Enable: "enable",
+          Enabled: "enable",
           Paused: "pause",
-          // Archived is read-only and cannot be set via API
+          Archived: "archive",
         };
         const statusValue = statusMap[inlineEditNewValue] || "enable";
 
@@ -897,20 +900,22 @@ export const Campaigns: React.FC = () => {
   const parseSucceededItemsFromResponse = (
     response: any,
     actionType: "status" | "budget",
-    statusValue?: "enable" | "pause",
+    statusValue?: "enable" | "pause" | "archive",
     campaignMapFallback?: Map<string, { campaign_name?: string; name?: string; status?: string; daily_budget?: number; profile_currency_code?: string; budgetType?: string }>
   ): Array<{ label: string; field: string; oldValue: string; newValue: string }> => {
     const successes = response?.successes ?? [];
     const items: Array<{ label: string; field: string; oldValue: string; newValue: string }> = [];
     for (const s of successes) {
-      const r = s.response;
-      const isSuccess = Array.isArray(r)
-        ? r[0]?.code === "SUCCESS"
-        : !!(r?.campaigns && (r.campaigns?.error ?? []).length === 0 && (r.campaigns?.success ?? []).length > 0);
-      if (!isSuccess) continue;
-
       const id = String(s.campaignId);
       const fromBackend = s.field != null && (s.oldValue != null || s.newValue != null);
+      // If backend provides explicit field/oldValue/newValue (e.g. archive), use it regardless of response shape
+      if (!fromBackend) {
+        const r = s.response;
+        const isSuccess = Array.isArray(r)
+          ? r[0]?.code === "SUCCESS"
+          : !!(r?.campaigns && (r.campaigns?.error ?? []).length === 0 && (r.campaigns?.success ?? []).length > 0);
+        if (!isSuccess) continue;
+      }
       if (fromBackend) {
         let oldVal = s.oldValue ?? "—";
         let newVal = s.newValue ?? "—";
@@ -966,7 +971,7 @@ export const Campaigns: React.FC = () => {
     return items;
   };
 
-  const runBulkStatus = async (statusValue: "enable" | "pause") => {
+  const runBulkStatus = async (statusValue: "enable" | "pause" | "archive") => {
     if (!accountIdNum || selectedCampaigns.size === 0) return;
 
     const selectedCampaignList = getSelectedCampaignsData();
@@ -1349,7 +1354,7 @@ export const Campaigns: React.FC = () => {
       };
 
       // Map status to API format
-      const statusMap: Record<string, "enable" | "pause"> = {
+      const statusMap: Record<string, "enable" | "pause" | "archive"> = {
         Enabled: "enable",
         ENABLED: "enable",
         enable: "enable",
@@ -1358,6 +1363,10 @@ export const Campaigns: React.FC = () => {
         PAUSED: "pause",
         pause: "pause",
         paused: "pause",
+        Archived: "archive",
+        ARCHIVED: "archive",
+        archive: "archive",
+        archived: "archive",
       };
 
       if (
@@ -2760,6 +2769,7 @@ export const Campaigns: React.FC = () => {
                         {[
                           { value: "enable", label: "Enabled" },
                           { value: "pause", label: "Paused" },
+                          { value: "archive", label: "Archive" },
                           { value: "edit_budget", label: "Edit Budget" },
                         ].map((opt) => (
                           <button
@@ -2772,6 +2782,11 @@ export const Campaigns: React.FC = () => {
                               if (selectedCampaigns.size === 0) return;
                               if (opt.value === "edit_budget") {
                                 setShowBudgetPanel(true);
+                              } else if (opt.value === "archive") {
+                                setShowBudgetPanel(false);
+                                setPendingStatusAction("archive");
+                                setIsBudgetChange(false);
+                                setShowConfirmationModal(true);
                               } else {
                                 setShowBudgetPanel(false);
                                 setPendingStatusAction(
@@ -3872,7 +3887,10 @@ export const Campaigns: React.FC = () => {
                                           ? "Enabled"
                                           : statusLower === "paused"
                                             ? "Paused"
-                                            : "Enabled";
+                                            : statusLower === "archive" ||
+                                                statusLower === "archived"
+                                              ? "Archived"
+                                              : "Enabled";
 
                                       return (
                                         <Dropdown
@@ -3882,7 +3900,7 @@ export const Campaigns: React.FC = () => {
                                               label: "Enabled",
                                             },
                                             { value: "Paused", label: "Paused" },
-                                            // Note: "Archived" is not included as it's read-only and cannot be set via API
+                                            { value: "Archived", label: "Archived" },
                                           ]}
                                           value={normalizedStatus}
                                           onChange={(val) => {
@@ -4154,7 +4172,7 @@ export const Campaigns: React.FC = () => {
                         ...
                       </span>
                     )}
-                    {totalPages > 5 && (
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
                       <button
                         onClick={() => handlePageChange(totalPages)}
                         className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages

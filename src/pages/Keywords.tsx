@@ -1385,7 +1385,6 @@ export const Keywords: React.FC = () => {
     { value: "name", label: "Keyword Name" },
     { value: "state", label: "State" },
     { value: "bid", label: "Keyword Bid" },
-    { value: "adgroup_name", label: "Ad Group Name" },
     { value: "campaign_name", label: "Campaign Name" },
     { value: "profile_name", label: "Profile" },
     { value: "type", label: "Type" },
