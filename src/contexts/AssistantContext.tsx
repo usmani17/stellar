@@ -57,6 +57,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const { accountId, channelId } = useParams<{ accountId: string; channelId: string }>();
+  console.log("AssistantContext initialized with accountId:", accountId, "channelId:", channelId);
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
@@ -106,13 +107,14 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
   const selectThread = useCallback(async (selectedThreadId: string) => {
     setIsLoading(true);
     try {
+      await runsService.getThreadRuns(selectedThreadId);
+      await threadsService.getThreadHistory(selectedThreadId);
+      await threadsService.getThread(selectedThreadId);
       // Find thread in list
       const thread = threads.find(t => t.thread_id === selectedThreadId);
       if (thread) {
         setCurrentThread(thread);
         setThreadId(selectedThreadId);
-        
-        
         setMessages(thread.values?.messages || []);
       } else {
         // Fallback if thread not found in local list
@@ -180,6 +182,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
 
         // Create thread only if we don't have one
         if (!currentThreadId) {
+          console.log("Creating new thread with title:", content.slice(0, 50));
           const threadData = await threadsService.createThread({
             metadata: {
               user_id: user?.id,

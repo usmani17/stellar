@@ -1,8 +1,89 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useAssistant } from "../../contexts/AssistantContext";
-import { Plus, Mic, BarChart3, Pencil, ChevronDown, Check } from "lucide-react";
+import { Plus, Mic, BarChart3, Pencil, ChevronDown, Check, AlertCircle, CheckCircle2 } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
-import type { Thread } from "../../services/ai/threads";
+import type { Thread, ThreadMessage, ContentBlock, ThreadMessageContent } from "../../services/ai/threads";
+import StellarMarkDown from "../ui/StellarMarkDown";
+
+// Helper function to check if content is a string
+const isStringContent = (content: ThreadMessageContent): content is string => {
+  return typeof content === "string";
+};
+
+// Helper function to check if content is a ContentBlock array
+const isContentBlockArray = (content: ThreadMessageContent): content is ContentBlock[] => {
+  return Array.isArray(content) && content.length > 0 && typeof content[0] === "object" && "type" in content[0];
+};
+
+// Helper function to extract plain text from content
+const extractTextContent = (content: ThreadMessageContent): string => {
+  if (isStringContent(content)) {
+    return content;
+  }
+  if (isContentBlockArray(content)) {
+    return content
+      .filter((block) => "type" in block && block.type === "text")
+      .map((block) => (block as any).text || "")
+      .join("\n");
+  }
+  return "";
+};
+
+// Component to render tool use blocks
+const ToolUseBlock: React.FC<{ block: any }> = ({ block }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="bg-blue-20 border border-blue-200 rounded-lg p-1">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center justify-between w-full text-left"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-400">🔧 {block.name}</span>
+        </div>
+        <span className="text-xs text-gray-300">{isExpanded ? "▼" : "▶"}</span>
+      </button>
+      
+      {isExpanded && (
+        <div className="mt-2 pt-2 border-t border-blue-200">
+          <pre className="text-xs bg-white p-2 rounded border border-blue-100 overflow-x-auto">
+            {JSON.stringify(block.input, null, 2)}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Component to render tool response
+const ToolResponseBlock: React.FC<{ message: ThreadMessage }> = ({ message }) => {
+  const isError = message.status === "error";
+
+  return (
+    <div className={`border-l-4 pl-3 py-2 my-2 ${isError ? "border-red-400 bg-red-50" : "border-green-400 bg-green-50"}`}>
+      <div className="flex items-center gap-2 mb-2">
+        {isError ? (
+          <AlertCircle className="w-4 h-4 text-red-600" />
+        ) : (
+          <CheckCircle2 className="w-4 h-4 text-green-600" />
+        )}
+        <span className={`text-sm font-medium ${isError ? "text-red-900" : "text-green-900"}`}>
+          Tool Response: {message.tool_call_id}
+        </span>
+      </div>
+      <div className={`text-sm ${isError ? "text-red-800" : "text-green-800"}`}>
+        {isStringContent(message.content) ? (
+          message.content
+        ) : (
+          <pre className="bg-white p-2 rounded border text-xs overflow-x-auto">
+            {JSON.stringify(message.content, null, 2)}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // Helper function to group threads by date
 const groupThreadsByDate = (threads: Thread[]): Record<string, Thread[]> => {
@@ -43,26 +124,6 @@ const groupThreadsByDate = (threads: Thread[]): Record<string, Thread[]> => {
 interface AssistantPanelProps {
   className?: string;
 }
-
-// Helper function to format message content with rich styling
-const formatMessageContent = (content: string): string => {
-  return content
-    // Convert bullet points
-    .replace(/^• (.+)$/gm, '<div class="flex items-start gap-2 mb-2"><span class="text-gray-500 mt-1">•</span><span class="text-gray-800">$1</span></div>')
-    // Convert numbered lists
-    .replace(/^(\d+\.)\s(.+)$/gm, '<div class="flex items-start gap-2 mb-2"><span class="text-gray-600 font-medium">$1</span><span class="text-gray-800">$2</span></div>')
-    // Convert headers with emojis
-    .replace(/^([🔴🟡🟢📊💡🎯]|\w+)\s(.+?):\s*$/gm, '<div class="font-semibold text-gray-800 mt-4 mb-3 flex items-center gap-2"><span>$1</span><span>$2:</span></div>')
-    // Convert sections
-    .replace(/^([A-Z][^:]+):$/gm, '<div class="font-semibold text-gray-800 mt-4 mb-2">$1:</div>')
-    // Convert line breaks to HTML
-    .replace(/\n/g, '<br>')
-    // Handle special formatting for budget ranges, percentages, etc.
-    .replace(/(\$[\d,]+\s*-\s*\$[\d,]+)/g, '<span class="font-medium text-gray-800">$1</span>')
-    .replace(/([+-]?\d+(\.\d+)?%)/g, '<span class="font-medium text-gray-800">$1</span>')
-    // Handle "Reviewed X sources" pattern with subtle blue
-    .replace(/Reviewed\s+(\d+)\s+sources/g, '<div class="inline-flex items-center gap-2 text-sm text-blue-600 font-medium mb-3"><span class="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center"><svg class="w-2.5 h-2.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>Reviewed $1 sources <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg></div>');
-};
 
 export const AssistantPanel: React.FC<AssistantPanelProps> = ({
   className = "",
@@ -262,21 +323,29 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 }`}
               >
                 <div
-                  className={`${
+                  className={`max-w-[85%] ${
                     message.type === "human"
                       ? "flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e5e4e0] rounded-[10px]"
                       : "space-y-3"
                   }`}
                 >
-                  {message.type === "human" ? (
-                    <p 
+                  {/* Tool Response Message === SKIP THIS FOR NOW */}
+                  {/* {message.type === "tool" && (
+                    <ToolResponseBlock message={message} />
+                  )} */}
+
+                  {/* Human Message */}
+                  {message.type === "human" && (
+                    <div 
                       className="text-[14px] font-normal leading-[20px] tracking-[0.1px] text-[#072929] whitespace-pre-wrap"
                       style={{ fontFamily: "'GT America Trial', sans-serif" }}
                     >
-                      {message.content}
-                    </p>
-                  ) : (
-                    /* Assistant Message with Rich Content */
+                      <StellarMarkDown content={extractTextContent(message.content)} type={message.type} />
+                    </div>
+                  )}
+
+                  {/* AI Message with Rich Content */}
+                  {message.type === "ai" && (
                     <div 
                       className="flex flex-col items-start h-auto"
                       style={{ 
@@ -285,7 +354,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                       }}
                     >
                       {/* Currently analyzing section */}
-                      {message.additional_kwargs && (
+                      {message.additional_kwargs && Object.keys(message.additional_kwargs).length > 0 && (
                         <div className="flex flex-col items-start gap-1.5 w-60 h-auto">
                           <div 
                             className="text-[14px] font-normal leading-5 text-center tracking-[0.1px] text-[#072929]"
@@ -300,42 +369,41 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                               className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full"
                               style={{ fontFamily: "'GT America Trial', sans-serif" }}
                             >
-                              Brand: Sony<br/>
-                              Account: Amazon US<br/>
-                              Date Range: Jan 1 – Feb 22, 2025
+                              {Object.entries(message.additional_kwargs).map(([key, value]) => (
+                                <div key={key}>{key}: {String(value)}</div>
+                              ))}
                             </div>
                           </div>
                         </div>
                       )}
-                      
-                      {/* Reviewed sources section */}
-                      <div className="flex items-center gap-1.5  h-5">
-                        <img src={StellarLogo} alt="Stellar" className="w-5 h-5" />
-                        <div className="flex items-center gap-1.5">
-                          <span 
-                            className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#136D6D]"
-                            style={{ fontFamily: "'GT America Trial', sans-serif" }}
-                          >
-                            Reviewed 10 sources
-                          </span>
-                          <div 
-                            className="w-5 h-5 flex items-center justify-center transform rotate-90"
-                          >
-                            <svg className="w-[6.17px] h-2.5" fill="#556179" viewBox="0 0 10 16">
-                              <path d="M2.5 0L0 2.5L5 7.5L0 12.5L2.5 15L10 7.5L2.5 0Z"/>
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Main Content */}
-                      <div 
-                        className=" h-auto text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] whitespace-pre-wrap"
-                        style={{ fontFamily: "'GT America Trial', sans-serif" }}
-                        dangerouslySetInnerHTML={{
-                          __html: formatMessageContent(message.content)
-                        }}
-                      />
+                      {/* Render Content Blocks */}
+                      {isContentBlockArray(message.content) ? (
+                        <div className="w-full">
+                          {(message.content as ContentBlock[]).map((block, idx) => (
+                            <div key={idx}>
+                              {block.type === "text" && (
+                                <div 
+                                  className="h-auto text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929]"
+                                  style={{ fontFamily: "'GT America Trial', sans-serif" }}
+                                >
+                                  <StellarMarkDown content={(block as any).text} type="ai" />
+                                </div>
+                              )}
+                              {block.type === "tool_use" && (
+                                <ToolUseBlock block={block} />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : isStringContent(message.content) ? (
+                        <div 
+                          className="h-auto text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929]"
+                          style={{ fontFamily: "'GT America Trial', sans-serif" }}
+                        >
+                          <StellarMarkDown content={message.content} type="ai" />
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </div>
