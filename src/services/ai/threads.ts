@@ -1,13 +1,6 @@
 export interface ThreadCreateRequest {
   thread_id?: string;
-  metadata?: {
-    user_id?: number;
-    account_id?: number;
-    channel_id?: number;
-    auth_token?: string;
-    title?: string;
-    [key: string]: unknown;
-  };
+  metadata?: ThreadMetaData ;
   if_exists?: "raise" | "replace" | "do_nothing";
   ttl?: {
     strategy: "delete" | "archive";
@@ -41,28 +34,53 @@ export interface ThreadSearchRequest {
   select?: string[];
 }
 
+
+export interface ThreadMessage {
+  content: string;
+  additional_kwargs?: Record<string, unknown>;
+  response_metadata?: Record<string, unknown>;
+  type: "human" | "ai";
+  name?: string | null;
+  id: string;
+  example?: boolean;
+  tool_calls?: any[];
+  invalid_tool_calls?: any[];
+  usage_metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface ThreadValues {
+  messages: ThreadMessage[];
+  context?: Record<string, unknown>;
+  intent?: string;
+  router?: Record<string, unknown>;
+  platforms?: string[];
+  documents?: any[];
+  clarification_question?: string;
+  [key: string]: unknown;
+}
+
 export interface Thread {
   thread_id: string;
   created_at: string;
   updated_at: string;
-  metadata: Record<string, unknown>;
+  metadata: ThreadMetaData;
   config?: Record<string, unknown>;
   status: "idle" | "busy" | "interrupted" | "error";
-  values?: Record<string, unknown>;
+  values?: ThreadValues;
   interrupts?: Record<string, unknown>;
 }
 
-export interface ThreadRun {
-  run_id: string;
-  thread_id: string;
-  assistant_id: string;
-  created_at: string;
-  updated_at: string;
-  status: "pending" | "running" | "error" | "success" | "timeout" | "interrupted";
-  metadata: Record<string, unknown>;
-  kwargs: Record<string, unknown>;
-  multitask_strategy: string;
-}
+export interface ThreadMetaData {
+    user_id?: number;
+    account_id?: number;
+    channel_id?: number;
+    auth_token?: string;
+    title?: string;
+    [key: string]: unknown;
+  }
+
+
 
 export interface ThreadSearchResponse {
   threads: Thread[];
@@ -92,7 +110,7 @@ export const threadsService = {
       throw new Error(`Failed to create thread: ${response.status}`);
     }
 
-    return response.json();
+    return response.json() as Promise<Thread>;
   },
 
   searchThreads: async (params: ThreadSearchRequest): Promise<Thread[]> => {
@@ -109,22 +127,7 @@ export const threadsService = {
       throw new Error(`Failed to search threads: ${response.status}`);
     }
 
-    return response.json();
+    return response.json() as Promise<Thread[]>;
   },
 
-  getThreadRuns: async (threadId: string): Promise<ThreadRun[]> => {
-    const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}/threads/${threadId}/runs`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get thread runs: ${response.status}`);
-    }
-
-    return response.json();
-  },
 };

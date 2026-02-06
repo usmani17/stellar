@@ -1,3 +1,15 @@
+export interface ThreadRun {
+  run_id: string;
+  thread_id: string;
+  assistant_id: string;
+  created_at: string;
+  updated_at: string;
+  status: "pending" | "running" | "error" | "success" | "timeout" | "interrupted";
+  metadata: RunMetadata;
+  kwargs: Record<string, unknown>;
+  multitask_strategy: string;
+}
+
 export interface RunStreamRequest {
   assistant_id: string;
   input: {
@@ -6,17 +18,19 @@ export interface RunStreamRequest {
       content: string;
     }>;
   };
-  metadata?: {
-    user_id?: number;
-    account_id?: number;
-    channel_id?: number;
-    auth_token?: string;
-    [key: string]: unknown;
-  };
+  metadata?: RunMetadata;
   config?: {
     configurable?: Record<string, unknown>;
   };
   stream_mode?: string[];
+}
+
+export interface RunMetadata {
+  user_id?: number;
+  account_id?: number;
+  channel_id?: number;
+  auth_token?: string;
+  [key: string]: unknown;
 }
 
 export interface StreamCallbacks {
@@ -180,5 +194,21 @@ export const runsService = {
     };
 
     await processChunk();
+  },
+
+  getThreadRuns: async (threadId: string): Promise<ThreadRun[]> => {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/threads/${threadId}/runs`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get thread runs: ${response.status}`);
+    }
+
+    return response.json();
   },
 };

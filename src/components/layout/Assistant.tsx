@@ -1,11 +1,12 @@
 import React, { useRef, useEffect, useState } from "react";
-import { useAssistant, type ThreadHistoryItem } from "../../contexts/AssistantContext";
+import { useAssistant } from "../../contexts/AssistantContext";
 import { Plus, Mic, BarChart3, Pencil, ChevronDown, Check } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
+import type { Thread } from "../../services/ai/threads";
 
 // Helper function to group threads by date
-const groupThreadsByDate = (threads: ThreadHistoryItem[]): Record<string, ThreadHistoryItem[]> => {
-  const groups: Record<string, ThreadHistoryItem[]> = {};
+const groupThreadsByDate = (threads: Thread[]): Record<string, Thread[]> => {
+  const groups: Record<string, Thread[]> = {};
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
@@ -152,7 +153,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
               className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors max-w-[250px]"
             >
               <span className="truncate">
-                {currentThread?.title || 'New conversation'}
+                {currentThread?.metadata?.title || 'New conversation'}
               </span>
               <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${isThreadDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -198,7 +199,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                               : 'text-gray-700 hover:bg-gray-50'
                           }`}
                         >
-                          <span className="truncate flex-1">{thread.title}</span>
+                          <span className="truncate flex-1">{thread.metadata?.title || 'Untitled'}</span>
                           {currentThread?.thread_id === thread.thread_id && (
                             <Check className="w-4 h-4 text-blue-600 flex-shrink-0 ml-2" />
                           )}
@@ -257,17 +258,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
               <div
                 key={message.id}
                 className={`flex ${
-                  message.role === "user" ? "justify-end" : "justify-start"
+                  message.type === "human" ? "justify-end" : "justify-start"
                 }`}
               >
                 <div
                   className={`${
-                    message.role === "user"
+                    message.type === "human"
                       ? "flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e5e4e0] rounded-[10px]"
                       : "space-y-3"
                   }`}
                 >
-                  {message.role === "user" ? (
+                  {message.type === "human" ? (
                     <p 
                       className="text-[14px] font-normal leading-[20px] tracking-[0.1px] text-[#072929] whitespace-pre-wrap"
                       style={{ fontFamily: "'GT America Trial', sans-serif" }}
@@ -284,7 +285,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                       }}
                     >
                       {/* Currently analyzing section */}
-                      {(message.thinkingSteps && message.thinkingSteps.length > 0) || message.analysisText && (
+                      {message.additional_kwargs && (
                         <div className="flex flex-col items-start gap-1.5 w-60 h-auto">
                           <div 
                             className="text-[14px] font-normal leading-5 text-center tracking-[0.1px] text-[#072929]"

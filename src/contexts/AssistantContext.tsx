@@ -8,30 +8,13 @@ import React, {
 } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "./AuthContext";
-import { threadsService, type Thread } from "../services/ai/threads";
+import { threadsService, type Thread , type ThreadMessage } from "../services/ai/threads";
 import { runsService } from "../services/ai/runs";
 
-export interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  analysisText?: string;
-  thinkingSteps?: string[];
-  isError?: boolean;
-}
 
 export interface SuggestedPrompt {
   id: string;
   text: string;
-}
-
-export interface ThreadHistoryItem {
-  thread_id: string;
-  title: string;
-  created_at: string;
-  updated_at: string;
-  messages?: any[]; // Store the original messages from the API
 }
 
 interface AssistantContextType {
@@ -39,8 +22,8 @@ interface AssistantContextType {
   toggleAssistant: () => void;
   openAssistant: () => void;
   closeAssistant: () => void;
-  messages: Message[];
-  addMessage: (role: "user" | "assistant", content: string) => void;
+  messages: ThreadMessage[];
+  addMessage: (type: "human" | "ai", content: string) => void;
   clearMessages: () => void;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
@@ -51,8 +34,8 @@ interface AssistantContextType {
   currentThinkingSteps: string[];
   isStreaming: boolean;
   // Thread history features
-  threads: ThreadHistoryItem[];
-  currentThread: ThreadHistoryItem | null;
+  threads: Thread[];
+  currentThread: Thread | null;
   isLoadingThreads: boolean;
   loadThreads: () => Promise<void>;
   selectThread: (threadId: string) => Promise<void>;
@@ -76,7 +59,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
   const { accountId, channelId } = useParams<{ accountId: string; channelId: string }>();
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -87,8 +70,8 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
   );
   
   // Thread history state
-  const [threads, setThreads] = useState<ThreadHistoryItem[]>([]);
-  const [currentThread, setCurrentThread] = useState<ThreadHistoryItem | null>(null);
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [currentThread, setCurrentThread] = useState<Thread | null>(null);
   const [isLoadingThreads, setIsLoadingThreads] = useState(false);
 
   // Load threads when user changes or assistant opens
@@ -104,15 +87,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
         limit: 50
       });
       
-      const historyItems: ThreadHistoryItem[] = threadList.map((thread: any) => ({
-        thread_id: thread.thread_id,
-        title: (thread.metadata?.title as string) || 'Untitled conversation',
-        created_at: thread.created_at,
-        updated_at: thread.updated_at,
-        messages: thread.values?.messages || []
-      }));
-      
-      setThreads(historyItems);
+      setThreads(threadList);
     } catch (error) {
       console.error('Failed to load threads:', error);
     } finally {
@@ -137,15 +112,8 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
         setCurrentThread(thread);
         setThreadId(selectedThreadId);
         
-        // Convert API messages to our Message format
-        const convertedMessages: Message[] = (thread.messages || []).map((msg: any, index: number) => ({
-          id: msg.id || `msg-${selectedThreadId}-${index}`,
-          role: msg.type === 'human' ? 'user' : 'assistant',
-          content: msg.content,
-          timestamp: new Date(thread.updated_at) // Use thread updated time as fallback
-        }));
         
-        setMessages(convertedMessages);
+        setMessages(thread.values?.messages || []);
       } else {
         // Fallback if thread not found in local list
         setMessages([]);
@@ -179,12 +147,11 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
   }, []);
 
   const addMessage = useCallback(
-    (role: "user" | "assistant", content: string) => {
-      const newMessage: Message = {
+    (type: "human" | "ai", content: string) => {
+      const newMessage: ThreadMessage = {
         id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        role,
+        type,
         content,
-        timestamp: new Date(),
       };
       setMessages((prev) => [...prev, newMessage]);
     },
@@ -202,7 +169,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
       if (!content.trim()) return;
 
       // Add user message
-      addMessage("user", content);
+      addMessage("human", content);
       setInputValue("");
       setIsLoading(true);
       setIsStreaming(true);
@@ -226,17 +193,20 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
           setThreadId(currentThreadId);
           
           // Set current thread info
-          const newThreadItem: ThreadHistoryItem = {
+          const newThreadItem: Thread = {
             thread_id: threadData.thread_id,
-            title: content.slice(0, 50) + (content.length > 50 ? '...' : ''),
+            metadata: {
+              title: content.slice(0, 50) + (content.length > 50 ? '...' : '')
+            },
             created_at: threadData.created_at,
-            updated_at: threadData.updated_at
+            updated_at: threadData.updated_at,
+            status: threadData.status,
           };
           setCurrentThread(newThreadItem);
           setThreads(prev => [newThreadItem, ...prev]);
         }
 
-        let currentAssistantMessage: Message | null = null;
+        let currentAssistantMessage: ThreadMessage | null = null;
 
         // Start streaming with callbacks
         await runsService.streamRun(currentThreadId, {
@@ -257,16 +227,14 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
           onThinkingStep: (steps) => {
             setCurrentThinkingSteps(steps);
           },
-          onMessage: (messageContent, analysisText, thinkingSteps, runId) => {
+          onMessage: (messageContent, runId) => {
             if (currentAssistantMessage) {
               // Update existing message
               setMessages(prev => {
                 const updated = [...prev];
                 const lastMessage = updated[updated.length - 1];
-                if (lastMessage && lastMessage.role === 'assistant') {
+                if (lastMessage && lastMessage.type === 'ai') {
                   lastMessage.content = messageContent;
-                  lastMessage.analysisText = analysisText;
-                  lastMessage.thinkingSteps = thinkingSteps;
                 }
                 return updated;
               });
@@ -274,21 +242,17 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
               // Create new assistant message
               currentAssistantMessage = {
                 id: runId ? `msg-${runId}` : `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                role: 'assistant',
+                type: 'ai',
                 content: messageContent,
-                timestamp: new Date(),
-                analysisText,
-                thinkingSteps
               };
               setMessages(prev => [...prev, currentAssistantMessage!]);
             }
           },
           onError: (errorMsg) => {
-            addMessage("assistant", errorMsg);
+            addMessage("ai", errorMsg);
             setMessages(prev => {
               const updated = [...prev];
               if (updated.length > 0) {
-                updated[updated.length - 1].isError = true;
               }
               return updated;
             });
@@ -298,13 +262,12 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
       } catch (error) {
         console.error("Error sending message:", error);
         addMessage(
-          "assistant",
+          "ai",
           `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`
         );
         setMessages(prev => {
           const updated = [...prev];
           if (updated.length > 0) {
-            updated[updated.length - 1].isError = true;
           }
           return updated;
         });
