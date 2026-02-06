@@ -304,27 +304,61 @@ export const useGoogleCampaignDetailAds = ({
         return;
       }
 
+      // Update local state immediately for instant UI feedback
+      setAds((prevAds) =>
+        prevAds.map((a) =>
+          a.id === adId ? { ...a, status } : a
+        )
+      );
+
       // Call API
       await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, channelIdNum, {
         adIds: [ad.ad_id],
         action: "status",
         status: status as "ENABLED" | "PAUSED" | "REMOVED",
       });
-
-      // Update local state
-      setAds((prevAds) =>
-        prevAds.map((a) =>
-          a.id === adId ? { ...a, status } : a
-        )
-      );
       
-      // Reload to ensure data consistency
-      await loadAds();
+      // Reload after a short delay to ensure API has processed, but preserve status update
+      setTimeout(async () => {
+        try {
+          const data = await googleAdwordsAdsService.getGoogleAds(
+            accountIdNum,
+            channelIdNum,
+            parseInt(campaignId!, 10),
+            undefined,
+            {
+              filters: adsFilters,
+              page: adsCurrentPage,
+              page_size: 100,
+              sort_by: adsSortBy,
+              order: adsSortOrder,
+            }
+          );
+          
+          // Merge reloaded data but preserve our status update for this ad
+          setAds((prevAds) => {
+            const updatedAd = prevAds.find((a) => a.id === adId);
+            if (updatedAd && updatedAd.status === status) {
+              return (data.ads || []).map((reloadedAd) => {
+                if (reloadedAd.id === adId) {
+                  return { ...reloadedAd, status };
+                }
+                return reloadedAd;
+              });
+            }
+            return data.ads || [];
+          });
+          setAdsTotalPages(data.total_pages || 0);
+        } catch (error) {
+          console.error("Failed to reload ads after status update:", error);
+          // Keep the local update even if reload fails
+        }
+      }, 500);
     } catch (error: any) {
       console.error("Failed to update ad status:", error);
       throw error;
     }
-  }, [accountId, channelId, ads, loadAds]);
+  }, [accountId, channelId, campaignId, ads, adsFilters, adsCurrentPage, adsSortBy, adsSortOrder]);
 
   return {
     // Data

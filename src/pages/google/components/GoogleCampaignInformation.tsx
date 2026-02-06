@@ -1,7 +1,10 @@
 import React from "react";
 import { Dropdown } from "../../../components/ui/Dropdown";
 import { formatCurrency2Decimals } from "../utils/campaignDetailHelpers";
-import { getStatusWithDefault, formatDateForDisplay } from "../utils/googleAdsUtils";
+import {
+  getStatusWithDefault,
+  formatDateForDisplay,
+} from "../utils/googleAdsUtils";
 
 interface GoogleCampaignDetail {
   campaign: {
@@ -26,7 +29,10 @@ interface GoogleCampaignInformationProps {
   editedValue: string;
   onEditField: (field: "budget" | "status" | "start_date" | "end_date") => void;
   onEditValueChange: (value: string) => void;
-  onEditEnd: (value?: string, field?: "budget" | "status" | "start_date" | "end_date") => void;
+  onEditEnd: (
+    value?: string,
+    field?: "budget" | "status" | "start_date" | "end_date",
+  ) => void;
   onEditCancel: () => void;
   loading?: boolean;
 }
@@ -64,13 +70,15 @@ export const GoogleCampaignInformation: React.FC<
   if (!campaignDetail) return null;
 
   // Check if campaign is REMOVED
-  const campaignStatus = getStatusWithDefault(campaignDetail.campaign.status).toUpperCase();
+  const campaignStatus = getStatusWithDefault(
+    campaignDetail.campaign.status,
+  ).toUpperCase();
   const isRemoved = campaignStatus === "REMOVED";
 
   // Check if dates are in the past
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   const startDate = campaignDetail.campaign.start_date
     ? new Date(campaignDetail.campaign.start_date)
     : null;
@@ -146,7 +154,7 @@ export const GoogleCampaignInformation: React.FC<
               onChange={(value) => {
                 const newValue = value as string;
                 const wasEditing = editingField === "status";
-                
+
                 if (!wasEditing) {
                   onEditField("status");
                 }
@@ -215,7 +223,7 @@ export const GoogleCampaignInformation: React.FC<
           ) : (
             <div className="table-text leading-[1.26]">
               {formatCurrency2Decimals(
-                campaignDetail.campaign.daily_budget || 0
+                campaignDetail.campaign.daily_budget || 0,
               )}
             </div>
           )}
@@ -234,7 +242,9 @@ export const GoogleCampaignInformation: React.FC<
                   editingField === "start_date"
                     ? editedValue
                     : campaignDetail.campaign.start_date
-                      ? new Date(campaignDetail.campaign.start_date).toISOString().split("T")[0]
+                      ? new Date(campaignDetail.campaign.start_date)
+                          .toISOString()
+                          .split("T")[0]
                       : ""
                 }
                 onFocus={() => {
@@ -242,7 +252,9 @@ export const GoogleCampaignInformation: React.FC<
                     onEditField("start_date");
                     onEditValueChange(
                       campaignDetail.campaign.start_date
-                        ? new Date(campaignDetail.campaign.start_date).toISOString().split("T")[0]
+                        ? new Date(campaignDetail.campaign.start_date)
+                            .toISOString()
+                            .split("T")[0]
                         : "",
                     );
                   }
@@ -288,7 +300,9 @@ export const GoogleCampaignInformation: React.FC<
                   editingField === "end_date"
                     ? editedValue
                     : campaignDetail.campaign.end_date
-                      ? new Date(campaignDetail.campaign.end_date).toISOString().split("T")[0]
+                      ? new Date(campaignDetail.campaign.end_date)
+                          .toISOString()
+                          .split("T")[0]
                       : ""
                 }
                 onFocus={() => {
@@ -296,18 +310,17 @@ export const GoogleCampaignInformation: React.FC<
                     onEditField("end_date");
                     onEditValueChange(
                       campaignDetail.campaign.end_date
-                        ? new Date(campaignDetail.campaign.end_date).toISOString().split("T")[0]
+                        ? new Date(campaignDetail.campaign.end_date)
+                            .toISOString()
+                            .split("T")[0]
                         : "",
                     );
                   }
                 }}
                 onChange={(e) => {
-                  onEditValueChange(e.target.value);
-                }}
-                onBlur={() => {
-                  if (editingField === "end_date") {
-                    onEditEnd();
-                  }
+                  const value = e.target.value;
+                  onEditValueChange(value);
+                  onEditEnd(value, "end_date");
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
