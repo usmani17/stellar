@@ -184,11 +184,30 @@ export const useGoogleCampaignDetailProductGroups = ({
       const adGroupId =
         productGroup.adgroup_id ||
         (productGroup as any).adGroupId;
-      const productGroupId = productGroup.id ?? productGroup.product_group_id;
+      // Use ad_id (which maps to adId in database) - this is the correct field for API calls
+      const productGroupAdId = productGroup.ad_id ?? productGroup.id ?? productGroup.product_group_id;
+      
+      if (!productGroupAdId) {
+        if (onError) {
+          onError({
+            title: "Error",
+            message: "Product group ad ID not found. Please sync product groups first.",
+          });
+        }
+        return;
+      }
+
+      // Update local state immediately for instant UI feedback
+      setProductGroups((prevProductGroups) =>
+        prevProductGroups.map((pg) =>
+          getProductGroupSelectionKey(pg) === selectionKey ? { ...pg, status } : pg
+        )
+      );
 
       // Call API - use the dedicated product groups bulk update endpoint
+      // Convert to string since backend expects text type for adId
       await googleAdwordsProductGroupsService.bulkUpdateGoogleProductGroups(accountIdNum, channelIdNum, {
-        productGroupIds: [productGroupId],
+        productGroupIds: [String(productGroupAdId)],
         action: "status",
         status: status as "ENABLED" | "PAUSED" | "REMOVED",
         campaignId: campaignId
@@ -198,16 +217,48 @@ export const useGoogleCampaignDetailProductGroups = ({
           ? String(adGroupId)
           : undefined,
       });
-
-      // Update local state (match by composite key)
-      setProductGroups((prevProductGroups) =>
-        prevProductGroups.map((pg) =>
-          getProductGroupSelectionKey(pg) === selectionKey ? { ...pg, status } : pg
-        )
-      );
       
-      // Reload to ensure data consistency
-      await loadProductGroups();
+      // Reload after a short delay to ensure API has processed, but preserve status update
+      setTimeout(async () => {
+        try {
+          const data = await googleAdwordsProductGroupsService.getGoogleProductGroups(
+            accountIdNum,
+            channelIdNum,
+            parseInt(campaignId!, 10),
+            undefined,
+            {
+              filters: productGroupsFilters,
+              page: productGroupsCurrentPage,
+              page_size: 10, // Match the page size used in loadProductGroups
+              sort_by: productGroupsSortBy,
+              order: productGroupsSortOrder,
+              start_date: startDate ? toLocalDateString(startDate) : undefined,
+              end_date: endDate ? toLocalDateString(endDate) : undefined,
+            }
+          );
+          
+          // Merge reloaded data but preserve our status update for this product group
+          setProductGroups((prevProductGroups) => {
+            const updatedProductGroup = prevProductGroups.find((pg) => getProductGroupSelectionKey(pg) === selectionKey);
+            // Preserve status update if we still have it in local state (case-insensitive comparison)
+            const normalizedStatus = status.toUpperCase();
+            if (updatedProductGroup && updatedProductGroup.status?.toUpperCase() === normalizedStatus) {
+              // Note: getGoogleProductGroups returns data.ads (product groups are stored in ads table)
+              return (data.ads || []).map((reloadedPg) => {
+                if (getProductGroupSelectionKey(reloadedPg) === selectionKey) {
+                  return { ...reloadedPg, status };
+                }
+                return reloadedPg;
+              });
+            }
+            return data.ads || [];
+          });
+          setProductGroupsTotalPages(data.total_pages || 0);
+        } catch (error) {
+          console.error("Failed to reload product groups after status update:", error);
+          // Keep the local update even if reload fails
+        }
+      }, 500);
     } catch (error: any) {
       console.error("Failed to update product group status:", error);
       const errorMessage =
@@ -223,7 +274,7 @@ export const useGoogleCampaignDetailProductGroups = ({
       }
       throw error;
     }
-  }, [accountId, channelId, productGroups, loadProductGroups, onError, getProductGroupSelectionKey]);
+  }, [accountId, channelId, campaignId, productGroups, productGroupsFilters, productGroupsCurrentPage, productGroupsSortBy, productGroupsSortOrder, startDate, endDate, getProductGroupSelectionKey, onError]);
 
   return {
     // Data
