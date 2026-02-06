@@ -515,4 +515,19 @@ export const googleAdwordsCampaignsService = {
     const response = await api.get(url);
     return response.data;
   },
+
+  linkConversionActionsToCampaign: async (
+    accountId: number,
+    channelId: number,
+    campaignId: string | number,
+    payload: {
+      conversion_action_ids: string[];
+      customer_id?: string;
+      profile_id?: number;
+    }
+  ): Promise<{ message: string; success: boolean }> => {
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/link-conversion-actions/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
 };

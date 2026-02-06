@@ -631,6 +631,8 @@ export const GoogleCampaignDetail: React.FC = () => {
     productGroupsCurrentPage,
     setProductGroupsCurrentPage,
     productGroupsTotalPages,
+    productGroupsPageSize,
+    handleProductGroupsPageSizeChange,
     productGroupsSortBy,
     productGroupsSortOrder,
     isProductGroupsFilterPanelOpen,

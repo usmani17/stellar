@@ -14,6 +14,7 @@ import { useSidebar } from "../../contexts/SidebarContext";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { Button } from "../../components/ui";
 import { StatusBadge } from "../../components/ui/StatusBadge";
+import { Dropdown } from "../../components/ui/Dropdown";
 import { Banner } from "../../components/ui/Banner";
 import {
   DynamicFilterPanel,
@@ -78,7 +79,10 @@ export const GoogleAds: React.FC = () => {
     string | null
   >(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(() => {
+    const saved = localStorage.getItem('google_ads_page_size');
+    return saved ? parseInt(saved, 10) : 10;
+  });
   const [totalPages, setTotalPages] = useState(0);
   const [, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<string>("sales");
@@ -353,6 +357,7 @@ export const GoogleAds: React.FC = () => {
           accountId: accountIdNum,
           channelId: channelIdNum,
           currentPage,
+          itemsPerPage,
           filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
           startDate: startDate ? startDateStr : null,
           endDate: endDate ? endDateStr : null,
@@ -370,7 +375,7 @@ export const GoogleAds: React.FC = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, channelId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
+  }, [accountId, channelId, currentPage, itemsPerPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
 
 
 
@@ -514,6 +519,15 @@ export const GoogleAds: React.FC = () => {
     }
     setSelectedAds(newSelected);
   };
+
+  // Handle page size change
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setItemsPerPage(newPageSize);
+    setCurrentPage(1); // Reset to first page when page size changes
+    localStorage.setItem('google_ads_page_size', newPageSize.toString());
+    // Clear the request params ref to force a reload in useEffect
+    lastRequestParamsRef.current = "";
+  }, []);
 
   // Inline edit handlers
   const startInlineEdit = (ad: GoogleAd, field: "status") => {
@@ -1554,8 +1568,27 @@ export const GoogleAds: React.FC = () => {
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-end mt-4">
+              {!loading && (
+                <div className="flex items-center justify-end gap-3 mt-4">
+                  {/* Page Size Selector */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10.64px] text-[#556179]">Show:</span>
+                    <Dropdown<number>
+                      options={[
+                        { value: 10, label: "10" },
+                        { value: 25, label: "25" },
+                        { value: 50, label: "50" },
+                        { value: 100, label: "100" },
+                      ]}
+                      value={itemsPerPage}
+                      onChange={(value) => handlePageSizeChange(value)}
+                      buttonClassName="px-3 py-2 border border-[#EBEBEB] rounded-lg bg-[#fefefb] text-[10.64px] text-black hover:bg-gray-50 min-w-[60px]"
+                      menuClassName="border border-[#EBEBEB] rounded-lg bg-[#fefefb] shadow-lg"
+                      width="w-auto"
+                      align="right"
+                    />
+                  </div>
+                  {totalPages > 1 && (
                   <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                     <button
                       onClick={() =>
@@ -1620,6 +1653,7 @@ export const GoogleAds: React.FC = () => {
                       Next
                     </button>
                   </div>
+                  )}
                 </div>
               )}
             </div>

@@ -39,6 +39,12 @@ export const useGoogleCampaignDetailProductGroups = ({
   const [productGroupsTotalPages, setProductGroupsTotalPages] = useState(0);
   const [productGroupsSortBy, setProductGroupsSortBy] = useState<string>("id");
   const [productGroupsSortOrder, setProductGroupsSortOrder] = useState<"asc" | "desc">("asc");
+  
+  // Page size with localStorage persistence
+  const [productGroupsPageSize, setProductGroupsPageSize] = useState<number>(() => {
+    const saved = localStorage.getItem('google_product_groups_page_size');
+    return saved ? parseInt(saved, 10) : 10;
+  });
 
   // Filter state
   const [isProductGroupsFilterPanelOpen, setIsProductGroupsFilterPanelOpen] = useState(false);
@@ -64,7 +70,7 @@ export const useGoogleCampaignDetailProductGroups = ({
         {
           filters: productGroupsFilters,
           page: productGroupsCurrentPage,
-          page_size: 10,
+          page_size: productGroupsPageSize,
           sort_by: productGroupsSortBy,
           order: productGroupsSortOrder,
           start_date: startDate ? toLocalDateString(startDate) : undefined,
@@ -86,6 +92,7 @@ export const useGoogleCampaignDetailProductGroups = ({
     channelId,
     campaignId,
     productGroupsCurrentPage,
+    productGroupsPageSize,
     productGroupsSortBy,
     productGroupsSortOrder,
     startDate,
@@ -154,6 +161,13 @@ export const useGoogleCampaignDetailProductGroups = ({
   // Page change handler
   const handleProductGroupsPageChange = useCallback((page: number) => {
     setProductGroupsCurrentPage(page);
+  }, []);
+  
+  // Page size change handler with localStorage persistence
+  const handleProductGroupsPageSizeChange = useCallback((newPageSize: number) => {
+    setProductGroupsPageSize(newPageSize);
+    setProductGroupsCurrentPage(1); // Reset to first page when page size changes
+    localStorage.setItem('google_product_groups_page_size', newPageSize.toString());
   }, []);
 
   // Update handler (key = "adgroup_id-product_group_id")
@@ -229,7 +243,7 @@ export const useGoogleCampaignDetailProductGroups = ({
             {
               filters: productGroupsFilters,
               page: productGroupsCurrentPage,
-              page_size: 10, // Match the page size used in loadProductGroups
+              page_size: productGroupsPageSize,
               sort_by: productGroupsSortBy,
               order: productGroupsSortOrder,
               start_date: startDate ? toLocalDateString(startDate) : undefined,
@@ -274,7 +288,7 @@ export const useGoogleCampaignDetailProductGroups = ({
       }
       throw error;
     }
-  }, [accountId, channelId, campaignId, productGroups, productGroupsFilters, productGroupsCurrentPage, productGroupsSortBy, productGroupsSortOrder, startDate, endDate, getProductGroupSelectionKey, onError]);
+  }, [accountId, channelId, campaignId, productGroups, productGroupsFilters, productGroupsCurrentPage, productGroupsPageSize, productGroupsSortBy, productGroupsSortOrder, startDate, endDate, getProductGroupSelectionKey, onError]);
 
   return {
     // Data
@@ -286,6 +300,8 @@ export const useGoogleCampaignDetailProductGroups = ({
     productGroupsCurrentPage,
     setProductGroupsCurrentPage,
     productGroupsTotalPages,
+    productGroupsPageSize,
+    handleProductGroupsPageSizeChange,
     productGroupsSortBy,
     productGroupsSortOrder,
     

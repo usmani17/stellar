@@ -46,6 +46,8 @@ import {
   type BulkUpdateActionDetails,
   type BulkUpdateStatusDetails,
 } from "./components/BulkUpdateConfirmationModal";
+import { BulkBiddingStrategyPanel } from "./components/BulkBiddingStrategyPanel";
+import { BulkConversionActionsPanel } from "./components/BulkConversionActionsPanel";
 // import { CustomizeColumns } from "../../components/ui/CustomizeColumns";
 import type { IGoogleCampaign, IGoogleCampaignsSummary } from "../../types/google/campaign";
 import { useQuery } from "@tanstack/react-query";
@@ -91,8 +93,21 @@ export const GoogleCampaigns: React.FC = () => {
     string | null
   >(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  // Page size with localStorage persistence
+  const [itemsPerPage, setItemsPerPage] = useState<number>(() => {
+    const saved = localStorage.getItem('google_campaigns_page_size');
+    return saved ? parseInt(saved, 10) : 10;
+  });
   const [totalPages, setTotalPages] = useState(0);
+  
+  // Handle page size change
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setItemsPerPage(newPageSize);
+    setCurrentPage(1); // Reset to first page when page size changes
+    localStorage.setItem('google_campaigns_page_size', newPageSize.toString());
+    // Clear the request params ref to force a reload in useEffect
+    lastRequestParamsRef.current = "";
+  }, []);
   const [sortBy, setSortBy] = useState<string>("sales");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -167,6 +182,8 @@ export const GoogleCampaigns: React.FC = () => {
   >(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showBudgetPanel, setShowBudgetPanel] = useState(false);
+  const [showBiddingStrategyPanel, setShowBiddingStrategyPanel] = useState(false);
+  const [showConversionActionsPanel, setShowConversionActionsPanel] = useState(false);
   const [budgetAction, setBudgetAction] = useState<
     "increase" | "decrease" | "set"
   >("increase");
@@ -180,6 +197,16 @@ export const GoogleCampaigns: React.FC = () => {
     "ENABLED" | "PAUSED" | null
   >(null);
   const [isBudgetChange, setIsBudgetChange] = useState(false);
+  const [isBiddingStrategyChange, setIsBiddingStrategyChange] = useState(false);
+  const [pendingBiddingStrategy, setPendingBiddingStrategy] = useState<{
+    bidding_strategy_type: string;
+    target_cpa_micros?: number;
+    target_roas?: number;
+    target_impression_share_location?: string;
+    target_impression_share_location_fraction_micros?: number;
+    target_impression_share_cpc_bid_ceiling_micros?: number;
+  } | null>(null);
+  const [pendingConversionActionIds, setPendingConversionActionIds] = useState<string[] | null>(null);
   const [bulkUpdateResults, setBulkUpdateResults] = useState<{
     updated: number;
     failed: number;
@@ -539,6 +566,7 @@ export const GoogleCampaigns: React.FC = () => {
         const requestKey = JSON.stringify({
           accountId: accountIdNum,
           currentPage,
+          itemsPerPage,
           filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
           startDate: startDate ? startDateStr : null,
           endDate: endDate ? endDateStr : null,
@@ -560,7 +588,7 @@ export const GoogleCampaigns: React.FC = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, channelId, currentPage, filters, startDate, endDate, sorting, apiSearchQuery]);
+  }, [accountId, channelId, currentPage, itemsPerPage, filters, startDate, endDate, sorting, apiSearchQuery]);
 
   const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
     console.log("handleCreateGoogleCampaign called", {
@@ -2996,6 +3024,160 @@ export const GoogleCampaigns: React.FC = () => {
     }
   };
 
+  const handleBulkBiddingStrategy = async (strategy: {
+    bidding_strategy_type: string;
+    target_cpa_micros?: number;
+    target_roas?: number;
+    target_impression_share_location?: string;
+    target_impression_share_location_fraction_micros?: number;
+    target_impression_share_cpc_bid_ceiling_micros?: number;
+  }) => {
+    if (!accountId || selectedCampaigns.size === 0) return;
+    
+    // Store strategy and show confirmation modal
+    setPendingBiddingStrategy(strategy);
+    setIsBiddingStrategyChange(true);
+    setIsBudgetChange(false);
+    setPendingStatusAction(null);
+    setShowBiddingStrategyPanel(false);
+    setShowConfirmationModal(true);
+  };
+
+  const runBulkBiddingStrategy = async () => {
+    if (!accountId || selectedCampaigns.size === 0 || !pendingBiddingStrategy) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setBulkLoading(true);
+      setBulkUpdateResults(null);
+
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+
+      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
+        accountIdNum,
+        channelIdNum,
+        {
+          campaignIds: Array.from(selectedCampaigns),
+          action: "bidding_strategy",
+          ...pendingBiddingStrategy,
+        }
+      );
+
+      setBulkUpdateResults({
+        updated: response.updated || 0,
+        failed: response.failed || 0,
+        errors: response.errors || [],
+      });
+
+      // Reload campaigns
+      setSorting(true);
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadCampaigns(accountIdNum, channelIdNum);
+      }
+      setTimeout(() => {
+        setSorting(false);
+      }, 300);
+    } catch (error: any) {
+      console.error("Failed to update bidding strategy", error);
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update bidding strategy. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedCampaigns.size,
+        errors: [errorMessage],
+      });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkConversionActions = async (conversionActionIds: string[]) => {
+    if (!accountId || selectedCampaigns.size === 0 || conversionActionIds.length === 0) return;
+    
+    // Store conversion action IDs and show confirmation modal
+    setPendingConversionActionIds(conversionActionIds);
+    setIsBiddingStrategyChange(false);
+    setIsBudgetChange(false);
+    setPendingStatusAction(null);
+    setShowConversionActionsPanel(false);
+    setShowConfirmationModal(true);
+  };
+
+  const runBulkConversionActions = async () => {
+    if (!accountId || selectedCampaigns.size === 0 || !pendingConversionActionIds || pendingConversionActionIds.length === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setBulkLoading(true);
+      setBulkUpdateResults(null);
+
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+
+      const selectedCampaignsData = getSelectedCampaignsData();
+      const results = {
+        updated: 0,
+        failed: 0,
+        errors: [] as string[],
+      };
+
+      // Process campaigns in batches to avoid overwhelming the API
+      const BATCH_SIZE = 10;
+      for (let i = 0; i < selectedCampaignsData.length; i += BATCH_SIZE) {
+        const batch = selectedCampaignsData.slice(i, i + BATCH_SIZE);
+        
+        await Promise.all(
+          batch.map(async (campaign) => {
+            try {
+              await googleAdwordsCampaignsService.linkConversionActionsToCampaign(
+                accountIdNum,
+                channelIdNum,
+                campaign.campaign_id,
+                {
+                  conversion_action_ids: pendingConversionActionIds,
+                  customer_id: campaign.customer_id,
+                }
+              );
+              results.updated++;
+            } catch (error: any) {
+              results.failed++;
+              const errorMessage = error?.response?.data?.error || error?.message || "Failed to link conversion actions";
+              results.errors.push(`Campaign ${campaign.campaign_id}: ${errorMessage}`);
+            }
+          })
+        );
+      }
+
+      setBulkUpdateResults(results);
+
+      // Reload campaigns
+      setSorting(true);
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadCampaigns(accountIdNum, channelIdNum);
+      }
+      setTimeout(() => {
+        setSorting(false);
+      }, 300);
+    } catch (error: any) {
+      console.error("Failed to update conversion actions", error);
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update conversion actions. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedCampaigns.size,
+        errors: [errorMessage],
+      });
+      setShowConfirmationModal(true);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const getSelectedCampaignsData = () => {
     return campaigns.filter((campaign) =>
       selectedCampaigns.has(campaign.campaign_id)
@@ -3510,6 +3692,8 @@ export const GoogleCampaigns: React.FC = () => {
                           // REMOVED cannot be set via status update - it's read-only
                           // To remove campaigns, use delete operation instead
                           { value: "edit_budget", label: "Edit Budget" },
+                          { value: "edit_bidding_strategy", label: "Edit Bidding Strategy" },
+                          { value: "edit_conversion_actions", label: "Edit Conversion Goals" },
                         ].map((opt) => (
                           <button
                             key={opt.value}
@@ -3521,8 +3705,20 @@ export const GoogleCampaigns: React.FC = () => {
                               if (selectedCampaigns.size === 0) return;
                               if (opt.value === "edit_budget") {
                                 setShowBudgetPanel(true);
+                                setShowBiddingStrategyPanel(false);
+                                setShowConversionActionsPanel(false);
+                              } else if (opt.value === "edit_bidding_strategy") {
+                                setShowBiddingStrategyPanel(true);
+                                setShowBudgetPanel(false);
+                                setShowConversionActionsPanel(false);
+                              } else if (opt.value === "edit_conversion_actions") {
+                                setShowConversionActionsPanel(true);
+                                setShowBudgetPanel(false);
+                                setShowBiddingStrategyPanel(false);
                               } else {
                                 setShowBudgetPanel(false);
+                                setShowBiddingStrategyPanel(false);
+                                setShowConversionActionsPanel(false);
                                 setPendingStatusAction(
                                   opt.value as "ENABLED" | "PAUSED"
                                 );
@@ -3686,6 +3882,35 @@ export const GoogleCampaigns: React.FC = () => {
 
             {/* Google Campaigns Table Card with overlay when panel is open */}
             <div className="relative">
+              {/* Bidding Strategy editor panel */}
+              {selectedCampaigns.size > 0 && showBiddingStrategyPanel && (
+                <BulkBiddingStrategyPanel
+                  selectedCampaigns={selectedCampaigns}
+                  campaigns={campaigns}
+                  currencyCode={currencyCode}
+                  onApply={handleBulkBiddingStrategy}
+                  onCancel={() => {
+                    setShowBiddingStrategyPanel(false);
+                    setShowBulkActions(false);
+                  }}
+                />
+              )}
+
+              {/* Conversion Actions editor panel */}
+              {selectedCampaigns.size > 0 && showConversionActionsPanel && accountId && channelId && (
+                <BulkConversionActionsPanel
+                  accountId={accountId}
+                  channelId={channelId}
+                  selectedCampaigns={selectedCampaigns}
+                  campaigns={campaigns}
+                  onApply={handleBulkConversionActions}
+                  onCancel={() => {
+                    setShowConversionActionsPanel(false);
+                    setShowBulkActions(false);
+                  }}
+                />
+              )}
+
               {/* Budget editor panel */}
               {selectedCampaigns.size > 0 && showBudgetPanel && (
                 <div className="mb-4">
@@ -3821,33 +4046,70 @@ export const GoogleCampaigns: React.FC = () => {
                 onClose={() => {
                   setShowConfirmationModal(false);
                   setShowBudgetPanel(false);
+                  setShowBiddingStrategyPanel(false);
+                  setShowConversionActionsPanel(false);
                   setShowBulkActions(false);
                   setPendingStatusAction(null);
+                  setIsBudgetChange(false);
+                  setIsBiddingStrategyChange(false);
+                  setPendingBiddingStrategy(null);
+                  setPendingConversionActionIds(null);
                   setBulkUpdateResults(null);
                 }}
                 entityLabel="campaign"
                 entityNameColumn="Campaign Name"
                 selectedCount={selectedCampaigns.size}
                 bulkUpdateResults={bulkUpdateResults}
-                isValueChange={isBudgetChange}
-                valueChangeLabel="Budget"
+                isValueChange={isBudgetChange || isBiddingStrategyChange || pendingConversionActionIds !== null}
+                valueChangeLabel={
+                  isBudgetChange
+                    ? "Budget"
+                    : isBiddingStrategyChange
+                    ? "Bidding Strategy"
+                    : pendingConversionActionIds !== null
+                    ? "Conversion Actions"
+                    : "Status"
+                }
                 previewRows={(() => {
                   const selectedCampaignsData = getSelectedCampaignsData();
                   return selectedCampaignsData.map((campaign) => {
                     const oldBudget = campaign.daily_budget || 0;
                     const oldStatus = getStatusWithDefault(campaign.status);
-                    const newBudget = isBudgetChange
-                      ? calculateNewBudget(oldBudget)
-                      : oldBudget;
-                    const newStatus = pendingStatusAction || oldStatus;
+                    const oldBiddingStrategy = formatBiddingStrategy(campaign.bidding_strategy_type || "");
+                    
+                    let oldValue: string;
+                    let newValue: string;
+
+                    if (isBudgetChange) {
+                      const newBudget = calculateNewBudget(oldBudget);
+                      oldValue = `$${oldBudget.toFixed(2)}`;
+                      newValue = `$${newBudget.toFixed(2)}`;
+                    } else if (isBiddingStrategyChange && pendingBiddingStrategy) {
+                      const strategyLabel = pendingBiddingStrategy.bidding_strategy_type
+                        .split("_")
+                        .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+                        .join(" ");
+                      let newStrategyText = strategyLabel;
+                      if (pendingBiddingStrategy.target_cpa_micros) {
+                        newStrategyText += ` (CPA: $${(pendingBiddingStrategy.target_cpa_micros / 1000000).toFixed(2)})`;
+                      } else if (pendingBiddingStrategy.target_roas) {
+                        newStrategyText += ` (ROAS: ${pendingBiddingStrategy.target_roas}x)`;
+                      }
+                      oldValue = oldBiddingStrategy || "—";
+                      newValue = newStrategyText;
+                    } else if (pendingConversionActionIds !== null) {
+                      oldValue = "Current conversion actions";
+                      newValue = `${pendingConversionActionIds.length} action(s) selected`;
+                    } else {
+                      const newStatus = pendingStatusAction || oldStatus;
+                      oldValue = oldStatus;
+                      newValue = newStatus;
+                    }
+
                     return {
                       name: campaign.campaign_name || "Unnamed Campaign",
-                      oldValue: isBudgetChange
-                        ? `$${oldBudget.toFixed(2)}`
-                        : oldStatus,
-                      newValue: isBudgetChange
-                        ? `$${newBudget.toFixed(2)}`
-                        : newStatus,
+                      oldValue,
+                      newValue,
                     } as BulkUpdatePreviewRow;
                   });
                 })()}
@@ -3862,14 +4124,30 @@ export const GoogleCampaigns: React.FC = () => {
                         upperLimit,
                         lowerLimit,
                       } as BulkUpdateActionDetails)
-                      : pendingStatusAction
+                      : isBiddingStrategyChange && pendingBiddingStrategy
                         ? ({
-                          type: "status",
-                          newStatus:
-                            pendingStatusAction.charAt(0) +
-                            pendingStatusAction.slice(1).toLowerCase(),
-                        } as BulkUpdateStatusDetails)
-                        : null
+                          type: "bidding_strategy",
+                          bidding_strategy_type: pendingBiddingStrategy.bidding_strategy_type,
+                          target_cpa: pendingBiddingStrategy.target_cpa_micros
+                            ? `$${(pendingBiddingStrategy.target_cpa_micros / 1000000).toFixed(2)}`
+                            : undefined,
+                          target_roas: pendingBiddingStrategy.target_roas
+                            ? `${pendingBiddingStrategy.target_roas}x`
+                            : undefined,
+                        } as any)
+                        : pendingConversionActionIds !== null
+                          ? ({
+                            type: "conversion_actions",
+                            count: pendingConversionActionIds.length,
+                          } as any)
+                          : pendingStatusAction
+                            ? ({
+                              type: "status",
+                              newStatus:
+                                pendingStatusAction.charAt(0) +
+                                pendingStatusAction.slice(1).toLowerCase(),
+                            } as BulkUpdateStatusDetails)
+                            : null
                     : null
                 }
                 loading={bulkLoading}
@@ -3878,6 +4156,10 @@ export const GoogleCampaigns: React.FC = () => {
                 onConfirm={async () => {
                   if (isBudgetChange) {
                     await runBulkBudget();
+                  } else if (isBiddingStrategyChange && pendingBiddingStrategy) {
+                    await runBulkBiddingStrategy();
+                  } else if (pendingConversionActionIds !== null) {
+                    await runBulkConversionActions();
                   } else if (pendingStatusAction) {
                     await runBulkStatus(pendingStatusAction);
                   }
@@ -4263,8 +4545,27 @@ export const GoogleCampaigns: React.FC = () => {
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-end mt-4">
+              {!loading && (
+                <div className="flex items-center justify-end gap-3 mt-4">
+                  {/* Page Size Selector */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10.64px] text-[#556179]">Show:</span>
+                    <Dropdown<number>
+                      options={[
+                        { value: 10, label: "10" },
+                        { value: 25, label: "25" },
+                        { value: 50, label: "50" },
+                        { value: 100, label: "100" },
+                      ]}
+                      value={itemsPerPage}
+                      onChange={(value) => handlePageSizeChange(value)}
+                      buttonClassName="px-3 py-2 border border-[#EBEBEB] rounded-lg bg-[#fefefb] text-[10.64px] text-black hover:bg-gray-50 min-w-[60px]"
+                      menuClassName="border border-[#EBEBEB] rounded-lg bg-[#fefefb] shadow-lg"
+                      width="w-auto"
+                      align="right"
+                    />
+                  </div>
+                  {totalPages > 1 && (
                   <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                     <button
                       onClick={() =>
@@ -4327,6 +4628,7 @@ export const GoogleCampaigns: React.FC = () => {
                       Next
                     </button>
                   </div>
+                  )}
                 </div>
               )}
               {isCreateCampaignPanelOpen && (
