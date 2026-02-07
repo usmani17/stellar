@@ -5,7 +5,6 @@ import { DateRangeProvider } from "./contexts/DateRangeContext";
 import { AccountsProvider } from "./contexts/AccountsContext";
 import { GlobalStateProvider } from "./contexts/GlobalStateContext";
 import { SidebarProvider } from "./contexts/SidebarContext";
-import { AssistantProvider } from "./contexts/AssistantContext";
 import AppRoutes from "./routes/Index";
 
 function App() {
@@ -15,14 +14,12 @@ function App() {
         <AccountsProvider>
           <GlobalStateProvider>
             <SidebarProvider>
-              <AssistantProvider>
                 <Router>
-                  <AppRoutes />
+                    <AppRoutes />
                 </Router>
                 {import.meta.env.DEV && (
                   <ReactQueryDevtools initialIsOpen={false} />
                 )}
-              </AssistantProvider>
             </SidebarProvider>
           </GlobalStateProvider>
         </AccountsProvider>

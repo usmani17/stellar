@@ -53,10 +53,10 @@ const DEFAULT_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   { id: "4", text: "Compare campaign efficiency" },
 ];
 
-export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
+export const AssistantProvider: React.FC<{ children: ReactNode; accountId: number; channelId: number }> = ({
   children,
+  accountId, channelId
 }) => {
-  const { accountId, channelId } = useParams<{ accountId: string; channelId: string }>();
   console.log("AssistantContext initialized with accountId:", accountId, "channelId:", channelId);
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -186,8 +186,8 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
           const threadData = await threadsService.createThread({
             metadata: {
               user_id: user?.id,
-              account_id: accountId ? parseInt(accountId) : undefined,
-              channel_id: channelId ? parseInt(channelId) : undefined,
+              account_id: accountId,
+              channel_id: channelId,
               auth_token: '123123123',
               title: content.slice(0, 50) + (content.length > 50 ? '...' : '')
             }
@@ -217,8 +217,8 @@ export const AssistantProvider: React.FC<{ children: ReactNode }> = ({
           input: { messages: [{ role: 'user', content }] },
           metadata: {
             user_id: user?.id,
-            account_id: accountId ? parseInt(accountId) : undefined,
-            channel_id: channelId ? parseInt(channelId) : undefined,
+            account_id: accountId,
+            channel_id: channelId,
             auth_token: '123123123'
           },
           config: { configurable: {} },
