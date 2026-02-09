@@ -122,6 +122,53 @@ export interface ThreadMessage {
   [key: string]: unknown;
 }
 
+/** Normalize a message from API/history so content is string or ContentBlock[] for consistent display */
+export function normalizeThreadMessage(msg: ThreadMessage | { type?: string; content?: ThreadMessageContent; id?: string; [k: string]: unknown }): ThreadMessage {
+  if (!msg || typeof msg !== 'object') return msg as ThreadMessage;
+  const rawType = (msg as { type?: string }).type;
+  const type = rawType === 'AIMessageChunk' ? 'ai' : (rawType ?? 'ai');
+  const validTypes: Array<ThreadMessage['type']> = ['human', 'ai', 'tool', 'system'];
+  const normalizedType = validTypes.includes(type as ThreadMessage['type']) ? (type as ThreadMessage['type']) : 'ai';
+
+  let content: ThreadMessageContent = (msg as { content?: ThreadMessageContent }).content ?? '';
+  if (Array.isArray(content)) {
+    const blocks: ContentBlock[] = [];
+    for (const part of content) {
+      if (!part || typeof part !== 'object') continue;
+      if (part.type === 'text' && typeof (part as any).text === 'string') {
+        blocks.push({ type: 'text', text: (part as any).text });
+      } else if (part.type === 'tool_use' && (part as any).name) {
+        blocks.push({
+          type: 'tool_use',
+          id: (part as any).id || `tool-${blocks.length}`,
+          name: (part as any).name,
+          input: typeof (part as any).input === 'object' ? (part as any).input : {},
+        });
+      }
+      // Skip input_json_delta, partial_json, etc. — not displayable
+    }
+    content = blocks.length ? blocks : '';
+  } else if (content != null && typeof content !== 'string') {
+    content = typeof (content as any).text === 'string' ? (content as any).text : '';
+  }
+
+  const base = msg as ThreadMessage;
+  return {
+    ...base,
+    id: typeof base.id === 'string' ? base.id : `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    type: normalizedType,
+    content,
+  };
+}
+
+/** Normalize messages array from history/API for consistent display with streamed messages */
+export function normalizeThreadMessages(
+  messages: Array<ThreadMessage | { type?: string; content?: ThreadMessageContent; id?: string; [k: string]: unknown }> | undefined
+): ThreadMessage[] {
+  if (!Array.isArray(messages)) return [];
+  return messages.map(normalizeThreadMessage);
+}
+
 export interface ThreadContext {
   account_id?: string;
   channel_id?: string;

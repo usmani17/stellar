@@ -9,20 +9,59 @@ export interface ThreadRun {
   kwargs: Record<string, unknown>;
   multitask_strategy: string;
 }
-
+type StreamMode =
+  | "values"
+  | "updates"
+  | "messages-tuple"
+  | "debug"
+  | "custom"
+  | "events";
 export interface RunStreamRequest {
   assistant_id: string;
   input: {
-    messages: Array<{
+    messages?: Array<{
       role: string;
       content: string;
     }>;
+    [key: string]: unknown;
+  };
+  checkpoint?: {
+    thread_id?: string;
+    checkpoint_ns?: string;
+    checkpoint_id?: string;
+    checkpoint_map?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+  command?: {
+    update?: unknown;
+    resume?: unknown;
+    goto?: {
+      node?: string;
+      input?: unknown;
+    };
+    [key: string]: unknown;
   };
   metadata?: RunMetadata;
   config?: {
+    tags?: string[];
+    recursion_limit?: number;
     configurable?: Record<string, unknown>;
+    [key: string]: unknown;
   };
-  stream_mode?: string[];
+  context?: Record<string, unknown>;
+  webhook?: string;
+  interrupt_before?: string;
+  interrupt_after?: string;
+  stream_mode?: StreamMode[];
+  stream_subgraphs?: boolean;
+  stream_resumable?: boolean;
+  on_disconnect?: "continue" | "stop";
+  feedback_keys?: string[];
+  multitask_strategy?: string;
+  if_not_exists?: string;
+  after_seconds?: number;
+  checkpoint_during?: boolean;
+  durability?: string;
 }
 
 export interface RunMetadata {
@@ -63,6 +102,25 @@ const looksLikeUpdates = (data: any): boolean => {
   return keys.some(k => knownNodes.includes(k));
 };
 
+/** LangGraph metadata object (second element in messages event) - not a message */
+const isLangGraphMetadata = (obj: any): boolean => {
+  return obj && typeof obj === 'object' && !Array.isArray(obj) &&
+    (obj.langgraph_node != null || obj.created_by != null || obj.langgraph_step != null);
+};
+
+/** Extract displayable text from a stream message chunk (AIMessageChunk) */
+const extractChunkText = (chunk: any): string => {
+  const content = chunk?.content;
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((part: any) => part && part.type === 'text' && part.text != null)
+      .map((part: any) => part.text)
+      .join('');
+  }
+  return '';
+};
+
 // Get AI agent base URL from environment variable
 const getBaseUrl = (): string => {
   const baseUrl = import.meta.env.VITE_AI_AGENT_BASE_URL;
@@ -98,6 +156,8 @@ export const runsService = {
     let analysisText = '';
     let thinkingSteps: string[] = [];
     let runId: string | null = null;
+    /** Accumulated text from event: messages chunks for the current run */
+    let streamedContent = '';
 
     callbacks.onLoadingChange?.(false); // Switch from loading to streaming
 
@@ -117,7 +177,12 @@ export const runsService = {
 
         if (line.startsWith('data: ')) {
           try {
-            const data = JSON.parse(line.slice(6));
+            const rawData = line.slice(6);
+            if (rawData === '[DONE]' || rawData.trim() === '') {
+              currentEvent = null;
+              continue;
+            }
+            const data = JSON.parse(rawData);
 
             // Handle metadata events (run_id, attempt, etc.)
             if (currentEvent === 'metadata') {
@@ -125,6 +190,7 @@ export const runsService = {
                 runId = data.run_id;
                 callbacks.onRunId?.(runId);
               }
+              streamedContent = ''; // Reset accumulator for new run
               continue;
             }
 
@@ -134,8 +200,31 @@ export const runsService = {
               return;
             }
 
+            // event: messages — data is [messageChunk, langgraphMetadata?]
+            // Only the first element is the message; second is metadata (langgraph_node, etc.)
+            if (currentEvent === 'messages' && Array.isArray(data)) {
+              const messageChunk = data[0];
+              if (messageChunk && !isLangGraphMetadata(messageChunk)) {
+                const isAiChunk = messageChunk.type === 'AIMessageChunk' || messageChunk.type === 'ai';
+                if (isAiChunk) {
+                  const text = extractChunkText(messageChunk);
+                  if (text) {
+                    streamedContent += text;
+                    callbacks.onMessage?.(
+                      streamedContent,
+                      analysisText || undefined,
+                      thinkingSteps.length > 0 ? [...thinkingSteps] : undefined,
+                      runId || undefined
+                    );
+                  }
+                }
+              }
+              currentEvent = null;
+              continue;
+            }
+
             const isUpdates = currentEvent === 'updates' ||
-              (currentEvent !== 'values' && looksLikeUpdates(data));
+              (currentEvent !== 'values' && typeof data === 'object' && !Array.isArray(data) && looksLikeUpdates(data));
 
             if (isUpdates && data && typeof data === 'object') {
               // Handle thinking steps updates from Router, Narrator, etc.
@@ -147,7 +236,7 @@ export const runsService = {
               });
             }
 
-            if (currentEvent === 'values' || !isUpdates) {
+            if (currentEvent === 'values' || (currentEvent !== 'messages' && !isUpdates)) {
               // Handle analysis text
               if (data.analysis !== undefined || data.corrected_analysis !== undefined) {
                 const newAnalysisText = (data.corrected_analysis && data.corrected_analysis.trim())
@@ -158,13 +247,12 @@ export const runsService = {
                 }
               }
 
-              // Handle messages - find the latest AI message
+              // Handle values/state messages (e.g. final state with data.messages)
               if (data.messages && Array.isArray(data.messages)) {
                 let aiMessage = null;
-                // Look for the latest AI message in the array
                 for (let j = data.messages.length - 1; j >= 0; j--) {
                   const msg = data.messages[j];
-                  if (msg && msg.type === 'ai' && msg.content) {
+                  if (msg && !isLangGraphMetadata(msg) && (msg.type === 'ai' || msg.type === 'AIMessageChunk') && msg.content) {
                     aiMessage = msg;
                     break;
                   }
@@ -173,8 +261,9 @@ export const runsService = {
                 if (aiMessage) {
                   const messageContent = extractText(aiMessage.content);
                   if (messageContent && messageContent.trim()) {
+                    streamedContent = messageContent.trim();
                     callbacks.onMessage?.(
-                      messageContent,
+                      streamedContent,
                       analysisText || undefined,
                       thinkingSteps.length > 0 ? [...thinkingSteps] : undefined,
                       runId || undefined

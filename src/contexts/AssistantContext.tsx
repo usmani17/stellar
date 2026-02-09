@@ -7,7 +7,7 @@ import React, {
   type ReactNode,
 } from "react";
 import { useAuth } from "./AuthContext";
-import { threadsService, type Thread, type ThreadMessage } from "../services/ai/threads";
+import { threadsService, type Thread, type ThreadMessage, normalizeThreadMessages } from "../services/ai/threads";
 import { runsService } from "../services/ai/runs";
 
 export const ASSISTANT_PANEL_WIDTH = "550px";
@@ -31,14 +31,14 @@ interface AssistantContextType {
   toggleAssistant: () => void;
   openAssistant: () => void;
   closeAssistant: () => void;
-  
+
   // Single source of truth - all threads in one array with runtime state
   threads: ThreadWithRuntime[];
-  
+
   // Current thread (derived from threads array)
   currentThread: ThreadWithRuntime | null;
   currentThreadId: string | null;
-  
+
   // Actions
   sendMessage: (content: string) => Promise<void>;
   cancelRun: () => Promise<void>;
@@ -46,14 +46,14 @@ interface AssistantContextType {
   startNewThread: () => void;
   deleteThread: (threadId: string) => void;
   updateThreadTitle: (threadId: string, title: string) => void;
-  
+
   // UI state
   inputValue: string;
   setInputValue: (value: string) => void;
   isLoading: boolean;
   isLoadingThreads: boolean;
   suggestedPrompts: SuggestedPrompt[];
-  
+
   // Backward compatibility - derived from currentThread
   messages: ThreadMessage[];
   addMessage: (type: "human" | "ai", content: string) => void;
@@ -78,13 +78,13 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   channelId: propChannelId,
 }) => {
   const { user } = useAuth();
-  
+
   // Single array holds ALL threads with runtime state
   const [threads, setThreads] = useState<ThreadWithRuntime[]>([]);
-  
+
   // Current thread ID reference
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
-  
+
   // UI state
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -99,14 +99,14 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const messages = currentThread?.values?.messages || [];
   const isStreaming = currentThread?.isStreaming || false;
   const currentThinkingSteps = currentThread?.thinkingSteps || [];
-  
+
   // Track current run for cancellation
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
 
   // Load threads from API
   const loadThreads = useCallback(async () => {
     if (!user?.id) return;
-    
+
     setIsLoadingThreads(true);
     try {
       const threadList = await threadsService.searchThreads({
@@ -115,11 +115,11 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         sort_order: 'desc',
         limit: 50
       });
-      
+
       // Merge with existing runtime state if any
       setThreads(prev => {
         const existingRuntime = new Map(prev.map(t => [t.thread_id, { isStreaming: t.isStreaming, thinkingSteps: t.thinkingSteps }]));
-        
+
         return threadList.map(t => ({
           ...t,
           isStreaming: existingRuntime.get(t.thread_id)?.isStreaming || false,
@@ -147,30 +147,36 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       // Check if we need to load full history
       const existingThread = threads.find(t => t.thread_id === threadId);
       const needsHistory = !existingThread?.values?.messages?.length;
-      
+
       if (needsHistory) {
         const history = await threadsService.getThreadHistory(threadId, { limit: 1000 });
         const fullThread = await threadsService.getThread(threadId);
         // @ts-ignore
         const threadRuns = await runsService.getThreadRuns(threadId);
-        
+
         if (history.length > 0) {
-          // Get latest state from history
+          // Get latest state from history; normalize messages for consistent display with stream
           const latestState = history[history.length - 1];
-          
-          setThreads(prev => prev.map(t => 
+          const values = latestState.values
+            ? {
+                ...latestState.values,
+                messages: normalizeThreadMessages(latestState.values.messages),
+              }
+            : latestState.values;
+
+          setThreads(prev => prev.map(t =>
             t.thread_id === threadId
-              ? { 
-                  ...t, 
-                  ...fullThread,
-                  values: latestState.values,
-                  updated_at: fullThread.updated_at 
-                }
+              ? {
+                ...t,
+                ...fullThread,
+                values: values ?? fullThread.values,
+                updated_at: fullThread.updated_at
+              }
               : t
           ));
         }
       }
-      
+
       setCurrentThreadId(threadId);
     } catch (error) {
       console.error('Failed to select thread:', error);
@@ -187,10 +193,10 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       setCurrentThreadId(existingTempThread.thread_id);
       return;
     }
-    
+
     const tempThreadId = `temp-${Date.now()}`;
     const now = new Date().toISOString();
-    
+
     const newThread: ThreadWithRuntime = {
       thread_id: tempThreadId,
       created_at: now,
@@ -206,7 +212,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       isStreaming: false,
       thinkingSteps: [],
     };
-    
+
     setThreads(prev => [newThread, ...prev]);
     setCurrentThreadId(tempThreadId);
   }, [user?.id, propAccountId, propChannelId, threads]);
@@ -221,7 +227,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
 
   // Update thread title
   const updateThreadTitle = useCallback((threadId: string, title: string) => {
-    setThreads(prev => prev.map(t => 
+    setThreads(prev => prev.map(t =>
       t.thread_id === threadId
         ? { ...t, metadata: { ...t.metadata, title }, updated_at: new Date().toISOString() }
         : t
@@ -230,7 +236,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
 
   // Update thread runtime state directly in array
   const updateThreadRuntime = useCallback((threadId: string, updates: Partial<ThreadWithRuntime>) => {
-    setThreads(prev => prev.map(t => 
+    setThreads(prev => prev.map(t =>
       t.thread_id === threadId
         ? { ...t, ...updates, updated_at: new Date().toISOString() }
         : t
@@ -240,19 +246,19 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   // Add message to current thread - directly modify array
   const addMessage = useCallback((type: "human" | "ai", content: string) => {
     if (!currentThreadId) return;
-    
+
     const newMessage: ThreadMessage = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type,
       content,
     };
-    
+
     setThreads(prev => prev.map(t => {
       if (t.thread_id !== currentThreadId) return t;
-      
+
       const currentValues = t.values || { messages: [] };
       const currentMessages = currentValues.messages || [];
-      
+
       return {
         ...t,
         values: {
@@ -267,16 +273,16 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   // Clear messages
   const clearMessages = useCallback(() => {
     if (!currentThreadId) return;
-    
-    setThreads(prev => prev.map(t => 
+
+    setThreads(prev => prev.map(t =>
       t.thread_id === currentThreadId
-        ? { 
-            ...t, 
-            values: { ...t.values, messages: [] },
-            isStreaming: false,
-            thinkingSteps: [],
-            pendingMessageId: null
-          }
+        ? {
+          ...t,
+          values: { ...t.values, messages: [] },
+          isStreaming: false,
+          thinkingSteps: [],
+          pendingMessageId: null
+        }
         : t
     ));
   }, [currentThreadId]);
@@ -285,12 +291,12 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const updateStreamingContent = useCallback((threadId: string, content: string, runId?: string) => {
     setThreads(prev => prev.map(t => {
       if (t.thread_id !== threadId) return t;
-      
+
       const currentValues = t.values || { messages: [] };
       const currentMessages = currentValues.messages || [];
       const lastIndex = currentMessages.length - 1;
       const lastMessage = currentMessages[lastIndex];
-      
+
       // If last message is AI, update it; otherwise add new
       if (lastMessage?.type === 'ai') {
         const updatedMessages = [...currentMessages];
@@ -321,7 +327,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
 
     // Ensure we have a current thread
     let activeThreadId = currentThreadId;
-    
+
     if (!activeThreadId || !threads.find(t => t.thread_id === activeThreadId)) {
       startNewThread();
       // Get the temp thread we just created (first in array)
@@ -339,14 +345,14 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       type: 'human',
       content,
     };
-    
+
     setThreads(prev => prev.map(t => {
       if (t.thread_id !== activeThreadId) return t;
-      
+
       const currentValues = t.values || { messages: [] };
       const currentMessages = currentValues.messages || [];
       const isFirstMessage = currentMessages.length === 0;
-      
+
       return {
         ...t,
         metadata: {
@@ -360,14 +366,14 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         updated_at: new Date().toISOString()
       };
     }));
-    
+
     setInputValue("");
     setIsLoading(true);
     updateThreadRuntime(activeThreadId, { isStreaming: true, thinkingSteps: [] });
 
     try {
       let serverThreadId = activeThreadId;
-      
+
       // Create thread on server if temp
       if (activeThreadId.startsWith('temp-')) {
         const threadData = await threadsService.createThread({
@@ -379,11 +385,11 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
             title: content.slice(0, 50) + (content.length > 50 ? '...' : '')
           }
         });
-        
+
         serverThreadId = threadData.thread_id;
-        
+
         // Replace temp thread ID with real one in array
-        setThreads(prev => prev.map(t => 
+        setThreads(prev => prev.map(t =>
           t.thread_id === activeThreadId
             ? { ...t, thread_id: serverThreadId, status: threadData.status, updated_at: threadData.updated_at }
             : t
@@ -403,8 +409,17 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
           channel_id: propChannelId ? parseInt(propChannelId) : undefined,
           auth_token: '123123123'
         },
-        config: { configurable: {} },
-        stream_mode: ['values', 'updates']
+        config: {
+          recursion_limit: 75,
+          configurable: {
+            // query_model: null,
+            // response_model: null,
+          },
+        },
+        stream_resumable: true,
+        stream_subgraphs: true,
+        on_disconnect: "continue",
+        stream_mode: ["messages-tuple", "updates"],
       }, {
         onLoadingChange: setIsLoading,
         onThinkingStep: (steps) => {
@@ -435,7 +450,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   // Cancel the current run
   const cancelRun = useCallback(async () => {
     if (!currentThreadId || !currentRunId) return;
-    
+
     try {
       await runsService.cancelRun(currentThreadId, currentRunId, { action: 'interrupt' });
     } catch (error) {
@@ -459,28 +474,28 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         toggleAssistant,
         openAssistant,
         closeAssistant,
-        
+
         // Single array source of truth
         threads,
-        
+
         // Current state derived from array
         currentThread,
         currentThreadId,
-        
+
         // Actions
         sendMessage,
         selectThread,
         startNewThread,
         deleteThread,
         updateThreadTitle,
-        
+
         // UI state
         inputValue,
         setInputValue,
         isLoading,
         isLoadingThreads,
         suggestedPrompts,
-        
+
         // Backward compatibility
         messages,
         addMessage,
