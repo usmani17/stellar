@@ -151,6 +151,8 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       if (needsHistory) {
         const history = await threadsService.getThreadHistory(threadId, { limit: 1000 });
         const fullThread = await threadsService.getThread(threadId);
+        // @ts-ignore
+        const threadRuns = await runsService.getThreadRuns(threadId);
         
         if (history.length > 0) {
           // Get latest state from history

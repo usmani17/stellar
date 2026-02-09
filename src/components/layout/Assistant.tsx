@@ -4,7 +4,7 @@ import { Check, Square } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
 import type { Thread, ContentBlock, ThreadMessageContent } from "../../services/ai/threads";
-import StellarMarkDown from "../ui/StellarMarkDown";
+import StellarMarkDown from "../ai/StellarMarkDown";
 import { isStringContent } from "../../utils/ai-formatter";
 import ToolUseBlock from "../ai/ToolUseBlock";
 

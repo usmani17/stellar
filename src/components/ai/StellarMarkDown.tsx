@@ -86,7 +86,7 @@ export const StellarMarkDown: React.FC<StellarMarkDownProps> = ({ content, type 
                         <del className="line-through">{children}</del>
                     ),
                     table: ({ children }) => (
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto max-w-[490px]">
                             <table className="min-w-full my-2 border border-gray">{children}</table>
                         </div>
                     ),
