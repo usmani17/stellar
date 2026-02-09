@@ -10,6 +10,10 @@ import { useAuth } from "./AuthContext";
 import { threadsService, type Thread, type ThreadMessage } from "../services/ai/threads";
 import { runsService } from "../services/ai/runs";
 
+export const ASSISTANT_PANEL_WIDTH = "550px";
+// "fixed" will make the main content shrink, while "floating" will be displayed over the main content.
+export const ASSISTANT_PANEL_VIEW: "fixed" | "floating" = "floating";
+
 export interface SuggestedPrompt {
   id: string;
   text: string;
@@ -37,6 +41,7 @@ interface AssistantContextType {
   
   // Actions
   sendMessage: (content: string) => Promise<void>;
+  cancelRun: () => Promise<void>;
   selectThread: (threadId: string) => Promise<void>;
   startNewThread: () => void;
   deleteThread: (threadId: string) => void;
@@ -55,6 +60,7 @@ interface AssistantContextType {
   clearMessages: () => void;
   isStreaming: boolean;
   currentThinkingSteps: string[];
+  currentRunId: string | null;
 }
 
 const AssistantContext = createContext<AssistantContextType | undefined>(undefined);
@@ -93,6 +99,9 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const messages = currentThread?.values?.messages || [];
   const isStreaming = currentThread?.isStreaming || false;
   const currentThinkingSteps = currentThread?.thinkingSteps || [];
+  
+  // Track current run for cancellation
+  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
 
   // Load threads from API
   const loadThreads = useCallback(async () => {
@@ -375,6 +384,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       }
 
       // Stream response
+      setCurrentRunId(null); // Reset before starting
       await runsService.streamRun(serverThreadId, {
         assistant_id: 'chat',
         input: { messages: [{ role: 'user', content }] },
@@ -397,6 +407,9 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         onError: (errorMsg) => {
           updateStreamingContent(serverThreadId, `Error: ${errorMsg}`);
           updateThreadRuntime(serverThreadId, { isStreaming: false, thinkingSteps: [] });
+        },
+        onRunId: (runId) => {
+          setCurrentRunId(runId);
         }
       });
 
@@ -405,9 +418,25 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       updateStreamingContent(activeThreadId, `Sorry, I encountered an error. Please try again.`);
     } finally {
       setIsLoading(false);
+      setCurrentRunId(null);
       updateThreadRuntime(activeThreadId, { isStreaming: false, thinkingSteps: [] });
     }
   }, [currentThreadId, threads, user?.id, propAccountId, propChannelId, startNewThread, updateThreadRuntime, updateStreamingContent]);
+
+  // Cancel the current run
+  const cancelRun = useCallback(async () => {
+    if (!currentThreadId || !currentRunId) return;
+    
+    try {
+      await runsService.cancelRun(currentThreadId, currentRunId, { action: 'interrupt' });
+    } catch (error) {
+      console.error('Failed to cancel run:', error);
+    } finally {
+      setIsLoading(false);
+      setCurrentRunId(null);
+      updateThreadRuntime(currentThreadId, { isStreaming: false, thinkingSteps: [] });
+    }
+  }, [currentThreadId, currentRunId, updateThreadRuntime]);
 
   // UI actions
   const toggleAssistant = useCallback(() => setIsOpen(prev => !prev), []);
@@ -449,6 +478,8 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         clearMessages,
         isStreaming,
         currentThinkingSteps,
+        currentRunId,
+        cancelRun,
       }}
     >
       {children}

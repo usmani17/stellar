@@ -1,14 +1,12 @@
 import React, { useRef, useEffect, useState } from "react";
-import { useAssistant } from "../../contexts/AssistantContext";
-import { Plus, Mic, BarChart3, Pencil, ChevronDown, Check, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useAssistant, ASSISTANT_PANEL_VIEW,ASSISTANT_PANEL_WIDTH  } from "../../contexts/AssistantContext";
+import { Plus, Mic, BarChart3, Pencil, ChevronDown, Check, Square } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
-import type { Thread, ThreadMessage, ContentBlock, ThreadMessageContent } from "../../services/ai/threads";
+import type { Thread, ContentBlock, ThreadMessageContent } from "../../services/ai/threads";
 import StellarMarkDown from "../ui/StellarMarkDown";
+import { isStringContent } from "../../utils/ai-formatter";
+import ToolUseBlock from "../ai/ToolUseBlock";
 
-// Helper function to check if content is a string
-const isStringContent = (content: ThreadMessageContent): content is string => {
-  return typeof content === "string";
-};
 
 // Helper function to check if content is a ContentBlock array
 const isContentBlockArray = (content: ThreadMessageContent): content is ContentBlock[] => {
@@ -29,61 +27,6 @@ const extractTextContent = (content: ThreadMessageContent): string => {
   return "";
 };
 
-// Component to render tool use blocks
-const ToolUseBlock: React.FC<{ block: any }> = ({ block }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  return (
-    <div className="bg-blue-20 border border-blue-200 rounded-lg p-1">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center justify-between w-full text-left"
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-400">🔧 {block.name}</span>
-        </div>
-        <span className="text-xs text-gray-300">{isExpanded ? "▼" : "▶"}</span>
-      </button>
-      
-      {isExpanded && (
-        <div className="mt-2 pt-2 border-t border-blue-200">
-          <pre className="text-xs bg-white p-2 rounded border border-blue-100 overflow-x-auto">
-            {JSON.stringify(block.input, null, 2)}
-          </pre>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Component to render tool response
-const ToolResponseBlock: React.FC<{ message: ThreadMessage }> = ({ message }) => {
-  const isError = message.status === "error";
-
-  return (
-    <div className={`border-l-4 pl-3 py-2 my-2 ${isError ? "border-red-400 bg-red-50" : "border-green-400 bg-green-50"}`}>
-      <div className="flex items-center gap-2 mb-2">
-        {isError ? (
-          <AlertCircle className="w-4 h-4 text-red-600" />
-        ) : (
-          <CheckCircle2 className="w-4 h-4 text-green-600" />
-        )}
-        <span className={`text-sm font-medium ${isError ? "text-red-900" : "text-green-900"}`}>
-          Tool Response: {message.tool_call_id}
-        </span>
-      </div>
-      <div className={`text-sm ${isError ? "text-red-800" : "text-green-800"}`}>
-        {isStringContent(message.content) ? (
-          message.content
-        ) : (
-          <pre className="bg-white p-2 rounded border text-xs overflow-x-auto">
-            {JSON.stringify(message.content, null, 2)}
-          </pre>
-        )}
-      </div>
-    </div>
-  );
-};
 
 // Helper function to group threads by date
 const groupThreadsByDate = (threads: Thread[]): Record<string, Thread[]> => {
@@ -91,13 +34,13 @@ const groupThreadsByDate = (threads: Thread[]): Record<string, Thread[]> => {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  
+
   threads.forEach(thread => {
     const threadDate = new Date(thread.created_at);
     const threadDateStr = threadDate.toDateString();
     const todayStr = today.toDateString();
     const yesterdayStr = yesterday.toDateString();
-    
+
     let groupKey: string;
     if (threadDateStr === todayStr) {
       groupKey = 'Today';
@@ -105,19 +48,19 @@ const groupThreadsByDate = (threads: Thread[]): Record<string, Thread[]> => {
       groupKey = 'Yesterday';
     } else {
       // Format as "Jan 15, 2026"
-      groupKey = threadDate.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
+      groupKey = threadDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
       });
     }
-    
+
     if (!groups[groupKey]) {
       groups[groupKey] = [];
     }
     groups[groupKey].push(thread);
   });
-  
+
   return groups;
 };
 
@@ -143,6 +86,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     isLoadingThreads,
     selectThread,
     startNewThread,
+    cancelRun,
   } = useAssistant();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -172,6 +116,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     if (inputValue.trim() && !isLoading) {
       sendMessage(inputValue);
     }
+  };
+
+  const handleStop = (e: React.MouseEvent) => {
+    e.preventDefault();
+    cancelRun();
   };
 
   const handlePromptClick = (promptText: string) => {
@@ -206,7 +155,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <div className="flex items-center gap-2 flex-1" ref={dropdownRef}>
           <img src={StellarLogo} alt="Stellar" className="h-8 w-8" />
-          
+
           {/* Thread Selector Dropdown */}
           <div className="relative flex-1">
             <button
@@ -248,17 +197,16 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                       <div className="px-4 py-2 text-xs font-medium text-gray-600 bg-gray-50">
                         {dateGroup}
                       </div>
-                      
+
                       {/* Threads in Group */}
                       {groupThreads.map((thread) => (
                         <button
                           key={thread.thread_id}
                           onClick={() => handleThreadSelect(thread.thread_id)}
-                          className={`w-full flex items-center justify-between px-4 py-3 text-sm text-left transition-colors ${
-                            currentThread?.thread_id === thread.thread_id
+                          className={`w-full flex items-center justify-between px-4 py-3 text-sm text-left transition-colors ${currentThread?.thread_id === thread.thread_id
                               ? 'bg-blue-50 text-blue-900'
                               : 'text-gray-700 hover:bg-gray-50'
-                          }`}
+                            }`}
                         >
                           <span className="truncate flex-1">{thread.metadata?.title || 'Untitled'}</span>
                           {currentThread?.thread_id === thread.thread_id && (
@@ -273,7 +221,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             )}
           </div>
         </div>
-        
+
         <button
           onClick={handleNewThread}
           className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -318,16 +266,14 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex ${
-                  message.type === "human" ? "justify-end" : "justify-start"
-                }`}
+                className={`flex ${message.type === "human" ? "justify-end" : "justify-start"
+                  }`}
               >
                 <div
-                  className={`max-w-[85%] ${
-                    message.type === "human"
+                  className={`max-w-[85%] ${message.type === "human"
                       ? "flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e5e4e0] rounded-[10px]"
                       : "space-y-3"
-                  }`}
+                    }`}
                 >
                   {/* Tool Response Message === SKIP THIS FOR NOW */}
                   {/* {message.type === "tool" && (
@@ -336,7 +282,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
                   {/* Human Message */}
                   {message.type === "human" && (
-                    <div 
+                    <div
                       className="text-[14px] font-normal leading-[20px] tracking-[0.1px] text-[#072929] whitespace-pre-wrap"
                       style={{ fontFamily: "'GT America Trial', sans-serif" }}
                     >
@@ -346,9 +292,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
                   {/* AI Message with Rich Content */}
                   {message.type === "ai" && (
-                    <div 
+                    <div
                       className="flex flex-col items-start h-auto"
-                      style={{ 
+                      style={{
                         padding: '0px 16px 0px 16px',
                         fontFamily: "'GT America Trial', sans-serif"
                       }}
@@ -356,16 +302,16 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                       {/* Currently analyzing section */}
                       {message.additional_kwargs && Object.keys(message.additional_kwargs).length > 0 && (
                         <div className="flex flex-col items-start gap-1.5 w-60 h-auto">
-                          <div 
+                          <div
                             className="text-[14px] font-normal leading-5 text-center tracking-[0.1px] text-[#072929]"
                             style={{ fontFamily: "'GT America Trial', sans-serif" }}
                           >
                             Currently analyzing:
                           </div>
-                          <div 
+                          <div
                             className="flex flex-col justify-center items-center p-3 gap-1 w-60 h-auto bg-[#F9F9F6] border border-[#E8E8E3] rounded-[10px]"
                           >
-                            <div 
+                            <div
                               className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full"
                               style={{ fontFamily: "'GT America Trial', sans-serif" }}
                             >
@@ -383,7 +329,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                           {(message.content as ContentBlock[]).map((block, idx) => (
                             <div key={idx}>
                               {block.type === "text" && (
-                                <div 
+                                <div
                                   className="h-auto text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929]"
                                   style={{ fontFamily: "'GT America Trial', sans-serif" }}
                                 >
@@ -397,7 +343,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                           ))}
                         </div>
                       ) : isStringContent(message.content) ? (
-                        <div 
+                        <div
                           className="h-auto text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929]"
                           style={{ fontFamily: "'GT America Trial', sans-serif" }}
                         >
@@ -409,7 +355,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 </div>
               </div>
             ))}
-            
+
             {/* Streaming State */}
             {(isLoading || isStreaming) && (
               <div className="flex justify-start">
@@ -430,7 +376,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Loading Indicator */}
                   <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                     <div className="flex items-center gap-2 mb-3">
@@ -466,48 +412,66 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
       {/* Input Area */}
       <div className="px-4 py-3 border-t border-gray-100">
         <form onSubmit={handleSubmit} className="relative">
-          <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-lg border border-gray-200 focus-within:border-[#136D6D] focus-within:ring-1 focus-within:ring-[#136D6D]">
+          <div className={`flex items-center gap-2 px-4 py-3 rounded-lg border transition-all ${isStreaming
+              ? 'bg-red-50 border-red-300 focus-within:border-red-400 focus-within:ring-1 focus-within:ring-red-400'
+              : 'bg-gray-50 border-gray-200 focus-within:border-[#136D6D] focus-within:ring-1 focus-within:ring-[#136D6D]'
+            }`}>
             {/* Add Attachment Button */}
             <button
               type="button"
               className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
               title="Add attachment"
+              disabled={isStreaming}
             >
               <Plus className="w-5 h-5" />
             </button>
 
             {/* Input Field */}
             <div className="flex-1 flex items-center gap-2">
-              <span className="text-base">👋</span>
+              <span className="text-base">{isStreaming ? '⏹️' : '👋'}</span>
               <input
                 ref={inputRef}
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask me anything about your campaigns..."
+                placeholder={isStreaming ? "Generating response..." : "Ask me anything about your campaigns..."}
                 className="flex-1 bg-transparent text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none"
-                disabled={isLoading}
+                disabled={isLoading || isStreaming}
               />
             </div>
 
-            {/* Voice Button */}
-            <button
-              type="button"
-              className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-              title="Voice input"
-            >
-              <Mic className="w-5 h-5" />
-            </button>
+            {/* Stop Button - shown during streaming */}
+            {isStreaming ? (
+              <button
+                type="button"
+                onClick={handleStop}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors"
+                title="Stop generating"
+              >
+                <Square className="w-4 h-4 fill-current" />
+              </button>
+            ) : (
+              <>
+                {/* Voice Button */}
+                <button
+                  type="button"
+                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Voice input"
+                >
+                  <Mic className="w-5 h-5" />
+                </button>
 
-            {/* Analytics Button */}
-            <button
-              type="button"
-              className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-              title="View analytics"
-            >
-              <BarChart3 className="w-5 h-5" />
-            </button>
+                {/* Analytics Button */}
+                <button
+                  type="button"
+                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="View analytics"
+                >
+                  <BarChart3 className="w-5 h-5" />
+                </button>
+              </>
+            )}
           </div>
         </form>
       </div>
@@ -521,48 +485,31 @@ export const Assistant: React.FC<React.PropsWithChildren<{}>> = ({
 }) => {
   const { isOpen } = useAssistant();
 
+  const isFixed = ASSISTANT_PANEL_VIEW === "fixed";
+
   return (
-    <div className="bg-[var(--color-semantic-background-primary)] overflow-x-hidden min-w-0 flex">
+    <div className={`bg-[var(--color-semantic-background-primary)] overflow-x-hidden min-w-0 flex ${isFixed ? "relative" : ""}`}>
       {/* Main Content */}
       <div
-        className={`flex-1 overflow-x-hidden transition-all duration-300 interactive-scrollbar ${isOpen ? "mr-[440px]" : ""}`}
+        style={isOpen && isFixed ? { marginRight: ASSISTANT_PANEL_WIDTH } : undefined}
+        className={`flex-1 overflow-x-hidden transition-all duration-300 interactive-scrollbar`}
       >
         {children}
       </div>
 
-      {/* Assistant Sidebar - Fixed position under header */}
+      {/* Assistant Sidebar */}
       {isOpen && (
-        <div className="fixed right-0 top-[80px] bottom-0 w-[440px] z-40 bg-[var(--color-semantic-background-primary)] border-l border-gray-200">
-          <AssistantPanel className="h-full" />
+        <div
+          className={`${isFixed ? "fixed" : "absolute"} right-0 top-[80px] bottom-0 z-40 bg-[var(--color-semantic-background-primary)] ${
+            isFixed ? "border-l border-gray-200" : "rounded-l-2xl shadow-[-8px_0_24px_rgba(0,0,0,0.15)]"
+          }`}
+          style={{ width: ASSISTANT_PANEL_WIDTH }}
+        >
+          <AssistantPanel className={`h-full ${isFixed ? "" : "rounded-l-2xl overflow-hidden"}`} />
         </div>
       )}
     </div>
   );
 };
 
-// Trigger button to toggle Assistant panel
-export const AssistantTrigger: React.FC<{ className?: string }> = ({
-  className = "",
-}) => {
-  const { toggleAssistant, isOpen } = useAssistant();
-
-  return (
-    <button
-      onClick={toggleAssistant}
-      className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-        isOpen
-          ? "bg-[#136D6D] text-white"
-          : "text-gray-600 hover:bg-gray-100"
-      } ${className}`}
-    >
-      <img
-        src={StellarLogo}
-        alt="Assistant"
-        className="h-5 w-5"
-        style={{ filter: isOpen ? "brightness(0) invert(1)" : "none" }}
-      />
-      <span>Assistant</span>
-    </button>
-  );
-};
 

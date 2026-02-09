@@ -18,7 +18,7 @@ function App() {
                     <AppRoutes />
                 </Router>
                 {import.meta.env.DEV && (
-                  <ReactQueryDevtools initialIsOpen={false} />
+                  <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
                 )}
             </SidebarProvider>
           </GlobalStateProvider>

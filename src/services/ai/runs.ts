@@ -211,4 +211,36 @@ export const runsService = {
 
     return response.json();
   },
+
+  cancelRun: async (
+    threadId: string,
+    runId: string,
+    options?: { wait?: boolean; action?: 'interrupt' | 'rollback' }
+  ): Promise<ThreadRun> => {
+    const baseUrl = getBaseUrl();
+    const params = new URLSearchParams();
+
+    if (options?.wait !== undefined) {
+      params.append('wait', String(options.wait));
+    }
+    if (options?.action) {
+      params.append('action', options.action);
+    }
+
+    const queryString = params.toString();
+    const url = `${baseUrl}/threads/${threadId}/runs/${runId}/cancel${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to cancel run: ${response.status}`);
+    }
+
+    return response.json();
+  },
 };

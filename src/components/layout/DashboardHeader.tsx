@@ -18,7 +18,7 @@ import CustomDateRangePicker from "../ui/CustomDateRangePicker";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
-import { AssistantTrigger } from "./Assistant";
+import { AssistantTrigger } from "../ai/AssistantTrigger";
 
 // Generate a color based on the first letter of the brand name
 const getInitialColor = (initial: string): string => {
@@ -593,8 +593,7 @@ export const DashboardHeader: React.FC = () => {
             </div>
           </>
         )}
-        {/* Assistant Trigger */}
-        <AssistantTrigger />
+        {params.accountId && params.channelId && <AssistantTrigger />}
       </div>
 
       {/* User Settings - Bottom Left (Fixed Position) */}
