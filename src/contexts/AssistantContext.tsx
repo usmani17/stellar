@@ -179,6 +179,13 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
 
   // Start new thread - add to array immediately
   const startNewThread = useCallback(() => {
+    // Check if a temp thread already exists
+    const existingTempThread = threads.find(t => t.thread_id.startsWith('temp-'));
+    if (existingTempThread) {
+      setCurrentThreadId(existingTempThread.thread_id);
+      return;
+    }
+    
     const tempThreadId = `temp-${Date.now()}`;
     const now = new Date().toISOString();
     
@@ -200,7 +207,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     
     setThreads(prev => [newThread, ...prev]);
     setCurrentThreadId(tempThreadId);
-  }, [user?.id, propAccountId, propChannelId]);
+  }, [user?.id, propAccountId, propChannelId, threads]);
 
   // Delete thread from array
   const deleteThread = useCallback((threadId: string) => {
@@ -376,7 +383,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         // Replace temp thread ID with real one in array
         setThreads(prev => prev.map(t => 
           t.thread_id === activeThreadId
-            ? { ...t, thread_id: serverThreadId, status: threadData.status, created_at: threadData.created_at }
+            ? { ...t, thread_id: serverThreadId, status: threadData.status, updated_at: threadData.updated_at }
             : t
         ));
         setCurrentThreadId(serverThreadId);

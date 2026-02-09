@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useAssistant, ASSISTANT_PANEL_VIEW,ASSISTANT_PANEL_WIDTH  } from "../../contexts/AssistantContext";
-import { Plus, Mic, BarChart3, Pencil, ChevronDown, Check, Square } from "lucide-react";
+import { Check, Square } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
+import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
 import type { Thread, ContentBlock, ThreadMessageContent } from "../../services/ai/threads";
 import StellarMarkDown from "../ui/StellarMarkDown";
 import { isStringContent } from "../../utils/ai-formatter";
@@ -28,15 +29,20 @@ const extractTextContent = (content: ThreadMessageContent): string => {
 };
 
 
-// Helper function to group threads by date
+// Helper function to group threads by date, ordered by latest first
 const groupThreadsByDate = (threads: Thread[]): Record<string, Thread[]> => {
   const groups: Record<string, Thread[]> = {};
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  threads.forEach(thread => {
-    const threadDate = new Date(thread.created_at);
+  // Sort threads by updated_at in descending order (latest first)
+  const sortedThreads = [...threads].sort((a, b) => {
+    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+  });
+
+  sortedThreads.forEach(thread => {
+    const threadDate = new Date(thread.updated_at);
     const threadDateStr = threadDate.toDateString();
     const todayStr = today.toDateString();
     const yesterdayStr = yesterday.toDateString();
@@ -152,33 +158,39 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
       className={`flex flex-col h-full bg-[var(--color-semantic-background-primary)] shadow-lg ${className}`}
     >
       {/* Header with Thread Selector */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center gap-2 flex-1" ref={dropdownRef}>
-          <img src={StellarLogo} alt="Stellar" className="h-8 w-8" />
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#e8e8e3]">
+        <div className="flex items-center gap-2">
+          <img src={ASSISTANT_ICONS.logo} alt="Stellar" className="h-6 w-6" />
+          <span className="text-sm font-medium text-[#072929] truncate">
+            {currentThread?.metadata?.title || 'New Chat'}
+          </span>
+        </div>
 
-          {/* Thread Selector Dropdown */}
-          <div className="relative flex-1">
-            <button
-              onClick={() => setIsThreadDropdownOpen(!isThreadDropdownOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors max-w-[250px]"
-            >
-              <span className="truncate">
-                {currentThread?.metadata?.title || 'New conversation'}
-              </span>
-              <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${isThreadDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
+        <div className="flex items-center gap-2">
+          {/* New Thread Button */}
+          <button
+            onClick={handleNewThread}
+            className="p-2 hover:opacity-70 transition-opacity"
+            title="New conversation"
+          >
+            <img src={ASSISTANT_ICONS.newThread} alt="New thread" className="w-5 h-5" />
+          </button>
+
+          {/* Chat History Button */}
+          <button
+            onClick={() => setIsThreadDropdownOpen(!isThreadDropdownOpen)}
+            className="p-2 relative"
+            title="Chat history"
+          >
+            <img src={ASSISTANT_ICONS.chatHistory} alt="Chat history" className="w-5 h-5" />
 
             {/* Dropdown Menu */}
             {isThreadDropdownOpen && (
-              <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
-                {/* New Thread Button */}
-                <button
-                  onClick={handleNewThread}
-                  className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-200 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>New conversation</span>
-                </button>
+              <div className="absolute top-full right-0 mt-1 w-80 bg-white rounded-xl shadow-xl border border-[#e8e8e3] z-50 max-h-[600px] overflow-y-auto">
+                {/* History Header */}
+                <div className="sticky top-0 px-4 py-3 border-b border-[#e8e8e3] bg-white rounded-t-xl">
+                  <h3 className="text-lg font-medium text-[#072929]">History</h3>
+                </div>
 
                 {/* Loading State */}
                 {isLoadingThreads ? (
@@ -191,11 +203,27 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                   </div>
                 ) : (
                   /* Thread List Grouped by Date */
-                  Object.entries(groupedThreads).map(([dateGroup, groupThreads]) => (
+                  Object.entries(groupedThreads)
+                    .sort(([keyA], [keyB]) => {
+                      // Order: Today, Yesterday, then by date descending
+                      const order: Record<string, number> = { 'Today': 0, 'Yesterday': 1 };
+                      const orderA = order[keyA] ?? 2;
+                      const orderB = order[keyB] ?? 2;
+                      
+                      if (orderA !== orderB) return orderA - orderB;
+                      
+                      // If both are dates, sort by date descending
+                      if (orderA === 2) {
+                        return new Date(keyB).getTime() - new Date(keyA).getTime();
+                      }
+                      return 0;
+                    })
+                    .map(([dateGroup, groupThreads]) => (
                     <div key={dateGroup}>
-                      {/* Date Group Header */}
-                      <div className="px-4 py-2 text-xs font-medium text-gray-600 bg-gray-50">
-                        {dateGroup}
+                      {/* Date Group Header with Count */}
+                      <div className="flex items-center justify-between px-4 py-2 border-b border-[#e8e8e3] bg-[#f9f9f6]">
+                        <span className="text-sm font-medium text-[#072929]">{dateGroup}</span>
+                        <span className="text-sm text-[#072929]">{groupThreads.length} Total</span>
                       </div>
 
                       {/* Threads in Group */}
@@ -203,14 +231,18 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         <button
                           key={thread.thread_id}
                           onClick={() => handleThreadSelect(thread.thread_id)}
-                          className={`w-full flex items-center justify-between px-4 py-3 text-sm text-left transition-colors ${currentThread?.thread_id === thread.thread_id
-                              ? 'bg-blue-50 text-blue-900'
-                              : 'text-gray-700 hover:bg-gray-50'
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm text-left transition-colors border-b border-[#f0f0f0] ${currentThread?.thread_id === thread.thread_id
+                              ? 'bg-[#f0f0f0] text-[#072929]'
+                              : 'text-[#072929] hover:bg-[#f9f9f6]'
                             }`}
                         >
+                          {/* Chat Bubble Icon */}
+                          <svg className="w-4 h-4 flex-shrink-0 text-[#072929]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                          </svg>
                           <span className="truncate flex-1">{thread.metadata?.title || 'Untitled'}</span>
                           {currentThread?.thread_id === thread.thread_id && (
-                            <Check className="w-4 h-4 text-blue-600 flex-shrink-0 ml-2" />
+                            <Check className="w-4 h-4 text-[#072929] flex-shrink-0" />
                           )}
                         </button>
                       ))}
@@ -219,16 +251,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 )}
               </div>
             )}
-          </div>
+          </button>
         </div>
-
-        <button
-          onClick={handleNewThread}
-          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-          title="New conversation"
-        >
-          <Pencil className="w-5 h-5" />
-        </button>
       </div>
 
       {/* Messages Area */}
@@ -412,66 +436,69 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
       {/* Input Area */}
       <div className="px-4 py-3 border-t border-gray-100">
         <form onSubmit={handleSubmit} className="relative">
-          <div className={`flex items-center gap-2 px-4 py-3 rounded-lg border transition-all ${isStreaming
-              ? 'bg-red-50 border-red-300 focus-within:border-red-400 focus-within:ring-1 focus-within:ring-red-400'
-              : 'bg-gray-50 border-gray-200 focus-within:border-[#136D6D] focus-within:ring-1 focus-within:ring-[#136D6D]'
+          <div className={`bg-[var(--color-semantic-background-primary)] border rounded-[12px] p-3 transition-all ${isStreaming
+              ? 'border-red-300 bg-red-50'
+              : 'border-[var(--pixis-sandstorm-s40,#e8e8e3)]'
             }`}>
-            {/* Add Attachment Button */}
-            <button
-              type="button"
-              className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-              title="Add attachment"
-              disabled={isStreaming}
-            >
-              <Plus className="w-5 h-5" />
-            </button>
-
-            {/* Input Field */}
-            <div className="flex-1 flex items-center gap-2">
-              <span className="text-base">{isStreaming ? '⏹️' : '👋'}</span>
+            <div className="flex flex-col gap-8">
+              {/* Input Field */}
               <input
                 ref={inputRef}
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={isStreaming ? "Generating response..." : "Ask me anything about your campaigns..."}
-                className="flex-1 bg-transparent text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none"
+                placeholder={isStreaming ? "Generating response..." : "👋 Ask me anything about your campaigns..."}
+                className="w-full bg-transparent text-[14px] font-normal text-[#072929] placeholder:text-[#072929] focus:outline-none"
+                style={{ fontFamily: "'GT America Trial', sans-serif" }}
                 disabled={isLoading || isStreaming}
               />
+
+              {/* Controls Row */}
+              <div className="flex items-center justify-between">
+                {/* Add Attachment Button */}
+                <button
+                  type="button"
+                  className="p-1 hover:opacity-70 transition-opacity"
+                  title="Add attachment"
+                  disabled={isStreaming}
+                >
+                  <img src={ASSISTANT_ICONS.addCircle} alt="Add attachment" className="w-5 h-5" />
+                </button>
+
+                {/* Stop Button - shown during streaming */}
+                {isStreaming ? (
+                  <button
+                    type="button"
+                    onClick={handleStop}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors"
+                    title="Stop generating"
+                  >
+                    <Square className="w-4 h-4 fill-current" />
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2.5">
+                    {/* Voice Button */}
+                    <button
+                      type="button"
+                      className="p-1 hover:opacity-70 transition-opacity"
+                      title="Voice input"
+                    >
+                      <img src={ASSISTANT_ICONS.mic} alt="Voice input" className="w-5 h-5" />
+                    </button>
+
+                    {/* Analytics Button */}
+                    <button
+                      type="button"
+                      className="p-1 hover:opacity-70 transition-opacity"
+                      title="View analytics"
+                    >
+                      <img src={ASSISTANT_ICONS.voice} alt="View analytics" className="w-6 h-6" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-
-            {/* Stop Button - shown during streaming */}
-            {isStreaming ? (
-              <button
-                type="button"
-                onClick={handleStop}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors"
-                title="Stop generating"
-              >
-                <Square className="w-4 h-4 fill-current" />
-              </button>
-            ) : (
-              <>
-                {/* Voice Button */}
-                <button
-                  type="button"
-                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                  title="Voice input"
-                >
-                  <Mic className="w-5 h-5" />
-                </button>
-
-                {/* Analytics Button */}
-                <button
-                  type="button"
-                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                  title="View analytics"
-                >
-                  <BarChart3 className="w-5 h-5" />
-                </button>
-              </>
-            )}
           </div>
         </form>
       </div>
