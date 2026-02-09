@@ -8,6 +8,7 @@ export const googleAdwordsCampaignsService = {
     payload: {
       campaign_type: "PERFORMANCE_MAX" | "SHOPPING" | "SEARCH" | "DEMAND_GEN";
       customer_id?: string; // Optional - for selecting specific profile
+      profile_id?: string; // Optional - profile id (backend resolves by this or customer_id)
       name: string;
       budget_amount: number; // In dollars, backend converts to micros
       budget_name?: string;

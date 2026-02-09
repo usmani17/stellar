@@ -21,6 +21,8 @@ interface TargetsTabProps {
   adgroups: AdGroup[];
   campaignId: string | null;
   campaignType: string | null;
+  /** When true, create/update targets are disabled (campaign is archived). */
+  isCampaignArchived?: boolean;
 
   // Selection
   selectedTargetIds: Set<number>;
@@ -110,6 +112,7 @@ export const TargetsTab: React.FC<TargetsTabProps> = ({
   adgroups,
   campaignId,
   campaignType,
+  isCampaignArchived = false,
   selectedTargetIds,
   onSelectAll,
   onSelect,
@@ -181,6 +184,12 @@ export const TargetsTab: React.FC<TargetsTabProps> = ({
                 type="button"
                 variant="ghost"
                 className="edit-button"
+                disabled={isCampaignArchived}
+                title={
+                  isCampaignArchived
+                    ? "Targets cannot be modified when the campaign is archived"
+                    : undefined
+                }
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleBulkActions();
@@ -218,7 +227,9 @@ export const TargetsTab: React.FC<TargetsTabProps> = ({
                         key={opt.value}
                         type="button"
                         className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                        disabled={selectedTargetIds.size === 0}
+                        disabled={
+                          selectedTargetIds.size === 0 || isCampaignArchived
+                        }
                         onClick={(e) => {
                           e.stopPropagation();
                           if (selectedTargetIds.size === 0) return;
@@ -251,6 +262,13 @@ export const TargetsTab: React.FC<TargetsTabProps> = ({
           )}
           {/* Create Target Button */}
           <button
+            type="button"
+            disabled={isCampaignArchived}
+            title={
+              isCampaignArchived
+                ? "Targets cannot be created when the campaign is archived"
+                : undefined
+            }
             onClick={async () => {
               const newState = !isCreatePanelOpen;
               onToggleCreatePanel();

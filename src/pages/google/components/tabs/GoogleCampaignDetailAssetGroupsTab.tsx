@@ -4,7 +4,10 @@ import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Loader } from "../../../../components/ui/Loader";
-import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
+import {
+  FilterPanel,
+  type FilterValues,
+} from "../../../../components/filters/FilterPanel";
 import { GoogleAssetManagementPanel } from "../../../../components/google/GoogleAssetManagementPanel";
 import {
   BulkUpdateConfirmationModal,
@@ -51,10 +54,17 @@ interface GoogleCampaignDetailAssetGroupsTabProps {
   syncMessage: string | null;
   formatPercentage: (value: number | string | undefined) => string;
   formatCurrency2Decimals: (value: number | string | undefined) => string;
-  getSortIcon: (column: string, currentSortBy: string, currentSortOrder: "asc" | "desc") => React.ReactNode;
+  getSortIcon: (
+    column: string,
+    currentSortBy: string,
+    currentSortOrder: "asc" | "desc"
+  ) => React.ReactNode;
   onEditAssetGroup?: (assetGroup: GoogleAssetGroup) => void;
   editLoadingAssetGroupId?: number | null;
-  onUpdateAssetGroupStatus?: (assetGroupId: number, status: string) => Promise<void>;
+  onUpdateAssetGroupStatus?: (
+    assetGroupId: number,
+    status: string
+  ) => Promise<void>;
   onBulkUpdateAssetGroupStatus?: (
     assetGroupIds: (string | number)[],
     status: "ENABLED" | "PAUSED"
@@ -86,7 +96,9 @@ interface GoogleCampaignDetailAssetGroupsTabProps {
   onBulkUpdateComplete?: () => void;
 }
 
-export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAssetGroupsTabProps> = ({
+export const GoogleCampaignDetailAssetGroupsTab: React.FC<
+  GoogleCampaignDetailAssetGroupsTabProps
+> = ({
   assetGroups,
   loading,
   selectedAssetGroupIds,
@@ -122,8 +134,11 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
   createPanel,
   onBulkUpdateComplete,
 }) => {
-  const [showBulkConfirmationModal, setShowBulkConfirmationModal] = useState(false);
-  const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLED" | "PAUSED" | null>(null);
+  const [showBulkConfirmationModal, setShowBulkConfirmationModal] =
+    useState(false);
+  const [pendingStatusAction, setPendingStatusAction] = useState<
+    "ENABLED" | "PAUSED" | null
+  >(null);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkUpdateResults, setBulkUpdateResults] = useState<{
     updated: number;
@@ -131,24 +146,80 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
     errors: string[];
   } | null>(null);
 
+  const filteredAssetGroups = React.useMemo(() => {
+    if (!filters || filters.length === 0) return assetGroups;
+
+    return assetGroups.filter((ag) =>
+      filters.every((filter) => {
+        const fieldValue = (ag as any)[filter.field];
+        if (fieldValue == null) return false;
+
+        // STATUS FILTER — handle FIRST
+        if (filter.field === "status") {
+          return (
+            String(fieldValue).toUpperCase() ===
+            String(filter.value).toUpperCase()
+          );
+        }
+
+        // STRING FILTERS (name, etc.)
+        if (
+          typeof fieldValue === "string" &&
+          typeof filter.value === "string"
+        ) {
+          const left = fieldValue.toLowerCase();
+          const right = filter.value.toLowerCase();
+
+          switch (filter.operator) {
+            case "contains":
+              return left.includes(right);
+            case "not_contains":
+              return !left.includes(right);
+            case "equals":
+              return left === right;
+            default:
+              return true;
+          }
+        }
+
+        return true;
+      })
+    );
+  }, [assetGroups, filters]);
+
   const getSelectedAssetGroupsData = () =>
-    assetGroups.filter((ag) => selectedAssetGroupIds.has(ag.id));
-  const selectableAssetGroups = assetGroups.filter(
+    filteredAssetGroups.filter((ag) => selectedAssetGroupIds.has(ag.id));
+
+  const selectableAssetGroups = filteredAssetGroups.filter(
     (ag) => (ag.status || "").toUpperCase() !== "REMOVED"
   );
+
   const isAssetGroupRemoved = (ag: { status?: string }) =>
     (ag.status || "").toUpperCase() === "REMOVED";
 
   const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
-    if ((!onUpdateAssetGroupStatus && !onBulkUpdateAssetGroupStatus) || selectedAssetGroupIds.size === 0) return;
+    if (
+      (!onUpdateAssetGroupStatus && !onBulkUpdateAssetGroupStatus) ||
+      selectedAssetGroupIds.size === 0
+    )
+      return;
     const selectedData = getSelectedAssetGroupsData();
     setBulkLoading(true);
     setBulkUpdateResults(null);
     try {
       if (onBulkUpdateAssetGroupStatus) {
-        const assetGroupIds = selectedData.map((ag) => ag.asset_group_id).filter((id): id is number => id != null);
-        const result = await onBulkUpdateAssetGroupStatus(assetGroupIds, statusValue);
-        setBulkUpdateResults({ updated: result.updated, failed: result.failed, errors: result.errors ?? [] });
+        const assetGroupIds = selectedData
+          .map((ag) => ag.asset_group_id)
+          .filter((id): id is number => id != null);
+        const result = await onBulkUpdateAssetGroupStatus(
+          assetGroupIds,
+          statusValue
+        );
+        setBulkUpdateResults({
+          updated: result.updated,
+          failed: result.failed,
+          errors: result.errors ?? [],
+        });
         if (onBulkUpdateComplete) onBulkUpdateComplete();
       } else if (onUpdateAssetGroupStatus) {
         let totalUpdated = 0;
@@ -164,7 +235,11 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
             allErrors.push(e?.message || "Failed");
           }
         }
-        setBulkUpdateResults({ updated: totalUpdated, failed: totalFailed, errors: allErrors });
+        setBulkUpdateResults({
+          updated: totalUpdated,
+          failed: totalFailed,
+          errors: allErrors,
+        });
         if (onBulkUpdateComplete) onBulkUpdateComplete();
       }
     } finally {
@@ -172,18 +247,26 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
     }
   };
 
-  const [editingAssetGroupId, setEditingAssetGroupId] = useState<number | null>(null);
+  const [editingAssetGroupId, setEditingAssetGroupId] = useState<number | null>(
+    null
+  );
   const [editingField, setEditingField] = useState<"status" | null>(null);
   const [editingValue, setEditingValue] = useState<string>("");
-  const [updatingAssetGroupId, setUpdatingAssetGroupId] = useState<number | null>(null);
+  const [updatingAssetGroupId, setUpdatingAssetGroupId] = useState<
+    number | null
+  >(null);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusModalData, setStatusModalData] = useState<{
     assetGroup: GoogleAssetGroup;
     oldValue: string;
     newValue: string;
   } | null>(null);
-  const [assetManagementPanelOpen, setAssetManagementPanelOpen] = useState(false);
-  const [selectedAssetGroupIdForManagement, setSelectedAssetGroupIdForManagement] = useState<string | null>(null);
+  const [assetManagementPanelOpen, setAssetManagementPanelOpen] =
+    useState(false);
+  const [
+    selectedAssetGroupIdForManagement,
+    setSelectedAssetGroupIdForManagement,
+  ] = useState<string | null>(null);
 
   const handleStatusClick = (assetGroup: GoogleAssetGroup) => {
     if (onUpdateAssetGroupStatus) {
@@ -196,8 +279,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
         currentStatus === "ENABLE" || currentStatus === "ENABLED"
           ? "ENABLED"
           : currentStatus === "PAUSE" || currentStatus === "PAUSED"
-            ? "PAUSED"
-            : currentStatus;
+          ? "PAUSED"
+          : currentStatus;
       setEditingValue(normalizedStatus);
     }
   };
@@ -217,8 +300,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
       currentStatus === "ENABLE" || currentStatus === "ENABLED"
         ? "ENABLED"
         : currentStatus === "PAUSE" || currentStatus === "PAUSED"
-          ? "PAUSED"
-          : currentStatus;
+        ? "PAUSED"
+        : currentStatus;
     const newStatusUpper = newStatus.toUpperCase();
     const hasChanged = newStatusUpper !== normalizedCurrent;
 
@@ -229,7 +312,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
         setEditingField(null);
         setEditingValue("");
       }
-      
+
       // Format status values for display
       const statusDisplayMap: Record<string, string> = {
         ENABLED: "Enabled",
@@ -255,7 +338,6 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
     }
   };
 
-
   const confirmStatusChange = async () => {
     if (!statusModalData || !onUpdateAssetGroupStatus) return;
 
@@ -271,7 +353,12 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
         Removed: "REMOVED",
         REMOVED: "REMOVED",
       };
-      const apiStatus = statusMap[statusModalData.newValue] || statusModalData.newValue.toUpperCase() as "ENABLED" | "PAUSED" | "REMOVED";
+      const apiStatus =
+        statusMap[statusModalData.newValue] ||
+        (statusModalData.newValue.toUpperCase() as
+          | "ENABLED"
+          | "PAUSED"
+          | "REMOVED");
 
       await onUpdateAssetGroupStatus(statusModalData.assetGroup.id, apiStatus);
       setShowStatusModal(false);
@@ -294,10 +381,14 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
       {syncMessage && (
         <div className="mb-4">
           <Banner
-            type={syncMessage.includes("error") || syncMessage.includes("Failed") ? "error" : "success"}
+            type={
+              syncMessage.includes("error") || syncMessage.includes("Failed")
+                ? "error"
+                : "success"
+            }
             message={syncMessage}
             dismissable={true}
-            onDismiss={() => { }}
+            onDismiss={() => {}}
           />
         </div>
       )}
@@ -309,23 +400,21 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
         </h2>
         <div className="flex items-center gap-2">
           {createButton}
-          {(onUpdateAssetGroupStatus || onBulkUpdateAssetGroupStatus) && onBulkUpdateComplete && (
-            <BulkActionsDropdown
-              options={[
-                { value: "ENABLED", label: "Enable" },
-                { value: "PAUSED", label: "Pause" },
-              ]}
-              selectedCount={selectedAssetGroupIds.size}
-              onSelect={(value) => {
-                setPendingStatusAction(value as "ENABLED" | "PAUSED");
-                setShowBulkConfirmationModal(true);
-              }}
-            />
-          )}
-          <button
-            onClick={onToggleFilterPanel}
-            className="edit-button"
-          >
+          {(onUpdateAssetGroupStatus || onBulkUpdateAssetGroupStatus) &&
+            onBulkUpdateComplete && (
+              <BulkActionsDropdown
+                options={[
+                  { value: "ENABLED", label: "Enable" },
+                  { value: "PAUSED", label: "Pause" },
+                ]}
+                selectedCount={selectedAssetGroupIds.size}
+                onSelect={(value) => {
+                  setPendingStatusAction(value as "ENABLED" | "PAUSED");
+                  setShowBulkConfirmationModal(true);
+                }}
+              />
+            )}
+          <button onClick={onToggleFilterPanel} className="edit-button">
             <svg
               className="w-5 h-5 text-[#072929]"
               fill="none"
@@ -389,7 +478,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
             <div className="text-center py-8 text-[#556179] text-[13.3px]">
               Loading asset groups...
             </div>
-          ) : assetGroups.length === 0 ? (
+          ) : filteredAssetGroups.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-[13.3px] text-[#556179] mb-4">
                 No asset groups found
@@ -404,19 +493,20 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                       <Checkbox
                         checked={
                           selectableAssetGroups.length > 0 &&
-                          selectableAssetGroups.every((ag) => selectedAssetGroupIds.has(ag.id))
+                          selectableAssetGroups.every((ag) =>
+                            selectedAssetGroupIds.has(ag.id)
+                          )
                         }
                         onChange={(checked) =>
-                          selectableAssetGroups.forEach((ag) => onSelectAssetGroup(ag.id, checked))
+                          selectableAssetGroups.forEach((ag) =>
+                            onSelectAssetGroup(ag.id, checked)
+                          )
                         }
                         size="small"
                       />
                     </div>
                   </th>
-                  <th
-                    className="table-header"
-                    onClick={() => onSort("name")}
-                  >
+                  <th className="table-header" onClick={() => onSort("name")}>
                     <div className="flex items-center gap-1">
                       Asset Group Name
                       {getSortIcon("name", sortBy, sortOrder)}
@@ -440,27 +530,35 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                   <th className="table-header hidden md:table-cell">
                     Conv. value
                   </th> */}
-                  <th className="table-header">
-                    Actions
-                  </th>
+                  <th className="table-header">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {assetGroups.map((assetGroup, index) => {
-                  const isLastRow = index === assetGroups.length - 1;
-                  const assetGroupStatus = (assetGroup.status || "").toUpperCase();
+                {filteredAssetGroups.map((assetGroup, index) => {
+                  const isLastRow = index === filteredAssetGroups.length - 1;
+                  const assetGroupStatus = (
+                    assetGroup.status || ""
+                  ).toUpperCase();
                   const isRemoved = assetGroupStatus === "REMOVED";
                   return (
                     <tr
                       key={assetGroup.id}
-                      className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
-                        } ${isRemoved ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"} transition-colors`}
+                      className={`${
+                        !isLastRow ? "border-b border-[#e8e8e3]" : ""
+                      } ${
+                        isRemoved
+                          ? "opacity-50 cursor-not-allowed"
+                          : "hover:bg-gray-50"
+                      } transition-colors`}
                     >
                       <td className="table-cell">
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedAssetGroupIds.has(assetGroup.id)}
-                            onChange={(checked) => !isAssetGroupRemoved(assetGroup) && onSelectAssetGroup(assetGroup.id, checked)}
+                            onChange={(checked) =>
+                              !isAssetGroupRemoved(assetGroup) &&
+                              onSelectAssetGroup(assetGroup.id, checked)
+                            }
                             disabled={isRemoved}
                             size="small"
                           />
@@ -514,8 +612,12 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                             </div>
                           ) : editingAssetGroupId === assetGroup.id &&
                             editingField === "status" &&
-                            onUpdateAssetGroupStatus && !isRemoved ? (
-                            <div onClick={(e) => e.stopPropagation()} className="w-full relative">
+                            onUpdateAssetGroupStatus &&
+                            !isRemoved ? (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full relative"
+                            >
                               <Dropdown<string>
                                 options={[
                                   { value: "ENABLED", label: "Enabled" },
@@ -524,7 +626,10 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                                 ]}
                                 value={editingValue}
                                 onChange={(val) => {
-                                  handleStatusChange(assetGroup.id, val as string);
+                                  handleStatusChange(
+                                    assetGroup.id,
+                                    val as string
+                                  );
                                 }}
                                 defaultOpen={true}
                                 closeOnSelect={true}
@@ -552,9 +657,13 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                               disabled={!onUpdateAssetGroupStatus || isRemoved}
                             >
                               <span className="truncate flex-1 min-w-0 text-left">
-                                {assetGroup.status === "ENABLED" || assetGroup.status === "Enabled" || assetGroup.status === "ENABLE"
+                                {assetGroup.status === "ENABLED" ||
+                                assetGroup.status === "Enabled" ||
+                                assetGroup.status === "ENABLE"
                                   ? "Enabled"
-                                  : assetGroup.status === "PAUSED" || assetGroup.status === "Paused" || assetGroup.status === "PAUSE"
+                                  : assetGroup.status === "PAUSED" ||
+                                    assetGroup.status === "Paused" ||
+                                    assetGroup.status === "PAUSE"
                                   ? "Paused"
                                   : assetGroup.status || "Enabled"}
                               </span>
@@ -651,7 +760,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
       )}
 
       {/* Pagination */}
-      {!loading && assetGroups.length > 0 && totalPages > 1 && (
+      {!loading && filteredAssetGroups.length > 0 && totalPages > 1 && (
         <div className="flex items-center justify-end mt-4">
           <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
             <button
@@ -676,10 +785,11 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                 <button
                   key={pageNum}
                   onClick={() => onPageChange(pageNum)}
-                  className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
+                  className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                    currentPage === pageNum
                       ? "bg-white text-[#136D6D] font-semibold"
                       : "text-black hover:bg-gray-50"
-                    }`}
+                  }`}
                 >
                   {pageNum}
                 </button>
@@ -693,16 +803,19 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
             {totalPages > 5 && (
               <button
                 onClick={() => onPageChange(totalPages)}
-                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
+                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                  currentPage === totalPages
                     ? "bg-white text-[#136D6D] font-semibold"
                     : "text-black hover:bg-gray-50"
-                  }`}
+                }`}
               >
                 {totalPages}
               </button>
             )}
             <button
-              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+              onClick={() =>
+                onPageChange(Math.min(totalPages, currentPage + 1))
+              }
               disabled={currentPage === totalPages}
               className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
             >
@@ -727,7 +840,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
             className="absolute inset-0 bg-black/40 transition-opacity"
             onClick={onCloseViewAssetsModal}
           />
-          
+
           {/* Modal */}
           <div
             className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] border border-[#E8E8E3] flex flex-col"
@@ -742,8 +855,18 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                 onClick={onCloseViewAssetsModal}
                 className="text-[#556179] hover:text-[#072929] transition-colors"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -757,7 +880,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
               ) : assetGroupAssets ? (
                 <div className="space-y-6">
                   {/* Beautiful Header: Business Name + Logo */}
-                  {(assetGroupAssets.business_name || assetGroupAssets.logo_url) && (
+                  {(assetGroupAssets.business_name ||
+                    assetGroupAssets.logo_url) && (
                     <div className="flex items-center justify-between p-5 bg-gradient-to-r from-[#fefefb] via-[#fafaf7] to-[#f9f9f6] rounded-xl border border-[#e8e8e3] shadow-sm">
                       <div className="flex-1">
                         {assetGroupAssets.business_name && (
@@ -773,7 +897,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                             alt="Logo"
                             className="h-16 w-16 object-contain"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).style.display =
+                                "none";
                             }}
                           />
                         </div>
@@ -782,86 +907,135 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                   )}
 
                   {/* Final URLs */}
-                  {assetGroupAssets.final_urls && assetGroupAssets.final_urls.length > 0 && (
-                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-4 shadow-sm">
-                      <h4 className="text-[13px] font-semibold text-[#072929] mb-3 flex items-center gap-2">
-                        <svg className="w-4 h-4 text-[#136D6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                        </svg>
-                        Final URLs ({assetGroupAssets.final_urls.length})
-                      </h4>
-                      <div className="space-y-2">
-                        {assetGroupAssets.final_urls.map((url, index) => (
-                          <a
-                            key={index}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[13px] text-[#136D6D] hover:text-[#0d5252] hover:underline block truncate flex items-center gap-2"
-                            title={url}
+                  {assetGroupAssets.final_urls &&
+                    assetGroupAssets.final_urls.length > 0 && (
+                      <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-4 shadow-sm">
+                        <h4 className="text-[13px] font-semibold text-[#072929] mb-3 flex items-center gap-2">
+                          <svg
+                            className="w-4 h-4 text-[#136D6D]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
                           >
-                            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                            {url}
-                          </a>
-                        ))}
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                            />
+                          </svg>
+                          Final URLs ({assetGroupAssets.final_urls.length})
+                        </h4>
+                        <div className="space-y-2">
+                          {assetGroupAssets.final_urls.map((url, index) => (
+                            <a
+                              key={index}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[13px] text-[#136D6D] hover:text-[#0d5252] hover:underline block truncate flex items-center gap-2"
+                              title={url}
+                            >
+                              <svg
+                                className="w-3.5 h-3.5 flex-shrink-0"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                />
+                              </svg>
+                              {url}
+                            </a>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* Headlines - Beautiful Card */}
-                  {assetGroupAssets.headlines && assetGroupAssets.headlines.filter(h => h && h.trim()).length > 0 && (
-                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-5 shadow-sm">
-                      <div className="flex items-center gap-2 mb-4">
-                        <h4 className="text-[15px] font-semibold text-[#072929]">Headlines</h4>
-                        <span className="px-2.5 py-0.5 bg-[#136D6D]/10 text-[#136D6D] text-[11px] font-medium rounded-full">
-                          {assetGroupAssets.headlines.filter(h => h && h.trim()).length}
-                        </span>
+                  {assetGroupAssets.headlines &&
+                    assetGroupAssets.headlines.filter((h) => h && h.trim())
+                      .length > 0 && (
+                      <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-5 shadow-sm">
+                        <div className="flex items-center gap-2 mb-4">
+                          <h4 className="text-[15px] font-semibold text-[#072929]">
+                            Headlines
+                          </h4>
+                          <span className="px-2.5 py-0.5 bg-[#136D6D]/10 text-[#136D6D] text-[11px] font-medium rounded-full">
+                            {
+                              assetGroupAssets.headlines.filter(
+                                (h) => h && h.trim()
+                              ).length
+                            }
+                          </span>
+                        </div>
+                        <ol className="space-y-3 list-none">
+                          {assetGroupAssets.headlines
+                            .filter((h) => h && h.trim())
+                            .map((headline, index) => (
+                              <li
+                                key={index}
+                                className="flex items-start gap-3"
+                              >
+                                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#136D6D]/10 text-[#136D6D] text-[12px] font-semibold flex items-center justify-center mt-0.5">
+                                  {index + 1}
+                                </span>
+                                <p className="text-[14px] text-[#072929] leading-relaxed flex-1">
+                                  {headline}
+                                </p>
+                              </li>
+                            ))}
+                        </ol>
                       </div>
-                      <ol className="space-y-3 list-none">
-                        {assetGroupAssets.headlines.filter(h => h && h.trim()).map((headline, index) => (
-                          <li key={index} className="flex items-start gap-3">
-                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#136D6D]/10 text-[#136D6D] text-[12px] font-semibold flex items-center justify-center mt-0.5">
-                              {index + 1}
-                            </span>
-                            <p className="text-[14px] text-[#072929] leading-relaxed flex-1">
-                              {headline}
-                            </p>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
+                    )}
 
                   {/* Descriptions - Beautiful Card */}
-                  {assetGroupAssets.descriptions && assetGroupAssets.descriptions.filter(d => d && d.trim()).length > 0 && (
-                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-5 shadow-sm">
-                      <div className="flex items-center gap-2 mb-4">
-                        <h4 className="text-[15px] font-semibold text-[#072929]">Descriptions</h4>
-                        <span className="px-2.5 py-0.5 bg-[#136D6D]/10 text-[#136D6D] text-[11px] font-medium rounded-full">
-                          {assetGroupAssets.descriptions.filter(d => d && d.trim()).length}
-                        </span>
+                  {assetGroupAssets.descriptions &&
+                    assetGroupAssets.descriptions.filter((d) => d && d.trim())
+                      .length > 0 && (
+                      <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-5 shadow-sm">
+                        <div className="flex items-center gap-2 mb-4">
+                          <h4 className="text-[15px] font-semibold text-[#072929]">
+                            Descriptions
+                          </h4>
+                          <span className="px-2.5 py-0.5 bg-[#136D6D]/10 text-[#136D6D] text-[11px] font-medium rounded-full">
+                            {
+                              assetGroupAssets.descriptions.filter(
+                                (d) => d && d.trim()
+                              ).length
+                            }
+                          </span>
+                        </div>
+                        <ol className="space-y-3 list-none">
+                          {assetGroupAssets.descriptions
+                            .filter((d) => d && d.trim())
+                            .map((description, index) => (
+                              <li
+                                key={index}
+                                className="flex items-start gap-3"
+                              >
+                                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#136D6D]/10 text-[#136D6D] text-[12px] font-semibold flex items-center justify-center mt-0.5">
+                                  {index + 1}
+                                </span>
+                                <p className="text-[14px] text-[#072929] leading-relaxed flex-1">
+                                  {description}
+                                </p>
+                              </li>
+                            ))}
+                        </ol>
                       </div>
-                      <ol className="space-y-3 list-none">
-                        {assetGroupAssets.descriptions.filter(d => d && d.trim()).map((description, index) => (
-                          <li key={index} className="flex items-start gap-3">
-                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#136D6D]/10 text-[#136D6D] text-[12px] font-semibold flex items-center justify-center mt-0.5">
-                              {index + 1}
-                            </span>
-                            <p className="text-[14px] text-[#072929] leading-relaxed flex-1">
-                              {description}
-                            </p>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
+                    )}
 
                   {/* Long Headline - Beautiful Card */}
                   {assetGroupAssets.long_headline && (
                     <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-5 shadow-sm">
-                      <h4 className="text-[15px] font-semibold text-[#072929] mb-3">Long Headline</h4>
+                      <h4 className="text-[15px] font-semibold text-[#072929] mb-3">
+                        Long Headline
+                      </h4>
                       <p className="text-[14px] text-[#072929] leading-relaxed pl-2 border-l-3 border-[#136D6D]">
                         {assetGroupAssets.long_headline}
                       </p>
@@ -869,9 +1043,12 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                   )}
 
                   {/* Media Assets - Images First */}
-                  {(assetGroupAssets.marketing_image_url || assetGroupAssets.square_marketing_image_url) && (
+                  {(assetGroupAssets.marketing_image_url ||
+                    assetGroupAssets.square_marketing_image_url) && (
                     <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-5 shadow-sm">
-                      <h4 className="text-[15px] font-semibold text-[#072929] mb-4">Media Assets</h4>
+                      <h4 className="text-[15px] font-semibold text-[#072929] mb-4">
+                        Media Assets
+                      </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Marketing Image */}
                         {assetGroupAssets.marketing_image_url && (
@@ -882,21 +1059,39 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                                 alt="Marketing Image"
                                 className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-105"
                                 onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  (e.target as HTMLImageElement).style.display =
+                                    "none";
                                 }}
                               />
                             </div>
                             <div className="p-3 bg-white border-t border-[#e8e8e3]">
-                              <p className="text-[12px] font-medium text-[#556179] mb-2">Marketing Image</p>
+                              <p className="text-[12px] font-medium text-[#556179] mb-2">
+                                Marketing Image
+                              </p>
                               <a
                                 href={assetGroupAssets.marketing_image_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 text-[11px] text-[#136D6D] hover:text-[#0d5252] font-medium hover:underline"
                               >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                <svg
+                                  className="w-3.5 h-3.5"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                  />
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                  />
                                 </svg>
                                 View Full
                               </a>
@@ -909,25 +1104,47 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                           <div className="group border border-[#e8e8e3] rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
                             <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden">
                               <img
-                                src={assetGroupAssets.square_marketing_image_url}
+                                src={
+                                  assetGroupAssets.square_marketing_image_url
+                                }
                                 alt="Square Marketing Image"
                                 className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-105"
                                 onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  (e.target as HTMLImageElement).style.display =
+                                    "none";
                                 }}
                               />
                             </div>
                             <div className="p-3 bg-white border-t border-[#e8e8e3]">
-                              <p className="text-[12px] font-medium text-[#556179] mb-2">Square Marketing Image</p>
+                              <p className="text-[12px] font-medium text-[#556179] mb-2">
+                                Square Marketing Image
+                              </p>
                               <a
-                                href={assetGroupAssets.square_marketing_image_url}
+                                href={
+                                  assetGroupAssets.square_marketing_image_url
+                                }
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 text-[11px] text-[#136D6D] hover:text-[#0d5252] font-medium hover:underline"
                               >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                <svg
+                                  className="w-3.5 h-3.5"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                  />
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                  />
                                 </svg>
                                 View Full
                               </a>
@@ -939,69 +1156,94 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                   )}
 
                   {/* Video Assets - After Media Images */}
-                  {assetGroupAssets.video_assets && assetGroupAssets.video_assets.length > 0 && (
-                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-5 shadow-sm">
-                      <h4 className="text-[15px] font-semibold text-[#072929] mb-4 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-[#136D6D]" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                        </svg>
-                        Video Assets
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {assetGroupAssets.video_assets.map((video: any, index: number) => {
-                          if (!video.youtube_video_id) return null;
-                          return (
-                            <div key={index} className="group border border-[#e8e8e3] rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all duration-200">
-                              <div className="aspect-video bg-gray-900 flex items-center justify-center overflow-hidden rounded-t-xl">
-                                <iframe
-                                  className="w-full h-full"
-                                  src={`https://www.youtube.com/embed/${video.youtube_video_id}`}
-                                  title={video.name || `Video ${index + 1}`}
-                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                  allowFullScreen
-                                />
-                              </div>
-                              <div className="p-3 bg-white border-t border-[#e8e8e3]">
-                                <p className="text-[12px] font-medium text-[#556179] mb-2 truncate">
-                                  {video.name || `YouTube Video ${index + 1}`}
-                                </p>
-                                <a
-                                  href={`https://www.youtube.com/watch?v=${video.youtube_video_id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#FF0000] hover:bg-[#CC0000] text-white text-[11px] font-medium rounded-lg transition-colors duration-200"
+                  {assetGroupAssets.video_assets &&
+                    assetGroupAssets.video_assets.length > 0 && (
+                      <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-xl p-5 shadow-sm">
+                        <h4 className="text-[15px] font-semibold text-[#072929] mb-4 flex items-center gap-2">
+                          <svg
+                            className="w-5 h-5 text-[#136D6D]"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                          </svg>
+                          Video Assets
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {assetGroupAssets.video_assets.map(
+                            (video: any, index: number) => {
+                              if (!video.youtube_video_id) return null;
+                              return (
+                                <div
+                                  key={index}
+                                  className="group border border-[#e8e8e3] rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all duration-200"
                                 >
-                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                                  </svg>
-                                  Watch on YouTube
-                                </a>
-                              </div>
-                            </div>
-                          );
-                        })}
+                                  <div className="aspect-video bg-gray-900 flex items-center justify-center overflow-hidden rounded-t-xl">
+                                    <iframe
+                                      className="w-full h-full"
+                                      src={`https://www.youtube.com/embed/${video.youtube_video_id}`}
+                                      title={video.name || `Video ${index + 1}`}
+                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                      allowFullScreen
+                                    />
+                                  </div>
+                                  <div className="p-3 bg-white border-t border-[#e8e8e3]">
+                                    <p className="text-[12px] font-medium text-[#556179] mb-2 truncate">
+                                      {video.name ||
+                                        `YouTube Video ${index + 1}`}
+                                    </p>
+                                    <a
+                                      href={`https://www.youtube.com/watch?v=${video.youtube_video_id}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#FF0000] hover:bg-[#CC0000] text-white text-[11px] font-medium rounded-lg transition-colors duration-200"
+                                    >
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                                      </svg>
+                                      Watch on YouTube
+                                    </a>
+                                  </div>
+                                </div>
+                              );
+                            }
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* Empty State */}
-                  {(!assetGroupAssets.headlines || assetGroupAssets.headlines.filter(h => h && h.trim()).length === 0) &&
-                   (!assetGroupAssets.descriptions || assetGroupAssets.descriptions.filter(d => d && d.trim()).length === 0) &&
-                   !assetGroupAssets.long_headline &&
-                   !assetGroupAssets.marketing_image_url &&
-                   !assetGroupAssets.square_marketing_image_url &&
-                   !assetGroupAssets.logo_url &&
-                   (!assetGroupAssets.video_assets || assetGroupAssets.video_assets.length === 0) &&
-                   (!assetGroupAssets.final_urls || assetGroupAssets.final_urls.length === 0) &&
-                   !assetGroupAssets.business_name && (
-                    <div className="text-center py-12">
-                      <p className="text-[13.3px] text-[#556179]">No assets available for this asset group.</p>
-                    </div>
-                  )}
+                  {(!assetGroupAssets.headlines ||
+                    assetGroupAssets.headlines.filter((h) => h && h.trim())
+                      .length === 0) &&
+                    (!assetGroupAssets.descriptions ||
+                      assetGroupAssets.descriptions.filter((d) => d && d.trim())
+                        .length === 0) &&
+                    !assetGroupAssets.long_headline &&
+                    !assetGroupAssets.marketing_image_url &&
+                    !assetGroupAssets.square_marketing_image_url &&
+                    !assetGroupAssets.logo_url &&
+                    (!assetGroupAssets.video_assets ||
+                      assetGroupAssets.video_assets.length === 0) &&
+                    (!assetGroupAssets.final_urls ||
+                      assetGroupAssets.final_urls.length === 0) &&
+                    !assetGroupAssets.business_name && (
+                      <div className="text-center py-12">
+                        <p className="text-[13.3px] text-[#556179]">
+                          No assets available for this asset group.
+                        </p>
+                      </div>
+                    )}
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <p className="text-[13.3px] text-[#556179]">Failed to load assets.</p>
+                  <p className="text-[13.3px] text-[#556179]">
+                    Failed to load assets.
+                  </p>
                 </div>
               )}
             </div>
@@ -1021,49 +1263,50 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
       )}
 
       {/* Bulk confirmation modal */}
-      {(onUpdateAssetGroupStatus || onBulkUpdateAssetGroupStatus) && onBulkUpdateComplete && (
-        <BulkUpdateConfirmationModal
-          isOpen={showBulkConfirmationModal}
-          onClose={() => {
-            setShowBulkConfirmationModal(false);
-            setPendingStatusAction(null);
-            setBulkUpdateResults(null);
-          }}
-          entityLabel="asset group"
-          entityNameColumn="Asset Group Name"
-          selectedCount={selectedAssetGroupIds.size}
-          bulkUpdateResults={bulkUpdateResults}
-          isValueChange={false}
-          valueChangeLabel=""
-          previewRows={getSelectedAssetGroupsData().map((ag) => {
-            const oldStatus = formatStatusForDisplay(ag.status || "ENABLED");
-            const newStatus = pendingStatusAction
-              ? formatStatusForDisplay(pendingStatusAction)
-              : oldStatus;
-            return {
-              name: ag.name || `Asset Group ${ag.asset_group_id}`,
-              oldValue: oldStatus,
-              newValue: newStatus,
-            } as BulkUpdatePreviewRow;
-          })}
-          actionDetails={
-            !bulkUpdateResults && pendingStatusAction
-              ? ({
-                  type: "status",
-                  newStatus:
-                    pendingStatusAction.charAt(0) +
-                    pendingStatusAction.slice(1).toLowerCase(),
-                } as BulkUpdateStatusDetails)
-              : null
-          }
-          loading={bulkLoading}
-          loadingMessage="Updating asset groups..."
-          successMessage="All asset groups updated successfully!"
-          onConfirm={async () => {
-            if (pendingStatusAction) await runBulkStatus(pendingStatusAction);
-          }}
-        />
-      )}
+      {(onUpdateAssetGroupStatus || onBulkUpdateAssetGroupStatus) &&
+        onBulkUpdateComplete && (
+          <BulkUpdateConfirmationModal
+            isOpen={showBulkConfirmationModal}
+            onClose={() => {
+              setShowBulkConfirmationModal(false);
+              setPendingStatusAction(null);
+              setBulkUpdateResults(null);
+            }}
+            entityLabel="asset group"
+            entityNameColumn="Asset Group Name"
+            selectedCount={selectedAssetGroupIds.size}
+            bulkUpdateResults={bulkUpdateResults}
+            isValueChange={false}
+            valueChangeLabel=""
+            previewRows={getSelectedAssetGroupsData().map((ag) => {
+              const oldStatus = formatStatusForDisplay(ag.status || "ENABLED");
+              const newStatus = pendingStatusAction
+                ? formatStatusForDisplay(pendingStatusAction)
+                : oldStatus;
+              return {
+                name: ag.name || `Asset Group ${ag.asset_group_id}`,
+                oldValue: oldStatus,
+                newValue: newStatus,
+              } as BulkUpdatePreviewRow;
+            })}
+            actionDetails={
+              !bulkUpdateResults && pendingStatusAction
+                ? ({
+                    type: "status",
+                    newStatus:
+                      pendingStatusAction.charAt(0) +
+                      pendingStatusAction.slice(1).toLowerCase(),
+                  } as BulkUpdateStatusDetails)
+                : null
+            }
+            loading={bulkLoading}
+            loadingMessage="Updating asset groups..."
+            successMessage="All asset groups updated successfully!"
+            onConfirm={async () => {
+              if (pendingStatusAction) await runBulkStatus(pendingStatusAction);
+            }}
+          />
+        )}
 
       {/* Status Change Confirmation Modal */}
       {showStatusModal && statusModalData && (
@@ -1080,7 +1323,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
             className="absolute inset-0 bg-black/40 transition-opacity"
             onClick={cancelStatusChange}
           />
-          
+
           {/* Modal */}
           <div
             className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]"
@@ -1091,7 +1334,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
               <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
                 Confirm Status Change
               </h3>
-              
+
               {/* Content */}
               <div className="mb-4">
                 <p className="text-[12.16px] text-[#556179] mb-2">
@@ -1102,7 +1345,9 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                 </p>
                 <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-[12.16px] text-[#556179]">Status:</span>
+                    <span className="text-[12.16px] text-[#556179]">
+                      Status:
+                    </span>
                     <div className="flex items-center gap-2">
                       <span className="text-[12.16px] text-[#556179]">
                         {statusModalData.oldValue}
@@ -1128,7 +1373,9 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                 <button
                   type="button"
                   onClick={confirmStatusChange}
-                  disabled={updatingAssetGroupId === statusModalData.assetGroup.id}
+                  disabled={
+                    updatingAssetGroupId === statusModalData.assetGroup.id
+                  }
                   className="create-entity-button btn-sm"
                 >
                   {updatingAssetGroupId === statusModalData.assetGroup.id
@@ -1143,4 +1390,3 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
     </>
   );
 };
-

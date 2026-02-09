@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { googleAdwordsAdsService } from "../../../services/googleAdwords/googleAdwordsAds";
 import type { FilterValues } from "../../../components/filters/FilterPanel";
+import { toLocalDateString } from "../../../utils/dateHelpers";
 
 interface UseGoogleCampaignDetailShoppingAdsParams {
   accountId: string | undefined;
@@ -234,6 +235,13 @@ export const useGoogleCampaignDetailShoppingAds = ({
         listingGroup.adgroup_id ||
         (listingGroup as any).adGroupId;
 
+      // Update local state immediately for instant UI feedback
+      setListingGroups((prevListingGroups) =>
+        prevListingGroups.map((lg) =>
+          lg.id === listingGroupId ? { ...lg, status } : lg
+        )
+      );
+
       // Call API - listing groups use the same bulkUpdateGoogleAds endpoint
       // Include campaignId and adGroupId to only update this specific instance
       await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, channelIdNum, {
@@ -247,16 +255,54 @@ export const useGoogleCampaignDetailShoppingAds = ({
           ? String(adGroupId)
           : undefined,
       });
-
-      // Update local state
-      setListingGroups((prevListingGroups) =>
-        prevListingGroups.map((lg) =>
-          lg.id === listingGroupId ? { ...lg, status } : lg
-        )
-      );
       
-      // Reload to ensure data consistency
-      await loadListingGroups();
+      // Reload after a short delay to ensure API has processed, but preserve status update
+      setTimeout(async () => {
+        try {
+          const data = await googleAdwordsAdsService.getGoogleAds(
+            accountIdNum,
+            channelIdNum,
+            parseInt(campaignId!, 10),
+            undefined,
+            {
+              filters: listingGroupsFilters,
+              page: listingGroupsCurrentPage,
+              page_size: 10,
+              sort_by: listingGroupsSortBy,
+              order: listingGroupsSortOrder,
+              start_date: startDate ? toLocalDateString(startDate) : undefined,
+              end_date: endDate ? toLocalDateString(endDate) : undefined,
+            }
+          );
+          
+          // Filter out product groups on the frontend (shopping ads should have is_product_group: false or not have the field)
+          const shoppingAds = (data.ads || []).filter((ad: any) => {
+            const extraData = ad.extra_data || {};
+            return extraData.is_product_group !== true;
+          });
+          
+          // Merge reloaded data but preserve our status update for this listing group
+          setListingGroups((prevListingGroups) => {
+            const updatedListingGroup = prevListingGroups.find((lg) => lg.id === listingGroupId);
+            // Preserve status update if we still have it in local state (case-insensitive comparison)
+            const normalizedStatus = status.toUpperCase();
+            if (updatedListingGroup && updatedListingGroup.status?.toUpperCase() === normalizedStatus) {
+              return shoppingAds.map((reloadedAd: any) => {
+                // Match by id (which is the primary key from the database)
+                if (reloadedAd.id === listingGroupId) {
+                  return { ...reloadedAd, status };
+                }
+                return reloadedAd;
+              });
+            }
+            return shoppingAds;
+          });
+          setListingGroupsTotalPages(data.total_pages || 0);
+        } catch (error) {
+          console.error("Failed to reload listing groups after status update:", error);
+          // Keep the local update even if reload fails
+        }
+      }, 500);
     } catch (error: any) {
       console.error("Failed to update listing group status:", error);
       const errorMessage =
@@ -272,7 +318,7 @@ export const useGoogleCampaignDetailShoppingAds = ({
       }
       throw error;
     }
-  }, [accountId, channelId, listingGroups, loadListingGroups, onError]);
+  }, [accountId, channelId, campaignId, listingGroups, listingGroupsFilters, listingGroupsCurrentPage, listingGroupsSortBy, listingGroupsSortOrder, startDate, endDate, onError]);
 
   return {
     // Data

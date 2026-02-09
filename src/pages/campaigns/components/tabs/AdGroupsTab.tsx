@@ -21,6 +21,8 @@ interface AdGroupsTabProps {
   campaignDetail: CampaignDetail | null;
   campaignId: string | null;
   campaignType: string | null;
+  /** When true, create/update ad groups are disabled (campaign is archived). */
+  isCampaignArchived?: boolean;
 
   // Selection
   selectedAdGroupIds: Set<string | number>;
@@ -115,6 +117,7 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
   campaignDetail,
   campaignId,
   campaignType,
+  isCampaignArchived = false,
   selectedAdGroupIds,
   onSelectAll,
   onSelect,
@@ -190,6 +193,7 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
               onCloseFilterPanel();
               onCloseBulkActions();
             }}
+            disabled={isCampaignArchived}
           />
           {/* Bulk Edit Button */}
           <div
@@ -200,6 +204,12 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
               type="button"
               variant="ghost"
               className="edit-button"
+              disabled={isCampaignArchived}
+              title={
+                isCampaignArchived
+                  ? "Ad groups cannot be modified when the campaign is archived"
+                  : undefined
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleBulkActions();
@@ -244,7 +254,9 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
                       key={opt.value}
                       type="button"
                       className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                      disabled={selectedAdGroupIds.size === 0}
+                      disabled={
+                        selectedAdGroupIds.size === 0 || isCampaignArchived
+                      }
                       onClick={(e) => {
                         e.stopPropagation();
                         if (selectedAdGroupIds.size === 0) return;
