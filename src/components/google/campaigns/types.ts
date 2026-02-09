@@ -25,6 +25,7 @@ export interface CreateGoogleCampaignPanelProps {
 export interface CreateGoogleCampaignData {
   campaign_type: "PERFORMANCE_MAX" | "SHOPPING" | "SEARCH" | "DEMAND_GEN" | "DISPLAY" | "VIDEO";
   customer_id?: string;
+  profile_id?: string; // Google profile id (backend can resolve by this or customer_id)
   name: string;
   budget_amount: number;
   budget_name?: string;
@@ -59,6 +60,7 @@ export interface CreateGoogleCampaignData {
   square_marketing_image_url?: string;
   square_marketing_image_asset_resource_name?: string; // For linking existing square marketing image asset
   square_marketing_image_asset_id?: string; // Asset ID for reference
+  long_headline?: string; // Single long headline (Demand Gen, optional)
   long_headlines?: string[]; // Array of long headlines
   long_headline_asset_ids?: (string | undefined)[]; // Asset IDs for each long headline
   long_headline_asset_resource_names?: (string | undefined)[]; // Resource names for each long headline asset

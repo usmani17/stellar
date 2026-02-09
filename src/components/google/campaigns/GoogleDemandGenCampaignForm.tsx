@@ -1,9 +1,13 @@
 // Demand Gen Campaign Form Component
 // This component handles Demand Gen campaign-specific fields
 
-import React from "react";
+import React, { useState } from "react";
 import type { BaseCampaignFormProps } from "./types";
 import { getMinHeadlines, getMaxHeadlines, getMinDescriptions, getMaxDescriptions } from "./utils";
+import { AssetSelectorModal } from "../AssetSelectorModal";
+import { CreateImageAssetModal } from "../CreateImageAssetModal";
+import { ImageCropModal, type CropCoordinates, type CropSourceArea } from "../../ui/ImageCropModal";
+import type { Asset } from "../../../services/googleAdwords/googleAdwordsAssets";
 
 interface GoogleDemandGenCampaignFormProps extends BaseCampaignFormProps {
   // Headline and description handlers
@@ -13,9 +17,47 @@ interface GoogleDemandGenCampaignFormProps extends BaseCampaignFormProps {
   onAddDescription: () => void;
   onRemoveDescription: (index: number) => void;
   onUpdateDescription: (index: number, value: string) => void;
+  onAddLongHeadline?: () => void;
+  onRemoveLongHeadline?: (index: number) => void;
+  onUpdateLongHeadline?: (index: number, value: string) => void;
   // Preview state
   logoPreview: string | null;
   setLogoPreview: (preview: string | null) => void;
+  // Profile for asset selector / create asset
+  selectedProfileId?: string;
+  googleProfiles?: Array<{ value: string; label: string; customer_id: string; customer_id_raw: string; profile_id?: number }>;
+  // Test button – fill entire form with test data
+  onFillTest?: () => void;
+}
+
+/** Create a blob from an image URL and crop region (for upload). */
+async function getCroppedImageBlob(imageUrl: string, sourceArea: CropSourceArea): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = sourceArea.width;
+      canvas.height = sourceArea.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas context not available"));
+        return;
+      }
+      ctx.drawImage(
+        img,
+        sourceArea.x, sourceArea.y, sourceArea.width, sourceArea.height,
+        0, 0, sourceArea.width, sourceArea.height
+      );
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error("Failed to create blob"))),
+        "image/png",
+        0.95
+      );
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = imageUrl;
+  });
 }
 
 export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormProps> = ({
@@ -28,19 +70,106 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
   onAddDescription,
   onRemoveDescription,
   onUpdateDescription,
+  onAddLongHeadline,
+  onRemoveLongHeadline,
+  onUpdateLongHeadline,
   logoPreview,
   setLogoPreview,
+  selectedProfileId,
+  googleProfiles,
+  onFillTest,
 }) => {
   const minHeadlines = getMinHeadlines("DEMAND_GEN");
   const maxHeadlines = getMaxHeadlines();
   const minDescriptions = getMinDescriptions("DEMAND_GEN");
   const maxDescriptions = getMaxDescriptions();
 
+  const selectedProfile = googleProfiles?.find((p) => p.value === selectedProfileId);
+  const profileId = selectedProfile?.profile_id ?? null;
+
+  const [assetSelectorOpen, setAssetSelectorOpen] = useState(false);
+  const [createImageAssetOpen, setCreateImageAssetOpen] = useState(false);
+  const [logoCropModalOpen, setLogoCropModalOpen] = useState(false);
+  const [logoCropImageUrl, setLogoCropImageUrl] = useState("");
+
+  const handleSelectAsset = (asset: Asset) => {
+    if (asset.type === "IMAGE" && "image_url" in asset) {
+      onChange("logo_url", asset.image_url || "");
+      onChange("logo_asset_resource_name", asset.resource_name);
+      onChange("logo_asset_id", asset.id);
+      if (asset.image_url) setLogoPreview(asset.image_url);
+    }
+    setAssetSelectorOpen(false);
+  };
+
+  const handleCreateImageSuccess = (asset: { id: string; resource_name: string; image_url?: string }) => {
+    onChange("logo_url", asset.image_url || "");
+    onChange("logo_asset_id", asset.id);
+    onChange("logo_asset_resource_name", asset.resource_name);
+    if (asset.image_url) setLogoPreview(asset.image_url);
+    setCreateImageAssetOpen(false);
+  };
+
+  const openAssetSelector = () => {
+    if (!profileId) return;
+    setAssetSelectorOpen(true);
+  };
+
+  const handleCropConfirm = async (_crop: CropCoordinates, sourceArea?: CropSourceArea) => {
+    if (!sourceArea || !logoCropImageUrl) {
+      setLogoCropModalOpen(false);
+      setLogoCropImageUrl("");
+      return;
+    }
+    try {
+      const blob = await getCroppedImageBlob(logoCropImageUrl, sourceArea);
+      const file = new File([blob], "logo-crop.png", { type: "image/png" });
+      const formData = new FormData();
+      formData.append("file", file);
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+      const response = await fetch(`${baseUrl}/accounts/upload/logo/?marketplace=google`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` },
+        body: formData,
+      });
+      const data = await response.json();
+      if (response.ok && data.url) {
+        onChange("logo_url", data.url);
+        setLogoPreview(data.url);
+        onChange("logo_asset_id", undefined);
+        onChange("logo_asset_resource_name", undefined);
+      }
+    } finally {
+      setLogoCropModalOpen(false);
+      setLogoCropImageUrl("");
+    }
+  };
+
+  const openCropModal = () => {
+    const url = formData.logo_url?.trim();
+    if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
+      setLogoCropImageUrl(url);
+      setLogoCropModalOpen(true);
+    }
+  };
+
   return (
     <div className="mt-6 space-y-4">
-      <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-        Demand Gen Settings
-      </h3>
+      <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+        <h3 className="text-[14px] font-semibold text-[#072929]">
+          Demand Gen Settings
+        </h3>
+        {onFillTest && (
+          <button
+            type="button"
+            onClick={onFillTest}
+            className="px-3 py-1.5 bg-amber-100 text-amber-800 rounded text-[12px] hover:bg-amber-200 transition-colors"
+            title="Fill entire Demand Gen form with test data"
+          >
+            Test
+          </button>
+        )}
+      </div>
 
       {/* Final URL */}
       <div>
@@ -158,32 +287,88 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
         </div>
       </div>
 
-      {/* Logo URL */}
+      {/* Logo URL – Browse existing, Create/Upload, or paste URL; optional crop to square */}
       <div>
         <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
           Logo URL *
         </label>
-        <input
-          type="url"
-          value={formData.logo_url || ""}
-          onChange={(e) => {
-            onChange("logo_url", e.target.value);
-            const urlValue = e.target.value.trim();
-            if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
-              setLogoPreview(urlValue);
-            } else {
-              setLogoPreview(null);
-            }
-          }}
-          className={`campaign-input w-full ${
-            errors.logo_url ? "border-red-500" : "border-gray-200"
-          }`}
-          placeholder="https://example.com/logo.png"
-        />
+        {formData.logo_asset_id ? (
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="text"
+              value={formData.logo_url || ""}
+              disabled
+              readOnly
+              className="campaign-input w-full flex-1 min-w-0 bg-gray-50 border-gray-200"
+            />
+            <span className="text-[10px] text-[#556179] whitespace-nowrap">From Asset</span>
+            <button
+              type="button"
+              onClick={() => {
+                onChange("logo_url", "");
+                onChange("logo_asset_id", undefined);
+                onChange("logo_asset_resource_name", undefined);
+                setLogoPreview(null);
+              }}
+              className="text-red-500 hover:text-red-700 text-sm font-medium"
+              title="Remove selected asset"
+            >
+              ×
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="relative flex gap-2 items-center">
+              <input
+                type="url"
+                value={formData.logo_url || ""}
+                onChange={(e) => {
+                  onChange("logo_url", e.target.value);
+                  const urlValue = e.target.value.trim();
+                  if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
+                    setLogoPreview(urlValue);
+                  } else {
+                    setLogoPreview(null);
+                  }
+                }}
+                className={`campaign-input w-full flex-1 ${
+                  errors.logo_url ? "border-red-500" : "border-gray-200"
+                }`}
+                placeholder="https://example.com/logo.png"
+              />
+              {profileId && (
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={openAssetSelector}
+                    className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap px-2 py-1.5 border border-[#136D6D] rounded"
+                  >
+                    Browse
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreateImageAssetOpen(true)}
+                    className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap px-2 py-1.5 border border-[#136D6D] rounded"
+                  >
+                    Create / Upload
+                  </button>
+                  {formData.logo_url?.trim() && (
+                    <button
+                      type="button"
+                      onClick={openCropModal}
+                      className="text-xs text-[#556179] hover:text-[#072929] font-medium whitespace-nowrap px-2 py-1.5 border border-gray-300 rounded"
+                      title="Crop to 1:1 square"
+                    >
+                      Crop
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         {errors.logo_url && (
-          <p className="text-[10px] text-red-500 mt-1">
-            {errors.logo_url}
-          </p>
+          <p className="text-[10px] text-red-500 mt-1">{errors.logo_url}</p>
         )}
         {logoPreview && (
           <div className="mt-2">
@@ -198,6 +383,9 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
             </div>
           </div>
         )}
+        <p className="text-[10px] text-[#556179] mt-1">
+          Enter URL, browse existing assets, or create/upload. Logo must be 1:1 (min 128×128). Use Crop to square if needed.
+        </p>
       </div>
 
       {/* Business Name */}
@@ -313,21 +501,50 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
         )}
       </div>
 
+      {/* Long Headlines (required for In-Feed: 1-5, max 90 chars each) */}
+      <div>
+        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+          Long Headlines * (1-5 required for In-Feed, max 90 chars each)
+        </label>
+        <div className="space-y-2">
+          {(formData.long_headlines || [""]).map((text, index) => (
+            <div key={index} className="flex gap-2">
+              <input
+                type="text"
+                value={text}
+                maxLength={90}
+                onChange={(e) => onUpdateLongHeadline?.(index, e.target.value)}
+                className={`campaign-input flex-1 ${errors.long_headlines ? "border-red-500" : "border-gray-200"}`}
+                placeholder={`Long headline ${index + 1}`}
+              />
+              {(formData.long_headlines || []).length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveLongHeadline?.(index)}
+                  className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-[12px]"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          {(formData.long_headlines || []).length < 5 && (
+            <button
+              type="button"
+              onClick={() => onAddLongHeadline?.()}
+              className="px-3 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-[12px]"
+            >
+              + Add long headline
+            </button>
+          )}
+        </div>
+        {errors.long_headlines && (
+          <p className="text-[10px] text-red-500 mt-1">{errors.long_headlines}</p>
+        )}
+      </div>
+
       {/* Optional Fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-            Long Headline
-          </label>
-          <input
-            type="text"
-            value={formData.long_headline || ""}
-            onChange={(e) => onChange("long_headline", e.target.value)}
-            className="campaign-input w-full"
-            placeholder="Optional long headline"
-          />
-        </div>
-
         <div>
           <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
             Ad Group Name
@@ -360,6 +577,42 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
         <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
           Channel Controls
         </label>
+        <div className="flex flex-wrap gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() =>
+              onChange("channel_controls", {
+                gmail: false,
+                discover: false,
+                display: false,
+                youtube_in_feed: true,
+                youtube_in_stream: true,
+                youtube_shorts: true,
+              })
+            }
+            className="px-3 py-2 bg-red-100 text-red-700 rounded text-[12px] hover:bg-red-200 transition-colors"
+            title="Show ads on YouTube only (Feed, In-Stream, Shorts)"
+          >
+            YouTube only
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onChange("channel_controls", {
+                gmail: true,
+                discover: true,
+                display: true,
+                youtube_in_feed: true,
+                youtube_in_stream: true,
+                youtube_shorts: true,
+              })
+            }
+            className="px-3 py-2 bg-gray-100 text-gray-700 rounded text-[12px] hover:bg-gray-200 transition-colors"
+            title="Show ads on all Demand Gen channels"
+          >
+            All channels
+          </button>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-white border border-gray-200 rounded">
           {[
             { key: "gmail", label: "Gmail" },
@@ -390,6 +643,44 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
           Control where your Demand Gen ads appear. All channels are enabled by default.
         </p>
       </div>
+
+      {/* Asset Selector Modal (browse existing logo assets) */}
+      {profileId && (
+        <AssetSelectorModal
+          isOpen={assetSelectorOpen}
+          onClose={() => setAssetSelectorOpen(false)}
+          onSelect={handleSelectAsset}
+          profileId={profileId}
+          assetType="IMAGE"
+          title="Select Logo"
+          initialTab="Logo"
+        />
+      )}
+
+      {/* Create / Upload image asset – on success fill logo fields */}
+      {profileId && (
+        <CreateImageAssetModal
+          isOpen={createImageAssetOpen}
+          onClose={() => setCreateImageAssetOpen(false)}
+          onSuccess={handleCreateImageSuccess}
+          profileId={profileId}
+          title="Create Logo Asset"
+        />
+      )}
+
+      {/* Crop logo to 1:1 square */}
+      <ImageCropModal
+        isOpen={logoCropModalOpen}
+        onClose={() => {
+          setLogoCropModalOpen(false);
+          setLogoCropImageUrl("");
+        }}
+        imageUrl={logoCropImageUrl}
+        requiredWidth={1200}
+        requiredHeight={1200}
+        title="Crop Logo to Square (1:1)"
+        onConfirm={handleCropConfirm}
+      />
     </div>
   );
 };
