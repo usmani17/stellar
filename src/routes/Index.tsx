@@ -18,7 +18,7 @@ export const AssistantWrapper = () => {
         return <><Outlet /></>;
     }
     return (
-        <AssistantProvider accountId={parseInt(accountId)} channelId={parseInt(channelId)}>
+        <AssistantProvider accountId={accountId} channelId={channelId}>
             <Outlet />
         </AssistantProvider>
     );
