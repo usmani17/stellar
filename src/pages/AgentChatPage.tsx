@@ -1,68 +1,7 @@
 import React, { useState } from "react";
 import { useAgentConnection } from "../hooks/useAgentConnection";
 import { useAgentChat } from "../hooks/useAgentChat";
-
-/** Render message content with multiline support and JSON (in code blocks or raw) formatted. */
-function MessageContent({ content }: { content: string }) {
-  if (!content) return null;
-
-  const parts: Array<{ type: "text" | "json"; value: string }> = [];
-  const re = /```(?:json)?\s*\n?([\s\S]*?)```/gi;
-  let lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(content)) !== null) {
-    if (m.index > lastIndex) {
-      parts.push({ type: "text", value: content.slice(lastIndex, m.index) });
-    }
-    const raw = (m[1] ?? "").trim();
-    let value = raw;
-    try {
-      const parsed = JSON.parse(raw);
-      value = JSON.stringify(parsed, null, 2);
-    } catch {
-      // keep raw if not valid JSON
-    }
-    parts.push({ type: "json", value });
-    lastIndex = m.index + m[0].length;
-  }
-  if (lastIndex < content.length) {
-    parts.push({ type: "text", value: content.slice(lastIndex) });
-  }
-
-  // If the whole message was one text part that looks like raw JSON, format it
-  if (parts.length === 1 && parts[0].type === "text") {
-    const trimmed = parts[0].value.trim();
-    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
-      try {
-        const parsed = JSON.parse(trimmed);
-        return (
-          <pre className="my-0 rounded bg-gray-100 p-2 text-xs overflow-x-auto text-left font-mono whitespace-pre-wrap wrap-break-word">
-            <code>{JSON.stringify(parsed, null, 2)}</code>
-          </pre>
-        );
-      } catch {
-        // not valid JSON, fall through to normal text
-      }
-    }
-  }
-
-  return (
-    <span className="block whitespace-pre-wrap wrap-break-word text-left">
-      {parts.map((part, i) =>
-        part.type === "json" ? (
-          <pre
-            key={i}
-            className="my-2 rounded bg-gray-100 p-2 text-xs overflow-x-auto text-left font-mono"
-          >
-            <code>{part.value}</code>
-          </pre>
-        ) : (
-          <span key={i}>{part.value}</span>
-        )
-      )}
-    </span>
-  );
-}
+import { MessageContent } from "../components/ai/MessageContent";
 
 export const AgentChatPage: React.FC = () => {
   const { isConnected, isLoading: connectionLoading, error: connectionError, refetch } = useAgentConnection();

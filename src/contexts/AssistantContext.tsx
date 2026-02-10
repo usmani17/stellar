@@ -9,7 +9,9 @@ import React, {
 import { useAuth } from "./AuthContext";
 import { threadsService, type Thread, type ThreadMessage, normalizeThreadMessages } from "../services/ai/threads";
 import { runsService } from "../services/ai/runs";
-import { assistantService, type AssistantSearchResult } from "../services/ai/assistant";
+import { assistantService, getAssistantIdForGraph, type AssistantSearchResult, type GraphId } from "../services/ai/assistant";
+import type { CampaignSetupState } from "../types/agent";
+import { campaignStateToThreadMessages } from "../services/ai/campaignStateUtils";
 
 export const ASSISTANT_PANEL_WIDTH = "550px";
 // "fixed" will make the main content shrink, while "floating" will be displayed over the main content.
@@ -20,11 +22,12 @@ export interface SuggestedPrompt {
   text: string;
 }
 
-// Extended Thread with runtime state (not from API)
-interface ThreadWithRuntime extends Thread {
+// Extended Thread with runtime state (not from API). Exported so Assistant UI can read campaignState.
+export interface ThreadWithRuntime extends Thread {
   isStreaming?: boolean;
   thinkingSteps?: string[];
-  pendingMessageId?: string | null; // Track streaming message ID
+  pendingMessageId?: string | null;
+  campaignState?: CampaignSetupState;
 }
 
 interface AssistantContextType {
@@ -63,15 +66,25 @@ interface AssistantContextType {
   currentThinkingSteps: string[];
   currentRunId: string | null;
   assistants: AssistantSearchResult[];
+  selectedGraphId: GraphId;
+  setSelectedGraphId: (id: GraphId) => void;
+  onApplyDraft?: (draft: Record<string, unknown>) => void;
 }
 
 const AssistantContext = createContext<AssistantContextType | undefined>(undefined);
 
-const DEFAULT_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
+const CHAT_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   { id: "1", text: "Why is my ROAS dropping?" },
   { id: "2", text: "Suggest budget optimization" },
   { id: "3", text: "Analyze ACOS trends" },
   { id: "4", text: "Compare campaign efficiency" },
+];
+
+const CAMPAIGN_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
+  { id: "c1", text: "Create a Demand Gen campaign" },
+  { id: "c2", text: "Set up a Search campaign" },
+  { id: "c3", text: "Create a Performance Max campaign" },
+  { id: "c4", text: "I want to create a YouTube video campaign" },
 ];
 
 export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: string; channelId?: string }> = ({
@@ -92,7 +105,12 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingThreads, setIsLoadingThreads] = useState(false);
-  const [suggestedPrompts] = useState<SuggestedPrompt[]>(DEFAULT_SUGGESTED_PROMPTS);
+  const [selectedGraphId, setSelectedGraphId] = useState<GraphId>("chat");
+  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+  const [assistants, setAssistants] = useState<AssistantSearchResult[]>([]);
+
+  const suggestedPrompts = selectedGraphId === "campaign_setup" ? CAMPAIGN_SUGGESTED_PROMPTS : CHAT_SUGGESTED_PROMPTS;
+  const currentAssistantId = getAssistantIdForGraph(assistants, selectedGraphId);
 
   // Derived: get current thread directly from array
   const currentThread = threads.find(t => t.thread_id === currentThreadId) || null;
@@ -102,9 +120,6 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const isStreaming = currentThread?.isStreaming || false;
   const currentThinkingSteps = currentThread?.thinkingSteps || [];
 
-  // Track current run for cancellation
-  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
-  const [assistants, setAssistants] = useState<AssistantSearchResult[]>([]);
   // Load all assistants on mount
   useEffect(() => {
     (async () => {
@@ -131,12 +146,13 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
 
       // Merge with existing runtime state if any
       setThreads(prev => {
-        const existingRuntime = new Map(prev.map(t => [t.thread_id, { isStreaming: t.isStreaming, thinkingSteps: t.thinkingSteps }]));
+        const existingRuntime = new Map(prev.map(t => [t.thread_id, { isStreaming: t.isStreaming, thinkingSteps: t.thinkingSteps, campaignState: t.campaignState }]));
 
         return threadList.map(t => ({
           ...t,
           isStreaming: existingRuntime.get(t.thread_id)?.isStreaming || false,
           thinkingSteps: existingRuntime.get(t.thread_id)?.thinkingSteps || [],
+          campaignState: existingRuntime.get(t.thread_id)?.campaignState,
         }));
       });
     } catch (error) {
@@ -152,6 +168,15 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       loadThreads();
     }
   }, [isOpen, user?.id, loadThreads]);
+
+  // Sync selectedGraphId when user selects a thread (so graph selector matches the thread's graph)
+  useEffect(() => {
+    if (!currentThreadId || !currentThread) return;
+    const graphId = (currentThread.metadata as { graph_id?: GraphId })?.graph_id;
+    if (graphId === "chat" || graphId === "campaign_setup") {
+      setSelectedGraphId(graphId);
+    }
+  }, [currentThreadId, currentThread?.metadata, currentThread]);
 
   // Select thread - load full history if needed
   const selectThread = useCallback(async (threadId: string) => {
@@ -315,18 +340,22 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     let activeThreadId = currentThreadId;
 
     if (!activeThreadId) {
-      // Create thread on server if temp
       const threadData = await threadsService.createThread({
         metadata: {
           user_id: user.id,
           account_id: propAccountId ? parseInt(propAccountId) : undefined,
           channel_id: propChannelId ? parseInt(propChannelId) : undefined,
           auth_token: '123123123',
-          title: content.slice(0, 50) + (content.length > 50 ? '...' : '')
+          title: content.slice(0, 50) + (content.length > 50 ? '...' : ''),
+          graph_id: selectedGraphId,
         }
       });
       activeThreadId = threadData.thread_id;
-      setThreads(prev => [...prev, threadData]);
+      setThreads(prev => [...prev, {
+        ...threadData,
+        metadata: { ...threadData.metadata, graph_id: selectedGraphId },
+        campaignState: undefined,
+      } as ThreadWithRuntime]);
       setCurrentThreadId(activeThreadId);
     }
 
@@ -358,46 +387,47 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     updateThreadRuntime(activeThreadId, { isStreaming: true, thinkingSteps: [] });
 
     try {
+      setCurrentRunId(null);
 
-      // Stream response
-      setCurrentRunId(null); // Reset before starting
       await runsService.streamRun(activeThreadId, {
-        assistant_id: 'chat',
-        input: { messages: [{ role: 'user', content }] },
+        assistant_id: currentAssistantId,
+        input: { messages: [{ role: "user", content }] },
         metadata: {
           user_id: user.id,
           account_id: propAccountId ? parseInt(propAccountId) : undefined,
           channel_id: propChannelId ? parseInt(propChannelId) : undefined,
-          auth_token: '123123123'
+          auth_token: "123123123",
         },
-        config: {
-          recursion_limit: 75,
-          configurable: {
-            // query_model: null,
-            // response_model: null,
-          },
-        },
+        config: { recursion_limit: 75, configurable: {} },
         stream_resumable: true,
         stream_subgraphs: true,
         on_disconnect: "continue",
-        stream_mode: ["messages-tuple", "updates"],
+        stream_mode: ["messages-tuple", "updates", "values"],
       }, {
         onLoadingChange: setIsLoading,
-        onThinkingStep: (steps) => {
-          updateThreadRuntime(activeThreadId, { thinkingSteps: steps });
-        },
-        onMessage: (messageContent, _analysis, _steps, runId) => {
-          updateStreamingContent(activeThreadId, messageContent, runId);
-        },
+        onThinkingStep: (steps) => updateThreadRuntime(activeThreadId, { thinkingSteps: steps }),
+        onMessage: (messageContent, _a, _s, runId) => updateStreamingContent(activeThreadId, messageContent, runId),
         onError: (errorMsg) => {
           updateStreamingContent(activeThreadId, `Error: ${errorMsg}`);
           updateThreadRuntime(activeThreadId, { isStreaming: false, thinkingSteps: [] });
         },
-        onRunId: (runId) => {
-          setCurrentRunId(runId);
-        }
+        onRunId: (runId) => setCurrentRunId(runId),
+        onCampaignSetupState: (state: CampaignSetupState) => {
+          const normalized = campaignStateToThreadMessages(state);
+          setThreads(prev => prev.map(t => {
+            if (t.thread_id !== activeThreadId) return t;
+            return {
+              ...t,
+              values: { ...(t.values || { messages: [] }), messages: normalized },
+              campaignState: state,
+              updated_at: new Date().toISOString(),
+            };
+          }));
+          if (state.reply_text?.trim()) {
+            updateStreamingContent(activeThreadId, state.reply_text.trim());
+          }
+        },
       });
-
     } catch (error) {
       console.error("Error sending message:", error);
       updateStreamingContent(activeThreadId, `Sorry, I encountered an error. Please try again.`);
@@ -406,7 +436,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       setCurrentRunId(null);
       updateThreadRuntime(activeThreadId, { isStreaming: false, thinkingSteps: [] });
     }
-  }, [currentThreadId, threads, user?.id, propAccountId, propChannelId, startNewThread, updateThreadRuntime, updateStreamingContent]);
+  }, [currentThreadId, threads, user?.id, propAccountId, propChannelId, selectedGraphId, currentAssistantId, updateThreadRuntime, updateStreamingContent]);
 
   // Cancel the current run
   const cancelRun = useCallback(async () => {
@@ -466,8 +496,10 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         currentRunId,
         cancelRun,
 
-        // Expose loaded assistants for consumers (optional)
         assistants,
+        selectedGraphId,
+        setSelectedGraphId,
+        onApplyDraft: undefined,
       }}
     >
       {children}

@@ -12,7 +12,18 @@ curl http://127.0.0.1:2024/assistants/fe7a7d02-1d8e-582e-9564-a6d074386802/schem
 }
 */
 
-type GraphId = "chat" | "campaign_setup";
+export type GraphId = "chat" | "campaign_setup";
+
+/**
+ * Resolve assistant_id for a graph. Uses search results when available; falls back to graph name (LangGraph convention).
+ */
+export function getAssistantIdForGraph(
+	assistants: AssistantSearchResult[],
+	graphId: GraphId
+): string {
+	const found = assistants.find((a) => a.graph_id === graphId);
+	return found?.assistant_id ?? graphId;
+}
 
 interface AssistantSearchParams {
 	metadata?: Record<string, unknown>;

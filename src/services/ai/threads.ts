@@ -212,6 +212,8 @@ export interface ThreadMetaData {
     channel_id?: number;
     auth_token?: string;
     title?: string;
+    /** Graph this thread was created with (e.g. "chat" | "campaign_setup") for Assistant UI */
+    graph_id?: string;
     [key: string]: unknown;
   }
 
