@@ -2613,7 +2613,7 @@ export const Campaigns: React.FC = () => {
 
               {/* Create / Edit Campaign Panel */}
               {isCreateCampaignPanelOpen && (
-                <div className="relative z-[999998]">
+                <div className="">
                   <CreateCampaignPanel
                     isOpen={isCreateCampaignPanelOpen}
                     onClose={() => {

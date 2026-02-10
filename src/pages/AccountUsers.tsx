@@ -342,19 +342,19 @@ function AccountUsersContent({
       const assignedBrands =
         createRole === "manager" && createAccountIds.length > 0
           ? createAccountIds
-              .map((id) => accounts.find((a) => a.id === id)?.name)
-              .filter(Boolean)
-              .join(", ")
+            .map((id) => accounts.find((a) => a.id === id)?.name)
+            .filter(Boolean)
+            .join(", ")
           : null;
       const assignedIntegrations =
         createRole === "team" && createChannelIds.length > 0
           ? createChannelIds
-              .map((id) => {
-                const ch = allChannels.find((c) => c.id === id);
-                return ch ? `${ch.channel_name} (${ch.channel_type})${ch.account_name ? ` – ${ch.account_name}` : ""}` : null;
-              })
-              .filter(Boolean)
-              .join(", ")
+            .map((id) => {
+              const ch = allChannels.find((c) => c.id === id);
+              return ch ? `${ch.channel_name} (${ch.channel_type})${ch.account_name ? ` – ${ch.account_name}` : ""}` : null;
+            })
+            .filter(Boolean)
+            .join(", ")
           : null;
       const brandLine =
         createRole === "manager"
@@ -511,7 +511,7 @@ function AccountUsersContent({
 
       {/* Create user panel - same pattern as CreateCampaignPanel */}
       {isManagerOrOwner && createPanelOpen && (
-        <div className="relative z-[999998]">
+        <div className="">
           <div className="relative border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]">
             <form onSubmit={handleCreateUser}>
               <div className="p-4 border-b border-gray-200">

@@ -276,7 +276,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                   <button
                     key={prompt.id}
                     onClick={() => handlePromptClick(prompt.text)}
-                    className="w-full px-4 py-3 text-left text-sm text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-[#136D6D] hover:bg-gray-50 transition-all"
+                    className="assistant-prompt-button"
                   >
                     {prompt.text}
                   </button>
