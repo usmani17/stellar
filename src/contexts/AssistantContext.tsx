@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useEffect,
   type ReactNode,
+  act,
 } from "react";
 import { useAuth } from "./AuthContext";
 import { threadsService, type Thread, type ThreadMessage, normalizeThreadMessages } from "../services/ai/threads";
@@ -159,9 +160,9 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
           const latestState = history[history.length - 1];
           const values = latestState.values
             ? {
-                ...latestState.values,
-                messages: normalizeThreadMessages(latestState.values.messages),
-              }
+              ...latestState.values,
+              messages: normalizeThreadMessages(latestState.values.messages),
+            }
             : latestState.values;
 
           setThreads(prev => prev.map(t =>
@@ -187,35 +188,8 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
 
   // Start new thread - add to array immediately
   const startNewThread = useCallback(() => {
-    // Check if a temp thread already exists
-    const existingTempThread = threads.find(t => t.thread_id.startsWith('temp-'));
-    if (existingTempThread) {
-      setCurrentThreadId(existingTempThread.thread_id);
-      return;
-    }
-
-    const tempThreadId = `temp-${Date.now()}`;
-    const now = new Date().toISOString();
-
-    const newThread: ThreadWithRuntime = {
-      thread_id: tempThreadId,
-      created_at: now,
-      updated_at: now,
-      metadata: {
-        user_id: user?.id,
-        account_id: propAccountId ? parseInt(propAccountId) : undefined,
-        channel_id: propChannelId ? parseInt(propChannelId) : undefined,
-        title: 'New Chat'
-      },
-      status: 'idle',
-      values: { messages: [] },
-      isStreaming: false,
-      thinkingSteps: [],
-    };
-
-    setThreads(prev => [newThread, ...prev]);
-    setCurrentThreadId(tempThreadId);
-  }, [user?.id, propAccountId, propChannelId, threads]);
+    setCurrentThreadId(null);
+  }, []);
 
   // Delete thread from array
   const deleteThread = useCallback((threadId: string) => {
@@ -328,15 +302,20 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     // Ensure we have a current thread
     let activeThreadId = currentThreadId;
 
-    if (!activeThreadId || !threads.find(t => t.thread_id === activeThreadId)) {
-      startNewThread();
-      // Get the temp thread we just created (first in array)
-      const newThread = threads[0];
-      if (newThread?.thread_id?.startsWith('temp-')) {
-        activeThreadId = newThread.thread_id;
-      } else {
-        return; // Should not happen
-      }
+    if (!activeThreadId) {
+      // Create thread on server if temp
+      const threadData = await threadsService.createThread({
+        metadata: {
+          user_id: user.id,
+          account_id: propAccountId ? parseInt(propAccountId) : undefined,
+          channel_id: propChannelId ? parseInt(propChannelId) : undefined,
+          auth_token: '123123123',
+          title: content.slice(0, 50) + (content.length > 50 ? '...' : '')
+        }
+      });
+      activeThreadId = threadData.thread_id;
+      setThreads(prev => [...prev, threadData]);
+      setCurrentThreadId(activeThreadId);
     }
 
     // Add user message directly to threads array
@@ -351,14 +330,9 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
 
       const currentValues = t.values || { messages: [] };
       const currentMessages = currentValues.messages || [];
-      const isFirstMessage = currentMessages.length === 0;
 
       return {
         ...t,
-        metadata: {
-          ...t.metadata,
-          title: isFirstMessage ? content.slice(0, 50) + (content.length > 50 ? '...' : '') : t.metadata?.title
-        },
         values: {
           ...currentValues,
           messages: [...currentMessages, userMessage]
@@ -372,35 +346,10 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     updateThreadRuntime(activeThreadId, { isStreaming: true, thinkingSteps: [] });
 
     try {
-      let serverThreadId = activeThreadId;
-
-      // Create thread on server if temp
-      if (activeThreadId.startsWith('temp-')) {
-        const threadData = await threadsService.createThread({
-          metadata: {
-            user_id: user.id,
-            account_id: propAccountId ? parseInt(propAccountId) : undefined,
-            channel_id: propChannelId ? parseInt(propChannelId) : undefined,
-            auth_token: '123123123',
-            title: content.slice(0, 50) + (content.length > 50 ? '...' : '')
-          }
-        });
-
-        serverThreadId = threadData.thread_id;
-
-        // Replace temp thread ID with real one in array
-        setThreads(prev => prev.map(t =>
-          t.thread_id === activeThreadId
-            ? { ...t, thread_id: serverThreadId, status: threadData.status, updated_at: threadData.updated_at }
-            : t
-        ));
-        setCurrentThreadId(serverThreadId);
-        activeThreadId = serverThreadId;
-      }
 
       // Stream response
       setCurrentRunId(null); // Reset before starting
-      await runsService.streamRun(serverThreadId, {
+      await runsService.streamRun(activeThreadId, {
         assistant_id: 'chat',
         input: { messages: [{ role: 'user', content }] },
         metadata: {
@@ -423,14 +372,14 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       }, {
         onLoadingChange: setIsLoading,
         onThinkingStep: (steps) => {
-          updateThreadRuntime(serverThreadId, { thinkingSteps: steps });
+          updateThreadRuntime(activeThreadId, { thinkingSteps: steps });
         },
         onMessage: (messageContent, _analysis, _steps, runId) => {
-          updateStreamingContent(serverThreadId, messageContent, runId);
+          updateStreamingContent(activeThreadId, messageContent, runId);
         },
         onError: (errorMsg) => {
-          updateStreamingContent(serverThreadId, `Error: ${errorMsg}`);
-          updateThreadRuntime(serverThreadId, { isStreaming: false, thinkingSteps: [] });
+          updateStreamingContent(activeThreadId, `Error: ${errorMsg}`);
+          updateThreadRuntime(activeThreadId, { isStreaming: false, thinkingSteps: [] });
         },
         onRunId: (runId) => {
           setCurrentRunId(runId);
