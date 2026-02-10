@@ -287,7 +287,7 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
         </div>
       </div>
 
-      {/* Logo URL – Browse existing, Create/Upload, or paste URL; optional crop to square */}
+      {/* Logo URL – Select existing asset, Create/Upload, or paste URL; optional crop to square */}
       <div>
         <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
           Logo URL *
@@ -343,7 +343,7 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
                     onClick={openAssetSelector}
                     className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap px-2 py-1.5 border border-[#136D6D] rounded"
                   >
-                    Browse
+                    Select asset
                   </button>
                   <button
                     type="button"
@@ -384,7 +384,7 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
           </div>
         )}
         <p className="text-[10px] text-[#556179] mt-1">
-          Enter URL, browse existing assets, or create/upload. Logo must be 1:1 (min 128×128). Use Crop to square if needed.
+          Enter URL, select existing asset, or create/upload. Logo must be 1:1 (min 128×128). Use Crop to square if needed.
         </p>
       </div>
 
@@ -644,7 +644,7 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
         </p>
       </div>
 
-      {/* Asset Selector Modal (browse existing logo assets) */}
+      {/* Asset Selector Modal (select existing logo assets) */}
       {profileId && (
         <AssetSelectorModal
           isOpen={assetSelectorOpen}

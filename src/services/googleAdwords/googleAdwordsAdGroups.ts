@@ -173,4 +173,28 @@ export const googleAdwordsAdGroupsService = {
     const response = await api.post(url, payload);
     return response.data;
   },
+
+  /** Create a Demand Gen ad group under an existing Demand Gen campaign. */
+  createDemandGenAdGroup: async (
+    accountId: number,
+    channelId: number,
+    campaignId: number,
+    payload: {
+      name: string;
+      channel_controls?: {
+        gmail?: boolean;
+        discover?: boolean;
+        display?: boolean;
+        youtube_in_feed?: boolean;
+        youtube_in_stream?: boolean;
+        youtube_shorts?: boolean;
+      };
+    }
+  ): Promise<{ success: boolean; ad_group_id?: string; ad_group_resource_name?: string; error?: string }> => {
+    const response = await api.post(
+      `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/demand-gen-ad-groups/create/`,
+      payload
+    );
+    return response.data;
+  },
 };
