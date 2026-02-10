@@ -27,6 +27,7 @@ export const getChannelTypeLabel = (type?: string): string => {
     DISPLAY: "Display",
     SHOPPING: "Shopping",
     PERFORMANCE_MAX: "Performance Max",
+    DEMAND_GEN: "Demand Gen (YouTube)",
     VIDEO: "Video",
     HOTEL: "Hotel",
     MULTI_CHANNEL: "Multi Channel",

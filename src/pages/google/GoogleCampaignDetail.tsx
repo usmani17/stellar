@@ -44,6 +44,9 @@ import { CreateGooglePmaxAssetGroupSection } from "../../components/google/Creat
 import { CreateGoogleShoppingEntitiesSection } from "../../components/google/CreateGoogleShoppingEntitiesSection";
 import { CreateGoogleShoppingAdSection } from "../../components/google/CreateGoogleShoppingAdSection";
 import { CreateGoogleAdGroupSection } from "../../components/google/CreateGoogleAdGroupSection";
+import {
+  CreateGoogleDemandGenAdGroupPanel,
+} from "../../components/google/CreateGoogleDemandGenAdGroupPanel";
 import { CreateGoogleAdSection } from "../../components/google/CreateGoogleAdSection";
 import { CreateGoogleKeywordSection } from "../../components/google/CreateGoogleKeywordSection";
 import { CreateGoogleNegativeKeywordSection } from "../../components/google/CreateGoogleNegativeKeywordSection";
@@ -443,6 +446,11 @@ export const GoogleCampaignDetail: React.FC = () => {
     setCreateShoppingEntitiesLoading,
     createShoppingEntitiesError,
     setCreateShoppingEntitiesError,
+    isCreateDemandGenAdGroupPanelOpen,
+    setIsCreateDemandGenAdGroupPanelOpen,
+    createDemandGenAdGroupLoading,
+    createDemandGenAdGroupError,
+    setCreateDemandGenAdGroupError,
     showAdGroupNameEditModal,
     setShowAdGroupNameEditModal,
     nameEditAdGroup,
@@ -458,6 +466,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     handleSyncAdGroupsAnalytics,
     handleCreateAdGroup,
     handleCreateShoppingAdGroup,
+    handleCreateDemandGenAdGroup,
     handleStartAdGroupNameEdit,
     handleAdGroupNameEditSave,
     handleUpdateAdGroupStatus,
@@ -1593,13 +1602,18 @@ export const GoogleCampaignDetail: React.FC = () => {
                       campaignDetail?.campaign.advertising_channel_type ===
                         "SEARCH" ||
                       campaignDetail?.campaign.advertising_channel_type ===
-                        "SHOPPING" ? (
+                        "SHOPPING" ||
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "DEMAND_GEN" ? (
                         <CreateGoogleAdGroupSection
                           isOpen={
                             campaignDetail?.campaign
                               .advertising_channel_type === "SEARCH"
                               ? isCreateSearchEntitiesPanelOpen
-                              : isCreateShoppingEntitiesPanelOpen
+                              : campaignDetail?.campaign
+                                  .advertising_channel_type === "SHOPPING"
+                              ? isCreateShoppingEntitiesPanelOpen
+                              : isCreateDemandGenAdGroupPanelOpen
                           }
                           onToggle={() => {
                             if (
@@ -1609,9 +1623,16 @@ export const GoogleCampaignDetail: React.FC = () => {
                               setIsCreateSearchEntitiesPanelOpen(
                                 !isCreateSearchEntitiesPanelOpen,
                               );
-                            } else {
+                            } else if (
+                              campaignDetail?.campaign
+                                .advertising_channel_type === "SHOPPING"
+                            ) {
                               setIsCreateShoppingEntitiesPanelOpen(
                                 !isCreateShoppingEntitiesPanelOpen,
+                              );
+                            } else {
+                              setIsCreateDemandGenAdGroupPanelOpen(
+                                !isCreateDemandGenAdGroupPanelOpen,
                               );
                             }
                             setIsAdGroupsFilterPanelOpen(false);
@@ -1623,7 +1644,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                       campaignDetail?.campaign.advertising_channel_type ===
                         "SEARCH" ||
                       campaignDetail?.campaign.advertising_channel_type ===
-                        "SHOPPING" ? (
+                        "SHOPPING" ||
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "DEMAND_GEN" ? (
                         <>
                           {campaignDetail?.campaign.advertising_channel_type ===
                             "SEARCH" &&
@@ -1657,6 +1680,23 @@ export const GoogleCampaignDetail: React.FC = () => {
                                 campaignName={campaignDetail?.campaign.name}
                                 loading={createShoppingEntitiesLoading}
                                 submitError={createShoppingEntitiesError}
+                              />
+                            )}
+                          {campaignDetail?.campaign.advertising_channel_type ===
+                            "DEMAND_GEN" &&
+                            isCreateDemandGenAdGroupPanelOpen &&
+                            campaignId && (
+                              <CreateGoogleDemandGenAdGroupPanel
+                                isOpen={isCreateDemandGenAdGroupPanelOpen}
+                                onClose={() => {
+                                  setIsCreateDemandGenAdGroupPanelOpen(false);
+                                  setCreateDemandGenAdGroupError(null);
+                                }}
+                                onSubmit={handleCreateDemandGenAdGroup}
+                                campaignId={campaignId}
+                                campaignName={campaignDetail?.campaign.name}
+                                loading={createDemandGenAdGroupLoading}
+                                submitError={createDemandGenAdGroupError}
                               />
                             )}
                         </>
