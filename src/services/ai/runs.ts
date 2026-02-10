@@ -72,16 +72,21 @@ export interface RunMetadata {
   [key: string]: unknown;
 }
 
+import type { CampaignSetupState } from "../../types/agent";
+
 export interface StreamCallbacks {
   onThinkingStep?: (steps: string[]) => void;
   onMessage?: (content: string, analysisText?: string, thinkingSteps?: string[], runId?: string) => void;
   onError?: (error: string) => void;
   onLoadingChange?: (isLoading: boolean) => void;
   onRunId?: (runId: string | null) => void;
+  /** Called when values event contains campaign_setup state (intent, phase, etc.) */
+  onCampaignSetupState?: (state: CampaignSetupState) => void;
 }
 
 // Helper functions for AI agent integration
 const extractText = (content: any): string => {
+  if (content == null) return '';
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
     return content.map((part) => {
@@ -93,12 +98,29 @@ const extractText = (content: any): string => {
   return '';
 };
 
+/** Get display text from any message object (LangChain serialized or plain). */
+const getMessageContent = (msg: any): string => {
+  if (!msg || typeof msg !== 'object') return '';
+  const raw = msg.content ?? msg.kwargs?.content ?? msg.data?.content;
+  return extractText(raw);
+};
+
+/** True if message is from the assistant (LangChain AIMessage / ai / AIMessageChunk or id array). */
+const isAIMessage = (msg: any): boolean => {
+  if (!msg || typeof msg !== 'object') return false;
+  const type = msg.type ?? (Array.isArray(msg.id) ? msg.id[msg.id.length - 1] : null);
+  return type === 'ai' || type === 'AIMessage' || type === 'AIMessageChunk';
+};
+
 const looksLikeUpdates = (data: any): boolean => {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
   const keys = Object.keys(data);
   if (keys.length === 0) return false;
-  // Known node names from your AI agent workflow
-  const knownNodes = ['Router', 'Clarify', 'kb_retriever', 'Analyst', 'neon_tool', 'evidence_set', 'Planner', 'Validator', 'Narrator'];
+  // Chat graph + campaign_setup graph node names
+  const knownNodes = [
+    'Router', 'Clarify', 'kb_retriever', 'Analyst', 'neon_tool', 'evidence_set', 'Planner', 'Validator', 'Narrator',
+    'intent_router', 'respond', 'load_kb', 'interview', 'build_draft', 'output_plan', 'save_draft',
+  ];
   return keys.some(k => knownNodes.includes(k));
 };
 
@@ -237,6 +259,41 @@ export const runsService = {
             }
 
             if (currentEvent === 'values' || (currentEvent !== 'messages' && !isUpdates)) {
+              // Campaign setup state: only on values event
+              if (currentEvent === 'values') {
+                const campaignSetupKeys = ['intent', 'phase', 'campaign_draft', 'reply_text', 'validation_errors', 'current_questions_schema', 'draft_plan', 'draft_setup_json', 'saved_draft_id', 'platform', 'campaign_type', 'messages'];
+                const hasCampaignSetupState = campaignSetupKeys.some(k => data[k] !== undefined);
+                if (hasCampaignSetupState && callbacks.onCampaignSetupState) {
+                  const state: CampaignSetupState = {
+                    messages: data.messages,
+                    intent: data.intent,
+                    platform: data.platform,
+                    campaign_type: data.campaign_type,
+                    documents: data.documents,
+                    campaign_draft: data.campaign_draft,
+                    phase: data.phase,
+                    draft_plan: data.draft_plan,
+                    draft_setup_json: data.draft_setup_json,
+                    reply_text: data.reply_text,
+                    validation_errors: data.validation_errors,
+                    saved_draft_id: data.saved_draft_id,
+                    current_questions_schema: data.current_questions_schema,
+                  };
+                  callbacks.onCampaignSetupState(state);
+                  // Ensure UI gets the latest assistant reply (reply_text is the single source from agent)
+                  const replyText = (data.reply_text ?? '').trim();
+                  if (replyText && callbacks.onMessage) {
+                    streamedContent = replyText;
+                    callbacks.onMessage(
+                      streamedContent,
+                      analysisText || undefined,
+                      thinkingSteps.length > 0 ? [...thinkingSteps] : undefined,
+                      runId || undefined
+                    );
+                  }
+                }
+              }
+
               // Handle analysis text
               if (data.analysis !== undefined || data.corrected_analysis !== undefined) {
                 const newAnalysisText = (data.corrected_analysis && data.corrected_analysis.trim())
@@ -247,21 +304,21 @@ export const runsService = {
                 }
               }
 
-              // Handle values/state messages (e.g. final state with data.messages)
+              // Handle values/state messages (e.g. final state with data.messages) — support LangChain serialized format
               if (data.messages && Array.isArray(data.messages)) {
                 let aiMessage = null;
                 for (let j = data.messages.length - 1; j >= 0; j--) {
                   const msg = data.messages[j];
-                  if (msg && !isLangGraphMetadata(msg) && (msg.type === 'ai' || msg.type === 'AIMessageChunk') && msg.content) {
+                  if (msg && !isLangGraphMetadata(msg) && isAIMessage(msg)) {
                     aiMessage = msg;
                     break;
                   }
                 }
 
                 if (aiMessage) {
-                  const messageContent = extractText(aiMessage.content);
-                  if (messageContent && messageContent.trim()) {
-                    streamedContent = messageContent.trim();
+                  const messageContent = getMessageContent(aiMessage).trim();
+                  if (messageContent) {
+                    streamedContent = messageContent;
                     callbacks.onMessage?.(
                       streamedContent,
                       analysisText || undefined,

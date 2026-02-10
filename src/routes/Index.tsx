@@ -10,6 +10,9 @@ import TikTokRoutes from "./TikTokRoutes";
 import NotFoundRoutes from "./NotFoundRoutes";
 import { AssistantProvider } from "./../contexts/AssistantContext";
 import { useParams, Outlet } from "react-router-dom";
+import { ProtectedRoute } from "../components/auth/ProtectedRoute";
+import { Layout } from "../components/layout/Layout";
+import { AgentChatPage } from "../pages/AgentChatPage";
 
 export const AssistantWrapper = () => {
     // ✅ useParams WORKS here because it's inside <Route>
@@ -29,6 +32,16 @@ function AppRoutes() {
             <Route element={<AssistantWrapper />}>
                 {PublicRoutes()}
                 {OAuthRoutes()}
+                <Route
+                    path="/agent"
+                    element={
+                        <ProtectedRoute>
+                            <Layout>
+                                <AgentChatPage />
+                            </Layout>
+                        </ProtectedRoute>
+                    }
+                />
                 {ChannelRoutes()}
                 {AccountRoutes()}
                 {AmazonRoutes()}
