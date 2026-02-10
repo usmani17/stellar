@@ -230,7 +230,7 @@ export const WorkspaceSettings: React.FC = () => {
                 <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
                   {workspaceName || "Workspace"} – Team
                 </h1>
-                {isOwner && (
+                {isManagerOrOwner && (
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -290,8 +290,8 @@ export const WorkspaceSettings: React.FC = () => {
                 )}
               </div>
 
-              {/* Invite panel - Owner only */}
-              {isOwner && invitePanelOpen && (
+              {/* Invite panel - Owner or Manager */}
+              {isManagerOrOwner && invitePanelOpen && (
                 <div className="relative z-[999998]">
                   <div className="relative border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]">
                     <form onSubmit={handleInvite}>
@@ -356,8 +356,8 @@ export const WorkspaceSettings: React.FC = () => {
                 </div>
               )}
 
-              {/* Create user panel - Owner only */}
-              {isOwner && createPanelOpen && (
+              {/* Create user panel - Owner or Manager */}
+              {isManagerOrOwner && createPanelOpen && (
                 <div className="relative z-[999998]">
                   <div className="relative border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]">
                     <form onSubmit={handleCreateUser}>
@@ -504,7 +504,7 @@ export const WorkspaceSettings: React.FC = () => {
                           </td>
                           {(isOwner || isManagerOrOwner) && (
                             <td className="px-4 py-3">
-                              {u.role === "manager" && isOwner && (
+                              {u.role === "manager" && isManagerOrOwner && (
                                 <button
                                   onClick={() => setAssignManagerId(u.id)}
                                   className="text-sm text-forest-f60 hover:underline"

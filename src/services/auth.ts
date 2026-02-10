@@ -9,12 +9,15 @@ export interface Workspace {
   updated_at: string;
 }
 
+export type UserRole = 'owner' | 'manager' | 'team';
+
 export interface User {
   id: number;
   email: string;
   first_name: string;
   last_name: string;
   workspace?: Workspace | null;
+  role?: UserRole;
   created_at: string;
   has_unusable_password?: boolean;
 }

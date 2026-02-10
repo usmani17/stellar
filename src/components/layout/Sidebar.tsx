@@ -51,6 +51,7 @@ export const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const hasWorkspace = !!user?.workspace;
+  const hasUsersAccess = user?.role !== "team"; // Owner and Manager can see Users tab
   const accountId = getCurrentAccountId(location.pathname);
   const { isCollapsed, toggleSidebar, sidebarWidth } = useSidebar();
   const { getAccountById } = useAccounts();
@@ -479,35 +480,37 @@ export const Sidebar: React.FC = () => {
                       Profiles
                     </span>
                   </Link>
-                  <Link
-                    to={
-                      accountId
-                        ? buildAccountRoute(accountId, "users")
-                        : "/workspace/team"
-                    }
-                    onClick={(e) =>
-                      handleAccountRequiredClick(e, () =>
+                  {hasUsersAccess && (
+                    <Link
+                      to={
                         accountId
                           ? buildAccountRoute(accountId, "users")
-                          : "/workspace/team",
-                      )
-                    }
-                    className={`flex items-center p-2 rounded-xl gap-2 ${
-                      isActive("/workspace/team")
-                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                    }`}
-                    title="Users"
-                  >
-                    <img
-                      src={isActive("/workspace/team") ? UsersActiveIcon : UsersIcon}
-                      alt=""
-                      className="w-5 h-5 shrink-0"
-                    />
-                    <span className="text-[12.32px] font-normal leading-[16px]">
-                      Users
-                    </span>
-                  </Link>
+                          : "/workspace/team"
+                      }
+                      onClick={(e) =>
+                        handleAccountRequiredClick(e, () =>
+                          accountId
+                            ? buildAccountRoute(accountId, "users")
+                            : "/workspace/team",
+                        )
+                      }
+                      className={`flex items-center p-2 rounded-xl gap-2 ${
+                        isActive("/workspace/team") || isActive("/brands/" + (accountId ?? "") + "/users")
+                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                      }`}
+                      title="Users"
+                    >
+                      <img
+                        src={isActive("/workspace/team") || isActive("/brands/" + (accountId ?? "") + "/users") ? UsersActiveIcon : UsersIcon}
+                        alt=""
+                        className="w-5 h-5 shrink-0"
+                      />
+                      <span className="text-[12.32px] font-normal leading-[16px]">
+                        Users
+                      </span>
+                    </Link>
+                  )}
                 </div>
               )}
             </>

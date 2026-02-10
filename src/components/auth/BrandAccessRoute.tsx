@@ -78,7 +78,7 @@ export const BrandAccessRoute: React.FC<BrandAccessRouteProps> = ({
   }
 
   if (status === "loading") {
-    return <div className="min-h-screen bg-[#fefefb]" />;
+    return <>{children}</>;
   }
 
   if (status === "denied") {
