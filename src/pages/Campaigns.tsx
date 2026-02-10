@@ -9,6 +9,7 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
+import { Assistant } from "../components/layout/Assistant";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { useDateRange } from "../contexts/DateRangeContext";
 import { useSidebar } from "../contexts/SidebarContext";
@@ -2569,1344 +2570,1344 @@ export const Campaigns: React.FC = () => {
 
       {/* Main Content */}
       <div
-        className="flex-1 min-w-0 w-full"
+        className="flex-1 min-w-0 w-full h-screen flex flex-col"
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
         {/* Header */}
         <DashboardHeader />
-
-        {/* Main Content Area */}
-        <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
-          <div className="space-y-6">
-            {/* Header with Filter and Create Campaign Buttons */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                Campaigns
-              </h1>
-              <div className="flex items-center gap-2">
-                <CreateCampaignSection
-                  isOpen={
-                    isCreateCampaignPanelOpen && campaignFormMode === "create"
-                  }
-                  onToggle={() => {
-                    setCampaignFormMode("create");
-                    setInitialCampaignData(null);
-                    setOriginalCampaignDataSnapshot(null);
-                    setIsCreateCampaignPanelOpen(!isCreateCampaignPanelOpen);
-                    setIsFilterPanelOpen(false); // Close filter panel when opening create panel
-                  }}
-                />
-                <FilterSection
-                  isOpen={isFilterPanelOpen}
-                  onToggle={() => {
-                    setIsFilterPanelOpen(!isFilterPanelOpen);
-                    setIsCreateCampaignPanelOpen(false); // Close create panel when opening filter panel
-                  }}
-                  filters={filters}
-                  onApply={() => { }} // Not used - FilterSectionPanel handles onApply
-                  filterFields={CAMPAIGN_FILTER_FIELDS}
-                  initialFilters={filters}
-                />
-              </div>
-            </div>
-
-            {/* Create / Edit Campaign Panel */}
-            {isCreateCampaignPanelOpen && (
-              <div className="relative z-[999998]">
-                <CreateCampaignPanel
-                  isOpen={isCreateCampaignPanelOpen}
-                  onClose={() => {
-                    setIsCreateCampaignPanelOpen(false);
-                    setInitialCampaignData(null);
-                    setOriginalCampaignDataSnapshot(null);
-                    setCampaignFormMode("create");
-                    setCampaignId(undefined);
-                    setEditLoadingCampaignId(null);
-                    setLoadingEditCampaignId(null);
-                  }}
-                  onSubmit={handleCampaignPanelSubmit}
-                  accountId={accountId}
-                  profiles={profileOptions}
-                  loading={
-                    createCampaignLoading ||
-                    editLoadingCampaignId === campaignId ||
-                    loadingEditCampaignId !== null
-                  }
-                  loadingMessage={
-                    loadingEditCampaignId !== null
-                      ? "Loading campaign..."
-                      : undefined
-                  }
-                  submitError={createCampaignError}
-                  mode={campaignFormMode}
-                  initialData={initialCampaignData}
-                  campaignId={campaignId}
-                />
-              </div>
-            )}
-
-            {/* Filter Panel - Rendered outside header to maintain button position */}
-            <FilterSectionPanel
-              isOpen={isFilterPanelOpen}
-              onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-              filters={filters}
-              onApply={(newFilters) => {
-                setFilters(newFilters);
-                setCurrentPage(1); // Reset to first page when applying filters
-              }}
-              filterFields={CAMPAIGN_FILTER_FIELDS}
-              initialFilters={filters}
-              accountId={accountId}
-              channelType="amazon"
-            />
-
-            {/* Chart Section with overlay when panel is open */}
-            <div className="relative">
-              <PerformanceChart
-                data={chartData}
-                toggles={chartToggles}
-                onToggle={toggleChartMetric}
-                metrics={campaignMetrics}
-                title="Performance Trends"
-                isCollapsed={isChartCollapsed}
-                onCollapseToggle={toggleChartCollapse}
-              />
-              {isCreateCampaignPanelOpen && (
-                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[12px] cursor-not-allowed" />
-              )}
-              {/* Loading overlay for chart */}
-              {loading && (
-                <div className="loading-overlay">
-                  <div className="loading-overlay-content">
-                    <Loader size="md" message="Loading chart data..." />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Search, Edit and Export Buttons - Above Table */}
-            <div className="flex items-center justify-end gap-2 relative z-[100]">
-              {/* Search Box */}
-              <div className="search-input-container flex gap-[8px] h-[40px] items-center p-[10px] w-[272px] relative z-[100]">
-                <div className="relative shrink-0 size-[12px]">
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M5.5 9.5C7.70914 9.5 9.5 7.70914 9.5 5.5C9.5 3.29086 7.70914 1.5 5.5 1.5C3.29086 1.5 1.5 3.29086 1.5 5.5C1.5 7.70914 3.29086 9.5 5.5 9.5Z"
-                      stroke="#556179"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M10.5 10.5L8.5 8.5"
-                      stroke="#556179"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    // Don't reset page or call API while typing - only filter client-side
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      // Call backend API when Enter is pressed
-                      setApiSearchQuery(searchQuery);
-                      setCurrentPage(1); // Reset to first page when searching
+        <Assistant>
+          {/* Main Content Area - Add top padding for fixed header */}
+          <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-white overflow-x-hidden min-w-0">
+            <div className="space-y-6">
+              {/* Header with Filter and Create Campaign Buttons */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
+                  Campaigns
+                </h1>
+                <div className="flex items-center gap-2">
+                  <CreateCampaignSection
+                    isOpen={
+                      isCreateCampaignPanelOpen && campaignFormMode === "create"
                     }
-                  }}
-                  placeholder="Search by Name or Account ID"
-                  className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179] font-['GT_America_Trial'] font-normal"
-                />
-              </div>
-              <div className="flex items-center gap-2 relative z-[100]">
-                <div
-                  className="relative inline-flex justify-end z-[100]"
-                  ref={dropdownRef}
-                >
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="edit-button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowBulkActions((prev) => !prev);
-                      setShowBudgetPanel(false);
-                      setShowExportDropdown(false);
+                    onToggle={() => {
+                      setCampaignFormMode("create");
+                      setInitialCampaignData(null);
+                      setOriginalCampaignDataSnapshot(null);
+                      setIsCreateCampaignPanelOpen(!isCreateCampaignPanelOpen);
+                      setIsFilterPanelOpen(false); // Close filter panel when opening create panel
                     }}
-                  >
+                  />
+                  <FilterSection
+                    isOpen={isFilterPanelOpen}
+                    onToggle={() => {
+                      setIsFilterPanelOpen(!isFilterPanelOpen);
+                      setIsCreateCampaignPanelOpen(false); // Close create panel when opening filter panel
+                    }}
+                    filters={filters}
+                    onApply={() => { }} // Not used - FilterSectionPanel handles onApply
+                    filterFields={CAMPAIGN_FILTER_FIELDS}
+                    initialFilters={filters}
+                  />
+                </div>
+              </div>
+
+              {/* Create / Edit Campaign Panel */}
+              {isCreateCampaignPanelOpen && (
+                <div className="relative z-[999998]">
+                  <CreateCampaignPanel
+                    isOpen={isCreateCampaignPanelOpen}
+                    onClose={() => {
+                      setIsCreateCampaignPanelOpen(false);
+                      setInitialCampaignData(null);
+                      setOriginalCampaignDataSnapshot(null);
+                      setCampaignFormMode("create");
+                      setCampaignId(undefined);
+                      setEditLoadingCampaignId(null);
+                      setLoadingEditCampaignId(null);
+                    }}
+                    onSubmit={handleCampaignPanelSubmit}
+                    accountId={accountId}
+                    profiles={profileOptions}
+                    loading={
+                      createCampaignLoading ||
+                      editLoadingCampaignId === campaignId ||
+                      loadingEditCampaignId !== null
+                    }
+                    loadingMessage={
+                      loadingEditCampaignId !== null
+                        ? "Loading campaign..."
+                        : undefined
+                    }
+                    submitError={createCampaignError}
+                    mode={campaignFormMode}
+                    initialData={initialCampaignData}
+                    campaignId={campaignId}
+                  />
+                </div>
+              )}
+
+              {/* Filter Panel - Rendered outside header to maintain button position */}
+              <FilterSectionPanel
+                isOpen={isFilterPanelOpen}
+                onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+                filters={filters}
+                onApply={(newFilters) => {
+                  setFilters(newFilters);
+                  setCurrentPage(1); // Reset to first page when applying filters
+                }}
+                filterFields={CAMPAIGN_FILTER_FIELDS}
+                initialFilters={filters}
+                accountId={accountId}
+                channelType="amazon"
+              />
+
+              {/* Chart Section with overlay when panel is open */}
+              <div className="relative">
+                <PerformanceChart
+                  data={chartData}
+                  toggles={chartToggles}
+                  onToggle={toggleChartMetric}
+                  metrics={campaignMetrics}
+                  title="Performance Trends"
+                  isCollapsed={isChartCollapsed}
+                  onCollapseToggle={toggleChartCollapse}
+                />
+                {isCreateCampaignPanelOpen && (
+                  <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[12px] cursor-not-allowed" />
+                )}
+                {/* Loading overlay for chart */}
+                {loading && (
+                  <div className="loading-overlay">
+                    <div className="loading-overlay-content">
+                      <Loader size="md" message="Loading chart data..." />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Search, Edit and Export Buttons - Above Table */}
+              <div className="flex items-center justify-end gap-2 relative z-[100]">
+                {/* Search Box */}
+                <div className="search-input-container flex gap-[8px] h-[40px] items-center p-[10px] w-[272px] relative z-[100]">
+                  <div className="relative shrink-0 size-[12px]">
                     <svg
-                      className="w-5 h-5 text-[#072929]"
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
                       fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                      xmlns="http://www.w3.org/2000/svg"
                     >
                       <path
+                        d="M5.5 9.5C7.70914 9.5 9.5 7.70914 9.5 5.5C9.5 3.29086 7.70914 1.5 5.5 1.5C3.29086 1.5 1.5 3.29086 1.5 5.5C1.5 7.70914 3.29086 9.5 5.5 9.5Z"
+                        stroke="#556179"
+                        strokeWidth="1.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                      />
+                      <path
+                        d="M10.5 10.5L8.5 8.5"
+                        stroke="#556179"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
                     </svg>
-                    <span className="text-[10.64px] text-[#072929] font-normal">
-                      Bulk Actions
-                    </span>
-                  </Button>
-                  {showBulkActions && (
-                    <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[110] pointer-events-auto overflow-hidden">
-                      <div className="overflow-y-auto">
-                        {[
-                          { value: "enable", label: "Enabled" },
-                          { value: "pause", label: "Paused" },
-                          { value: "archive", label: "Archive" },
-                          { value: "edit_budget", label: "Edit Budget" },
-                        ].map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                            disabled={selectedCampaigns.size === 0}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (selectedCampaigns.size === 0) return;
-                              if (opt.value === "edit_budget") {
-                                setShowBudgetPanel(true);
-                              } else if (opt.value === "archive") {
-                                setShowBudgetPanel(false);
-                                setPendingStatusAction("archive");
-                                setIsBudgetChange(false);
-                                setShowConfirmationModal(true);
-                              } else {
-                                setShowBudgetPanel(false);
-                                setPendingStatusAction(
-                                  opt.value as "enable" | "pause"
-                                );
-                                setIsBudgetChange(false);
-                                setShowConfirmationModal(true);
-                              }
-                              setShowBulkActions(false);
-                            }}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  </div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      // Don't reset page or call API while typing - only filter client-side
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        // Call backend API when Enter is pressed
+                        setApiSearchQuery(searchQuery);
+                        setCurrentPage(1); // Reset to first page when searching
+                      }
+                    }}
+                    placeholder="Search by Name or Account ID"
+                    className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179] font-['GT_America_Trial'] font-normal"
+                  />
                 </div>
-                <div
-                  className="relative inline-flex justify-end"
-                  ref={exportDropdownRef}
-                >
-                  <div className="relative">
+                <div className="flex items-center gap-2 relative z-[100]">
+                  <div
+                    className="relative inline-flex justify-end z-[100]"
+                    ref={dropdownRef}
+                  >
                     <Button
                       type="button"
                       variant="ghost"
                       className="edit-button"
                       onClick={(e) => {
-                        if (exportLoading) return;
                         e.stopPropagation();
-                        setShowExportDropdown((prev) => !prev);
-                        setShowBulkActions(false);
+                        setShowBulkActions((prev) => !prev);
                         setShowBudgetPanel(false);
+                        setShowExportDropdown(false);
                       }}
-                      disabled={exportLoading}
                     >
-                      {exportLoading ? (
-                        <div className="flex items-center justify-center">
-                          <Loader size="sm" />
-                        </div>
-                      ) : (
-                        <>
-                          <svg
-                            className="w-5 h-5 text-[#072929]"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                            />
-                          </svg>
-                          <span className="text-[10.64px] text-[#072929] font-normal">
-                            Export
-                          </span>
-                        </>
-                      )}
+                      <svg
+                        className="w-5 h-5 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Bulk Actions
+                      </span>
                     </Button>
-                  </div>
-                  {(showExportDropdown || exportLoading) && (
-                    <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[110] pointer-events-auto overflow-hidden">
-                      {exportLoading ? (
-                        <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
-                          <Loader size="md" />
-                          <p className="text-[13px] text-[#072929] font-medium">
-                            Exporting...
-                          </p>
-                          <p className="text-[11px] text-[#556179] text-center px-2">
-                            Please wait while we prepare your file
-                          </p>
-                        </div>
-                      ) : (
+                    {showBulkActions && (
+                      <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[110] pointer-events-auto overflow-hidden">
                         <div className="overflow-y-auto">
                           {[
-                            { value: "bulk_export", label: "Export All" },
-                            {
-                              value: "current_view",
-                              label: "Export Current View",
-                            },
+                            { value: "enable", label: "Enabled" },
+                            { value: "pause", label: "Paused" },
+                            { value: "archive", label: "Archive" },
+                            { value: "edit_budget", label: "Edit Budget" },
                           ].map((opt) => (
                             <button
                               key={opt.value}
                               type="button"
-                              className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
-                              onClick={async (e) => {
+                              className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                              disabled={selectedCampaigns.size === 0}
+                              onClick={(e) => {
                                 e.stopPropagation();
-                                e.preventDefault();
-                                const exportType =
-                                  opt.value === "bulk_export"
-                                    ? "all_data"
-                                    : "current_view";
-                                // Keep dropdown open during export
-                                await handleExport(exportType);
+                                if (selectedCampaigns.size === 0) return;
+                                if (opt.value === "edit_budget") {
+                                  setShowBudgetPanel(true);
+                                } else if (opt.value === "archive") {
+                                  setShowBudgetPanel(false);
+                                  setPendingStatusAction("archive");
+                                  setIsBudgetChange(false);
+                                  setShowConfirmationModal(true);
+                                } else {
+                                  setShowBudgetPanel(false);
+                                  setPendingStatusAction(
+                                    opt.value as "enable" | "pause"
+                                  );
+                                  setIsBudgetChange(false);
+                                  setShowConfirmationModal(true);
+                                }
+                                setShowBulkActions(false);
                               }}
-                              disabled={exportLoading}
                             >
-                              <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                                <svg
-                                  width="20"
-                                  height="20"
-                                  viewBox="0 0 20 20"
-                                  fill="none"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                >
-                                  <rect
-                                    width="20"
-                                    height="20"
-                                    rx="3.2"
-                                    fill="#072929"
-                                  />
-                                  <path
-                                    d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
-                                    stroke="#F9F9F6"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
-                                </svg>
-                              </div>
-                              <span className="font-normal">{opt.label}</span>
+                              {opt.label}
                             </button>
                           ))}
                         </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Campaigns Table Card with overlay when panel is open */}
-            <div className="relative">
-              {/* Budget editor panel */}
-              {selectedCampaigns.size > 0 && showBudgetPanel && (
-                <div className="mb-4">
-                  <div className="border border-gray-200 rounded-xl p-4 bg-[#f9f9f6]">
-                    <div className="flex flex-wrap items-end gap-3 justify-between">
-                      <div className="w-[160px]">
-                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                          Action
-                        </label>
-                        <Dropdown
-                          options={[
-                            { value: "increase", label: "Increase By" },
-                            { value: "decrease", label: "Decrease By" },
-                            { value: "set", label: "Set To" },
-                          ]}
-                          value={budgetAction}
-                          onChange={(val) => {
-                            const action = val as typeof budgetAction;
-                            setBudgetAction(action);
-                            // When "Set To" is selected, automatically use $ (amount)
-                            if (action === "set") {
-                              setBudgetUnit("amount");
-                            }
-                          }}
-                          buttonClassName="w-full bg-[#FEFEFB] edit-button"
-                          width="w-full"
-                        />
                       </div>
-                      {(budgetAction === "increase" ||
-                        budgetAction === "decrease") && (
-                          <div className="w-[140px]">
-                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                              Unit
-                            </label>
-                            <div className="flex gap-2">
+                    )}
+                  </div>
+                  <div
+                    className="relative inline-flex justify-end"
+                    ref={exportDropdownRef}
+                  >
+                    <div className="relative">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="edit-button"
+                        onClick={(e) => {
+                          if (exportLoading) return;
+                          e.stopPropagation();
+                          setShowExportDropdown((prev) => !prev);
+                          setShowBulkActions(false);
+                          setShowBudgetPanel(false);
+                        }}
+                        disabled={exportLoading}
+                      >
+                        {exportLoading ? (
+                          <div className="flex items-center justify-center">
+                            <Loader size="sm" />
+                          </div>
+                        ) : (
+                          <>
+                            <svg
+                              className="w-5 h-5 text-[#072929]"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              />
+                            </svg>
+                            <span className="text-[10.64px] text-[#072929] font-normal">
+                              Export
+                            </span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {(showExportDropdown || exportLoading) && (
+                      <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[110] pointer-events-auto overflow-hidden">
+                        {exportLoading ? (
+                          <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                            <Loader size="md" />
+                            <p className="text-[13px] text-[#072929] font-medium">
+                              Exporting...
+                            </p>
+                            <p className="text-[11px] text-[#556179] text-center px-2">
+                              Please wait while we prepare your file
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="overflow-y-auto">
+                            {[
+                              { value: "bulk_export", label: "Export All" },
+                              {
+                                value: "current_view",
+                                label: "Export Current View",
+                              },
+                            ].map((opt) => (
                               <button
+                                key={opt.value}
                                 type="button"
-                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${budgetUnit === "percent"
-                                  ? "bg-forest-f40  border-forest-f40"
-                                  : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                                  }`}
-                                onClick={() => setBudgetUnit("percent")}
+                                className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  const exportType =
+                                    opt.value === "bulk_export"
+                                      ? "all_data"
+                                      : "current_view";
+                                  // Keep dropdown open during export
+                                  await handleExport(exportType);
+                                }}
+                                disabled={exportLoading}
                               >
-                                %
+                                <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                                  <svg
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 20 20"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <rect
+                                      width="20"
+                                      height="20"
+                                      rx="3.2"
+                                      fill="#072929"
+                                    />
+                                    <path
+                                      d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                      stroke="#F9F9F6"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </div>
+                                <span className="font-normal">{opt.label}</span>
                               </button>
-                              <button
-                                type="button"
-                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${budgetUnit === "amount"
-                                  ? "bg-forest-f40  border-forest-f40"
-                                  : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                                  }`}
-                                onClick={() => setBudgetUnit("amount")}
-                              >
-                                $
-                              </button>
-                            </div>
+                            ))}
                           </div>
                         )}
-                      <div className="w-[160px]">
-                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                          Value
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            value={budgetValue}
-                            onChange={(e) => setBudgetValue(e.target.value)}
-                            className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Campaigns Table Card with overlay when panel is open */}
+              <div className="relative">
+                {/* Budget editor panel */}
+                {selectedCampaigns.size > 0 && showBudgetPanel && (
+                  <div className="mb-4">
+                    <div className="border border-gray-200 rounded-xl p-4 bg-[#f9f9f6]">
+                      <div className="flex flex-wrap items-end gap-3 justify-between">
+                        <div className="w-[160px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Action
+                          </label>
+                          <Dropdown
+                            options={[
+                              { value: "increase", label: "Increase By" },
+                              { value: "decrease", label: "Decrease By" },
+                              { value: "set", label: "Set To" },
+                            ]}
+                            value={budgetAction}
+                            onChange={(val) => {
+                              const action = val as typeof budgetAction;
+                              setBudgetAction(action);
+                              // When "Set To" is selected, automatically use $ (amount)
+                              if (action === "set") {
+                                setBudgetUnit("amount");
+                              }
+                            }}
+                            buttonClassName="w-full bg-[#FEFEFB] edit-button"
+                            width="w-full"
                           />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
-                            {budgetUnit === "percent" ? "%" : "$"}
+                        </div>
+                        {(budgetAction === "increase" ||
+                          budgetAction === "decrease") && (
+                            <div className="w-[140px]">
+                              <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                                Unit
+                              </label>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  className={`flex-1 px-3 py-2 rounded-lg border items-center ${budgetUnit === "percent"
+                                    ? "bg-forest-f40  border-forest-f40"
+                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                    }`}
+                                  onClick={() => setBudgetUnit("percent")}
+                                >
+                                  %
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`flex-1 px-3 py-2 rounded-lg border items-center ${budgetUnit === "amount"
+                                    ? "bg-forest-f40  border-forest-f40"
+                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                    }`}
+                                  onClick={() => setBudgetUnit("amount")}
+                                >
+                                  $
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        <div className="w-[160px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Value
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              value={budgetValue}
+                              onChange={(e) => setBudgetValue(e.target.value)}
+                              className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
+                              {budgetUnit === "percent" ? "%" : "$"}
+                            </span>
+                          </div>
+                        </div>
+                        {budgetAction === "increase" && (
+                          <div className="w-[160px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Upper Limit (optional)
+                            </label>
+                            <input
+                              type="number"
+                              value={upperLimit}
+                              onChange={(e) => setUpperLimit(e.target.value)}
+                              className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                            />
+                          </div>
+                        )}
+                        {budgetAction === "decrease" && (
+                          <div className="w-[160px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Lower Limit (optional)
+                            </label>
+                            <input
+                              type="number"
+                              value={lowerLimit}
+                              onChange={(e) => setLowerLimit(e.target.value)}
+                              className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                            />
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 ml-auto">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowBudgetPanel(false);
+                              setShowBulkActions(false);
+                            }}
+                            className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!budgetValue) return;
+                              setIsBudgetChange(true);
+                              setPendingStatusAction(null);
+                              setShowConfirmationModal(true);
+                            }}
+                            disabled={bulkLoading || !budgetValue}
+                            className="create-entity-button btn-sm"
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Confirmation Modal */}
+                {showConfirmationModal && (
+                  <div
+                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
+                    onClick={(e) => {
+                      if (e.target === e.currentTarget && !bulkLoading) {
+                        setShowConfirmationModal(false);
+                        setPendingStatusAction(null);
+                      }
+                    }}
+                  >
+                    <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                      <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                        {isBudgetChange
+                          ? "Confirm Budget Changes"
+                          : "Confirm Status Changes"}
+                      </h3>
+
+                      {/* Summary */}
+                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12.16px] text-[#556179]">
+                            {selectedCampaigns.size} campaign
+                            {selectedCampaigns.size !== 1 ? "s" : ""} will be
+                            updated:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {isBudgetChange ? "Budget" : "Status"} change
                           </span>
                         </div>
                       </div>
-                      {budgetAction === "increase" && (
-                        <div className="w-[160px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Upper Limit (optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={upperLimit}
-                            onChange={(e) => setUpperLimit(e.target.value)}
-                            className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                          />
+
+                      {/* Campaign Preview Table */}
+                      {selectedCampaignsFetching ? (
+                        <div className="mb-6 py-8 text-center text-[12.16px] text-[#556179]">
+                          Loading selected campaigns...
                         </div>
+                      ) : (
+                        (() => {
+                          const selectedCampaignsData = getSelectedCampaignsData();
+                          const previewCount = Math.min(
+                            10,
+                            selectedCampaignsData.length
+                          );
+                          const hasMore = selectedCampaignsData.length > 10;
+
+                          return (
+                            <div className="mb-6">
+                              <div className="mb-2">
+                                <span className="text-[10.64px] text-[#556179]">
+                                  {hasMore
+                                    ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
+                                    : `${selectedCampaignsData.length} campaign${selectedCampaignsData.length !== 1
+                                      ? "s"
+                                      : ""
+                                    } selected`}
+                                </span>
+                              </div>
+                              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                <table className="w-full">
+                                  <thead className="bg-sandstorm-s20">
+                                    <tr>
+                                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                        Campaign Name
+                                      </th>
+                                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                        Old Value
+                                      </th>
+                                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                        New Value
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {selectedCampaignsData
+                                      .slice(0, 10)
+                                      .map((campaign) => {
+                                        const oldBudget =
+                                          campaign.daily_budget ?? (campaign as any)?.daily_budget ?? 0;
+                                        const currency =
+                                          campaign.profile_currency_code ?? (campaign as any)?.profile_currency_code ?? "USD";
+                                        const oldStatus =
+                                          campaign.status || "Enabled";
+                                        const newBudget = isBudgetChange
+                                          ? calculateNewBudget(oldBudget)
+                                          : oldBudget;
+                                        const newStatus = pendingStatusAction
+                                          ? normalizeStatusDisplay(pendingStatusAction)
+                                          : oldStatus;
+
+                                        return (
+                                          <tr
+                                            key={campaign.campaignId ?? (campaign as any)?.id}
+                                            className="border-b border-gray-200 last:border-b-0"
+                                          >
+                                            <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                              {(campaign.campaign_name ?? (campaign as any)?.name) || "Unnamed Campaign"}
+                                            </td>
+                                            <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                              {isBudgetChange
+                                                ? formatCurrency(Number(oldBudget), currency)
+                                                : oldStatus}
+                                            </td>
+                                            <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                              {isBudgetChange
+                                                ? formatCurrency(Number(newBudget), currency)
+                                                : newStatus}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          );
+                        })()
                       )}
-                      {budgetAction === "decrease" && (
-                        <div className="w-[160px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Lower Limit (optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={lowerLimit}
-                            onChange={(e) => setLowerLimit(e.target.value)}
-                            className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                          />
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2 ml-auto">
+
+                      <div className="space-y-3 mb-6">
+                        {isBudgetChange ? (
+                          <>
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Action:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {budgetAction === "increase"
+                                  ? "Increase By"
+                                  : budgetAction === "decrease"
+                                    ? "Decrease By"
+                                    : "Set To"}
+                              </span>
+                            </div>
+
+                            {(budgetAction === "increase" ||
+                              budgetAction === "decrease") && (
+                                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                  <span className="text-[12.16px] text-[#556179]">
+                                    Unit:
+                                  </span>
+                                  <span className="text-[12.16px] font-semibold text-[#072929]">
+                                    {budgetUnit === "percent"
+                                      ? "Percentage (%)"
+                                      : "Amount ($)"}
+                                  </span>
+                                </div>
+                              )}
+
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Value:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {budgetUnit === "percent"
+                                  ? `${budgetValue}%`
+                                  : formatCurrency(parseFloat(budgetValue) || 0, getSelectedCampaignsData()[0]?.profile_currency_code ?? (getSelectedCampaignsData()[0] as any)?.profile_currency_code)}
+                              </span>
+                            </div>
+
+                            {budgetAction === "increase" && upperLimit && (
+                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span className="text-[12.16px] text-[#556179]">
+                                  Upper Limit:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                  {formatCurrency(parseFloat(upperLimit) || 0, getSelectedCampaignsData()[0]?.profile_currency_code ?? (getSelectedCampaignsData()[0] as any)?.profile_currency_code)}
+                                </span>
+                              </div>
+                            )}
+
+                            {budgetAction === "decrease" && lowerLimit && (
+                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span className="text-[12.16px] text-[#556179]">
+                                  Lower Limit:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                  {formatCurrency(parseFloat(lowerLimit) || 0, getSelectedCampaignsData()[0]?.profile_currency_code ?? (getSelectedCampaignsData()[0] as any)?.profile_currency_code)}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                            <span className="text-[12.16px] text-[#556179]">
+                              New Status:
+                            </span>
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                              {pendingStatusAction
+                                ? normalizeStatusDisplay(pendingStatusAction)
+                                : ""}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end gap-3">
                         <button
                           type="button"
                           onClick={() => {
-                            setShowBudgetPanel(false);
-                            setShowBulkActions(false);
+                            if (bulkLoading) return;
+                            setShowConfirmationModal(false);
+                            setPendingStatusAction(null);
                           }}
-                          className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
+                          disabled={bulkLoading}
+                          className="cancel-button"
                         >
                           Cancel
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            if (!budgetValue) return;
-                            setIsBudgetChange(true);
-                            setPendingStatusAction(null);
-                            setShowConfirmationModal(true);
+                          onClick={async () => {
+                            if (bulkLoading) return;
+                            try {
+                              if (isBudgetChange) {
+                                await runBulkBudget();
+                                setShowBudgetPanel(false);
+                                setShowBulkActions(false);
+                              } else if (pendingStatusAction) {
+                                await runBulkStatus(pendingStatusAction);
+                                setShowBulkActions(false);
+                              }
+                            } finally {
+                              setShowConfirmationModal(false);
+                              setPendingStatusAction(null);
+                            }
                           }}
-                          disabled={bulkLoading || !budgetValue}
-                          className="create-entity-button btn-sm"
+                          disabled={bulkLoading || selectedCampaignsFetching}
+                          className="create-entity-button btn-sm flex items-center gap-2"
                         >
-                          Apply
+                          {bulkLoading ? (
+                            <>
+                              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Applying...
+                            </>
+                          ) : (
+                            "Confirm"
+                          )}
                         </button>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Confirmation Modal */}
-              {showConfirmationModal && (
-                <div
-                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget && !bulkLoading) {
-                      setShowConfirmationModal(false);
-                      setPendingStatusAction(null);
-                    }
-                  }}
-                >
-                  <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
-                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      {isBudgetChange
-                        ? "Confirm Budget Changes"
-                        : "Confirm Status Changes"}
-                    </h3>
+                {/* Delete Confirmation Modal */}
+                {showDeleteModal && (
+                  <div
+                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
+                    onClick={(e) => {
+                      if (e.target === e.currentTarget && !bulkLoading) {
+                        setShowDeleteModal(false);
+                      }
+                    }}
+                  >
+                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+                      <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                        Delete Campaigns?
+                      </h3>
 
-                    {/* Summary */}
-                    <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[12.16px] text-[#556179]">
-                          {selectedCampaigns.size} campaign
-                          {selectedCampaigns.size !== 1 ? "s" : ""} will be
-                          updated:
-                        </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {isBudgetChange ? "Budget" : "Status"} change
-                        </span>
+                      <p className="text-[12.16px] text-[#556179] mb-4">
+                        You are about to permanently delete{" "}
+                        {selectedCampaigns.size} selected campaign
+                        {selectedCampaigns.size !== 1 ? "s" : ""}. This will stop
+                        all ad serving immediately and cannot be undone. Deleted
+                        campaigns can still be viewed in reports but not edited or
+                        re-enabled.
+                      </p>
+
+                      <div className="flex justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!bulkLoading) {
+                              setShowDeleteModal(false);
+                            }
+                          }}
+                          disabled={bulkLoading}
+                          className="cancel-button"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={runBulkDelete}
+                          disabled={bulkLoading}
+                          className="px-4 py-2 bg-red-600 text-white text-[10.64px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {bulkLoading ? "Deleting..." : "Confirm"}
+                        </button>
                       </div>
                     </div>
+                  </div>
+                )}
 
-                    {/* Campaign Preview Table */}
-                    {selectedCampaignsFetching ? (
-                      <div className="mb-6 py-8 text-center text-[12.16px] text-[#556179]">
-                        Loading selected campaigns...
+                {/* Inline Edit Confirmation Modal */}
+                {showInlineEditModal && inlineEditCampaign && inlineEditField && (
+                  <div
+                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
+                    onClick={(e) => {
+                      if (e.target === e.currentTarget) {
+                        setShowInlineEditModal(false);
+                      }
+                    }}
+                  >
+                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+                      <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                        Confirm{" "}
+                        {inlineEditField === "budget"
+                          ? "Budget"
+                          : inlineEditField === "budgetType"
+                            ? "Budget Type"
+                            : "Status"}{" "}
+                        Change
+                      </h3>
+
+                      <div className="mb-4">
+                        <p className="text-[12.16px] text-[#556179] mb-2">
+                          Campaign:{" "}
+                          <span className="font-semibold text-[#072929]">
+                            {inlineEditCampaign.campaign_name ||
+                              "Unnamed Campaign"}
+                          </span>
+                        </p>
+                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[12.16px] text-[#556179]">
+                              {inlineEditField === "budget"
+                                ? "Budget"
+                                : inlineEditField === "budgetType"
+                                  ? "Budget Type"
+                                  : "Status"}
+                              :
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[12.16px] text-[#556179]">
+                                {inlineEditOldValue}
+                              </span>
+                              <span className="text-[12.16px] text-[#556179]">
+                                →
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {inlineEditNewValue}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowInlineEditModal(false);
+                            setInlineEditCampaign(null);
+                            setInlineEditField(null);
+                            setInlineEditOldValue("");
+                            setInlineEditNewValue("");
+                          }}
+                          className="cancel-button"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={runInlineEdit}
+                          disabled={inlineEditLoading}
+                          className="create-entity-button btn-sm"
+                        >
+                          {inlineEditLoading ? "Updating..." : "Confirm"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Table */}
+                <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
+                  <div className="overflow-x-auto w-full">
+                    {campaigns.length === 0 && !loading ? (
+                      <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
+                        <div className="flex flex-col items-center justify-center max-w-md">
+                          {/* Icon */}
+                          <div className="mb-6 w-20 h-20 rounded-full bg-[#F5F5F0] flex items-center justify-center">
+                            <svg
+                              className="w-10 h-10 text-[#556179]"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={1.5}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              />
+                            </svg>
+                          </div>
+                          {/* Title */}
+                          <h3 className="text-lg font-medium text-teal-950 mb-2">
+                            No Campaigns Found
+                          </h3>
+                          {/* Description */}
+                          <p className="text-sm text-[#556179] text-center leading-relaxed">
+                            There are no campaigns for this account yet. Campaigns will appear here when they are created.
+                          </p>
+                        </div>
                       </div>
                     ) : (
-                      (() => {
-                        const selectedCampaignsData = getSelectedCampaignsData();
-                        const previewCount = Math.min(
-                          10,
-                          selectedCampaignsData.length
-                        );
-                        const hasMore = selectedCampaignsData.length > 10;
-
-                        return (
-                          <div className="mb-6">
-                            <div className="mb-2">
-                              <span className="text-[10.64px] text-[#556179]">
-                                {hasMore
-                                  ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
-                                  : `${selectedCampaignsData.length} campaign${selectedCampaignsData.length !== 1
-                                    ? "s"
-                                    : ""
-                                  } selected`}
-                              </span>
-                            </div>
-                            <div className="border border-gray-200 rounded-lg overflow-hidden">
-                              <table className="w-full">
-                                <thead className="bg-sandstorm-s20">
-                                  <tr>
-                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                      Campaign Name
-                                    </th>
-                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                      Old Value
-                                    </th>
-                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                      New Value
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {selectedCampaignsData
-                                    .slice(0, 10)
-                                    .map((campaign) => {
-                                      const oldBudget =
-                                        campaign.daily_budget ?? (campaign as any)?.daily_budget ?? 0;
-                                      const currency =
-                                        campaign.profile_currency_code ?? (campaign as any)?.profile_currency_code ?? "USD";
-                                      const oldStatus =
-                                        campaign.status || "Enabled";
-                                      const newBudget = isBudgetChange
-                                        ? calculateNewBudget(oldBudget)
-                                        : oldBudget;
-                                      const newStatus = pendingStatusAction
-                                        ? normalizeStatusDisplay(pendingStatusAction)
-                                        : oldStatus;
-
-                                      return (
-                                        <tr
-                                          key={campaign.campaignId ?? (campaign as any)?.id}
-                                          className="border-b border-gray-200 last:border-b-0"
-                                        >
-                                          <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                            {(campaign.campaign_name ?? (campaign as any)?.name) || "Unnamed Campaign"}
-                                          </td>
-                                          <td className="px-4 py-2 text-[10.64px] text-[#556179]">
-                                            {isBudgetChange
-                                              ? formatCurrency(Number(oldBudget), currency)
-                                              : oldStatus}
-                                          </td>
-                                          <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
-                                            {isBudgetChange
-                                              ? formatCurrency(Number(newBudget), currency)
-                                              : newStatus}
-                                          </td>
-                                        </tr>
-                                      );
-                                    })}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        );
-                      })()
-                    )}
-
-                    <div className="space-y-3 mb-6">
-                      {isBudgetChange ? (
-                        <>
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Action:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {budgetAction === "increase"
-                                ? "Increase By"
-                                : budgetAction === "decrease"
-                                  ? "Decrease By"
-                                  : "Set To"}
-                            </span>
-                          </div>
-
-                          {(budgetAction === "increase" ||
-                            budgetAction === "decrease") && (
-                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                                <span className="text-[12.16px] text-[#556179]">
-                                  Unit:
-                                </span>
-                                <span className="text-[12.16px] font-semibold text-[#072929]">
-                                  {budgetUnit === "percent"
-                                    ? "Percentage (%)"
-                                    : "Amount ($)"}
-                                </span>
-                              </div>
-                            )}
-
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Value:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {budgetUnit === "percent"
-                                ? `${budgetValue}%`
-                                : formatCurrency(parseFloat(budgetValue) || 0, getSelectedCampaignsData()[0]?.profile_currency_code ?? (getSelectedCampaignsData()[0] as any)?.profile_currency_code)}
-                            </span>
-                          </div>
-
-                          {budgetAction === "increase" && upperLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Upper Limit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {formatCurrency(parseFloat(upperLimit) || 0, getSelectedCampaignsData()[0]?.profile_currency_code ?? (getSelectedCampaignsData()[0] as any)?.profile_currency_code)}
-                              </span>
-                            </div>
-                          )}
-
-                          {budgetAction === "decrease" && lowerLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Lower Limit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {formatCurrency(parseFloat(lowerLimit) || 0, getSelectedCampaignsData()[0]?.profile_currency_code ?? (getSelectedCampaignsData()[0] as any)?.profile_currency_code)}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                          <span className="text-[12.16px] text-[#556179]">
-                            New Status:
-                          </span>
-                          <span className="text-[12.16px] font-semibold text-[#072929]">
-                            {pendingStatusAction
-                              ? normalizeStatusDisplay(pendingStatusAction)
-                              : ""}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (bulkLoading) return;
-                          setShowConfirmationModal(false);
-                          setPendingStatusAction(null);
-                        }}
-                        disabled={bulkLoading}
-                        className="cancel-button"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (bulkLoading) return;
-                          try {
-                            if (isBudgetChange) {
-                              await runBulkBudget();
-                              setShowBudgetPanel(false);
-                              setShowBulkActions(false);
-                            } else if (pendingStatusAction) {
-                              await runBulkStatus(pendingStatusAction);
-                              setShowBulkActions(false);
-                            }
-                          } finally {
-                            setShowConfirmationModal(false);
-                            setPendingStatusAction(null);
-                          }
-                        }}
-                        disabled={bulkLoading || selectedCampaignsFetching}
-                        className="create-entity-button btn-sm flex items-center gap-2"
-                      >
-                        {bulkLoading ? (
-                          <>
-                            <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            Applying...
-                          </>
-                        ) : (
-                          "Confirm"
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Delete Confirmation Modal */}
-              {showDeleteModal && (
-                <div
-                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget && !bulkLoading) {
-                      setShowDeleteModal(false);
-                    }
-                  }}
-                >
-                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
-                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      Delete Campaigns?
-                    </h3>
-
-                    <p className="text-[12.16px] text-[#556179] mb-4">
-                      You are about to permanently delete{" "}
-                      {selectedCampaigns.size} selected campaign
-                      {selectedCampaigns.size !== 1 ? "s" : ""}. This will stop
-                      all ad serving immediately and cannot be undone. Deleted
-                      campaigns can still be viewed in reports but not edited or
-                      re-enabled.
-                    </p>
-
-                    <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!bulkLoading) {
-                            setShowDeleteModal(false);
-                          }
-                        }}
-                        disabled={bulkLoading}
-                        className="cancel-button"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={runBulkDelete}
-                        disabled={bulkLoading}
-                        className="px-4 py-2 bg-red-600 text-white text-[10.64px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {bulkLoading ? "Deleting..." : "Confirm"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Inline Edit Confirmation Modal */}
-              {showInlineEditModal && inlineEditCampaign && inlineEditField && (
-                <div
-                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget) {
-                      setShowInlineEditModal(false);
-                    }
-                  }}
-                >
-                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
-                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      Confirm{" "}
-                      {inlineEditField === "budget"
-                        ? "Budget"
-                        : inlineEditField === "budgetType"
-                          ? "Budget Type"
-                          : "Status"}{" "}
-                      Change
-                    </h3>
-
-                    <div className="mb-4">
-                      <p className="text-[12.16px] text-[#556179] mb-2">
-                        Campaign:{" "}
-                        <span className="font-semibold text-[#072929]">
-                          {inlineEditCampaign.campaign_name ||
-                            "Unnamed Campaign"}
-                        </span>
-                      </p>
-                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[12.16px] text-[#556179]">
-                            {inlineEditField === "budget"
-                              ? "Budget"
-                              : inlineEditField === "budgetType"
-                                ? "Budget Type"
-                                : "Status"}
-                            :
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[12.16px] text-[#556179]">
-                              {inlineEditOldValue}
-                            </span>
-                            <span className="text-[12.16px] text-[#556179]">
-                              →
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {inlineEditNewValue}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowInlineEditModal(false);
-                          setInlineEditCampaign(null);
-                          setInlineEditField(null);
-                          setInlineEditOldValue("");
-                          setInlineEditNewValue("");
-                        }}
-                        className="cancel-button"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={runInlineEdit}
-                        disabled={inlineEditLoading}
-                        className="create-entity-button btn-sm"
-                      >
-                        {inlineEditLoading ? "Updating..." : "Confirm"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Table */}
-              <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
-                <div className="overflow-x-auto w-full">
-                  {campaigns.length === 0 && !loading ? (
-                    <div className="flex flex-col items-center justify-center h-[400px] w-full py-12 px-6">
-                      <div className="flex flex-col items-center justify-center max-w-md">
-                        {/* Icon */}
-                        <div className="mb-6 w-20 h-20 rounded-full bg-[#F5F5F0] flex items-center justify-center">
-                          <svg
-                            className="w-10 h-10 text-[#556179]"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={1.5}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                            />
-                          </svg>
-                        </div>
-                        {/* Title */}
-                        <h3 className="text-lg font-medium text-teal-950 mb-2">
-                          No Campaigns Found
-                        </h3>
-                        {/* Description */}
-                        <p className="text-sm text-[#556179] text-center leading-relaxed">
-                          There are no campaigns for this account yet. Campaigns will appear here when they are created.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <table className="min-w-[1200px] w-full">
-                      {/* Always render table header to maintain height */}
-                      <thead className="">
-                        <tr className="border-b border-[#e8e8e3]">
-                          {/* Checkbox Header */}
-                          <th className="table-header w-[35px] sticky left-0 z-[1] bg-[#f5f5f0] border-r border-[#e8e8e3]">
-                            <div className="flex items-center justify-center">
-                              <Checkbox
-                                checked={
-                                  selectableCampaigns.length > 0 &&
-                                  selectableCampaigns.every((c) =>
-                                    selectedCampaigns.has(c.campaignId)
-                                  )
-                                }
-                                indeterminate={
-                                  selectableCampaigns.some((c) =>
-                                    selectedCampaigns.has(c.campaignId)
-                                  ) &&
-                                  !selectableCampaigns.every((c) =>
-                                    selectedCampaigns.has(c.campaignId)
-                                  )
-                                }
-                                onChange={(checked) => {
-                                  if (checked) {
-                                    setSelectedCampaigns(
-                                      new Set(
-                                        selectableCampaigns.map(
-                                          (c) => c.campaignId
-                                        )
-                                      )
-                                    );
-                                  } else {
-                                    setSelectedCampaigns(new Set());
-                                    setShowBudgetPanel(false);
+                      <table className="min-w-[1200px] w-full">
+                        {/* Always render table header to maintain height */}
+                        <thead className="">
+                          <tr className="border-b border-[#e8e8e3]">
+                            {/* Checkbox Header */}
+                            <th className="table-header w-[35px] sticky left-0 z-[1] bg-[#f5f5f0] border-r border-[#e8e8e3]">
+                              <div className="flex items-center justify-center">
+                                <Checkbox
+                                  checked={
+                                    selectableCampaigns.length > 0 &&
+                                    selectableCampaigns.every((c) =>
+                                      selectedCampaigns.has(c.campaignId)
+                                    )
                                   }
-                                }}
-                                size="small"
-                              />
-                            </div>
-                          </th>
+                                  indeterminate={
+                                    selectableCampaigns.some((c) =>
+                                      selectedCampaigns.has(c.campaignId)
+                                    ) &&
+                                    !selectableCampaigns.every((c) =>
+                                      selectedCampaigns.has(c.campaignId)
+                                    )
+                                  }
+                                  onChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedCampaigns(
+                                        new Set(
+                                          selectableCampaigns.map(
+                                            (c) => c.campaignId
+                                          )
+                                        )
+                                      );
+                                    } else {
+                                      setSelectedCampaigns(new Set());
+                                      setShowBudgetPanel(false);
+                                    }
+                                  }}
+                                  size="small"
+                                />
+                              </div>
+                            </th>
 
-                          {/* Campaign Name Header */}
-                          <th
-                            className="table-header min-w-[300px] max-w-[400px] table-sticky-first-column z-[1]"
-                            onClick={() => handleSort("campaign_name")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Campaign Name
-                              {getSortIcon("campaign_name")}
-                            </div>
-                          </th>
+                            {/* Campaign Name Header */}
+                            <th
+                              className="table-header min-w-[300px] max-w-[400px] table-sticky-first-column z-[1]"
+                              onClick={() => handleSort("campaign_name")}
+                            >
+                              <div className="flex items-center gap-1">
+                                Campaign Name
+                                {getSortIcon("campaign_name")}
+                              </div>
+                            </th>
 
-                          {/* Profile Header */}
-                          <th
-                            className="table-header min-w-[200px]"
-                            onClick={() => handleSort("profile_name")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Profile
-                              {getSortIcon("profile_name")}
-                            </div>
-                          </th>
+                            {/* Profile Header */}
+                            <th
+                              className="table-header min-w-[200px]"
+                              onClick={() => handleSort("profile_name")}
+                            >
+                              <div className="flex items-center gap-1">
+                                Profile
+                                {getSortIcon("profile_name")}
+                              </div>
+                            </th>
 
-                          {/* Country Header */}
-                          <th className="table-header min-w-[100px]">
-                            Country
-                          </th>
+                            {/* Country Header */}
+                            <th className="table-header min-w-[100px]">
+                              Country
+                            </th>
 
-                          {/* Currency Header */}
-                          <th className="table-header min-w-[80px]">
-                            Currency
-                          </th>
+                            {/* Currency Header */}
+                            <th className="table-header min-w-[80px]">
+                              Currency
+                            </th>
 
-                          {/* Campaign Type Header */}
-                          <th
-                            className="table-header"
-                            onClick={() => handleSort("type")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Type
-                              {getSortIcon("type")}
-                            </div>
-                          </th>
+                            {/* Campaign Type Header */}
+                            <th
+                              className="table-header"
+                              onClick={() => handleSort("type")}
+                            >
+                              <div className="flex items-center gap-1">
+                                Type
+                                {getSortIcon("type")}
+                              </div>
+                            </th>
 
-                          {/* Targeting Type Header - Only for SP campaigns */}
-                          <th className="table-header min-w-[120px]">
-                            <div className="flex items-center gap-1">
-                              Targeting Type
-                            </div>
-                          </th>
+                            {/* Targeting Type Header - Only for SP campaigns */}
+                            <th className="table-header min-w-[120px]">
+                              <div className="flex items-center gap-1">
+                                Targeting Type
+                              </div>
+                            </th>
 
-                          {/* State Header */}
-                          <th
-                            className="table-header min-w-[115px]"
-                            onClick={() => handleSort("status")}
-                          >
-                            <div className="flex items-center gap-1">
-                              State
-                              {getSortIcon("status")}
-                            </div>
-                          </th>
+                            {/* State Header */}
+                            <th
+                              className="table-header min-w-[115px]"
+                              onClick={() => handleSort("status")}
+                            >
+                              <div className="flex items-center gap-1">
+                                State
+                                {getSortIcon("status")}
+                              </div>
+                            </th>
 
-                          {/* Budget Header */}
-                          <th
-                            className="table-header min-w-[125px] w-[125px]"
-                            onClick={() => handleSort("budget")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Budget
-                              {getSortIcon("budget")}
-                            </div>
-                          </th>
+                            {/* Budget Header */}
+                            <th
+                              className="table-header min-w-[125px] w-[125px]"
+                              onClick={() => handleSort("budget")}
+                            >
+                              <div className="flex items-center gap-1">
+                                Budget
+                                {getSortIcon("budget")}
+                              </div>
+                            </th>
 
-                          {/* Budget Type Header */}
-                          <th
-                            className="table-header"
-                            onClick={() => handleSort("budgetType")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Budget Type
-                              {getSortIcon("budgetType")}
-                            </div>
-                          </th>
+                            {/* Budget Type Header */}
+                            <th
+                              className="table-header"
+                              onClick={() => handleSort("budgetType")}
+                            >
+                              <div className="flex items-center gap-1">
+                                Budget Type
+                                {getSortIcon("budgetType")}
+                              </div>
+                            </th>
 
-                          {/* Start Date Header */}
-                          <th
-                            className="table-header"
-                            onClick={() => handleSort("startDate")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Start Date
-                              {getSortIcon("startDate")}
-                            </div>
-                          </th>
+                            {/* Start Date Header */}
+                            <th
+                              className="table-header"
+                              onClick={() => handleSort("startDate")}
+                            >
+                              <div className="flex items-center gap-1">
+                                Start Date
+                                {getSortIcon("startDate")}
+                              </div>
+                            </th>
 
-                          {/* Spends Header */}
-                          <th
-                            className="table-header"
-                            onClick={() => handleSort("spends")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Spends
-                              {getSortIcon("spends")}
-                            </div>
-                          </th>
+                            {/* Spends Header */}
+                            <th
+                              className="table-header"
+                              onClick={() => handleSort("spends")}
+                            >
+                              <div className="flex items-center gap-1">
+                                Spends
+                                {getSortIcon("spends")}
+                              </div>
+                            </th>
 
-                          {/* Sales Header */}
-                          <th
-                            className="table-header"
-                            onClick={() => handleSort("sales")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Sales
-                              {getSortIcon("sales")}
-                            </div>
-                          </th>
+                            {/* Sales Header */}
+                            <th
+                              className="table-header"
+                              onClick={() => handleSort("sales")}
+                            >
+                              <div className="flex items-center gap-1">
+                                Sales
+                                {getSortIcon("sales")}
+                              </div>
+                            </th>
 
-                          {/* Impressions Header */}
-                          <th
-                            className="table-header"
-                            onClick={() => handleSort("impressions")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Impressions
-                              {getSortIcon("impressions")}
-                            </div>
-                          </th>
+                            {/* Impressions Header */}
+                            <th
+                              className="table-header"
+                              onClick={() => handleSort("impressions")}
+                            >
+                              <div className="flex items-center gap-1">
+                                Impressions
+                                {getSortIcon("impressions")}
+                              </div>
+                            </th>
 
-                          {/* Clicks Header */}
-                          <th
-                            className="table-header"
-                            onClick={() => handleSort("clicks")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Clicks
-                              {getSortIcon("clicks")}
-                            </div>
-                          </th>
+                            {/* Clicks Header */}
+                            <th
+                              className="table-header"
+                              onClick={() => handleSort("clicks")}
+                            >
+                              <div className="flex items-center gap-1">
+                                Clicks
+                                {getSortIcon("clicks")}
+                              </div>
+                            </th>
 
-                          {/* ACOS Header */}
-                          <th
-                            className="table-header"
-                            onClick={() => handleSort("acos")}
-                          >
-                            <div className="flex items-center gap-1">
-                              ACOS
-                              {getSortIcon("acos")}
-                            </div>
-                          </th>
+                            {/* ACOS Header */}
+                            <th
+                              className="table-header"
+                              onClick={() => handleSort("acos")}
+                            >
+                              <div className="flex items-center gap-1">
+                                ACOS
+                                {getSortIcon("acos")}
+                              </div>
+                            </th>
 
-                          {/* ROAS Header */}
-                          <th
-                            className="table-header"
-                            onClick={() => handleSort("roas")}
-                          >
-                            <div className="flex items-center gap-1">
-                              ROAS
-                              {getSortIcon("roas")}
-                            </div>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {/* Show skeleton rows when loading and no data */}
-                        {loading && campaigns.length === 0 ? (
-                          Array.from({ length: 5 }).map((_, index) => (
-                            <tr key={`skeleton-${index}`} className="table-row">
-                              <td className="table-cell" colSpan={17}>
-                                <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <>
-                            {/* Summary Row - one <td> per column so values align with headers */}
-                            {summary && (
-                              <tr className="table-summary-row">
-                                <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]" data-summary-col="checkbox" />
-                                <td className="table-cell table-sticky-first-column font-medium" data-summary-col="campaign_name">
-                                  Total ({summary.total_campaigns})
-                                </td>
-                                <td className="table-cell table-text leading-[1.26]" data-summary-col="profile">—</td>
-                                <td className="table-cell table-text leading-[1.26]" data-summary-col="country">—</td>
-                                <td className="table-cell table-text leading-[1.26]" data-summary-col="currency">—</td>
-                                <td className="table-cell table-text leading-[1.26]" data-summary-col="type">—</td>
-                                <td className="table-cell table-text leading-[1.26]" data-summary-col="targeting_type">—</td>
-                                <td className="table-cell table-text leading-[1.26]" data-summary-col="state">—</td>
-                                <td className="table-cell table-text leading-[1.26] min-w-[125px] w-[125px]" data-summary-col="budget">—</td>
-                                <td className="table-cell table-text leading-[1.26]" data-summary-col="budget_type">—</td>
-                                <td className="table-cell table-text leading-[1.26]" data-summary-col="start_date">—</td>
-                                <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="spends">
-                                  {formatCurrency(summary.total_spends, campaigns[0]?.profile_currency_code)}
-                                </td>
-                                <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="sales">
-                                  {formatCurrency(summary.total_sales, campaigns[0]?.profile_currency_code)}
-                                </td>
-                                <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="impressions">
-                                  {summary.total_impressions.toLocaleString()}
-                                </td>
-                                <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="clicks">
-                                  {summary.total_clicks.toLocaleString()}
-                                </td>
-                                <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="acos">
-                                  {summary.avg_acos.toFixed(2)}%
-                                </td>
-                                <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="roas">
-                                  {summary.avg_roas.toFixed(2)}
+                            {/* ROAS Header */}
+                            <th
+                              className="table-header"
+                              onClick={() => handleSort("roas")}
+                            >
+                              <div className="flex items-center gap-1">
+                                ROAS
+                                {getSortIcon("roas")}
+                              </div>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {/* Show skeleton rows when loading and no data */}
+                          {loading && campaigns.length === 0 ? (
+                            Array.from({ length: 5 }).map((_, index) => (
+                              <tr key={`skeleton-${index}`} className="table-row">
+                                <td className="table-cell" colSpan={17}>
+                                  <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                                 </td>
                               </tr>
-                            )}
-                            {campaigns.map((campaign, index) => {
-                              const isLastRow = index === campaigns.length - 1;
-                              const isArchived =
-                                campaign.status?.toLowerCase() === "archived";
-                              return (
-                                <tr
-                                  key={campaign.campaignId}
-                                  className={`table-row group ${isArchived ? "bg-gray-100 opacity-60" : ""
-                                    }`}
-                                >
-                                  {/* Checkbox */}
-                                  <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
-                                    <div className="flex items-center justify-center">
-                                      <Checkbox
-                                        checked={selectedCampaigns.has(
-                                          campaign.campaignId
-                                        )}
-                                        disabled={isArchived}
-                                        onChange={(checked) => {
-                                          if (isArchived) return;
-                                          if (checked) {
-                                            setSelectedCampaigns((prev) => {
-                                              const newSet = new Set(prev);
-                                              newSet.add(campaign.campaignId);
-                                              return newSet;
-                                            });
-                                          } else {
-                                            setSelectedCampaigns((prev) => {
-                                              const newSet = new Set(prev);
-                                              newSet.delete(
-                                                campaign.campaignId
-                                              );
-                                              // Close budget panel when no campaigns are selected
-                                              if (newSet.size === 0) {
-                                                setShowBudgetPanel(false);
-                                              }
-                                              return newSet;
-                                            });
-                                          }
-                                        }}
-                                        size="small"
-                                      />
-                                    </div>
+                            ))
+                          ) : (
+                            <>
+                              {/* Summary Row - one <td> per column so values align with headers */}
+                              {summary && (
+                                <tr className="table-summary-row">
+                                  <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]" data-summary-col="checkbox" />
+                                  <td className="table-cell table-sticky-first-column font-medium" data-summary-col="campaign_name">
+                                    Total ({summary.total_campaigns})
                                   </td>
-
-                                  {/* Campaign Name (with edit icon) */}
-                                  <td className="table-cell table-sticky-first-column min-w-[300px] max-w-[400px] group-hover:bg-gray-100">
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          handleOpenEditCampaign(campaign);
-                                        }}
-                                        className="table-edit-icon flex-shrink-0"
-                                        title="Edit campaign"
-                                        disabled={
-                                          loadingEditCampaignId ===
-                                          campaign.campaignId
-                                        }
-                                      >
-                                        {loadingEditCampaignId ===
-                                          campaign.campaignId ? (
-                                          // Small spinner while campaign details load
-                                          <Loader size="sm" />
-                                        ) : (
-                                          <svg
-                                            className="w-4 h-4 text-[#556179]"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                          >
-                                            <path
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              strokeWidth={2}
-                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                            />
-                                          </svg>
-                                        )}
-                                      </button>
-                                      {accountId ? (
-                                        <Link
-                                          to={buildMarketplaceRoute(
-                                            parseInt(accountId),
-                                            channelId ?? "",
-                                            "amazon",
-                                            "campaigns",
-                                            `${campaign.type.toLowerCase()}_${campaign.campaignId}`
+                                  <td className="table-cell table-text leading-[1.26]" data-summary-col="profile">—</td>
+                                  <td className="table-cell table-text leading-[1.26]" data-summary-col="country">—</td>
+                                  <td className="table-cell table-text leading-[1.26]" data-summary-col="currency">—</td>
+                                  <td className="table-cell table-text leading-[1.26]" data-summary-col="type">—</td>
+                                  <td className="table-cell table-text leading-[1.26]" data-summary-col="targeting_type">—</td>
+                                  <td className="table-cell table-text leading-[1.26]" data-summary-col="state">—</td>
+                                  <td className="table-cell table-text leading-[1.26] min-w-[125px] w-[125px]" data-summary-col="budget">—</td>
+                                  <td className="table-cell table-text leading-[1.26]" data-summary-col="budget_type">—</td>
+                                  <td className="table-cell table-text leading-[1.26]" data-summary-col="start_date">—</td>
+                                  <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="spends">
+                                    {formatCurrency(summary.total_spends, campaigns[0]?.profile_currency_code)}
+                                  </td>
+                                  <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="sales">
+                                    {formatCurrency(summary.total_sales, campaigns[0]?.profile_currency_code)}
+                                  </td>
+                                  <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="impressions">
+                                    {summary.total_impressions.toLocaleString()}
+                                  </td>
+                                  <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="clicks">
+                                    {summary.total_clicks.toLocaleString()}
+                                  </td>
+                                  <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="acos">
+                                    {summary.avg_acos.toFixed(2)}%
+                                  </td>
+                                  <td className="table-cell table-text leading-[1.26] text-left" data-summary-col="roas">
+                                    {summary.avg_roas.toFixed(2)}
+                                  </td>
+                                </tr>
+                              )}
+                              {campaigns.map((campaign, index) => {
+                                const isLastRow = index === campaigns.length - 1;
+                                const isArchived =
+                                  campaign.status?.toLowerCase() === "archived";
+                                return (
+                                  <tr
+                                    key={campaign.campaignId}
+                                    className={`table-row group ${isArchived ? "bg-gray-100 opacity-60" : ""
+                                      }`}
+                                  >
+                                    {/* Checkbox */}
+                                    <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                                      <div className="flex items-center justify-center">
+                                        <Checkbox
+                                          checked={selectedCampaigns.has(
+                                            campaign.campaignId
                                           )}
-                                          className="table-edit-link"
+                                          disabled={isArchived}
+                                          onChange={(checked) => {
+                                            if (isArchived) return;
+                                            if (checked) {
+                                              setSelectedCampaigns((prev) => {
+                                                const newSet = new Set(prev);
+                                                newSet.add(campaign.campaignId);
+                                                return newSet;
+                                              });
+                                            } else {
+                                              setSelectedCampaigns((prev) => {
+                                                const newSet = new Set(prev);
+                                                newSet.delete(
+                                                  campaign.campaignId
+                                                );
+                                                // Close budget panel when no campaigns are selected
+                                                if (newSet.size === 0) {
+                                                  setShowBudgetPanel(false);
+                                                }
+                                                return newSet;
+                                              });
+                                            }
+                                          }}
+                                          size="small"
+                                        />
+                                      </div>
+                                    </td>
+
+                                    {/* Campaign Name (with edit icon) */}
+                                    <td className="table-cell table-sticky-first-column min-w-[300px] max-w-[400px] group-hover:bg-gray-100">
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleOpenEditCampaign(campaign);
+                                          }}
+                                          className="table-edit-icon flex-shrink-0"
+                                          title="Edit campaign"
+                                          disabled={
+                                            loadingEditCampaignId ===
+                                            campaign.campaignId
+                                          }
                                         >
-                                          {campaign.campaign_name ||
-                                            "Unnamed Campaign"}
-                                        </Link>
-                                      ) : (
-                                        <span className="table-edit-link">
-                                          {campaign.campaign_name ||
-                                            "Unnamed Campaign"}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </td>
+                                          {loadingEditCampaignId ===
+                                            campaign.campaignId ? (
+                                            // Small spinner while campaign details load
+                                            <Loader size="sm" />
+                                          ) : (
+                                            <svg
+                                              className="w-4 h-4 text-[#556179]"
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                              stroke="currentColor"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                              />
+                                            </svg>
+                                          )}
+                                        </button>
+                                        {accountId ? (
+                                          <Link
+                                            to={buildMarketplaceRoute(
+                                              parseInt(accountId),
+                                              channelId ?? "",
+                                              "amazon",
+                                              "campaigns",
+                                              `${campaign.type.toLowerCase()}_${campaign.campaignId}`
+                                            )}
+                                            className="table-edit-link"
+                                          >
+                                            {campaign.campaign_name ||
+                                              "Unnamed Campaign"}
+                                          </Link>
+                                        ) : (
+                                          <span className="table-edit-link">
+                                            {campaign.campaign_name ||
+                                              "Unnamed Campaign"}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
 
-                                  {/* Profile */}
-                                  <td className="table-cell min-w-[200px]">
-                                    <span className="table-text leading-[1.26] whitespace-nowrap">
-                                      {campaign.profile_name &&
-                                        campaign.profile_name.trim() !== ""
-                                        ? campaign.profile_name
-                                        : "—"}
-                                    </span>
-                                  </td>
+                                    {/* Profile */}
+                                    <td className="table-cell min-w-[200px]">
+                                      <span className="table-text leading-[1.26] whitespace-nowrap">
+                                        {campaign.profile_name &&
+                                          campaign.profile_name.trim() !== ""
+                                          ? campaign.profile_name
+                                          : "—"}
+                                      </span>
+                                    </td>
 
-                                  {/* Country */}
-                                  <td className="table-cell min-w-[100px]">
-                                    <span className="table-text leading-[1.26] whitespace-nowrap">
-                                      {campaign.profile_country_code &&
-                                        campaign.profile_country_code.trim() !==
-                                        ""
-                                        ? campaign.profile_country_code
-                                        : "—"}
-                                    </span>
-                                  </td>
+                                    {/* Country */}
+                                    <td className="table-cell min-w-[100px]">
+                                      <span className="table-text leading-[1.26] whitespace-nowrap">
+                                        {campaign.profile_country_code &&
+                                          campaign.profile_country_code.trim() !==
+                                          ""
+                                          ? campaign.profile_country_code
+                                          : "—"}
+                                      </span>
+                                    </td>
 
-                                  {/* Currency */}
-                                  <td className="table-cell min-w-[80px]">
-                                    <span className="table-text leading-[1.26] whitespace-nowrap">
-                                      {campaign.profile_currency_code &&
-                                        campaign.profile_currency_code.trim() !== ""
-                                        ? campaign.profile_currency_code
-                                        : "—"}
-                                    </span>
-                                  </td>
+                                    {/* Currency */}
+                                    <td className="table-cell min-w-[80px]">
+                                      <span className="table-text leading-[1.26] whitespace-nowrap">
+                                        {campaign.profile_currency_code &&
+                                          campaign.profile_currency_code.trim() !== ""
+                                          ? campaign.profile_currency_code
+                                          : "—"}
+                                      </span>
+                                    </td>
 
-                                  {/* Type */}
-                                  <td className="table-cell">
-                                    <span className="table-text leading-[1.26]">
-                                      {campaign.type || "SP"}
-                                    </span>
-                                  </td>
+                                    {/* Type */}
+                                    <td className="table-cell">
+                                      <span className="table-text leading-[1.26]">
+                                        {campaign.type || "SP"}
+                                      </span>
+                                    </td>
 
-                                  {/* Targeting Type - Only show when value exists */}
-                                  <td className="table-cell min-w-[120px]">
-                                    <span className="table-text leading-[1.26] whitespace-nowrap">
-                                      {(campaign.targetingType ||
-                                        campaign.targeting_type) ?? ""}
-                                    </span>
-                                  </td>
+                                    {/* Targeting Type - Only show when value exists */}
+                                    <td className="table-cell min-w-[120px]">
+                                      <span className="table-text leading-[1.26] whitespace-nowrap">
+                                        {(campaign.targetingType ||
+                                          campaign.targeting_type) ?? ""}
+                                      </span>
+                                    </td>
 
-                                  {/* Status */}
-                                  <td className="table-cell min-w-[115px]">
-                                    {(() => {
-                                      const currentStatus = (
-                                        campaign.status || "Enabled"
-                                      ).toUpperCase();
-                                      const isArchived = currentStatus === "ARCHIVED";
+                                    {/* Status */}
+                                    <td className="table-cell min-w-[115px]">
+                                      {(() => {
+                                        const currentStatus = (
+                                          campaign.status || "Enabled"
+                                        ).toUpperCase();
+                                        const isArchived = currentStatus === "ARCHIVED";
 
-                                      if (isArchived) {
+                                        if (isArchived) {
+                                          return (
+                                            <div className="rounded px-2 py-1 opacity-60">
+                                              <StatusBadge
+                                                status={campaign.status || "Enabled"}
+                                              />
+                                            </div>
+                                          );
+                                        }
+
+                                        const statusLower = (
+                                          campaign.status || "Enabled"
+                                        ).toLowerCase();
+                                        const normalizedStatus =
+                                          statusLower === "enable" ||
+                                            statusLower === "enabled"
+                                            ? "Enabled"
+                                            : statusLower === "paused"
+                                              ? "Paused"
+                                              : statusLower === "archive" ||
+                                                statusLower === "archived"
+                                                ? "Archived"
+                                                : "Enabled";
+
                                         return (
-                                          <div className="rounded px-2 py-1 opacity-60">
-                                            <StatusBadge
-                                              status={campaign.status || "Enabled"}
-                                            />
-                                          </div>
-                                        );
-                                      }
-
-                                      const statusLower = (
-                                        campaign.status || "Enabled"
-                                      ).toLowerCase();
-                                      const normalizedStatus =
-                                        statusLower === "enable" ||
-                                          statusLower === "enabled"
-                                          ? "Enabled"
-                                          : statusLower === "paused"
-                                            ? "Paused"
-                                            : statusLower === "archive" ||
-                                              statusLower === "archived"
-                                              ? "Archived"
-                                              : "Enabled";
-
-                                      return (
-                                        <Dropdown
-                                          options={[
-                                            {
-                                              value: "Enabled",
-                                              label: "Enabled",
-                                            },
-                                            { value: "Paused", label: "Paused" },
-                                            { value: "Archived", label: "Archived" },
-                                          ]}
-                                          value={normalizedStatus}
-                                          onChange={(val) => {
-                                            const newValue = val as string;
-                                            const wasEditing = editingCell?.campaignId === campaign.campaignId &&
-                                              editingCell?.field === "status";
+                                          <Dropdown
+                                            options={[
+                                              {
+                                                value: "Enabled",
+                                                label: "Enabled",
+                                              },
+                                              { value: "Paused", label: "Paused" },
+                                              { value: "Archived", label: "Archived" },
+                                            ]}
+                                            value={normalizedStatus}
+                                            onChange={(val) => {
+                                              const newValue = val as string;
+                                              const wasEditing = editingCell?.campaignId === campaign.campaignId &&
+                                                editingCell?.field === "status";
 
                                             if (!wasEditing) {
                                               startInlineEdit(campaign, "status");
@@ -3928,108 +3929,108 @@ export const Campaigns: React.FC = () => {
                                     })()}
                                   </td>
 
-                                  {/* Daily Budget */}
-                                  <td className="table-cell min-w-[125px] w-[125px]">
-                                    {(() => {
-                                      const currentStatus = (
-                                        campaign.status || "Enabled"
-                                      ).toUpperCase();
-                                      const isArchived = currentStatus === "ARCHIVED";
-                                      const budgetValue = editingCell?.campaignId === campaign.campaignId &&
-                                        editingCell?.field === "budget"
-                                        ? editedValue
-                                        : (campaign.daily_budget || 0).toString();
-                                      const currencyCode = (campaign.profile_currency_code || "USD").trim() || "USD";
+                                    {/* Daily Budget */}
+                                    <td className="table-cell min-w-[125px] w-[125px]">
+                                      {(() => {
+                                        const currentStatus = (
+                                          campaign.status || "Enabled"
+                                        ).toUpperCase();
+                                        const isArchived = currentStatus === "ARCHIVED";
+                                        const budgetValue = editingCell?.campaignId === campaign.campaignId &&
+                                          editingCell?.field === "budget"
+                                          ? editedValue
+                                          : (campaign.daily_budget || 0).toString();
+                                        const currencyCode = (campaign.profile_currency_code || "USD").trim() || "USD";
 
-                                      return (
-                                        <div className="flex items-center gap-1">
-                                          <span className="table-text text-[#556179] shrink-0" title={currencyCode}>
-                                            {currencyCode}
-                                          </span>
-                                          <input
-                                            type="number"
-                                            value={budgetValue}
-                                            onFocus={() => {
-                                              if (isArchived) return;
-                                              if (editingCell?.campaignId !== campaign.campaignId ||
-                                                editingCell?.field !== "budget") {
-                                                startInlineEdit(campaign, "budget");
-                                              }
-                                            }}
-                                            onChange={(e) => {
-                                              if (isArchived) return;
-                                              handleInlineEditChange(e.target.value);
-                                            }}
-                                            onBlur={(e) => {
-                                              if (isArchived) return;
-                                              const inputValue = e.target.value;
-                                              if (editingCell?.campaignId === campaign.campaignId &&
-                                                editingCell?.field === "budget") {
-                                                confirmInlineEdit(inputValue);
-                                              }
-                                            }}
-                                            onKeyDown={(e) => {
-                                              if (isArchived) return;
-                                              if (e.key === "Enter") {
-                                                e.currentTarget.blur();
-                                              } else if (e.key === "Escape") {
-                                                cancelInlineEdit();
-                                              }
-                                            }}
-                                            disabled={isArchived}
-                                            className={`inline-edit-input ${isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
-                                              }`}
-                                            title={
-                                              isArchived
-                                                ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
-                                                : undefined
-                                            }
-                                          />
-                                        </div>
-                                      );
-                                    })()}
-                                  </td>
-
-                                  {/* Budget Type */}
-                                  <td className="table-cell">
-                                    {(() => {
-                                      const currentStatus = (
-                                        campaign.status || "Enabled"
-                                      ).toUpperCase();
-                                      const isArchived = currentStatus === "ARCHIVED";
-                                      const isSDCampaign = campaign.type === "SD";
-                                      // SP campaigns only support DAILY; budget type is not editable
-                                      const isSPCampaign = campaign.type === "SP";
-                                      // SB campaigns: budget type is readonly after creation
-                                      const isSBCampaign = campaign.type === "SB";
-
-                                      if (isArchived || isSDCampaign || isSPCampaign || isSBCampaign) {
                                         return (
-                                          <span className={`table-text leading-[1.26] ${isArchived || isSPCampaign ? "opacity-60" : ""}`}>
-                                            {isSPCampaign ? "DAILY" : (campaign.budgetType || "—")}
-                                          </span>
+                                          <div className="flex items-center gap-1">
+                                            <span className="table-text text-[#556179] shrink-0" title={currencyCode}>
+                                              {currencyCode}
+                                            </span>
+                                            <input
+                                              type="number"
+                                              value={budgetValue}
+                                              onFocus={() => {
+                                                if (isArchived) return;
+                                                if (editingCell?.campaignId !== campaign.campaignId ||
+                                                  editingCell?.field !== "budget") {
+                                                  startInlineEdit(campaign, "budget");
+                                                }
+                                              }}
+                                              onChange={(e) => {
+                                                if (isArchived) return;
+                                                handleInlineEditChange(e.target.value);
+                                              }}
+                                              onBlur={(e) => {
+                                                if (isArchived) return;
+                                                const inputValue = e.target.value;
+                                                if (editingCell?.campaignId === campaign.campaignId &&
+                                                  editingCell?.field === "budget") {
+                                                  confirmInlineEdit(inputValue);
+                                                }
+                                              }}
+                                              onKeyDown={(e) => {
+                                                if (isArchived) return;
+                                                if (e.key === "Enter") {
+                                                  e.currentTarget.blur();
+                                                } else if (e.key === "Escape") {
+                                                  cancelInlineEdit();
+                                                }
+                                              }}
+                                              disabled={isArchived}
+                                              className={`inline-edit-input ${isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                                }`}
+                                              title={
+                                                isArchived
+                                                  ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
+                                                  : undefined
+                                              }
+                                            />
+                                          </div>
                                         );
-                                      }
+                                      })()}
+                                    </td>
 
-                                      const budgetTypeValue = editingCell?.campaignId === campaign.campaignId &&
-                                        editingCell?.field === "budgetType"
-                                        ? editedValue
-                                        : (campaign.budgetType || "DAILY");
+                                    {/* Budget Type */}
+                                    <td className="table-cell">
+                                      {(() => {
+                                        const currentStatus = (
+                                          campaign.status || "Enabled"
+                                        ).toUpperCase();
+                                        const isArchived = currentStatus === "ARCHIVED";
+                                        const isSDCampaign = campaign.type === "SD";
+                                        // SP campaigns only support DAILY; budget type is not editable
+                                        const isSPCampaign = campaign.type === "SP";
+                                        // SB campaigns: budget type is readonly after creation
+                                        const isSBCampaign = campaign.type === "SB";
 
-                                      return (
-                                        <Dropdown
-                                          options={[
-                                            { value: "DAILY", label: "DAILY" },
-                                            {
-                                              value: "LIFETIME",
-                                              label: "LIFETIME",
-                                            },
-                                          ]}
-                                          value={budgetTypeValue}
-                                          onChange={(val) => {
-                                            const newValue = val as string;
-                                            const wasEditing = editingCell?.campaignId === campaign.campaignId &&
-                                              editingCell?.field === "budgetType";
+                                        if (isArchived || isSDCampaign || isSPCampaign || isSBCampaign) {
+                                          return (
+                                            <span className={`table-text leading-[1.26] ${isArchived || isSPCampaign ? "opacity-60" : ""}`}>
+                                              {isSPCampaign ? "DAILY" : (campaign.budgetType || "—")}
+                                            </span>
+                                          );
+                                        }
+
+                                        const budgetTypeValue = editingCell?.campaignId === campaign.campaignId &&
+                                          editingCell?.field === "budgetType"
+                                          ? editedValue
+                                          : (campaign.budgetType || "DAILY");
+
+                                        return (
+                                          <Dropdown
+                                            options={[
+                                              { value: "DAILY", label: "DAILY" },
+                                              {
+                                                value: "LIFETIME",
+                                                label: "LIFETIME",
+                                              },
+                                            ]}
+                                            value={budgetTypeValue}
+                                            onChange={(val) => {
+                                              const newValue = val as string;
+                                              const wasEditing = editingCell?.campaignId === campaign.campaignId &&
+                                                editingCell?.field === "budgetType";
 
                                             if (!wasEditing) {
                                               startInlineEdit(campaign, "budgetType");
@@ -4051,153 +4052,154 @@ export const Campaigns: React.FC = () => {
                                     })()}
                                   </td>
 
-                                  {/* Start Date */}
-                                  <td className="table-cell">
-                                    <span className="table-text leading-[1.26] whitespace-nowrap">
-                                      {campaign.startDate
-                                        ? new Date(
-                                          campaign.startDate
-                                        ).toLocaleDateString("en-US", {
-                                          month: "short",
-                                          day: "numeric",
-                                          year: "numeric",
-                                        })
-                                        : "—"}
-                                    </span>
-                                  </td>
+                                    {/* Start Date */}
+                                    <td className="table-cell">
+                                      <span className="table-text leading-[1.26] whitespace-nowrap">
+                                        {campaign.startDate
+                                          ? new Date(
+                                            campaign.startDate
+                                          ).toLocaleDateString("en-US", {
+                                            month: "short",
+                                            day: "numeric",
+                                            year: "numeric",
+                                          })
+                                          : "—"}
+                                      </span>
+                                    </td>
 
-                                  {/* Spends */}
-                                  <td className="table-cell">
-                                    <span className="table-text leading-[1.26]">
-                                      {formatCurrency(campaign.spends || 0, campaign.profile_currency_code)}
-                                    </span>
-                                  </td>
+                                    {/* Spends */}
+                                    <td className="table-cell">
+                                      <span className="table-text leading-[1.26]">
+                                        {formatCurrency(campaign.spends || 0, campaign.profile_currency_code)}
+                                      </span>
+                                    </td>
 
-                                  {/* Sales */}
-                                  <td className="table-cell">
-                                    <span className="table-text leading-[1.26]">
-                                      {formatCurrency(campaign.sales || 0, campaign.profile_currency_code)}
-                                    </span>
-                                  </td>
+                                    {/* Sales */}
+                                    <td className="table-cell">
+                                      <span className="table-text leading-[1.26]">
+                                        {formatCurrency(campaign.sales || 0, campaign.profile_currency_code)}
+                                      </span>
+                                    </td>
 
-                                  {/* Impressions */}
-                                  <td className="table-cell">
-                                    <span className="table-text leading-[1.26]">
-                                      {(
-                                        campaign.impressions || 0
-                                      ).toLocaleString()}
-                                    </span>
-                                  </td>
+                                    {/* Impressions */}
+                                    <td className="table-cell">
+                                      <span className="table-text leading-[1.26]">
+                                        {(
+                                          campaign.impressions || 0
+                                        ).toLocaleString()}
+                                      </span>
+                                    </td>
 
-                                  {/* Clicks */}
-                                  <td className="table-cell">
-                                    <span className="table-text leading-[1.26]">
-                                      {(campaign.clicks || 0).toLocaleString()}
-                                    </span>
-                                  </td>
+                                    {/* Clicks */}
+                                    <td className="table-cell">
+                                      <span className="table-text leading-[1.26]">
+                                        {(campaign.clicks || 0).toLocaleString()}
+                                      </span>
+                                    </td>
 
-                                  {/* ACOS */}
-                                  <td className="table-cell">
-                                    <span className="table-text leading-[1.26]">
-                                      {formatPercentage(campaign.acos || 0)}
-                                    </span>
-                                  </td>
+                                    {/* ACOS */}
+                                    <td className="table-cell">
+                                      <span className="table-text leading-[1.26]">
+                                        {formatPercentage(campaign.acos || 0)}
+                                      </span>
+                                    </td>
 
-                                  {/* ROAS */}
-                                  <td className="table-cell">
-                                    <span className="table-text leading-[1.26]">
-                                      {campaign.roas
-                                        ? `${campaign.roas.toFixed(2)}`
-                                        : "0.00"}
-                                    </span>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </>
-                        )}
-                      </tbody>
-                    </table>
+                                    {/* ROAS */}
+                                    <td className="table-cell">
+                                      <span className="table-text leading-[1.26]">
+                                        {campaign.roas
+                                          ? `${campaign.roas.toFixed(2)}`
+                                          : "0.00"}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </>
+                          )}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                  {/* Loading overlay for table */}
+                  {loading && (
+                    <div className="loading-overlay">
+                      <div className="loading-overlay-content">
+                        <Loader size="md" message="Loading campaigns..." />
+                      </div>
+                    </div>
                   )}
                 </div>
-                {/* Loading overlay for table */}
-                {loading && (
-                  <div className="loading-overlay">
-                    <div className="loading-overlay-content">
-                      <Loader size="md" message="Loading campaigns..." />
+
+                {/* Pagination */}
+                {!loading && campaigns.length > 0 && (
+                  <div className="flex items-center justify-end mt-4">
+                    <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
+                      <button
+                        onClick={() =>
+                          handlePageChange(Math.max(1, currentPage - 1))
+                        }
+                        disabled={currentPage === 1}
+                        className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                      >
+                        Previous
+                      </button>
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => handlePageChange(pageNum)}
+                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
+                              ? "bg-white text-[#136D6D] font-semibold"
+                              : "text-black hover:bg-gray-50"
+                              }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                      {totalPages > 5 && currentPage < totalPages - 2 && (
+                        <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                          ...
+                        </span>
+                      )}
+                      {totalPages > 5 && currentPage < totalPages - 2 && (
+                        <button
+                          onClick={() => handlePageChange(totalPages)}
+                          className="px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer text-black hover:bg-gray-50"
+                        >
+                          {totalPages}
+                        </button>
+                      )}
+                      <button
+                        onClick={() =>
+                          handlePageChange(Math.min(totalPages, currentPage + 1))
+                        }
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                      >
+                        Next
+                      </button>
                     </div>
                   </div>
                 )}
+                {isCreateCampaignPanelOpen && (
+                  <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[12px] cursor-not-allowed" />
+                )}
               </div>
-
-              {/* Pagination */}
-              {!loading && campaigns.length > 0 && (
-                <div className="flex items-center justify-end mt-4">
-                  <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
-                    <button
-                      onClick={() =>
-                        handlePageChange(Math.max(1, currentPage - 1))
-                      }
-                      disabled={currentPage === 1}
-                      className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                    >
-                      Previous
-                    </button>
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => handlePageChange(pageNum)}
-                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
-                            ? "bg-white text-[#136D6D] font-semibold"
-                            : "text-black hover:bg-gray-50"
-                            }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                    {totalPages > 5 && currentPage < totalPages - 2 && (
-                      <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
-                        ...
-                      </span>
-                    )}
-                    {totalPages > 5 && currentPage < totalPages - 2 && (
-                      <button
-                        onClick={() => handlePageChange(totalPages)}
-                        className="px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer text-black hover:bg-gray-50"
-                      >
-                        {totalPages}
-                      </button>
-                    )}
-                    <button
-                      onClick={() =>
-                        handlePageChange(Math.min(totalPages, currentPage + 1))
-                      }
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
-              {isCreateCampaignPanelOpen && (
-                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[12px] cursor-not-allowed" />
-              )}
             </div>
           </div>
-        </div>
+        </Assistant>
       </div>
     </div>
   );

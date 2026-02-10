@@ -14,12 +14,12 @@ function App() {
         <AccountsProvider>
           <GlobalStateProvider>
             <SidebarProvider>
-              <Router>
-                <AppRoutes />
-              </Router>
-              {/* {import.meta.env.DEV && (
-                <ReactQueryDevtools initialIsOpen={false} />
-              )} */}
+                <Router>
+                    <AppRoutes />
+                </Router>
+                {/* {import.meta.env.DEV && (
+                  <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+                )} */}
             </SidebarProvider>
           </GlobalStateProvider>
         </AccountsProvider>
