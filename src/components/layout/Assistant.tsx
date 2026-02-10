@@ -436,10 +436,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
       {/* Input Area */}
       <div className="px-4 py-3 border-t border-gray-100">
         <form onSubmit={handleSubmit} className="relative">
-          <div className={`bg-[var(--color-semantic-background-primary)] border rounded-[12px] p-3 transition-all ${isStreaming
-            ? 'border-red-300 bg-red-50'
-            : 'border-[var(--pixis-sandstorm-s40,#e8e8e3)]'
-            }`}>
+          <div className={`assistant-input-container ${isStreaming ? '!border-red-300 !bg-red-50' : ''}`}>
             <div className="flex flex-col gap-8">
               {/* Input Field */}
               <input
@@ -449,8 +446,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={isStreaming ? "Generating response..." : "👋 Ask me anything about your campaigns..."}
-                className="w-full bg-transparent text-[14px] font-normal text-[#072929] placeholder:text-[#072929] focus:outline-none"
-                style={{ fontFamily: "'GT America Trial', sans-serif" }}
                 disabled={isLoading || isStreaming}
               />
 
