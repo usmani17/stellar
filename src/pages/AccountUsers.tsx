@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useAccounts } from "../contexts/AccountsContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
-import { DashboardHeader } from "../components/layout/DashboardHeader";
+import { AccountsHeader } from "../components/layout/AccountsHeader";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { workspaceService, type WorkspaceUser } from "../services/workspace";
 import { Alert, Dropdown, Loader, Checkbox } from "../components/ui";
@@ -193,7 +193,7 @@ export const AccountUsers: React.FC = () => {
     <div className="min-h-screen bg-white flex">
       <Sidebar />
       <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
-        <DashboardHeader />
+        <AccountsHeader />
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
           <AccountUsersContent
             accountIdNum={accountIdNum ?? 0}

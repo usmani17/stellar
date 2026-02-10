@@ -21,11 +21,13 @@ export interface Channel {
 export interface Account {
   id: number;
   name: string;
+  status?: boolean;
   channels_count?: number;
   channels?: Channel[];
   user_ids?: number[];
   users?: Array<{ id: number; name: string; email: string }>;
-  created_by?: number;
+  /** Creator user id (detail) or display name (list API) */
+  created_by?: number | string;
   created_by_name?: string;
   created_at: string;
   updated_at: string;

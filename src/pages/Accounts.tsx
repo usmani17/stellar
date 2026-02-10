@@ -262,13 +262,6 @@ export const Accounts: React.FC = () => {
     });
   };
 
-  const formatUsers = (
-    users?: Array<{ id: number; name: string; email: string }>
-  ) => {
-    if (!users || users.length === 0) return "—";
-    return users.map((u) => u.name || u.email).join(", ");
-  };
-
   const startEditAccountName = (account: Account) => {
     setEditingAccount({ accountId: account.id, field: "name" });
     setEditedAccountName(account.name || "");
@@ -520,7 +513,6 @@ export const Accounts: React.FC = () => {
                   <thead>
                     <tr>
                       <th className="table-header">Brand Name</th>
-                      <th className="table-header">Users</th>
                       <th className="table-header">Created</th>
                       <th className="table-header">Created By</th>
                       {!isTeam && <th className="table-header">Integrations</th>}
@@ -534,9 +526,6 @@ export const Accounts: React.FC = () => {
                         <tr key={`skeleton-${index}`} className="table-row">
                           <td className="table-cell">
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-32"></div>
-                          </td>
-                          <td className="table-cell">
-                            <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
                           </td>
                           <td className="table-cell">
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-20"></div>
@@ -556,7 +545,7 @@ export const Accounts: React.FC = () => {
                       ))
                     ) : filteredAccounts.length === 0 ? (
                       <tr>
-                        <td colSpan={isTeam ? 5 : 6} className="table-cell text-center py-8">
+                        <td colSpan={isTeam ? 4 : 5} className="table-cell text-center py-8">
                           <p className="text-[14px] text-[#556179] mb-4">
                             {searchQuery
                               ? "No accounts found"
@@ -656,18 +645,13 @@ export const Accounts: React.FC = () => {
                               )}
                             </td>
                             <td className="table-cell">
-                              <span className="table-text">
-                                {formatUsers(account.users)}
-                              </span>
-                            </td>
-                            <td className="table-cell">
                               <span className="table-text whitespace-nowrap">
                                 {formatDate(account.created_at)}
                               </span>
                             </td>
                             <td className="table-cell">
                               <span className="table-text">
-                                {account.created_by_name || "—"}
+                                {account.created_by ?? account.created_by_name ?? "—"}
                               </span>
                             </td>
                             {!isTeam && (
