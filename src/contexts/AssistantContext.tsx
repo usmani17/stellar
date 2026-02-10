@@ -7,7 +7,7 @@ import React, {
   type ReactNode,
 } from "react";
 import { useAuth } from "./AuthContext";
-import { threadsService, type Thread, type ThreadMessage, normalizeThreadMessages } from "../services/ai/threads";
+import { threadsService, type Thread, type ThreadMessage, type ContentBlock, normalizeThreadMessages } from "../services/ai/threads";
 import { runsService } from "../services/ai/runs";
 import { assistantService, getAssistantIdForGraph, type AssistantSearchResult, type GraphId } from "../services/ai/assistant";
 import type { CampaignSetupState } from "../types/agent";
@@ -21,6 +21,15 @@ export interface SuggestedPrompt {
   id: string;
   text: string;
 }
+
+/** User-selected scope in the assistant panel (overrides route params when set). */
+export interface AssistantScope {
+  accountId: string | null;
+  channelId: string | null;
+  profileId: string | null;
+}
+
+export type AssistantIntent = "analyze" | "create_campaign" | null;
 
 // Extended Thread with runtime state (not from API). Exported so Assistant UI can read campaignState.
 export interface ThreadWithRuntime extends Thread {
@@ -69,6 +78,13 @@ interface AssistantContextType {
   selectedGraphId: GraphId;
   setSelectedGraphId: (id: GraphId) => void;
   onApplyDraft?: (draft: Record<string, unknown>) => void;
+
+  /** Scope selected in panel (account, channel, profile). When set, overrides route params when sending. */
+  assistantScope: AssistantScope;
+  setAssistantScope: (updates: Partial<AssistantScope>) => void;
+  /** Intent: Analyze or Create Campaign. When set, can drive suggested prompts and run metadata. */
+  assistantIntent: AssistantIntent;
+  setAssistantIntent: (intent: AssistantIntent) => void;
 }
 
 const AssistantContext = createContext<AssistantContextType | undefined>(undefined);
@@ -108,6 +124,17 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const [selectedGraphId, setSelectedGraphId] = useState<GraphId>("chat");
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
   const [assistants, setAssistants] = useState<AssistantSearchResult[]>([]);
+
+  const [assistantScope, setAssistantScopeState] = useState<AssistantScope>({
+    accountId: null,
+    channelId: null,
+    profileId: null,
+  });
+  const [assistantIntent, setAssistantIntent] = useState<AssistantIntent>(null);
+
+  const setAssistantScope = useCallback((updates: Partial<AssistantScope>) => {
+    setAssistantScopeState((prev) => ({ ...prev, ...updates }));
+  }, []);
 
   const suggestedPrompts = selectedGraphId === "campaign_setup" ? CAMPAIGN_SUGGESTED_PROMPTS : CHAT_SUGGESTED_PROMPTS;
   const currentAssistantId = getAssistantIdForGraph(assistants, selectedGraphId);
@@ -168,6 +195,17 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       loadThreads();
     }
   }, [isOpen, user?.id, loadThreads]);
+
+  // Pre-fill scope from route when on a channel page (user can still change in panel)
+  useEffect(() => {
+    if (propAccountId || propChannelId) {
+      setAssistantScopeState((prev) => ({
+        ...prev,
+        ...(propAccountId && { accountId: propAccountId }),
+        ...(propChannelId && { channelId: propChannelId }),
+      }));
+    }
+  }, [propAccountId, propChannelId]);
 
   // Sync selectedGraphId when user selects a thread (so graph selector matches the thread's graph)
   useEffect(() => {
@@ -298,8 +336,10 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     ));
   }, [currentThreadId]);
 
-  // Update streaming message content - directly modify last message in array
-  const updateStreamingContent = useCallback((threadId: string, content: string, runId?: string) => {
+  // Update streaming message content - directly modify last message in array (string or ContentBlock[] including tool_use).
+  // When we receive a string (from stream chunks), merge into existing content so we never wipe tool_use blocks.
+  // When the last message is human (we just sent), ignore content from values events so we don't show the previous run's reply.
+  const updateStreamingContent = useCallback((threadId: string, content: string | ContentBlock[], runId?: string, isFromValues?: boolean) => {
     setThreads(prev => prev.map(t => {
       if (t.thread_id !== threadId) return t;
 
@@ -308,10 +348,24 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       const lastIndex = currentMessages.length - 1;
       const lastMessage = currentMessages[lastIndex];
 
+      // When last message is human, skip only string-from-values (often stale). Allow ContentBlock[] so tool_use from values is shown.
+      if (lastMessage?.type === 'human' && isFromValues && typeof content === 'string') return t;
+
       // If last message is AI, update it; otherwise add new
       if (lastMessage?.type === 'ai') {
         const updatedMessages = [...currentMessages];
-        updatedMessages[lastIndex] = { ...lastMessage, content };
+        let newContent: string | ContentBlock[] = content;
+
+        // Merge: when stream sends only text (string), keep existing tool_use blocks so they don't disappear
+        if (typeof content === 'string' && Array.isArray(lastMessage.content) && lastMessage.content.length > 0) {
+          const existing = lastMessage.content as ContentBlock[];
+          const toolBlocks = existing.filter((b): b is ContentBlock => b && typeof b === 'object' && (b as ContentBlock).type === 'tool_use');
+          if (toolBlocks.length > 0) {
+            newContent = [...toolBlocks, { type: 'text' as const, text: content }];
+          }
+        }
+
+        updatedMessages[lastIndex] = { ...lastMessage, content: newContent };
         return {
           ...t,
           values: { ...currentValues, messages: updatedMessages },
@@ -332,9 +386,17 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     }));
   }, []);
 
+  // Effective scope: panel selection overrides route params
+  const effectiveAccountId = assistantScope.accountId ?? propAccountId ?? null;
+  const effectiveChannelId = assistantScope.channelId ?? propChannelId ?? null;
+  const effectiveProfileId = assistantScope.profileId;
+
   // Main send message
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || !user?.id) return;
+
+    const accountIdNum = effectiveAccountId ? parseInt(effectiveAccountId, 10) : undefined;
+    const channelIdNum = effectiveChannelId ? parseInt(effectiveChannelId, 10) : undefined;
 
     // Ensure we have a current thread
     let activeThreadId = currentThreadId;
@@ -343,8 +405,10 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       const threadData = await threadsService.createThread({
         metadata: {
           user_id: user.id,
-          account_id: propAccountId ? parseInt(propAccountId) : undefined,
-          channel_id: propChannelId ? parseInt(propChannelId) : undefined,
+          account_id: accountIdNum,
+          channel_id: channelIdNum,
+          profile_id: effectiveProfileId ?? undefined,
+          intent: assistantIntent ?? undefined,
           auth_token: '123123123',
           title: content.slice(0, 50) + (content.length > 50 ? '...' : ''),
           graph_id: selectedGraphId,
@@ -394,8 +458,10 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         input: { messages: [{ role: "user", content }] },
         metadata: {
           user_id: user.id,
-          account_id: propAccountId ? parseInt(propAccountId) : undefined,
-          channel_id: propChannelId ? parseInt(propChannelId) : undefined,
+          account_id: accountIdNum,
+          channel_id: channelIdNum,
+          profile_id: effectiveProfileId ?? undefined,
+          intent: assistantIntent ?? undefined,
           auth_token: "123123123",
         },
         config: { recursion_limit: 75, configurable: {} },
@@ -406,7 +472,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       }, {
         onLoadingChange: setIsLoading,
         onThinkingStep: (steps) => updateThreadRuntime(activeThreadId, { thinkingSteps: steps }),
-        onMessage: (messageContent, _a, _s, runId) => updateStreamingContent(activeThreadId, messageContent, runId),
+        onMessage: (messageContent, _a, _s, runId, isFromValues) => updateStreamingContent(activeThreadId, messageContent, runId, isFromValues),
         onError: (errorMsg) => {
           updateStreamingContent(activeThreadId, `Error: ${errorMsg}`);
           updateThreadRuntime(activeThreadId, { isStreaming: false, thinkingSteps: [] });
@@ -436,7 +502,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       setCurrentRunId(null);
       updateThreadRuntime(activeThreadId, { isStreaming: false, thinkingSteps: [] });
     }
-  }, [currentThreadId, threads, user?.id, propAccountId, propChannelId, selectedGraphId, currentAssistantId, updateThreadRuntime, updateStreamingContent]);
+  }, [currentThreadId, threads, user?.id, effectiveAccountId, effectiveChannelId, effectiveProfileId, assistantIntent, selectedGraphId, currentAssistantId, updateThreadRuntime, updateStreamingContent]);
 
   // Cancel the current run
   const cancelRun = useCallback(async () => {
@@ -500,6 +566,11 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         selectedGraphId,
         setSelectedGraphId,
         onApplyDraft: undefined,
+
+        assistantScope,
+        setAssistantScope,
+        assistantIntent,
+        setAssistantIntent,
       }}
     >
       {children}

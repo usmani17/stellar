@@ -72,9 +72,13 @@ export interface RunMetadata {
   [key: string]: unknown;
 }
 
+import type { ContentBlock } from "./threads";
+import { normalizeAIMessageToContent } from "./threads";
+
 export interface StreamCallbacks {
   onThinkingStep?: (steps: string[]) => void;
-  onMessage?: (content: string, analysisText?: string, thinkingSteps?: string[], runId?: string) => void;
+  /** When isFromValues is true, content came from a values event (may be stale for the new turn). */
+  onMessage?: (content: string | ContentBlock[], analysisText?: string, thinkingSteps?: string[], runId?: string, isFromValues?: boolean) => void;
   onError?: (error: string) => void;
   onLoadingChange?: (isLoading: boolean) => void;
   onRunId?: (runId: string | null) => void;
@@ -259,14 +263,20 @@ export const runsService = {
                 }
 
                 if (aiMessage) {
-                  const messageContent = extractText(aiMessage.content);
-                  if (messageContent && messageContent.trim()) {
-                    streamedContent = messageContent.trim();
+                  const normalized = normalizeAIMessageToContent(aiMessage);
+                  const hasContent = typeof normalized === 'string'
+                    ? normalized.trim().length > 0
+                    : normalized.length > 0;
+                  if (hasContent) {
+                    if (typeof normalized === 'string') {
+                      streamedContent = normalized.trim();
+                    }
                     callbacks.onMessage?.(
-                      streamedContent,
+                      normalized,
                       analysisText || undefined,
                       thinkingSteps.length > 0 ? [...thinkingSteps] : undefined,
-                      runId || undefined
+                      runId || undefined,
+                      true // from values event - context may ignore if this is stale for the new turn
                     );
                   }
                 }

@@ -2,14 +2,15 @@ import React, { useRef, useEffect, useState, useMemo, forwardRef, useImperativeH
 import { useAssistant, ASSISTANT_PANEL_VIEW, type ThreadWithRuntime } from "../../contexts/AssistantContext";
 import type { GraphId } from "../../services/ai/assistant";
 import type { CurrentQuestionSchemaItem } from "../../types/agent";
-import { Check, Square, X, GripVertical } from "lucide-react";
+import { Check, Square, X, GripVertical, ChevronDown, BarChart3, Megaphone } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
-import type { Thread, ContentBlock, ThreadMessageContent } from "../../services/ai/threads";
+import type { Thread, ContentBlock, ThreadMessageContent, TextContent, ToolUseContent } from "../../services/ai/threads";
 import StellarMarkDown from "../ai/StellarMarkDown";
 import { MessageContent } from "../ai/MessageContent";
 import { isStringContent } from "../../utils/ai-formatter";
 import ToolUseBlock from "../ai/ToolUseBlock";
+import { accountsService, type Account } from "../../services/accounts";
 
 
 // Helper function to check if content is a ContentBlock array
@@ -189,6 +190,40 @@ const SchemaFormBlock = forwardRef<SchemaFormBlockHandle, {
 
 SchemaFormBlock.displayName = "SchemaFormBlock";
 
+/** Profile item from GET /accounts/:accountId/profiles/ (channel_id, channel_name, profile name) */
+interface AccountProfileOption {
+  channel_id: number;
+  channel_name: string;
+  channel_type: string;
+  id: number;
+  name?: string;
+  profileId?: string;
+  ad_account_id?: string;
+  customer_id?: string;
+  advertiser_id?: string;
+  advertiser_name?: string;
+}
+
+function profileDisplayName(p: AccountProfileOption): string {
+  return p.name ?? p.advertiser_name ?? p.customer_id ?? p.advertiser_id ?? String(p.id);
+}
+
+function profileIdForDisplay(p: AccountProfileOption): string {
+  return p.customer_id ?? p.advertiser_id ?? p.ad_account_id ?? p.profileId ?? String(p.id);
+}
+
+function marketplaceLabel(channelType: string | undefined): string {
+  if (!channelType) return "—";
+  const m: Record<string, string> = {
+    google: "Google",
+    meta: "Meta",
+    tiktok: "TikTok",
+    amazon: "Amazon",
+    walmart: "Walmart",
+  };
+  return m[channelType.toLowerCase()] ?? channelType;
+}
+
 interface AssistantPanelProps {
   className?: string;
 }
@@ -197,6 +232,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
   className = "",
 }) => {
   const {
+    isOpen,
     messages,
     isLoading,
     inputValue,
@@ -215,6 +251,10 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     setSelectedGraphId,
     onApplyDraft,
     closeAssistant,
+    assistantScope,
+    setAssistantScope,
+    assistantIntent,
+    setAssistantIntent,
   } = useAssistant();
 
   const threadWithRuntime = currentThread as ThreadWithRuntime | null;
@@ -222,15 +262,69 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const historyDropdownRef = useRef<HTMLDivElement>(null);
   const schemaFormRef = useRef<SchemaFormBlockHandle | null>(null);
   const [isThreadDropdownOpen, setIsThreadDropdownOpen] = useState(false);
+
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accountProfiles, setAccountProfiles] = useState<AccountProfileOption[]>([]);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  const [isIntegrationProfileDropdownOpen, setIsIntegrationProfileDropdownOpen] = useState(false);
+  const accountDropdownRef = useRef<HTMLDivElement>(null);
+  const integrationProfileDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Load accounts when panel is open
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setIsLoadingAccounts(true);
+    accountsService.getAccounts({ all: true })
+      .then((list) => {
+        if (!cancelled) setAccounts(list);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingAccounts(false);
+      });
+    return () => { cancelled = true; };
+  }, [isOpen]);
+
+  // Load profiles when account is selected
+  useEffect(() => {
+    if (!assistantScope.accountId) {
+      setAccountProfiles([]);
+      return;
+    }
+    const accountIdNum = parseInt(assistantScope.accountId, 10);
+    if (Number.isNaN(accountIdNum)) return;
+    let cancelled = false;
+    setIsLoadingProfiles(true);
+    accountsService.getAccountProfiles(accountIdNum)
+      .then((res) => {
+        if (!cancelled && res?.profiles) setAccountProfiles(res.profiles as AccountProfileOption[]);
+      })
+      .catch(() => {
+        if (!cancelled) setAccountProfiles([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingProfiles(false);
+      });
+    return () => { cancelled = true; };
+  }, [assistantScope.accountId]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (historyDropdownRef.current && !historyDropdownRef.current.contains(target)) {
         setIsThreadDropdownOpen(false);
+      }
+      if (accountDropdownRef.current && !accountDropdownRef.current.contains(target)) {
+        setIsAccountDropdownOpen(false);
+      }
+      if (integrationProfileDropdownRef.current && !integrationProfileDropdownRef.current.contains(target)) {
+        setIsIntegrationProfileDropdownOpen(false);
       }
     };
 
@@ -246,6 +340,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading || isStreaming) return;
+    if (!canChat) return;
     const textPart = inputValue.trim();
     const formValues = hasQuestionsSchema && schemaFormRef.current ? schemaFormRef.current.getValues() : {};
     const schema = hasQuestionsSchema ? (questionsSchema as CurrentQuestionSchemaItem[]) : [];
@@ -274,6 +369,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
   };
 
   const handlePromptClick = (promptText: string) => {
+    if (!canChat) return;
     sendMessage(promptText);
   };
 
@@ -292,6 +388,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
   const handleNewThread = () => {
     startNewThread();
+    setAssistantIntent(null);
     setIsThreadDropdownOpen(false);
   };
 
@@ -311,35 +408,260 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
   const groupedThreads = groupThreadsByDate(threads);
   const hasMessages = messages.length > 0;
 
+  const selectedAccount = accounts.find((a) => String(a.id) === assistantScope.accountId);
+  const selectedProfileOption = accountProfiles.find(
+    (p) => String(p.channel_id) === assistantScope.channelId && String(p.id) === assistantScope.profileId
+  );
+
+  const canChat = !!(
+    assistantScope.accountId &&
+    assistantScope.channelId &&
+    assistantScope.profileId &&
+    assistantIntent
+  );
+
+  const contextSection = (
+    <div className="w-full max-w-md bg-[#f9f9f6] border border-[#e8e8e3] rounded-xl p-4 space-y-4">
+      <p className="text-xs font-medium text-[#556179] uppercase tracking-wide text-center">
+        Set up your session in 3 steps
+      </p>
+
+      {/* Step 1: Account */}
+      <div className="space-y-1.5">
+        <label className="flex items-center gap-2 text-sm font-medium text-[#072929]">
+          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${assistantScope.accountId ? "bg-[#136D6D] text-white" : "bg-[#e8e8e3] text-[#6b7280]"}`}>
+            1
+          </span>
+          1. Select account
+        </label>
+        <div className="relative" ref={accountDropdownRef}>
+          <button
+            type="button"
+            onClick={() => setIsAccountDropdownOpen((v) => !v)}
+            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm text-[#072929] bg-white border border-[#e8e8e3] rounded-lg hover:border-[#136D6D] transition-colors"
+            aria-haspopup="listbox"
+            aria-expanded={isAccountDropdownOpen}
+            aria-label="Select account"
+          >
+            <span className="truncate text-left">
+              {selectedAccount ? `${selectedAccount.name}` : "Choose an account"}
+            </span>
+            <ChevronDown className="w-4 h-4 shrink-0 text-[#6b7280]" />
+          </button>
+          {isAccountDropdownOpen && (
+            <div className="absolute left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto bg-white rounded-lg border border-[#e8e8e3] shadow-lg z-50 py-1">
+              {isLoadingAccounts ? (
+                <div className="px-3 py-2 text-sm text-gray-500">Loading...</div>
+              ) : accounts.length === 0 ? (
+                <div className="px-3 py-2 text-sm text-gray-500">No accounts</div>
+              ) : (
+                accounts.map((acc) => (
+                  <button
+                    key={acc.id}
+                    type="button"
+                    onClick={() => {
+                      setAssistantScope({ accountId: String(acc.id), channelId: null, profileId: null });
+                      setIsAccountDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${assistantScope.accountId === String(acc.id) ? "bg-[#136D6D]/10 text-[#072929] font-medium" : "text-[#072929] hover:bg-[#f0f0f0]"}`}
+                  >
+                    {acc.name}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Step 2: Integration & profile */}
+      <div className="space-y-1.5">
+        <label className="flex items-center gap-2 text-sm font-medium text-[#072929]">
+          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${assistantScope.accountId ? "bg-[#136D6D] text-white" : "bg-[#e8e8e3] text-[#6b7280]"}`}>
+            2
+          </span>
+          2. Select integration & profile
+        </label>
+        <div className="relative" ref={integrationProfileDropdownRef}>
+          <button
+            type="button"
+            onClick={() => assistantScope.accountId && setIsIntegrationProfileDropdownOpen((v) => !v)}
+            disabled={!assistantScope.accountId}
+            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm text-[#072929] bg-white border border-[#e8e8e3] rounded-lg hover:border-[#136D6D] transition-colors disabled:opacity-60 disabled:pointer-events-none disabled:cursor-not-allowed"
+            aria-haspopup="listbox"
+            aria-expanded={isIntegrationProfileDropdownOpen}
+            aria-label="Select integration and profile"
+          >
+            <span className="truncate text-left">
+              {selectedProfileOption
+                ? `${profileDisplayName(selectedProfileOption)} (${profileIdForDisplay(selectedProfileOption)})`
+                : assistantScope.accountId
+                  ? "Choose integration & profile"
+                  : "Select an account first"}
+            </span>
+            <ChevronDown className="w-4 h-4 shrink-0 text-[#6b7280]" />
+          </button>
+          {isIntegrationProfileDropdownOpen && (
+            <div className="absolute left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto bg-white rounded-lg border border-[#e8e8e3] shadow-lg z-50 py-1">
+              {isLoadingProfiles ? (
+                <div className="px-3 py-2 text-sm text-gray-500">Loading...</div>
+              ) : accountProfiles.length === 0 ? (
+                <div className="px-3 py-2 text-sm text-gray-500">No profiles. Select an account first.</div>
+              ) : (
+                accountProfiles.map((p) => {
+                  const label = `${profileDisplayName(p)} (${profileIdForDisplay(p)})`;
+                  const isSelected =
+                    assistantScope.channelId === String(p.channel_id) && assistantScope.profileId === String(p.id);
+                  return (
+                    <button
+                      key={`${p.channel_id}-${p.id}`}
+                      type="button"
+                      onClick={() => {
+                        setAssistantScope({ channelId: String(p.channel_id), profileId: String(p.id) });
+                        setIsIntegrationProfileDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${isSelected ? "bg-[#136D6D]/10 text-[#072929] font-medium" : "text-[#072929] hover:bg-[#f0f0f0]"}`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Step 3: What would you like to do? */}
+      <div className="space-y-1.5">
+        <label className="flex items-center gap-2 text-sm font-medium text-[#072929]">
+          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${assistantScope.channelId && assistantScope.profileId ? "bg-[#136D6D] text-white" : "bg-[#e8e8e3] text-[#6b7280]"}`}>
+            3
+          </span>
+          3. What would you like to do?
+        </label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setAssistantIntent(assistantIntent === "analyze" ? null : "analyze")}
+            disabled={!assistantScope.accountId || !assistantScope.channelId || !assistantScope.profileId}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg border transition-colors disabled:opacity-50 disabled:pointer-events-none ${
+              assistantIntent === "analyze"
+                ? "bg-[#136D6D] text-white border-[#136D6D]"
+                : "bg-white text-[#072929] border-[#e8e8e3] hover:border-[#136D6D]"
+            }`}
+            title="Analyze campaigns"
+          >
+            <BarChart3 className="w-4 h-4 shrink-0" />
+            Analyze
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAssistantIntent(assistantIntent === "create_campaign" ? null : "create_campaign");
+              if (assistantIntent !== "create_campaign") setSelectedGraphId("campaign_setup");
+            }}
+            disabled={!assistantScope.accountId || !assistantScope.channelId || !assistantScope.profileId}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg border transition-colors disabled:opacity-50 disabled:pointer-events-none ${
+              assistantIntent === "create_campaign"
+                ? "bg-[#136D6D] text-white border-[#136D6D]"
+                : "bg-white text-[#072929] border-[#e8e8e3] hover:border-[#136D6D]"
+            }`}
+            title="Create campaign"
+          >
+            <Megaphone className="w-4 h-4 shrink-0" />
+            Create Campaign
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const hasScopeSummary = selectedAccount || selectedProfileOption || assistantIntent;
+
   return (
     <div
       className={`flex flex-col h-full bg-[var(--color-semantic-background-primary)] shadow-lg ${className}`}
     >
-      {/* Header with Thread Selector */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#e8e8e3]">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <img src={ASSISTANT_ICONS.logo} alt="Stellar" className="h-6 w-6 shrink-0" />
-          <span className="text-sm font-medium text-[#072929] truncate">
-            {currentThread?.metadata?.title || "New Chat"}
-          </span>
-        </div>
+      {/* Header: scope summary (when selected) + thread row */}
+      <div className="border-b border-[#e8e8e3]">
+        {hasScopeSummary && (
+          <div className="px-4 py-2.5 bg-[#f9f9f6] border-b border-[#e8e8e3]">
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedAccount && (
+                <div className="flex items-center gap-1.5 min-w-0 max-w-full">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[#556179] shrink-0">
+                    Account
+                  </span>
+                  <span
+                    className="text-xs font-medium text-[#072929] truncate rounded bg-white/80 px-2 py-0.5 border border-[#e8e8e3]"
+                    title={selectedAccount.name}
+                  >
+                    {selectedAccount.name}
+                  </span>
+                </div>
+              )}
+              {selectedProfileOption && (
+                <>
+                  {selectedAccount && (
+                    <span className="text-[#d0d0cc] shrink-0" aria-hidden>
+                      •
+                    </span>
+                  )}
+                  <div className="flex items-center gap-1.5 min-w-0 max-w-full">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[#556179] shrink-0">
+                      Profile
+                    </span>
+                    <span
+                      className="text-xs font-medium text-[#072929] truncate rounded bg-white/80 px-2 py-0.5 border border-[#e8e8e3]"
+                      title={`${profileDisplayName(selectedProfileOption)} (${profileIdForDisplay(selectedProfileOption)})`}
+                    >
+                      {profileDisplayName(selectedProfileOption)} ({profileIdForDisplay(selectedProfileOption)})
+                    </span>
+                  </div>
+                </>
+              )}
+              {assistantIntent && (
+                <>
+                  {(selectedAccount || selectedProfileOption) && (
+                    <span className="text-[#d0d0cc] shrink-0" aria-hidden>
+                      •
+                    </span>
+                  )}
+                  <span
+                    className={`text-xs font-medium rounded px-2 py-0.5 shrink-0 ${
+                      assistantIntent === "analyze"
+                        ? "bg-[#136D6D]/12 text-[#136D6D] border border-[#136D6D]/30"
+                        : "bg-[#136D6D]/12 text-[#136D6D] border border-[#136D6D]/30"
+                    }`}
+                  >
+                    {assistantIntent === "analyze" ? "Analyze" : "Create Campaign"}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <img src={ASSISTANT_ICONS.logo} alt="Stellar" className="h-6 w-6 shrink-0" />
+            <span className="text-sm font-medium text-[#072929] truncate">
+              {currentThread?.metadata?.title || "New Chat"}
+            </span>
+          </div>
 
-        {/* Graph selector: Chat | Campaign setup */}
+        {/* Intent display: Analyze | Create Campaign (read-only, reflects initial selection) */}
         <div className="flex items-center rounded-lg border border-[#e8e8e3] p-0.5 shrink-0 mx-2">
-          <button
-            type="button"
-            onClick={() => handleGraphChange("chat")}
-            className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${selectedGraphId === "chat" ? "bg-[#136D6D] text-white" : "text-[#072929] hover:bg-[#f0f0f0]"}`}
+          <span
+            className={`px-2 py-1 text-xs font-medium rounded-md ${assistantIntent === "analyze" ? "bg-[#136D6D] text-white" : "text-[#6b7280] bg-transparent"}`}
           >
-            Chat
-          </button>
-          <button
-            type="button"
-            onClick={() => handleGraphChange("campaign_setup")}
-            className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${selectedGraphId === "campaign_setup" ? "bg-[#136D6D] text-white" : "text-[#072929] hover:bg-[#f0f0f0]"}`}
+            Analyze
+          </span>
+          <span
+            className={`px-2 py-1 text-xs font-medium rounded-md ${assistantIntent === "create_campaign" ? "bg-[#136D6D] text-white" : "text-[#6b7280] bg-transparent"}`}
           >
-            Campaign
-          </button>
+            Create Campaign
+          </span>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -352,7 +674,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             <img src={ASSISTANT_ICONS.newThread} alt="New thread" className="w-5 h-5" />
           </button>
 
-          {/* Chat History Button */}
+          {/* Chat History Button + dropdown (ref so click outside closes it) */}
+          <div ref={historyDropdownRef} className="relative">
           <button
             onClick={() => setIsThreadDropdownOpen(!isThreadDropdownOpen)}
             className="p-2 relative"
@@ -428,6 +751,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
               </div>
             )}
           </button>
+          </div>
 
           {/* Close Assistant */}
           <button
@@ -440,41 +764,58 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+        </div>
       </div>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto interactive-scrollbar px-4 py-4">
         {!hasMessages ? (
-          /* Empty State - Initial View */
-          <div className="flex flex-col items-center justify-center h-full">
+          /* Empty State: show 3-step setup until user selects Analyze or Create Campaign; then hide setup and show prompts only */
+          <div className="flex flex-col items-center justify-center h-full gap-6">
+            {/* Set up your session - hidden as soon as user clicks Analyze or Create Campaign */}
+            {!assistantIntent && contextSection}
+
             {/* Assistant Icon */}
-            <div className="mb-4">
+            <div className="mb-0">
               <img src={StellarLogo} alt="Assistant" className="h-16 w-16" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-8">
+            <h3 className="text-lg font-medium text-gray-900">
               Assistant
             </h3>
 
-            {/* Suggested Prompts */}
-            <div className="w-full max-w-sm">
-              <p className="text-sm text-gray-600 mb-3">Would you like to:</p>
-              <div className="flex flex-col gap-2">
-                {suggestedPrompts.map((prompt) => (
-                  <button
-                    key={prompt.id}
-                    onClick={() => handlePromptClick(prompt.text)}
-                    className="assistant-prompt-button"
-                  >
-                    {prompt.text}
-                  </button>
-                ))}
+            {!assistantIntent ? (
+              <p className="text-sm text-gray-600 text-center px-4">
+                {!assistantScope.accountId
+                  ? "Select an account above to start."
+                  : !assistantScope.channelId || !assistantScope.profileId
+                    ? "Select an integration–profile above to start."
+                    : "Click Analyze or Create Campaign above to continue."}
+              </p>
+            ) : (
+              /* Suggested Prompts - only after user clicks Analyze or Create Campaign */
+              <div className="w-full max-w-sm">
+                <p className="text-sm text-gray-600 mb-3">Would you like to:</p>
+                <div className="flex flex-col gap-2">
+                  {suggestedPrompts.map((prompt) => (
+                    <button
+                      key={prompt.id}
+                      onClick={() => handlePromptClick(prompt.text)}
+                      className="assistant-prompt-button"
+                    >
+                      {prompt.text}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ) : (
           /* Messages List */
           <div className="flex flex-col gap-4">
-            {messages.map((message) => (
+            {messages.map((message, messageIndex) => {
+              const isLastMessage = messageIndex === messages.length - 1;
+              const isStreamingThisBubble = isStreaming && isLastMessage && message.type === "ai";
+              return (
               <div
                 key={message.id}
                 className={`flex ${message.type === "human" ? "justify-end" : "justify-start"
@@ -482,16 +823,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
               >
                 <div
                   className={`max-w-[85%] ${message.type === "human"
-                    ? "flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e5e4e0] rounded-[10px]"
-                    : "space-y-3"
+                    ? "flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e8e8e3] rounded-[12px] shadow-sm"
+                    : "flex flex-col items-start p-4 gap-3 h-auto bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm"
                     }`}
                 >
-                  {/* Tool Response Message === SKIP THIS FOR NOW */}
-                  {/* {message.type === "tool" && (
-                    <ToolResponseBlock message={message} />
-                  )} */}
-
-                  {/* Human Message: MessageContent for multiline + JSON (same as test agent) */}
+                  {/* Human Message */}
                   {message.type === "human" && (
                     <div
                       className="text-[14px] font-normal leading-[20px] tracking-[0.1px] text-[#072929]"
@@ -501,78 +837,93 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     </div>
                   )}
 
-                  {/* AI Message with Rich Content */}
+                  {/* AI Message: single bubble — "Currently analyzing" above, then content (so analyzing never hides) */}
                   {message.type === "ai" && (
-                    <div
-                      className="flex flex-col items-start h-auto"
-                      style={{
-                        padding: '0px 16px 0px 16px',
-                        fontFamily: "'GT America Trial', sans-serif"
-                      }}
-                    >
-                      {/* Currently analyzing section */}
-                      {message.additional_kwargs && Object.keys(message.additional_kwargs).length > 0 && (
-                        <div className="flex flex-col items-start gap-1.5 w-60 h-auto">
-                          <div
-                            className="text-[14px] font-normal leading-5 text-center tracking-[0.1px] text-[#072929]"
-                            style={{ fontFamily: "'GT America Trial', sans-serif" }}
-                          >
-                            Currently analyzing:
-                          </div>
-                          <div
-                            className="flex flex-col justify-center items-center p-3 gap-1 w-60 h-auto bg-[#F9F9F6] border border-[#E8E8E3] rounded-[10px]"
-                          >
-                            <div
-                              className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full"
-                              style={{ fontFamily: "'GT America Trial', sans-serif" }}
-                            >
-                              {Object.entries(message.additional_kwargs).map(([key, value]) => (
-                                <div key={key}>{key}: {String(value)}</div>
+                    <div className="flex flex-col items-start gap-3 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
+                      {/* Currently analyzing: always at top while streaming (stays visible); or from message.additional_kwargs when not streaming */}
+                      {isStreamingThisBubble || (message.additional_kwargs && Object.keys(message.additional_kwargs).length > 0) ? (
+                        <div className="flex flex-col gap-1.5 w-full">
+                          <span className="text-[11px] font-medium uppercase tracking-wider text-[#556179]">
+                            Currently analyzing
+                          </span>
+                          {isStreamingThisBubble && currentThinkingSteps.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {currentThinkingSteps.map((step, index) => (
+                                <span
+                                  key={index}
+                                  className="inline-flex items-center gap-1.5 rounded-md bg-white border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929]"
+                                >
+                                  <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full animate-pulse" />
+                                  {step}
+                                </span>
                               ))}
                             </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Render Content Blocks */}
-                      {isContentBlockArray(message.content) ? (
-                        <div className="w-full">
-                          {(message.content as ContentBlock[]).map((block, idx) => (
-                            <div key={idx}>
-                              {block.type === "text" && (
-                                <div
-                                  className="h-auto text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929]"
-                                  style={{ fontFamily: "'GT America Trial', sans-serif" }}
+                          ) : message.additional_kwargs ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {Object.entries(message.additional_kwargs).map(([key, value]) => (
+                                <span
+                                  key={key}
+                                  className="inline-flex items-center rounded-md bg-white border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929]"
                                 >
-                                  <StellarMarkDown content={(block as any).text} type="ai" />
-                                </div>
-                              )}
-                              {block.type === "tool_use" && (
-                                <ToolUseBlock block={block} />
-                              )}
+                                  {key}: {String(value)}
+                                </span>
+                              ))}
                             </div>
-                          ))}
+                          ) : null}
+                          {/* Thinking line when streaming this bubble */}
+                          {isStreamingThisBubble && (
+                            <div className="flex items-center gap-2 text-[#556179]">
+                              <img src={StellarLogo} alt="" className="h-4 w-4 opacity-80" />
+                              <span className="text-xs font-medium">Thinking</span>
+                              <div className="flex gap-1 ml-1">
+                                <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
+                                <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                                <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+
+                      {/* Text / markdown content (streamed message below analyzing) */}
+                      {isContentBlockArray(message.content) ? (
+                        <div className="w-full space-y-2">
+                          {/* Render tool_use blocks first (above), then text (message below) */}
+                          {(() => {
+                            const blocks = message.content as ContentBlock[];
+                            const toolBlocks = blocks.filter((b): b is ToolUseContent => b.type === "tool_use");
+                            const textBlocks = blocks.filter((b): b is TextContent => b.type === "text");
+                            return [...toolBlocks, ...textBlocks].map((block, idx) => (
+                              <div key={idx}>
+                                {block.type === "text" && (
+                                  <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929]">
+                                    <StellarMarkDown content={(block as any).text} type="ai" />
+                                  </div>
+                                )}
+                                {block.type === "tool_use" && (
+                                  <ToolUseBlock block={block} />
+                                )}
+                              </div>
+                            ));
+                          })()}
                         </div>
                       ) : isStringContent(message.content) ? (
-                        <div
-                          className="h-auto text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929]"
-                          style={{ fontFamily: "'GT America Trial', sans-serif" }}
-                        >
-                          <MessageContent content={message.content} />
+                        <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full prose prose-sm max-w-none">
+                          <StellarMarkDown content={message.content} type="ai" />
                         </div>
                       ) : null}
                     </div>
                   )}
                 </div>
               </div>
-            ))}
+            ); })}
 
             {/* Campaign: Apply draft + validation errors */}
             {campaignState && (campaignState.draft_setup_json || (campaignState.validation_errors && campaignState.validation_errors.length > 0)) && (
               <div className="flex flex-col gap-2 mt-2 p-3 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[10px]">
                 {campaignState.validation_errors && campaignState.validation_errors.length > 0 && (
                   <div className="text-xs text-red-600">
-                    {campaignState.validation_errors.map((err, i) => (
+                    {campaignState.validation_errors.map((err: string, i: number) => (
                       <div key={i}>{err}</div>
                     ))}
                   </div>
@@ -606,49 +957,35 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
               />
             )}
 
-            {/* Streaming State */}
-            {(isLoading || isStreaming) && (
+            {/* Streaming State - only when we don't yet have the streaming AI bubble (e.g. waiting for first token) */}
+            {(isLoading || isStreaming) && !(messages.length > 0 && messages[messages.length - 1]?.type === "ai") && (
               <div className="flex justify-start">
-                <div className="max-w-[85%] space-y-3">
-                  {/* Current Thinking Steps */}
+                <div className="max-w-[85%] w-full p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm flex flex-col gap-3">
                   {currentThinkingSteps.length > 0 && (
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                      <p className="text-sm font-medium text-gray-700 mb-3">
-                        Currently analyzing:
-                      </p>
-                      <div className="space-y-2">
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[11px] font-medium uppercase tracking-wider text-[#556179]">
+                        Currently analyzing
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
                         {currentThinkingSteps.map((step, index) => (
-                          <div key={index} className="text-sm text-gray-600 flex items-center gap-2">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" />
+                          <span
+                            key={index}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-white border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929]"
+                          >
+                            <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full animate-pulse" />
                             {step}
-                          </div>
+                          </span>
                         ))}
                       </div>
                     </div>
                   )}
-
-                  {/* Loading Indicator */}
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                      <img
-                        src={StellarLogo}
-                        alt="Assistant"
-                        className="h-4 w-4"
-                      />
-                      <span className="text-xs font-medium text-gray-500">
-                        PIVY AI
-                      </span>
-                    </div>
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.1s" }}
-                      />
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.2s" }}
-                      />
+                  <div className="flex items-center gap-2 text-[#556179]">
+                    <img src={StellarLogo} alt="" className="h-4 w-4 opacity-80" />
+                    <span className="text-xs font-medium">Thinking</span>
+                    <div className="flex gap-1 ml-1">
+                      <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
+                      <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                      <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
                     </div>
                   </div>
                 </div>
@@ -662,7 +999,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
       {/* Input Area */}
       <div className="px-4 py-3 border-t border-gray-100">
         <form onSubmit={handleSubmit} className="relative">
-          <div className="bg-[var(--color-semantic-background-primary)] border border-[var(--pixis-sandstorm-s40,#e8e8e3)] rounded-[12px] p-3 transition-all">
+          <div className="assistant-input-container rounded-[12px] p-3">
             <div className="flex flex-col gap-8">
               {/* Input Field: textarea for multi-line; Shift+Enter = new line, Enter = send */}
               <textarea
@@ -670,10 +1007,16 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={isStreaming ? "Generating response..." : "👋 Ask me anything about your campaigns... (Shift+Enter for new line)"}
-                className="w-full min-h-[24px] max-h-[120px] resize-y bg-transparent text-[14px] font-normal text-[#072929] placeholder:text-[#072929] focus:outline-none"
+                placeholder={
+                  isStreaming
+                    ? "Generating response..."
+                    : !canChat
+                      ? "Select account and profile above to enable chat"
+                      : "Ask me anything about your campaigns... (Shift+Enter for new line)"
+                }
+                className="w-full min-h-[24px] max-h-[120px] resize-y bg-transparent text-[14px] font-normal text-[#072929] placeholder:text-[#9ca3af] focus:outline-none"
                 style={{ fontFamily: "'GT America Trial', sans-serif" }}
-                disabled={isLoading || isStreaming}
+                disabled={isLoading || isStreaming || !canChat}
                 rows={1}
               />
 
@@ -682,9 +1025,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 {/* Add Attachment Button */}
                 <button
                   type="button"
-                  className="p-1 hover:opacity-70 transition-opacity"
+                  className="p-1 hover:opacity-70 transition-opacity disabled:opacity-50 disabled:pointer-events-none"
                   title="Add attachment"
-                  disabled={isStreaming}
+                  disabled={isStreaming || !canChat}
                 >
                   <img src={ASSISTANT_ICONS.addCircle} alt="Add attachment" className="w-5 h-5" />
                 </button>
@@ -704,8 +1047,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     {/* Voice Button */}
                     <button
                       type="button"
-                      className="p-1 hover:opacity-70 transition-opacity"
+                      className="p-1 hover:opacity-70 transition-opacity disabled:opacity-50 disabled:pointer-events-none"
                       title="Voice input"
+                      disabled={!canChat}
                     >
                       <img src={ASSISTANT_ICONS.mic} alt="Voice input" className="w-5 h-5" />
                     </button>
@@ -713,8 +1057,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     {/* Analytics Button */}
                     <button
                       type="button"
-                      className="p-1 hover:opacity-70 transition-opacity"
+                      className="p-1 hover:opacity-70 transition-opacity disabled:opacity-50 disabled:pointer-events-none"
                       title="View analytics"
+                      disabled={!canChat}
                     >
                       <img src={ASSISTANT_ICONS.voice} alt="View analytics" className="w-6 h-6" />
                     </button>
@@ -732,14 +1077,41 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 const DEFAULT_PANEL_WIDTH = 550;
 const MIN_PANEL_WIDTH = 380;
 const MAX_PANEL_WIDTH = 900;
+const ASSISTANT_PANEL_WIDTH_KEY = "stellar-assistant-panel-width";
+
+function getStoredPanelWidth(): number {
+  try {
+    const stored = localStorage.getItem(ASSISTANT_PANEL_WIDTH_KEY);
+    if (stored != null) {
+      const n = parseInt(stored, 10);
+      if (!Number.isNaN(n)) return Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, n));
+    }
+  } catch {
+    // ignore
+  }
+  return DEFAULT_PANEL_WIDTH;
+}
+
+function setStoredPanelWidth(width: number): void {
+  try {
+    localStorage.setItem(ASSISTANT_PANEL_WIDTH_KEY, String(width));
+  } catch {
+    // ignore
+  }
+}
 
 // Wrapper component that renders the Assistant panel with slide-up/slide-down animation
 export const Assistant: React.FC<React.PropsWithChildren<Record<string, never>>> = ({
   children,
 }) => {
   const { isOpen } = useAssistant();
-  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
+  const [panelWidth, setPanelWidth] = useState(getStoredPanelWidth);
+  const [isResizing, setIsResizing] = useState(false);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  useEffect(() => {
+    setStoredPanelWidth(panelWidth);
+  }, [panelWidth]);
 
   const isFixed = ASSISTANT_PANEL_VIEW === "fixed";
   const widthCss = `${panelWidth}px`;
@@ -747,6 +1119,7 @@ export const Assistant: React.FC<React.PropsWithChildren<Record<string, never>>>
   const handleResizeMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     dragRef.current = { startX: e.clientX, startWidth: panelWidth };
+    setIsResizing(true);
     const onMove = (ev: MouseEvent) => {
       const start = dragRef.current;
       if (!start) return;
@@ -755,6 +1128,7 @@ export const Assistant: React.FC<React.PropsWithChildren<Record<string, never>>>
     };
     const onUp = () => {
       dragRef.current = null;
+      setIsResizing(false);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
       document.body.style.cursor = "";
@@ -768,6 +1142,7 @@ export const Assistant: React.FC<React.PropsWithChildren<Record<string, never>>>
 
   const handleResizeDoubleClick = () => {
     setPanelWidth(DEFAULT_PANEL_WIDTH);
+    setStoredPanelWidth(DEFAULT_PANEL_WIDTH);
   };
 
   return (
@@ -782,21 +1157,26 @@ export const Assistant: React.FC<React.PropsWithChildren<Record<string, never>>>
 
       {/* Assistant Sidebar - always mounted, animated from bottom */}
       <div
-        className={`${isFixed ? "fixed" : "absolute"} right-0 top-[80px] bottom-0 z-[45] bg-[var(--color-semantic-background-primary)] transition-[transform,width] duration-200 ease-out ${
+        className={`${isFixed ? "fixed" : "absolute"} right-0 top-0 bottom-0 z-[45] bg-[var(--color-semantic-background-primary)] transition-[transform,width] duration-200 ease-out ${
           isFixed ? "border-l border-gray-200" : "rounded-l-2xl shadow-[-8px_0_24px_rgba(0,0,0,0.15)]"
         } ${isOpen ? "translate-y-0" : "translate-y-full pointer-events-none"}`}
         style={{ width: widthCss }}
         aria-hidden={!isOpen}
       >
-        {/* Resize handle - left edge, vertically centered */}
+        {/* Resize handle - left edge, vertically centered; thin strip with grip */}
         <div
           onMouseDown={handleResizeMouseDown}
           onDoubleClick={handleResizeDoubleClick}
-          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-50 w-6 h-14 flex items-center justify-center rounded-r-md bg-[#E8E8E3] border border-[#d0d0cc] border-l-0 cursor-col-resize hover:bg-[#136D6D] hover:text-white text-[#072929] transition-colors shadow-sm"
+          className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-50 w-2 h-16 flex items-center justify-center rounded-r cursor-col-resize transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#136D6D] focus-visible:ring-offset-1 ${
+            isResizing
+              ? "bg-[#136D6D] text-white"
+              : "bg-[#e0e0dc] hover:bg-[#136D6D]/80 text-[#072929] hover:text-white border border-r-0 border-[#d0d0cc]"
+          }`}
           title="Drag to resize · Double-click to reset"
           aria-label="Resize assistant panel"
+          tabIndex={0}
         >
-          <GripVertical className="w-4 h-4" strokeWidth={2} />
+          <GripVertical className="w-3 h-3 opacity-70" strokeWidth={2} />
         </div>
         <AssistantPanel className={`h-full ${isFixed ? "" : "rounded-l-2xl overflow-hidden"}`} />
       </div>
