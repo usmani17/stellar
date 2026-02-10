@@ -476,7 +476,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                                     }}
                                                     defaultOpen={true}
                                                     closeOnSelect={true}
-                                                    buttonClassName="inline-edit-dropdown"
+                                                    buttonClassName="edit-button"
                                                     width="w-full"
                                                     align="center"
                                                 />

@@ -3,6 +3,7 @@ import { Route, useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import { AccountRequiredRoute } from "../components/auth/AccountRequiredRoute";
+import { WorkspaceRequiredRoute } from "../components/auth/WorkspaceRequiredRoute";
 import { LegacyRedirect } from "../components/auth/LegacyRedirect";
 import { Layout } from "../components/layout/Layout";
 import { Campaigns } from "../pages/Campaigns";
@@ -20,11 +21,13 @@ function AmazonRoutes() {
                 path="/brands/:accountId/:channelId/amazon/campaigns"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <Campaigns />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -32,11 +35,13 @@ function AmazonRoutes() {
                 path="/brands/:accountId/:channelId/amazon/campaigns/:campaignTypeAndId"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <CampaignDetail />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -44,11 +49,13 @@ function AmazonRoutes() {
                 path="/brands/:accountId/:channelId/amazon/adgroups"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <AdGroups />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -56,11 +63,13 @@ function AmazonRoutes() {
                 path="/brands/:accountId/:channelId/amazon/keywords"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <Keywords />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -68,11 +77,13 @@ function AmazonRoutes() {
                 path="/brands/:accountId/:channelId/amazon/targets"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <Targets />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -80,11 +91,13 @@ function AmazonRoutes() {
                 path="/brands/:accountId/:channelId/amazon/logs"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <LogHistory />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -92,11 +105,13 @@ function AmazonRoutes() {
                 path="/brands/:accountId/:channelId/amazon/log-history"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <LogHistory />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -105,7 +120,9 @@ function AmazonRoutes() {
                 path="/campaigns"
                 element={
                     <ProtectedRoute>
-                        <LegacyRedirect pattern="amazon/campaigns" />
+                        <WorkspaceRequiredRoute>
+                            <LegacyRedirect pattern="amazon/campaigns" />
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -113,7 +130,9 @@ function AmazonRoutes() {
                 path="/brands/:accountId/campaigns"
                 element={
                     <ProtectedRoute>
-                        <LegacyRedirect pattern="amazon/campaigns" />
+                        <WorkspaceRequiredRoute>
+                            <LegacyRedirect pattern="amazon/campaigns" />
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -121,7 +140,9 @@ function AmazonRoutes() {
                 path="/brands/:accountId/campaigns/:campaignTypeAndId"
                 element={
                     <ProtectedRoute>
-                        <LegacyRedirect pattern="amazon/campaigns/:campaignTypeAndId" />
+                        <WorkspaceRequiredRoute>
+                            <LegacyRedirect pattern="amazon/campaigns/:campaignTypeAndId" />
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -129,11 +150,13 @@ function AmazonRoutes() {
                 path="/brands/:accountId/amazon/campaigns"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <AmazonChannelRedirect />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -141,11 +164,13 @@ function AmazonRoutes() {
                 path="/brands/:accountId/amazon/campaigns/:campaignTypeAndId"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <AmazonChannelRedirect campaignTypeAndId />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -153,11 +178,13 @@ function AmazonRoutes() {
                 path="/brands/:accountId/amazon/adgroups"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <AmazonChannelRedirect entity="adgroups" />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -165,11 +192,13 @@ function AmazonRoutes() {
                 path="/brands/:accountId/amazon/keywords"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <AmazonChannelRedirect entity="keywords" />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -177,11 +206,13 @@ function AmazonRoutes() {
                 path="/brands/:accountId/amazon/targets"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <AmazonChannelRedirect entity="targets" />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -189,11 +220,13 @@ function AmazonRoutes() {
                 path="/brands/:accountId/amazon/logs"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <AmazonChannelRedirect entity="logs" />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -201,11 +234,13 @@ function AmazonRoutes() {
                 path="/brands/:accountId/amazon/log-history"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <AmazonChannelRedirect entity="log-history" />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />

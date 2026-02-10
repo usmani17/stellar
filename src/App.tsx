@@ -17,9 +17,9 @@ function App() {
               <Router>
                 <AppRoutes />
               </Router>
-              {import.meta.env.DEV && (
+              {/* {import.meta.env.DEV && (
                 <ReactQueryDevtools initialIsOpen={false} />
-              )}
+              )} */}
             </SidebarProvider>
           </GlobalStateProvider>
         </AccountsProvider>

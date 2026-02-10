@@ -356,9 +356,9 @@ export const Dropdown = <T extends string | number = string>({
         className={cn(
           // Only apply default styles if edit-button is not in buttonClassName
           !buttonClassName?.includes("edit-button") &&
-            (buttonClassName?.includes("inline-edit-dropdown")
+            (buttonClassName?.includes("edit-button")
               ? "w-full"
-              : "w-full inline-edit-dropdown"),
+              : "w-full edit-button"),
           disabled && "opacity-50 cursor-not-allowed",
           buttonClassName
         )}

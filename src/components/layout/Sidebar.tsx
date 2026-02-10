@@ -10,8 +10,10 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { useAccounts } from "../../contexts/AccountsContext";
+import { useAuth } from "../../contexts/AuthContext";
 import { useChannels } from "../../hooks/queries/useChannels";
 import { ConfirmationModal } from "../ui/ConfirmationModal";
+import { SelectBrandRequiredModal } from "../ui/SelectBrandRequiredModal";
 import StellarLogo from "../../assets/images/stellar-logo-v2 1.svg";
 import InstacartIcon from "../../assets/images/cib_instacart.svg";
 import CampaignIcon from "../../assets/images/campaign-svgrepo-com 1.svg";
@@ -47,6 +49,8 @@ const TIKTOK_SECTION_STORAGE_KEY = "tiktok-section-collapsed";
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const hasWorkspace = !!user?.workspace;
   const accountId = getCurrentAccountId(location.pathname);
   const { isCollapsed, toggleSidebar, sidebarWidth } = useSidebar();
   const { getAccountById } = useAccounts();
@@ -75,6 +79,8 @@ export const Sidebar: React.FC = () => {
   const [channelRequiredModal, setChannelRequiredModal] = useState<
     "amazon" | "google" | "tiktok" | null
   >(null);
+  const [showBrandRequiredModal, setShowBrandRequiredModal] = useState(false);
+  const [brandRequiredReturnUrl, setBrandRequiredReturnUrl] = useState<string | undefined>(undefined);
 
   const [isAmazonSectionCollapsed, setIsAmazonSectionCollapsed] =
     useState<boolean>(() => {
@@ -104,7 +110,8 @@ export const Sidebar: React.FC = () => {
       location.pathname === "/brands" ||
       /^\/brands\/\d+\/integrations$/.test(location.pathname) ||
       /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
-      /^\/brands\/\d+\/users$/.test(location.pathname);
+      /^\/brands\/\d+\/users$/.test(location.pathname) ||
+      location.pathname === "/workspace/team";
 
     if (isBrandsArea) {
       setIsBrandsSectionCollapsed(false);
@@ -168,8 +175,8 @@ export const Sidebar: React.FC = () => {
       return /^\/brands\/\d+\/integrations$/.test(location.pathname);
     if (path === "/brands/profiles")
       return /^\/brands\/\d+\/profiles$/.test(location.pathname);
-    if (path === "/brands/users")
-      return /^\/brands\/\d+\/users$/.test(location.pathname);
+    if (path === "/brands/users" || path === "/workspace/team")
+      return location.pathname === "/workspace/team" || /^\/brands\/\d+\/users$/.test(location.pathname);
     if (path === "/campaigns") {
       return (
         location.pathname.includes("/campaigns") &&
@@ -270,11 +277,9 @@ export const Sidebar: React.FC = () => {
     if (!accountId) {
       e.preventDefault();
       const route = buildRoute();
-      if (route) {
-        navigate(`/brands?returnUrl=${encodeURIComponent(route)}`);
-      } else {
-        navigate("/brands");
-      }
+      // Show popup instead of redirecting - force user to select a brand first
+      setBrandRequiredReturnUrl(route || undefined);
+      setShowBrandRequiredModal(true);
     }
   };
 
@@ -354,7 +359,8 @@ export const Sidebar: React.FC = () => {
           </button>
         </div>
 
-        {/* Brands Section - sub-nav: Brands, Channels, Profiles, Users */}
+        {/* Brands Section - sub-nav: Brands, Channels, Profiles, Users (hidden when no workspace) */}
+        {hasWorkspace && (
         <div className="mb-6">
           {!isCollapsed ? (
             <>
@@ -477,24 +483,24 @@ export const Sidebar: React.FC = () => {
                     to={
                       accountId
                         ? buildAccountRoute(accountId, "users")
-                        : "/brands"
+                        : "/workspace/team"
                     }
                     onClick={(e) =>
                       handleAccountRequiredClick(e, () =>
                         accountId
                           ? buildAccountRoute(accountId, "users")
-                          : "/brands",
+                          : "/workspace/team",
                       )
                     }
                     className={`flex items-center p-2 rounded-xl gap-2 ${
-                      isActive("/brands/users")
+                      isActive("/workspace/team")
                         ? "w-full bg-forest-f60 !text-white hover:!text-white"
                         : "text-black hover:bg-transparent hover:text-[#136D6D]"
                     }`}
                     title="Users"
                   >
                     <img
-                      src={isActive("/brands/users") ? UsersActiveIcon : UsersIcon}
+                      src={isActive("/workspace/team") ? UsersActiveIcon : UsersIcon}
                       alt=""
                       className="w-5 h-5 shrink-0"
                     />
@@ -523,8 +529,10 @@ export const Sidebar: React.FC = () => {
             </Link>
           )}
         </div>
+        )}
 
-        {/* Amazon Section */}
+        {/* Amazon Section (hidden when no workspace) */}
+        {hasWorkspace && (
         <div>
           {!isCollapsed && (
             <div className="mb-3">
@@ -791,8 +799,10 @@ export const Sidebar: React.FC = () => {
             </div>
           )}
         </div>
+        )}
 
         {/* Google Section */}
+        {hasWorkspace && (
         <div>
           {!isCollapsed && (
             <div className="mb-3">
@@ -1059,8 +1069,10 @@ export const Sidebar: React.FC = () => {
             </div>
           )}
         </div>
+        )}
 
         {/* TikTok Section */}
+        {hasWorkspace && (
         <div>
           {!isCollapsed && (
             <div className="mb-3">
@@ -1279,6 +1291,7 @@ export const Sidebar: React.FC = () => {
             </div>
           )}
         </div>
+        )}
       </div>
 
       {channelRequiredModal !== null &&
@@ -1309,6 +1322,15 @@ export const Sidebar: React.FC = () => {
           />,
           document.body,
         )}
+
+      <SelectBrandRequiredModal
+        isOpen={showBrandRequiredModal}
+        returnUrl={brandRequiredReturnUrl}
+        onClose={() => {
+          setShowBrandRequiredModal(false);
+          setBrandRequiredReturnUrl(undefined);
+        }}
+      />
     </div>
   );
 };

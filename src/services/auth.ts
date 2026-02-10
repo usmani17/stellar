@@ -1,11 +1,20 @@
 import api from './api';
 
+export interface Workspace {
+  id: number;
+  name: string;
+  team_size?: string;
+  email_verified_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface User {
   id: number;
   email: string;
   first_name: string;
   last_name: string;
-  company_name: string;
+  workspace?: Workspace | null;
   created_at: string;
   has_unusable_password?: boolean;
 }
@@ -27,9 +36,12 @@ export interface RegisterData {
   email: string;
   first_name: string;
   last_name: string;
-  company_name: string;
+  company_name?: string;  // Workspace name for new signups (write-only, not stored on User)
+  role?: string;
+  team_size?: string;
   password: string;
   password2: string;
+  invite_token?: string;
 }
 
 export const authService = {
@@ -105,6 +117,21 @@ export const authService = {
       new_password: newPassword,
       new_password2: newPassword2,
     });
+    return response.data;
+  },
+
+  verifyEmail: async (uid: string, token: string): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/auth/verify-email/', {
+      uid,
+      token,
+    });
+    return response.data;
+  },
+
+  getInviteDetails: async (token: string): Promise<{ email: string; workspace_name: string; role: string }> => {
+    const response = await api.get<{ email: string; workspace_name: string; role: string }>(
+      `/workspaces/invite/${token}/`
+    );
     return response.data;
   },
 };

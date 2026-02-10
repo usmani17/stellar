@@ -1887,6 +1887,15 @@ export const CampaignDetail: React.FC = () => {
   const handleCreateAdGroups = async (adgroups: AdGroupInput[]) => {
     if (!accountId || !campaignId) return;
 
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot create ad groups. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
+
     setCreateAdGroupLoading(true);
     setCreateAdGroupError(null);
     setCreateAdGroupFieldErrors({});
@@ -2056,6 +2065,15 @@ export const CampaignDetail: React.FC = () => {
         "Please add at least one keyword before submitting",
       );
       setCreateKeywordLoading(false);
+      return;
+    }
+
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot create keywords. This campaign is archived. Archived campaigns cannot be modified.",
+      });
       return;
     }
 
@@ -2233,6 +2251,15 @@ export const CampaignDetail: React.FC = () => {
       (campaignType !== "SP" && campaignType !== "SB" && campaignType !== "SD")
     )
       return;
+
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot create targets. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
 
     setCreateTargetLoading(true);
     setCreateTargetError(null);
@@ -2484,6 +2511,15 @@ export const CampaignDetail: React.FC = () => {
     )
       return;
 
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot create negative keywords. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
+
     setCreateNegativeKeywordLoading(true);
     setCreateNegativeKeywordError(null);
     setCreateNegativeKeywordFieldErrors({});
@@ -2635,6 +2671,15 @@ export const CampaignDetail: React.FC = () => {
 
   const handleCreateProductAds = async (productAds: ProductAdInput[]) => {
     if (!accountId || !campaignId) return;
+
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot create product ads. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
 
     setCreateProductAdLoading(true);
 
@@ -3840,6 +3885,15 @@ export const CampaignDetail: React.FC = () => {
   const handleCreateSBAds = async (ads: SBAdInput[]) => {
     if (!accountId || !campaignId) return;
 
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot create ads. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
+
     setCreateSBAdLoading(true);
     setCreateSBAdError(null);
     setCreateSBAdFieldErrors({});
@@ -4105,6 +4159,14 @@ export const CampaignDetail: React.FC = () => {
     field: "status" | "name",
     currentValue: string,
   ) => {
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot edit ads. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
     setEditingSBAdField({ id, field });
     setEditedSBAdValue(currentValue);
     setPendingSBAdChange(null);
@@ -4179,6 +4241,16 @@ export const CampaignDetail: React.FC = () => {
 
   const confirmSBAdChange = async () => {
     if (!pendingSBAdChange || !accountId || !campaignId) return;
+
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update ad. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      setPendingSBAdChange(null);
+      return;
+    }
 
     const ad = sbAds.find((a) => a.id === pendingSBAdChange.id);
     if (!ad || !ad.adId) {
@@ -4289,6 +4361,16 @@ export const CampaignDetail: React.FC = () => {
     if (!accountId || !campaignId || selectedSBAdIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    if (isCampaignArchived) {
+      setShowSBAdsConfirmationModal(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update ads. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
 
     try {
       setSbAdsDeleteLoading(true); // Reuse this loading state for bulk operations
@@ -4458,6 +4540,16 @@ export const CampaignDetail: React.FC = () => {
     if (!accountId || selectedNegativeTargetIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    if (isCampaignArchived) {
+      setShowNegativeTargetsConfirmationModal(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update negative targets. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
 
     try {
       setNegativeTargetsBulkLoading(true);
@@ -4696,6 +4788,14 @@ export const CampaignDetail: React.FC = () => {
     field: "status" | "default_bid" | "name",
     currentValue: string,
   ) => {
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot edit ad groups. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
     setEditingAdGroupField({ id, field });
     setEditedAdGroupValue(currentValue);
     setPendingAdGroupChange(null);
@@ -4797,6 +4897,16 @@ export const CampaignDetail: React.FC = () => {
 
   const confirmAdGroupChange = async () => {
     if (!pendingAdGroupChange || !accountId) return;
+
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update ad group. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      setPendingAdGroupChange(null);
+      return;
+    }
 
     const adgroup = adgroups.find((ag) => ag.id === pendingAdGroupChange.id);
     if (!adgroup || !adgroup.adGroupId) {
@@ -4972,6 +5082,14 @@ export const CampaignDetail: React.FC = () => {
     field: "status" | "bid" | "state",
     currentValue: string,
   ) => {
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot edit keywords. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
     setEditingKeywordField({ id, field: field === "state" ? "status" : field });
     setEditedKeywordValue(currentValue);
     setPendingKeywordChange(null);
@@ -5060,6 +5178,16 @@ export const CampaignDetail: React.FC = () => {
 
   const confirmKeywordChange = async () => {
     if (!pendingKeywordChange || !accountId) return;
+
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update keyword. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      setPendingKeywordChange(null);
+      return;
+    }
 
     const keyword = keywords.find((kw) => kw.id === pendingKeywordChange.id);
     if (!keyword || !keyword.keywordId) {
@@ -5182,6 +5310,14 @@ export const CampaignDetail: React.FC = () => {
     field: "status",
     currentValue: string,
   ) => {
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot edit product ads. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
     setEditingProductAdField({ id, field });
     setEditedProductAdValue(currentValue);
     setPendingProductAdChange(null);
@@ -5239,6 +5375,17 @@ export const CampaignDetail: React.FC = () => {
 
   const confirmProductAdChange = async () => {
     if (!pendingProductAdChange || !accountId || !campaignId) return;
+
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update product ad. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      setPendingProductAdChange(null);
+      setShowProductAdsConfirmationModal(false);
+      return;
+    }
 
     const productad = productads.find(
       (pa) => pa.id === pendingProductAdChange.id,
@@ -5473,6 +5620,14 @@ export const CampaignDetail: React.FC = () => {
     field: "status" | "bid",
     currentValue: string,
   ) => {
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot edit targets. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
     console.log("handleTargetEditStart:", { id, field, currentValue });
     setEditingTargetField({ id, field });
     setEditedTargetValue(currentValue);
@@ -5567,6 +5722,17 @@ export const CampaignDetail: React.FC = () => {
           accountId,
         },
       );
+      return;
+    }
+
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update target. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      setPendingTargetChange(null);
+      setShowTargetsConfirmationModal(false);
       return;
     }
 
@@ -5726,6 +5892,16 @@ export const CampaignDetail: React.FC = () => {
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    if (isCampaignArchived) {
+      setShowNegativeKeywordsConfirmationModal(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update negative keywords. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
+
     try {
       setNegativeKeywordsBulkLoading(true);
       const selectedNegativeKeywordIdsArray = Array.from(
@@ -5771,6 +5947,14 @@ export const CampaignDetail: React.FC = () => {
     field: "status",
     currentValue: string,
   ) => {
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot edit negative keywords. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
     setEditingNegativeKeywordField({ id, field });
     setEditedNegativeKeywordValue(currentValue);
     setPendingNegativeKeywordChange(null);
@@ -5836,6 +6020,16 @@ export const CampaignDetail: React.FC = () => {
 
   const confirmNegativeKeywordChange = async () => {
     if (!pendingNegativeKeywordChange || !accountId) return;
+
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update negative keyword. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      setPendingNegativeKeywordChange(null);
+      return;
+    }
 
     const negativeKeyword = negativeKeywords.find(
       (nkw) => nkw.id === pendingNegativeKeywordChange.id,
@@ -5943,6 +6137,14 @@ export const CampaignDetail: React.FC = () => {
     field: "status",
     currentValue: string,
   ) => {
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot edit negative targets. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
     setEditingNegativeTargetField({ id, field });
     setEditedNegativeTargetValue(currentValue);
     setPendingNegativeTargetChange(null);
@@ -6023,6 +6225,17 @@ export const CampaignDetail: React.FC = () => {
 
   const confirmNegativeTargetChange = async () => {
     if (!pendingNegativeTargetChange || !accountId) return;
+
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update negative target. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      setPendingNegativeTargetChange(null);
+      setShowNegativeTargetsConfirmationModal(false);
+      return;
+    }
 
     const negativeTarget = negativeTargets.find(
       (ntg) => ntg.id === pendingNegativeTargetChange.id,
@@ -6115,6 +6328,15 @@ export const CampaignDetail: React.FC = () => {
       (campaignType !== "SP" && campaignType !== "SB" && campaignType !== "SD")
     )
       return;
+
+    if (isCampaignArchived) {
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot create negative targets. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
 
     setCreateNegativeTargetLoading(true);
     setCreateNegativeTargetError(null);
@@ -6338,6 +6560,16 @@ export const CampaignDetail: React.FC = () => {
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    if (isCampaignArchived) {
+      setShowTargetsConfirmationModal(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update targets. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
+
     try {
       setTargetsBulkLoading(true);
       // Exclude archived targets — they cannot be updated
@@ -6400,6 +6632,17 @@ export const CampaignDetail: React.FC = () => {
     if (!accountId || selectedTargetIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    if (isCampaignArchived) {
+      setShowTargetsConfirmationModal(false);
+      setShowTargetsBidPanel(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update targets. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
 
     const valueNum = parseFloat(targetsBidValue);
     if (isNaN(valueNum)) {
@@ -6518,6 +6761,16 @@ export const CampaignDetail: React.FC = () => {
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    if (isCampaignArchived) {
+      setShowKeywordsConfirmationModal(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update keywords. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
+
     try {
       setKeywordsBulkLoading(true);
       // Exclude archived keywords — they cannot have their state updated
@@ -6581,6 +6834,17 @@ export const CampaignDetail: React.FC = () => {
     if (!accountId || selectedKeywordIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    if (isCampaignArchived) {
+      setShowKeywordsConfirmationModal(false);
+      setShowKeywordsBidPanel(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update keywords. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
 
     const valueNum = parseFloat(keywordsBidValue);
     if (isNaN(valueNum) || (keywordsBidValue ?? "").trim() === "") {
@@ -6720,6 +6984,16 @@ export const CampaignDetail: React.FC = () => {
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    if (isCampaignArchived) {
+      setShowKeywordsDeleteConfirmation(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot archive keywords. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
+
     try {
       setKeywordsDeleteLoading(true);
       // Exclude archived keywords — they cannot be archived again
@@ -6792,6 +7066,16 @@ export const CampaignDetail: React.FC = () => {
   const handleBulkSBAdsDelete = async () => {
     if (!accountId || selectedSBAdIds.size === 0) return;
 
+    if (isCampaignArchived) {
+      setShowSBAdsDeleteConfirmation(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot delete ads. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
+
     setSbAdsDeleteLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -6840,6 +7124,16 @@ export const CampaignDetail: React.FC = () => {
     if (!accountId || selectedProductAdIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    if (isCampaignArchived) {
+      setShowProductAdsStatusConfirmation(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update product ads. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
 
     try {
       setProductAdsBulkLoading(true);
@@ -6914,6 +7208,16 @@ export const CampaignDetail: React.FC = () => {
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    if (isCampaignArchived) {
+      setShowProductAdsDeleteConfirmation(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot delete product ads. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
+
     try {
       setProductAdsDeleteLoading(true);
       const selectedProductAdsData = productads.filter((pa) =>
@@ -6986,10 +7290,24 @@ export const CampaignDetail: React.FC = () => {
   const isAdGroupArchived = (ag: { state?: string; status?: string }) =>
     String(ag?.state || ag?.status || "").toUpperCase() === "ARCHIVED";
 
+  // Helper: when campaign is archived, sub-entities cannot be created or updated
+  const isCampaignArchived =
+    (campaignDetail?.campaign?.status ?? "").toLowerCase() === "archived";
+
   const handleBulkAdGroupsDelete = async () => {
     if (!accountId || selectedAdGroupIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    if (isCampaignArchived) {
+      setShowAdGroupsDeleteConfirmation(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot delete ad groups. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
 
     try {
       setAdGroupsDeleteLoading(true);
@@ -7100,6 +7418,16 @@ export const CampaignDetail: React.FC = () => {
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    if (isCampaignArchived) {
+      setShowTargetsDeleteConfirmation(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot delete targets. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
+
     try {
       setTargetsDeleteLoading(true);
       // Exclude archived targets — they cannot be deleted via this flow
@@ -7181,6 +7509,16 @@ export const CampaignDetail: React.FC = () => {
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    if (isCampaignArchived) {
+      setShowNegativeKeywordsDeleteConfirmation(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot delete negative keywords. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
+
     try {
       setNegativeKeywordsDeleteLoading(true);
       const selectedNegativeKeywordsData = negativeKeywords.filter((nk) =>
@@ -7258,6 +7596,16 @@ export const CampaignDetail: React.FC = () => {
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    if (isCampaignArchived) {
+      setShowNegativeTargetsDeleteConfirmation(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot delete negative targets. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
+
     try {
       setNegativeTargetsDeleteLoading(true);
       const selectedNegativeTargetsData = negativeTargets.filter((nt) =>
@@ -7334,6 +7682,16 @@ export const CampaignDetail: React.FC = () => {
     if (!accountId || selectedAdGroupIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    if (isCampaignArchived) {
+      setShowAdGroupsConfirmationModal(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update ad groups. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
 
     try {
       setAdGroupsBulkLoading(true);
@@ -7552,6 +7910,17 @@ export const CampaignDetail: React.FC = () => {
     if (!accountId || selectedAdGroupIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    if (isCampaignArchived) {
+      setShowAdGroupsConfirmationModal(false);
+      setShowAdGroupsBidPanel(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          "Cannot update ad groups. This campaign is archived. Archived campaigns cannot be modified.",
+      });
+      return;
+    }
 
     const valueNum = parseFloat(adGroupsBidValue);
     if (isNaN(valueNum)) {
@@ -8009,6 +8378,7 @@ export const CampaignDetail: React.FC = () => {
                 campaignDetail={campaignDetail}
                 campaignId={campaignId}
                 campaignType={campaignType}
+                isCampaignArchived={isCampaignArchived}
                 selectedAdGroupIds={selectedAdGroupIds}
                 onSelectAll={handleSelectAllAdGroups}
                 onSelect={handleSelectAdGroup}
@@ -8121,6 +8491,7 @@ export const CampaignDetail: React.FC = () => {
                 allAdgroups={allAdgroups}
                 adgroups={adgroups}
                 campaignId={campaignId}
+                isCampaignArchived={isCampaignArchived}
                 selectedKeywordIds={selectedKeywordIds}
                 onSelectAll={handleSelectAllKeywords}
                 onSelect={handleSelectKeyword}
@@ -8232,6 +8603,13 @@ export const CampaignDetail: React.FC = () => {
                   <div className="flex items-center gap-2">
                     {/* Create SB Ad Button */}
                     <button
+                      type="button"
+                      disabled={isCampaignArchived}
+                      title={
+                        isCampaignArchived
+                          ? "Ads cannot be created when the campaign is archived"
+                          : undefined
+                      }
                       onClick={async () => {
                         const newState = !isCreateSBAdPanelOpen;
                         setIsCreateSBAdPanelOpen(newState);
@@ -8269,6 +8647,12 @@ export const CampaignDetail: React.FC = () => {
                           type="button"
                           variant="ghost"
                           className="edit-button"
+                          disabled={isCampaignArchived}
+                          title={
+                            isCampaignArchived
+                              ? "Ads cannot be modified when the campaign is archived"
+                              : undefined
+                          }
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowSBAdsBulkActions((prev) => !prev);
@@ -8304,7 +8688,10 @@ export const CampaignDetail: React.FC = () => {
                                   key={opt.value}
                                   type="button"
                                   className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                  disabled={selectedSBAdIds.size === 0}
+                                  disabled={
+                                    selectedSBAdIds.size === 0 ||
+                                    isCampaignArchived
+                                  }
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     if (selectedSBAdIds.size === 0) return;
@@ -8528,6 +8915,13 @@ export const CampaignDetail: React.FC = () => {
                   <div className="flex items-center gap-2">
                     {/* Create Product Ad Button */}
                     <button
+                      type="button"
+                      disabled={isCampaignArchived}
+                      title={
+                        isCampaignArchived
+                          ? "Product ads cannot be created when the campaign is archived"
+                          : undefined
+                      }
                       onClick={async () => {
                         const newState = !isCreateProductAdPanelOpen;
                         setIsCreateProductAdPanelOpen(newState);
@@ -8564,6 +8958,12 @@ export const CampaignDetail: React.FC = () => {
                         type="button"
                         variant="ghost"
                         className="edit-button"
+                        disabled={isCampaignArchived}
+                        title={
+                          isCampaignArchived
+                            ? "Product ads cannot be modified when the campaign is archived"
+                            : undefined
+                        }
                         onClick={(e) => {
                           e.stopPropagation();
                           setShowProductAdsBulkActions((prev) => !prev);
@@ -8601,7 +9001,10 @@ export const CampaignDetail: React.FC = () => {
                                 key={opt.value}
                                 type="button"
                                 className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                disabled={selectedProductAdIds.size === 0}
+                                disabled={
+                                  selectedProductAdIds.size === 0 ||
+                                  isCampaignArchived
+                                }
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (selectedProductAdIds.size === 0) return;
@@ -8841,6 +9244,7 @@ export const CampaignDetail: React.FC = () => {
                 adgroups={adgroups}
                 campaignId={campaignId}
                 campaignType={campaignType}
+                isCampaignArchived={isCampaignArchived}
                 selectedTargetIds={selectedTargetIds}
                 onSelectAll={handleSelectAllTargets}
                 onSelect={handleSelectTarget}
@@ -8962,6 +9366,7 @@ export const CampaignDetail: React.FC = () => {
                 adgroups={adgroups}
                 campaignId={campaignId}
                 campaignType={campaignType}
+                isCampaignArchived={isCampaignArchived}
                 selectedNegativeKeywordIds={selectedNegativeKeywordIds}
                 onSelectAll={handleSelectAllNegativeKeywords}
                 onSelect={handleSelectNegativeKeyword}
@@ -9043,6 +9448,13 @@ export const CampaignDetail: React.FC = () => {
                     <div className="flex items-center gap-2">
                       {/* Create Negative Target Button */}
                       <button
+                        type="button"
+                        disabled={isCampaignArchived}
+                        title={
+                          isCampaignArchived
+                            ? "Negative targets cannot be created when the campaign is archived"
+                            : undefined
+                        }
                         onClick={() =>
                           setIsCreateNegativeTargetPanelOpen(
                             !isCreateNegativeTargetPanelOpen,
@@ -9077,6 +9489,12 @@ export const CampaignDetail: React.FC = () => {
                           type="button"
                           variant="ghost"
                           className="edit-button"
+                          disabled={isCampaignArchived}
+                          title={
+                            isCampaignArchived
+                              ? "Negative targets cannot be modified when the campaign is archived"
+                              : undefined
+                          }
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowNegativeTargetsBulkActions(
@@ -9114,7 +9532,8 @@ export const CampaignDetail: React.FC = () => {
                                   type="button"
                                   className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                   disabled={
-                                    selectedNegativeTargetIds.size === 0
+                                    selectedNegativeTargetIds.size === 0 ||
+                                    isCampaignArchived
                                   }
                                   onClick={(e) => {
                                     e.stopPropagation();

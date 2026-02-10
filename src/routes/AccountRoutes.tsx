@@ -1,6 +1,7 @@
 import { Navigate, Route, useParams } from "react-router-dom";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import { AccountRequiredRoute } from "../components/auth/AccountRequiredRoute";
+import { WorkspaceRequiredRoute } from "../components/auth/WorkspaceRequiredRoute";
 import { Layout } from "../components/layout/Layout";
 import { Accounts } from "../pages/Accounts";
 import { AccountProfiles } from "../pages/AccountProfiles";
@@ -10,6 +11,8 @@ import { ConnectTikTok } from "../pages/ConnectTikTok";
 import { Dashboards } from "../pages/Dashboards";
 import { LogHistory } from "../pages/LogHistory";
 import { Profile } from "../pages/Profile";
+import { WorkspaceSettings } from "../pages/WorkspaceSettings";
+import { NoWorkspace } from "../pages/NoWorkspace";
 import { ColorExamples } from "../pages/ColorExamples";
 
 function ChannelsToIntegrationsRedirect() {
@@ -24,9 +27,11 @@ function AccountRoutes() {
                 path="/"
                 element={
                     <ProtectedRoute>
-                        <Layout>
-                            <Navigate to="/brands" replace />
-                        </Layout>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <Navigate to="/brands" replace />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -34,9 +39,11 @@ function AccountRoutes() {
                 path="/dashboards"
                 element={
                     <ProtectedRoute>
-                        <Layout>
-                            <Dashboards />
-                        </Layout>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <Dashboards />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -44,9 +51,11 @@ function AccountRoutes() {
                 path="/brands"
                 element={
                     <ProtectedRoute>
-                        <Layout>
-                            <Accounts />
-                        </Layout>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <Accounts />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -54,9 +63,11 @@ function AccountRoutes() {
                 path="/log-history"
                 element={
                     <ProtectedRoute>
-                        <Layout>
-                            <LogHistory />
-                        </Layout>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <LogHistory />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -64,11 +75,13 @@ function AccountRoutes() {
                 path="/brands/:accountId/integrations"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
-                            <Layout>
-                                <Channels />
-                            </Layout>
-                        </AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <Layout>
+                                    <Channels />
+                                </Layout>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -76,7 +89,9 @@ function AccountRoutes() {
                 path="/brands/:accountId/channels"
                 element={
                     <ProtectedRoute>
-                        <ChannelsToIntegrationsRedirect />
+                        <WorkspaceRequiredRoute>
+                            <ChannelsToIntegrationsRedirect />
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -84,11 +99,13 @@ function AccountRoutes() {
                 path="/brands/:accountId/profiles"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
-                            <Layout>
-                                <AccountProfiles />
-                            </Layout>
-                        </AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <Layout>
+                                    <AccountProfiles />
+                                </Layout>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -96,11 +113,13 @@ function AccountRoutes() {
                 path="/brands/:accountId/users"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
-                            <Layout>
-                                <AccountUsers />
-                            </Layout>
-                        </AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <Layout>
+                                    <AccountUsers />
+                                </Layout>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -108,11 +127,13 @@ function AccountRoutes() {
                 path="/brands/:accountId/connect-tiktok"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
-                            <Layout>
-                                <ConnectTikTok />
-                            </Layout>
-                        </AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <Layout>
+                                    <ConnectTikTok />
+                                </Layout>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -120,11 +141,13 @@ function AccountRoutes() {
                 path="/brands/:accountId/log-history"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
-                            <Layout>
-                                <LogHistory />
-                            </Layout>
-                        </AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <Layout>
+                                    <LogHistory />
+                                </Layout>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -132,11 +155,21 @@ function AccountRoutes() {
                 path="/brands/:accountId/log-history/:campaignId"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
-                            <Layout>
-                                <LogHistory />
-                            </Layout>
-                        </AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <Layout>
+                                    <LogHistory />
+                                </Layout>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/no-workspace"
+                element={
+                    <ProtectedRoute>
+                        <NoWorkspace />
                     </ProtectedRoute>
                 }
             />
@@ -147,6 +180,18 @@ function AccountRoutes() {
                         <Layout>
                             <Profile />
                         </Layout>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/workspace/team"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <WorkspaceSettings />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -165,9 +210,11 @@ function AccountRoutes() {
                 path="/campaigns"
                 element={
                     <ProtectedRoute>
-                        <Layout>
-                            <Navigate to="/brands" replace />
-                        </Layout>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <Navigate to="/brands" replace />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -175,9 +222,11 @@ function AccountRoutes() {
                 path="/channels"
                 element={
                     <ProtectedRoute>
-                        <Layout>
-                            <Navigate to="/brands" replace />
-                        </Layout>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <Navigate to="/brands" replace />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />

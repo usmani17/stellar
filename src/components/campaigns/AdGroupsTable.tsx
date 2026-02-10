@@ -793,7 +793,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                   onEditChange?.(newValue);
                                   onEditEnd?.(newValue, adgroup.id, "status");
                                 }}
-                                buttonClassName="inline-edit-dropdown"
+                                buttonClassName="edit-button"
                                 width="w-full"
                                 align="center"
                               />

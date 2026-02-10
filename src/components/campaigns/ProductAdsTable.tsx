@@ -296,7 +296,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                                 onEditChange?.(newValue);
                                 onEditEnd?.(newValue, productad.id, "status");
                               }}
-                              buttonClassName="inline-edit-dropdown"
+                              buttonClassName="edit-button"
                               width="w-full"
                               align="center"
                             />

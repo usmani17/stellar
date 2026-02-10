@@ -20,6 +20,8 @@ interface KeywordsTabProps {
   allAdgroups: AdGroup[];
   adgroups: AdGroup[];
   campaignId: string | null;
+  /** When true, create/update keywords are disabled (campaign is archived). */
+  isCampaignArchived?: boolean;
 
   // Selection
   selectedKeywordIds: Set<number>;
@@ -107,6 +109,7 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
   allAdgroups,
   adgroups,
   campaignId,
+  isCampaignArchived = false,
   selectedKeywordIds,
   onSelectAll,
   onSelect,
@@ -177,6 +180,12 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
                 type="button"
                 variant="ghost"
                 className="edit-button"
+                disabled={isCampaignArchived}
+                title={
+                  isCampaignArchived
+                    ? "Keywords cannot be modified when the campaign is archived"
+                    : undefined
+                }
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleBulkActions();
@@ -212,7 +221,9 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
                         key={opt.value}
                         type="button"
                         className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                        disabled={selectedKeywordIds.size === 0}
+                        disabled={
+                          selectedKeywordIds.size === 0 || isCampaignArchived
+                        }
                         onClick={(e) => {
                           e.stopPropagation();
                           if (selectedKeywordIds.size === 0) return;
@@ -236,6 +247,13 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
           )}
           {/* Create Keyword Button */}
           <button
+            type="button"
+            disabled={isCampaignArchived}
+            title={
+              isCampaignArchived
+                ? "Keywords cannot be created when the campaign is archived"
+                : undefined
+            }
             onClick={async () => {
               const newState = !isCreatePanelOpen;
               onToggleCreatePanel();

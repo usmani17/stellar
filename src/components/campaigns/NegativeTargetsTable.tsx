@@ -398,7 +398,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                                   onEditChange?.(value);
                                   onEditEnd?.(value, target.id, "status");
                                 }}
-                                buttonClassName="inline-edit-dropdown"
+                                buttonClassName="edit-button"
                                 width="w-full"
                                 align="center"
                               />

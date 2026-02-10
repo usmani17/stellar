@@ -447,7 +447,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                               onEditChange?.(newValue);
                               onEditEnd?.(newValue, ad.id, "status");
                             }}
-                            buttonClassName="inline-edit-dropdown"
+                            buttonClassName="edit-button"
                             width="w-full"
                             align="center"
                           />

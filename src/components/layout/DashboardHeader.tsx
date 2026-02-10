@@ -16,8 +16,9 @@ import { type Account, accountsService } from "../../services/accounts";
 import CustomDateRangePicker from "../ui/CustomDateRangePicker";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
+import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
 
-// Generate a color based on the first letter of the brand name
+// Generate a color based on the first character of the brand name (letters, digits, or fallback)
 const getInitialColor = (initial: string): string => {
   const colors = [
     "#136D6D", // Teal
@@ -38,8 +39,21 @@ const getInitialColor = (initial: string): string => {
   ];
 
   if (!initial) return colors[0];
-  const charCode = initial.toUpperCase().charCodeAt(0);
-  const index = (charCode - 65) % colors.length; // A-Z maps to 0-25, then wraps
+  const charCode = initial.charCodeAt(0);
+  let index: number;
+  if (charCode >= 48 && charCode <= 57) {
+    // 0-9: map to colors 0-9
+    index = (charCode - 48) % colors.length;
+  } else if (charCode >= 65 && charCode <= 90) {
+    // A-Z
+    index = (charCode - 65) % colors.length;
+  } else if (charCode >= 97 && charCode <= 122) {
+    // a-z
+    index = (charCode - 97) % colors.length;
+  } else {
+    // Other chars (e.g. !, #): use a stable hash
+    index = Math.abs(charCode % colors.length);
+  }
   return colors[index];
 };
 
@@ -105,6 +119,13 @@ const AccountChannelsList: React.FC<{
                   >
                     <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
                   </svg>
+                )}
+                {channel.channel_type === "meta" && (
+                  <img
+                    src={MetaIcon}
+                    alt="Meta"
+                    className="w-4 h-4 flex-shrink-0"
+                  />
                 )}
                 <span>{channel.channel_name}</span>
               </button>
@@ -349,6 +370,9 @@ export const DashboardHeader: React.FC = () => {
                       >
                         <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
                       </svg>
+                    )}
+                    {selectedChannel.channel_type === "meta" && (
+                      <img src={MetaIcon} alt="Meta" className="w-4 h-4" />
                     )}
                     <span className="text-[13.2px] text-[#556179]">
                       {selectedChannel.channel_name}

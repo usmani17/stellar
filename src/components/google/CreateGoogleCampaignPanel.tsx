@@ -699,16 +699,21 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           }
         }
         
-        // Initialize channel controls for Demand Gen
-        if (value === "DEMAND_GEN" && !updated.channel_controls) {
-          updated.channel_controls = {
-            gmail: true,
-            discover: true,
-            display: true,
-            youtube_in_feed: true,
-            youtube_in_stream: true,
-            youtube_shorts: true,
-          };
+        // Initialize channel controls and long_headlines for Demand Gen
+        if (value === "DEMAND_GEN") {
+          if (!updated.channel_controls) {
+            updated.channel_controls = {
+              gmail: true,
+              discover: true,
+              display: true,
+              youtube_in_feed: true,
+              youtube_in_stream: true,
+              youtube_shorts: true,
+            };
+          }
+          if (!updated.long_headlines || updated.long_headlines.length === 0) {
+            updated.long_headlines = [""];
+          }
         }
         
         // Initialize network settings for Display
@@ -871,6 +876,29 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     }
   };
 
+  const addLongHeadline = () => {
+    const cur = formData.long_headlines || [""];
+    if (cur.length < 5) {
+      setFormData((prev) => ({ ...prev, long_headlines: [...(prev.long_headlines || [""]), ""] }));
+    }
+  };
+
+  const removeLongHeadline = (index: number) => {
+    const cur = formData.long_headlines || [""];
+    if (cur.length > 1) {
+      const next = cur.filter((_, i) => i !== index);
+      setFormData((prev) => ({ ...prev, long_headlines: next }));
+    }
+  };
+
+  const updateLongHeadline = (index: number, value: string) => {
+    const cur = formData.long_headlines || [""];
+    const next = [...cur];
+    if (next[index] !== undefined) next[index] = value;
+    else next[index] = value;
+    setFormData((prev) => ({ ...prev, long_headlines: next }));
+  };
+
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof CreateGoogleCampaignData, string>> = {};
 
@@ -952,13 +980,16 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       // VIDEO campaigns cannot be created via API
       newErrors.campaign_type = "VIDEO campaigns cannot be created or modified via the Google Ads API. Please use the Google Ads UI to create Video campaigns, or use Demand Gen or Performance Max campaigns for video placements.";
     } else if (formData.campaign_type === "DEMAND_GEN") {
+      if (!selectedProfileId) {
+        newErrors.customer_id = "Please select a Google Ads account first";
+      }
       // Demand Gen validation
       if (!formData.final_url?.trim()) {
         newErrors.final_url = "Final URL is required";
       } else if (!/^https?:\/\/.+/.test(formData.final_url)) {
         newErrors.final_url = "Final URL must be a valid URL (http:// or https://)";
-      } else if (formData.final_url === "https://example.com") {
-        newErrors.final_url = "Final URL cannot be https://example.com";
+      } else if (/^https?:\/\/example\.com(\/|$)/i.test(formData.final_url.trim())) {
+        newErrors.final_url = "Use a real, working landing page URL. Google Ads rejects example.com (policy: DESTINATION_NOT_WORKING).";
       }
 
       if (!formData.logo_url?.trim() || formData.logo_url === 'https://example.com') {
@@ -993,6 +1024,22 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         newErrors.descriptions = "At least 2 descriptions are required";
       } else if (validDescriptions.length > 4) {
         newErrors.descriptions = "Maximum 4 descriptions allowed";
+      }
+
+      const longHeadlinesSource = (formData.long_headlines || []).length
+        ? (formData.long_headlines || []).filter((h) => h && String(h).trim())
+        : formData.long_headline?.trim()
+          ? [formData.long_headline.trim()]
+          : [];
+      if (longHeadlinesSource.length < 1) {
+        newErrors.long_headlines = "At least 1 long headline is required for Demand Gen (In-Feed placements). Max 90 characters each.";
+      } else if (longHeadlinesSource.length > 5) {
+        newErrors.long_headlines = "Maximum 5 long headlines allowed";
+      } else {
+        const over = longHeadlinesSource.find((h) => String(h).length > 90);
+        if (over !== undefined) {
+          newErrors.long_headlines = "Each long headline must be 90 characters or less";
+        }
       }
     }
 
@@ -1092,6 +1139,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     
     const payload: CreateGoogleCampaignData = {
       ...formData,
+      profile_id: selectedProfileId || undefined,
       headlines: filteredHeadlines,
       descriptions: filteredDescriptions,
       // Keep arrays aligned with headlines/descriptions
@@ -1158,6 +1206,14 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       // For Demand Gen, ensure only one of video_url or video_id is sent
       video_url: formData.campaign_type === "DEMAND_GEN" && formData.video_url?.trim() ? formData.video_url : undefined,
       video_id: formData.campaign_type === "DEMAND_GEN" && formData.video_id?.trim() ? formData.video_id : undefined,
+      long_headlines:
+        formData.campaign_type === "DEMAND_GEN"
+          ? (formData.long_headlines && formData.long_headlines.length
+              ? (formData.long_headlines || []).filter((h) => h && String(h).trim()).map((h) => String(h).trim().slice(0, 90))
+              : formData.long_headline?.trim()
+                ? [String(formData.long_headline).trim().slice(0, 90)]
+                : undefined)
+          : undefined,
       // Convert dollars back to micros for bidding strategy fields
       target_cpa_micros: formData.target_cpa_micros ? Math.round(formData.target_cpa_micros * 1000000) : undefined,
       target_spend_micros: formData.target_spend_micros ? Math.round(formData.target_spend_micros * 1000000) : undefined,
@@ -1366,6 +1422,56 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     setErrors({});
   };
 
+  const quickFillDemandGen = () => {
+    const today = new Date();
+    const dateStr = formatDateForName(today);
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() + 1);
+    const endDate = new Date(today);
+    endDate.setFullYear(today.getFullYear() + 1);
+
+    setFormData({
+      campaign_type: "DEMAND_GEN",
+      name: `Demand Gen YouTube - ${dateStr}`,
+      budget_amount: 20,
+      budget_name: "Demand Gen Budget",
+      status: "PAUSED",
+      bidding_strategy_type: "MAXIMIZE_CONVERSIONS",
+      start_date: formatDate(startDate),
+      end_date: formatDate(endDate),
+      final_url: "https://techesthete.com/",
+      business_name: "Educational Videos",
+      logo_url: "https://placehold.co/128x128/png",
+      headlines: ["Django", "Django MVT", "Python framework"],
+      descriptions: ["Python is a backend language", "Python helps in building AI application"],
+      long_headlines: ["Discover Test Excellence", "Ultimate guide to learn python"],
+      video_id: "LHkZpjnXOH8",
+      video_url: "",
+      ad_group_name: "Django tutorials",
+      ad_name: "Django instructor - education",
+      channel_controls: {
+        gmail: false,
+        discover: false,
+        display: false,
+        youtube_in_feed: true,
+        youtube_in_stream: true,
+        youtube_shorts: true,
+      },
+      tracking_url_template: "",
+      final_url_suffix: "",
+      url_custom_parameters: [],
+      sales_country: "US",
+      campaign_priority: 0,
+      enable_local: false,
+      headline_asset_ids: [undefined, undefined, undefined],
+      headline_asset_resource_names: [undefined, undefined, undefined],
+      description_asset_ids: [undefined, undefined],
+      description_asset_resource_names: [undefined, undefined],
+    });
+    setLogoPreview("https://placehold.co/128x128/png");
+    setErrors({});
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -1506,6 +1612,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             onQuickFillPerformanceMax={quickFillPerformanceMax}
             onQuickFillShopping={quickFillShopping}
             onQuickFillSearch={quickFillSearch}
+            onQuickFillDemandGen={quickFillDemandGen}
           />
 
           {/* Campaign Type Specific Components */}
@@ -1605,8 +1712,14 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
               onAddDescription={addDescription}
               onRemoveDescription={removeDescription}
               onUpdateDescription={updateDescription}
+              onAddLongHeadline={addLongHeadline}
+              onRemoveLongHeadline={removeLongHeadline}
+              onUpdateLongHeadline={updateLongHeadline}
               logoPreview={logoPreview}
               setLogoPreview={setLogoPreview}
+              selectedProfileId={selectedProfileId}
+              googleProfiles={googleProfiles}
+              onFillTest={quickFillDemandGen}
             />
           )}
 

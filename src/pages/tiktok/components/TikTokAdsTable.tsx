@@ -526,7 +526,7 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
                                                             onClose={cancelInlineEdit}
                                                             defaultOpen={true}
                                                             closeOnSelect={true}
-                                                            buttonClassName="inline-edit-dropdown"
+                                                            buttonClassName="edit-button"
                                                         />
                                                     </div>
                                                 ) : (

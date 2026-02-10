@@ -8,7 +8,6 @@ export const ProfileForm: React.FC = () => {
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
-    company_name: '',
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -18,7 +17,6 @@ export const ProfileForm: React.FC = () => {
       setFormData({
         first_name: user.first_name || '',
         last_name: user.last_name || '',
-        company_name: user.company_name || '',
       });
     }
   }, [user]);
@@ -75,14 +73,6 @@ export const ProfileForm: React.FC = () => {
             required
           />
         </div>
-
-        <Input
-          label="Company Name"
-          name="company_name"
-          value={formData.company_name}
-          onChange={handleChange}
-          required
-        />
 
         <div className="pt-2">
           <Button type="submit" disabled={loading}>
