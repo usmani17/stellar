@@ -645,8 +645,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<
                               type="button"
                               className={
                                 onUpdateAssetGroupStatus && !isRemoved
-                                  ? "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between"
-                                  : "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between cursor-default"
+                                  ? "edit-button w-full text-[13.3px] flex items-center justify-between"
+                                  : "edit-button w-full text-[13.3px] flex items-center justify-between cursor-default"
                               }
                               onClick={(e) => {
                                 e.stopPropagation();

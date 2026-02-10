@@ -10,6 +10,9 @@ export const queryKeys = {
   accounts: {
     all: ["accounts"] as const,
     lists: () => [...queryKeys.accounts.all, "list"] as const,
+    listAll: () => [...queryKeys.accounts.all, "list", "all"] as const,
+    listPaginated: (page?: number, pageSize?: number) =>
+      [...queryKeys.accounts.all, "list", "paginated", page ?? 1, pageSize ?? 10] as const,
     detail: (id: number) => [...queryKeys.accounts.all, "detail", id] as const,
   },
   channels: {

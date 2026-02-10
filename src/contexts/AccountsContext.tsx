@@ -40,14 +40,14 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
     return !!(user || localStorage.getItem("accessToken"));
   }, [user, authLoading]);
 
-  // Use React Query hook for accounts data
+  // Use React Query hook for accounts data (all=true for brand switcher / dropdown)
   // Only fetch accounts when user is authenticated
   const {
     data: accounts = [],
     isLoading: loading,
     error,
     refetch,
-  } = useAccountsQuery({ enabled: isAuthenticated });
+  } = useAccountsQuery({ enabled: isAuthenticated, all: true });
 
   // loadAccounts is kept for backward compatibility but uses React Query's refetch
   const loadAccounts = useCallback(async () => {

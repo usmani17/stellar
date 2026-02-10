@@ -2077,7 +2077,7 @@ export const Targets: React.FC = () => {
                                             confirmInlineEdit(newValue, target.targetId || target.id, "status");
                                           }
                                         }}
-                                        buttonClassName="inline-edit-dropdown"
+                                        buttonClassName="edit-button"
                                         width="w-full"
                                         align="center"
                                       />

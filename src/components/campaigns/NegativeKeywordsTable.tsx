@@ -407,7 +407,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                                   onEditChange?.(newValue);
                                   onEditEnd?.(newValue, keyword.id, "status");
                                 }}
-                                buttonClassName="inline-edit-dropdown"
+                                buttonClassName="edit-button"
                                 width="w-full"
                                 align="center"
                               />
