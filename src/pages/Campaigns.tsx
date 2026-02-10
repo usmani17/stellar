@@ -2686,9 +2686,9 @@ export const Campaigns: React.FC = () => {
               </div>
 
               {/* Search, Edit and Export Buttons - Above Table */}
-              <div className="flex items-center justify-end gap-2 relative z-[100]">
+              <div className="flex items-center justify-end gap-2 ">
                 {/* Search Box */}
-                <div className="search-input-container flex gap-[8px] h-[40px] items-center p-[10px] w-[272px] relative z-[100]">
+                <div className="search-input-container flex gap-[8px] h-[40px] items-center p-[10px] w-[272px] relative ">
                   <div className="relative shrink-0 size-[12px]">
                     <svg
                       width="12"
@@ -2731,9 +2731,9 @@ export const Campaigns: React.FC = () => {
                     className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179] font-['GT_America_Trial'] font-normal"
                   />
                 </div>
-                <div className="flex items-center gap-2 relative z-[100]">
+                <div className="flex items-center gap-2 relative ">
                   <div
-                    className="relative inline-flex justify-end z-[100]"
+                    className="relative inline-flex justify-end "
                     ref={dropdownRef}
                   >
                     <Button
@@ -3909,25 +3909,25 @@ export const Campaigns: React.FC = () => {
                                               const wasEditing = editingCell?.campaignId === campaign.campaignId &&
                                                 editingCell?.field === "status";
 
-                                            if (!wasEditing) {
-                                              startInlineEdit(campaign, "status");
-                                              // Pass campaign ID and field directly to avoid state timing issues
-                                              setTimeout(() => {
+                                              if (!wasEditing) {
+                                                startInlineEdit(campaign, "status");
+                                                // Pass campaign ID and field directly to avoid state timing issues
+                                                setTimeout(() => {
+                                                  handleInlineEditChange(newValue);
+                                                  confirmInlineEdit(newValue, String(campaign.campaignId), "status");
+                                                }, 0);
+                                              } else {
                                                 handleInlineEditChange(newValue);
                                                 confirmInlineEdit(newValue, String(campaign.campaignId), "status");
-                                              }, 0);
-                                            } else {
-                                              handleInlineEditChange(newValue);
-                                              confirmInlineEdit(newValue, String(campaign.campaignId), "status");
-                                            }
-                                          }}
-                                          buttonClassName="edit-button"
-                                          width="w-full"
-                                          align="center"
-                                        />
-                                      );
-                                    })()}
-                                  </td>
+                                              }
+                                            }}
+                                            buttonClassName="edit-button"
+                                            width="w-full"
+                                            align="center"
+                                          />
+                                        );
+                                      })()}
+                                    </td>
 
                                     {/* Daily Budget */}
                                     <td className="table-cell min-w-[125px] w-[125px]">
@@ -4032,25 +4032,25 @@ export const Campaigns: React.FC = () => {
                                               const wasEditing = editingCell?.campaignId === campaign.campaignId &&
                                                 editingCell?.field === "budgetType";
 
-                                            if (!wasEditing) {
-                                              startInlineEdit(campaign, "budgetType");
-                                              // Pass campaign ID and field directly to avoid state timing issues
-                                              setTimeout(() => {
+                                              if (!wasEditing) {
+                                                startInlineEdit(campaign, "budgetType");
+                                                // Pass campaign ID and field directly to avoid state timing issues
+                                                setTimeout(() => {
+                                                  handleInlineEditChange(newValue);
+                                                  confirmInlineEdit(newValue, String(campaign.campaignId), "budgetType");
+                                                }, 0);
+                                              } else {
                                                 handleInlineEditChange(newValue);
                                                 confirmInlineEdit(newValue, String(campaign.campaignId), "budgetType");
-                                              }, 0);
-                                            } else {
-                                              handleInlineEditChange(newValue);
-                                              confirmInlineEdit(newValue, String(campaign.campaignId), "budgetType");
-                                            }
-                                          }}
-                                          buttonClassName="edit-button"
-                                          width="w-full"
-                                          align="center"
-                                        />
-                                      );
-                                    })()}
-                                  </td>
+                                              }
+                                            }}
+                                            buttonClassName="edit-button"
+                                            width="w-full"
+                                            align="center"
+                                          />
+                                        );
+                                      })()}
+                                    </td>
 
                                     {/* Start Date */}
                                     <td className="table-cell">
