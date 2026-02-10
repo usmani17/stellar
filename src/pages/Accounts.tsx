@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
-import { useAccounts } from "../contexts/AccountsContext";
+import { useAuth } from "../contexts/AuthContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { accountsService, type Account } from "../services/accounts";
 import {
@@ -9,6 +9,7 @@ import {
   useUpdateAccount,
   useDeleteAccount,
 } from "../hooks/mutations/useAccountMutations";
+import { useAccountsPaginated } from "../hooks/queries/useAccountsPaginated";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
 import { Button, Card, DeleteConfirmationModal, Loader, Menu } from "../components/ui";
@@ -19,11 +20,27 @@ import GoogleIcon from "../assets/images/ri_google-fill.svg";
 // import InstacartIcon from "../assets/images/cib_instacart.svg";
 // import CriteoIcon from "../assets/images/criteo.svg"; // Add when Criteo icon is available
 
+const BRANDS_PAGE_SIZE = 10;
+
 export const Accounts: React.FC = () => {
-  const { accounts, loading: accountsLoading } = useAccounts();
+  const { user } = useAuth();
+  const isTeam = user?.role === "team";
+  const [currentPage, setCurrentPage] = useState(1);
+  const {
+    accounts,
+    totalPages,
+    isLoading: accountsLoading,
+    isFetching,
+  } = useAccountsPaginated(currentPage, BRANDS_PAGE_SIZE);
   const { sidebarWidth } = useSidebar();
   const navigate = useNavigate();
+  const location = useLocation();
+  const accessError = (location.state as { accessError?: string } | null)?.accessError;
   const [loading, setLoading] = useState(true);
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(Math.max(1, Math.min(newPage, totalPages)));
+  };
   const [deletingAccountId, setDeletingAccountId] = useState<number | null>(
     null
   );
@@ -146,7 +163,7 @@ export const Accounts: React.FC = () => {
   }, [showCreateAccount]);
 
   const handleDeleteAccount = async (id: number) => {
-    const account = accounts.find((acc) => acc.id === id);
+    const account = accounts.find((acc: Account) => acc.id === id);
     if (!account) return;
 
     setDeleteModal({
@@ -328,6 +345,15 @@ export const Accounts: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white">
+          {accessError && (
+            <Banner
+              type="error"
+              message={accessError}
+              dismissable={true}
+              onDismiss={() => navigate("/brands", { replace: true, state: {} })}
+              className="mb-6"
+            />
+          )}
           {successMessage && (
             <Banner
               type="success"
@@ -412,17 +438,19 @@ export const Accounts: React.FC = () => {
                     </svg>
                   )}
                 </div>
-                <button
-                  onClick={() => setShowCreateAccount(!showCreateAccount)}
-                  className="create-entity-button"
-                >
-                  Create Brand
-                </button>
+                {!isTeam && (
+                  <button
+                    onClick={() => setShowCreateAccount(!showCreateAccount)}
+                    className="create-entity-button"
+                  >
+                    Create Brand
+                  </button>
+                )}
               </div>
             </div>
 
             {/* Create Brand Form */}
-            {showCreateAccount && (
+            {!isTeam && showCreateAccount && (
               <div ref={createAccountFormRef}>
                 <Card>
                   <div className="p-4">
@@ -495,7 +523,7 @@ export const Accounts: React.FC = () => {
                       <th className="table-header">Users</th>
                       <th className="table-header">Created</th>
                       <th className="table-header">Created By</th>
-                      <th className="table-header">Integrations</th>
+                      {!isTeam && <th className="table-header">Integrations</th>}
                       <th className="table-header">Actions</th>
                     </tr>
                   </thead>
@@ -516,9 +544,11 @@ export const Accounts: React.FC = () => {
                           <td className="table-cell">
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
                           </td>
-                          <td className="table-cell">
-                            <div className="h-9 bg-gray-200 rounded animate-pulse w-24"></div>
-                          </td>
+                          {!isTeam && (
+                            <td className="table-cell">
+                              <div className="h-9 bg-gray-200 rounded animate-pulse w-24"></div>
+                            </td>
+                          )}
                           <td className="table-cell">
                             <div className="h-9 bg-gray-200 rounded animate-pulse w-32"></div>
                           </td>
@@ -526,13 +556,13 @@ export const Accounts: React.FC = () => {
                       ))
                     ) : filteredAccounts.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="table-cell text-center py-8">
+                        <td colSpan={isTeam ? 5 : 6} className="table-cell text-center py-8">
                           <p className="text-[14px] text-[#556179] mb-4">
                             {searchQuery
                               ? "No accounts found"
                               : "No accounts yet"}
                           </p>
-                          {!searchQuery && (
+                          {!searchQuery && !isTeam && (
                             <div className="flex justify-center">
                               <Button
                                 onClick={() => setShowCreateAccount(true)}
@@ -557,7 +587,7 @@ export const Accounts: React.FC = () => {
                               }`}
                           >
                             <td className="table-cell">
-                              {editingAccount?.accountId === account.id ? (
+                              {!isTeam && editingAccount?.accountId === account.id ? (
                                 <input
                                   type="text"
                                   value={editedAccountName}
@@ -598,28 +628,30 @@ export const Accounts: React.FC = () => {
                                   >
                                     {account.name}
                                   </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      startEditAccountName(account);
-                                    }}
-                                    className="table-edit-icon"
-                                    title="Edit brand name"
-                                  >
-                                    <svg
-                                      className="w-4 h-4 text-[#556179]"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
+                                  {!isTeam && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        startEditAccountName(account);
+                                      }}
+                                      className="table-edit-icon"
+                                      title="Edit brand name"
                                     >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                      />
-                                    </svg>
-                                  </button>
+                                      <svg
+                                        className="w-4 h-4 text-[#556179]"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                        />
+                                      </svg>
+                                    </button>
+                                  )}
                                 </div>
                               )}
                             </td>
@@ -638,80 +670,95 @@ export const Accounts: React.FC = () => {
                                 {account.created_by_name || "—"}
                               </span>
                             </td>
-                            <td className="table-cell">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => handleConnectAmazon(account.id)}
-                                  disabled={isConnecting || isDeleting}
-                                  className="flex items-center gap-2 px-3 py-1.5 h-[32px] rounded-lg border border-gray-200 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Connect Amazon"
-                                >
-                                  <img
-                                    src={AmazonIcon}
-                                    alt="Amazon"
-                                    className="w-4 h-4"
-                                  />
-                                  <span className="text-[12px] font-medium text-[#072929]">
-                                    Amazon
-                                  </span>
-                                </button>
-                                <button
-                                  onClick={() => handleConnectGoogle(account.id)}
-                                  disabled={isConnecting || isDeleting}
-                                  className="flex items-center gap-2 px-3 py-1.5 h-[32px] rounded-lg border border-gray-200 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Connect Google"
-                                >
-                                  <img
-                                    src={GoogleIcon}
-                                    alt="Google"
-                                    className="w-4 h-4"
-                                  />
-                                  <span className="text-[12px] font-medium text-[#072929]">
-                                    Google
-                                  </span>
-                                </button>
-                                <button
-                                  onClick={() => handleConnectTikTok(account.id)}
-                                  disabled={isConnecting || isDeleting}
-                                  className="flex items-center gap-2 px-3 py-1.5 h-[32px] rounded-lg border border-gray-200 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Connect TikTok"
-                                >
-                                  <svg
-                                    className="w-4 h-4"
-                                    fill="currentColor"
-                                    viewBox="0 0 24 24"
-                                    xmlns="http://www.w3.org/2000/svg"
+                            {!isTeam && (
+                              <td className="table-cell">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleConnectAmazon(account.id)}
+                                    disabled={isConnecting || isDeleting}
+                                    className="flex items-center gap-2 px-3 py-1.5 h-[32px] rounded-lg border border-gray-200 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Connect Amazon"
                                   >
-                                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-                                  </svg>
-                                  <span className="text-[12px] font-medium text-[#072929]">
-                                    TikTok
-                                  </span>
-                                </button>
-                                <button
-                                  onClick={() => handleConnectMeta(account.id)}
-                                  disabled={isConnecting || isDeleting}
-                                  className="flex items-center gap-2 px-3 py-1.5 h-[32px] rounded-lg border border-gray-200 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Connect Meta"
-                                >
-                                  <svg
-                                    className="w-4 h-4"
-                                    fill="currentColor"
-                                    viewBox="0 0 24 24"
-                                    xmlns="http://www.w3.org/2000/svg"
+                                    <img
+                                      src={AmazonIcon}
+                                      alt="Amazon"
+                                      className="w-4 h-4"
+                                    />
+                                    <span className="text-[12px] font-medium text-[#072929]">
+                                      Amazon
+                                    </span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleConnectGoogle(account.id)}
+                                    disabled={isConnecting || isDeleting}
+                                    className="flex items-center gap-2 px-3 py-1.5 h-[32px] rounded-lg border border-gray-200 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Connect Google"
                                   >
-                                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                                  </svg>
-                                  <span className="text-[12px] font-medium text-[#072929]">
-                                    Meta
-                                  </span>
-                                </button>
-                              </div>
-                            </td>
+                                    <img
+                                      src={GoogleIcon}
+                                      alt="Google"
+                                      className="w-4 h-4"
+                                    />
+                                    <span className="text-[12px] font-medium text-[#072929]">
+                                      Google
+                                    </span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleConnectTikTok(account.id)}
+                                    disabled={isConnecting || isDeleting}
+                                    className="flex items-center gap-2 px-3 py-1.5 h-[32px] rounded-lg border border-gray-200 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Connect TikTok"
+                                  >
+                                    <svg
+                                      className="w-4 h-4"
+                                      fill="currentColor"
+                                      viewBox="0 0 24 24"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                                    </svg>
+                                    <span className="text-[12px] font-medium text-[#072929]">
+                                      TikTok
+                                    </span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleConnectMeta(account.id)}
+                                    disabled={isConnecting || isDeleting}
+                                    className="flex items-center gap-2 px-3 py-1.5 h-[32px] rounded-lg border border-gray-200 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Connect Meta"
+                                  >
+                                    <svg
+                                      className="w-4 h-4"
+                                      fill="currentColor"
+                                      viewBox="0 0 24 24"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                                    </svg>
+                                    <span className="text-[12px] font-medium text-[#072929]">
+                                      Meta
+                                    </span>
+                                  </button>
+                                </div>
+                              </td>
+                            )}
                             <td className="table-cell">
                               <div className="flex items-center gap-2 justify-end md:justify-start">
-                                {account.channels_count && account.channels_count > 0 ? (
-                                  // If account has integrations, show "Integrations" as primary button
+                                {isTeam ? (
+                                  // Team: only link to integrations
+                                  <Button
+                                    size="sm"
+                                    disabled={isDeleting}
+                                    onClick={() => {
+                                      navigate(
+                                        `/brands/${account.id}/integrations`
+                                      );
+                                    }}
+                                    className="connect-button"
+                                  >
+                                    <span className="">Integrations</span>
+                                  </Button>
+                                ) : account.channels_count && account.channels_count > 0 ? (
                                   <>
                                     <Button
                                       size="sm"
@@ -734,7 +781,6 @@ export const Accounts: React.FC = () => {
                                             label: "Assign User",
                                             icon: <AssignUserIcon />,
                                             onClick: () => {
-                                              // TODO: Implement assign user functionality
                                               alert(
                                                 "Assign User functionality coming soon"
                                               );
@@ -751,7 +797,6 @@ export const Accounts: React.FC = () => {
                                     </div>
                                   </>
                                 ) : (
-                                  // If no channels, show menu with other actions
                                   <div className="relative z-30">
                                     <Menu
                                       items={[
@@ -759,7 +804,6 @@ export const Accounts: React.FC = () => {
                                           label: "Assign User",
                                           icon: <AssignUserIcon />,
                                           onClick: () => {
-                                            // TODO: Implement assign user functionality
                                             alert(
                                               "Assign User functionality coming soon"
                                             );
@@ -784,18 +828,77 @@ export const Accounts: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-              {/* Loading overlay for refreshing after creation */}
+              {/* Loading overlay for refreshing after creation/update/delete */}
               {(createAccountMutation.isPending ||
                 updateAccountMutation.isPending ||
                 deleteAccountMutation.isPending ||
-                (accountsLoading && accounts.length > 0)) && (
-                  <>
-                    <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
-                      <Loader size="md" message="Loading accounts..." />
-                    </div>
-                  </>
-                )}
+                (isFetching && accounts.length > 0)) && (
+                <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
+                  <Loader size="md" message="Loading accounts..." />
+                </div>
+              )}
             </div>
+
+            {/* Pagination - outside table container, same as campaigns page */}
+            {!accountsLoading && accounts.length > 0 && (
+              <div className="flex items-center justify-end mt-4">
+                <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    pageNum = Math.max(1, Math.min(pageNum, totalPages));
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                          currentPage === pageNum
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                      ...
+                    </span>
+                  )}
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <button
+                      onClick={() => handlePageChange(totalPages)}
+                      className="px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer text-black hover:bg-gray-50"
+                    >
+                      {totalPages}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

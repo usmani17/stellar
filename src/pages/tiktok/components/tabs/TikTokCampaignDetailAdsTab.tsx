@@ -383,7 +383,7 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
                                                             onClose={cancelInlineEdit}
                                                             defaultOpen={true}
                                                             closeOnSelect={true}
-                                                            buttonClassName="inline-edit-dropdown"
+                                                            buttonClassName="edit-button"
                                                         />
                                                     </div>
                                                 ) : (

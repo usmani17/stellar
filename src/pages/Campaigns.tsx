@@ -3909,25 +3909,25 @@ export const Campaigns: React.FC = () => {
                                               const wasEditing = editingCell?.campaignId === campaign.campaignId &&
                                                 editingCell?.field === "status";
 
-                                              if (!wasEditing) {
-                                                startInlineEdit(campaign, "status");
-                                                // Pass campaign ID and field directly to avoid state timing issues
-                                                setTimeout(() => {
-                                                  handleInlineEditChange(newValue);
-                                                  confirmInlineEdit(newValue, String(campaign.campaignId), "status");
-                                                }, 0);
-                                              } else {
+                                            if (!wasEditing) {
+                                              startInlineEdit(campaign, "status");
+                                              // Pass campaign ID and field directly to avoid state timing issues
+                                              setTimeout(() => {
                                                 handleInlineEditChange(newValue);
                                                 confirmInlineEdit(newValue, String(campaign.campaignId), "status");
-                                              }
-                                            }}
-                                            buttonClassName="inline-edit-dropdown"
-                                            width="w-full"
-                                            align="center"
-                                          />
-                                        );
-                                      })()}
-                                    </td>
+                                              }, 0);
+                                            } else {
+                                              handleInlineEditChange(newValue);
+                                              confirmInlineEdit(newValue, String(campaign.campaignId), "status");
+                                            }
+                                          }}
+                                          buttonClassName="edit-button"
+                                          width="w-full"
+                                          align="center"
+                                        />
+                                      );
+                                    })()}
+                                  </td>
 
                                     {/* Daily Budget */}
                                     <td className="table-cell min-w-[125px] w-[125px]">
@@ -4032,25 +4032,25 @@ export const Campaigns: React.FC = () => {
                                               const wasEditing = editingCell?.campaignId === campaign.campaignId &&
                                                 editingCell?.field === "budgetType";
 
-                                              if (!wasEditing) {
-                                                startInlineEdit(campaign, "budgetType");
-                                                // Pass campaign ID and field directly to avoid state timing issues
-                                                setTimeout(() => {
-                                                  handleInlineEditChange(newValue);
-                                                  confirmInlineEdit(newValue, String(campaign.campaignId), "budgetType");
-                                                }, 0);
-                                              } else {
+                                            if (!wasEditing) {
+                                              startInlineEdit(campaign, "budgetType");
+                                              // Pass campaign ID and field directly to avoid state timing issues
+                                              setTimeout(() => {
                                                 handleInlineEditChange(newValue);
                                                 confirmInlineEdit(newValue, String(campaign.campaignId), "budgetType");
-                                              }
-                                            }}
-                                            buttonClassName="inline-edit-dropdown"
-                                            width="w-full"
-                                            align="center"
-                                          />
-                                        );
-                                      })()}
-                                    </td>
+                                              }, 0);
+                                            } else {
+                                              handleInlineEditChange(newValue);
+                                              confirmInlineEdit(newValue, String(campaign.campaignId), "budgetType");
+                                            }
+                                          }}
+                                          buttonClassName="edit-button"
+                                          width="w-full"
+                                          align="center"
+                                        />
+                                      );
+                                    })()}
+                                  </td>
 
                                     {/* Start Date */}
                                     <td className="table-cell">

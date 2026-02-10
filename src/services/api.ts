@@ -83,7 +83,8 @@ api.interceptors.response.use(
     const isAuthEndpoint = originalRequest?.url?.includes('/auth/login/') || 
                           originalRequest?.url?.includes('/auth/register/') ||
                           originalRequest?.url?.includes('/auth/password-reset/') ||
-                          originalRequest?.url?.includes('/auth/password-reset-confirm/');
+                          originalRequest?.url?.includes('/auth/password-reset-confirm/') ||
+                          originalRequest?.url?.includes('/auth/verify-email/');
 
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;

@@ -745,7 +745,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                             }}
                                                             defaultOpen={true}
                                                             closeOnSelect={true}
-                                                            buttonClassName="inline-edit-dropdown"
+                                                            buttonClassName="edit-button"
                                                         />
                                                     </div>
                                                 ) : (

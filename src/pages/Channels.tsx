@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { accountsService } from "../services/accounts";
 import type { Channel } from "../services/accounts";
+import { useAuth } from "../contexts/AuthContext";
 import { useAccounts } from "../contexts/AccountsContext";
 import { useChannelsHelpers } from "../contexts/GlobalStateContext";
 import { useChannels } from "../hooks/queries/useChannels";
@@ -18,6 +19,8 @@ import { Banner } from "../components/ui/Banner";
 export const Channels: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isTeam = user?.role === "team";
   const { accounts } = useAccounts();
   const { refreshChannels } = useChannelsHelpers();
   const { sidebarWidth } = useSidebar();
@@ -345,71 +348,73 @@ export const Channels: React.FC = () => {
                     className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179]"
                   />
                 </div>
-                {/* Connect Button */}
-                <Menu
-                  trigger={
-                    <Button
-                      disabled={isConnecting}
-                      className="create-entity-button"
-                    >
-                      <span>{isConnecting ? "Connecting..." : "Connect"}</span>
-                    </Button>
-                  }
-                  items={[
-                    {
-                      label: "Amazon",
-                      icon: (
-                        <img
-                          src={AmazonIcon}
-                          alt="Amazon"
-                          className="w-5 h-5"
-                        />
-                      ),
-                      onClick: handleConnectAmazon,
-                      disabled: isConnecting,
-                    },
-                    {
-                      label: "Google",
-                      icon: (
-                        <img
-                          src={GoogleIcon}
-                          alt="Google"
-                          className="w-5 h-5"
-                        />
-                      ),
-                      onClick: handleConnectGoogle,
-                      disabled: isConnecting,
-                    },
-                    {
-                      label: "TikTok",
-                      icon: (
-                        <svg
-                          className="w-5 h-5"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-                        </svg>
-                      ),
-                      onClick: handleConnectTikTok,
-                      disabled: isConnecting,
-                    },
-                    {
-                      label: "Meta",
-                      icon: (
-                        <img
-                          src={MetaIcon}
-                          alt="Meta"
-                          className="w-5 h-5"
-                        />
-                      ),
-                      onClick: handleConnectMeta,
-                      disabled: isConnecting,
-                    },
-                  ]}
-                  align="left"
-                />
+                {/* Connect Button - hidden for team (read-only) */}
+                {!isTeam && (
+                  <Menu
+                    trigger={
+                      <Button
+                        disabled={isConnecting}
+                        className="create-entity-button"
+                      >
+                        <span>{isConnecting ? "Connecting..." : "Connect"}</span>
+                      </Button>
+                    }
+                    items={[
+                      {
+                        label: "Amazon",
+                        icon: (
+                          <img
+                            src={AmazonIcon}
+                            alt="Amazon"
+                            className="w-5 h-5"
+                          />
+                        ),
+                        onClick: handleConnectAmazon,
+                        disabled: isConnecting,
+                      },
+                      {
+                        label: "Google",
+                        icon: (
+                          <img
+                            src={GoogleIcon}
+                            alt="Google"
+                            className="w-5 h-5"
+                          />
+                        ),
+                        onClick: handleConnectGoogle,
+                        disabled: isConnecting,
+                      },
+                      {
+                        label: "TikTok",
+                        icon: (
+                          <svg
+                            className="w-5 h-5"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                          </svg>
+                        ),
+                        onClick: handleConnectTikTok,
+                        disabled: isConnecting,
+                      },
+                      {
+                        label: "Meta",
+                        icon: (
+                          <img
+                            src={MetaIcon}
+                            alt="Meta"
+                            className="w-5 h-5"
+                          />
+                        ),
+                        onClick: handleConnectMeta,
+                        disabled: isConnecting,
+                      },
+                    ]}
+                    align="left"
+                  />
+                )}
               </div>
             </div>
 
@@ -428,26 +433,13 @@ export const Channels: React.FC = () => {
                   </thead>
                   <tbody>
                     {loading ? (
-                      // Loading skeleton rows
-                      Array.from({ length: 3 }).map((_, index) => (
-                        <tr key={`skeleton-${index}`} className="table-row">
-                          <td className="table-cell">
-                            <div className="h-5 bg-gray-200 rounded animate-pulse w-32"></div>
-                          </td>
-                          <td className="table-cell">
-                            <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
-                          </td>
-                          <td className="table-cell">
-                            <div className="h-5 bg-gray-200 rounded animate-pulse w-20"></div>
-                          </td>
-                          <td className="table-cell">
-                            <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
-                          </td>
-                          <td className="table-cell">
-                            <div className="h-9 bg-gray-200 rounded animate-pulse w-24"></div>
-                          </td>
-                        </tr>
-                      ))
+                      <tr>
+                        <td colSpan={5} className="table-cell align-middle">
+                          <div className="flex items-center justify-center py-16 min-h-[200px]">
+                            <Loader size="md" message="Loading integrations..." />
+                          </div>
+                        </td>
+                      </tr>
                     ) : filteredChannels.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="table-cell text-center py-8">
@@ -592,39 +584,40 @@ export const Channels: React.FC = () => {
                             </td>
                             <td className="table-cell relative">
                               <div className="flex items-center gap-3">
-                                <Button
-                                  size="sm"
-                                  className="connect-button"
-                                  onClick={async () => {
-                                    if (channel.channel_type === "google") {
-                                      // Navigate directly to selection page (loads from database)
-                                      navigate(
-                                        `/channels/${channel.id}/select-google-accounts`,
-                                        { state: { accountId } }
-                                      );
-                                    } else if (
-                                      channel.channel_type === "tiktok"
-                                    ) {
-                                      navigate(
-                                        `/channels/${channel.id}/select-tiktok-profiles`
-                                      );
-                                    } else if (
-                                      channel.channel_type === "meta"
-                                    ) {
-                                      navigate(
-                                        `/channels/${channel.id}/meta-list-profiles`
-                                      );
-                                    } else {
-                                      navigate(
-                                        `/channels/${channel.id}/list-profiles`
-                                      );
-                                    }
-                                  }}
-                                >
-                                  <span>
-                                    Select Profiles
-                                  </span>
-                                </Button>
+                                {!isTeam && (
+                                  <Button
+                                    size="sm"
+                                    className="connect-button"
+                                    onClick={async () => {
+                                      if (channel.channel_type === "google") {
+                                        navigate(
+                                          `/channels/${channel.id}/select-google-accounts`,
+                                          { state: { accountId } }
+                                        );
+                                      } else if (
+                                        channel.channel_type === "tiktok"
+                                      ) {
+                                        navigate(
+                                          `/channels/${channel.id}/select-tiktok-profiles`
+                                        );
+                                      } else if (
+                                        channel.channel_type === "meta"
+                                      ) {
+                                        navigate(
+                                          `/channels/${channel.id}/meta-list-profiles`
+                                        );
+                                      } else {
+                                        navigate(
+                                          `/channels/${channel.id}/list-profiles`
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <span>
+                                      Select Profiles
+                                    </span>
+                                  </Button>
+                                )}
                                 {accountId && (
                                   <Button
                                     size="sm"
@@ -637,42 +630,44 @@ export const Channels: React.FC = () => {
                                     <span>Profile Sync Status</span>
                                   </Button>
                                 )}
-                                <button
-                                  onClick={() => handleDeleteChannel(channel)}
-                                  disabled={deletingChannelId === channel.id}
-                                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title={deletingChannelId === channel.id ? "Deleting..." : "Delete channel"}
-                                >
-                                  {deletingChannelId === channel.id ? (
-                                    <svg
-                                      className="w-5 h-5 text-gray-400 animate-spin"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <circle
-                                        className="opacity-25"
-                                        cx="12"
-                                        cy="12"
-                                        r="10"
-                                        stroke="currentColor"
-                                        strokeWidth="4"
-                                      />
-                                      <path
-                                        className="opacity-75"
+                                {!isTeam && (
+                                  <button
+                                    onClick={() => handleDeleteChannel(channel)}
+                                    disabled={deletingChannelId === channel.id}
+                                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title={deletingChannelId === channel.id ? "Deleting..." : "Delete channel"}
+                                  >
+                                    {deletingChannelId === channel.id ? (
+                                      <svg
+                                        className="w-5 h-5 text-gray-400 animate-spin"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <circle
+                                          className="opacity-25"
+                                          cx="12"
+                                          cy="12"
+                                          r="10"
+                                          stroke="currentColor"
+                                          strokeWidth="4"
+                                        />
+                                        <path
+                                          className="opacity-75"
+                                          fill="currentColor"
+                                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                        />
+                                      </svg>
+                                    ) : (
+                                      <svg
+                                        className="w-5 h-5 text-gray-600 hover:text-red-600 transition-colors"
                                         fill="currentColor"
-                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                      />
-                                    </svg>
-                                  ) : (
-                                    <svg
-                                      className="w-5 h-5 text-gray-600 hover:text-red-600 transition-colors"
-                                      fill="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-                                    </svg>
-                                  )}
-                                </button>
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>

@@ -45,6 +45,9 @@ import { CreateGooglePmaxAssetGroupSection } from "../../components/google/Creat
 import { CreateGoogleShoppingEntitiesSection } from "../../components/google/CreateGoogleShoppingEntitiesSection";
 import { CreateGoogleShoppingAdSection } from "../../components/google/CreateGoogleShoppingAdSection";
 import { CreateGoogleAdGroupSection } from "../../components/google/CreateGoogleAdGroupSection";
+import {
+  CreateGoogleDemandGenAdGroupPanel,
+} from "../../components/google/CreateGoogleDemandGenAdGroupPanel";
 import { CreateGoogleAdSection } from "../../components/google/CreateGoogleAdSection";
 import { CreateGoogleKeywordSection } from "../../components/google/CreateGoogleKeywordSection";
 import { CreateGoogleNegativeKeywordSection } from "../../components/google/CreateGoogleNegativeKeywordSection";
@@ -444,6 +447,11 @@ export const GoogleCampaignDetail: React.FC = () => {
     setCreateShoppingEntitiesLoading,
     createShoppingEntitiesError,
     setCreateShoppingEntitiesError,
+    isCreateDemandGenAdGroupPanelOpen,
+    setIsCreateDemandGenAdGroupPanelOpen,
+    createDemandGenAdGroupLoading,
+    createDemandGenAdGroupError,
+    setCreateDemandGenAdGroupError,
     showAdGroupNameEditModal,
     setShowAdGroupNameEditModal,
     nameEditAdGroup,
@@ -459,6 +467,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     handleSyncAdGroupsAnalytics,
     handleCreateAdGroup,
     handleCreateShoppingAdGroup,
+    handleCreateDemandGenAdGroup,
     handleStartAdGroupNameEdit,
     handleAdGroupNameEditSave,
     handleUpdateAdGroupStatus,
@@ -1577,90 +1586,121 @@ export const GoogleCampaignDetail: React.FC = () => {
                           throw new Error(response.errors[0]);
                         }
 
-                        // Reload ad groups
-                        if (loadAdGroups) {
-                          await loadAdGroups();
-                        }
-                      }}
-                      accountId={accountId}
-                      channelId={channelId}
-                      onBulkUpdateComplete={loadAdGroups}
-                      createButton={
-                        campaignDetail?.campaign.advertising_channel_type ===
-                          "SEARCH" ||
-                          campaignDetail?.campaign.advertising_channel_type ===
-                          "SHOPPING" ? (
-                          <CreateGoogleAdGroupSection
-                            isOpen={
+                      // Reload ad groups
+                      if (loadAdGroups) {
+                        await loadAdGroups();
+                      }
+                    }}
+                    accountId={accountId}
+                    channelId={channelId}
+                    onBulkUpdateComplete={loadAdGroups}
+                    createButton={
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "SEARCH" ||
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "SHOPPING" ||
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "DEMAND_GEN" ? (
+                        <CreateGoogleAdGroupSection
+                          isOpen={
+                            campaignDetail?.campaign
+                              .advertising_channel_type === "SEARCH"
+                              ? isCreateSearchEntitiesPanelOpen
+                              : campaignDetail?.campaign
+                                  .advertising_channel_type === "SHOPPING"
+                              ? isCreateShoppingEntitiesPanelOpen
+                              : isCreateDemandGenAdGroupPanelOpen
+                          }
+                          onToggle={() => {
+                            if (
                               campaignDetail?.campaign
                                 .advertising_channel_type === "SEARCH"
-                                ? isCreateSearchEntitiesPanelOpen
-                                : isCreateShoppingEntitiesPanelOpen
+                            ) {
+                              setIsCreateSearchEntitiesPanelOpen(
+                                !isCreateSearchEntitiesPanelOpen,
+                              );
+                            } else if (
+                              campaignDetail?.campaign
+                                .advertising_channel_type === "SHOPPING"
+                            ) {
+                              setIsCreateShoppingEntitiesPanelOpen(
+                                !isCreateShoppingEntitiesPanelOpen,
+                              );
+                            } else {
+                              setIsCreateDemandGenAdGroupPanelOpen(
+                                !isCreateDemandGenAdGroupPanelOpen,
+                              );
                             }
-                            onToggle={() => {
-                              if (
-                                campaignDetail?.campaign
-                                  .advertising_channel_type === "SEARCH"
-                              ) {
-                                setIsCreateSearchEntitiesPanelOpen(
-                                  !isCreateSearchEntitiesPanelOpen,
-                                );
-                              } else {
-                                setIsCreateShoppingEntitiesPanelOpen(
-                                  !isCreateShoppingEntitiesPanelOpen,
-                                );
-                              }
-                              setIsAdGroupsFilterPanelOpen(false);
-                            }}
-                          />
-                        ) : undefined
-                      }
-                      createPanel={
-                        campaignDetail?.campaign.advertising_channel_type ===
-                          "SEARCH" ||
-                          campaignDetail?.campaign.advertising_channel_type ===
-                          "SHOPPING" ? (
-                          <>
-                            {campaignDetail?.campaign.advertising_channel_type ===
-                              "SEARCH" &&
-                              isCreateSearchEntitiesPanelOpen &&
-                              campaignId && (
-                                <CreateGoogleAdGroupPanel
-                                  isOpen={isCreateSearchEntitiesPanelOpen}
-                                  onClose={() => {
-                                    setIsCreateSearchEntitiesPanelOpen(false);
-                                    setCreateSearchEntitiesError(null);
-                                  }}
-                                  onSubmit={handleCreateAdGroup}
-                                  campaignId={campaignId}
-                                  campaignName={campaignDetail?.campaign.name}
-                                  loading={createSearchEntitiesLoading}
-                                  submitError={null}
-                                />
-                              )}
-                            {campaignDetail?.campaign.advertising_channel_type ===
-                              "SHOPPING" &&
-                              isCreateShoppingEntitiesPanelOpen &&
-                              campaignId && (
-                                <CreateGoogleAdGroupPanel
-                                  isOpen={isCreateShoppingEntitiesPanelOpen}
-                                  onClose={() => {
-                                    setIsCreateShoppingEntitiesPanelOpen(false);
-                                    setCreateShoppingEntitiesError(null);
-                                  }}
-                                  onSubmit={handleCreateShoppingAdGroup}
-                                  campaignId={campaignId}
-                                  campaignName={campaignDetail?.campaign.name}
-                                  loading={createShoppingEntitiesLoading}
-                                  submitError={createShoppingEntitiesError}
-                                />
-                              )}
-                          </>
-                        ) : undefined
-                      }
-                    />
-                  </>
-                )}
+                            setIsAdGroupsFilterPanelOpen(false);
+                          }}
+                        />
+                      ) : undefined
+                    }
+                    createPanel={
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "SEARCH" ||
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "SHOPPING" ||
+                      campaignDetail?.campaign.advertising_channel_type ===
+                        "DEMAND_GEN" ? (
+                        <>
+                          {campaignDetail?.campaign.advertising_channel_type ===
+                            "SEARCH" &&
+                            isCreateSearchEntitiesPanelOpen &&
+                            campaignId && (
+                              <CreateGoogleAdGroupPanel
+                                isOpen={isCreateSearchEntitiesPanelOpen}
+                                onClose={() => {
+                                  setIsCreateSearchEntitiesPanelOpen(false);
+                                  setCreateSearchEntitiesError(null);
+                                }}
+                                onSubmit={handleCreateAdGroup}
+                                campaignId={campaignId}
+                                campaignName={campaignDetail?.campaign.name}
+                                loading={createSearchEntitiesLoading}
+                                submitError={null}
+                              />
+                            )}
+                          {campaignDetail?.campaign.advertising_channel_type ===
+                            "SHOPPING" &&
+                            isCreateShoppingEntitiesPanelOpen &&
+                            campaignId && (
+                              <CreateGoogleAdGroupPanel
+                                isOpen={isCreateShoppingEntitiesPanelOpen}
+                                onClose={() => {
+                                  setIsCreateShoppingEntitiesPanelOpen(false);
+                                  setCreateShoppingEntitiesError(null);
+                                }}
+                                onSubmit={handleCreateShoppingAdGroup}
+                                campaignId={campaignId}
+                                campaignName={campaignDetail?.campaign.name}
+                                loading={createShoppingEntitiesLoading}
+                                submitError={createShoppingEntitiesError}
+                              />
+                            )}
+                          {campaignDetail?.campaign.advertising_channel_type ===
+                            "DEMAND_GEN" &&
+                            isCreateDemandGenAdGroupPanelOpen &&
+                            campaignId && (
+                              <CreateGoogleDemandGenAdGroupPanel
+                                isOpen={isCreateDemandGenAdGroupPanelOpen}
+                                onClose={() => {
+                                  setIsCreateDemandGenAdGroupPanelOpen(false);
+                                  setCreateDemandGenAdGroupError(null);
+                                }}
+                                onSubmit={handleCreateDemandGenAdGroup}
+                                campaignId={campaignId}
+                                campaignName={campaignDetail?.campaign.name}
+                                loading={createDemandGenAdGroupLoading}
+                                submitError={createDemandGenAdGroupError}
+                              />
+                            )}
+                        </>
+                      ) : undefined
+                    }
+                  />
+                </>
+              )}
 
                 {activeTab === "Ads" &&
                   campaignDetail?.campaign.advertising_channel_type !==

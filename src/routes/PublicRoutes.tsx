@@ -3,6 +3,7 @@ import { Login } from "../pages/Login";
 import { Signup } from "../pages/Signup";
 import { ForgotPassword } from "../pages/ForgotPassword";
 import { ResetPassword } from "../pages/ResetPassword";
+import { VerifyEmail } from "../pages/VerifyEmail";
 import { PublicRoute } from "../components/auth/PublicRoute";
 import { Route } from "react-router-dom";
 
@@ -40,6 +41,10 @@ function PublicRoutes() {
                         <ResetPassword />
                     </PublicRoute>
                 }
+            />
+            <Route
+                path="/verify-email/:uid/:token"
+                element={<VerifyEmail />}
             />
         </>
     );

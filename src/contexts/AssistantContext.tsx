@@ -5,11 +5,11 @@ import React, {
   useCallback,
   useEffect,
   type ReactNode,
-  act,
 } from "react";
 import { useAuth } from "./AuthContext";
 import { threadsService, type Thread, type ThreadMessage, normalizeThreadMessages } from "../services/ai/threads";
 import { runsService } from "../services/ai/runs";
+import { assistantService, type AssistantSearchResult } from "../services/ai/assistant";
 
 export const ASSISTANT_PANEL_WIDTH = "550px";
 // "fixed" will make the main content shrink, while "floating" will be displayed over the main content.
@@ -62,6 +62,7 @@ interface AssistantContextType {
   isStreaming: boolean;
   currentThinkingSteps: string[];
   currentRunId: string | null;
+  assistants: AssistantSearchResult[];
 }
 
 const AssistantContext = createContext<AssistantContextType | undefined>(undefined);
@@ -103,7 +104,18 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
 
   // Track current run for cancellation
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
-
+  const [assistants, setAssistants] = useState<AssistantSearchResult[]>([]);
+  // Load all assistants on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const results = await assistantService.search({ metadata: { created_by: "system" }, limit: 100 });
+        setAssistants(results);
+      } catch (err) {
+        console.error("Failed to load assistants", err);
+      }
+    })();
+  }, []);
   // Load threads from API
   const loadThreads = useCallback(async () => {
     if (!user?.id) return;
@@ -453,6 +465,9 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         currentThinkingSteps,
         currentRunId,
         cancelRun,
+
+        // Expose loaded assistants for consumers (optional)
+        assistants,
       }}
     >
       {children}

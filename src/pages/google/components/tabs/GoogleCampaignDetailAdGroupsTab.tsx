@@ -1176,7 +1176,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                     cancelInlineEdit();
                                   }
                                 }}
-                                buttonClassName="inline-edit-dropdown"
+                                buttonClassName="edit-button"
                                 width="w-full"
                                 align="center"
                                 closeOnSelect={true}

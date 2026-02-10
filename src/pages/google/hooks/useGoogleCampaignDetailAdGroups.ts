@@ -5,6 +5,7 @@ import type { GoogleAdGroup } from "../components/tabs/GoogleTypes";
 import type { FilterValues } from "../../../components/filters/FilterPanel";
 import type { AdGroupInput } from "../../../components/google/CreateGoogleAdGroupPanel";
 import type { ShoppingEntityInput } from "../../../components/google/CreateGoogleShoppingEntitiesPanel";
+import type { DemandGenAdGroupInput } from "../../../components/google/CreateGoogleDemandGenAdGroupPanel";
 
 interface UseGoogleCampaignDetailAdGroupsParams {
   accountId: string | undefined;
@@ -73,6 +74,14 @@ export const useGoogleCampaignDetailAdGroups = ({
   const [createShoppingEntitiesLoading, setCreateShoppingEntitiesLoading] =
     useState(false);
   const [createShoppingEntitiesError, setCreateShoppingEntitiesError] =
+    useState<string | null>(null);
+
+  // Create panel state (for DEMAND_GEN campaigns)
+  const [isCreateDemandGenAdGroupPanelOpen, setIsCreateDemandGenAdGroupPanelOpen] =
+    useState(false);
+  const [createDemandGenAdGroupLoading, setCreateDemandGenAdGroupLoading] =
+    useState(false);
+  const [createDemandGenAdGroupError, setCreateDemandGenAdGroupError] =
     useState<string | null>(null);
 
   // Name edit modal state
@@ -504,6 +513,73 @@ export const useGoogleCampaignDetailAdGroups = ({
     }
   }, [accountId, channelId, campaignId, loadAdGroups, onError]);
 
+  const handleCreateDemandGenAdGroup = useCallback(
+    async (entity: DemandGenAdGroupInput) => {
+      if (!accountId || !channelId || !campaignId) return;
+
+      setCreateDemandGenAdGroupLoading(true);
+      setCreateDemandGenAdGroupError(null);
+
+      try {
+        const accountIdNum = parseInt(accountId, 10);
+        const channelIdNum = parseInt(channelId, 10);
+        const campaignIdNum = parseInt(campaignId, 10);
+        if (isNaN(accountIdNum) || isNaN(channelIdNum) || isNaN(campaignIdNum)) {
+          throw new Error("Invalid account, channel, or campaign ID");
+        }
+
+        const response = await googleAdwordsAdGroupsService.createDemandGenAdGroup(
+          accountIdNum,
+          channelIdNum,
+          campaignIdNum,
+          {
+            name: entity.name,
+            channel_controls: entity.channel_controls,
+          }
+        );
+
+        if (response.error) {
+          setCreateDemandGenAdGroupError(response.error);
+          if (onError) {
+            onError({
+              title: "Error",
+              message: response.error,
+              isSuccess: false,
+            });
+          }
+          return;
+        }
+
+        setIsCreateDemandGenAdGroupPanelOpen(false);
+        setCreateDemandGenAdGroupError(null);
+        if (onError) {
+          onError({
+            title: "Success",
+            message: `Ad group "${entity.name}" created successfully.`,
+            isSuccess: true,
+          });
+        }
+        await loadAdGroups();
+      } catch (error: any) {
+        const errorMessage =
+          error.response?.data?.error ||
+          error.message ||
+          "Failed to create Demand Gen ad group. Please try again.";
+        setCreateDemandGenAdGroupError(errorMessage);
+        if (onError) {
+          onError({
+            title: "Error",
+            message: errorMessage,
+            isSuccess: false,
+          });
+        }
+      } finally {
+        setCreateDemandGenAdGroupLoading(false);
+      }
+    },
+    [accountId, channelId, campaignId, loadAdGroups, onError]
+  );
+
   // Name edit handlers
   const handleStartAdGroupNameEdit = useCallback((adgroup: GoogleAdGroup) => {
     setNameEditAdGroup(adgroup);
@@ -726,6 +802,11 @@ export const useGoogleCampaignDetailAdGroups = ({
     setCreateShoppingEntitiesLoading, // Expose setter for loading state
     createShoppingEntitiesError,
     setCreateShoppingEntitiesError, // Expose setter for error clearing
+    isCreateDemandGenAdGroupPanelOpen,
+    setIsCreateDemandGenAdGroupPanelOpen,
+    createDemandGenAdGroupLoading,
+    createDemandGenAdGroupError,
+    setCreateDemandGenAdGroupError,
     
     // Name edit
     showAdGroupNameEditModal,
@@ -746,6 +827,7 @@ export const useGoogleCampaignDetailAdGroups = ({
     handleSyncAdGroupsAnalytics,
     handleCreateAdGroup,
     handleCreateShoppingAdGroup,
+    handleCreateDemandGenAdGroup,
     handleStartAdGroupNameEdit,
     handleAdGroupNameEditSave,
     

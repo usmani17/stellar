@@ -363,7 +363,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                                 onEditChange?.(newValue);
                                 onEditEnd?.(newValue, keyword.id, "state");
                               }}
-                              buttonClassName="inline-edit-dropdown"
+                              buttonClassName="edit-button"
                               width="w-full"
                               align="center"
                             />
