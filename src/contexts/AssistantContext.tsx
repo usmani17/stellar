@@ -172,17 +172,24 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     onError: useCallback((err: unknown) => {
       console.error("Stream error:", err);
     }, []),
-    onFinish: useCallback((state: { values?: { messages?: unknown[] }; messages?: unknown[] }, run?: { thread_id?: string }) => {
+    onFinish: useCallback((state: unknown, run?: { thread_id?: string }) => {
       const threadId = run?.thread_id ?? currentThreadId;
       if (!threadId) return;
-      const rawMessages = (state as { values?: { messages?: unknown[] } }).values?.messages ?? (state as { messages?: unknown[] }).messages;
-      if (!Array.isArray(rawMessages) || rawMessages.length === 0) return;
-      const normalized = normalizeThreadMessages(rawMessages as Parameters<typeof normalizeThreadMessages>[0]);
-      setThreads(prev => prev.map(t =>
-        t.thread_id === threadId
-          ? { ...t, values: { ...(t.values || {}), messages: normalized }, updated_at: new Date().toISOString() }
-          : t
-      ));
+      const s = state != null && typeof state === "object" ? (state as Record<string, unknown>) : {};
+      const values = s.values != null && typeof s.values === "object" ? (s.values as Record<string, unknown>) : null;
+      const rawMessages = values?.messages ?? s.messages;
+      const hasCampaignState = values && ("campaign_draft" in values || "reply_text" in values || "current_questions_schema" in values);
+      const campaignState = hasCampaignState ? (values as CampaignSetupState) : undefined;
+      const normalized = Array.isArray(rawMessages) && rawMessages.length > 0
+        ? normalizeThreadMessages(rawMessages as Parameters<typeof normalizeThreadMessages>[0])
+        : null;
+      setThreads(prev => prev.map(t => {
+        if (t.thread_id !== threadId) return t;
+        const next: ThreadWithRuntime = { ...t, updated_at: new Date().toISOString() };
+        if (normalized) next.values = { ...(t.values || {}), messages: normalized };
+        if (campaignState) next.campaignState = campaignState;
+        return next;
+      }));
     }, [currentThreadId]),
     onUpdateEvent: useCallback((data: Record<string, unknown>) => {
       const keys = data && typeof data === "object" ? Object.keys(data).filter(k => !["messages", "analysis", "corrected_analysis"].includes(k)) : [];
@@ -250,14 +257,16 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     ));
   }, [stream.isLoading, currentThreadId]);
 
-  // Sync campaign/interview state from stream.values into current thread
+  // Sync campaign state from stream.values into current thread (backend sends campaign_draft etc. at top level of values)
   useEffect(() => {
-    const vals = stream.values as Record<string, unknown> | undefined;
-    const interview = vals?.interview as CampaignSetupState | undefined;
-    if (!currentThreadId || !interview) return;
+    const vals = stream.values != null && typeof stream.values === "object" ? (stream.values as Record<string, unknown>) : undefined;
+    if (!currentThreadId || !vals) return;
+    const hasCampaignState = "campaign_draft" in vals || "reply_text" in vals || "current_questions_schema" in vals;
+    if (!hasCampaignState) return;
+    const campaignState = vals as CampaignSetupState;
     setThreads(prev => prev.map(t =>
       t.thread_id === currentThreadId
-        ? { ...t, campaignState: interview, updated_at: new Date().toISOString() }
+        ? { ...t, campaignState, updated_at: new Date().toISOString() }
         : t
     ));
   }, [currentThreadId, stream.values]);

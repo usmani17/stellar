@@ -10,8 +10,14 @@ import StellarMarkDown from "../ai/StellarMarkDown";
 import { MessageContent } from "../ai/MessageContent";
 import { isStringContent } from "../../utils/ai-formatter";
 import ToolUseBlock from "../ai/ToolUseBlock";
+import CampaignDraftPreview from "../ai/CampaignDraftPreview";
 import { accountsService, type Account } from "../../services/accounts";
 
+/** Set to false to hide the "Fill in the details" schema form (e.g. Logo image URL, Daily budget) in campaign setup. */
+const SHOW_CAMPAIGN_SCHEMA_FORM = false;
+
+const ASSISTANT_TEXTAREA_MIN_HEIGHT = 24;
+const ASSISTANT_TEXTAREA_MAX_HEIGHT = 200;
 
 // Helper function to check if content is a ContentBlock array
 const isContentBlockArray = (content: ThreadMessageContent): content is ContentBlock[] => {
@@ -337,13 +343,23 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Auto-grow textarea so user can see what they type; cap at ASSISTANT_TEXTAREA_MAX_HEIGHT
+  useEffect(() => {
+    const ta = inputRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    const h = Math.min(ASSISTANT_TEXTAREA_MAX_HEIGHT, Math.max(ASSISTANT_TEXTAREA_MIN_HEIGHT, ta.scrollHeight));
+    ta.style.height = `${h}px`;
+    ta.style.overflowY = ta.scrollHeight > ASSISTANT_TEXTAREA_MAX_HEIGHT ? "auto" : "hidden";
+  }, [inputValue]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading || isStreaming) return;
     if (!canChat) return;
     const textPart = inputValue.trim();
-    const formValues = hasQuestionsSchema && schemaFormRef.current ? schemaFormRef.current.getValues() : {};
-    const schema = hasQuestionsSchema ? (questionsSchema as CurrentQuestionSchemaItem[]) : [];
+    const formValues = SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema && schemaFormRef.current ? schemaFormRef.current.getValues() : {};
+    const schema = SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema ? (questionsSchema as CurrentQuestionSchemaItem[]) : [];
     const formParts =
       schema.length > 0 && Object.keys(formValues).length > 0
         ? (schema
@@ -664,6 +680,13 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
           </span>
         </div>
 
+        <CampaignDraftPreview
+          campaignState={campaignState}
+          visible={assistantIntent === "create_campaign"}
+          onApplyDraft={onApplyDraft}
+          className="shrink-0"
+        />
+
         <div className="flex items-center gap-2 shrink-0">
           {/* New Thread Button */}
           <button
@@ -945,7 +968,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             )}
 
             {/* Campaign: current_questions_schema form fields */}
-            {hasQuestionsSchema && schemaFormKey && (
+            {SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema && schemaFormKey && (
               <SchemaFormBlock
                 ref={schemaFormRef}
                 key={schemaFormKey}
@@ -1001,7 +1024,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
       <div className="px-4 py-3 border-t border-gray-100">
         <form onSubmit={handleSubmit} className="relative">
           <div className="assistant-input-container rounded-[12px] p-3">
-            <div className="flex flex-col gap-8">
+            <div className="flex flex-col gap-2">
               {/* Input Field: textarea for multi-line; Shift+Enter = new line, Enter = send */}
               <textarea
                 ref={inputRef}
@@ -1015,8 +1038,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                       ? "Select account and profile above to enable chat"
                       : "Ask me anything about your campaigns... (Shift+Enter for new line)"
                 }
-                className="w-full min-h-[24px] max-h-[120px] resize-y bg-transparent text-[14px] font-normal text-[#072929] placeholder:text-[#9ca3af] focus:outline-none"
-                style={{ fontFamily: "'GT America Trial', sans-serif" }}
+                className="w-full min-h-[24px] max-h-[200px] resize-y overflow-y-auto bg-transparent text-[14px] font-normal text-[#072929] placeholder:text-[#9ca3af] focus:outline-none py-1"
+                style={{ fontFamily: "'GT America Trial', sans-serif", minHeight: ASSISTANT_TEXTAREA_MIN_HEIGHT, maxHeight: ASSISTANT_TEXTAREA_MAX_HEIGHT }}
                 disabled={isLoading || isStreaming || !canChat}
                 rows={1}
               />
