@@ -813,8 +813,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
           /* Messages List */
           <div className="flex flex-col gap-4">
             {messages.map((message, messageIndex) => {
-              const isLastMessage = messageIndex === messages.length - 1;
-              const isStreamingThisBubble = isStreaming && isLastMessage && message.type === "ai";
+              const lastHumanIndex = messages.map((m, i) => (m.type === "human" ? i : -1)).filter((i) => i >= 0).pop() ?? -1;
+              const streamingAiIndex = lastHumanIndex + 1;
+              const isStreamingThisBubble = isStreaming && message.type === "ai" && messageIndex === streamingAiIndex;
               return (
               <div
                 key={message.id}
