@@ -11,7 +11,12 @@ import {
   type BulkUpdateStatusDetails,
 } from "../BulkUpdateConfirmationModal";
 import { BulkActionsDropdown } from "../BulkActionsDropdown";
-import { formatStatusForDisplay } from "../../utils/googleAdsUtils";
+import {
+  formatStatusForDisplay,
+  convertStatusToApi,
+} from "../../utils/googleAdsUtils";
+import { useParams } from "react-router-dom";
+import { googleAdwordsAdsService } from "../../../../services/googleAdwords/googleAdwordsAds";
 
 interface GoogleListingGroup {
   id: number;
@@ -173,14 +178,28 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
     }
   };
 
+  const { accountId, channelId, campaignId } = useParams<{
+    accountId: string;
+    channelId: string;
+    campaignId: string;
+  }>();
+
   const [editingListingGroupId, setEditingListingGroupId] = useState<number | null>(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
-  const [pendingChange, setPendingChange] = useState<{
-    id: number;
-    newValue: string;
-    oldValue: string;
-  } | null>(null);
   const [updatingListingGroupId, setUpdatingListingGroupId] = useState<number | null>(null);
+  const [updatingField, setUpdatingField] = useState<"status" | null>(null);
+  const [showInlineEditModal, setShowInlineEditModal] = useState(false);
+  const [inlineEditLoading, setInlineEditLoading] = useState(false);
+  const [inlineEditListingGroup, setInlineEditListingGroup] = useState<GoogleListingGroup | null>(null);
+  const [inlineEditField, setInlineEditField] = useState<"status" | null>(null);
+  const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
+  const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
+  const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
+  const [pendingRemoveChange, setPendingRemoveChange] = useState<{
+    value: string;
+    listingGroupId: number;
+    field: string;
+  } | null>(null);
 
   const handleStatusClick = (listingGroup: GoogleListingGroup) => {
     if (onUpdateListingGroupStatus) {
@@ -203,35 +222,200 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
     const newStatusUpper = newStatus.toUpperCase();
 
     if (newStatusUpper !== oldStatus) {
-      setPendingChange({
-        id: listingGroupId,
-        newValue: newStatusUpper,
-        oldValue: oldStatus,
-      });
+      // Check if status is being changed to REMOVED - show confirmation modal
+      if (newStatusUpper === "REMOVED") {
+        setEditingListingGroupId(null);
+        setEditingStatus("");
+        setPendingRemoveChange({
+          value: "REMOVED",
+          listingGroupId: listingGroup.id,
+          field: "status"
+        });
+        setShowRemoveConfirmation(true);
+        return;
+      }
+
+      // Close dropdown before showing modal
+      setEditingListingGroupId(null);
+      setEditingStatus("");
+
+      // Format status values for display using utility function
+      const oldValue = formatStatusForDisplay(oldStatus);
+      const newValue = formatStatusForDisplay(newStatusUpper);
+
+      setInlineEditListingGroup(listingGroup);
+      setInlineEditField("status");
+      setInlineEditOldValue(oldValue);
+      setInlineEditNewValue(newValue);
+      setShowInlineEditModal(true);
+    } else {
+      setEditingListingGroupId(null);
+      setEditingStatus("");
     }
+  };
+
+  const cancelInlineEdit = () => {
     setEditingListingGroupId(null);
     setEditingStatus("");
   };
 
-  const confirmChange = async () => {
-    if (!pendingChange || !onUpdateListingGroupStatus) return;
+  const cancelInlineEditModal = () => {
+    setShowInlineEditModal(false);
+    setInlineEditListingGroup(null);
+    setInlineEditField(null);
+    setInlineEditOldValue("");
+    setInlineEditNewValue("");
+    // Also clear editing state
+    setEditingListingGroupId(null);
+    setEditingStatus("");
+  };
 
-    setUpdatingListingGroupId(pendingChange.id);
+  const runInlineEdit = async () => {
+    if (!inlineEditListingGroup || !inlineEditField || !accountId || !channelId) return;
+    const accountIdNum = parseInt(accountId, 10);
+    const channelIdNum = parseInt(channelId, 10);
+    if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
+
     try {
-      await onUpdateListingGroupStatus(pendingChange.id, pendingChange.newValue);
-      setPendingChange(null);
-    } catch (error) {
-      console.error("Failed to update listing group status:", error);
-      alert("Failed to update listing group status. Please try again.");
-    } finally {
+      setInlineEditLoading(true);
+
+      if (inlineEditField === "status") {
+        // Convert display status to API format using utility function
+        const statusValue = convertStatusToApi(inlineEditNewValue);
+
+        // Find the listing group to get ad_id
+        const listingGroup = listingGroups.find(
+          (lg) => lg.id === inlineEditListingGroup.id
+        );
+        if (!listingGroup) {
+          alert("Listing group not found");
+          return;
+        }
+
+        // REMOVED status - show confirmation modal
+        if (statusValue === "REMOVED") {
+          setShowInlineEditModal(false);
+          setInlineEditListingGroup(null);
+          setInlineEditField(null);
+          setInlineEditOldValue("");
+          setInlineEditNewValue("");
+          setPendingRemoveChange({
+            value: "REMOVED",
+            listingGroupId: listingGroup.id,
+            field: "status"
+          });
+          setShowRemoveConfirmation(true);
+          return;
+        }
+
+        // Set updating state for loading indicator
+        setUpdatingListingGroupId(listingGroup.id);
+        setUpdatingField("status");
+
+        const adId = listingGroup.ad_id || (listingGroup as any).adId;
+        if (!adId) {
+          alert("Listing group ad ID not found. Please sync listing groups first.");
+          return;
+        }
+
+        await googleAdwordsAdsService.bulkUpdateGoogleAds(
+          accountIdNum,
+          channelIdNum,
+          {
+            adIds: [adId],
+            action: "status",
+            status: statusValue as "ENABLED" | "PAUSED",
+            campaignId: campaignId ? String(campaignId) : undefined,
+            adGroupId: listingGroup.adgroup_id ? String(listingGroup.adgroup_id) : undefined,
+          }
+        );
+
+        // Refresh data if callback provided
+        if (onBulkUpdateComplete) {
+          onBulkUpdateComplete();
+        }
+      }
+
+      setShowInlineEditModal(false);
+      setInlineEditListingGroup(null);
+      setInlineEditField(null);
+      setInlineEditOldValue("");
+      setInlineEditNewValue("");
+      // Also clear editing state after successful update
+      setEditingListingGroupId(null);
+      setEditingStatus("");
+      // Clear updating state
       setUpdatingListingGroupId(null);
+      setUpdatingField(null);
+    } catch (error: any) {
+      console.error("Failed to update listing group:", error);
+      alert(
+        error?.response?.data?.error ||
+        "Failed to update listing group. Please try again."
+      );
+      // Clear updating state on error
+      setUpdatingListingGroupId(null);
+      setUpdatingField(null);
+    } finally {
+      setInlineEditLoading(false);
     }
   };
 
-  const cancelChange = () => {
-    setPendingChange(null);
-    setEditingListingGroupId(null);
-    setEditingStatus("");
+  // Handle confirmation for REMOVED status change
+  const handleConfirmRemove = async () => {
+    if (!pendingRemoveChange || !accountId || !channelId) return;
+
+    setInlineEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+        throw new Error("Invalid account ID or channel ID");
+      }
+
+      const listingGroup = listingGroups.find((lg) => lg.id === pendingRemoveChange.listingGroupId);
+      if (!listingGroup) {
+        throw new Error("Listing group not found");
+      }
+
+      const adId = listingGroup.ad_id || (listingGroup as any).adId;
+      if (!adId) {
+        throw new Error("Listing group ad ID not found. Please sync listing groups first.");
+      }
+
+      const statusValue = convertStatusToApi("REMOVED");
+      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, channelIdNum, {
+        adIds: [adId],
+        action: "status",
+        status: statusValue as "ENABLED" | "PAUSED" | "REMOVED",
+        campaignId: campaignId ? String(campaignId) : undefined,
+        adGroupId: listingGroup.adgroup_id ? String(listingGroup.adgroup_id) : undefined,
+      });
+
+      // Refresh data if callback provided
+      if (onBulkUpdateComplete) {
+        onBulkUpdateComplete();
+      }
+
+      setShowRemoveConfirmation(false);
+      setPendingRemoveChange(null);
+    } catch (error: any) {
+      console.error("Failed to remove listing group:", error);
+      alert(
+        error?.response?.data?.error ||
+        "Failed to remove listing group. Please try again."
+      );
+    } finally {
+      setInlineEditLoading(false);
+    }
+  };
+
+  // Handle cancel for REMOVED status change
+  const handleCancelRemove = () => {
+    setShowRemoveConfirmation(false);
+    setPendingRemoveChange(null);
+    // Cancel the inline edit
+    cancelInlineEdit();
   };
 
   return (
@@ -432,54 +616,10 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
                       </td>
                       <td className="table-cell hidden md:table-cell w-[140px] max-w-[140px]">
                         <div className="flex items-center gap-2 w-full relative">
-                          {updatingListingGroupId === listingGroup.id && pendingChange ? (
+                          {updatingListingGroupId === listingGroup.id && updatingField === "status" ? (
                             <div className="flex items-center gap-2">
-                              <StatusBadge status={pendingChange.newValue} />
+                              <StatusBadge status={listingGroup.status || "ENABLED"} />
                               <Loader size="sm" showMessage={false} />
-                            </div>
-                          ) : pendingChange?.id === listingGroup.id ? (
-                            <div className="flex items-center gap-2">
-                              <StatusBadge status={pendingChange.newValue} />
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={confirmChange}
-                                  className="p-1 hover:bg-green-50 rounded transition-colors"
-                                  title="Confirm"
-                                >
-                                  <svg
-                                    className="w-4 h-4 text-green-600"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M5 13l4 4L19 7"
-                                    />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={cancelChange}
-                                  className="p-1 hover:bg-red-50 rounded transition-colors"
-                                  title="Cancel"
-                                >
-                                  <svg
-                                    className="w-4 h-4 text-red-600"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M6 18L18 6M6 6l12 12"
-                                    />
-                                  </svg>
-                                </button>
-                              </div>
                             </div>
                           ) : editingListingGroupId === listingGroup.id && onUpdateListingGroupStatus && !isRemoved ? (
                             <div className="relative z-[100000] w-full" onClick={(e) => e.stopPropagation()}>
@@ -609,6 +749,113 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
             if (pendingStatusAction) await runBulkStatus(pendingStatusAction);
           }}
         />
+      )}
+
+      {/* Inline Edit Confirmation Modal */}
+      {showInlineEditModal && inlineEditListingGroup && inlineEditField && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !inlineEditLoading) {
+              cancelInlineEditModal();
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+              Confirm Status Change
+            </h3>
+
+            <div className="mb-4">
+              <p className="text-[12.16px] text-[#556179] mb-2">
+                Shopping Ad:{" "}
+                <span className="font-semibold text-[#072929]">
+                  {inlineEditListingGroup.ad_id || inlineEditListingGroup.id || "Unnamed Ad"}
+                </span>
+              </p>
+              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-[12.16px] text-[#556179]">
+                    Status:
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12.16px] text-[#556179]">
+                      {inlineEditOldValue}
+                    </span>
+                    <span className="text-[12.16px] text-[#556179]">→</span>
+                    <span className="text-[12.16px] font-semibold text-[#072929]">
+                      {inlineEditNewValue}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={cancelInlineEditModal}
+                disabled={inlineEditLoading}
+                className="cancel-button"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={runInlineEdit}
+                disabled={inlineEditLoading}
+                className="create-entity-button btn-sm"
+              >
+                {inlineEditLoading ? "Updating..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Confirmation Modal */}
+      {showRemoveConfirmation && pendingRemoveChange && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !inlineEditLoading) {
+              handleCancelRemove();
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+              Are you sure you want to remove this shopping ad?
+            </h3>
+            <p className="text-[12.16px] text-[#556179] mb-4">
+              This action cannot be undone. All data associated with this shopping ad will be permanently removed.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleCancelRemove}
+                disabled={inlineEditLoading}
+                className="cancel-button"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRemove}
+                disabled={inlineEditLoading}
+                className="create-entity-button btn-sm bg-red-600 hover:bg-red-700"
+              >
+                {inlineEditLoading ? "Removing..." : "Remove"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Pagination */}

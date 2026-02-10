@@ -101,12 +101,13 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
 }) => {
   const [editingProductGroupKey, setEditingProductGroupKey] = useState<ProductGroupSelectionKey | null>(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
-  const [pendingChange, setPendingChange] = useState<{
-    key: ProductGroupSelectionKey;
-    newValue: string;
-    oldValue: string;
-  } | null>(null);
   const [updatingProductGroupKey, setUpdatingProductGroupKey] = useState<ProductGroupSelectionKey | null>(null);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusModalData, setStatusModalData] = useState<{
+    productGroup: GoogleProductGroup;
+    oldValue: string;
+    newValue: string;
+  } | null>(null);
 
   // Bulk edit state
   const [showBulkConfirmationModal, setShowBulkConfirmationModal] = useState(false);
@@ -144,7 +145,11 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
       let totalFailed = 0;
       const allErrors: string[] = [];
       for (const [adGroupId, pgs] of byAdGroup) {
-        const productGroupIds = pgs.map((pg) => pg.product_group_id ?? pg.id);
+        // Use ad_id (which maps to adId in database) - convert to string since backend expects text type
+        const productGroupIds = pgs.map((pg) => {
+          const adId = pg.ad_id ?? pg.id ?? pg.product_group_id;
+          return String(adId);
+        });
         const result = await googleAdwordsProductGroupsService.bulkUpdateGoogleProductGroups(
           accountIdNum,
           channelIdNum,
@@ -191,23 +196,55 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
     const newStatusUpper = newStatus.toUpperCase();
 
     if (newStatusUpper !== oldStatus) {
-      setPendingChange({
-        key: selectionKey,
-        newValue: newStatusUpper,
-        oldValue: oldStatus,
+      // Close dropdown immediately
+      setEditingProductGroupKey(null);
+      setEditingStatus("");
+      
+      // Format status values for display
+      const statusDisplayMap: Record<string, string> = {
+        ENABLED: "Enabled",
+        PAUSED: "Paused",
+        REMOVED: "Remove",
+        Enabled: "Enabled",
+        Paused: "Paused",
+        Removed: "Remove",
+      };
+      const oldValue = statusDisplayMap[oldStatus] || oldStatus;
+      const newValue = statusDisplayMap[newStatusUpper] || newStatusUpper;
+
+      setStatusModalData({
+        productGroup,
+        oldValue,
+        newValue,
       });
+      setShowStatusModal(true);
+    } else {
+      setEditingProductGroupKey(null);
+      setEditingStatus("");
     }
-    setEditingProductGroupKey(null);
-    setEditingStatus("");
   };
 
-  const confirmChange = async () => {
-    if (!pendingChange || !onUpdateProductGroupStatus) return;
+  const confirmStatusChange = async () => {
+    if (!statusModalData || !onUpdateProductGroupStatus) return;
 
-    setUpdatingProductGroupKey(pendingChange.key);
+    const selectionKey = getProductGroupSelectionKey(statusModalData.productGroup);
+    setUpdatingProductGroupKey(selectionKey);
     try {
-      await onUpdateProductGroupStatus(pendingChange.key, pendingChange.newValue);
-      setPendingChange(null);
+      // Map display value back to API value
+      const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
+        Enabled: "ENABLED",
+        ENABLED: "ENABLED",
+        Paused: "PAUSED",
+        PAUSED: "PAUSED",
+        Remove: "REMOVED",
+        Removed: "REMOVED",
+        REMOVED: "REMOVED",
+      };
+      const apiStatus = statusMap[statusModalData.newValue] || statusModalData.newValue.toUpperCase() as "ENABLED" | "PAUSED" | "REMOVED";
+
+      await onUpdateProductGroupStatus(selectionKey, apiStatus);
+      setShowStatusModal(false);
+      setStatusModalData(null);
     } catch (error) {
       console.error("Failed to update product group status:", error);
       alert("Failed to update product group status. Please try again.");
@@ -216,10 +253,9 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
     }
   };
 
-  const cancelChange = () => {
-    setPendingChange(null);
-    setEditingProductGroupKey(null);
-    setEditingStatus("");
+  const cancelStatusChange = () => {
+    setShowStatusModal(false);
+    setStatusModalData(null);
   };
 
   return (
@@ -310,7 +346,6 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
             initialFilters={filters}
             filterFields={[
               { value: "name", label: "Product Group Name" },
-              { value: "ad_id", label: "Shopping Ad" },
               { value: "status", label: "Status" },
               { value: "adgroup_name", label: "Ad Group Name" },
             ]}
@@ -402,54 +437,10 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                       </td>
                       <td className="table-cell hidden md:table-cell w-[140px] max-w-[140px]">
                         <div className="flex items-center gap-2 w-full relative">
-                          {updatingProductGroupKey === getProductGroupSelectionKey(productGroup) && pendingChange ? (
+                          {updatingProductGroupKey === getProductGroupSelectionKey(productGroup) ? (
                             <div className="flex items-center gap-2">
-                              <StatusBadge status={pendingChange.newValue} />
+                              <StatusBadge status={productGroup.status || "ENABLED"} />
                               <Loader size="sm" showMessage={false} />
-                            </div>
-                          ) : pendingChange?.key === getProductGroupSelectionKey(productGroup) ? (
-                            <div className="flex items-center gap-2">
-                              <StatusBadge status={pendingChange.newValue} />
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={confirmChange}
-                                  className="p-1 hover:bg-green-50 rounded transition-colors"
-                                  title="Confirm"
-                                >
-                                  <svg
-                                    className="w-4 h-4 text-green-600"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M5 13l4 4L19 7"
-                                    />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={cancelChange}
-                                  className="p-1 hover:bg-red-50 rounded transition-colors"
-                                  title="Cancel"
-                                >
-                                  <svg
-                                    className="w-4 h-4 text-red-600"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M6 18L18 6M6 6l12 12"
-                                    />
-                                  </svg>
-                                </button>
-                              </div>
                             </div>
                           ) : editingProductGroupKey === getProductGroupSelectionKey(productGroup) && onUpdateProductGroupStatus && !isRemoved ? (
                             <div className="relative z-[100000] w-full" onClick={(e) => e.stopPropagation()}>
@@ -630,6 +621,82 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
             if (pendingStatusAction) await runBulkStatus(pendingStatusAction);
           }}
         />
+      )}
+
+      {/* Status Change Confirmation Modal */}
+      {showStatusModal && statusModalData && (
+        <div
+          className="fixed inset-0 z-[999999] flex items-center justify-center"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              cancelStatusChange();
+            }
+          }}
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 transition-opacity"
+            onClick={cancelStatusChange}
+          />
+          
+          {/* Modal */}
+          <div
+            className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              {/* Header */}
+              <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                Confirm Status Change
+              </h3>
+              
+              {/* Content */}
+              <div className="mb-4">
+                <p className="text-[12.16px] text-[#556179] mb-2">
+                  Product Group:{" "}
+                  <span className="font-semibold text-[#072929]">
+                    {statusModalData.productGroup.product_group_name || "All products"}
+                  </span>
+                </p>
+                <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[12.16px] text-[#556179]">Status:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12.16px] text-[#556179]">
+                        {statusModalData.oldValue}
+                      </span>
+                      <span className="text-[12.16px] text-[#556179]">→</span>
+                      <span className="text-[12.16px] font-semibold text-[#072929]">
+                        {statusModalData.newValue}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={cancelStatusChange}
+                  className="cancel-button"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmStatusChange}
+                  disabled={updatingProductGroupKey === getProductGroupSelectionKey(statusModalData.productGroup)}
+                  className="create-entity-button btn-sm"
+                >
+                  {updatingProductGroupKey === getProductGroupSelectionKey(statusModalData.productGroup)
+                    ? "Updating..."
+                    : "Confirm"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

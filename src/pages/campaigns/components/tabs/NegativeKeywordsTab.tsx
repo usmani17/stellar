@@ -20,6 +20,8 @@ interface NegativeKeywordsTabProps {
   adgroups: AdGroup[];
   campaignId: string | null;
   campaignType: string | null;
+  /** When true, create/update negative keywords are disabled (campaign is archived). */
+  isCampaignArchived?: boolean;
 
   // Selection
   selectedNegativeKeywordIds: Set<number>;
@@ -87,6 +89,7 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
   adgroups,
   campaignId,
   campaignType,
+  isCampaignArchived = false,
   selectedNegativeKeywordIds,
   onSelectAll,
   onSelect,
@@ -137,6 +140,13 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
           <div className="flex items-center gap-2">
             {/* Create Negative Keyword Button */}
             <button
+              type="button"
+              disabled={isCampaignArchived}
+              title={
+                isCampaignArchived
+                  ? "Negative keywords cannot be created when the campaign is archived"
+                  : undefined
+              }
               onClick={async () => {
                 const newState = !isCreatePanelOpen;
                 onToggleCreatePanel();
@@ -175,6 +185,12 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                 type="button"
                 variant="ghost"
                 className="edit-button"
+                disabled={isCampaignArchived}
+                title={
+                  isCampaignArchived
+                    ? "Negative keywords cannot be modified when the campaign is archived"
+                    : undefined
+                }
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleBulkActions();
@@ -217,7 +233,10 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                         key={opt.value}
                         type="button"
                         className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                        disabled={selectedNegativeKeywordIds.size === 0}
+                        disabled={
+                          selectedNegativeKeywordIds.size === 0 ||
+                          isCampaignArchived
+                        }
                         onClick={(e) => {
                           e.stopPropagation();
                           if (selectedNegativeKeywordIds.size === 0) return;

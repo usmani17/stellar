@@ -10,11 +10,19 @@ export interface CropCoordinates {
   height: number;
 }
 
+/** Source image crop area in pixels (from react-easy-crop). Use for generating cropped image. */
+export interface CropSourceArea {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface ImageCropModalProps {
   isOpen: boolean;
   onClose: () => void;
   imageUrl: string;
-  onConfirm: (crop: CropCoordinates) => void;
+  onConfirm: (crop: CropCoordinates, sourceArea?: CropSourceArea) => void;
   /** Crop dimensions - default 1200x628 for custom images */
   requiredWidth?: number;
   requiredHeight?: number;
@@ -42,12 +50,21 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
   const handleConfirm = () => {
     if (croppedAreaPixels) {
       // Use top/left from the crop selection; always set width/height to required dimensions
-      onConfirm({
-        left: Math.round(croppedAreaPixels.x),
-        top: Math.round(croppedAreaPixels.y),
-        width: requiredWidth,
-        height: requiredHeight,
-      });
+      const sourceArea: CropSourceArea = {
+        x: Math.round(croppedAreaPixels.x),
+        y: Math.round(croppedAreaPixels.y),
+        width: Math.round(croppedAreaPixels.width),
+        height: Math.round(croppedAreaPixels.height),
+      };
+      onConfirm(
+        {
+          left: sourceArea.x,
+          top: sourceArea.y,
+          width: requiredWidth,
+          height: requiredHeight,
+        },
+        sourceArea
+      );
       onClose();
       // Reset for next open
       setCrop({ x: 0, y: 0 });

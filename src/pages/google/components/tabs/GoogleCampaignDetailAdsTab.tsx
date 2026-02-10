@@ -134,6 +134,8 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
         errors: (response as { errors?: string[] }).errors ?? [],
       });
       if (onBulkUpdateComplete) onBulkUpdateComplete();
+      // Clear selections after successful bulk update
+      onSelectAll(false);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } }; message?: string };
       setBulkUpdateResults({
@@ -173,6 +175,10 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
         setShowRemoveConfirmation(true);
         return;
       }
+      
+      // Close dropdown before showing modal
+      setEditingAdId(null);
+      setEditingStatus("");
       
       // Show confirmation modal immediately - matches Amazon pattern
       const statusDisplayMap: Record<string, string> = {
@@ -875,6 +881,10 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
             onClose={() => {
               setShowBulkConfirmationModal(false);
               setPendingStatusAction(null);
+              // Clear selections when closing modal after successful update
+              if (bulkUpdateResults && bulkUpdateResults.updated > 0) {
+                onSelectAll(false);
+              }
               setBulkUpdateResults(null);
             }}
             entityLabel="ad"

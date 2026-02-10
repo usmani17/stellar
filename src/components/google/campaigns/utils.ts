@@ -9,7 +9,7 @@ export const CAMPAIGN_TYPES = [
   { value: "PERFORMANCE_MAX", label: "Performance Max" },
   { value: "SHOPPING", label: "Shopping" },
   { value: "SEARCH", label: "Search" },
-  // { value: "DEMAND_GEN", label: "Demand Gen" },
+  { value: "DEMAND_GEN", label: "Demand Gen (YouTube video ads)" },
   // { value: "DISPLAY", label: "Display" },
   // { value: "VIDEO", label: "Video (Read-Only)", disabled: true },
 ];

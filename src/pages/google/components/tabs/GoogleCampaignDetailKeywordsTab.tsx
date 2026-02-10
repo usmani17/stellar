@@ -141,6 +141,8 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
         errors: (response as { errors?: string[] }).errors ?? [],
       });
       if (onBulkUpdateComplete) onBulkUpdateComplete();
+      // Clear selections after successful bulk update
+      onSelectAll(false);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } }; message?: string };
       setBulkUpdateResults({
@@ -1372,6 +1374,10 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
             onClose={() => {
               setShowBulkConfirmationModal(false);
               setPendingStatusAction(null);
+              // Clear selections when closing modal after successful update
+              if (bulkUpdateResults && bulkUpdateResults.updated > 0) {
+                onSelectAll(false);
+              }
               setBulkUpdateResults(null);
             }}
             entityLabel="keyword"

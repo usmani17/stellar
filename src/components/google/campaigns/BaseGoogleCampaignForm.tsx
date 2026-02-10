@@ -32,6 +32,7 @@ interface BaseGoogleCampaignFormProps {
   onQuickFillPerformanceMax?: () => void;
   onQuickFillShopping?: () => void;
   onQuickFillSearch?: () => void;
+  onQuickFillDemandGen?: () => void;
 }
 
 export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
@@ -53,6 +54,7 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
   onQuickFillPerformanceMax,
   onQuickFillShopping,
   onQuickFillSearch,
+  onQuickFillDemandGen,
 }) => {
   return (
     <>
@@ -144,6 +146,16 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
                     title="Quick fill Search campaign with test data"
                   >
                     Quick Fill Search
+                  </button>
+                )}
+                {onQuickFillDemandGen && (
+                  <button
+                    type="button"
+                    onClick={onQuickFillDemandGen}
+                    className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-[10px] hover:bg-orange-200 transition-colors"
+                    title="Quick fill Demand Gen (YouTube video) campaign with test data"
+                  >
+                    Quick Fill Demand Gen
                   </button>
                 )}
               </div>
