@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
-import { useAccounts } from "../contexts/AccountsContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { accountsService, type Account } from "../services/accounts";
 import {
@@ -9,6 +8,7 @@ import {
   useUpdateAccount,
   useDeleteAccount,
 } from "../hooks/mutations/useAccountMutations";
+import { useAccountsPaginated } from "../hooks/queries/useAccountsPaginated";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
 import { Button, Card, DeleteConfirmationModal, Loader, Menu } from "../components/ui";
@@ -19,11 +19,25 @@ import GoogleIcon from "../assets/images/ri_google-fill.svg";
 // import InstacartIcon from "../assets/images/cib_instacart.svg";
 // import CriteoIcon from "../assets/images/criteo.svg"; // Add when Criteo icon is available
 
+const BRANDS_PAGE_SIZE = 10;
+
 export const Accounts: React.FC = () => {
-  const { accounts, loading: accountsLoading } = useAccounts();
+  const [currentPage, setCurrentPage] = useState(1);
+  const {
+    accounts,
+    totalPages,
+    isLoading: accountsLoading,
+    isFetching,
+  } = useAccountsPaginated(currentPage, BRANDS_PAGE_SIZE);
   const { sidebarWidth } = useSidebar();
   const navigate = useNavigate();
+  const location = useLocation();
+  const accessError = (location.state as { accessError?: string } | null)?.accessError;
   const [loading, setLoading] = useState(true);
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(Math.max(1, Math.min(newPage, totalPages)));
+  };
   const [deletingAccountId, setDeletingAccountId] = useState<number | null>(
     null
   );
@@ -146,7 +160,7 @@ export const Accounts: React.FC = () => {
   }, [showCreateAccount]);
 
   const handleDeleteAccount = async (id: number) => {
-    const account = accounts.find((acc) => acc.id === id);
+    const account = accounts.find((acc: Account) => acc.id === id);
     if (!account) return;
 
     setDeleteModal({
@@ -328,6 +342,15 @@ export const Accounts: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white">
+          {accessError && (
+            <Banner
+              type="error"
+              message={accessError}
+              dismissable={true}
+              onDismiss={() => navigate("/brands", { replace: true, state: {} })}
+              className="mb-6"
+            />
+          )}
           {successMessage && (
             <Banner
               type="success"
@@ -784,18 +807,77 @@ export const Accounts: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-              {/* Loading overlay for refreshing after creation */}
+              {/* Loading overlay for refreshing after creation/update/delete */}
               {(createAccountMutation.isPending ||
                 updateAccountMutation.isPending ||
                 deleteAccountMutation.isPending ||
-                (accountsLoading && accounts.length > 0)) && (
-                  <>
-                    <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
-                      <Loader size="md" message="Loading accounts..." />
-                    </div>
-                  </>
-                )}
+                (isFetching && accounts.length > 0)) && (
+                <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
+                  <Loader size="md" message="Loading accounts..." />
+                </div>
+              )}
             </div>
+
+            {/* Pagination - outside table container, same as campaigns page */}
+            {!accountsLoading && accounts.length > 0 && (
+              <div className="flex items-center justify-end mt-4">
+                <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    pageNum = Math.max(1, Math.min(pageNum, totalPages));
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                          currentPage === pageNum
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                      ...
+                    </span>
+                  )}
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <button
+                      onClick={() => handlePageChange(totalPages)}
+                      className="px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer text-black hover:bg-gray-50"
+                    >
+                      {totalPages}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

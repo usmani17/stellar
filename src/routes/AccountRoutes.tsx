@@ -1,6 +1,7 @@
 import { Navigate, Route, useParams } from "react-router-dom";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import { AccountRequiredRoute } from "../components/auth/AccountRequiredRoute";
+import { BrandAccessRoute } from "../components/auth/BrandAccessRoute";
 import { WorkspaceRequiredRoute } from "../components/auth/WorkspaceRequiredRoute";
 import { Layout } from "../components/layout/Layout";
 import { Accounts } from "../pages/Accounts";
@@ -77,9 +78,11 @@ function AccountRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                                <Layout>
-                                    <Channels />
-                                </Layout>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <Channels />
+                                    </Layout>
+                                </BrandAccessRoute>
                             </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
@@ -101,9 +104,11 @@ function AccountRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                                <Layout>
-                                    <AccountProfiles />
-                                </Layout>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <AccountProfiles />
+                                    </Layout>
+                                </BrandAccessRoute>
                             </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
@@ -115,9 +120,11 @@ function AccountRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                                <Layout>
-                                    <AccountUsers />
-                                </Layout>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <AccountUsers />
+                                    </Layout>
+                                </BrandAccessRoute>
                             </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
@@ -129,9 +136,11 @@ function AccountRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                                <Layout>
-                                    <ConnectTikTok />
-                                </Layout>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <ConnectTikTok />
+                                    </Layout>
+                                </BrandAccessRoute>
                             </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
@@ -143,9 +152,11 @@ function AccountRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                                <Layout>
-                                    <LogHistory />
-                                </Layout>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <LogHistory />
+                                    </Layout>
+                                </BrandAccessRoute>
                             </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
@@ -157,9 +168,11 @@ function AccountRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                                <Layout>
-                                    <LogHistory />
-                                </Layout>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <LogHistory />
+                                    </Layout>
+                                </BrandAccessRoute>
                             </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
