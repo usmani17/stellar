@@ -18,7 +18,7 @@ import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
 
-// Generate a color based on the first letter of the brand name
+// Generate a color based on the first character of the brand name (letters, digits, or fallback)
 const getInitialColor = (initial: string): string => {
   const colors = [
     "#136D6D", // Teal
@@ -39,8 +39,21 @@ const getInitialColor = (initial: string): string => {
   ];
 
   if (!initial) return colors[0];
-  const charCode = initial.toUpperCase().charCodeAt(0);
-  const index = (charCode - 65) % colors.length; // A-Z maps to 0-25, then wraps
+  const charCode = initial.charCodeAt(0);
+  let index: number;
+  if (charCode >= 48 && charCode <= 57) {
+    // 0-9: map to colors 0-9
+    index = (charCode - 48) % colors.length;
+  } else if (charCode >= 65 && charCode <= 90) {
+    // A-Z
+    index = (charCode - 65) % colors.length;
+  } else if (charCode >= 97 && charCode <= 122) {
+    // a-z
+    index = (charCode - 97) % colors.length;
+  } else {
+    // Other chars (e.g. !, #): use a stable hash
+    index = Math.abs(charCode % colors.length);
+  }
   return colors[index];
 };
 

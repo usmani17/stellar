@@ -382,34 +382,6 @@ body input[type="submit"]:disabled {
   box-shadow: 0 0 0 1px var(--color-semantic-status-primary);
 }
 
-/* Inline editable dropdown - used for inline editing dropdowns in tables */
-.inline-edit-dropdown {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.400rem 1rem;
-  font-size: 10px;
-  color: #000000;
-  background-color: #ffffff;
-  border: 1px solid #E5E7EB;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.inline-edit-dropdown:hover {
-  border-color: #556179;
-}
-
-.inline-edit-dropdown:focus {
-  outline: none;
-  box-shadow: 0 0 0 1px var(--color-semantic-status-primary);
-  border-color: var(--color-semantic-status-primary);
-}
-
 /* Example 10: Using in gradients */
 .gradient-background {
   background: linear-gradient(to right,

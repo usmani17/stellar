@@ -1,6 +1,7 @@
 import { Route } from "react-router-dom";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import { AccountRequiredRoute } from "../components/auth/AccountRequiredRoute";
+import { WorkspaceRequiredRoute } from "../components/auth/WorkspaceRequiredRoute";
 import { GoogleSyncStatusWrapper } from "../components/google/GoogleSyncStatusWrapper";
 import { Layout } from "../components/layout/Layout";
 import { GoogleCampaigns } from "../pages/google/GoogleCampaigns";
@@ -18,13 +19,15 @@ function GoogleRoutes() {
                 path="/brands/:accountId/:channelId/google/campaigns"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <GoogleSyncStatusWrapper>
                                 <Layout>
                                     <GoogleCampaigns />
                                 </Layout>
                             </GoogleSyncStatusWrapper>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -32,13 +35,15 @@ function GoogleRoutes() {
                 path="/brands/:accountId/:channelId/google/campaigns/:campaignId"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <GoogleSyncStatusWrapper>
                                 <Layout>
                                     <GoogleCampaignDetail />
                                 </Layout>
                             </GoogleSyncStatusWrapper>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -46,13 +51,15 @@ function GoogleRoutes() {
                 path="/brands/:accountId/:channelId/google/adgroups"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <GoogleSyncStatusWrapper>
                                 <Layout>
                                     <GoogleAdGroups />
                                 </Layout>
                             </GoogleSyncStatusWrapper>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -60,13 +67,15 @@ function GoogleRoutes() {
                 path="/brands/:accountId/:channelId/google/ads"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <GoogleSyncStatusWrapper>
                                 <Layout>
                                     <GoogleAds />
                                 </Layout>
                             </GoogleSyncStatusWrapper>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -74,13 +83,15 @@ function GoogleRoutes() {
                 path="/brands/:accountId/:channelId/google/keywords"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <GoogleSyncStatusWrapper>
                                 <Layout>
                                     <GoogleKeywords />
                                 </Layout>
                             </GoogleSyncStatusWrapper>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -88,11 +99,13 @@ function GoogleRoutes() {
                 path="/brands/:accountId/:channelId/google/logs"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <LogHistory />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -100,11 +113,13 @@ function GoogleRoutes() {
                 path="/brands/:accountId/:channelId/google/log-history"
                 element={
                     <ProtectedRoute>
-                        <AccountRequiredRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
                             <Layout>
                                 <LogHistory />
                             </Layout>
                         </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />

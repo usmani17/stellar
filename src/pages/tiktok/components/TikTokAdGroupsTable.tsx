@@ -592,7 +592,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                             onClose={cancelInlineEdit}
                                                             defaultOpen={true}
                                                             closeOnSelect={true}
-                                                            buttonClassName="inline-edit-dropdown"
+                                                            buttonClassName="edit-button"
                                                         />
                                                     </div>
                                                 ) : (

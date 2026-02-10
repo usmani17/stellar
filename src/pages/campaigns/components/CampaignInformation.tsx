@@ -130,7 +130,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
               // This matches the pattern from Campaigns.tsx
               onEditEnd(newValue, "status");
             }}
-            buttonClassName="inline-edit-dropdown w-full"
+            buttonClassName="edit-button w-full"
             width="w-full"
           />
         </div>

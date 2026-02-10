@@ -2324,7 +2324,7 @@ export const Keywords: React.FC = () => {
                                             confirmInlineEdit(newValue, keywordId, "state");
                                           }
                                         }}
-                                        buttonClassName="inline-edit-dropdown"
+                                        buttonClassName="edit-button"
                                         width="w-full"
                                         align="center"
                                       />

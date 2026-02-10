@@ -8,7 +8,9 @@ interface PublicRouteProps {
 
 /**
  * PublicRoute component that redirects authenticated users away from public pages
- * (like login, signup) to the dashboard/accounts page
+ * (like login, signup) to the dashboard/accounts page.
+ * Note: verify-email is NOT wrapped in PublicRoute - users may be logged in when
+ * clicking the link from their email and must be able to complete verification.
  */
 export const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();

@@ -855,7 +855,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                                   defaultOpen={true}
                                   closeOnSelect={true}
                                   showCheckmark={false}
-                                  buttonClassName="inline-edit-dropdown w-full text-[13.3px]"
+                                  buttonClassName="edit-button w-full text-[13.3px]"
                                   width="w-full"
                                   className="w-full"
                                   menuClassName="z-[100000]"
@@ -866,8 +866,8 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                                 type="button"
                                 className={
                                   onUpdateKeywordStatus && !isRemoved
-                                    ? "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between"
-                                    : "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between cursor-default"
+                                    ? "edit-button w-full text-[13.3px] flex items-center justify-between"
+                                    : "edit-button w-full text-[13.3px] flex items-center justify-between cursor-default"
                                 }
                                 onClick={(e) => {
                                   e.stopPropagation();

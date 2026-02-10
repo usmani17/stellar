@@ -3920,7 +3920,7 @@ export const Campaigns: React.FC = () => {
                                               confirmInlineEdit(newValue, String(campaign.campaignId), "status");
                                             }
                                           }}
-                                          buttonClassName="inline-edit-dropdown"
+                                          buttonClassName="edit-button"
                                           width="w-full"
                                           align="center"
                                         />
@@ -4043,7 +4043,7 @@ export const Campaigns: React.FC = () => {
                                               confirmInlineEdit(newValue, String(campaign.campaignId), "budgetType");
                                             }
                                           }}
-                                          buttonClassName="inline-edit-dropdown"
+                                          buttonClassName="edit-button"
                                           width="w-full"
                                           align="center"
                                         />

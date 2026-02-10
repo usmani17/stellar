@@ -1,5 +1,6 @@
 import { Route } from "react-router-dom";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
+import { WorkspaceRequiredRoute } from "../components/auth/WorkspaceRequiredRoute";
 import { Layout } from "../components/layout/Layout";
 import { SelectGoogleAdsAccounts } from "../pages/SelectGoogleAdsAccounts";
 import { SelectAmazonProfiles } from "../pages/SelectAmazonProfiles";
@@ -14,9 +15,11 @@ function ChannelRoutes() {
                 path="/channels/:channelId/select-google-accounts"
                 element={
                     <ProtectedRoute>
-                        <Layout>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
                             <SelectGoogleAdsAccounts />
                         </Layout>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -24,7 +27,9 @@ function ChannelRoutes() {
                 path="/channels/:channelId/select-profiles"
                 element={
                     <ProtectedRoute>
-                        <SelectAmazonProfiles />
+                        <WorkspaceRequiredRoute>
+                            <SelectAmazonProfiles />
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -32,7 +37,9 @@ function ChannelRoutes() {
                 path="/channels/:channelId/select-tiktok-profiles"
                 element={
                     <ProtectedRoute>
-                        <SelectTikTokProfiles />
+                        <WorkspaceRequiredRoute>
+                            <SelectTikTokProfiles />
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -40,9 +47,11 @@ function ChannelRoutes() {
                 path="/channels/:channelId/meta-list-profiles"
                 element={
                     <ProtectedRoute>
-                        <Layout>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
                             <MetaListProfiles />
                         </Layout>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />
@@ -50,9 +59,11 @@ function ChannelRoutes() {
                 path="/channels/:channelId/list-profiles"
                 element={
                     <ProtectedRoute>
-                        <Layout>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
                             <ListAmazonProfiles />
                         </Layout>
+                        </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
             />

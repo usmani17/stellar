@@ -359,7 +359,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                                   onEditChange?.(newValue);
                                   onEditEnd?.(newValue, target.id, "status");
                                 }}
-                                buttonClassName="inline-edit-dropdown"
+                                buttonClassName="edit-button"
                                 width="w-full"
                                 align="center"
                               />
