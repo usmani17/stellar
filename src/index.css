@@ -751,6 +751,25 @@ body input[type="submit"]:disabled {
   cursor: not-allowed;
 }
 
+/* Assistant suggested prompt button */
+.assistant-prompt-button {
+  width: 100%;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 14px;
+  color: #374151;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: border-color 0.2s, background-color 0.2s;
+  cursor: pointer;
+}
+
+.assistant-prompt-button:hover {
+  border-color: #136D6D;
+  background-color: #f9fafb;
+}
+
 /* Cancel/Clear button styling - used for cancel and clear buttons */
 .cancel-button {
   padding: 8px 16px;
@@ -908,6 +927,42 @@ body input[type="submit"]:disabled {
 }
 
 .search-input-container input:focus {
+  outline: none;
+}
+
+/* Assistant input area - same look as search-input-container (hover, focus, font, size) */
+.assistant-input-container {
+  border: 1px solid #e8e8e3;
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background-color: #FEFEFB !important;
+  padding: 12px 16px;
+}
+
+.assistant-input-container:hover {
+  border-color: #136D6D;
+}
+
+.assistant-input-container:focus-within {
+  border-color: #136D6D;
+  box-shadow: 0 0 0 1px rgba(19, 109, 109, 0.1);
+}
+
+.assistant-input-container input {
+  background-color: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 14px;
+  color: #072929;
+  font-family: "GT America Trial", system-ui, sans-serif;
+}
+
+.assistant-input-container input::placeholder {
+  color: #9ca3af;
+}
+
+.assistant-input-container input:focus {
   outline: none;
 }
 

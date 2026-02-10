@@ -244,9 +244,8 @@ export const WorkspaceSettings: React.FC = () => {
                         Invite by email
                       </span>
                       <svg
-                        className={`w-5 h-5 text-white transition-transform ${
-                          invitePanelOpen ? "rotate-180" : ""
-                        }`}
+                        className={`w-5 h-5 text-white transition-transform ${invitePanelOpen ? "rotate-180" : ""
+                          }`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -271,9 +270,8 @@ export const WorkspaceSettings: React.FC = () => {
                         Create user directly
                       </span>
                       <svg
-                        className={`w-5 h-5 text-white transition-transform ${
-                          createPanelOpen ? "rotate-180" : ""
-                        }`}
+                        className={`w-5 h-5 text-white transition-transform ${createPanelOpen ? "rotate-180" : ""
+                          }`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -292,7 +290,7 @@ export const WorkspaceSettings: React.FC = () => {
 
               {/* Invite panel - Owner or Manager */}
               {isManagerOrOwner && invitePanelOpen && (
-                <div className="relative z-[999998]">
+                <div className="">
                   <div className="relative border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]">
                     <form onSubmit={handleInvite}>
                       <div className="p-4 border-b border-gray-200">
@@ -358,7 +356,7 @@ export const WorkspaceSettings: React.FC = () => {
 
               {/* Create user panel - Owner or Manager */}
               {isManagerOrOwner && createPanelOpen && (
-                <div className="relative z-[999998]">
+                <div className="">
                   <div className="relative border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]">
                     <form onSubmit={handleCreateUser}>
                       <div className="p-4 border-b border-gray-200">

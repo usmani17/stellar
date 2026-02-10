@@ -385,9 +385,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                       const order: Record<string, number> = { 'Today': 0, 'Yesterday': 1 };
                       const orderA = order[keyA] ?? 2;
                       const orderB = order[keyB] ?? 2;
-                      
+
                       if (orderA !== orderB) return orderA - orderB;
-                      
+
                       // If both are dates, sort by date descending
                       if (orderA === 2) {
                         return new Date(keyB).getTime() - new Date(keyA).getTime();
@@ -395,35 +395,35 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                       return 0;
                     })
                     .map(([dateGroup, groupThreads]) => (
-                    <div key={dateGroup}>
-                      {/* Date Group Header with Count */}
-                      <div className="flex items-center justify-between px-4 py-2 border-b border-[#e8e8e3] bg-[#f9f9f6]">
-                        <span className="text-sm font-medium text-[#072929]">{dateGroup}</span>
-                        <span className="text-sm text-[#072929]">{groupThreads.length} Total</span>
-                      </div>
+                      <div key={dateGroup}>
+                        {/* Date Group Header with Count */}
+                        <div className="flex items-center justify-between px-4 py-2 border-b border-[#e8e8e3] bg-[#f9f9f6]">
+                          <span className="text-sm font-medium text-[#072929]">{dateGroup}</span>
+                          <span className="text-sm text-[#072929]">{groupThreads.length} Total</span>
+                        </div>
 
-                      {/* Threads in Group */}
-                      {groupThreads.map((thread) => (
-                        <button
-                          key={thread.thread_id}
-                          onClick={() => handleThreadSelect(thread.thread_id)}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm text-left transition-colors border-b border-[#f0f0f0] ${currentThread?.thread_id === thread.thread_id
+                        {/* Threads in Group */}
+                        {groupThreads.map((thread) => (
+                          <button
+                            key={thread.thread_id}
+                            onClick={() => handleThreadSelect(thread.thread_id)}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm text-left transition-colors border-b border-[#f0f0f0] ${currentThread?.thread_id === thread.thread_id
                               ? 'bg-[#f0f0f0] text-[#072929]'
                               : 'text-[#072929] hover:bg-[#f9f9f6]'
-                            }`}
-                        >
-                          {/* Chat Bubble Icon */}
-                          <svg className="w-4 h-4 shrink-0 text-[#072929]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                          </svg>
-                          <span className="truncate flex-1">{thread.metadata?.title || 'Untitled'}</span>
-                          {currentThread?.thread_id === thread.thread_id && (
-                            <Check className="w-4 h-4 text-[#072929] shrink-0" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  ))
+                              }`}
+                          >
+                            {/* Chat Bubble Icon */}
+                            <svg className="w-4 h-4 shrink-0 text-[#072929]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                            </svg>
+                            <span className="truncate flex-1">{thread.metadata?.title || 'Untitled'}</span>
+                            {currentThread?.thread_id === thread.thread_id && (
+                              <Check className="w-4 h-4 text-[#072929] shrink-0" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ))
                 )}
               </div>
             )}
@@ -463,7 +463,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                   <button
                     key={prompt.id}
                     onClick={() => handlePromptClick(prompt.text)}
-                    className="w-full px-4 py-3 text-left text-sm text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-[#136D6D] hover:bg-gray-50 transition-all"
+                    className="assistant-prompt-button"
                   >
                     {prompt.text}
                   </button>
@@ -482,8 +482,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
               >
                 <div
                   className={`max-w-[85%] ${message.type === "human"
-                      ? "flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e5e4e0] rounded-[10px]"
-                      : "space-y-3"
+                    ? "flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e5e4e0] rounded-[10px]"
+                    : "space-y-3"
                     }`}
                 >
                   {/* Tool Response Message === SKIP THIS FOR NOW */}
@@ -782,7 +782,7 @@ export const Assistant: React.FC<React.PropsWithChildren<Record<string, never>>>
 
       {/* Assistant Sidebar - always mounted, animated from bottom */}
       <div
-        className={`${isFixed ? "fixed" : "absolute"} right-0 top-[80px] bottom-0 z-40 bg-[var(--color-semantic-background-primary)] transition-[transform,width] duration-200 ease-out ${
+        className={`${isFixed ? "fixed" : "absolute"} right-0 top-[80px] bottom-0 z-[45] bg-[var(--color-semantic-background-primary)] transition-[transform,width] duration-200 ease-out ${
           isFixed ? "border-l border-gray-200" : "rounded-l-2xl shadow-[-8px_0_24px_rgba(0,0,0,0.15)]"
         } ${isOpen ? "translate-y-0" : "translate-y-full pointer-events-none"}`}
         style={{ width: widthCss }}
