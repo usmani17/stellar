@@ -24,13 +24,22 @@ export const NoWorkspace: React.FC = () => {
         </p>
         <div className="flex flex-col gap-3">
           {user && (
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="px-4 py-2 bg-forest-f60 text-white rounded-lg hover:bg-forest-f50 transition-colors"
-            >
-              Sign out
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => navigate("/signup/complete")}
+                className="px-4 py-2 bg-forest-f60 text-white rounded-lg hover:bg-forest-f50 transition-colors"
+              >
+                Create workspace
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="px-4 py-2 border border-forest-f60 text-forest-f60 rounded-lg hover:bg-forest-f60/5 transition-colors"
+              >
+                Sign out
+              </button>
+            </>
           )}
           <button
             type="button"

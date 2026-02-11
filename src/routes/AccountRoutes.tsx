@@ -14,6 +14,7 @@ import { LogHistory } from "../pages/LogHistory";
 import { Profile } from "../pages/Profile";
 import { WorkspaceSettings } from "../pages/WorkspaceSettings";
 import { NoWorkspace } from "../pages/NoWorkspace";
+import { CompleteSignup } from "../pages/CompleteSignup";
 import { ColorExamples } from "../pages/ColorExamples";
 
 function ChannelsToIntegrationsRedirect() {
@@ -79,6 +80,14 @@ function AccountRoutes() {
             <Route
                 path="/drafts/:draftId"
                 element={<Navigate to="/brands" replace />}
+            />
+            <Route
+                path="/signup/complete"
+                element={
+                    <ProtectedRoute>
+                        <CompleteSignup />
+                    </ProtectedRoute>
+                }
             />
             <Route
                 path="/brands/:accountId/integrations"

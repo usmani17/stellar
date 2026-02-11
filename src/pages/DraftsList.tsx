@@ -6,7 +6,7 @@ import { Sidebar } from "../components/layout/Sidebar";
 import { Assistant } from "../components/layout/Assistant";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
-import { entitiesDraftsService, type EntityDraftListItem, type EntityDraft } from "../services/entitiesDrafts";
+import { entitiesDraftsService, type EntityDraftListItem, type EntityDraft } from "../services/ai/entitiesDrafts";
 import { formatPlatform, formatCurrentStatus, formatCampaignType } from "../utils/formatDraftLabels";
 import { Alert, Loader, BaseModal } from "../components/ui";
 import { Dropdown } from "../components/ui/Dropdown";
@@ -54,15 +54,6 @@ export const DraftsList: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(PAGE_SIZE);
   const [statusFilter, setStatusFilter] = useState("");
-  const [accountFilter, setAccountFilter] = useState<string>("");
-  const [integrationFilter, setIntegrationFilter] = useState<string>("");
-  const [filterOptions, setFilterOptions] = useState<{
-    account_options: { id: number; name: string }[];
-    integration_options: { id: number; name: string }[];
-  }>({
-    account_options: [],
-    integration_options: [],
-  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [viewDraftId, setViewDraftId] = useState<string | null>(null);
@@ -79,12 +70,8 @@ export const DraftsList: React.FC = () => {
     return () => resetPageTitle();
   }, []);
 
-  const effectiveAccountId = isGoogleScoped
-    ? accountIdNum ?? undefined
-    : accountFilter ? (() => { const n = parseInt(accountFilter, 10); return Number.isNaN(n) ? undefined : n; })() : undefined;
-  const effectiveIntegrationId = isGoogleScoped
-    ? channelIdNum ?? undefined
-    : integrationFilter ? (() => { const n = parseInt(integrationFilter, 10); return Number.isNaN(n) ? undefined : n; })() : undefined;
+  const effectiveAccountId = accountIdNum ?? undefined;
+  const effectiveIntegrationId = channelIdNum ?? undefined;
 
   const fetchDrafts = useCallback(() => {
     if (workspaceId == null) {
@@ -100,7 +87,7 @@ export const DraftsList: React.FC = () => {
         page_size: pageSize,
         status: statusFilter || undefined,
         account_id: effectiveAccountId,
-        integration_id: effectiveIntegrationId,
+        channel_id: effectiveIntegrationId,
         order_by: "created_at",
         order: "desc",
       })
@@ -118,15 +105,14 @@ export const DraftsList: React.FC = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, accountFilter, integrationFilter, isGoogleScoped]);
+  }, [statusFilter, isGoogleScoped]);
 
   useEffect(() => {
     if (workspaceId == null) return;
     entitiesDraftsService
-      .getFilterOptions(String(workspaceId))
-      .then(setFilterOptions)
+      .getFilterOptions(String(workspaceId), effectiveAccountId, effectiveIntegrationId)
       .catch(() => {});
-  }, [workspaceId]);
+  }, [workspaceId, effectiveAccountId, effectiveIntegrationId]);
 
   useEffect(() => {
     if (!viewDraftId) {
@@ -168,7 +154,7 @@ export const DraftsList: React.FC = () => {
         page_size: pageSize,
         status: statusFilter || undefined,
         account_id: effectiveAccountId,
-        integration_id: effectiveIntegrationId,
+        channel_id: effectiveIntegrationId,
         order_by: "created_at",
         order: "desc",
       })
