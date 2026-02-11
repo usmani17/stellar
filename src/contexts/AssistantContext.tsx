@@ -35,6 +35,10 @@ export interface AssistantScope {
   accountId: string | null;
   channelId: string | null;
   profileId: string | null;
+  /** Profile display name (from selected integration/profile). */
+  profileName?: string | null;
+  /** Channel/marketplace type (e.g. google, meta, tiktok) for LangGraph context. */
+  marketplace?: string | null;
 }
 
 export type AssistantIntent = "analyze" | "create_campaign" | null;
@@ -137,6 +141,8 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     accountId: null,
     channelId: null,
     profileId: null,
+    profileName: null,
+    marketplace: null,
   });
   const [assistantIntent, setAssistantIntent] = useState<AssistantIntent>(null);
 
@@ -464,6 +470,8 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const effectiveAccountId = assistantScope.accountId ?? propAccountId ?? null;
   const effectiveChannelId = assistantScope.channelId ?? propChannelId ?? null;
   const effectiveProfileId = assistantScope.profileId;
+  const effectiveProfileName = assistantScope.profileName ?? null;
+  const effectiveMarketplace = assistantScope.marketplace ?? null;
 
   // Main send message (useStream path)
   const sendMessage = useCallback(async (content: string) => {
@@ -475,6 +483,22 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     setInputValue("");
 
     const humanMessage = { type: "human" as const, content, id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}` };
+    const configurable: Record<string, unknown> = {
+      user_id: user.id,
+      account_id: accountIdNum ?? effectiveAccountId ?? undefined,
+      integration_id: channelIdNum ?? effectiveChannelId ?? undefined,
+      profile_id: effectiveProfileId ?? undefined,
+      marketplace: effectiveMarketplace ?? undefined,
+      intent: assistantIntent ?? undefined,
+    };
+    if (effectiveProfileName != null || effectiveMarketplace != null) {
+      configurable.profile = {
+        id: effectiveProfileId,
+        name: effectiveProfileName,
+        channel_type: effectiveMarketplace,
+      };
+    }
+
     try {
       await stream.submit(
         { messages: [humanMessage] },
@@ -487,7 +511,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
             intent: assistantIntent ?? undefined,
             auth_token: "123123123",
           },
-          config: { recursion_limit: 75, configurable: {} },
+          config: { recursion_limit: 75, configurable },
           streamResumable: true,
           streamSubgraphs: true,
           onDisconnect: "continue",
@@ -502,7 +526,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     } catch (error) {
       console.error("Error sending message:", error);
     }
-  }, [user?.id, currentAssistantId, streamApiUrl, effectiveAccountId, effectiveChannelId, effectiveProfileId, assistantIntent, currentThreadId, stream]);
+  }, [user?.id, currentAssistantId, streamApiUrl, effectiveAccountId, effectiveChannelId, effectiveProfileId, effectiveProfileName, effectiveMarketplace, assistantIntent, currentThreadId, stream]);
 
   const cancelRun = useCallback(async () => {
     try {

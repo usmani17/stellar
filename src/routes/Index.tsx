@@ -12,13 +12,10 @@ import { AssistantProvider } from "./../contexts/AssistantContext";
 import { useParams, Outlet } from "react-router-dom";
 
 export const AssistantWrapper = () => {
-    // ✅ useParams WORKS here because it's inside <Route>
+    // useParams: accountId/channelId only present on channel-scoped routes (e.g. /brands/:accountId/.../google/:channelId/...)
     const { accountId, channelId } = useParams<{ accountId: string; channelId: string }>();
-    if (!accountId || !channelId) {
-        return <><Outlet /></>;
-    }
     return (
-        <AssistantProvider accountId={accountId} channelId={channelId}>
+        <AssistantProvider accountId={accountId ?? undefined} channelId={channelId ?? undefined}>
             <Outlet />
         </AssistantProvider>
     );
