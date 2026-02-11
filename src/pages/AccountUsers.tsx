@@ -150,6 +150,7 @@ const ROLE_FILTER_OPTIONS = [
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Owner",
+  admin: "Owner",
   manager: "Manager",
   team: "Team",
 };
@@ -247,6 +248,12 @@ function AccountUsersContent({
   const [userToDelete, setUserToDelete] = useState<WorkspaceUser | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [userCreateSuccessMessage, setUserCreateSuccessMessage] = useState<string | null>(null);
+
+  const [editUser, setEditUser] = useState<WorkspaceUser | null>(null);
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editRole, setEditRole] = useState<"admin" | "manager" | "team">("manager");
+  const [editLoading, setEditLoading] = useState(false);
 
   // Debounce search input
   useEffect(() => {
@@ -440,6 +447,38 @@ function AccountUsersContent({
       setError(axErr.response?.data?.error || "Failed to remove user");
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const openEditUser = (u: WorkspaceUser) => {
+    setEditUser(u);
+    setEditFirstName(u.first_name || "");
+    setEditLastName(u.last_name || "");
+    setEditRole((u.role === "owner" ? "admin" : u.role) as "admin" | "manager" | "team");
+    setError("");
+    setMessage("");
+  };
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workspaceId || !editUser) return;
+    setEditLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      await workspaceService.updateUser(workspaceId, editUser.id, {
+        first_name: editFirstName.trim(),
+        last_name: editLastName.trim(),
+        role: editRole,
+      });
+      setMessage("User updated");
+      setEditUser(null);
+      fetchUsers();
+    } catch (err: unknown) {
+      const axErr = err as { response?: { data?: { error?: string } } };
+      setError(axErr.response?.data?.error || "Failed to update user");
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -644,6 +683,94 @@ function AccountUsersContent({
         </div>
       )}
 
+      {/* Edit user panel */}
+      {isManagerOrOwner && editUser && (
+        <div className="">
+          <div className="relative border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]">
+            <form onSubmit={handleEditUser}>
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[16px] font-semibold text-[#072929]">
+                    Edit user
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setEditUser(null)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Close"
+                  >
+                    <svg className="w-5 h-5 text-[#556179]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-4 gap-6">
+                    <div>
+                      <label className="form-label">First name</label>
+                      <input
+                        type="text"
+                        value={editFirstName}
+                        onChange={(e) => setEditFirstName(e.target.value)}
+                        className="campaign-input w-full"
+                        placeholder="First name"
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label">Last name</label>
+                      <input
+                        type="text"
+                        value={editLastName}
+                        onChange={(e) => setEditLastName(e.target.value)}
+                        className="campaign-input w-full"
+                        placeholder="Last name"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-6">
+                    <div>
+                      <label className="form-label">Email</label>
+                      <input
+                        type="text"
+                        value={editUser.email}
+                        disabled
+                        className="campaign-input w-full bg-gray-100 cursor-not-allowed"
+                        readOnly
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label">Role</label>
+                      <Dropdown<string>
+                        options={
+                          user?.role === "owner"
+                            ? [
+                                { value: "admin", label: "Owner" },
+                                ...ROLE_OPTIONS,
+                              ]
+                            : ROLE_OPTIONS
+                        }
+                        value={editRole}
+                        onChange={(v) => setEditRole(v as "admin" | "manager" | "team")}
+                        placeholder="Select role"
+                        buttonClassName="edit-button w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 border-t border-gray-200 flex items-center justify-end gap-3">
+                <button type="button" onClick={() => setEditUser(null)} className="cancel-button">
+                  Cancel
+                </button>
+                <button type="submit" disabled={editLoading} className="apply-button">
+                  {editLoading ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Table section - same structure as Campaigns: relative wrapper, table-container, overlay when panel open */}
       <div className="relative">
         <div className="table-container" style={{ position: "relative", minHeight: loading ? "400px" : "auto" }}>
@@ -733,6 +860,19 @@ function AccountUsersContent({
                                 className="text-sm text-forest-f60 hover:underline"
                               >
                                 Assign integrations
+                              </button>
+                            )}
+                            {u.id !== user?.id && (
+                              <button
+                                type="button"
+                                onClick={() => openEditUser(u)}
+                                className="p-1.5 rounded hover:bg-gray-100 text-[#556179] hover:text-forest-f60 transition-colors"
+                                title="Edit user"
+                                aria-label="Edit user"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                                </svg>
                               </button>
                             )}
                             {u.id !== user?.id && (

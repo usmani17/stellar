@@ -11,11 +11,10 @@ import { Channels } from "../pages/Channels";
 import { ConnectTikTok } from "../pages/ConnectTikTok";
 import { Dashboards } from "../pages/Dashboards";
 import { LogHistory } from "../pages/LogHistory";
-import { DraftsList } from "../pages/DraftsList";
-import { DraftDetail } from "../pages/DraftDetail";
 import { Profile } from "../pages/Profile";
 import { WorkspaceSettings } from "../pages/WorkspaceSettings";
 import { NoWorkspace } from "../pages/NoWorkspace";
+import { CompleteSignup } from "../pages/CompleteSignup";
 import { ColorExamples } from "../pages/ColorExamples";
 
 function ChannelsToIntegrationsRedirect() {
@@ -76,25 +75,17 @@ function AccountRoutes() {
             />
             <Route
                 path="/drafts"
-                element={
-                    <ProtectedRoute>
-                        <WorkspaceRequiredRoute>
-                            <Layout>
-                                <DraftsList />
-                            </Layout>
-                        </WorkspaceRequiredRoute>
-                    </ProtectedRoute>
-                }
+                element={<Navigate to="/brands" replace />}
             />
             <Route
                 path="/drafts/:draftId"
+                element={<Navigate to="/brands" replace />}
+            />
+            <Route
+                path="/signup/complete"
                 element={
                     <ProtectedRoute>
-                        <WorkspaceRequiredRoute>
-                            <Layout>
-                                <DraftDetail />
-                            </Layout>
-                        </WorkspaceRequiredRoute>
+                        <CompleteSignup />
                     </ProtectedRoute>
                 }
             />

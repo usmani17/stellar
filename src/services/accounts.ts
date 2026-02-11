@@ -47,10 +47,12 @@ export interface AccountsPaginatedResponse {
 
 export const accountsService = {
   // Account methods
-  getAccounts: async (params?: { all?: boolean }): Promise<Account[]> => {
-    const requestParams = params?.all ? { all: 'true' } : undefined;
+  getAccounts: async (params?: { all?: boolean; include_channels?: boolean }): Promise<Account[]> => {
+    const requestParams: Record<string, string> = {};
+    if (params?.all) requestParams.all = 'true';
+    if (params?.include_channels) requestParams.include_channels = 'true';
     const response = await api.get<Account[] | AccountsPaginatedResponse>("/accounts/", {
-      params: requestParams,
+      params: Object.keys(requestParams).length ? requestParams : undefined,
     });
     // Ensure we always return an array
     const data = response.data;

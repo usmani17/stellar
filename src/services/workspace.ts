@@ -111,6 +111,18 @@ export const workspaceService = {
     return response.data;
   },
 
+  updateUser: async (
+    workspaceId: number,
+    userId: number,
+    data: { first_name?: string; last_name?: string; role?: 'admin' | 'manager' | 'team' }
+  ): Promise<{ message: string; user: WorkspaceUser }> => {
+    const response = await api.patch<{ message: string; user: WorkspaceUser }>(
+      `/workspaces/${workspaceId}/users/${userId}/`,
+      data
+    );
+    return response.data;
+  },
+
   deleteUser: async (
     workspaceId: number,
     userId: number

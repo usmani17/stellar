@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { Assistant } from "../components/layout/Assistant";
-import { AccountsHeader } from "../components/layout/AccountsHeader";
+import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
-import { entitiesDraftsService, type EntityDraftListItem, type EntityDraft } from "../services/entitiesDrafts";
+import { entitiesDraftsService, type EntityDraftListItem, type EntityDraft } from "../services/ai/entitiesDrafts";
 import { formatPlatform, formatCurrentStatus, formatCampaignType } from "../utils/formatDraftLabels";
 import { Alert, Loader, BaseModal } from "../components/ui";
+import { Dropdown } from "../components/ui/Dropdown";
 
 const PAGE_SIZE = 10;
 
@@ -38,24 +40,21 @@ function formatDate(iso: string): string {
 }
 
 export const DraftsList: React.FC = () => {
+  const { accountId: accountIdParam, channelId: channelIdParam } = useParams<{ accountId?: string; channelId?: string }>();
   const { user } = useAuth();
   const { sidebarWidth } = useSidebar();
+  const navigate = useNavigate();
   const workspaceId = user?.workspace?.id;
+
+  const accountIdNum = accountIdParam != null ? parseInt(accountIdParam, 10) : null;
+  const channelIdNum = channelIdParam != null ? parseInt(channelIdParam, 10) : null;
+  const isGoogleScoped = accountIdNum != null && !isNaN(accountIdNum) && channelIdNum != null && !isNaN(channelIdNum);
 
   const [drafts, setDrafts] = useState<EntityDraftListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(PAGE_SIZE);
   const [statusFilter, setStatusFilter] = useState("");
-  const [accountFilter, setAccountFilter] = useState<string>("");
-  const [integrationFilter, setIntegrationFilter] = useState<string>("");
-  const [filterOptions, setFilterOptions] = useState<{
-    account_options: { id: number; name: string }[];
-    integration_options: { id: number; name: string }[];
-  }>({
-    account_options: [],
-    integration_options: [],
-  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [viewDraftId, setViewDraftId] = useState<string | null>(null);
@@ -63,11 +62,17 @@ export const DraftsList: React.FC = () => {
   const [viewDraftLoading, setViewDraftLoading] = useState(false);
   const [viewDraftError, setViewDraftError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [publishLoading, setPublishLoading] = useState(false);
+  const [publishError, setPublishError] = useState("");
+  const [publishSuccess, setPublishSuccess] = useState(false);
 
   useEffect(() => {
     setPageTitle("Drafts");
     return () => resetPageTitle();
   }, []);
+
+  const effectiveAccountId = accountIdNum ?? undefined;
+  const effectiveIntegrationId = channelIdNum ?? undefined;
 
   const fetchDrafts = useCallback(() => {
     if (workspaceId == null) {
@@ -82,8 +87,8 @@ export const DraftsList: React.FC = () => {
         page,
         page_size: pageSize,
         status: statusFilter || undefined,
-        account_id: accountFilter ? (() => { const n = parseInt(accountFilter, 10); return Number.isNaN(n) ? undefined : n; })() : undefined,
-        integration_id: integrationFilter ? (() => { const n = parseInt(integrationFilter, 10); return Number.isNaN(n) ? undefined : n; })() : undefined,
+        account_id: effectiveAccountId,
+        channel_id: effectiveIntegrationId,
         order_by: "created_at",
         order: "desc",
       })
@@ -93,7 +98,7 @@ export const DraftsList: React.FC = () => {
       })
       .catch(() => setError("Failed to load drafts"))
       .finally(() => setLoading(false));
-  }, [workspaceId, page, pageSize, statusFilter, accountFilter, integrationFilter]);
+  }, [workspaceId, page, pageSize, statusFilter, effectiveAccountId, effectiveIntegrationId]);
 
   useEffect(() => {
     fetchDrafts();
@@ -101,26 +106,29 @@ export const DraftsList: React.FC = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, accountFilter, integrationFilter]);
+  }, [statusFilter, isGoogleScoped]);
 
   useEffect(() => {
     if (workspaceId == null) return;
     entitiesDraftsService
-      .getFilterOptions(String(workspaceId))
-      .then(setFilterOptions)
+      .getFilterOptions(String(workspaceId), effectiveAccountId, effectiveIntegrationId)
       .catch(() => {});
-  }, [workspaceId]);
+  }, [workspaceId, effectiveAccountId, effectiveIntegrationId]);
 
   useEffect(() => {
     if (!viewDraftId) {
       setViewDraft(null);
       setViewDraftError("");
+      setPublishError("");
+      setPublishSuccess(false);
       return;
     }
     setViewDraftLoading(true);
     setViewDraftError("");
+    setPublishError("");
+    setPublishSuccess(false);
     entitiesDraftsService
-      .getById(viewDraftId)
+      .getById(viewDraftId, effectiveAccountId, effectiveIntegrationId)
       .then((d) => {
         setViewDraft(d);
         setViewDraftLoading(false);
@@ -146,8 +154,8 @@ export const DraftsList: React.FC = () => {
         page,
         page_size: pageSize,
         status: statusFilter || undefined,
-        account_id: accountFilter ? (() => { const n = parseInt(accountFilter, 10); return Number.isNaN(n) ? undefined : n; })() : undefined,
-        integration_id: integrationFilter ? (() => { const n = parseInt(integrationFilter, 10); return Number.isNaN(n) ? undefined : n; })() : undefined,
+        account_id: effectiveAccountId,
+        channel_id: effectiveIntegrationId,
         order_by: "created_at",
         order: "desc",
       })
@@ -172,13 +180,49 @@ export const DraftsList: React.FC = () => {
           })()
         : JSON.stringify(viewDraft.draft_json, null, 2);
 
+  const canPublish =
+    viewDraft &&
+    viewDraftId &&
+    (viewDraft.status || "").toLowerCase() === "draft" &&
+    (viewDraft.platform || "").toLowerCase() === "google" &&
+    (viewDraft.level || "").toLowerCase() === "campaign";
+
+  const handlePublish = () => {
+    if (!viewDraftId || !viewDraft || publishLoading) return;
+    setPublishLoading(true);
+    setPublishError("");
+    setPublishSuccess(false);
+    entitiesDraftsService
+      .publish(viewDraftId, effectiveAccountId, effectiveIntegrationId)
+      .then((res) => {
+        setPublishSuccess(true);
+        if (res.draft) setViewDraft(res.draft);
+        fetchDrafts();
+      })
+      .catch((err) => {
+        setPublishError(err.response?.data?.error ?? "Failed to publish draft");
+      })
+      .finally(() => setPublishLoading(false));
+  };
+
+  const handleNavigateToEntity = (draft: EntityDraftListItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!draft.applied_entity_id || !draft.account_id || !draft.channel_id || !draft.platform || !draft.level) {
+      return;
+    }
+    
+    const levelPlural = draft.level.endsWith('s') ? draft.level : `${draft.level}s`;
+    const path = `/brands/${draft.account_id}/${draft.channel_id}/${draft.platform}/${levelPlural}/${draft.applied_entity_id}`;
+    navigate(path);
+  };
+
   return (
     <div className="min-h-screen bg-white flex">
       <Sidebar />
-      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
-        <AccountsHeader />
+      <div className="flex-1 min-w-0 w-full flex flex-col" style={{ marginLeft: `${sidebarWidth}px` }}>
+        <DashboardHeader />
         <Assistant>
-          <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
+          <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-white overflow-x-hidden min-w-0">
           <div className="space-y-6">
             {error && (
               <Alert variant="error" className="mb-4">
@@ -215,45 +259,15 @@ export const DraftsList: React.FC = () => {
                   </svg>
                 </button>
               </div>
-              <div className="flex flex-nowrap items-center gap-2 flex-wrap">
-                <select
+              <div className="flex flex-nowrap items-center gap-3 shrink-0">
+                <Dropdown<string>
+                  options={STATUS_OPTIONS}
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="campaign-input w-40"
-                  aria-label="Filter by status"
-                >
-                  {STATUS_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={accountFilter}
-                  onChange={(e) => setAccountFilter(e.target.value)}
-                  className="campaign-input w-40"
-                  aria-label="Filter by account"
-                >
-                  <option value="">All accounts</option>
-                  {(filterOptions.account_options ?? []).map((opt) => (
-                    <option key={opt.id} value={String(opt.id)}>
-                      {opt.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={integrationFilter}
-                  onChange={(e) => setIntegrationFilter(e.target.value)}
-                  className="campaign-input w-40"
-                  aria-label="Filter by integration"
-                >
-                  <option value="">All integrations</option>
-                  {(filterOptions.integration_options ?? []).map((opt) => (
-                    <option key={opt.id} value={String(opt.id)}>
-                      {opt.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setStatusFilter(v)}
+                  placeholder="Status"
+                  buttonClassName="edit-button w-[160px]"
+                  align="right"
+                />
               </div>
             </div>
 
@@ -291,13 +305,13 @@ export const DraftsList: React.FC = () => {
                     </div>
                   ) : (
                     <table className="min-w-[800px] w-full">
-                      <thead>
+                      <thead className="">
                         <tr className="border-b border-[#e8e8e3]">
-                          <th className="table-header">Name</th>
-                          <th className="table-header">Platform</th>
-                          <th className="table-header">Status</th>
-                          <th className="table-header">Created</th>
-                          <th className="table-header">Actions</th>
+                          <th className="table-header min-w-[200px]">Name</th>
+                          <th className="table-header min-w-[100px]">Platform</th>
+                          <th className="table-header min-w-[100px]">Status</th>
+                          <th className="table-header min-w-[160px]">Created</th>
+                          <th className="table-header min-w-[80px]">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -308,9 +322,19 @@ export const DraftsList: React.FC = () => {
                             onClick={() => setViewDraftId(d.draft_id)}
                           >
                             <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {d.name ?? "—"}
-                              </span>
+                              {d.applied_entity_id ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleNavigateToEntity(d, e)}
+                                  className="table-text leading-[1.26] text-left hover:text-[#136D6D] hover:underline cursor-pointer transition-colors"
+                                >
+                                  {d.name ?? "—"}
+                                </button>
+                              ) : (
+                                <span className="table-text leading-[1.26]">
+                                  {d.name ?? "—"}
+                                </span>
+                              )}
                             </td>
                             <td className="table-cell">
                               <span className="table-text leading-[1.26]">{formatPlatform(d.platform)}</span>
@@ -410,22 +434,40 @@ export const DraftsList: React.FC = () => {
         closeOnBackdropClick
       >
         <div className="flex flex-col max-h-[85vh]">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[#e8e8e3] shrink-0">
-            <h2 className="text-lg font-semibold text-[#072929]">
+          <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-[#e8e8e3] shrink-0">
+            <h2 className="text-lg font-semibold text-[#072929] truncate min-w-0">
               Draft: {viewDraft?.name ?? drafts.find((d) => d.draft_id === viewDraftId)?.name ?? viewDraftId ?? "—"}
             </h2>
-            <button
-              type="button"
-              onClick={() => setViewDraftId(null)}
-              className="p-1 rounded hover:bg-[#f0f0eb] text-[#556179]"
-              aria-label="Close"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {canPublish && (
+                <button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={publishLoading}
+                  className="px-3 py-1.5 text-sm font-medium bg-[#136D6D] text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {publishLoading ? "Publishing…" : "Publish"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setViewDraftId(null)}
+                className="p-1 rounded hover:bg-[#f0f0eb] text-[#556179]"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
           <div className="overflow-y-auto p-6">
+            {publishSuccess && (
+              <Alert variant="success" className="mb-4">Draft published successfully. Status updated.</Alert>
+            )}
+            {publishError && (
+              <Alert variant="error" className="mb-4">{publishError}</Alert>
+            )}
             {viewDraftLoading && (
               <div className="flex justify-center py-12">
                 <Loader size="md" message="Loading draft..." />

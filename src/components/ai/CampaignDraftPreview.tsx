@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { FileText } from "lucide-react";
 import type { CampaignSetupState } from "../../types/agent";
 
@@ -34,24 +35,21 @@ function getDraftPreviewRows(campaignState: CampaignSetupState): { label: string
   return rows;
 }
 
-function hasDraftData(campaignState: CampaignSetupState | undefined): boolean {
-  if (!campaignState) return false;
-  const a = campaignState.campaign_draft && Object.keys(campaignState.campaign_draft).length > 0;
-  const b = campaignState.draft_setup_json && Object.keys(campaignState.draft_setup_json).length > 0;
-  return Boolean(a || b);
-}
-
 export interface CampaignDraftPreviewProps {
   campaignState: CampaignSetupState | undefined;
   visible: boolean;
   onApplyDraft?: (draft: Record<string, unknown>) => void;
+  /** accountId and channelId for building draft link (e.g. /brands/:accountId/:channelId/google/drafts/:draftId) */
+  accountId?: string;
+  channelId?: string;
   className?: string;
 }
 
 export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
   campaignState,
   visible,
-  onApplyDraft,
+  accountId,
+  channelId,
   className = "",
 }) => {
   const [open, setOpen] = useState(false);
@@ -63,10 +61,8 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
     [campaignState]
   );
   const validationErrors = campaignState?.validation_errors ?? [];
-  const canApplyDraft =
-    onApplyDraft &&
-    campaignState?.draft_setup_json &&
-    Object.keys(campaignState.draft_setup_json).length > 0;
+  const savedDraftId = campaignState?.saved_draft_id;
+  const canLinkToDraft = savedDraftId && accountId && channelId;
 
   useEffect(() => {
     if (!open) return;
@@ -140,18 +136,15 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
               </div>
             )}
 
-            {canApplyDraft && (
+            {canLinkToDraft && (
               <div className="mt-4 pt-3 border-t border-[#e8e8e3]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onApplyDraft?.(campaignState!.draft_setup_json!);
-                    setOpen(false);
-                  }}
-                  className="w-full px-3 py-2 text-xs font-medium bg-[#136D6D] text-white rounded-lg hover:opacity-90 transition-opacity"
+                <Link
+                  to={`/brands/${accountId}/${channelId}/google/drafts/${savedDraftId}`}
+                  className="block w-full px-3 py-2 text-xs font-medium bg-[#136D6D] text-white rounded-lg hover:opacity-90 transition-opacity text-center"
+                  onClick={() => setOpen(false)}
                 >
-                  Apply draft to form
-                </button>
+                  View draft
+                </Link>
               </div>
             )}
           </div>

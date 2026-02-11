@@ -85,6 +85,7 @@ export const Signup: React.FC = () => {
     } catch (err: any) {
       const errorMessage =
         err.response?.data?.error ||
+        err.response?.data?.company_name?.[0] ||
         err.response?.data?.email?.[0] ||
         err.response?.data?.password?.[0] ||
         err.response?.data?.invite_token?.[0] ||

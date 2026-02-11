@@ -930,39 +930,35 @@ body input[type="submit"]:disabled {
   outline: none;
 }
 
-/* Assistant input area - same look as search-input-container (hover, focus, font, size) */
+/* Assistant input area - Cursor-style: rounded bar, subtle border */
 .assistant-input-container {
-  border: 1px solid #e8e8e3;
-  border-radius: 8px;
+  border: 1px solid #e5e7eb;
   transition: border-color 0.2s, box-shadow 0.2s;
-  background-color: #FEFEFB !important;
-  padding: 12px 16px;
+  background-color: #fafafa !important;
 }
 
 .assistant-input-container:hover {
-  border-color: #136D6D;
+  border-color: #d1d5db;
+  background-color: #f9fafb !important;
 }
 
 .assistant-input-container:focus-within {
-  border-color: #136D6D;
-  box-shadow: 0 0 0 1px rgba(19, 109, 109, 0.1);
+  border-color: #9ca3af;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+  background-color: #ffffff !important;
 }
 
-.assistant-input-container input {
-  background-color: transparent;
+.assistant-input-container textarea {
+  background-color: transparent !important;
   border: none;
   outline: none;
-  width: 100%;
-  font-size: 14px;
-  color: #072929;
-  font-family: "GT America Trial", system-ui, sans-serif;
 }
 
-.assistant-input-container input::placeholder {
+.assistant-input-container textarea::placeholder {
   color: #9ca3af;
 }
 
-.assistant-input-container input:focus {
+.assistant-input-container textarea:focus {
   outline: none;
 }
 

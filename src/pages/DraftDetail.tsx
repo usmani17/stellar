@@ -3,8 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { Assistant } from "../components/layout/Assistant";
-import { AccountsHeader } from "../components/layout/AccountsHeader";
-import { entitiesDraftsService, type EntityDraft } from "../services/entitiesDrafts";
+import { DashboardHeader } from "../components/layout/DashboardHeader";
+import { entitiesDraftsService, type EntityDraft } from "../services/ai/entitiesDrafts";
 import { formatPlatform, formatCurrentStatus, formatCampaignType } from "../utils/formatDraftLabels";
 import { Alert, Loader } from "../components/ui";
 
@@ -25,13 +25,21 @@ function formatDate(iso: string | null): string {
 }
 
 export const DraftDetail: React.FC = () => {
-  const { draftId } = useParams<{ draftId: string }>();
+  const { accountId: accountIdParam, channelId: channelIdParam, draftId } = useParams<{ accountId?: string; channelId?: string; draftId: string }>();
   const navigate = useNavigate();
   const { sidebarWidth } = useSidebar();
+
+  const accountIdNum = accountIdParam != null ? parseInt(accountIdParam, 10) : null;
+  const channelIdNum = channelIdParam != null ? parseInt(channelIdParam, 10) : null;
+  const isGoogleScoped = accountIdNum != null && !isNaN(accountIdNum) && channelIdNum != null && !isNaN(channelIdNum);
+  const draftsListPath = isGoogleScoped ? `/brands/${accountIdNum}/${channelIdNum}/google/drafts` : "/drafts";
 
   const [draft, setDraft] = useState<EntityDraft | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [publishLoading, setPublishLoading] = useState(false);
+  const [publishError, setPublishError] = useState("");
+  const [publishSuccess, setPublishSuccess] = useState(false);
 
   useEffect(() => {
     if (!draftId) {
@@ -42,7 +50,7 @@ export const DraftDetail: React.FC = () => {
     setLoading(true);
     setError("");
     entitiesDraftsService
-      .getById(draftId)
+      .getById(draftId, accountIdNum ?? undefined, channelIdNum ?? undefined)
       .then(setDraft)
       .catch((err) => {
         const status = err.response?.status;
@@ -50,7 +58,31 @@ export const DraftDetail: React.FC = () => {
         setError(status === 404 ? "Draft not found." : msg);
       })
       .finally(() => setLoading(false));
-  }, [draftId]);
+  }, [draftId, accountIdNum, channelIdNum]);
+
+  const canPublish =
+    draft &&
+    (draft.status || "").toLowerCase() === "draft" &&
+    (draft.platform || "").toLowerCase() === "google" &&
+    (draft.level || "").toLowerCase() === "campaign";
+
+  const handlePublish = () => {
+    if (!draftId || !draft || publishLoading) return;
+    setPublishLoading(true);
+    setPublishError("");
+    setPublishSuccess(false);
+    entitiesDraftsService
+      .publish(draftId, accountIdNum ?? undefined, channelIdNum ?? undefined)
+      .then((res) => {
+        setPublishSuccess(true);
+        if (res.draft) setDraft(res.draft);
+      })
+      .catch((err) => {
+        const msg = err.response?.data?.error ?? "Failed to publish draft";
+        setPublishError(msg);
+      })
+      .finally(() => setPublishLoading(false));
+  };
 
   const rawJson = draft?.draft_json;
   const draftJsonString =
@@ -69,15 +101,15 @@ export const DraftDetail: React.FC = () => {
   return (
     <div className="min-h-screen bg-white flex">
       <Sidebar />
-      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
-        <AccountsHeader />
+      <div className="flex-1 min-w-0 w-full flex flex-col" style={{ marginLeft: `${sidebarWidth}px` }}>
+        <DashboardHeader />
         <Assistant>
-          <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
+          <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-white overflow-x-hidden min-w-0">
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => navigate("/drafts")}
+                onClick={() => navigate(draftsListPath)}
                 className="text-sm text-forest-f60 hover:underline"
               >
                 ← Drafts
@@ -89,7 +121,7 @@ export const DraftDetail: React.FC = () => {
                 {error}{" "}
                 <button
                   type="button"
-                  onClick={() => navigate("/drafts")}
+                  onClick={() => navigate(draftsListPath)}
                   className="underline ml-1"
                 >
                   Back to list
@@ -105,9 +137,30 @@ export const DraftDetail: React.FC = () => {
 
             {!loading && draft && (
               <>
-                <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                  Draft: {draft.name ?? draft.draft_id}
-                </h1>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
+                    Draft: {draft.name ?? draft.draft_id}
+                  </h1>
+                  {canPublish && (
+                    <button
+                      type="button"
+                      onClick={handlePublish}
+                      disabled={publishLoading}
+                      className="px-4 py-2 text-sm font-medium bg-[#136D6D] text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      {publishLoading ? "Publishing…" : "Publish"}
+                    </button>
+                  )}
+                </div>
+
+                {publishSuccess && (
+                  <Alert variant="success">Draft published successfully. Status updated.</Alert>
+                )}
+                {publishError && (
+                  <Alert variant="error">
+                    {publishError}
+                  </Alert>
+                )}
 
                 <div className="space-y-6">
                   {/* Overview */}
