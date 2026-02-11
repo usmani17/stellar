@@ -8,6 +8,7 @@ import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { entitiesDraftsService, type EntityDraftListItem, type EntityDraft } from "../services/entitiesDrafts";
 import { formatPlatform, formatCurrentStatus, formatCampaignType } from "../utils/formatDraftLabels";
 import { Alert, Loader, BaseModal } from "../components/ui";
+import { Dropdown } from "../components/ui/Dropdown";
 
 const PAGE_SIZE = 10;
 
@@ -247,45 +248,43 @@ export const DraftsList: React.FC = () => {
                   </svg>
                 </button>
               </div>
-              <div className="flex flex-nowrap items-center gap-2 flex-wrap">
-                <select
+              <div className="flex flex-nowrap items-center gap-3 shrink-0">
+                <Dropdown<string>
+                  options={STATUS_OPTIONS}
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="campaign-input w-40"
-                  aria-label="Filter by status"
-                >
-                  {STATUS_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <select
+                  onChange={(v) => setStatusFilter(v)}
+                  placeholder="Status"
+                  buttonClassName="edit-button w-[160px]"
+                  align="right"
+                />
+                <Dropdown<string>
+                  options={[
+                    { value: "", label: "All accounts" },
+                    ...(filterOptions.account_options ?? []).map((opt) => ({
+                      value: String(opt.id),
+                      label: opt.name,
+                    })),
+                  ]}
                   value={accountFilter}
-                  onChange={(e) => setAccountFilter(e.target.value)}
-                  className="campaign-input w-40"
-                  aria-label="Filter by account"
-                >
-                  <option value="">All accounts</option>
-                  {(filterOptions.account_options ?? []).map((opt) => (
-                    <option key={opt.id} value={String(opt.id)}>
-                      {opt.name}
-                    </option>
-                  ))}
-                </select>
-                <select
+                  onChange={(v) => setAccountFilter(v)}
+                  placeholder="Account"
+                  buttonClassName="edit-button w-[160px]"
+                  align="right"
+                />
+                <Dropdown<string>
+                  options={[
+                    { value: "", label: "All integrations" },
+                    ...(filterOptions.integration_options ?? []).map((opt) => ({
+                      value: String(opt.id),
+                      label: opt.name,
+                    })),
+                  ]}
                   value={integrationFilter}
-                  onChange={(e) => setIntegrationFilter(e.target.value)}
-                  className="campaign-input w-40"
-                  aria-label="Filter by integration"
-                >
-                  <option value="">All integrations</option>
-                  {(filterOptions.integration_options ?? []).map((opt) => (
-                    <option key={opt.id} value={String(opt.id)}>
-                      {opt.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setIntegrationFilter(v)}
+                  placeholder="Integration"
+                  buttonClassName="edit-button w-[160px]"
+                  align="right"
+                />
               </div>
             </div>
 
@@ -323,13 +322,13 @@ export const DraftsList: React.FC = () => {
                     </div>
                   ) : (
                     <table className="min-w-[800px] w-full">
-                      <thead>
+                      <thead className="">
                         <tr className="border-b border-[#e8e8e3]">
-                          <th className="table-header">Name</th>
-                          <th className="table-header">Platform</th>
-                          <th className="table-header">Status</th>
-                          <th className="table-header">Created</th>
-                          <th className="table-header">Actions</th>
+                          <th className="table-header min-w-[200px]">Name</th>
+                          <th className="table-header min-w-[100px]">Platform</th>
+                          <th className="table-header min-w-[100px]">Status</th>
+                          <th className="table-header min-w-[160px]">Created</th>
+                          <th className="table-header min-w-[80px]">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
