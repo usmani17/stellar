@@ -156,4 +156,33 @@ export const googleAdwordsAdsService = {
     const response = await api.post(url, payload);
     return response.data;
   },
+
+  createDemandGenAd: async (
+    accountId: number,
+    channelId: number,
+    campaignId: number,
+    payload: {
+      adgroup_id?: number;
+      ad: {
+        ad_type: "DemandGenVideoResponsiveAdInfo" | "DemandGenMultiAssetAdInfo" | "DemandGenCarouselAdInfo";
+        final_urls: string[];
+        business_name: string;
+        videos?: string[];
+        logo_images?: string[];
+        headlines: string[];
+        descriptions: string[];
+        long_headlines?: string[];
+        images?: string[];
+        carousel_cards?: Array<{
+          asset: string;
+          headline: string;
+          description: string;
+        }>;
+      };
+    }
+  ) => {
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/demand-gen-entities/create/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
 };

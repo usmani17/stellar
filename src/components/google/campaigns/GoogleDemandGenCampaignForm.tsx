@@ -134,7 +134,7 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
       });
       const data = await response.json();
       if (response.ok && data.url) {
-        onChange("logo_url", data.url);
+        onChange("logo_url", data.url || undefined);
         setLogoPreview(data.url);
         onChange("logo_asset_id", undefined);
         onChange("logo_asset_resource_name", undefined);
@@ -193,7 +193,7 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
       </div>
 
       {/* Video Input - Radio to choose between video_url and video_id */}
-      <div>
+      <div data-video-section>
         <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
           Video Asset *
         </label>
@@ -438,7 +438,7 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
               )}
             </div>
           ))}
-          {formData.headlines && formData.headlines.length < maxHeadlines && (
+          {(formData.headlines || []).length < maxHeadlines && (
             <button
               type="button"
               onClick={onAddHeadline}
@@ -484,7 +484,7 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
               )}
             </div>
           ))}
-          {formData.descriptions && formData.descriptions.length < maxDescriptions && (
+          {(formData.descriptions || []).length < maxDescriptions && (
             <button
               type="button"
               onClick={onAddDescription}
