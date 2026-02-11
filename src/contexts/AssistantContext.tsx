@@ -421,6 +421,31 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       }
 
       setCurrentThreadId(threadId);
+
+      // Sync context state from selected thread's metadata
+      const selectedThread = threads.find(t => t.thread_id === threadId);
+      if (selectedThread?.metadata) {
+        const metadata = selectedThread.metadata as ThreadMetaData;
+        
+        // Update assistant scope from thread metadata
+        setAssistantScopeState(prev => ({
+          ...prev,
+          accountId: metadata.account_id?.toString() ?? null,
+          channelId: metadata.channel_id?.toString() ?? null,
+          profileId: metadata.profile_id ?? null,
+          marketplace: metadata.platform ?? null,
+        }));
+
+        // Update assistant intent from thread metadata
+        if (metadata.intent && (metadata.intent === "analyze" || metadata.intent === "create_campaign")) {
+          setAssistantIntent(metadata.intent);
+        }
+
+        // Update selected graph ID from thread metadata
+        if (metadata.graph_id && (metadata.graph_id === "chat" || metadata.graph_id === "campaign_setup")) {
+          setSelectedGraphId(metadata.graph_id);
+        }
+      }
     } catch (error) {
       console.error('Failed to select thread:', error);
     } finally {
