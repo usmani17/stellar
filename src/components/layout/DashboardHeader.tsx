@@ -469,8 +469,8 @@ export const DashboardHeader: React.FC = () => {
                             setExpandedAccountId(null);
                           }}
                           className={`w-full flex items-center gap-2 px-3 py-2 text-[12.32px] text-left ${expandedAccountId === account.id
-                              ? "bg-gray-50"
-                              : "hover:bg-gray-50"
+                            ? "bg-gray-50"
+                            : "hover:bg-gray-50"
                             }`}
                         >
                           <div
