@@ -381,4 +381,20 @@ export const threadsService = {
     }
     return response.json() as Promise<Thread>;
   },
+
+  /** Update thread metadata (e.g. title) so it persists across reloads */
+  updateThread: async (threadId: string, updates: { metadata?: Partial<ThreadMetaData> }): Promise<Thread> => {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/threads/${threadId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update thread: ${response.status}`);
+    }
+    return response.json() as Promise<Thread>;
+  },
 };

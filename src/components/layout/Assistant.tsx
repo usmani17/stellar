@@ -3,7 +3,7 @@ import { useAssistant, ASSISTANT_PANEL_VIEW, type ThreadWithRuntime } from "../.
 import type { GraphId } from "../../services/ai/assistant";
 import type { CurrentQuestionSchemaItem } from "../../types/agent";
 import { validateAssistantSchemaForm } from "../../utils/assistantSchemaFormValidation";
-import { Check, Square, X, GripVertical, ChevronDown, BarChart3, Megaphone } from "lucide-react";
+import { Check, Square, X, GripVertical, ChevronDown, BarChart3, Megaphone, ArrowUp, Plus } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
 import type { Thread, ContentBlock, ThreadMessageContent, TextContent, ToolUseContent } from "../../services/ai/threads";
@@ -13,6 +13,9 @@ import { isStringContent } from "../../utils/ai-formatter";
 import ToolUseBlock from "../ai/ToolUseBlock";
 import CampaignDraftPreview from "../ai/CampaignDraftPreview";
 import { accountsService, type Account } from "../../services/accounts";
+import GoogleIcon from "../../assets/images/ri_google-fill.svg";
+import AmazonIcon from "../../assets/images/amazon-fill.svg";
+import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
 import { SingleDatePicker } from "../ui/SingleDatePicker";
 import { AssetSelectorModal } from "../google/AssetSelectorModal";
 import { CreateImageAssetModal } from "../google/CreateImageAssetModal";
@@ -20,6 +23,23 @@ import type { Asset } from "../../services/googleAdwords/googleAdwordsAssets";
 
 /** Set to false to hide the "Fill in the details" schema form (e.g. Logo image URL, Daily budget) in campaign setup. */
 const SHOW_CAMPAIGN_SCHEMA_FORM = true;
+
+// Same as DashboardHeader: color from first letter of account/channel name
+const getInitialColor = (initial: string): string => {
+  const colors = [
+    "#136D6D", "#072929", "#556179", "#8B5CF6", "#EC4899", "#F59E0B",
+    "#10B981", "#3B82F6", "#EF4444", "#06B6D4", "#F97316", "#6366F1",
+    "#14B8A6", "#A855F7", "#E11D48",
+  ];
+  if (!initial) return colors[0];
+  const charCode = initial.charCodeAt(0);
+  let index: number;
+  if (charCode >= 48 && charCode <= 57) index = (charCode - 48) % colors.length;
+  else if (charCode >= 65 && charCode <= 90) index = (charCode - 65) % colors.length;
+  else if (charCode >= 97 && charCode <= 122) index = (charCode - 97) % colors.length;
+  else index = Math.abs(charCode % colors.length);
+  return colors[index];
+};
 
 const ASSISTANT_TEXTAREA_MIN_HEIGHT = 24;
 const ASSISTANT_TEXTAREA_MAX_HEIGHT = 200;
@@ -910,71 +930,133 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     </div>
   );
 
-  const hasScopeSummary = selectedAccount || selectedProfileOption || assistantIntent;
-
   return (
     <div
       className={`flex flex-col h-full bg-[var(--color-semantic-background-primary)] shadow-lg ${className}`}
     >
-      {/* Header: scope summary (when selected) + thread row */}
+      {/* Header: single row = account/channel (left) + New Chat & Close (right) */}
       <div className="border-b border-[#e8e8e3]">
-        {hasScopeSummary && (
-          <div className="px-4 py-2.5 bg-[#f9f9f6] border-b border-[#e8e8e3]">
-            <div className="flex flex-wrap items-center gap-2">
-              {selectedAccount && (
+        <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-[#f9f9f6] min-h-[52px]">
+          {/* Left: T Test • channel (same design as DashboardHeader) */}
+          <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
+            {selectedAccount && (
+              <div className="flex items-center gap-1.5 min-w-0 max-w-full">
+                <div
+                  className="w-5 h-5 rounded flex-shrink-0 text-white text-[10px] flex items-center justify-center font-semibold"
+                  style={{
+                    backgroundColor: getInitialColor(selectedAccount.name?.[0]?.toUpperCase() || "A"),
+                  }}
+                >
+                  {selectedAccount.name?.[0]?.toUpperCase() || "A"}
+                </div>
+                <span className="text-[13.2px] text-[#072929] truncate" title={selectedAccount.name}>
+                  {selectedAccount.name}
+                </span>
+              </div>
+            )}
+            {selectedProfileOption && (
+              <>
+                {selectedAccount && (
+                  <span className="text-[13.2px] text-[#556179] shrink-0" aria-hidden>•</span>
+                )}
                 <div className="flex items-center gap-1.5 min-w-0 max-w-full">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[#556179] shrink-0">
-                    Account
-                  </span>
+                  {assistantScope.marketplace === "amazon" && (
+                    <img src={AmazonIcon} alt="Amazon" className="w-4 h-4 flex-shrink-0" />
+                  )}
+                  {assistantScope.marketplace === "google" && (
+                    <img src={GoogleIcon} alt="Google" className="w-4 h-4 flex-shrink-0" />
+                  )}
+                  {assistantScope.marketplace === "meta" && (
+                    <img src={MetaIcon} alt="Meta" className="w-4 h-4 flex-shrink-0" />
+                  )}
+                  {assistantScope.marketplace === "tiktok" && (
+                    <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                    </svg>
+                  )}
                   <span
-                    className="text-xs font-medium text-[#072929] truncate rounded bg-white/80 px-2 py-0.5 border border-[#e8e8e3]"
-                    title={selectedAccount.name}
+                    className="text-[13.2px] text-[#556179] truncate"
+                    title={`${profileDisplayName(selectedProfileOption)} (${profileIdForDisplay(selectedProfileOption)})`}
                   >
-                    {selectedAccount.name}
+                    {profileDisplayName(selectedProfileOption)} ({profileIdForDisplay(selectedProfileOption)})
                   </span>
                 </div>
-              )}
-              {selectedProfileOption && (
-                <>
-                  {selectedAccount && (
-                    <span className="text-[#d0d0cc] shrink-0" aria-hidden>
-                      •
-                    </span>
-                  )}
-                  <div className="flex items-center gap-1.5 min-w-0 max-w-full">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[#556179] shrink-0">
-                      Profile
-                    </span>
-                    <span
-                      className="text-xs font-medium text-[#072929] truncate rounded bg-white/80 px-2 py-0.5 border border-[#e8e8e3]"
-                      title={`${profileDisplayName(selectedProfileOption)} (${profileIdForDisplay(selectedProfileOption)})`}
-                    >
-                      {profileDisplayName(selectedProfileOption)} ({profileIdForDisplay(selectedProfileOption)})
-                    </span>
-                  </div>
-                </>
-              )}
-              {assistantIntent && (
-                <>
-                  {(selectedAccount || selectedProfileOption) && (
-                    <span className="text-[#d0d0cc] shrink-0" aria-hidden>
-                      •
-                    </span>
-                  )}
-                  <span
-                    className={`text-xs font-medium rounded px-2 py-0.5 shrink-0 ${
-                      assistantIntent === "analyze"
-                        ? "bg-[#136D6D]/12 text-[#136D6D] border border-[#136D6D]/30"
-                        : "bg-[#136D6D]/12 text-[#136D6D] border border-[#136D6D]/30"
-                    }`}
-                  >
-                    {assistantIntent === "analyze" ? "Analyze" : "Create Campaign"}
-                  </span>
-                </>
-              )}
-            </div>
+              </>
+            )}
+            {assistantIntent && (selectedAccount || selectedProfileOption) && (
+              <>
+                <span className="text-[#d0d0cc] shrink-0" aria-hidden>•</span>
+                <span
+                  className={`text-xs font-medium rounded px-2 py-0.5 shrink-0 ${
+                    assistantIntent === "analyze"
+                      ? "bg-[#136D6D]/12 text-[#136D6D] border border-[#136D6D]/30"
+                      : "bg-[#136D6D]/12 text-[#136D6D] border border-[#136D6D]/30"
+                  }`}
+                >
+                  {assistantIntent === "analyze" ? "Analyze" : "Create Campaign"}
+                </span>
+              </>
+            )}
           </div>
-        )}
+          {/* Right: New Chat (pencil+) and Close (X) in same row */}
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={handleNewThread}
+              className="relative z-[100] p-2 rounded-md text-[#072929] hover:bg-[#f0f0f0] transition-colors"
+              title="New conversation"
+              aria-label="New chat"
+            >
+              <Plus className="w-5 h-5" strokeWidth={2.5} />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeAssistant();
+              }}
+              className="relative z-[100] p-2 rounded-md text-[#072929] hover:bg-[#f0f0f0] transition-colors"
+              title="Close assistant"
+              aria-label="Close assistant"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+        {/* Cursor-style: horizontal scroll of chat history at top (left to right) */}
+        <div className="border-b border-[#e8e8e3] bg-white">
+          <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto interactive-scrollbar" style={{ scrollbarWidth: 'thin' }}>
+            {isLoadingThreads ? (
+              <span className="text-xs text-[#556179] shrink-0">Loading...</span>
+            ) : threads.length === 0 ? (
+              <span className="text-xs text-[#556179] shrink-0">No chats yet</span>
+            ) : (
+              [...threads]
+                .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+                .map((thread) => (
+                  <button
+                    key={thread.thread_id}
+                    onClick={() => handleThreadSelect(thread.thread_id)}
+                    className={`flex items-center gap-2 shrink-0 px-3 py-1.5 rounded-lg text-sm transition-colors border ${
+                      currentThread?.thread_id === thread.thread_id
+                        ? 'bg-[#136D6D]/12 text-[#136D6D] border-[#136D6D]/30'
+                        : 'bg-[#f9f9f6] text-[#072929] border-[#e8e8e3] hover:border-[#136D6D]/30 hover:bg-[#f0f0f0]'
+                    }`}
+                    title={thread.metadata?.title || 'Untitled'}
+                  >
+                    <svg className="w-4 h-4 shrink-0 text-current opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <span className="max-w-[140px] truncate">{thread.metadata?.title || 'Untitled'}</span>
+                    {currentThread?.thread_id === thread.thread_id && (
+                      <Check className="w-4 h-4 shrink-0 text-[#136D6D]" />
+                    )}
+                  </button>
+                ))
+            )}
+          </div>
+        </div>
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <img src={ASSISTANT_ICONS.logo} alt="Stellar" className="h-6 w-6 shrink-0" />
@@ -1005,15 +1087,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         />
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* New Thread Button */}
-          <button
-            onClick={handleNewThread}
-            className="p-2 hover:opacity-70 transition-opacity"
-            title="New conversation"
-          >
-            <img src={ASSISTANT_ICONS.newThread} alt="New thread" className="w-5 h-5" />
-          </button>
-
           {/* Chat History Button + dropdown (ref so click outside closes it) */}
           <div ref={historyDropdownRef} className="relative">
           <button
@@ -1092,21 +1165,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             )}
           </button>
           </div>
-
-          {/* Close Assistant */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              closeAssistant();
-            }}
-            className="p-2 rounded-md text-[#072929] hover:bg-[#f0f0f0] transition-colors"
-            title="Close assistant"
-            aria-label="Close assistant"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
         </div>
       </div>
@@ -1116,16 +1174,16 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         {!hasMessages ? (
           /* Empty State: show 3-step setup until user selects Analyze or Create Campaign; then hide setup and show prompts only */
           <div className="flex flex-col items-center justify-center h-full gap-6">
-            {/* Set up your session - hidden as soon as user clicks Analyze or Create Campaign */}
-            {!assistantIntent && contextSection}
-
-            {/* Assistant Icon */}
+            {/* Assistant logo and title at top, above setup */}
             <div className="mb-0">
               <img src={StellarLogo} alt="Assistant" className="h-16 w-16" />
             </div>
             <h3 className="text-lg font-medium text-gray-900">
               Assistant
             </h3>
+
+            {/* Set up your session - hidden as soon as user clicks Analyze or Create Campaign */}
+            {!assistantIntent && contextSection}
 
             {!assistantIntent ? (
               <p className="text-sm text-gray-600 text-center px-4">
@@ -1136,7 +1194,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     : "Click Analyze or Create Campaign above to continue."}
               </p>
             ) : (
-              /* Suggested Prompts - only after user clicks Analyze or Create Campaign */
               <div className="w-full max-w-sm">
                 <p className="text-sm text-gray-600 mb-3">Would you like to:</p>
                 <div className="flex flex-col gap-2">
@@ -1342,76 +1399,49 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         )}
       </div>
 
-      {/* Input Area */}
+      {/* Input Area - Cursor-style: upper row = description/input, lower row = agent + send; no plus icon */}
       <div className="px-4 py-3 border-t border-gray-100">
         <form onSubmit={handleSubmit} className="relative">
-          <div className="assistant-input-container rounded-[12px] p-3">
-            <div className="flex flex-col gap-2">
-              {/* Input Field: textarea for multi-line; Shift+Enter = new line, Enter = send */}
-              <textarea
-                ref={inputRef}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={
-                  isStreaming
-                    ? "Generating response..."
-                    : !canChat
-                      ? "Select account and profile above to enable chat"
-                      : "Ask me anything about your campaigns... (Shift+Enter for new line)"
-                }
-                className="w-full min-h-[24px] max-h-[200px] resize-y overflow-y-auto bg-transparent text-[14px] font-normal text-[#072929] placeholder:text-[#9ca3af] focus:outline-none py-1"
-                style={{ fontFamily: "'GT America Trial', sans-serif", minHeight: ASSISTANT_TEXTAREA_MIN_HEIGHT, maxHeight: ASSISTANT_TEXTAREA_MAX_HEIGHT }}
-                disabled={isLoading || isStreaming || !canChat}
-                rows={1}
-              />
-
-              {/* Controls Row */}
-              <div className="flex items-center justify-between">
-                {/* Add Attachment Button */}
+          <div className="assistant-input-container rounded-[12px] p-3 flex flex-col gap-3">
+            {/* Upper row: description / message input */}
+            <textarea
+              ref={inputRef}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                isStreaming
+                  ? "Generating response..."
+                  : !canChat
+                    ? "Select account and profile above to enable chat"
+                    : "Ask me anything about your campaigns... (Shift+Enter for new line)"
+              }
+              className="w-full min-h-[24px] max-h-[200px] resize-none overflow-y-auto bg-transparent text-[14px] font-normal text-[#072929] placeholder:text-[#9ca3af] focus:outline-none py-0"
+              style={{ fontFamily: "'GT America Trial', sans-serif", minHeight: ASSISTANT_TEXTAREA_MIN_HEIGHT, maxHeight: ASSISTANT_TEXTAREA_MAX_HEIGHT }}
+              disabled={isLoading || isStreaming || !canChat}
+              rows={1}
+            />
+            {/* Lower row: send/stop only (agent selection is in setup card Step 3) */}
+            <div className="flex items-center justify-end gap-2">
+              {isStreaming ? (
                 <button
                   type="button"
-                  className="p-1 hover:opacity-70 transition-opacity disabled:opacity-50 disabled:pointer-events-none"
-                  title="Add attachment"
-                  disabled={isStreaming || !canChat}
+                  onClick={handleStop}
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors shrink-0"
+                  title="Stop generating"
                 >
-                  <img src={ASSISTANT_ICONS.addCircle} alt="Add attachment" className="w-5 h-5" />
+                  <Square className="w-4 h-4 fill-current" />
                 </button>
-
-                {/* Stop Button - shown during streaming */}
-                {isStreaming ? (
-                  <button
-                    type="button"
-                    onClick={handleStop}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors"
-                    title="Stop generating"
-                  >
-                    <Square className="w-4 h-4 fill-current" />
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2.5">
-                    {/* Voice Button */}
-                    <button
-                      type="button"
-                      className="p-1 hover:opacity-70 transition-opacity disabled:opacity-50 disabled:pointer-events-none"
-                      title="Voice input"
-                      disabled={!canChat}
-                    >
-                      <img src={ASSISTANT_ICONS.mic} alt="Voice input" className="w-5 h-5" />
-                    </button>
-
-                    {/* Analytics Button */}
-                    <button
-                      type="button"
-                      className="p-1 hover:opacity-70 transition-opacity disabled:opacity-50 disabled:pointer-events-none"
-                      title="View analytics"
-                      disabled={!canChat}
-                    >
-                      <img src={ASSISTANT_ICONS.voice} alt="View analytics" className="w-6 h-6" />
-                    </button>
-                  </div>
-                )}
-              </div>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!inputValue.trim() || isLoading || !canChat}
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-[#374151] hover:bg-[#1f2937] text-white transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
+                  title="Send"
+                >
+                  <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
+                </button>
+              )}
             </div>
           </div>
         </form>

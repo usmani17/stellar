@@ -154,12 +154,22 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const currentAssistantId = getAssistantIdForGraph(assistants, selectedGraphId);
   const streamApiUrl = useMemo(() => getStreamApiUrl(), []);
 
+  // When stream creates a new thread, use first message as title if we have it
+  const pendingThreadTitleRef = React.useRef<string | null>(null);
+
   const onThreadIdFromStream = useCallback((threadId: string) => {
+    const title = pendingThreadTitleRef.current
+      ? (pendingThreadTitleRef.current.length > 50
+          ? pendingThreadTitleRef.current.slice(0, 47) + "..."
+          : pendingThreadTitleRef.current)
+      : undefined;
+    if (pendingThreadTitleRef.current) pendingThreadTitleRef.current = null;
+
     setThreads(prev => {
       if (prev.some(t => t.thread_id === threadId)) return prev;
       return [...prev, {
         thread_id: threadId,
-        metadata: { graph_id: selectedGraphId },
+        metadata: { graph_id: selectedGraphId, ...(title && { title }) },
         values: { messages: [] },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -167,6 +177,11 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       } as ThreadWithRuntime];
     });
     setCurrentThreadId(threadId);
+    if (title) {
+      threadsService.updateThread(threadId, { metadata: { title, graph_id: selectedGraphId } }).catch((err) =>
+        console.warn("[Assistant] Failed to persist thread title:", err)
+      );
+    }
   }, [selectedGraphId]);
 
   const stream = useStream({
@@ -404,13 +419,16 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     }
   }, [currentThreadId]);
 
-  // Update thread title
+  // Update thread title (local state + persist to backend)
   const updateThreadTitle = useCallback((threadId: string, title: string) => {
     setThreads(prev => prev.map(t =>
       t.thread_id === threadId
         ? { ...t, metadata: { ...t.metadata, title }, updated_at: new Date().toISOString() }
         : t
     ));
+    threadsService.updateThread(threadId, { metadata: { title } }).catch((err) =>
+      console.warn("[Assistant] Failed to persist thread title:", err)
+    );
   }, []);
 
   // Update thread runtime state directly in array
@@ -477,6 +495,26 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || !user?.id || !currentAssistantId || !streamApiUrl) return;
 
+    const trimmed = content.trim();
+    const titleFromContent = trimmed.length > 50 ? trimmed.slice(0, 47) + "..." : trimmed;
+
+    // Name the chat from the first message: for new thread, store for onThreadId; for existing thread with no title, set now
+    if (!currentThreadId) {
+      pendingThreadTitleRef.current = trimmed;
+    } else {
+      const thread = threads.find(t => t.thread_id === currentThreadId);
+      if (thread && !thread.metadata?.title) {
+        setThreads(prev => prev.map(t =>
+          t.thread_id === currentThreadId
+            ? { ...t, metadata: { ...t.metadata, title: titleFromContent }, updated_at: new Date().toISOString() }
+            : t
+        ));
+        threadsService.updateThread(currentThreadId, { metadata: { title: titleFromContent } }).catch((err) =>
+          console.warn("[Assistant] Failed to persist thread title:", err)
+        );
+      }
+    }
+
     const accountIdNum = effectiveAccountId ? parseInt(effectiveAccountId, 10) : undefined;
     const channelIdNum = effectiveChannelId ? parseInt(effectiveChannelId, 10) : undefined;
 
@@ -489,7 +527,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       integration_id: channelIdNum ?? effectiveChannelId ?? undefined,
       profile_id: effectiveProfileId ?? undefined,
       marketplace: effectiveMarketplace ?? undefined,
-      intent: assistantIntent ?? undefined,
+      intent: assistantIntent ?? "analyze",
     };
     if (effectiveProfileName != null || effectiveMarketplace != null) {
       configurable.profile = {
@@ -508,7 +546,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
             account_id: accountIdNum,
             channel_id: channelIdNum,
             profile_id: effectiveProfileId ?? undefined,
-            intent: assistantIntent ?? undefined,
+            intent: assistantIntent ?? "analyze",
             auth_token: "123123123",
           },
           config: { recursion_limit: 75, configurable },
@@ -526,7 +564,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     } catch (error) {
       console.error("Error sending message:", error);
     }
-  }, [user?.id, currentAssistantId, streamApiUrl, effectiveAccountId, effectiveChannelId, effectiveProfileId, effectiveProfileName, effectiveMarketplace, assistantIntent, currentThreadId, stream]);
+  }, [user?.id, currentAssistantId, streamApiUrl, effectiveAccountId, effectiveChannelId, effectiveProfileId, effectiveProfileName, effectiveMarketplace, assistantIntent, currentThreadId, threads, stream]);
 
   const cancelRun = useCallback(async () => {
     try {
