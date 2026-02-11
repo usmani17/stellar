@@ -9,11 +9,10 @@ import React, {
 } from "react";
 import { useStream } from "@langchain/langgraph-sdk/react";
 import { useAuth } from "./AuthContext";
-import { threadsService, type Thread, type ThreadMessage, type ContentBlock, normalizeThreadMessages } from "../services/ai/threads";
+import { threadsService, type Thread, type ThreadMessage, type ContentBlock, type ThreadMetaData, type ContextMetadata, normalizeThreadMessages } from "../services/ai/threads";
 import { runsService } from "../services/ai/runs";
 import { assistantService, getAssistantIdForGraph, type AssistantSearchResult, type GraphId } from "../services/ai/assistant";
 import type { CampaignSetupState } from "../types/agent";
-import { campaignStateToThreadMessages } from "../services/ai/campaignStateUtils";
 
 const getStreamApiUrl = (): string => {
   const baseUrl = import.meta.env.VITE_AI_AGENT_BASE_URL;
@@ -34,7 +33,7 @@ export interface SuggestedPrompt {
 export interface AssistantScope {
   accountId: string | null;
   channelId: string | null;
-  profileId: string | null;
+  profileId: number | null;
   /** Profile display name (from selected integration/profile). */
   profileName?: string | null;
   /** Channel/marketplace type (e.g. google, meta, tiktok) for LangGraph context. */
@@ -85,7 +84,6 @@ interface AssistantContextType {
   clearMessages: () => void;
   isStreaming: boolean;
   currentThinkingSteps: string[];
-  currentRunId: string | null;
   assistants: AssistantSearchResult[];
   selectedGraphId: GraphId;
   setSelectedGraphId: (id: GraphId) => void;
@@ -134,7 +132,6 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingThreads, setIsLoadingThreads] = useState(false);
   const [selectedGraphId, setSelectedGraphId] = useState<GraphId>("chat");
-  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
   const [assistants, setAssistants] = useState<AssistantSearchResult[]>([]);
 
   const [assistantScope, setAssistantScopeState] = useState<AssistantScope>({
@@ -157,6 +154,13 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   // When stream creates a new thread, use first message as title if we have it
   const pendingThreadTitleRef = React.useRef<string | null>(null);
 
+  // Effective scope: panel selection overrides route params
+  const effectiveAccountId = assistantScope.accountId ?? propAccountId ?? null;
+  const effectiveChannelId = assistantScope.channelId ?? propChannelId ?? null;
+  const effectiveProfileId = assistantScope.profileId;
+  const effectiveProfileName = assistantScope.profileName ?? null;
+  const effectiveMarketplace = assistantScope.marketplace ?? null;
+
   const onThreadIdFromStream = useCallback((threadId: string) => {
     const title = pendingThreadTitleRef.current
       ? (pendingThreadTitleRef.current.length > 50
@@ -165,11 +169,29 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       : undefined;
     if (pendingThreadTitleRef.current) pendingThreadTitleRef.current = null;
 
+    const accountIdNum = effectiveAccountId ? parseInt(effectiveAccountId, 10) : undefined;
+    const channelIdNum = effectiveChannelId ? parseInt(effectiveChannelId, 10) : undefined;
+    
+    const threadMetadata: ThreadMetaData = {
+      title,
+      graph_id: selectedGraphId,
+      user_id: user?.id,
+      account_id: accountIdNum,
+      channel_id: channelIdNum,
+      profile_id: effectiveProfileId ?? undefined,
+      workspace_id: user?.workspace?.id,
+      folder_id: undefined, // Add when available
+      session_id: undefined, // Add when available
+      platform: effectiveMarketplace ?? undefined,
+      auth_token: "123123123", // Consider making this dynamic
+      assistant_id: currentAssistantId,
+    };
+
     setThreads(prev => {
       if (prev.some(t => t.thread_id === threadId)) return prev;
       return [...prev, {
         thread_id: threadId,
-        metadata: { graph_id: selectedGraphId, ...(title && { title }) },
+        metadata: threadMetadata,
         values: { messages: [] },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -178,11 +200,11 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     });
     setCurrentThreadId(threadId);
     if (title) {
-      threadsService.updateThread(threadId, { metadata: { title, graph_id: selectedGraphId } }).catch((err) =>
+      threadsService.updateThread(threadId, { metadata: threadMetadata }).catch((err) =>
         console.warn("[Assistant] Failed to persist thread title:", err)
       );
     }
-  }, [selectedGraphId]);
+  }, [selectedGraphId, effectiveAccountId, effectiveChannelId, effectiveProfileId, effectiveMarketplace, user?.id, user?.workspace?.id]);
 
   const stream = useStream({
     apiUrl: streamApiUrl || undefined,
@@ -229,11 +251,11 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     return stream.messages.map((m, idx) => {
       const type = (m as { type: string }).type === "human" ? "human" as const : "ai" as const;
       const rawContent = (m as { content: unknown }).content ?? "";
-      let content: ThreadMessage["content"] = rawContent;
+      let content: ThreadMessage["content"] = rawContent as any;
       if (type === "ai") {
         const getToolCalls = (stream as { getToolCalls?: (msg: unknown) => Array<{ call: { id?: string; name: string; args?: Record<string, unknown> } }> }).getToolCalls;
         const toolCalls = getToolCalls?.(m);
-        if (toolCalls?.length > 0) {
+        if (toolCalls && toolCalls.length > 0) {
           const toolBlocks: ContentBlock[] = toolCalls.map((tc) => ({
             type: "tool_use" as const,
             id: tc.call.id ?? `tool-${tc.call.name}`,
@@ -423,21 +445,13 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const updateThreadTitle = useCallback((threadId: string, title: string) => {
     setThreads(prev => prev.map(t =>
       t.thread_id === threadId
-        ? { ...t, metadata: { ...t.metadata, title }, updated_at: new Date().toISOString() }
+        ? { ...t, metadata: { ...t.metadata, title } as ThreadMetaData, updated_at: new Date().toISOString() }
         : t
     ));
-    threadsService.updateThread(threadId, { metadata: { title } }).catch((err) =>
+    const updatedMetadata: Partial<ThreadMetaData> = { title };
+    threadsService.updateThread(threadId, { metadata: updatedMetadata }).catch((err) =>
       console.warn("[Assistant] Failed to persist thread title:", err)
     );
-  }, []);
-
-  // Update thread runtime state directly in array
-  const updateThreadRuntime = useCallback((threadId: string, updates: Partial<ThreadWithRuntime>) => {
-    setThreads(prev => prev.map(t =>
-      t.thread_id === threadId
-        ? { ...t, ...updates, updated_at: new Date().toISOString() }
-        : t
-    ));
   }, []);
 
   // Add message to current thread - directly modify array
@@ -484,13 +498,6 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     ));
   }, [currentThreadId]);
 
-  // Effective scope: panel selection overrides route params
-  const effectiveAccountId = assistantScope.accountId ?? propAccountId ?? null;
-  const effectiveChannelId = assistantScope.channelId ?? propChannelId ?? null;
-  const effectiveProfileId = assistantScope.profileId;
-  const effectiveProfileName = assistantScope.profileName ?? null;
-  const effectiveMarketplace = assistantScope.marketplace ?? null;
-
   // Main send message (useStream path)
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || !user?.id || !currentAssistantId || !streamApiUrl) return;
@@ -504,9 +511,10 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     } else {
       const thread = threads.find(t => t.thread_id === currentThreadId);
       if (thread && !thread.metadata?.title) {
+        const updatedMetadata: ThreadMetaData = { ...thread.metadata, title: titleFromContent } as ThreadMetaData;
         setThreads(prev => prev.map(t =>
           t.thread_id === currentThreadId
-            ? { ...t, metadata: { ...t.metadata, title: titleFromContent }, updated_at: new Date().toISOString() }
+            ? { ...t, metadata: updatedMetadata, updated_at: new Date().toISOString() }
             : t
         ));
         threadsService.updateThread(currentThreadId, { metadata: { title: titleFromContent } }).catch((err) =>
@@ -537,18 +545,26 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       };
     }
 
+    const contextMetadata: ContextMetadata = {
+      user_id: user.id,
+      account_id: accountIdNum,
+      channel_id: channelIdNum,
+      profile_id: effectiveProfileId ?? undefined,
+      workspace_id: user?.workspace?.id,
+      folder_id: undefined, // Add when available
+      session_id: undefined, // Add when available
+      platform: effectiveMarketplace ?? undefined,
+      auth_token: "123123123", // Consider making this dynamic
+      intent: assistantIntent ?? "analyze",
+      assistant_id: currentAssistantId,
+      graph_id: selectedGraphId,
+    };
+
     try {
       await stream.submit(
         { messages: [humanMessage] },
         {
-          metadata: {
-            user_id: user.id,
-            account_id: accountIdNum,
-            channel_id: channelIdNum,
-            profile_id: effectiveProfileId ?? undefined,
-            intent: assistantIntent ?? "analyze",
-            auth_token: "123123123",
-          },
+          metadata: contextMetadata,
           config: { recursion_limit: 75, configurable },
           streamResumable: true,
           streamSubgraphs: true,
@@ -614,7 +630,6 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         clearMessages,
         isStreaming,
         currentThinkingSteps,
-        currentRunId,
         cancelRun,
 
         assistants,

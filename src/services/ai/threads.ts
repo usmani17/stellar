@@ -1,6 +1,6 @@
 export interface ThreadCreateRequest {
   thread_id?: string;
-  metadata?: ThreadMetaData ;
+  metadata?: ThreadMetaData;
   if_exists?: "raise" | "replace" | "do_nothing";
   ttl?: {
     strategy: "delete" | "archive";
@@ -169,7 +169,7 @@ export function normalizeAIMessageToContent(msg: { content?: ThreadMessageConten
 }
 
 /** Normalize a message from API/history so content is string or ContentBlock[] for consistent display */
-export function normalizeThreadMessage(msg: ThreadMessage | { type?: string; content?: ThreadMessageContent; id?: string; tool_calls?: ToolCall[]; [k: string]: unknown }): ThreadMessage {
+export function normalizeThreadMessage(msg: ThreadMessage | { type?: string; content?: ThreadMessageContent; id?: string; tool_calls?: ToolCall[];[k: string]: unknown }): ThreadMessage {
   if (!msg || typeof msg !== 'object') return msg as ThreadMessage;
   const rawType = (msg as { type?: string }).type;
   const type = rawType === 'AIMessageChunk' ? 'ai' : (rawType ?? 'ai');
@@ -191,7 +191,7 @@ export function normalizeThreadMessage(msg: ThreadMessage | { type?: string; con
 
 /** Normalize messages array from history/API for consistent display with streamed messages */
 export function normalizeThreadMessages(
-  messages: Array<ThreadMessage | { type?: string; content?: ThreadMessageContent; id?: string; [k: string]: unknown }> | undefined
+  messages: Array<ThreadMessage | { type?: string; content?: ThreadMessageContent; id?: string;[k: string]: unknown }> | undefined
 ): ThreadMessage[] {
   if (!Array.isArray(messages)) return [];
   return messages.map(normalizeThreadMessage);
@@ -234,16 +234,23 @@ export interface Thread {
   [key: string]: unknown;
 }
 
-export interface ThreadMetaData {
-    user_id?: number;
-    account_id?: number;
-    channel_id?: number;
-    auth_token?: string;
-    title?: string;
-    /** Graph this thread was created with (e.g. "chat" | "campaign_setup") for Assistant UI */
-    graph_id?: string;
-    [key: string]: unknown;
-  }
+export interface ContextMetadata {
+  user_id?: number;
+  account_id?: number;
+  channel_id?: number;
+  profile_id?: number;
+  workspace_id?: number;
+  folder_id?: number;
+  session_id?: string;
+  platform?: string;
+  auth_token?: string;
+  [key: string]: unknown;
+}
+export interface ThreadMetaData extends ContextMetadata {
+  title?: string;
+  assistant_id?: string;
+  graph_id?: string;
+}
 
 
 
