@@ -4,7 +4,7 @@ import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { Assistant } from "../components/layout/Assistant";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
-import { entitiesDraftsService, type EntityDraft } from "../services/entitiesDrafts";
+import { entitiesDraftsService, type EntityDraft } from "../services/ai/entitiesDrafts";
 import { formatPlatform, formatCurrentStatus, formatCampaignType } from "../utils/formatDraftLabels";
 import { Alert, Loader } from "../components/ui";
 

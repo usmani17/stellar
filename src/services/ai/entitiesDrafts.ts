@@ -1,4 +1,4 @@
-import api from "./api";
+import api from "../api";
 
 /** List item - minimal fields from list endpoint (no draft_json, generation_prompt, ai_reasoning) */
 export interface EntityDraftListItem {
@@ -54,7 +54,7 @@ export interface EntityDraftsListParams {
   session_id?: string;
   status?: string;
   account_id?: number;
-  integration_id?: number;
+  channel_id?: number;
   page?: number;
   page_size?: number;
   order_by?: string;
@@ -68,7 +68,7 @@ export interface EntityDraftsFilterOption {
 
 export interface EntityDraftsFilterOptionsResponse {
   account_options: EntityDraftsFilterOption[];
-  integration_options: EntityDraftsFilterOption[];
+  channel_options: EntityDraftsFilterOption[];
 }
 
 export const entitiesDraftsService = {
@@ -76,31 +76,31 @@ export const entitiesDraftsService = {
     params?: EntityDraftsListParams
   ): Promise<EntityDraftsListResponse> => {
     const response = await api.get<EntityDraftsListResponse>(
-      "assistant/entities-drafts/",
+      `assistant/${params?.account_id}/channels/${params?.channel_id}/entities-drafts/`,
       { params: params ?? {} }
     );
     return response.data;
   },
 
-  getFilterOptions: async (workspaceId?: string): Promise<EntityDraftsFilterOptionsResponse> => {
+  getFilterOptions: async (workspaceId?: string, account_id?: number, channel_id?: number): Promise<EntityDraftsFilterOptionsResponse> => {
     const response = await api.get<EntityDraftsFilterOptionsResponse>(
-      "assistant/entities-drafts/filter-options/",
+      `assistant/${account_id}/channels/${channel_id}/entities-drafts/filter-options/`,
       { params: workspaceId ? { workspace_id: workspaceId } : {} }
     );
     return response.data;
   },
 
-  getById: async (draftId: string): Promise<EntityDraft> => {
+  getById: async (draftId: string, account_id?: number, channel_id?: number): Promise<EntityDraft> => {
     const response = await api.get<EntityDraft>(
-      `assistant/entities-drafts/${draftId}/`
+      `assistant/${account_id}/channels/${channel_id}/entities-drafts/${draftId}/`
     );
     return response.data;
   },
 
   /** Publish draft: create entity via platform API, then set draft status to published. Fails without updating status on API error. */
-  publish: async (draftId: string): Promise<{ draft: EntityDraft; [k: string]: unknown }> => {
+  publish: async (draftId: string, account_id?: number, channel_id?: number): Promise<{ draft: EntityDraft; [k: string]: unknown }> => {
     const response = await api.post<{ draft: EntityDraft; [k: string]: unknown }>(
-      `assistant/entities-drafts/${draftId}/publish/`
+      `assistant/${account_id}/channels/${channel_id}/entities-drafts/${draftId}/publish/`
     );
     return response.data;
   },
