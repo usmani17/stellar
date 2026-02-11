@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -43,6 +43,7 @@ export const DraftsList: React.FC = () => {
   const { accountId: accountIdParam, channelId: channelIdParam } = useParams<{ accountId?: string; channelId?: string }>();
   const { user } = useAuth();
   const { sidebarWidth } = useSidebar();
+  const navigate = useNavigate();
   const workspaceId = user?.workspace?.id;
 
   const accountIdNum = accountIdParam != null ? parseInt(accountIdParam, 10) : null;
@@ -204,6 +205,17 @@ export const DraftsList: React.FC = () => {
       .finally(() => setPublishLoading(false));
   };
 
+  const handleNavigateToEntity = (draft: EntityDraftListItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!draft.applied_entity_id || !draft.account_id || !draft.channel_id || !draft.platform || !draft.level) {
+      return;
+    }
+    
+    const levelPlural = draft.level.endsWith('s') ? draft.level : `${draft.level}s`;
+    const path = `/brands/${draft.account_id}/${draft.channel_id}/${draft.platform}/${levelPlural}/${draft.applied_entity_id}`;
+    navigate(path);
+  };
+
   return (
     <div className="min-h-screen bg-white flex">
       <Sidebar />
@@ -310,9 +322,19 @@ export const DraftsList: React.FC = () => {
                             onClick={() => setViewDraftId(d.draft_id)}
                           >
                             <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {d.name ?? "—"}
-                              </span>
+                              {d.applied_entity_id ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleNavigateToEntity(d, e)}
+                                  className="table-text leading-[1.26] text-left hover:text-[#136D6D] hover:underline cursor-pointer transition-colors"
+                                >
+                                  {d.name ?? "—"}
+                                </button>
+                              ) : (
+                                <span className="table-text leading-[1.26]">
+                                  {d.name ?? "—"}
+                                </span>
+                              )}
                             </td>
                             <td className="table-cell">
                               <span className="table-text leading-[1.26]">{formatPlatform(d.platform)}</span>

@@ -22,6 +22,7 @@ export interface EntityDraftListItem {
   channel_id?: number | null;
   google_profiles_id?: number | null;
   campaign_type?: string | null;
+  applied_entity_id?: string | null;
 }
 
 /** Full draft - detail endpoint (includes draft_json and all fields) */
@@ -37,7 +38,6 @@ export interface EntityDraft extends EntityDraftListItem {
   reviewed_by: string | null;
   reviewed_at: string | null;
   review_notes: string | null;
-  applied_entity_id: string | null;
   applied_at: string | null;
 }
 
