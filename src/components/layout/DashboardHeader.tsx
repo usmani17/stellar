@@ -65,7 +65,8 @@ const AccountChannelsList: React.FC<{
   channels: Array<{ id: number; channel_name: string; channel_type: string }>;
   navigate: ReturnType<typeof useNavigate>;
   onClose: () => void;
-}> = ({ accountId, channels, navigate, onClose }) => {
+  entity?: string;
+}> = ({ accountId, channels, navigate, onClose, entity = "campaigns" }) => {
   return (
     <div
       className="w-64 bg-[#FEFEFB] border-t border-r border-b border-[#e8e8e3] rounded-tr-[10px] rounded-br-[10px] shadow-lg z-50 -ml-px overflow-hidden"
@@ -89,7 +90,7 @@ const AccountChannelsList: React.FC<{
                       accountId,
                       channel.id,
                       channel.channel_type,
-                      "campaigns",
+                      entity,
                     ),
                   );
                   onClose();
@@ -280,15 +281,16 @@ export const DashboardHeader: React.FC = () => {
     ? (currentEntity as "campaigns" | "adgroups" | "ads" | "keywords")
     : null;
 
-  // Hide date picker and account dropdown on profile page, integrations page, and account selection pages
+  // Hide date picker on profile, integrations, account selection, and drafts pages
   const isProfilePage = location.pathname === "/profile";
   const isIntegrationsPage = /^\/brands\/\d+\/integrations$/.test(location.pathname);
   const isAccountSelectionPage =
     /^\/channels\/\d+\/(select-google-accounts|select-tiktok-profiles|select-meta-profiles|list-profiles)$/.test(
       location.pathname,
     );
+  const isDraftsPage = /^\/brands\/\d+\/\d+\/google\/drafts(\/|$)/.test(location.pathname);
   const shouldHideDatePicker =
-    isProfilePage || isIntegrationsPage || isAccountSelectionPage;
+    isProfilePage || isIntegrationsPage || isAccountSelectionPage || isDraftsPage;
 
   // Use channels from accounts data if available, otherwise fall back to API call
   // This avoids unnecessary API calls when channels are already included in accounts response
@@ -519,6 +521,7 @@ export const DashboardHeader: React.FC = () => {
                                 setIsAccountDropdownOpen(false);
                                 setExpandedAccountId(null);
                               }}
+                              entity={currentEntity || "campaigns"}
                             />
                           </div>
                         )}

@@ -11,8 +11,6 @@ import { Channels } from "../pages/Channels";
 import { ConnectTikTok } from "../pages/ConnectTikTok";
 import { Dashboards } from "../pages/Dashboards";
 import { LogHistory } from "../pages/LogHistory";
-import { DraftsList } from "../pages/DraftsList";
-import { DraftDetail } from "../pages/DraftDetail";
 import { Profile } from "../pages/Profile";
 import { WorkspaceSettings } from "../pages/WorkspaceSettings";
 import { NoWorkspace } from "../pages/NoWorkspace";
@@ -76,27 +74,11 @@ function AccountRoutes() {
             />
             <Route
                 path="/drafts"
-                element={
-                    <ProtectedRoute>
-                        <WorkspaceRequiredRoute>
-                            <Layout>
-                                <DraftsList />
-                            </Layout>
-                        </WorkspaceRequiredRoute>
-                    </ProtectedRoute>
-                }
+                element={<Navigate to="/brands" replace />}
             />
             <Route
                 path="/drafts/:draftId"
-                element={
-                    <ProtectedRoute>
-                        <WorkspaceRequiredRoute>
-                            <Layout>
-                                <DraftDetail />
-                            </Layout>
-                        </WorkspaceRequiredRoute>
-                    </ProtectedRoute>
-                }
+                element={<Navigate to="/brands" replace />}
             />
             <Route
                 path="/brands/:accountId/integrations"

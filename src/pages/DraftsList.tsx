@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { Assistant } from "../components/layout/Assistant";
-import { AccountsHeader } from "../components/layout/AccountsHeader";
+import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { entitiesDraftsService, type EntityDraftListItem, type EntityDraft } from "../services/entitiesDrafts";
 import { formatPlatform, formatCurrentStatus, formatCampaignType } from "../utils/formatDraftLabels";
@@ -39,9 +40,14 @@ function formatDate(iso: string): string {
 }
 
 export const DraftsList: React.FC = () => {
+  const { accountId: accountIdParam, channelId: channelIdParam } = useParams<{ accountId?: string; channelId?: string }>();
   const { user } = useAuth();
   const { sidebarWidth } = useSidebar();
   const workspaceId = user?.workspace?.id;
+
+  const accountIdNum = accountIdParam != null ? parseInt(accountIdParam, 10) : null;
+  const channelIdNum = channelIdParam != null ? parseInt(channelIdParam, 10) : null;
+  const isGoogleScoped = accountIdNum != null && !isNaN(accountIdNum) && channelIdNum != null && !isNaN(channelIdNum);
 
   const [drafts, setDrafts] = useState<EntityDraftListItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -73,6 +79,13 @@ export const DraftsList: React.FC = () => {
     return () => resetPageTitle();
   }, []);
 
+  const effectiveAccountId = isGoogleScoped
+    ? accountIdNum ?? undefined
+    : accountFilter ? (() => { const n = parseInt(accountFilter, 10); return Number.isNaN(n) ? undefined : n; })() : undefined;
+  const effectiveIntegrationId = isGoogleScoped
+    ? channelIdNum ?? undefined
+    : integrationFilter ? (() => { const n = parseInt(integrationFilter, 10); return Number.isNaN(n) ? undefined : n; })() : undefined;
+
   const fetchDrafts = useCallback(() => {
     if (workspaceId == null) {
       setLoading(false);
@@ -86,8 +99,8 @@ export const DraftsList: React.FC = () => {
         page,
         page_size: pageSize,
         status: statusFilter || undefined,
-        account_id: accountFilter ? (() => { const n = parseInt(accountFilter, 10); return Number.isNaN(n) ? undefined : n; })() : undefined,
-        integration_id: integrationFilter ? (() => { const n = parseInt(integrationFilter, 10); return Number.isNaN(n) ? undefined : n; })() : undefined,
+        account_id: effectiveAccountId,
+        integration_id: effectiveIntegrationId,
         order_by: "created_at",
         order: "desc",
       })
@@ -97,7 +110,7 @@ export const DraftsList: React.FC = () => {
       })
       .catch(() => setError("Failed to load drafts"))
       .finally(() => setLoading(false));
-  }, [workspaceId, page, pageSize, statusFilter, accountFilter, integrationFilter]);
+  }, [workspaceId, page, pageSize, statusFilter, effectiveAccountId, effectiveIntegrationId]);
 
   useEffect(() => {
     fetchDrafts();
@@ -105,7 +118,7 @@ export const DraftsList: React.FC = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, accountFilter, integrationFilter]);
+  }, [statusFilter, accountFilter, integrationFilter, isGoogleScoped]);
 
   useEffect(() => {
     if (workspaceId == null) return;
@@ -154,8 +167,8 @@ export const DraftsList: React.FC = () => {
         page,
         page_size: pageSize,
         status: statusFilter || undefined,
-        account_id: accountFilter ? (() => { const n = parseInt(accountFilter, 10); return Number.isNaN(n) ? undefined : n; })() : undefined,
-        integration_id: integrationFilter ? (() => { const n = parseInt(integrationFilter, 10); return Number.isNaN(n) ? undefined : n; })() : undefined,
+        account_id: effectiveAccountId,
+        integration_id: effectiveIntegrationId,
         order_by: "created_at",
         order: "desc",
       })
@@ -208,10 +221,10 @@ export const DraftsList: React.FC = () => {
   return (
     <div className="min-h-screen bg-white flex">
       <Sidebar />
-      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
-        <AccountsHeader />
+      <div className="flex-1 min-w-0 w-full flex flex-col" style={{ marginLeft: `${sidebarWidth}px` }}>
+        <DashboardHeader />
         <Assistant>
-          <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
+          <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-white overflow-x-hidden min-w-0">
           <div className="space-y-6">
             {error && (
               <Alert variant="error" className="mb-4">
@@ -254,34 +267,6 @@ export const DraftsList: React.FC = () => {
                   value={statusFilter}
                   onChange={(v) => setStatusFilter(v)}
                   placeholder="Status"
-                  buttonClassName="edit-button w-[160px]"
-                  align="right"
-                />
-                <Dropdown<string>
-                  options={[
-                    { value: "", label: "All accounts" },
-                    ...(filterOptions.account_options ?? []).map((opt) => ({
-                      value: String(opt.id),
-                      label: opt.name,
-                    })),
-                  ]}
-                  value={accountFilter}
-                  onChange={(v) => setAccountFilter(v)}
-                  placeholder="Account"
-                  buttonClassName="edit-button w-[160px]"
-                  align="right"
-                />
-                <Dropdown<string>
-                  options={[
-                    { value: "", label: "All integrations" },
-                    ...(filterOptions.integration_options ?? []).map((opt) => ({
-                      value: String(opt.id),
-                      label: opt.name,
-                    })),
-                  ]}
-                  value={integrationFilter}
-                  onChange={(v) => setIntegrationFilter(v)}
-                  placeholder="Integration"
                   buttonClassName="edit-button w-[160px]"
                   align="right"
                 />

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { Assistant } from "../components/layout/Assistant";
-import { AccountsHeader } from "../components/layout/AccountsHeader";
+import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { entitiesDraftsService, type EntityDraft } from "../services/entitiesDrafts";
 import { formatPlatform, formatCurrentStatus, formatCampaignType } from "../utils/formatDraftLabels";
 import { Alert, Loader } from "../components/ui";
@@ -25,9 +25,14 @@ function formatDate(iso: string | null): string {
 }
 
 export const DraftDetail: React.FC = () => {
-  const { draftId } = useParams<{ draftId: string }>();
+  const { accountId: accountIdParam, channelId: channelIdParam, draftId } = useParams<{ accountId?: string; channelId?: string; draftId: string }>();
   const navigate = useNavigate();
   const { sidebarWidth } = useSidebar();
+
+  const accountIdNum = accountIdParam != null ? parseInt(accountIdParam, 10) : null;
+  const channelIdNum = channelIdParam != null ? parseInt(channelIdParam, 10) : null;
+  const isGoogleScoped = accountIdNum != null && !isNaN(accountIdNum) && channelIdNum != null && !isNaN(channelIdNum);
+  const draftsListPath = isGoogleScoped ? `/brands/${accountIdNum}/${channelIdNum}/google/drafts` : "/drafts";
 
   const [draft, setDraft] = useState<EntityDraft | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,15 +101,15 @@ export const DraftDetail: React.FC = () => {
   return (
     <div className="min-h-screen bg-white flex">
       <Sidebar />
-      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
-        <AccountsHeader />
+      <div className="flex-1 min-w-0 w-full flex flex-col" style={{ marginLeft: `${sidebarWidth}px` }}>
+        <DashboardHeader />
         <Assistant>
-          <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
+          <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-white overflow-x-hidden min-w-0">
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => navigate("/drafts")}
+                onClick={() => navigate(draftsListPath)}
                 className="text-sm text-forest-f60 hover:underline"
               >
                 ← Drafts
@@ -116,7 +121,7 @@ export const DraftDetail: React.FC = () => {
                 {error}{" "}
                 <button
                   type="button"
-                  onClick={() => navigate("/drafts")}
+                  onClick={() => navigate(draftsListPath)}
                   className="underline ml-1"
                 >
                   Back to list
