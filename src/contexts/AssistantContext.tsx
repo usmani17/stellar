@@ -10,6 +10,14 @@ import React, {
 import { useStream } from "@langchain/langgraph-sdk/react";
 import { useAuth } from "./AuthContext";
 import { threadsService, type Thread, type ThreadMessage, type ContentBlock, type ThreadMetaData, type ContextMetadata, normalizeThreadMessages } from "../services/ai/threads";
+import {
+  parseStreamMessages,
+  mergeAccumulatedToolBlocks,
+  applyThinkingStepsToLastAi,
+  shouldSkipOnFinishMessages,
+  extractToolBlocksFromContent,
+  type AccumulatedToolContent,
+} from "../utils/aiStreamMessageParser";
 import { runsService } from "../services/ai/runs";
 import { assistantService, getAssistantIdForGraph, type AssistantSearchResult, type GraphId } from "../services/ai/assistant";
 import type { CampaignSetupState } from "../types/agent";
@@ -154,6 +162,10 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   // When stream creates a new thread, use first message as title if we have it
   const pendingThreadTitleRef = React.useRef<string | null>(null);
 
+  // Accumulate tool-rich content during streaming (LangGraph SDK drops tool_calls when merging)
+  const accumulatedToolContentRef = React.useRef<Map<string, ThreadMessage["content"]>>(new Map());
+  const accumulatedByAiIndexRef = React.useRef<ThreadMessage["content"][]>([]);
+
   // Effective scope: panel selection overrides route params
   const effectiveAccountId = assistantScope.accountId ?? propAccountId ?? null;
   const effectiveChannelId = assistantScope.channelId ?? propChannelId ?? null;
@@ -210,6 +222,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     apiUrl: streamApiUrl || undefined,
     assistantId: currentAssistantId ?? "",
     threadId: currentThreadId,
+    throttle: 16,
     onThreadId: onThreadIdFromStream,
     messagesKey: "messages",
     onError: useCallback((err: unknown) => {
@@ -226,18 +239,29 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       const normalized = Array.isArray(rawMessages) && rawMessages.length > 0
         ? normalizeThreadMessages(rawMessages as Parameters<typeof normalizeThreadMessages>[0])
         : null;
+      const skipMessages = shouldSkipOnFinishMessages({
+        byId: accumulatedToolContentRef.current,
+        byAiIndex: accumulatedByAiIndexRef.current,
+      });
       setThreads(prev => prev.map(t => {
         if (t.thread_id !== threadId) return t;
         const next: ThreadWithRuntime = { ...t, updated_at: new Date().toISOString() };
-        if (normalized) next.values = { ...(t.values || {}), messages: normalized };
+        if (normalized && !skipMessages) next.values = { ...(t.values || {}), messages: normalized };
         if (campaignState) next.campaignState = campaignState;
         return next;
       }));
     }, [currentThreadId]),
     onUpdateEvent: useCallback((data: Record<string, unknown>) => {
-      const keys = data && typeof data === "object" ? Object.keys(data).filter(k => !["messages", "analysis", "corrected_analysis"].includes(k)) : [];
+      const excludeFromSteps = ["messages", "analysis", "corrected_analysis", "build_draft"];
+      const keys = data && typeof data === "object" ? Object.keys(data).filter(k => !excludeFromSteps.includes(k)) : [];
       if (keys.length > 0 && currentThreadId) {
-        setThreads(prev => prev.map(t => t.thread_id === currentThreadId ? { ...t, thinkingSteps: keys, updated_at: new Date().toISOString() } : t));
+        setThreads(prev => prev.map(t => {
+          if (t.thread_id !== currentThreadId) return t;
+          const existing = t.thinkingSteps ?? [];
+          const newKeys = keys.filter(k => !existing.includes(k));
+          const merged = newKeys.length > 0 ? [...existing, ...newKeys] : existing;
+          return { ...t, thinkingSteps: merged, updated_at: new Date().toISOString() };
+        }));
       }
     }, [currentThreadId]),
   });
@@ -247,43 +271,87 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
 
   // When we're on the stream's thread, use stream.messages; otherwise use thread history from our list
   const streamMessages: ThreadMessage[] = useMemo(() => {
-    if (!stream.messages?.length) return [];
-    return stream.messages.map((m, idx) => {
-      const type = (m as { type: string }).type === "human" ? "human" as const : "ai" as const;
-      const rawContent = (m as { content: unknown }).content ?? "";
-      let content: ThreadMessage["content"] = rawContent as any;
-      if (type === "ai") {
-        const getToolCalls = (stream as { getToolCalls?: (msg: unknown) => Array<{ call: { id?: string; name: string; args?: Record<string, unknown> } }> }).getToolCalls;
-        const toolCalls = getToolCalls?.(m);
-        if (toolCalls && toolCalls.length > 0) {
-          const toolBlocks: ContentBlock[] = toolCalls.map((tc) => ({
-            type: "tool_use" as const,
-            id: tc.call.id ?? `tool-${tc.call.name}`,
-            name: tc.call.name,
-            input: (tc.call.args ?? {}) as Record<string, unknown>,
-          }));
-          const text = typeof rawContent === "string" ? rawContent : (Array.isArray(rawContent) ? rawContent.filter((p: { type?: string }) => p?.type === "text").map((p: { text?: string }) => p?.text ?? "").join("") : "");
-          content = (text ? [...toolBlocks, { type: "text" as const, text }] : toolBlocks) as ThreadMessage["content"];
-        }
-      }
-      return {
-        id: (m as { id?: string }).id ?? `msg-${idx}`,
-        type,
-        content,
-        additional_kwargs: (m as { additional_kwargs?: Record<string, unknown> }).additional_kwargs,
-      } as ThreadMessage;
-    });
+    const getToolCalls = (stream as { getToolCalls?: (msg: unknown) => Array<{ call: { id?: string; name: string; args?: Record<string, unknown> } }> }).getToolCalls;
+    return parseStreamMessages(stream.messages ?? [], getToolCalls);
   }, [stream.messages, stream]);
 
   const isStreamThread = currentThreadId != null; // stream is bound to currentThreadId when set
-  const messages: ThreadMessage[] = isStreamThread && stream.messages?.length != null
-    ? streamMessages
-    : (currentThread?.values?.messages ?? []);
+  const prevLoadingRefForAccum = React.useRef<boolean>(stream.isLoading);
+  const lastMergedMessagesRef = React.useRef<ThreadMessage[] | null>(null);
+  const lastMergedThreadIdRef = React.useRef<string | null>(null);
+  const mergedForDisplay = React.useMemo(() => {
+    if (stream.isLoading || !currentThreadId || !streamMessages.length) return null;
+    const accumulated: AccumulatedToolContent = {
+      byId: accumulatedToolContentRef.current,
+      byAiIndex: accumulatedByAiIndexRef.current,
+    };
+    if (shouldSkipOnFinishMessages(accumulated)) {
+      const merged = mergeAccumulatedToolBlocks(streamMessages, accumulated);
+      return applyThinkingStepsToLastAi(merged, currentThread?.thinkingSteps ?? []);
+    }
+    return null;
+  }, [stream.isLoading, streamMessages, currentThreadId, currentThread?.thinkingSteps]);
+  const lastMergedForThread =
+    lastMergedThreadIdRef.current === currentThreadId ? lastMergedMessagesRef.current : null;
+  const baseMessages: ThreadMessage[] =
+    isStreamThread && stream.isLoading
+      ? streamMessages
+      : (mergedForDisplay ?? lastMergedForThread ?? streamMessages ?? currentThread?.values?.messages ?? []);
+
+  // When campaign has reply_text but last AI message lacks text, inject it (e.g. "Fill in YouTube video ID")
+  const messages: ThreadMessage[] = useMemo(() => {
+    const replyText = currentThread?.campaignState?.reply_text?.trim();
+    if (!replyText || !baseMessages.length) return baseMessages;
+    const lastIdx = baseMessages.length - 1;
+    const last = baseMessages[lastIdx];
+    if ((last as { type?: string }).type !== "ai") return baseMessages;
+    const content = last.content;
+    const hasText =
+      typeof content === "string" ? !!content?.trim() : Array.isArray(content) && content.some((b: unknown) => typeof b === "object" && b != null && (b as { type?: string }).type === "text" && (b as { text?: string }).text);
+    if (hasText) return baseMessages;
+    const textBlock: ContentBlock = { type: "text", text: replyText };
+    const toolBlocks = Array.isArray(content)
+      ? content.filter((b): b is ContentBlock => typeof b === "object" && b != null && (b as { type?: string }).type === "tool_use")
+      : [];
+    const newContent: ThreadMessage["content"] = toolBlocks.length > 0 ? [...toolBlocks, textBlock] : replyText;
+    return [
+      ...baseMessages.slice(0, lastIdx),
+      { ...last, content: newContent },
+    ];
+  }, [baseMessages, currentThread?.campaignState?.reply_text]);
 
   const isStreaming = stream.isLoading;
+
+  if (prevLoadingRefForAccum.current && !stream.isLoading) {
+    prevLoadingRefForAccum.current = false;
+  } else if (!prevLoadingRefForAccum.current && stream.isLoading) {
+    accumulatedToolContentRef.current.clear();
+    accumulatedByAiIndexRef.current = [];
+    lastMergedMessagesRef.current = null;
+    lastMergedThreadIdRef.current = null;
+    prevLoadingRefForAccum.current = true;
+  }
+  useEffect(() => {
+    if (!stream.isLoading) return;
+    const byId = accumulatedToolContentRef.current;
+    const byIndex = [...accumulatedByAiIndexRef.current];
+    let aiIdx = 0;
+    streamMessages.forEach((msg) => {
+      if ((msg as { type?: string }).type !== "ai") return;
+      const c = msg.content;
+      if (Array.isArray(c) && extractToolBlocksFromContent(c).length > 0) {
+        byId.set(msg.id ?? `ai-${aiIdx}`, c);
+        byIndex[aiIdx] = c;
+      }
+      aiIdx += 1;
+    });
+    accumulatedByAiIndexRef.current = byIndex;
+  }, [streamMessages, stream.isLoading]);
+
   const currentThinkingSteps = currentThread?.thinkingSteps ?? [];
 
-  // Persist stream messages (including tool calls) into thread when stream finishes, so tool calls don't vanish
+  // Persist stream messages (including tool calls) into thread when stream finishes, so tool calls don't vanish.
+  // Also persist thinking steps on the last AI message and clear from thread.
   const prevLoadingRef = React.useRef<boolean>(stream.isLoading);
   const streamMessagesRef = React.useRef<ThreadMessage[]>([]);
   streamMessagesRef.current = streamMessages;
@@ -293,15 +361,32 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     if (!justFinished || !currentThreadId) return;
     const latest = streamMessagesRef.current;
     if (!latest?.length) return;
-    setThreads(prev => prev.map(t =>
-      t.thread_id === currentThreadId
-        ? { ...t, values: { ...(t.values || {}), messages: latest }, updated_at: new Date().toISOString() }
-        : t
-    ));
-  }, [stream.isLoading, currentThreadId]);
+    const accumulated: AccumulatedToolContent = {
+      byId: accumulatedToolContentRef.current,
+      byAiIndex: accumulatedByAiIndexRef.current,
+    };
+    const newMessages = applyThinkingStepsToLastAi(
+      mergeAccumulatedToolBlocks(latest, accumulated),
+      currentThread?.thinkingSteps ?? []
+    );
+    accumulatedToolContentRef.current.clear();
+    accumulatedByAiIndexRef.current = [];
+    lastMergedMessagesRef.current = newMessages;
+    lastMergedThreadIdRef.current = currentThreadId;
+    setThreads(prev => prev.map(t => {
+      if (t.thread_id !== currentThreadId) return t;
+      return {
+        ...t,
+        values: { ...(t.values || {}), messages: newMessages },
+        thinkingSteps: [],
+        updated_at: new Date().toISOString(),
+      };
+    }));
+  }, [stream.isLoading, currentThreadId, currentThread?.thinkingSteps]);
 
   // Sync campaign state from stream.values into current thread (backend sends campaign_draft etc. at top level of values)
   useEffect(() => {
+    if (stream.isLoading) return;
     const vals = stream.values != null && typeof stream.values === "object" ? (stream.values as Record<string, unknown>) : undefined;
     if (!currentThreadId || !vals) return;
     const hasCampaignState = "campaign_draft" in vals || "reply_text" in vals || "current_questions_schema" in vals;
@@ -312,7 +397,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         ? { ...t, campaignState, updated_at: new Date().toISOString() }
         : t
     ));
-  }, [currentThreadId, stream.values]);
+  }, [currentThreadId, stream.values, stream.isLoading]);
 
   // Load all assistants on mount
   useEffect(() => {
@@ -338,16 +423,30 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         limit: 50
       });
 
-      // Merge with existing runtime state if any
+      // Merge with existing runtime state; preserve local messages with tool blocks when API has fewer
+      const countToolBlocks = (msgs: ThreadMessage[] | undefined) =>
+        (msgs ?? []).reduce((n, m) => {
+          const c = m.content;
+          return n + (Array.isArray(c) ? c.filter((b: unknown) => typeof b === "object" && b != null && (b as { type?: string }).type === "tool_use").length : 0);
+        }, 0);
       setThreads(prev => {
-        const existingRuntime = new Map(prev.map(t => [t.thread_id, { isStreaming: t.isStreaming, thinkingSteps: t.thinkingSteps, campaignState: t.campaignState }]));
-
-        return threadList.map(t => ({
-          ...t,
-          isStreaming: existingRuntime.get(t.thread_id)?.isStreaming || false,
-          thinkingSteps: existingRuntime.get(t.thread_id)?.thinkingSteps || [],
-          campaignState: existingRuntime.get(t.thread_id)?.campaignState,
-        }));
+        const existingByThread = new Map(prev.map(t => [t.thread_id, t]));
+        return threadList.map(apiThread => {
+          const existing = existingByThread.get(apiThread.thread_id);
+          const existingToolCount = countToolBlocks(existing?.values?.messages);
+          const apiToolCount = countToolBlocks(apiThread.values?.messages);
+          const preserveMessages = existingToolCount > apiToolCount && existing?.values?.messages;
+          const values = preserveMessages
+            ? { ...(apiThread.values ?? {}), messages: existing!.values!.messages }
+            : apiThread.values;
+          return {
+            ...apiThread,
+            values,
+            isStreaming: existing?.isStreaming || false,
+            thinkingSteps: existing?.thinkingSteps ?? [],
+            campaignState: existing?.campaignState,
+          };
+        });
       });
     } catch (error) {
       console.error('Failed to load threads:', error);
@@ -553,6 +652,13 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
 
     setInputValue("");
 
+    // Clear thinking steps when starting new turn so next run gets a fresh list
+    if (currentThreadId) {
+      setThreads(prev => prev.map(t =>
+        t.thread_id === currentThreadId ? { ...t, thinkingSteps: [] } : t
+      ));
+    }
+
     const humanMessage = { type: "human" as const, content, id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}` };
     const configurable: Record<string, unknown> = {
       user_id: user.id,
@@ -561,6 +667,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       profile_id: effectiveProfileId ?? undefined,
       marketplace: effectiveMarketplace ?? undefined,
       intent: assistantIntent ?? "analyze",
+      ...(currentThreadId ? { thread_id: currentThreadId } : {}),
     };
     if (effectiveProfileName != null || effectiveMarketplace != null) {
       configurable.profile = {

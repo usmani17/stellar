@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAssistant, type ThreadWithRuntime } from "../../contexts/AssistantContext";
 import type { CurrentQuestionSchemaItem } from "../../types/agent";
 import { Check, Square, X, ChevronDown, BarChart3, Megaphone, ArrowUp, Plus } from "lucide-react";
@@ -15,6 +16,7 @@ import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
 import { type SchemaFormBlockHandle, SchemaFormBlock } from "../layout/Assistant";
+import { getDisplayName } from "../../utils/assistantDisplayNames";
 
 // Helper function to check if content is a ContentBlock array
 const isContentBlockArray = (content: ThreadMessageContent): content is ContentBlock[] => {
@@ -146,7 +148,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         startNewThread,
         cancelRun,
         setSelectedGraphId,
-        onApplyDraft,
         closeAssistant,
         assistantScope,
         setAssistantScope,
@@ -649,7 +650,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     <CampaignDraftPreview
                         campaignState={campaignState}
                         visible={assistantIntent === "create_campaign"}
-                        onApplyDraft={onApplyDraft}
+                        accountId={assistantScope.accountId ?? undefined}
+                        channelId={assistantScope.channelId ?? undefined}
                         className="shrink-0"
                     />
 
@@ -806,53 +808,55 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                             </div>
                                         )}
 
-                                        {/* AI Message: single bubble — "Currently analyzing" above, then content (so analyzing never hides) */}
+                                        {/* AI Message: single bubble — "Currently analyzing" / "Steps taken" above, then content (so steps never hide) */}
                                         {message.type === "ai" && (
                                             <div className="flex flex-col items-start gap-3 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
-                                                {/* Currently analyzing: always at top while streaming (stays visible); or from message.additional_kwargs when not streaming */}
-                                                {isStreamingThisBubble || (message.additional_kwargs && Object.keys(message.additional_kwargs).length > 0) ? (
-                                                    <div className="flex flex-col gap-1.5 w-full">
-                                                        <span className="text-[11px] font-medium uppercase tracking-wider text-[#556179]">
-                                                            Currently analyzing
-                                                        </span>
-                                                        {isStreamingThisBubble && currentThinkingSteps.length > 0 ? (
-                                                            <div className="flex flex-wrap gap-1.5">
-                                                                {currentThinkingSteps.map((step, index) => (
-                                                                    <span
-                                                                        key={index}
-                                                                        className="inline-flex items-center gap-1.5 rounded-md bg-white border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929]"
-                                                                    >
-                                                                        <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full animate-pulse" />
-                                                                        {step}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        ) : message.additional_kwargs ? (
-                                                            <div className="flex flex-wrap gap-1.5">
-                                                                {Object.entries(message.additional_kwargs).map(([key, value]) => (
-                                                                    <span
-                                                                        key={key}
-                                                                        className="inline-flex items-center rounded-md bg-white border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929]"
-                                                                    >
-                                                                        {key}: {String(value)}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        ) : null}
-                                                        {/* Thinking line when streaming this bubble */}
-                                                        {isStreamingThisBubble && (
-                                                            <div className="flex items-center gap-2 text-[#556179]">
-                                                                <img src={StellarLogo} alt="" className="h-4 w-4 opacity-80" />
-                                                                <span className="text-xs font-medium">Thinking</span>
-                                                                <div className="flex gap-1 ml-1">
-                                                                    <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
-                                                                    <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-                                                                    <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                                                {/* Steps: streaming (currentThinkingSteps) or completed (message.additional_kwargs.thinkingSteps); fallback to other additional_kwargs */}
+                                                {(() => {
+                                                    const completedSteps = (message.additional_kwargs?.thinkingSteps as string[] | undefined) ?? [];
+                                                    const hasStreamingSteps = isStreamingThisBubble && currentThinkingSteps.length > 0;
+                                                    const hasCompletedSteps = completedSteps.length > 0;
+                                                    const hasOtherKwargs = message.additional_kwargs && Object.keys(message.additional_kwargs).filter(k => k !== "thinkingSteps").length > 0;
+                                                    const showStepsBlock = hasStreamingSteps || hasCompletedSteps || hasOtherKwargs;
+                                                    const steps = hasStreamingSteps ? currentThinkingSteps : completedSteps;
+                                                    const isCompleted = hasCompletedSteps && !isStreamingThisBubble;
+                                                    if (!showStepsBlock) return null;
+                                                    return (
+                                                        <div className="flex flex-col gap-1.5 w-full">
+                                                            <span className="text-[11px] font-medium uppercase tracking-wider text-[#556179]">
+                                                                {isCompleted ? "Steps taken" : "Currently analyzing"}
+                                                            </span>
+                                                            {steps.length > 0 ? (
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {steps.map((step, index) => (
+                                                                        <span
+                                                                            key={index}
+                                                                            className={`inline-flex items-center gap-1.5 rounded-md border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929] ${isCompleted ? "bg-[#E8E8E3]/50" : "bg-white"}`}
+                                                                        >
+                                                                            {isCompleted ? (
+                                                                                <Check className="w-3 h-3 text-[#136D6D] shrink-0" />
+                                                                            ) : (
+                                                                                <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full animate-pulse shrink-0" />
+                                                                            )}
+                                                                            {getDisplayName(step, "node")}
+                                                                        </span>
+                                                                    ))}
                                                                 </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ) : null}
+                                                            ) : hasOtherKwargs ? (
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {Object.entries(message.additional_kwargs ?? {}).filter(([k]) => k !== "thinkingSteps").map(([key, value]) => (
+                                                                        <span
+                                                                            key={key}
+                                                                            className="inline-flex items-center rounded-md bg-white border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929]"
+                                                                        >
+                                                                            {key}: {String(value)}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                    );
+                                                })()}
 
                                                 {/* Text / markdown content (streamed message below analyzing) */}
                                                 {isContentBlockArray(message.content) ? (
@@ -888,8 +892,23 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             );
                         })}
 
-                        {/* Campaign: Apply draft + validation errors */}
-                        {campaignState && (campaignState.draft_setup_json || (campaignState.validation_errors && campaignState.validation_errors.length > 0)) && (
+                        {/* Thinking at the very end when streaming — only when last message is AI (otherwise we show the "waiting for first token" block below) */}
+                        {isStreaming && messages.length > 0 && messages[messages.length - 1]?.type === "ai" && (
+                            <div className="flex justify-start">
+                                <div className="max-w-[85%] p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] flex items-center gap-2 text-[#556179]">
+                                    <img src={StellarLogo} alt="" className="h-4 w-4 opacity-80" />
+                                    <span className="text-xs font-medium">Thinking</span>
+                                    <div className="flex gap-1 ml-1">
+                                        <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
+                                        <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                                        <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Campaign: validation errors or draft ready (only when saved_draft_id exists) */}
+                        {campaignState && ((campaignState.validation_errors && campaignState.validation_errors.length > 0) || (campaignState.draft_setup_json && Object.keys(campaignState.draft_setup_json).length > 0 && campaignState.saved_draft_id)) && (
                             <div className="flex flex-col gap-2 mt-2 p-3 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[10px]">
                                 {campaignState.validation_errors && campaignState.validation_errors.length > 0 && (
                                     <div className="text-xs text-red-600">
@@ -898,17 +917,20 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                         ))}
                                     </div>
                                 )}
-                                {campaignState.draft_setup_json && Object.keys(campaignState.draft_setup_json).length > 0 && onApplyDraft && (
-                                    <button
-                                        type="button"
-                                        onClick={() => onApplyDraft(campaignState.draft_setup_json!)}
-                                        className="self-start px-3 py-1.5 text-xs font-medium bg-[#136D6D] text-white rounded-md hover:opacity-90"
-                                    >
-                                        Apply draft
-                                    </button>
-                                )}
-                                {campaignState.draft_setup_json && Object.keys(campaignState.draft_setup_json).length > 0 && !onApplyDraft && (
-                                    <span className="text-xs text-[#072929]">Draft ready (use Apply draft from campaign form to fill)</span>
+                                {campaignState.draft_setup_json && Object.keys(campaignState.draft_setup_json).length > 0 && campaignState.saved_draft_id && (
+                                    <span className="text-xs text-[#072929]">
+                                        Draft ready.
+                                        {assistantScope.accountId && assistantScope.channelId ? (
+                                            <>{" "}
+                                                <Link
+                                                    to={`/brands/${assistantScope.accountId}/${assistantScope.channelId}/google/drafts/${campaignState.saved_draft_id}`}
+                                                    className="text-[#136D6D] font-medium hover:underline"
+                                                >
+                                                    View draft
+                                                </Link>
+                                            </>
+                                        ) : null}
+                                    </span>
                                 )}
                             </div>
                         )}
@@ -932,7 +954,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         {(isLoading || isStreaming) && !(messages.length > 0 && messages[messages.length - 1]?.type === "ai") && (
                             <div className="flex justify-start">
                                 <div className="max-w-[85%] w-full p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm flex flex-col gap-3">
-                                    {currentThinkingSteps.length > 0 && (
+                                        {currentThinkingSteps.length > 0 && (
                                         <div className="flex flex-col gap-1.5">
                                             <span className="text-[11px] font-medium uppercase tracking-wider text-[#556179]">
                                                 Currently analyzing
@@ -944,7 +966,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                         className="inline-flex items-center gap-1.5 rounded-md bg-white border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929]"
                                                     >
                                                         <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full animate-pulse" />
-                                                        {step}
+                                                        {getDisplayName(step, "node")}
                                                     </span>
                                                 ))}
                                             </div>
