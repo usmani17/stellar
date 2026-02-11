@@ -63,6 +63,9 @@ export const DraftsList: React.FC = () => {
   const [viewDraftLoading, setViewDraftLoading] = useState(false);
   const [viewDraftError, setViewDraftError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [publishLoading, setPublishLoading] = useState(false);
+  const [publishError, setPublishError] = useState("");
+  const [publishSuccess, setPublishSuccess] = useState(false);
 
   useEffect(() => {
     setPageTitle("Drafts");
@@ -115,10 +118,14 @@ export const DraftsList: React.FC = () => {
     if (!viewDraftId) {
       setViewDraft(null);
       setViewDraftError("");
+      setPublishError("");
+      setPublishSuccess(false);
       return;
     }
     setViewDraftLoading(true);
     setViewDraftError("");
+    setPublishError("");
+    setPublishSuccess(false);
     entitiesDraftsService
       .getById(viewDraftId)
       .then((d) => {
@@ -171,6 +178,31 @@ export const DraftsList: React.FC = () => {
             }
           })()
         : JSON.stringify(viewDraft.draft_json, null, 2);
+
+  const canPublish =
+    viewDraft &&
+    viewDraftId &&
+    (viewDraft.status || "").toLowerCase() === "draft" &&
+    (viewDraft.platform || "").toLowerCase() === "google" &&
+    (viewDraft.level || "").toLowerCase() === "campaign";
+
+  const handlePublish = () => {
+    if (!viewDraftId || !viewDraft || publishLoading) return;
+    setPublishLoading(true);
+    setPublishError("");
+    setPublishSuccess(false);
+    entitiesDraftsService
+      .publish(viewDraftId)
+      .then((res) => {
+        setPublishSuccess(true);
+        if (res.draft) setViewDraft(res.draft);
+        fetchDrafts();
+      })
+      .catch((err) => {
+        setPublishError(err.response?.data?.error ?? "Failed to publish draft");
+      })
+      .finally(() => setPublishLoading(false));
+  };
 
   return (
     <div className="min-h-screen bg-white flex">
@@ -410,22 +442,40 @@ export const DraftsList: React.FC = () => {
         closeOnBackdropClick
       >
         <div className="flex flex-col max-h-[85vh]">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[#e8e8e3] shrink-0">
-            <h2 className="text-lg font-semibold text-[#072929]">
+          <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-[#e8e8e3] shrink-0">
+            <h2 className="text-lg font-semibold text-[#072929] truncate min-w-0">
               Draft: {viewDraft?.name ?? drafts.find((d) => d.draft_id === viewDraftId)?.name ?? viewDraftId ?? "—"}
             </h2>
-            <button
-              type="button"
-              onClick={() => setViewDraftId(null)}
-              className="p-1 rounded hover:bg-[#f0f0eb] text-[#556179]"
-              aria-label="Close"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {canPublish && (
+                <button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={publishLoading}
+                  className="px-3 py-1.5 text-sm font-medium bg-[#136D6D] text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {publishLoading ? "Publishing…" : "Publish"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setViewDraftId(null)}
+                className="p-1 rounded hover:bg-[#f0f0eb] text-[#556179]"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
           <div className="overflow-y-auto p-6">
+            {publishSuccess && (
+              <Alert variant="success" className="mb-4">Draft published successfully. Status updated.</Alert>
+            )}
+            {publishError && (
+              <Alert variant="error" className="mb-4">{publishError}</Alert>
+            )}
             {viewDraftLoading && (
               <div className="flex justify-center py-12">
                 <Loader size="md" message="Loading draft..." />

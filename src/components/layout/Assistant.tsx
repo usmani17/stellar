@@ -1096,7 +1096,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
           {/* Close Assistant */}
           <button
             type="button"
-            onClick={closeAssistant}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              closeAssistant();
+            }}
             className="p-2 rounded-md text-[#072929] hover:bg-[#f0f0f0] transition-colors"
             title="Close assistant"
             aria-label="Close assistant"
@@ -1163,15 +1167,15 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                   }`}
               >
                 <div
-                  className={`max-w-[85%] ${message.type === "human"
-                    ? "flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e8e8e3] rounded-[12px] shadow-sm"
+                  className={`max-w-[85%] min-w-0 ${message.type === "human"
+                    ? "flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e8e8e3] rounded-[12px] shadow-sm overflow-x-auto"
                     : "flex flex-col items-start p-4 gap-3 h-auto bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm"
                     }`}
                 >
                   {/* Human Message */}
                   {message.type === "human" && (
                     <div
-                      className="text-[14px] font-normal leading-[20px] tracking-[0.1px] text-[#072929]"
+                      className="text-[14px] font-normal leading-[20px] tracking-[0.1px] text-[#072929] min-w-0 max-w-full overflow-x-auto"
                       style={{ fontFamily: "'GT America Trial', sans-serif" }}
                     >
                       <MessageContent content={extractTextContent(message.content)} />
@@ -1497,31 +1501,32 @@ export const Assistant: React.FC<React.PropsWithChildren<object>> = ({
         {children}
       </div>
 
-      {/* Assistant Sidebar - always mounted, animated from bottom */}
-      <div
-        className={`${isFixed ? "fixed" : "absolute"} right-0 top-0 bottom-0 z-[45] bg-[var(--color-semantic-background-primary)] transition-[transform,width] duration-200 ease-out ${
-          isFixed ? "border-l border-gray-200" : "rounded-l-2xl shadow-[-8px_0_24px_rgba(0,0,0,0.15)]"
-        } ${isOpen ? "translate-y-0" : "translate-y-full pointer-events-none"}`}
-        style={{ width: widthCss }}
-        aria-hidden={!isOpen}
-      >
-        {/* Resize handle - left edge, vertically centered; thin strip with grip */}
+      {/* Assistant Sidebar - show when open */}
+      {isOpen && (
         <div
-          onMouseDown={handleResizeMouseDown}
-          onDoubleClick={handleResizeDoubleClick}
-          className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-50 w-2 h-16 flex items-center justify-center rounded-r cursor-col-resize transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#136D6D] focus-visible:ring-offset-1 ${
-            isResizing
-              ? "bg-[#136D6D] text-white"
-              : "bg-[#e0e0dc] hover:bg-[#136D6D]/80 text-[#072929] hover:text-white border border-r-0 border-[#d0d0cc]"
+          className={`${isFixed ? "fixed" : "absolute"} right-0 top-0 bottom-0 z-[45] bg-[var(--color-semantic-background-primary)] transition-[width] duration-200 ease-out ${
+            isFixed ? "border-l border-gray-200" : "rounded-l-2xl shadow-[-8px_0_24px_rgba(0,0,0,0.15)]"
           }`}
-          title="Drag to resize · Double-click to reset"
-          aria-label="Resize assistant panel"
-          tabIndex={0}
+          style={{ width: widthCss }}
         >
-          <GripVertical className="w-3 h-3 opacity-70" strokeWidth={2} />
+          {/* Resize handle - left edge, vertically centered; thin strip with grip */}
+          <div
+            onMouseDown={handleResizeMouseDown}
+            onDoubleClick={handleResizeDoubleClick}
+            className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-50 w-2 h-16 flex items-center justify-center rounded-r cursor-col-resize transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#136D6D] focus-visible:ring-offset-1 ${
+              isResizing
+                ? "bg-[#136D6D] text-white"
+                : "bg-[#e0e0dc] hover:bg-[#136D6D]/80 text-[#072929] hover:text-white border border-r-0 border-[#d0d0cc]"
+            }`}
+            title="Drag to resize · Double-click to reset"
+            aria-label="Resize assistant panel"
+            tabIndex={0}
+          >
+            <GripVertical className="w-3 h-3 opacity-70" strokeWidth={2} />
+          </div>
+          <AssistantPanel className={`h-full ${isFixed ? "" : "rounded-l-2xl overflow-hidden"}`} />
         </div>
-        <AssistantPanel className={`h-full ${isFixed ? "" : "rounded-l-2xl overflow-hidden"}`} />
-      </div>
+      )}
     </div>
   );
 };

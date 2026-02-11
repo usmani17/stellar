@@ -96,4 +96,12 @@ export const entitiesDraftsService = {
     );
     return response.data;
   },
+
+  /** Publish draft: create entity via platform API, then set draft status to published. Fails without updating status on API error. */
+  publish: async (draftId: string): Promise<{ draft: EntityDraft; [k: string]: unknown }> => {
+    const response = await api.post<{ draft: EntityDraft; [k: string]: unknown }>(
+      `assistant/entities-drafts/${draftId}/publish/`
+    );
+    return response.data;
+  },
 };

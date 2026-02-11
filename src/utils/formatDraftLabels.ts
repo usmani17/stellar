@@ -22,6 +22,7 @@ const STATUS_MAP: Record<string, string> = {
   approved: "Approved",
   rejected: "Rejected",
   applied: "Applied",
+  published: "Published",
   pending_apply: "Pending Apply",
   applying: "Applying",
   failed: "Failed",

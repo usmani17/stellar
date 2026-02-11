@@ -32,6 +32,9 @@ export const DraftDetail: React.FC = () => {
   const [draft, setDraft] = useState<EntityDraft | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [publishLoading, setPublishLoading] = useState(false);
+  const [publishError, setPublishError] = useState("");
+  const [publishSuccess, setPublishSuccess] = useState(false);
 
   useEffect(() => {
     if (!draftId) {
@@ -51,6 +54,30 @@ export const DraftDetail: React.FC = () => {
       })
       .finally(() => setLoading(false));
   }, [draftId]);
+
+  const canPublish =
+    draft &&
+    (draft.status || "").toLowerCase() === "draft" &&
+    (draft.platform || "").toLowerCase() === "google" &&
+    (draft.level || "").toLowerCase() === "campaign";
+
+  const handlePublish = () => {
+    if (!draftId || !draft || publishLoading) return;
+    setPublishLoading(true);
+    setPublishError("");
+    setPublishSuccess(false);
+    entitiesDraftsService
+      .publish(draftId)
+      .then((res) => {
+        setPublishSuccess(true);
+        if (res.draft) setDraft(res.draft);
+      })
+      .catch((err) => {
+        const msg = err.response?.data?.error ?? "Failed to publish draft";
+        setPublishError(msg);
+      })
+      .finally(() => setPublishLoading(false));
+  };
 
   const rawJson = draft?.draft_json;
   const draftJsonString =
@@ -105,9 +132,30 @@ export const DraftDetail: React.FC = () => {
 
             {!loading && draft && (
               <>
-                <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                  Draft: {draft.name ?? draft.draft_id}
-                </h1>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
+                    Draft: {draft.name ?? draft.draft_id}
+                  </h1>
+                  {canPublish && (
+                    <button
+                      type="button"
+                      onClick={handlePublish}
+                      disabled={publishLoading}
+                      className="px-4 py-2 text-sm font-medium bg-[#136D6D] text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      {publishLoading ? "Publishing…" : "Publish"}
+                    </button>
+                  )}
+                </div>
+
+                {publishSuccess && (
+                  <Alert variant="success">Draft published successfully. Status updated.</Alert>
+                )}
+                {publishError && (
+                  <Alert variant="error">
+                    {publishError}
+                  </Alert>
+                )}
 
                 <div className="space-y-6">
                   {/* Overview */}
