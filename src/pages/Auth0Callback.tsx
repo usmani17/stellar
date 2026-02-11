@@ -47,9 +47,17 @@ export const Auth0Callback: React.FC = () => {
           localStorage.setItem('user', JSON.stringify(userData));
           updateUser(userData);
           
-          const redirectTo = sessionStorage.getItem('loginRedirect') || '/brands';
+          const redirectTo = sessionStorage.getItem('loginRedirect');
           sessionStorage.removeItem('loginRedirect');
-          navigate(redirectTo, { replace: true });
+          if (redirectTo) {
+            navigate(redirectTo, { replace: true });
+            return;
+          }
+          if (!userData.workspace) {
+            navigate('/signup/complete', { replace: true });
+            return;
+          }
+          navigate('/brands', { replace: true });
         } catch (profileError: any) {
           console.error('Error fetching user profile:', profileError);
           
@@ -69,9 +77,17 @@ export const Auth0Callback: React.FC = () => {
                 const userData = backendUser.data;
                 localStorage.setItem('user', JSON.stringify(userData));
                 updateUser(userData);
-                const redirectTo = sessionStorage.getItem('loginRedirect') || '/brands';
+                const redirectTo = sessionStorage.getItem('loginRedirect');
                 sessionStorage.removeItem('loginRedirect');
-                navigate(redirectTo, { replace: true });
+                if (redirectTo) {
+                  navigate(redirectTo, { replace: true });
+                  return;
+                }
+                if (!userData.workspace) {
+                  navigate('/signup/complete', { replace: true });
+                  return;
+                }
+                navigate('/brands', { replace: true });
               } catch (retryError) {
                 retry(retryCount + 1);
               }

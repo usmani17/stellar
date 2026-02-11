@@ -137,4 +137,10 @@ export const authService = {
     );
     return response.data;
   },
+
+  /** For Auth0 (or similar) signups: user exists but has no workspace. Creates workspace and assigns user as owner. */
+  completeSignup: async (data: { workspace_name: string; role?: string; team_size?: string }): Promise<{ user: User }> => {
+    const response = await api.post<{ user: User }>("/users/complete-signup/", data);
+    return response.data;
+  },
 };
