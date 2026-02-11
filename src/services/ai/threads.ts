@@ -122,35 +122,63 @@ export interface ThreadMessage {
   [key: string]: unknown;
 }
 
+/** Normalize raw message content to string or ContentBlock[] for display (used by stream and history) */
+export function normalizeMessageContent(content: ThreadMessageContent): string | ContentBlock[] {
+  if (content == null) return '';
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) {
+    return typeof (content as any).text === 'string' ? (content as any).text : '';
+  }
+  const blocks: ContentBlock[] = [];
+  for (const part of content) {
+    if (!part || typeof part !== 'object') continue;
+    if (part.type === 'text' && typeof (part as any).text === 'string') {
+      blocks.push({ type: 'text', text: (part as any).text });
+    } else if (part.type === 'tool_use' && (part as any).name) {
+      blocks.push({
+        type: 'tool_use',
+        id: (part as any).id || `tool-${blocks.length}`,
+        name: (part as any).name,
+        input: typeof (part as any).input === 'object' ? (part as any).input : {},
+      });
+    }
+  }
+  return blocks.length ? blocks : '';
+}
+
+/** Normalize full AI message (content + tool_calls) so tool calls from message.tool_calls are included for display */
+export function normalizeAIMessageToContent(msg: { content?: ThreadMessageContent; tool_calls?: ToolCall[] }): string | ContentBlock[] {
+  const fromContent = normalizeMessageContent(msg.content ?? '');
+  const toolCalls = msg.tool_calls;
+  if (!Array.isArray(toolCalls) || toolCalls.length === 0) {
+    return fromContent;
+  }
+  const toolBlocks: ContentBlock[] = toolCalls
+    .filter((tc): tc is ToolCall => tc && typeof tc === 'object' && !!tc.name)
+    .map((tc, i) => ({
+      type: 'tool_use' as const,
+      id: (tc.id as string) || `tool-${i}`,
+      name: tc.name as string,
+      input: (typeof tc.args === 'object' && tc.args != null ? tc.args : {}) as Record<string, unknown>,
+    }));
+  if (typeof fromContent === 'string') {
+    return toolBlocks.length > 0 ? [...toolBlocks, { type: 'text' as const, text: fromContent }] : fromContent;
+  }
+  const contentBlocks = fromContent as ContentBlock[];
+  return [...toolBlocks, ...contentBlocks];
+}
+
 /** Normalize a message from API/history so content is string or ContentBlock[] for consistent display */
-export function normalizeThreadMessage(msg: ThreadMessage | { type?: string; content?: ThreadMessageContent; id?: string; [k: string]: unknown }): ThreadMessage {
+export function normalizeThreadMessage(msg: ThreadMessage | { type?: string; content?: ThreadMessageContent; id?: string; tool_calls?: ToolCall[]; [k: string]: unknown }): ThreadMessage {
   if (!msg || typeof msg !== 'object') return msg as ThreadMessage;
   const rawType = (msg as { type?: string }).type;
   const type = rawType === 'AIMessageChunk' ? 'ai' : (rawType ?? 'ai');
   const validTypes: Array<ThreadMessage['type']> = ['human', 'ai', 'tool', 'system'];
   const normalizedType = validTypes.includes(type as ThreadMessage['type']) ? (type as ThreadMessage['type']) : 'ai';
 
-  let content: ThreadMessageContent = (msg as { content?: ThreadMessageContent }).content ?? '';
-  if (Array.isArray(content)) {
-    const blocks: ContentBlock[] = [];
-    for (const part of content) {
-      if (!part || typeof part !== 'object') continue;
-      if (part.type === 'text' && typeof (part as any).text === 'string') {
-        blocks.push({ type: 'text', text: (part as any).text });
-      } else if (part.type === 'tool_use' && (part as any).name) {
-        blocks.push({
-          type: 'tool_use',
-          id: (part as any).id || `tool-${blocks.length}`,
-          name: (part as any).name,
-          input: typeof (part as any).input === 'object' ? (part as any).input : {},
-        });
-      }
-      // Skip input_json_delta, partial_json, etc. — not displayable
-    }
-    content = blocks.length ? blocks : '';
-  } else if (content != null && typeof content !== 'string') {
-    content = typeof (content as any).text === 'string' ? (content as any).text : '';
-  }
+  const content = normalizedType === 'ai'
+    ? normalizeAIMessageToContent({ content: (msg as { content?: ThreadMessageContent }).content, tool_calls: (msg as { tool_calls?: ToolCall[] }).tool_calls })
+    : normalizeMessageContent((msg as { content?: ThreadMessageContent }).content ?? '');
 
   const base = msg as ThreadMessage;
   return {
@@ -212,6 +240,8 @@ export interface ThreadMetaData {
     channel_id?: number;
     auth_token?: string;
     title?: string;
+    /** Graph this thread was created with (e.g. "chat" | "campaign_setup") for Assistant UI */
+    graph_id?: string;
     [key: string]: unknown;
   }
 

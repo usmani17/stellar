@@ -4,12 +4,22 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useMemo,
   type ReactNode,
 } from "react";
+import { useStream } from "@langchain/langgraph-sdk/react";
 import { useAuth } from "./AuthContext";
-import { threadsService, type Thread, type ThreadMessage, normalizeThreadMessages } from "../services/ai/threads";
+import { threadsService, type Thread, type ThreadMessage, type ContentBlock, normalizeThreadMessages } from "../services/ai/threads";
 import { runsService } from "../services/ai/runs";
-import { assistantService, type AssistantSearchResult } from "../services/ai/assistant";
+import { assistantService, getAssistantIdForGraph, type AssistantSearchResult, type GraphId } from "../services/ai/assistant";
+import type { CampaignSetupState } from "../types/agent";
+import { campaignStateToThreadMessages } from "../services/ai/campaignStateUtils";
+
+const getStreamApiUrl = (): string => {
+  const baseUrl = import.meta.env.VITE_AI_AGENT_BASE_URL;
+  if (!baseUrl) return "";
+  return String(baseUrl).replace(/\/$/, "");
+};
 
 export const ASSISTANT_PANEL_WIDTH = "550px";
 // "fixed" will make the main content shrink, while "floating" will be displayed over the main content.
@@ -20,11 +30,25 @@ export interface SuggestedPrompt {
   text: string;
 }
 
-// Extended Thread with runtime state (not from API)
-interface ThreadWithRuntime extends Thread {
+/** User-selected scope in the assistant panel (overrides route params when set). */
+export interface AssistantScope {
+  accountId: string | null;
+  channelId: string | null;
+  profileId: string | null;
+  /** Profile display name (from selected integration/profile). */
+  profileName?: string | null;
+  /** Channel/marketplace type (e.g. google, meta, tiktok) for LangGraph context. */
+  marketplace?: string | null;
+}
+
+export type AssistantIntent = "analyze" | "create_campaign" | null;
+
+// Extended Thread with runtime state (not from API). Exported so Assistant UI can read campaignState.
+export interface ThreadWithRuntime extends Thread {
   isStreaming?: boolean;
   thinkingSteps?: string[];
-  pendingMessageId?: string | null; // Track streaming message ID
+  pendingMessageId?: string | null;
+  campaignState?: CampaignSetupState;
 }
 
 interface AssistantContextType {
@@ -63,15 +87,32 @@ interface AssistantContextType {
   currentThinkingSteps: string[];
   currentRunId: string | null;
   assistants: AssistantSearchResult[];
+  selectedGraphId: GraphId;
+  setSelectedGraphId: (id: GraphId) => void;
+  onApplyDraft?: (draft: Record<string, unknown>) => void;
+
+  /** Scope selected in panel (account, channel, profile). When set, overrides route params when sending. */
+  assistantScope: AssistantScope;
+  setAssistantScope: (updates: Partial<AssistantScope>) => void;
+  /** Intent: Analyze or Create Campaign. When set, can drive suggested prompts and run metadata. */
+  assistantIntent: AssistantIntent;
+  setAssistantIntent: (intent: AssistantIntent) => void;
 }
 
 const AssistantContext = createContext<AssistantContextType | undefined>(undefined);
 
-const DEFAULT_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
+const CHAT_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   { id: "1", text: "Why is my ROAS dropping?" },
   { id: "2", text: "Suggest budget optimization" },
   { id: "3", text: "Analyze ACOS trends" },
   { id: "4", text: "Compare campaign efficiency" },
+];
+
+const CAMPAIGN_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
+  { id: "c1", text: "Create a Demand Gen campaign" },
+  { id: "c2", text: "Set up a Search campaign" },
+  { id: "c3", text: "Create a Performance Max campaign" },
+  { id: "c4", text: "I want to create a YouTube video campaign" },
 ];
 
 export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: string; channelId?: string }> = ({
@@ -92,19 +133,150 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingThreads, setIsLoadingThreads] = useState(false);
-  const [suggestedPrompts] = useState<SuggestedPrompt[]>(DEFAULT_SUGGESTED_PROMPTS);
+  const [selectedGraphId, setSelectedGraphId] = useState<GraphId>("chat");
+  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+  const [assistants, setAssistants] = useState<AssistantSearchResult[]>([]);
+
+  const [assistantScope, setAssistantScopeState] = useState<AssistantScope>({
+    accountId: null,
+    channelId: null,
+    profileId: null,
+    profileName: null,
+    marketplace: null,
+  });
+  const [assistantIntent, setAssistantIntent] = useState<AssistantIntent>(null);
+
+  const setAssistantScope = useCallback((updates: Partial<AssistantScope>) => {
+    setAssistantScopeState((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  const suggestedPrompts = selectedGraphId === "campaign_setup" ? CAMPAIGN_SUGGESTED_PROMPTS : CHAT_SUGGESTED_PROMPTS;
+  const currentAssistantId = getAssistantIdForGraph(assistants, selectedGraphId);
+  const streamApiUrl = useMemo(() => getStreamApiUrl(), []);
+
+  const onThreadIdFromStream = useCallback((threadId: string) => {
+    setThreads(prev => {
+      if (prev.some(t => t.thread_id === threadId)) return prev;
+      return [...prev, {
+        thread_id: threadId,
+        metadata: { graph_id: selectedGraphId },
+        values: { messages: [] },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        status: "idle",
+      } as ThreadWithRuntime];
+    });
+    setCurrentThreadId(threadId);
+  }, [selectedGraphId]);
+
+  const stream = useStream({
+    apiUrl: streamApiUrl || undefined,
+    assistantId: currentAssistantId ?? "",
+    threadId: currentThreadId,
+    onThreadId: onThreadIdFromStream,
+    messagesKey: "messages",
+    onError: useCallback((err: unknown) => {
+      console.error("Stream error:", err);
+    }, []),
+    onFinish: useCallback((state: unknown, run?: { thread_id?: string }) => {
+      const threadId = run?.thread_id ?? currentThreadId;
+      if (!threadId) return;
+      const s = state != null && typeof state === "object" ? (state as Record<string, unknown>) : {};
+      const values = s.values != null && typeof s.values === "object" ? (s.values as Record<string, unknown>) : null;
+      const rawMessages = values?.messages ?? s.messages;
+      const hasCampaignState = values && ("campaign_draft" in values || "reply_text" in values || "current_questions_schema" in values);
+      const campaignState = hasCampaignState ? (values as CampaignSetupState) : undefined;
+      const normalized = Array.isArray(rawMessages) && rawMessages.length > 0
+        ? normalizeThreadMessages(rawMessages as Parameters<typeof normalizeThreadMessages>[0])
+        : null;
+      setThreads(prev => prev.map(t => {
+        if (t.thread_id !== threadId) return t;
+        const next: ThreadWithRuntime = { ...t, updated_at: new Date().toISOString() };
+        if (normalized) next.values = { ...(t.values || {}), messages: normalized };
+        if (campaignState) next.campaignState = campaignState;
+        return next;
+      }));
+    }, [currentThreadId]),
+    onUpdateEvent: useCallback((data: Record<string, unknown>) => {
+      const keys = data && typeof data === "object" ? Object.keys(data).filter(k => !["messages", "analysis", "corrected_analysis"].includes(k)) : [];
+      if (keys.length > 0 && currentThreadId) {
+        setThreads(prev => prev.map(t => t.thread_id === currentThreadId ? { ...t, thinkingSteps: keys, updated_at: new Date().toISOString() } : t));
+      }
+    }, [currentThreadId]),
+  });
 
   // Derived: get current thread directly from array
   const currentThread = threads.find(t => t.thread_id === currentThreadId) || null;
 
-  // Derived: backward compatibility
-  const messages = currentThread?.values?.messages || [];
-  const isStreaming = currentThread?.isStreaming || false;
-  const currentThinkingSteps = currentThread?.thinkingSteps || [];
+  // When we're on the stream's thread, use stream.messages; otherwise use thread history from our list
+  const streamMessages: ThreadMessage[] = useMemo(() => {
+    if (!stream.messages?.length) return [];
+    return stream.messages.map((m, idx) => {
+      const type = (m as { type: string }).type === "human" ? "human" as const : "ai" as const;
+      const rawContent = (m as { content: unknown }).content ?? "";
+      let content: ThreadMessage["content"] = rawContent;
+      if (type === "ai") {
+        const getToolCalls = (stream as { getToolCalls?: (msg: unknown) => Array<{ call: { id?: string; name: string; args?: Record<string, unknown> } }> }).getToolCalls;
+        const toolCalls = getToolCalls?.(m);
+        if (toolCalls?.length > 0) {
+          const toolBlocks: ContentBlock[] = toolCalls.map((tc) => ({
+            type: "tool_use" as const,
+            id: tc.call.id ?? `tool-${tc.call.name}`,
+            name: tc.call.name,
+            input: (tc.call.args ?? {}) as Record<string, unknown>,
+          }));
+          const text = typeof rawContent === "string" ? rawContent : (Array.isArray(rawContent) ? rawContent.filter((p: { type?: string }) => p?.type === "text").map((p: { text?: string }) => p?.text ?? "").join("") : "");
+          content = (text ? [...toolBlocks, { type: "text" as const, text }] : toolBlocks) as ThreadMessage["content"];
+        }
+      }
+      return {
+        id: (m as { id?: string }).id ?? `msg-${idx}`,
+        type,
+        content,
+        additional_kwargs: (m as { additional_kwargs?: Record<string, unknown> }).additional_kwargs,
+      } as ThreadMessage;
+    });
+  }, [stream.messages, stream]);
 
-  // Track current run for cancellation
-  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
-  const [assistants, setAssistants] = useState<AssistantSearchResult[]>([]);
+  const isStreamThread = currentThreadId != null; // stream is bound to currentThreadId when set
+  const messages: ThreadMessage[] = isStreamThread && stream.messages?.length != null
+    ? streamMessages
+    : (currentThread?.values?.messages ?? []);
+
+  const isStreaming = stream.isLoading;
+  const currentThinkingSteps = currentThread?.thinkingSteps ?? [];
+
+  // Persist stream messages (including tool calls) into thread when stream finishes, so tool calls don't vanish
+  const prevLoadingRef = React.useRef<boolean>(stream.isLoading);
+  const streamMessagesRef = React.useRef<ThreadMessage[]>([]);
+  streamMessagesRef.current = streamMessages;
+  useEffect(() => {
+    const justFinished = prevLoadingRef.current && !stream.isLoading;
+    prevLoadingRef.current = stream.isLoading;
+    if (!justFinished || !currentThreadId) return;
+    const latest = streamMessagesRef.current;
+    if (!latest?.length) return;
+    setThreads(prev => prev.map(t =>
+      t.thread_id === currentThreadId
+        ? { ...t, values: { ...(t.values || {}), messages: latest }, updated_at: new Date().toISOString() }
+        : t
+    ));
+  }, [stream.isLoading, currentThreadId]);
+
+  // Sync campaign state from stream.values into current thread (backend sends campaign_draft etc. at top level of values)
+  useEffect(() => {
+    const vals = stream.values != null && typeof stream.values === "object" ? (stream.values as Record<string, unknown>) : undefined;
+    if (!currentThreadId || !vals) return;
+    const hasCampaignState = "campaign_draft" in vals || "reply_text" in vals || "current_questions_schema" in vals;
+    if (!hasCampaignState) return;
+    const campaignState = vals as CampaignSetupState;
+    setThreads(prev => prev.map(t =>
+      t.thread_id === currentThreadId
+        ? { ...t, campaignState, updated_at: new Date().toISOString() }
+        : t
+    ));
+  }, [currentThreadId, stream.values]);
+
   // Load all assistants on mount
   useEffect(() => {
     (async () => {
@@ -131,12 +303,13 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
 
       // Merge with existing runtime state if any
       setThreads(prev => {
-        const existingRuntime = new Map(prev.map(t => [t.thread_id, { isStreaming: t.isStreaming, thinkingSteps: t.thinkingSteps }]));
+        const existingRuntime = new Map(prev.map(t => [t.thread_id, { isStreaming: t.isStreaming, thinkingSteps: t.thinkingSteps, campaignState: t.campaignState }]));
 
         return threadList.map(t => ({
           ...t,
           isStreaming: existingRuntime.get(t.thread_id)?.isStreaming || false,
           thinkingSteps: existingRuntime.get(t.thread_id)?.thinkingSteps || [],
+          campaignState: existingRuntime.get(t.thread_id)?.campaignState,
         }));
       });
     } catch (error) {
@@ -152,6 +325,26 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       loadThreads();
     }
   }, [isOpen, user?.id, loadThreads]);
+
+  // Pre-fill scope from route when on a channel page (user can still change in panel)
+  useEffect(() => {
+    if (propAccountId || propChannelId) {
+      setAssistantScopeState((prev) => ({
+        ...prev,
+        ...(propAccountId && { accountId: propAccountId }),
+        ...(propChannelId && { channelId: propChannelId }),
+      }));
+    }
+  }, [propAccountId, propChannelId]);
+
+  // Sync selectedGraphId when user selects a thread (so graph selector matches the thread's graph)
+  useEffect(() => {
+    if (!currentThreadId || !currentThread) return;
+    const graphId = (currentThread.metadata as { graph_id?: GraphId })?.graph_id;
+    if (graphId === "chat" || graphId === "campaign_setup") {
+      setSelectedGraphId(graphId);
+    }
+  }, [currentThreadId, currentThread?.metadata, currentThread]);
 
   // Select thread - load full history if needed
   const selectThread = useCallback(async (threadId: string) => {
@@ -273,155 +466,75 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     ));
   }, [currentThreadId]);
 
-  // Update streaming message content - directly modify last message in array
-  const updateStreamingContent = useCallback((threadId: string, content: string, runId?: string) => {
-    setThreads(prev => prev.map(t => {
-      if (t.thread_id !== threadId) return t;
+  // Effective scope: panel selection overrides route params
+  const effectiveAccountId = assistantScope.accountId ?? propAccountId ?? null;
+  const effectiveChannelId = assistantScope.channelId ?? propChannelId ?? null;
+  const effectiveProfileId = assistantScope.profileId;
+  const effectiveProfileName = assistantScope.profileName ?? null;
+  const effectiveMarketplace = assistantScope.marketplace ?? null;
 
-      const currentValues = t.values || { messages: [] };
-      const currentMessages = currentValues.messages || [];
-      const lastIndex = currentMessages.length - 1;
-      const lastMessage = currentMessages[lastIndex];
-
-      // If last message is AI, update it; otherwise add new
-      if (lastMessage?.type === 'ai') {
-        const updatedMessages = [...currentMessages];
-        updatedMessages[lastIndex] = { ...lastMessage, content };
-        return {
-          ...t,
-          values: { ...currentValues, messages: updatedMessages },
-          pendingMessageId: runId ? `msg-${runId}` : t.pendingMessageId
-        };
-      } else {
-        const newMessage: ThreadMessage = {
-          id: runId ? `msg-${runId}` : `msg-${Date.now()}`,
-          type: 'ai',
-          content,
-        };
-        return {
-          ...t,
-          values: { ...currentValues, messages: [...currentMessages, newMessage] },
-          pendingMessageId: runId ? `msg-${runId}` : null
-        };
-      }
-    }));
-  }, []);
-
-  // Main send message
+  // Main send message (useStream path)
   const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || !user?.id) return;
+    if (!content.trim() || !user?.id || !currentAssistantId || !streamApiUrl) return;
 
-    // Ensure we have a current thread
-    let activeThreadId = currentThreadId;
-
-    if (!activeThreadId) {
-      // Create thread on server if temp
-      const threadData = await threadsService.createThread({
-        metadata: {
-          user_id: user.id,
-          account_id: propAccountId ? parseInt(propAccountId) : undefined,
-          channel_id: propChannelId ? parseInt(propChannelId) : undefined,
-          auth_token: '123123123',
-          title: content.slice(0, 50) + (content.length > 50 ? '...' : '')
-        }
-      });
-      activeThreadId = threadData.thread_id;
-      setThreads(prev => [...prev, threadData]);
-      setCurrentThreadId(activeThreadId);
-    }
-
-    // Add user message directly to threads array
-    const userMessage: ThreadMessage = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type: 'human',
-      content,
-    };
-
-    setThreads(prev => prev.map(t => {
-      if (t.thread_id !== activeThreadId) return t;
-
-      const currentValues = t.values || { messages: [] };
-      const currentMessages = currentValues.messages || [];
-
-      return {
-        ...t,
-        values: {
-          ...currentValues,
-          messages: [...currentMessages, userMessage]
-        },
-        updated_at: new Date().toISOString()
-      };
-    }));
+    const accountIdNum = effectiveAccountId ? parseInt(effectiveAccountId, 10) : undefined;
+    const channelIdNum = effectiveChannelId ? parseInt(effectiveChannelId, 10) : undefined;
 
     setInputValue("");
-    setIsLoading(true);
-    updateThreadRuntime(activeThreadId, { isStreaming: true, thinkingSteps: [] });
+
+    const humanMessage = { type: "human" as const, content, id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}` };
+    const configurable: Record<string, unknown> = {
+      user_id: user.id,
+      account_id: accountIdNum ?? effectiveAccountId ?? undefined,
+      integration_id: channelIdNum ?? effectiveChannelId ?? undefined,
+      profile_id: effectiveProfileId ?? undefined,
+      marketplace: effectiveMarketplace ?? undefined,
+      intent: assistantIntent ?? undefined,
+    };
+    if (effectiveProfileName != null || effectiveMarketplace != null) {
+      configurable.profile = {
+        id: effectiveProfileId,
+        name: effectiveProfileName,
+        channel_type: effectiveMarketplace,
+      };
+    }
 
     try {
-
-      // Stream response
-      setCurrentRunId(null); // Reset before starting
-      await runsService.streamRun(activeThreadId, {
-        assistant_id: 'chat',
-        input: { messages: [{ role: 'user', content }] },
-        metadata: {
-          user_id: user.id,
-          account_id: propAccountId ? parseInt(propAccountId) : undefined,
-          channel_id: propChannelId ? parseInt(propChannelId) : undefined,
-          auth_token: '123123123'
-        },
-        config: {
-          recursion_limit: 75,
-          configurable: {
-            // query_model: null,
-            // response_model: null,
+      await stream.submit(
+        { messages: [humanMessage] },
+        {
+          metadata: {
+            user_id: user.id,
+            account_id: accountIdNum,
+            channel_id: channelIdNum,
+            profile_id: effectiveProfileId ?? undefined,
+            intent: assistantIntent ?? undefined,
+            auth_token: "123123123",
           },
-        },
-        stream_resumable: true,
-        stream_subgraphs: true,
-        on_disconnect: "continue",
-        stream_mode: ["messages-tuple", "updates"],
-      }, {
-        onLoadingChange: setIsLoading,
-        onThinkingStep: (steps) => {
-          updateThreadRuntime(activeThreadId, { thinkingSteps: steps });
-        },
-        onMessage: (messageContent, _analysis, _steps, runId) => {
-          updateStreamingContent(activeThreadId, messageContent, runId);
-        },
-        onError: (errorMsg) => {
-          updateStreamingContent(activeThreadId, `Error: ${errorMsg}`);
-          updateThreadRuntime(activeThreadId, { isStreaming: false, thinkingSteps: [] });
-        },
-        onRunId: (runId) => {
-          setCurrentRunId(runId);
+          config: { recursion_limit: 75, configurable },
+          streamResumable: true,
+          streamSubgraphs: true,
+          onDisconnect: "continue",
+          streamMode: ["messages-tuple", "updates", "values"],
+          threadId: currentThreadId ?? undefined,
+          optimisticValues: (prev: { messages?: unknown[] }) => ({
+            ...prev,
+            messages: [...(prev.messages ?? []), humanMessage],
+          }),
         }
-      });
-
+      );
     } catch (error) {
       console.error("Error sending message:", error);
-      updateStreamingContent(activeThreadId, `Sorry, I encountered an error. Please try again.`);
-    } finally {
-      setIsLoading(false);
-      setCurrentRunId(null);
-      updateThreadRuntime(activeThreadId, { isStreaming: false, thinkingSteps: [] });
     }
-  }, [currentThreadId, threads, user?.id, propAccountId, propChannelId, startNewThread, updateThreadRuntime, updateStreamingContent]);
+  }, [user?.id, currentAssistantId, streamApiUrl, effectiveAccountId, effectiveChannelId, effectiveProfileId, effectiveProfileName, effectiveMarketplace, assistantIntent, currentThreadId, stream]);
 
-  // Cancel the current run
   const cancelRun = useCallback(async () => {
-    if (!currentThreadId || !currentRunId) return;
-
     try {
-      await runsService.cancelRun(currentThreadId, currentRunId, { action: 'interrupt' });
+      await stream.stop();
     } catch (error) {
-      console.error('Failed to cancel run:', error);
-    } finally {
-      setIsLoading(false);
-      setCurrentRunId(null);
-      updateThreadRuntime(currentThreadId, { isStreaming: false, thinkingSteps: [] });
+      console.error("Failed to stop stream:", error);
     }
-  }, [currentThreadId, currentRunId, updateThreadRuntime]);
+  }, [stream]);
 
   // UI actions
   const toggleAssistant = useCallback(() => setIsOpen(prev => !prev), []);
@@ -466,8 +579,15 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         currentRunId,
         cancelRun,
 
-        // Expose loaded assistants for consumers (optional)
         assistants,
+        selectedGraphId,
+        setSelectedGraphId,
+        onApplyDraft: undefined,
+
+        assistantScope,
+        setAssistantScope,
+        assistantIntent,
+        setAssistantIntent,
       }}
     >
       {children}
