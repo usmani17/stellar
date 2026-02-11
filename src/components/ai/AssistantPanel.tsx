@@ -251,13 +251,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         const textPart = inputValue.trim();
         const schema = SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema ? (questionsSchema as CurrentQuestionSchemaItem[]) : [];
         const formValues = SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema && schemaFormRef.current ? schemaFormRef.current.getValues() : {};
-        if (schema.length > 0 && Object.keys(formValues).length > 0) {
-            const result = schemaFormRef.current?.validate(formValues);
-            if (result && !result.valid) {
-                schemaFormRef.current?.setErrors(result.errors);
-                return;
-            }
-        }
+        
         const formParts =
             schema.length > 0 && Object.keys(formValues).length > 0
                 ? (schema

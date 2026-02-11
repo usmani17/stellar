@@ -50,7 +50,7 @@ export const DraftDetail: React.FC = () => {
     setLoading(true);
     setError("");
     entitiesDraftsService
-      .getById(draftId)
+      .getById(draftId, accountIdNum ?? undefined, channelIdNum ?? undefined)
       .then(setDraft)
       .catch((err) => {
         const status = err.response?.status;
@@ -58,7 +58,7 @@ export const DraftDetail: React.FC = () => {
         setError(status === 404 ? "Draft not found." : msg);
       })
       .finally(() => setLoading(false));
-  }, [draftId]);
+  }, [draftId, accountIdNum, channelIdNum]);
 
   const canPublish =
     draft &&
@@ -72,7 +72,7 @@ export const DraftDetail: React.FC = () => {
     setPublishError("");
     setPublishSuccess(false);
     entitiesDraftsService
-      .publish(draftId)
+      .publish(draftId, accountIdNum ?? undefined, channelIdNum ?? undefined)
       .then((res) => {
         setPublishSuccess(true);
         if (res.draft) setDraft(res.draft);

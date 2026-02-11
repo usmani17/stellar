@@ -127,7 +127,7 @@ export const DraftsList: React.FC = () => {
     setPublishError("");
     setPublishSuccess(false);
     entitiesDraftsService
-      .getById(viewDraftId)
+      .getById(viewDraftId, effectiveAccountId, effectiveIntegrationId)
       .then((d) => {
         setViewDraft(d);
         setViewDraftLoading(false);
@@ -192,7 +192,7 @@ export const DraftsList: React.FC = () => {
     setPublishError("");
     setPublishSuccess(false);
     entitiesDraftsService
-      .publish(viewDraftId)
+      .publish(viewDraftId, effectiveAccountId, effectiveIntegrationId)
       .then((res) => {
         setPublishSuccess(true);
         if (res.draft) setViewDraft(res.draft);
