@@ -21,11 +21,13 @@ export interface Channel {
 export interface Account {
   id: number;
   name: string;
+  status?: boolean;
   channels_count?: number;
   channels?: Channel[];
   user_ids?: number[];
   users?: Array<{ id: number; name: string; email: string }>;
-  created_by?: number;
+  /** Creator user id (detail) or display name (list API) */
+  created_by?: number | string;
   created_by_name?: string;
   created_at: string;
   updated_at: string;
@@ -35,10 +37,21 @@ export interface CreateAccountData {
   name: string;
 }
 
+/** Paginated response from GET /accounts/ */
+export interface AccountsPaginatedResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Account[];
+}
+
 export const accountsService = {
   // Account methods
-  getAccounts: async (): Promise<Account[]> => {
-    const response = await api.get<Account[]>("/accounts/");
+  getAccounts: async (params?: { all?: boolean }): Promise<Account[]> => {
+    const requestParams = params?.all ? { all: 'true' } : undefined;
+    const response = await api.get<Account[] | AccountsPaginatedResponse>("/accounts/", {
+      params: requestParams,
+    });
     // Ensure we always return an array
     const data = response.data;
     if (Array.isArray(data)) {
@@ -49,13 +62,27 @@ export const accountsService = {
       data &&
       typeof data === "object" &&
       "results" in data &&
-      Array.isArray(data.results)
+      Array.isArray((data as AccountsPaginatedResponse).results)
     ) {
-      return data.results;
+      return (data as AccountsPaginatedResponse).results;
     }
     // If data is an object but not an array, return empty array
     console.warn("Unexpected response format from /accounts/", data);
     return [];
+  },
+
+  /**
+   * Fetch accounts with pagination (for brands page).
+   * Returns count, next/previous URLs, and results for the requested page.
+   */
+  getAccountsPaginated: async (params?: {
+    page?: number;
+    page_size?: number;
+  }): Promise<AccountsPaginatedResponse> => {
+    const response = await api.get<AccountsPaginatedResponse>("/accounts/", {
+      params: { page: params?.page ?? 1, page_size: params?.page_size },
+    });
+    return response.data;
   },
 
   createAccount: async (data: CreateAccountData): Promise<Account[]> => {

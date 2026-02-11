@@ -1,6 +1,7 @@
 import { Navigate, Route, useParams } from "react-router-dom";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import { AccountRequiredRoute } from "../components/auth/AccountRequiredRoute";
+import { BrandAccessRoute } from "../components/auth/BrandAccessRoute";
 import { WorkspaceRequiredRoute } from "../components/auth/WorkspaceRequiredRoute";
 import { Layout } from "../components/layout/Layout";
 import { Accounts } from "../pages/Accounts";
@@ -10,6 +11,8 @@ import { Channels } from "../pages/Channels";
 import { ConnectTikTok } from "../pages/ConnectTikTok";
 import { Dashboards } from "../pages/Dashboards";
 import { LogHistory } from "../pages/LogHistory";
+import { DraftsList } from "../pages/DraftsList";
+import { DraftDetail } from "../pages/DraftDetail";
 import { Profile } from "../pages/Profile";
 import { WorkspaceSettings } from "../pages/WorkspaceSettings";
 import { NoWorkspace } from "../pages/NoWorkspace";
@@ -72,14 +75,40 @@ function AccountRoutes() {
                 }
             />
             <Route
+                path="/drafts"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <DraftsList />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/drafts/:draftId"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <DraftDetail />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
                 path="/brands/:accountId/integrations"
                 element={
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                                <Layout>
-                                    <Channels />
-                                </Layout>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <Channels />
+                                    </Layout>
+                                </BrandAccessRoute>
                             </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
@@ -101,9 +130,11 @@ function AccountRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                                <Layout>
-                                    <AccountProfiles />
-                                </Layout>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <AccountProfiles />
+                                    </Layout>
+                                </BrandAccessRoute>
                             </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
@@ -115,9 +146,11 @@ function AccountRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                                <Layout>
-                                    <AccountUsers />
-                                </Layout>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <AccountUsers />
+                                    </Layout>
+                                </BrandAccessRoute>
                             </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
@@ -129,9 +162,11 @@ function AccountRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                                <Layout>
-                                    <ConnectTikTok />
-                                </Layout>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <ConnectTikTok />
+                                    </Layout>
+                                </BrandAccessRoute>
                             </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
@@ -143,9 +178,11 @@ function AccountRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                                <Layout>
-                                    <LogHistory />
-                                </Layout>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <LogHistory />
+                                    </Layout>
+                                </BrandAccessRoute>
                             </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
@@ -157,9 +194,11 @@ function AccountRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                                <Layout>
-                                    <LogHistory />
-                                </Layout>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <LogHistory />
+                                    </Layout>
+                                </BrandAccessRoute>
                             </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>

@@ -1,4 +1,4 @@
-import { Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 
 import PublicRoutes from "./PublicRoutes";
 import OAuthRoutes from "./OAuthRoutes";
@@ -8,18 +8,31 @@ import AmazonRoutes from "./AmazonRoutes";
 import GoogleRoutes from "./GoogleRoutes";
 import TikTokRoutes from "./TikTokRoutes";
 import NotFoundRoutes from "./NotFoundRoutes";
+import { AssistantProvider } from "./../contexts/AssistantContext";
+import { useParams, Outlet } from "react-router-dom";
 
+export const AssistantWrapper = () => {
+    // useParams: accountId/channelId only present on channel-scoped routes (e.g. /brands/:accountId/.../google/:channelId/...)
+    const { accountId, channelId } = useParams<{ accountId: string; channelId: string }>();
+    return (
+        <AssistantProvider accountId={accountId ?? undefined} channelId={channelId ?? undefined}>
+            <Outlet />
+        </AssistantProvider>
+    );
+};
 function AppRoutes() {
     return (
         <Routes>
-            {PublicRoutes()}
-            {OAuthRoutes()}
-            {ChannelRoutes()}
-            {AccountRoutes()}
-            {AmazonRoutes()}
-            {GoogleRoutes()}
-            {TikTokRoutes()}
-            {NotFoundRoutes()}
+            <Route element={<AssistantWrapper />}>
+                {PublicRoutes()}
+                {OAuthRoutes()}
+                {ChannelRoutes()}
+                {AccountRoutes()}
+                {AmazonRoutes()}
+                {GoogleRoutes()}
+                {TikTokRoutes()}
+                {NotFoundRoutes()}
+            </Route>
         </Routes>
     );
 }

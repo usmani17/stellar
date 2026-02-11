@@ -751,6 +751,25 @@ body input[type="submit"]:disabled {
   cursor: not-allowed;
 }
 
+/* Assistant suggested prompt button */
+.assistant-prompt-button {
+  width: 100%;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 14px;
+  color: #374151;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: border-color 0.2s, background-color 0.2s;
+  cursor: pointer;
+}
+
+.assistant-prompt-button:hover {
+  border-color: #136D6D;
+  background-color: #f9fafb;
+}
+
 /* Cancel/Clear button styling - used for cancel and clear buttons */
 .cancel-button {
   padding: 8px 16px;
@@ -908,6 +927,42 @@ body input[type="submit"]:disabled {
 }
 
 .search-input-container input:focus {
+  outline: none;
+}
+
+/* Assistant input area - same look as search-input-container (hover, focus, font, size) */
+.assistant-input-container {
+  border: 1px solid #e8e8e3;
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background-color: #FEFEFB !important;
+  padding: 12px 16px;
+}
+
+.assistant-input-container:hover {
+  border-color: #136D6D;
+}
+
+.assistant-input-container:focus-within {
+  border-color: #136D6D;
+  box-shadow: 0 0 0 1px rgba(19, 109, 109, 0.1);
+}
+
+.assistant-input-container input {
+  background-color: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 14px;
+  color: #072929;
+  font-family: "GT America Trial", system-ui, sans-serif;
+}
+
+.assistant-input-container input::placeholder {
+  color: #9ca3af;
+}
+
+.assistant-input-container input:focus {
   outline: none;
 }
 
@@ -1074,4 +1129,65 @@ body input[type="submit"]:disabled {
 
 .add-button:hover {
   background-color: #0e5a5a;
+}
+
+/* Scrollbar utility classes */
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.interactive-scrollbar {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: transparent transparent; /* Firefox - initially hidden */
+  transition: scrollbar-color 0.3s ease;
+}
+
+.interactive-scrollbar::-webkit-scrollbar {
+  width: 8px; /* Chrome, Safari, Opera */
+}
+
+.interactive-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* Initially hidden */
+  transition: background 0.3s ease;
+}
+
+.interactive-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent; /* Initially hidden */
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+/* Show scrollbar on hover or when scrolling */
+.interactive-scrollbar:hover {
+  scrollbar-color: rgba(107, 114, 128, 0.5) transparent; /* Firefox */
+}
+
+.interactive-scrollbar:hover::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1); /* Chrome, Safari, Opera */
+}
+
+.interactive-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.5); /* Chrome, Safari, Opera */
+}
+
+.interactive-scrollbar:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7); /* Chrome, Safari, Opera - darker on thumb hover */
+}
+
+/* Show scrollbar temporarily when scrolling - requires JavaScript to add/remove 'scrolling' class */
+.interactive-scrollbar.scrolling {
+  scrollbar-color: rgba(107, 114, 128, 0.5) transparent; /* Firefox */
+}
+
+.interactive-scrollbar.scrolling::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1); /* Chrome, Safari, Opera */
+}
+
+.interactive-scrollbar.scrolling::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.5); /* Chrome, Safari, Opera */
 }

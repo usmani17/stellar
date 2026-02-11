@@ -1,6 +1,7 @@
 import { Route } from "react-router-dom";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import { AccountRequiredRoute } from "../components/auth/AccountRequiredRoute";
+import { BrandAccessRoute } from "../components/auth/BrandAccessRoute";
 import { WorkspaceRequiredRoute } from "../components/auth/WorkspaceRequiredRoute";
 import { GoogleSyncStatusWrapper } from "../components/google/GoogleSyncStatusWrapper";
 import { Layout } from "../components/layout/Layout";
@@ -21,12 +22,14 @@ function GoogleRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                            <GoogleSyncStatusWrapper>
-                                <Layout>
-                                    <GoogleCampaigns />
-                                </Layout>
-                            </GoogleSyncStatusWrapper>
-                        </AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <GoogleSyncStatusWrapper>
+                                        <Layout>
+                                            <GoogleCampaigns />
+                                        </Layout>
+                                    </GoogleSyncStatusWrapper>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
@@ -37,12 +40,14 @@ function GoogleRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                            <GoogleSyncStatusWrapper>
-                                <Layout>
-                                    <GoogleCampaignDetail />
-                                </Layout>
-                            </GoogleSyncStatusWrapper>
-                        </AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <GoogleSyncStatusWrapper>
+                                        <Layout>
+                                            <GoogleCampaignDetail />
+                                        </Layout>
+                                    </GoogleSyncStatusWrapper>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
@@ -53,12 +58,14 @@ function GoogleRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                            <GoogleSyncStatusWrapper>
-                                <Layout>
-                                    <GoogleAdGroups />
-                                </Layout>
-                            </GoogleSyncStatusWrapper>
-                        </AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <GoogleSyncStatusWrapper>
+                                        <Layout>
+                                            <GoogleAdGroups />
+                                        </Layout>
+                                    </GoogleSyncStatusWrapper>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
@@ -69,12 +76,14 @@ function GoogleRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                            <GoogleSyncStatusWrapper>
-                                <Layout>
-                                    <GoogleAds />
-                                </Layout>
-                            </GoogleSyncStatusWrapper>
-                        </AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <GoogleSyncStatusWrapper>
+                                        <Layout>
+                                            <GoogleAds />
+                                        </Layout>
+                                    </GoogleSyncStatusWrapper>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
@@ -85,12 +94,14 @@ function GoogleRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                            <GoogleSyncStatusWrapper>
-                                <Layout>
-                                    <GoogleKeywords />
-                                </Layout>
-                            </GoogleSyncStatusWrapper>
-                        </AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <GoogleSyncStatusWrapper>
+                                        <Layout>
+                                            <GoogleKeywords />
+                                        </Layout>
+                                    </GoogleSyncStatusWrapper>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
@@ -101,10 +112,12 @@ function GoogleRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                            <Layout>
-                                <LogHistory />
-                            </Layout>
-                        </AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <LogHistory />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }
@@ -115,10 +128,12 @@ function GoogleRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <AccountRequiredRoute>
-                            <Layout>
-                                <LogHistory />
-                            </Layout>
-                        </AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <LogHistory />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
                 }

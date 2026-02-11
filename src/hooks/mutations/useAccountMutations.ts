@@ -13,6 +13,8 @@ export const useCreateAccount = () => {
     mutationFn: accountsService.createAccount,
     onSuccess: (accounts) => {
       queryClient.setQueryData<Account[]>(queryKeys.accounts.lists(), accounts);
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.listAll() });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.accounts.all, "list", "paginated"] });
     },
   });
 };
@@ -31,8 +33,9 @@ export const useUpdateAccount = () => {
   >({
     mutationFn: ({ id, data }) => accountsService.updateAccount(id, data),
     onSuccess: (data) => {
-      // Invalidate accounts list and detail
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.listAll() });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.accounts.all, "list", "paginated"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.detail(data.id) });
     },
   });
@@ -52,6 +55,8 @@ export const useDeleteAccount = () => {
         if (!old) return [];
         return old.filter((a) => a.id !== deletedId);
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.listAll() });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.accounts.all, "list", "paginated"] });
     },
   });
 };

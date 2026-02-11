@@ -51,6 +51,7 @@ export const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const hasWorkspace = !!user?.workspace;
+  const hasUsersAccess = user?.role !== "team"; // Owner and Manager can see Users tab
   const accountId = getCurrentAccountId(location.pathname);
   const { isCollapsed, toggleSidebar, sidebarWidth } = useSidebar();
   const { getAccountById } = useAccounts();
@@ -479,35 +480,66 @@ export const Sidebar: React.FC = () => {
                       Profiles
                     </span>
                   </Link>
-                  <Link
-                    to={
-                      accountId
-                        ? buildAccountRoute(accountId, "users")
-                        : "/workspace/team"
-                    }
-                    onClick={(e) =>
-                      handleAccountRequiredClick(e, () =>
+                  {hasUsersAccess && (
+                    <Link
+                      to={
                         accountId
                           ? buildAccountRoute(accountId, "users")
-                          : "/workspace/team",
-                      )
-                    }
-                    className={`flex items-center p-2 rounded-xl gap-2 ${
-                      isActive("/workspace/team")
-                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                    }`}
-                    title="Users"
-                  >
-                    <img
-                      src={isActive("/workspace/team") ? UsersActiveIcon : UsersIcon}
-                      alt=""
-                      className="w-5 h-5 shrink-0"
-                    />
-                    <span className="text-[12.32px] font-normal leading-[16px]">
-                      Users
-                    </span>
-                  </Link>
+                          : "/workspace/team"
+                      }
+                      onClick={(e) =>
+                        handleAccountRequiredClick(e, () =>
+                          accountId
+                            ? buildAccountRoute(accountId, "users")
+                            : "/workspace/team",
+                        )
+                      }
+                      className={`flex items-center p-2 rounded-xl gap-2 ${
+                        isActive("/workspace/team") || isActive("/brands/" + (accountId ?? "") + "/users")
+                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                      }`}
+                      title="Users"
+                    >
+                      <img
+                        src={isActive("/workspace/team") || isActive("/brands/" + (accountId ?? "") + "/users") ? UsersActiveIcon : UsersIcon}
+                        alt=""
+                        className="w-5 h-5 shrink-0"
+                      />
+                      <span className="text-[12.32px] font-normal leading-[16px]">
+                        Users
+                      </span>
+                    </Link>
+                  )}
+                  {hasUsersAccess && (
+                    <Link
+                      to="/drafts"
+                      className={`flex items-center p-2 rounded-xl gap-2 ${
+                        isActive("/drafts")
+                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                      }`}
+                      title="Drafts"
+                    >
+                      <svg
+                        className="w-5 h-5 shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={1.5}
+                        aria-hidden
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                        />
+                      </svg>
+                      <span className="text-[12.32px] font-normal leading-[16px]">
+                        Drafts
+                      </span>
+                    </Link>
+                  )}
                 </div>
               )}
             </>

@@ -230,7 +230,7 @@ export const WorkspaceSettings: React.FC = () => {
                 <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
                   {workspaceName || "Workspace"} – Team
                 </h1>
-                {isOwner && (
+                {isManagerOrOwner && (
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -244,9 +244,8 @@ export const WorkspaceSettings: React.FC = () => {
                         Invite by email
                       </span>
                       <svg
-                        className={`w-5 h-5 text-white transition-transform ${
-                          invitePanelOpen ? "rotate-180" : ""
-                        }`}
+                        className={`w-5 h-5 text-white transition-transform ${invitePanelOpen ? "rotate-180" : ""
+                          }`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -271,9 +270,8 @@ export const WorkspaceSettings: React.FC = () => {
                         Create user directly
                       </span>
                       <svg
-                        className={`w-5 h-5 text-white transition-transform ${
-                          createPanelOpen ? "rotate-180" : ""
-                        }`}
+                        className={`w-5 h-5 text-white transition-transform ${createPanelOpen ? "rotate-180" : ""
+                          }`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -290,9 +288,9 @@ export const WorkspaceSettings: React.FC = () => {
                 )}
               </div>
 
-              {/* Invite panel - Owner only */}
-              {isOwner && invitePanelOpen && (
-                <div className="relative z-[999998]">
+              {/* Invite panel - Owner or Manager */}
+              {isManagerOrOwner && invitePanelOpen && (
+                <div className="">
                   <div className="relative border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]">
                     <form onSubmit={handleInvite}>
                       <div className="p-4 border-b border-gray-200">
@@ -356,9 +354,9 @@ export const WorkspaceSettings: React.FC = () => {
                 </div>
               )}
 
-              {/* Create user panel - Owner only */}
-              {isOwner && createPanelOpen && (
-                <div className="relative z-[999998]">
+              {/* Create user panel - Owner or Manager */}
+              {isManagerOrOwner && createPanelOpen && (
+                <div className="">
                   <div className="relative border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]">
                     <form onSubmit={handleCreateUser}>
                       <div className="p-4 border-b border-gray-200">
@@ -504,7 +502,7 @@ export const WorkspaceSettings: React.FC = () => {
                           </td>
                           {(isOwner || isManagerOrOwner) && (
                             <td className="px-4 py-3">
-                              {u.role === "manager" && isOwner && (
+                              {u.role === "manager" && isManagerOrOwner && (
                                 <button
                                   onClick={() => setAssignManagerId(u.id)}
                                   className="text-sm text-forest-f60 hover:underline"
