@@ -140,6 +140,8 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
               <div className="mt-4 pt-3 border-t border-[#e8e8e3]">
                 <Link
                   to={`/brands/${accountId}/${channelId}/google/drafts/${savedDraftId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="block w-full px-3 py-2 text-xs font-medium bg-[#136D6D] text-white rounded-lg hover:opacity-90 transition-opacity text-center"
                   onClick={() => setOpen(false)}
                 >
