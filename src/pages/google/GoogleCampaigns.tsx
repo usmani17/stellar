@@ -46,6 +46,8 @@ import {
   type BulkUpdateActionDetails,
   type BulkUpdateStatusDetails,
 } from "./components/BulkUpdateConfirmationModal";
+import { BulkBiddingStrategyPanel } from "./components/BulkBiddingStrategyPanel";
+import { BulkConversionActionsPanel } from "./components/BulkConversionActionsPanel";
 // import { CustomizeColumns } from "../../components/ui/CustomizeColumns";
 import type { IGoogleCampaign, IGoogleCampaignsSummary } from "../../types/google/campaign";
 import { useQuery } from "@tanstack/react-query";
@@ -92,8 +94,21 @@ export const GoogleCampaigns: React.FC = () => {
     string | null
   >(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  // Page size with localStorage persistence
+  const [itemsPerPage, setItemsPerPage] = useState<number>(() => {
+    const saved = localStorage.getItem('google_campaigns_page_size');
+    return saved ? parseInt(saved, 10) : 10;
+  });
   const [totalPages, setTotalPages] = useState(0);
+  
+  // Handle page size change
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setItemsPerPage(newPageSize);
+    setCurrentPage(1); // Reset to first page when page size changes
+    localStorage.setItem('google_campaigns_page_size', newPageSize.toString());
+    // Clear the request params ref to force a reload in useEffect
+    lastRequestParamsRef.current = "";
+  }, []);
   const [sortBy, setSortBy] = useState<string>("sales");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -168,6 +183,8 @@ export const GoogleCampaigns: React.FC = () => {
   >(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showBudgetPanel, setShowBudgetPanel] = useState(false);
+  const [showBiddingStrategyPanel, setShowBiddingStrategyPanel] = useState(false);
+  const [showConversionActionsPanel, setShowConversionActionsPanel] = useState(false);
   const [budgetAction, setBudgetAction] = useState<
     "increase" | "decrease" | "set"
   >("increase");
@@ -181,6 +198,16 @@ export const GoogleCampaigns: React.FC = () => {
     "ENABLED" | "PAUSED" | null
   >(null);
   const [isBudgetChange, setIsBudgetChange] = useState(false);
+  const [isBiddingStrategyChange, setIsBiddingStrategyChange] = useState(false);
+  const [pendingBiddingStrategy, setPendingBiddingStrategy] = useState<{
+    bidding_strategy_type: string;
+    target_cpa_micros?: number;
+    target_roas?: number;
+    target_impression_share_location?: string;
+    target_impression_share_location_fraction_micros?: number;
+    target_impression_share_cpc_bid_ceiling_micros?: number;
+  } | null>(null);
+  const [pendingConversionActionIds, setPendingConversionActionIds] = useState<string[] | null>(null);
   const [bulkUpdateResults, setBulkUpdateResults] = useState<{
     updated: number;
     failed: number;
@@ -540,6 +567,7 @@ export const GoogleCampaigns: React.FC = () => {
         const requestKey = JSON.stringify({
           accountId: accountIdNum,
           currentPage,
+          itemsPerPage,
           filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
           startDate: startDate ? startDateStr : null,
           endDate: endDate ? endDateStr : null,
@@ -561,7 +589,7 @@ export const GoogleCampaigns: React.FC = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, channelId, currentPage, filters, startDate, endDate, sorting, apiSearchQuery]);
+  }, [accountId, channelId, currentPage, itemsPerPage, filters, startDate, endDate, sorting, apiSearchQuery]);
 
   const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
     console.log("handleCreateGoogleCampaign called", {
@@ -2992,6 +3020,160 @@ export const GoogleCampaigns: React.FC = () => {
         failed: selectedCampaigns.size,
         errors: [errorMessage],
       });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkBiddingStrategy = async (strategy: {
+    bidding_strategy_type: string;
+    target_cpa_micros?: number;
+    target_roas?: number;
+    target_impression_share_location?: string;
+    target_impression_share_location_fraction_micros?: number;
+    target_impression_share_cpc_bid_ceiling_micros?: number;
+  }) => {
+    if (!accountId || selectedCampaigns.size === 0) return;
+    
+    // Store strategy and show confirmation modal
+    setPendingBiddingStrategy(strategy);
+    setIsBiddingStrategyChange(true);
+    setIsBudgetChange(false);
+    setPendingStatusAction(null);
+    setShowBiddingStrategyPanel(false);
+    setShowConfirmationModal(true);
+  };
+
+  const runBulkBiddingStrategy = async () => {
+    if (!accountId || selectedCampaigns.size === 0 || !pendingBiddingStrategy) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setBulkLoading(true);
+      setBulkUpdateResults(null);
+
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+
+      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
+        accountIdNum,
+        channelIdNum,
+        {
+          campaignIds: Array.from(selectedCampaigns),
+          action: "bidding_strategy",
+          ...pendingBiddingStrategy,
+        }
+      );
+
+      setBulkUpdateResults({
+        updated: response.updated || 0,
+        failed: response.failed || 0,
+        errors: response.errors || [],
+      });
+
+      // Reload campaigns
+      setSorting(true);
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadCampaigns(accountIdNum, channelIdNum);
+      }
+      setTimeout(() => {
+        setSorting(false);
+      }, 300);
+    } catch (error: any) {
+      console.error("Failed to update bidding strategy", error);
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update bidding strategy. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedCampaigns.size,
+        errors: [errorMessage],
+      });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkConversionActions = async (conversionActionIds: string[]) => {
+    if (!accountId || selectedCampaigns.size === 0 || conversionActionIds.length === 0) return;
+    
+    // Store conversion action IDs and show confirmation modal
+    setPendingConversionActionIds(conversionActionIds);
+    setIsBiddingStrategyChange(false);
+    setIsBudgetChange(false);
+    setPendingStatusAction(null);
+    setShowConversionActionsPanel(false);
+    setShowConfirmationModal(true);
+  };
+
+  const runBulkConversionActions = async () => {
+    if (!accountId || selectedCampaigns.size === 0 || !pendingConversionActionIds || pendingConversionActionIds.length === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setBulkLoading(true);
+      setBulkUpdateResults(null);
+
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+
+      const selectedCampaignsData = getSelectedCampaignsData();
+      const results = {
+        updated: 0,
+        failed: 0,
+        errors: [] as string[],
+      };
+
+      // Process campaigns in batches to avoid overwhelming the API
+      const BATCH_SIZE = 10;
+      for (let i = 0; i < selectedCampaignsData.length; i += BATCH_SIZE) {
+        const batch = selectedCampaignsData.slice(i, i + BATCH_SIZE);
+        
+        await Promise.all(
+          batch.map(async (campaign) => {
+            try {
+              await googleAdwordsCampaignsService.linkConversionActionsToCampaign(
+                accountIdNum,
+                channelIdNum,
+                campaign.campaign_id,
+                {
+                  conversion_action_ids: pendingConversionActionIds,
+                  customer_id: campaign.customer_id,
+                }
+              );
+              results.updated++;
+            } catch (error: any) {
+              results.failed++;
+              const errorMessage = error?.response?.data?.error || error?.message || "Failed to link conversion actions";
+              results.errors.push(`Campaign ${campaign.campaign_id}: ${errorMessage}`);
+            }
+          })
+        );
+      }
+
+      setBulkUpdateResults(results);
+
+      // Reload campaigns
+      setSorting(true);
+      if (channelIdNum && !isNaN(channelIdNum)) {
+        await loadCampaigns(accountIdNum, channelIdNum);
+      }
+      setTimeout(() => {
+        setSorting(false);
+      }, 300);
+    } catch (error: any) {
+      console.error("Failed to update conversion actions", error);
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update conversion actions. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedCampaigns.size,
+        errors: [errorMessage],
+      });
+      setShowConfirmationModal(true);
     } finally {
       setBulkLoading(false);
     }

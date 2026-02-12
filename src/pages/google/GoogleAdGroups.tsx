@@ -85,7 +85,10 @@ export const GoogleAdGroups: React.FC = () => {
     string | null
   >(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(() => {
+    const saved = localStorage.getItem('google_adgroups_page_size');
+    return saved ? parseInt(saved, 10) : 10;
+  });
   const [totalPages, setTotalPages] = useState(0);
   const [, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<string>("sales");
@@ -347,7 +350,7 @@ export const GoogleAdGroups: React.FC = () => {
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [filters, sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString()]);
+  }, [filters, sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString(), accountId]);
 
   useEffect(() => {
     // Don't reload if we're currently sorting (handleSort will handle the reload)
@@ -361,6 +364,7 @@ export const GoogleAdGroups: React.FC = () => {
         const requestKey = JSON.stringify({
           accountId: accountIdNum,
           currentPage,
+          itemsPerPage,
           filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
           startDate: startDate ? startDateStr : null,
           endDate: endDate ? endDateStr : null,
@@ -381,7 +385,7 @@ export const GoogleAdGroups: React.FC = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
+  }, [accountId, currentPage, itemsPerPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
 
 
   // Wrapper function for useGoogleSyncStatus hook (it expects only accountId)
@@ -553,6 +557,15 @@ export const GoogleAdGroups: React.FC = () => {
     }
     setSelectedAdgroups(newSelected);
   };
+
+  // Handle page size change
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setItemsPerPage(newPageSize);
+    setCurrentPage(1); // Reset to first page when page size changes
+    localStorage.setItem('google_adgroups_page_size', newPageSize.toString());
+    // Clear the request params ref to force a reload in useEffect
+    lastRequestParamsRef.current = "";
+  }, []);
 
   // Inline edit handlers - match Amazon pattern (no modal, inline editing)
   const startInlineEdit = (adgroup: GoogleAdGroup, field: "bid" | "status" | "name" | "adgroup_name") => {

@@ -151,8 +151,8 @@ export const Dropdown = <T extends string | number = string>({
           return null;
         })();
 
-        // Always use fixed positioning if in table or scrollable container
-        if (isInTable || scrollableParent) {
+        // Always use fixed positioning to ensure dropdown is not clipped
+        // This ensures proper positioning relative to viewport, not parent containers
           // Use fixed positioning to escape overflow container
           // Estimate menu height based on options (36px per option + padding)
           const estimatedMenuHeight = Math.min(
@@ -164,24 +164,80 @@ export const Dropdown = <T extends string | number = string>({
           const spaceBelow = window.innerHeight - buttonRect.bottom - VIEWPORT_PADDING;
           const spaceAbove = buttonRect.top - VIEWPORT_PADDING;
 
+          // Calculate exact height needed for all options
+          const exactHeightNeeded = options.length * 36 + 16; // 36px per option + 16px padding
+
           let top: number;
           let maxHeight: number;
+          let shouldOpenAbove = false;
 
           if (position === "top") {
             // Force open above
+            shouldOpenAbove = true;
             top = buttonRect.top - actualMenuHeight - VIEWPORT_PADDING;
             maxHeight = Math.min(MENU_MAX_HEIGHT, spaceAbove);
-          } else {
-            // position === 'bottom' or default: ALWAYS open below
-            // Open below the button, even with limited space - the dropdown will scroll if needed
+          } else if (position === "bottom") {
+            // Force open below
             top = buttonRect.bottom + VIEWPORT_PADDING;
-            // Use available space below, with a minimum of 200px to show at least a few options
-            // The dropdown will scroll if content is taller than available space
-            maxHeight = Math.min(MENU_MAX_HEIGHT, Math.max(spaceBelow, 200));
+            if (options.length <= 4) {
+              maxHeight = Math.max(exactHeightNeeded, Math.min(MENU_MAX_HEIGHT, Math.max(spaceBelow, exactHeightNeeded)));
+            } else {
+              maxHeight = Math.min(MENU_MAX_HEIGHT, Math.max(spaceBelow, 200));
+            }
+          } else {
+            // Auto: Choose direction based on available space
+            // For small lists (<= 4), prefer showing all options without scrolling
+            if (options.length <= 4) {
+              // Add buffer to account for taskbar and other UI elements (50px buffer)
+              const buffer = 50;
+              const spaceNeeded = exactHeightNeeded + buffer;
+              
+              // Check if we have enough space below for all options (with buffer)
+              if (spaceBelow >= spaceNeeded) {
+                // Enough space below, open downward
+                top = buttonRect.bottom + VIEWPORT_PADDING;
+                maxHeight = Math.max(exactHeightNeeded, Math.min(MENU_MAX_HEIGHT, spaceBelow));
+              } else if (spaceAbove >= exactHeightNeeded) {
+                // Not enough space below (even with buffer), but enough above - open upward
+                shouldOpenAbove = true;
+                top = buttonRect.top - exactHeightNeeded - VIEWPORT_PADDING;
+                maxHeight = Math.max(exactHeightNeeded, Math.min(MENU_MAX_HEIGHT, spaceAbove));
+              } else {
+                // Not enough space in either direction, use the one with more space
+                if (spaceAbove > spaceBelow) {
+                  shouldOpenAbove = true;
+                  top = buttonRect.top - Math.min(exactHeightNeeded, spaceAbove) - VIEWPORT_PADDING;
+                  maxHeight = Math.min(MENU_MAX_HEIGHT, spaceAbove);
+                } else {
+                  top = buttonRect.bottom + VIEWPORT_PADDING;
+                  maxHeight = Math.min(MENU_MAX_HEIGHT, spaceBelow);
+                }
+              }
+            } else {
+              // For larger lists, use available space with preference for below
+              if (spaceBelow >= 200 || spaceBelow > spaceAbove) {
+                top = buttonRect.bottom + VIEWPORT_PADDING;
+                maxHeight = Math.min(MENU_MAX_HEIGHT, Math.max(spaceBelow, 200));
+              } else {
+                shouldOpenAbove = true;
+                top = buttonRect.top - actualMenuHeight - VIEWPORT_PADDING;
+                maxHeight = Math.min(MENU_MAX_HEIGHT, spaceAbove);
+              }
+            }
           }
 
           // Clamp top so menu stays in viewport
-          top = Math.max(VIEWPORT_PADDING, Math.min(top, window.innerHeight - VIEWPORT_PADDING - 100));
+          if (shouldOpenAbove) {
+            // Opening upward - ensure bottom of menu doesn't go below viewport
+            // The menu height is maxHeight, so ensure top + maxHeight <= window.innerHeight
+            const minTop = VIEWPORT_PADDING;
+            const maxTopForUpward = window.innerHeight - maxHeight - VIEWPORT_PADDING;
+            top = Math.max(minTop, Math.min(top, maxTopForUpward));
+          } else {
+            // Opening downward - ensure we don't go below viewport
+            const maxTop = window.innerHeight - maxHeight - VIEWPORT_PADDING;
+            top = Math.max(VIEWPORT_PADDING, Math.min(top, maxTop));
+          }
 
           const menuWidth = buttonRect.width;
           let left: number;
@@ -197,9 +253,6 @@ export const Dropdown = <T extends string | number = string>({
           left = Math.max(VIEWPORT_PADDING, Math.min(left, window.innerWidth - menuWidth - VIEWPORT_PADDING));
 
           setMenuPosition({ top, left, width: menuWidth, maxHeight });
-        } else {
-          setMenuPosition(null);
-        }
       };
 
       // Calculate position after a short delay to ensure menu is rendered
@@ -433,7 +486,9 @@ export const Dropdown = <T extends string | number = string>({
           className="overflow-y-auto flex-1"
           style={{
             ...(filteredOptions.length > 0 && filteredOptions.length <= 8
-              ? { minHeight: `${filteredOptions.length * 36}px` }
+              ? { 
+                  minHeight: `${filteredOptions.length * 36}px`
+                }
               : {}),
           }}
         >

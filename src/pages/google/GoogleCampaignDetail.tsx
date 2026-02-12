@@ -14,6 +14,7 @@ import type { FilterValues } from "../../components/filters/FilterPanel";
 import { GoogleOverviewTab } from "./components/tabs/GoogleOverviewTab";
 import { GoogleCampaignDetailAdGroupsTab } from "./components/tabs/GoogleCampaignDetailAdGroupsTab";
 import { GoogleCampaignDetailAdsTab } from "./components/tabs/GoogleCampaignDetailAdsTab";
+import { GoogleCampaignDetailAssetsTab } from "./components/tabs/GoogleCampaignDetailAssetsTab";
 import { GoogleCampaignDetailKeywordsTab } from "./components/tabs/GoogleCampaignDetailKeywordsTab";
 import { GoogleCampaignDetailNegativeKeywordsTab } from "./components/tabs/GoogleCampaignDetailNegativeKeywordsTab";
 import { GoogleCampaignDetailAssetGroupsTab } from "./components/tabs/GoogleCampaignDetailAssetGroupsTab";
@@ -51,8 +52,11 @@ import {
 import { CreateGoogleAdSection } from "../../components/google/CreateGoogleAdSection";
 import { CreateGoogleKeywordSection } from "../../components/google/CreateGoogleKeywordSection";
 import { CreateGoogleNegativeKeywordSection } from "../../components/google/CreateGoogleNegativeKeywordSection";
+import { CreateGoogleDemandGenAdSection } from "../../components/google/CreateGoogleDemandGenAdSection";
+import { CreateGoogleDemandGenAdPanel } from "../../components/google/CreateGoogleDemandGenAdPanel";
 import { ErrorModal } from "../../components/ui/ErrorModal";
 import { Loader } from "../../components/ui/Loader";
+import { googleAdwordsAdsService } from "../../services/googleAdwords/googleAdwordsAds";
 import {
   formatCurrency2Decimals,
   formatPercentage,
@@ -262,12 +266,51 @@ export const GoogleCampaignDetail: React.FC = () => {
     string | null
   >(null);
 
+  // Demand Gen Ad creation state
+  const [isCreateDemandGenAdSectionOpen, setIsCreateDemandGenAdSectionOpen] =
+    useState(false);
+  const [createDemandGenAdLoading, setCreateDemandGenAdLoading] = useState(false);
+  const [createDemandGenAdError, setCreateDemandGenAdError] = useState<string | null>(null);
+
+  const handleCreateDemandGenAd = async (data: any) => {
+    setCreateDemandGenAdLoading(true);
+    setCreateDemandGenAdError(null);
+
+    try {
+      const response = await googleAdwordsAdsService.createDemandGenAd(
+        parseInt(accountId || ""),
+        parseInt(channelId),
+        parseInt(campaignId || ""),
+        { ad: data }
+      );
+
+      if (response?.ad) {
+        setIsCreateDemandGenAdSectionOpen(false);
+        loadAdsFromHook?.();
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: "Demand Gen ad created successfully!",
+          isSuccess: true,
+        });
+      } else {
+        setCreateDemandGenAdError(response?.error || "Failed to create ad");
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.error ?? err.message ?? "An error occurred while creating the ad";
+      setCreateDemandGenAdError(msg);
+    } finally {
+      setCreateDemandGenAdLoading(false);
+    }
+  };
+
   // Sync state (for entities not yet extracted to hooks)
 
   const [syncMessage, setSyncMessage] = useState<{
     type:
     | "adgroups"
     | "ads"
+    | "assets"
     | "keywords"
     | "negative_keywords"
     | "assetgroups"
@@ -313,6 +356,14 @@ export const GoogleCampaignDetail: React.FC = () => {
         "Ad Groups",
         "Product Groups",
         "Shopping Ads",
+        "Logs",
+      ];
+    } else if (channelType === "DEMAND_GEN") {
+      return [
+        "Overview",
+        "Ad Groups", 
+        "Ads",
+        "Assets",
         "Logs",
       ];
     } else {
@@ -641,6 +692,8 @@ export const GoogleCampaignDetail: React.FC = () => {
     productGroupsCurrentPage,
     setProductGroupsCurrentPage,
     productGroupsTotalPages,
+    productGroupsPageSize,
+    handleProductGroupsPageSizeChange,
     productGroupsSortBy,
     productGroupsSortOrder,
     isProductGroupsFilterPanelOpen,
@@ -1765,6 +1818,17 @@ export const GoogleCampaignDetail: React.FC = () => {
                                 setIsAdsFilterPanelOpen(false);
                               }}
                             />
+                          ) : campaignDetail?.campaign
+                            .advertising_channel_type === "DEMAND_GEN" ? (
+                            <CreateGoogleDemandGenAdSection
+                              isOpen={isCreateDemandGenAdSectionOpen}
+                              onToggle={() => {
+                                setIsCreateDemandGenAdSectionOpen(
+                                  !isCreateDemandGenAdSectionOpen,
+                                );
+                                setIsAdsFilterPanelOpen(false);
+                              }}
+                            />
                           ) : undefined
                         }
                         createPanel={
@@ -1804,13 +1868,39 @@ export const GoogleCampaignDetail: React.FC = () => {
                               loading={createShoppingEntitiesLoading}
                               submitError={createShoppingEntitiesError}
                             />
+                          ) : campaignDetail?.campaign
+                            .advertising_channel_type === "DEMAND_GEN" &&
+                            isCreateDemandGenAdSectionOpen &&
+                            campaignId &&
+                            accountId ? (
+                            <CreateGoogleDemandGenAdPanel
+                              isOpen={isCreateDemandGenAdSectionOpen}
+                              onClose={() => {
+                                setIsCreateDemandGenAdSectionOpen(false);
+                                setCreateDemandGenAdError(null);
+                              }}
+                              onSubmit={handleCreateDemandGenAd}
+                              loading={createDemandGenAdLoading}
+                              submitError={createDemandGenAdError}
+                              profileId={profileId}
+                            />
                           ) : undefined
                         }
                       />
                     </>
                   )}
 
-                {activeTab === "Keywords" && (
+                {activeTab === "Assets" &&
+                  campaignDetail?.campaign.advertising_channel_type ===
+                  "DEMAND_GEN" && (
+                    <GoogleCampaignDetailAssetsTab
+                      accountId={accountId}
+                      channelId={channelId}
+                      profileId={profileId}
+                    />
+                  )}
+
+                {activeTab === "Keywords" && campaignDetail?.campaign.advertising_channel_type !== "DEMAND_GEN" && (
                   <>
                     <GoogleCampaignDetailKeywordsTab
                       keywords={keywords}
@@ -1898,7 +1988,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   </>
                 )}
 
-                {activeTab === "Negative Keywords" && (
+                {activeTab === "Negative Keywords" && campaignDetail?.campaign.advertising_channel_type !== "DEMAND_GEN" && (
                   <>
                     <GoogleCampaignDetailNegativeKeywordsTab
                       negativeKeywords={negativeKeywords}

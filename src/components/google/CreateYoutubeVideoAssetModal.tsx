@@ -25,19 +25,27 @@ export const CreateYoutubeVideoAssetModal: React.FC<CreateYoutubeVideoAssetModal
   const createYoutubeVideoAssetMutation = useCreateYoutubeVideoAsset(profileId);
   const loading = createYoutubeVideoAssetMutation.isPending;
 
+  // Extract video ID from YouTube URL or return as-is if already an ID
+  const normalizeVideoId = (input: string): string => {
+    const trimmed = input.trim();
+    const urlMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+    return urlMatch ? urlMatch[1] : trimmed;
+  };
+
   const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement> | React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (!youtubeVideoId.trim()) {
-      setError("YouTube Video ID is required");
+
+    const raw = youtubeVideoId.trim();
+    if (!raw) {
+      setError("YouTube Video ID or URL is required");
       return;
     }
 
-    // Validate YouTube video ID format (11 characters, alphanumeric, dashes, underscores)
+    const videoId = normalizeVideoId(raw);
     const videoIdPattern = /^[a-zA-Z0-9_-]{11}$/;
-    if (!videoIdPattern.test(youtubeVideoId.trim())) {
-      setError("YouTube Video ID must be 11 characters (alphanumeric, dashes, underscores)");
+    if (!videoIdPattern.test(videoId)) {
+      setError("Could not find a valid 11-character YouTube video ID. Use a URL (e.g. youtube.com/watch?v=...) or the ID.");
       return;
     }
 
@@ -45,7 +53,7 @@ export const CreateYoutubeVideoAssetModal: React.FC<CreateYoutubeVideoAssetModal
 
     try {
       const payload: CreateYoutubeVideoAssetPayload = {
-        youtube_video_id: youtubeVideoId.trim(),
+        youtube_video_id: videoId,
         asset_name: assetName.trim() || undefined,
       };
 
@@ -105,15 +113,13 @@ export const CreateYoutubeVideoAssetModal: React.FC<CreateYoutubeVideoAssetModal
               type="text"
               value={youtubeVideoId}
               onChange={(e) => setYoutubeVideoId(e.target.value)}
-              placeholder="dQw4w9WgXcQ"
+              placeholder="https://youtube.com/watch?v=... or dQw4w9WgXcQ"
               className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] text-[13.3px] text-[#072929]"
               required
               disabled={loading}
-              pattern="[a-zA-Z0-9_-]{11}"
-              maxLength={11}
             />
             <p className="text-xs text-[#556179] mt-1">
-              Enter the 11-character YouTube video ID (e.g., from https://www.youtube.com/watch?v=VIDEO_ID)
+              Paste a YouTube URL or the 11-character video ID. Video must be uploaded to YouTube first.
             </p>
           </div>
 
