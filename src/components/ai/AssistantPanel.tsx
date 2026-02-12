@@ -159,6 +159,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         isLoadingThreads,
         selectThread,
         startNewThread,
+        deleteThread,
         cancelRun,
         setSelectedGraphId,
         closeAssistant,
@@ -376,8 +377,20 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         aria-expanded={isAccountDropdownOpen}
                         aria-label="Select account"
                     >
-                        <span className="truncate text-left">
-                            {selectedAccount ? `${selectedAccount.name}` : "Choose an account"}
+                        <span className="flex items-center gap-2 min-w-0 flex-1">
+                            {selectedAccount && (
+                                <div
+                                    className="w-5 h-5 rounded shrink-0 text-white text-[10px] flex items-center justify-center font-semibold"
+                                    style={{
+                                        backgroundColor: getInitialColor(selectedAccount.name?.[0]?.toUpperCase() || "A"),
+                                    }}
+                                >
+                                    {selectedAccount.name?.[0]?.toUpperCase() || "A"}
+                                </div>
+                            )}
+                            <span className="truncate text-left">
+                                {selectedAccount ? selectedAccount.name : "Choose an account"}
+                            </span>
                         </span>
                         <ChevronDown className="w-4 h-4 shrink-0 text-[#6b7280]" />
                     </button>
@@ -388,19 +401,29 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             ) : accounts.length === 0 ? (
                                 <div className="px-3 py-2 text-sm text-gray-500">No accounts</div>
                             ) : (
-                                accounts.map((acc) => (
-                                    <button
-                                        key={acc.id}
-                                        type="button"
-                                        onClick={() => {
-                                            setAssistantScope({ accountId: String(acc.id), channelId: null, profileId: null, profileName: null, marketplace: null });
-                                            setIsAccountDropdownOpen(false);
-                                        }}
-                                        className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${assistantScope.accountId === String(acc.id) ? "bg-[#136D6D]/10 text-[#072929] font-medium" : "text-[#072929] hover:bg-[#f0f0f0]"}`}
-                                    >
-                                        {acc.name}
-                                    </button>
-                                ))
+                                accounts.map((acc) => {
+                                    const initial = acc.name?.[0]?.toUpperCase() || "A";
+                                    const bgColor = getInitialColor(initial);
+                                    return (
+                                        <button
+                                            key={acc.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setAssistantScope({ accountId: String(acc.id), channelId: null, profileId: null, profileName: null, marketplace: null });
+                                                setIsAccountDropdownOpen(false);
+                                            }}
+                                            className={`w-full flex items-center gap-2 text-left px-3 py-2.5 text-sm transition-colors ${assistantScope.accountId === String(acc.id) ? "bg-[#136D6D]/10 text-[#072929] font-medium" : "text-[#072929] hover:bg-[#f0f0f0]"}`}
+                                        >
+                                            <div
+                                                className="w-5 h-5 rounded shrink-0 text-white text-[10px] flex items-center justify-center font-semibold"
+                                                style={{ backgroundColor: bgColor }}
+                                            >
+                                                {initial}
+                                            </div>
+                                            <span className="truncate">{acc.name}</span>
+                                        </button>
+                                    );
+                                })
                             )}
                         </div>
                     )}
@@ -425,12 +448,35 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         aria-expanded={isIntegrationProfileDropdownOpen}
                         aria-label="Select integration and profile"
                     >
-                        <span className="truncate text-left">
-                            {selectedProfileOption
-                                ? `${profileDisplayName(selectedProfileOption)} (${profileIdForDisplay(selectedProfileOption)})`
-                                : assistantScope.accountId
-                                    ? "Choose integration & profile"
-                                    : "Select an account first"}
+                        <span className="flex items-center gap-2 min-w-0 flex-1">
+                            {selectedProfileOption && (() => {
+                                const ct = (selectedProfileOption.channel_type ?? assistantScope.marketplace ?? "").toLowerCase();
+                                return (
+                                <>
+                                    {ct === "amazon" && (
+                                        <img src={AmazonIcon} alt="Amazon" className="w-4 h-4 shrink-0" />
+                                    )}
+                                    {ct === "google" && (
+                                        <img src={GoogleIcon} alt="Google" className="w-4 h-4 shrink-0" />
+                                    )}
+                                    {ct === "meta" && (
+                                        <img src={MetaIcon} alt="Meta" className="w-4 h-4 shrink-0" />
+                                    )}
+                                    {ct === "tiktok" && (
+                                        <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                                        </svg>
+                                    )}
+                                </>
+                                );
+                            })()}
+                            <span className="truncate text-left">
+                                {selectedProfileOption
+                                    ? `${profileDisplayName(selectedProfileOption)} (${profileIdForDisplay(selectedProfileOption)})`
+                                    : assistantScope.accountId
+                                        ? "Choose integration & profile"
+                                        : "Select an account first"}
+                            </span>
                         </span>
                         <ChevronDown className="w-4 h-4 shrink-0 text-[#6b7280]" />
                     </button>
@@ -445,6 +491,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                     const label = `${profileDisplayName(p)} (${profileIdForDisplay(p)})`;
                                     const isSelected =
                                         assistantScope.channelId === String(p.channel_id) && assistantScope.profileId === p.id;
+                                    const channelType = (p.channel_type ?? "").toLowerCase();
                                     return (
                                         <button
                                             key={`${p.channel_id}-${p.id}`}
@@ -458,9 +505,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                 });
                                                 setIsIntegrationProfileDropdownOpen(false);
                                             }}
-                                            className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${isSelected ? "bg-[#136D6D]/10 text-[#072929] font-medium" : "text-[#072929] hover:bg-[#f0f0f0]"}`}
+                                            className={`w-full flex items-center gap-2 text-left px-3 py-2.5 text-sm transition-colors ${isSelected ? "bg-[#136D6D]/10 text-[#072929] font-medium" : "text-[#072929] hover:bg-[#f0f0f0]"}`}
                                         >
-                                            {label}
+                                            {channelType === "amazon" && <img src={AmazonIcon} alt="Amazon" className="w-4 h-4 shrink-0" />}
+                                            {channelType === "google" && <img src={GoogleIcon} alt="Google" className="w-4 h-4 shrink-0" />}
+                                            {channelType === "meta" && <img src={MetaIcon} alt="Meta" className="w-4 h-4 shrink-0" />}
+                                            {channelType === "tiktok" && (
+                                                <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                                                </svg>
+                                            )}
+                                            <span className="truncate">{label}</span>
                                         </button>
                                     );
                                 })
@@ -517,11 +572,82 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         <div
             className={`flex flex-col h-full bg-[var(--color-semantic-background-primary)] shadow-lg ${className}`}
         >
-            {/* Header: single row = account/channel (left) + New Chat & Close (right) */}
-            <div className="border-b border-[#e8e8e3]">
-                <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-[#f9f9f6] min-h-[52px]">
-                    {/* Left: T Test • channel (same design as DashboardHeader) */}
-                    <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
+            {/* Top row: chat tabs (left) + New Chat & Close (right) */}
+            <div className="border-b border-[#e8e8e3] bg-white">
+                <div className="flex items-center justify-between gap-2 px-3 py-2 min-h-[44px]">
+                    <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto interactive-scrollbar" style={{ scrollbarWidth: 'thin' }}>
+                        {isLoadingThreads ? (
+                            <span className="text-xs text-[#556179] shrink-0">Loading...</span>
+                        ) : threads.length > 0 ? (
+                            [...threads]
+                                .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+                                .map((thread) => (
+                                    <div
+                                        key={thread.thread_id}
+                                        className={`group/tab flex items-center gap-1 shrink-0 px-2 py-1.5 pr-1.5 rounded-lg text-sm transition-colors border ${currentThread?.thread_id === thread.thread_id
+                                                ? 'bg-[#136D6D]/12 text-[#136D6D] border-[#136D6D]/30'
+                                                : 'bg-[#f9f9f6] text-[#072929] border-[#e8e8e3] hover:border-[#136D6D]/30 hover:bg-[#f0f0f0]'
+                                            }`}
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => handleThreadSelect(thread.thread_id)}
+                                            className="flex items-center gap-2 min-w-0 flex-1 py-0.5 rounded"
+                                            title={thread.metadata?.title || 'Untitled'}
+                                        >
+                                            <svg className="w-4 h-4 shrink-0 text-current opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                            </svg>
+                                            <span className="max-w-[120px] truncate">{thread.metadata?.title || 'Untitled'}</span>
+                                            {currentThread?.thread_id === thread.thread_id && (
+                                                <Check className="w-4 h-4 shrink-0 text-[#136D6D]" />
+                                            )}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                deleteThread(thread.thread_id);
+                                            }}
+                                            className="p-1 rounded text-[#6b7280] hover:text-[#072929] hover:bg-black/10 opacity-0 group-hover/tab:opacity-100 transition-opacity shrink-0"
+                                            title="Delete conversation"
+                                            aria-label="Delete conversation"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                ))
+                        ) : null}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0 pl-2">
+                        <button
+                            type="button"
+                            onClick={handleNewThread}
+                            className="relative z-[100] p-2 rounded-md text-[#072929] hover:bg-[#f0f0f0] transition-colors"
+                            title="New conversation"
+                            aria-label="New chat"
+                        >
+                            <Plus className="w-5 h-5" strokeWidth={2.5} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                closeAssistant();
+                            }}
+                            className="relative z-[100] p-2 rounded-md text-[#072929] hover:bg-[#f0f0f0] transition-colors"
+                            title="Close assistant"
+                            aria-label="Close assistant"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {/* Second row: account/channel (left only) */}
+            <div className="border-b border-[#e8e8e3] px-4 py-2.5 bg-[#f9f9f6] min-h-[44px]">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
                         {selectedAccount && (
                             <div className="flex items-center gap-1.5 min-w-0 max-w-full">
                                 <div
@@ -579,85 +705,27 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 </span>
                             </>
                         )}
-                    </div>
-                    {/* Right: New Chat (pencil+) and Close (X) in same row */}
-                    <div className="flex items-center gap-1 shrink-0">
-                        <button
-                            type="button"
-                            onClick={handleNewThread}
-                            className="relative z-[100] p-2 rounded-md text-[#072929] hover:bg-[#f0f0f0] transition-colors"
-                            title="New conversation"
-                            aria-label="New chat"
-                        >
-                            <Plus className="w-5 h-5" strokeWidth={2.5} />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                closeAssistant();
-                            }}
-                            className="relative z-[100] p-2 rounded-md text-[#072929] hover:bg-[#f0f0f0] transition-colors"
-                            title="Close assistant"
-                            aria-label="Close assistant"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
                 </div>
-                {/* Cursor-style: horizontal scroll of chat history at top (left to right) */}
-                <div className="border-b border-[#e8e8e3] bg-white">
-                    <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto interactive-scrollbar" style={{ scrollbarWidth: 'thin' }}>
-                        {isLoadingThreads ? (
-                            <span className="text-xs text-[#556179] shrink-0">Loading...</span>
-                        ) : threads.length === 0 ? (
-                            <span className="text-xs text-[#556179] shrink-0">No chats yet</span>
-                        ) : (
-                            [...threads]
-                                .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-                                .map((thread) => (
-                                    <button
-                                        key={thread.thread_id}
-                                        onClick={() => handleThreadSelect(thread.thread_id)}
-                                        className={`flex items-center gap-2 shrink-0 px-3 py-1.5 rounded-lg text-sm transition-colors border ${currentThread?.thread_id === thread.thread_id
-                                                ? 'bg-[#136D6D]/12 text-[#136D6D] border-[#136D6D]/30'
-                                                : 'bg-[#f9f9f6] text-[#072929] border-[#e8e8e3] hover:border-[#136D6D]/30 hover:bg-[#f0f0f0]'
-                                            }`}
-                                        title={thread.metadata?.title || 'Untitled'}
-                                    >
-                                        <svg className="w-4 h-4 shrink-0 text-current opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                        </svg>
-                                        <span className="max-w-[140px] truncate">{thread.metadata?.title || 'Untitled'}</span>
-                                        {currentThread?.thread_id === thread.thread_id && (
-                                            <Check className="w-4 h-4 shrink-0 text-[#136D6D]" />
-                                        )}
-                                    </button>
-                                ))
-                        )}
-                    </div>
-                </div>
-                <div className="flex items-center justify-between px-4 py-3">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <img src={ASSISTANT_ICONS.logo} alt="Stellar" className="h-6 w-6 shrink-0" />
+            </div>
+                <div className="flex items-center justify-between gap-2 px-4 py-3">
+                    <div className="group flex items-center gap-2 flex-1 min-w-0">
                         <span className="text-sm font-medium text-[#072929] truncate">
                             {currentThread?.metadata?.title || "New Chat"}
                         </span>
-                    </div>
-
-                    {/* Intent display: Analyze | Create Campaign (read-only, reflects initial selection) */}
-                    <div className="flex items-center rounded-lg border border-[#e8e8e3] p-0.5 shrink-0 mx-2">
-                        <span
-                            className={`px-2 py-1 text-xs font-medium rounded-md ${assistantIntent === "analyze" ? "bg-[#136D6D] text-white" : "text-[#6b7280] bg-transparent"}`}
-                        >
-                            Analyze
-                        </span>
-                        <span
-                            className={`px-2 py-1 text-xs font-medium rounded-md ${assistantIntent === "create_campaign" ? "bg-[#136D6D] text-white" : "text-[#6b7280] bg-transparent"}`}
-                        >
-                            Create Campaign
-                        </span>
+                        {currentThread?.thread_id && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteThread(currentThread.thread_id);
+                                }}
+                                className="p-1 rounded-md text-[#6b7280] hover:text-[#072929] hover:bg-[#f0f0f0] transition-colors shrink-0 opacity-70 group-hover:opacity-100"
+                                title="Delete conversation"
+                                aria-label="Delete conversation"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        )}
                     </div>
 
                     <CampaignDraftPreview
@@ -722,23 +790,40 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
                                                         {/* Threads in Group */}
                                                         {groupThreads.map((thread) => (
-                                                            <button
+                                                            <div
                                                                 key={thread.thread_id}
-                                                                onClick={() => handleThreadSelect(thread.thread_id)}
-                                                                className={`w-full flex items-center gap-3 px-4 py-3 text-sm text-left transition-colors border-b border-[#f0f0f0] ${currentThread?.thread_id === thread.thread_id
+                                                                className={`group/hist flex items-center gap-2 w-full px-4 py-3 text-sm border-b border-[#f0f0f0] ${currentThread?.thread_id === thread.thread_id
                                                                     ? 'bg-[#f0f0f0] text-[#072929]'
                                                                     : 'text-[#072929] hover:bg-[#f9f9f6]'
                                                                     }`}
                                                             >
-                                                                {/* Chat Bubble Icon */}
-                                                                <svg className="w-4 h-4 shrink-0 text-[#072929]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                                                </svg>
-                                                                <span className="truncate flex-1">{thread.metadata?.title || 'Untitled'}</span>
-                                                                {currentThread?.thread_id === thread.thread_id && (
-                                                                    <Check className="w-4 h-4 text-[#072929] shrink-0" />
-                                                                )}
-                                                            </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleThreadSelect(thread.thread_id)}
+                                                                    className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                                                                >
+                                                                    <svg className="w-4 h-4 shrink-0 text-[#072929]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                                                    </svg>
+                                                                    <span className="truncate flex-1">{thread.metadata?.title || 'Untitled'}</span>
+                                                                    {currentThread?.thread_id === thread.thread_id && (
+                                                                        <Check className="w-4 h-4 text-[#072929] shrink-0" />
+                                                                    )}
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        deleteThread(thread.thread_id);
+                                                                        setIsThreadDropdownOpen(false);
+                                                                    }}
+                                                                    className="p-1.5 rounded text-[#6b7280] hover:text-[#072929] hover:bg-black/10 opacity-0 group-hover/hist:opacity-100 transition-opacity shrink-0"
+                                                                    title="Delete conversation"
+                                                                    aria-label="Delete conversation"
+                                                                >
+                                                                    <X className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
                                                         ))}
                                                     </div>
                                                 ))
@@ -749,7 +834,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         </div>
                     </div>
                 </div>
-            </div>
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto interactive-scrollbar px-4 py-4">

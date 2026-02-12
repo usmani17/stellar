@@ -578,12 +578,15 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     setCurrentThreadId(null);
   }, []);
 
-  // Delete thread from array
+  // Delete thread from UI and persist deletion to backend
   const deleteThread = useCallback((threadId: string) => {
     setThreads(prev => prev.filter(t => t.thread_id !== threadId));
     if (currentThreadId === threadId) {
       setCurrentThreadId(null);
     }
+    threadsService.deleteThread(threadId).catch((err) =>
+      console.warn("[Assistant] Failed to delete thread on backend:", err)
+    );
   }, [currentThreadId]);
 
   // Update thread title (local state + persist to backend)

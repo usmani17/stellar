@@ -404,4 +404,18 @@ export const threadsService = {
     }
     return response.json() as Promise<Thread>;
   },
+
+  /** Delete a thread on the backend so it does not reappear after reload */
+  deleteThread: async (threadId: string): Promise<void> => {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/threads/${threadId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete thread: ${response.status}`);
+    }
+  },
 };
