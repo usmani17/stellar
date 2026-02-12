@@ -154,6 +154,7 @@ export const DashboardHeader: React.FC = () => {
     null,
   );
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  const [accountSearchQuery, setAccountSearchQuery] = useState("");
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -254,6 +255,7 @@ export const DashboardHeader: React.FC = () => {
       ) {
         setIsAccountDropdownOpen(false);
         setExpandedAccountId(null);
+        setAccountSearchQuery("");
       }
       if (datePickerRef.current && !datePickerRef.current.contains(t)) {
         setIsDatePickerOpen(false);
@@ -301,6 +303,13 @@ export const DashboardHeader: React.FC = () => {
   );
   const selectedAccountChannels =
     selectedAccount?.channels || selectedAccountChannelsFromApi;
+
+  // Filter accounts based on search query
+  const filteredAccounts = accountSearchQuery.trim()
+    ? accounts.filter((acc) =>
+        acc.name.toLowerCase().includes(accountSearchQuery.toLowerCase())
+      )
+    : accounts;
   // When URL has channelId (e.g. Amazon/TikTok with multiple channels), show that channel; else first of current marketplace type
   const urlChannelId = getChannelIdFromUrl(location.pathname);
   const selectedChannel = selectedAccount
@@ -332,6 +341,9 @@ export const DashboardHeader: React.FC = () => {
                 setExpandedAccountId(selectedAccount.id);
               } else {
                 setExpandedAccountId(null);
+              }
+              if (!open) {
+                setAccountSearchQuery("");
               }
             }}
             className="account-dropdown-button"
@@ -428,8 +440,25 @@ export const DashboardHeader: React.FC = () => {
                   </svg>
                 </button>
               </div>
+              {/* Search field */}
+              <div className="px-4 py-3 border-b border-[#e8e8e3]">
+                <input
+                  type="text"
+                  placeholder="Search brands..."
+                  value={accountSearchQuery}
+                  onChange={(e) => setAccountSearchQuery(e.target.value)}
+                  className="w-full px-3 py-2 text-[12.32px] bg-white border border-[#e8e8e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-f60/20 focus:border-forest-f60"
+                  autoFocus
+                />
+              </div>
               <ul>
-                {accounts.length === 0 ? (
+                {filteredAccounts.length === 0 && accountSearchQuery ? (
+                  <li className="px-3 py-4 text-center">
+                    <p className="text-[12.32px] text-[#556179]">
+                      No brands match "{accountSearchQuery}"
+                    </p>
+                  </li>
+                ) : accounts.length === 0 ? (
                   <li className="px-3 py-4 text-center">
                     <p className="text-[12.32px] text-[#556179] mb-3">
                       No accounts found
@@ -445,7 +474,7 @@ export const DashboardHeader: React.FC = () => {
                     </button>
                   </li>
                 ) : (
-                  accounts.map((account) => {
+                  filteredAccounts.map((account) => {
                     const initial = account.name?.[0]?.toUpperCase() || "A";
                     const bgColor = getInitialColor(initial);
 
