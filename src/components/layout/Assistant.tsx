@@ -9,7 +9,7 @@ export type { CampaignFormForChatHandle, CampaignFormForChatProps } from "../ai/
 
 const DEFAULT_PANEL_WIDTH = 550;
 const MIN_PANEL_WIDTH = 380;
-const MAX_PANEL_WIDTH = 900;
+const MAX_PANEL_WIDTH = 1400;
 const ASSISTANT_PANEL_WIDTH_KEY = "stellar-assistant-panel-width";
 
 function getStoredPanelWidth(): number {

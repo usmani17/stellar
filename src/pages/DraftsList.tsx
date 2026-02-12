@@ -205,15 +205,23 @@ export const DraftsList: React.FC = () => {
       .finally(() => setPublishLoading(false));
   };
 
-  const handleNavigateToEntity = (draft: EntityDraftListItem, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!draft.applied_entity_id || !draft.account_id || !draft.channel_id || !draft.platform || !draft.level) {
+  const handleNavigateToEntity = (draft: EntityDraftListItem | EntityDraft, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!draft.account_id || !draft.channel_id || !draft.platform) {
       return;
     }
     
-    const levelPlural = draft.level.endsWith('s') ? draft.level : `${draft.level}s`;
-    const path = `/brands/${draft.account_id}/${draft.channel_id}/${draft.platform}/${levelPlural}/${draft.applied_entity_id}`;
-    navigate(path);
+    // If draft is published (has applied_entity_id), navigate to the entity
+    if (draft.applied_entity_id && draft.level) {
+      const levelPlural = draft.level.endsWith('s') ? draft.level : `${draft.level}s`;
+      const path = `/brands/${draft.account_id}/${draft.channel_id}/${draft.platform}/${levelPlural}/${draft.applied_entity_id}`;
+      navigate(path);
+    } else {
+      // If draft is not published, navigate to drafts view
+      const draftId = draft.draft_id;
+      const path = `/brands/${draft.account_id}/${draft.channel_id}/${draft.platform}/drafts/${draftId}`;
+      navigate(path);
+    }
   };
 
   return (
@@ -322,19 +330,13 @@ export const DraftsList: React.FC = () => {
                             onClick={() => setViewDraftId(d.draft_id)}
                           >
                             <td className="table-cell">
-                              {d.applied_entity_id ? (
-                                <button
+                              <button
                                   type="button"
                                   onClick={(e) => handleNavigateToEntity(d, e)}
                                   className="table-text leading-[1.26] text-left hover:text-[#136D6D] hover:underline cursor-pointer transition-colors"
                                 >
                                   {d.name ?? "—"}
                                 </button>
-                              ) : (
-                                <span className="table-text leading-[1.26]">
-                                  {d.name ?? "—"}
-                                </span>
-                              )}
                             </td>
                             <td className="table-cell">
                               <span className="table-text leading-[1.26]">{formatPlatform(d.platform)}</span>
@@ -447,6 +449,15 @@ export const DraftsList: React.FC = () => {
                   className="px-3 py-1.5 text-sm font-medium bg-[#136D6D] text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none"
                 >
                   {publishLoading ? "Publishing…" : "Publish"}
+                </button>
+              )}
+              {viewDraft && (
+                <button
+                  type="button"
+                  onClick={() => handleNavigateToEntity(viewDraft)}
+                  className="px-3 py-1.5 text-sm font-medium bg-[#f0f0eb] text-[#136D6D] rounded-lg hover:bg-[#e8e8e3] transition-colors"
+                >
+                  {viewDraft.applied_entity_id ? ("View " + viewDraft.level) : "View Draft"}
                 </button>
               )}
               <button
