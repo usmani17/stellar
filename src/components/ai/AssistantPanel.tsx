@@ -11,7 +11,6 @@ import { MessageContent } from "../ai/MessageContent";
 import { isStringContent } from "../../utils/ai-formatter";
 import { ToolCallsDisplay } from "../ai/ToolCallsDisplay";
 import { ToolResultDisplay } from "../ai/ToolResultDisplay";
-import CampaignDraftPreview from "../ai/CampaignDraftPreview";
 import { accountsService, type Account } from "../../services/accounts";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
@@ -355,15 +354,15 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     );
 
     const contextSection = (
-        <div className="w-full max-w-md bg-[#f9f9f6] border border-[#e8e8e3] rounded-xl p-4 space-y-4">
-            <p className="text-xs font-medium text-[#556179] uppercase tracking-wide text-center">
+        <div className="assistant-setup-card">
+            <p className="assistant-setup-heading">
                 Set up your session in 3 steps
             </p>
 
             {/* Step 1: Account */}
-            <div className="space-y-1.5">
-                <label className="flex items-center gap-2 text-sm font-medium text-[#072929]">
-                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${assistantScope.accountId ? "bg-[#136D6D] text-white" : "bg-[#e8e8e3] text-[#6b7280]"}`}>
+            <div className="assistant-setup-step">
+                <label className="assistant-setup-label">
+                    <span className={`assistant-setup-step-num ${assistantScope.accountId ? "assistant-setup-step-num-active" : ""}`}>
                         1
                     </span>
                     1. Select account
@@ -372,15 +371,15 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     <button
                         type="button"
                         onClick={() => setIsAccountDropdownOpen((v) => !v)}
-                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm text-[#072929] bg-white border border-[#e8e8e3] rounded-lg hover:border-[#136D6D] transition-colors"
+                        className="assistant-setup-dropdown-trigger"
                         aria-haspopup="listbox"
                         aria-expanded={isAccountDropdownOpen}
                         aria-label="Select account"
                     >
-                        <span className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="assistant-setup-dropdown-trigger-inner">
                             {selectedAccount && (
                                 <div
-                                    className="w-5 h-5 rounded shrink-0 text-white text-[10px] flex items-center justify-center font-semibold"
+                                    className="assistant-setup-account-initial"
                                     style={{
                                         backgroundColor: getInitialColor(selectedAccount.name?.[0]?.toUpperCase() || "A"),
                                     }}
@@ -388,18 +387,18 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                     {selectedAccount.name?.[0]?.toUpperCase() || "A"}
                                 </div>
                             )}
-                            <span className="truncate text-left">
+                            <span className="truncate">
                                 {selectedAccount ? selectedAccount.name : "Choose an account"}
                             </span>
                         </span>
-                        <ChevronDown className="w-4 h-4 shrink-0 text-[#6b7280]" />
+                        <ChevronDown className="assistant-setup-dropdown-chevron" />
                     </button>
                     {isAccountDropdownOpen && (
-                        <div className="absolute left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto bg-white rounded-lg border border-[#e8e8e3] shadow-lg z-50 py-1">
+                        <div className="assistant-setup-dropdown-panel">
                             {isLoadingAccounts ? (
-                                <div className="px-3 py-2 text-sm text-gray-500">Loading...</div>
+                                <div className="assistant-setup-dropdown-loading">Loading...</div>
                             ) : accounts.length === 0 ? (
-                                <div className="px-3 py-2 text-sm text-gray-500">No accounts</div>
+                                <div className="assistant-setup-dropdown-empty">No accounts</div>
                             ) : (
                                 accounts.map((acc) => {
                                     const initial = acc.name?.[0]?.toUpperCase() || "A";
@@ -412,10 +411,10 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                 setAssistantScope({ accountId: String(acc.id), channelId: null, profileId: null, profileName: null, marketplace: null });
                                                 setIsAccountDropdownOpen(false);
                                             }}
-                                            className={`w-full flex items-center gap-2 text-left px-3 py-2.5 text-sm transition-colors ${assistantScope.accountId === String(acc.id) ? "bg-[#136D6D]/10 text-[#072929] font-medium" : "text-[#072929] hover:bg-[#f0f0f0]"}`}
+                                            className={`assistant-setup-dropdown-item ${assistantScope.accountId === String(acc.id) ? "assistant-setup-dropdown-item-active" : ""}`}
                                         >
                                             <div
-                                                className="w-5 h-5 rounded shrink-0 text-white text-[10px] flex items-center justify-center font-semibold"
+                                                className="assistant-setup-account-initial"
                                                 style={{ backgroundColor: bgColor }}
                                             >
                                                 {initial}
@@ -431,9 +430,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             </div>
 
             {/* Step 2: Integration & profile */}
-            <div className="space-y-1.5">
-                <label className="flex items-center gap-2 text-sm font-medium text-[#072929]">
-                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${assistantScope.accountId ? "bg-[#136D6D] text-white" : "bg-[#e8e8e3] text-[#6b7280]"}`}>
+            <div className="assistant-setup-step">
+                <label className="assistant-setup-label">
+                    <span className={`assistant-setup-step-num ${assistantScope.accountId ? "assistant-setup-step-num-active" : ""}`}>
                         2
                     </span>
                     2. Select integration & profile
@@ -443,12 +442,12 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         type="button"
                         onClick={() => assistantScope.accountId && setIsIntegrationProfileDropdownOpen((v) => !v)}
                         disabled={!assistantScope.accountId}
-                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm text-[#072929] bg-white border border-[#e8e8e3] rounded-lg hover:border-[#136D6D] transition-colors disabled:opacity-60 disabled:pointer-events-none disabled:cursor-not-allowed"
+                        className="assistant-setup-dropdown-trigger"
                         aria-haspopup="listbox"
                         aria-expanded={isIntegrationProfileDropdownOpen}
                         aria-label="Select integration and profile"
                     >
-                        <span className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="assistant-setup-dropdown-trigger-inner">
                             {selectedProfileOption && (() => {
                                 const ct = (selectedProfileOption.channel_type ?? assistantScope.marketplace ?? "").toLowerCase();
                                 return (
@@ -470,7 +469,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 </>
                                 );
                             })()}
-                            <span className="truncate text-left">
+                            <span className="truncate">
                                 {selectedProfileOption
                                     ? `${profileDisplayName(selectedProfileOption)} (${profileIdForDisplay(selectedProfileOption)})`
                                     : assistantScope.accountId
@@ -478,14 +477,14 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                         : "Select an account first"}
                             </span>
                         </span>
-                        <ChevronDown className="w-4 h-4 shrink-0 text-[#6b7280]" />
+                        <ChevronDown className="assistant-setup-dropdown-chevron" />
                     </button>
                     {isIntegrationProfileDropdownOpen && (
-                        <div className="absolute left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto bg-white rounded-lg border border-[#e8e8e3] shadow-lg z-50 py-1">
+                        <div className="assistant-setup-dropdown-panel">
                             {isLoadingProfiles ? (
-                                <div className="px-3 py-2 text-sm text-gray-500">Loading...</div>
+                                <div className="assistant-setup-dropdown-loading">Loading...</div>
                             ) : accountProfiles.length === 0 ? (
-                                <div className="px-3 py-2 text-sm text-gray-500">No profiles. Select an account first.</div>
+                                <div className="assistant-setup-dropdown-empty">No profiles. Select an account first.</div>
                             ) : (
                                 accountProfiles.map((p) => {
                                     const label = `${profileDisplayName(p)} (${profileIdForDisplay(p)})`;
@@ -505,7 +504,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                 });
                                                 setIsIntegrationProfileDropdownOpen(false);
                                             }}
-                                            className={`w-full flex items-center gap-2 text-left px-3 py-2.5 text-sm transition-colors ${isSelected ? "bg-[#136D6D]/10 text-[#072929] font-medium" : "text-[#072929] hover:bg-[#f0f0f0]"}`}
+                                            className={`assistant-setup-dropdown-item ${isSelected ? "assistant-setup-dropdown-item-active" : ""}`}
                                         >
                                             {channelType === "amazon" && <img src={AmazonIcon} alt="Amazon" className="w-4 h-4 shrink-0" />}
                                             {channelType === "google" && <img src={GoogleIcon} alt="Google" className="w-4 h-4 shrink-0" />}
@@ -526,22 +525,19 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             </div>
 
             {/* Step 3: What would you like to do? */}
-            <div className="space-y-1.5">
-                <label className="flex items-center gap-2 text-sm font-medium text-[#072929]">
-                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${assistantScope.channelId && assistantScope.profileId ? "bg-[#136D6D] text-white" : "bg-[#e8e8e3] text-[#6b7280]"}`}>
+            <div className="assistant-setup-step">
+                <label className="assistant-setup-label">
+                    <span className={`assistant-setup-step-num ${assistantScope.channelId && assistantScope.profileId ? "assistant-setup-step-num-active" : ""}`}>
                         3
                     </span>
                     3. What would you like to do?
                 </label>
-                <div className="flex gap-2">
+                <div className="assistant-setup-intent-btns">
                     <button
                         type="button"
                         onClick={() => setAssistantIntent(assistantIntent === "analyze" ? null : "analyze")}
                         disabled={!assistantScope.accountId || !assistantScope.channelId || !assistantScope.profileId}
-                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg border transition-colors disabled:opacity-50 disabled:pointer-events-none ${assistantIntent === "analyze"
-                                ? "bg-[#136D6D] text-white border-[#136D6D]"
-                                : "bg-white text-[#072929] border-[#e8e8e3] hover:border-[#136D6D]"
-                            }`}
+                        className={`assistant-setup-intent-btn ${assistantIntent === "analyze" ? "assistant-setup-intent-btn-active" : ""}`}
                         title="Analyze campaigns"
                     >
                         <BarChart3 className="w-4 h-4 shrink-0" />
@@ -554,10 +550,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             if (assistantIntent !== "create_campaign") setSelectedGraphId("campaign_setup");
                         }}
                         disabled={!assistantScope.accountId || !assistantScope.channelId || !assistantScope.profileId}
-                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg border transition-colors disabled:opacity-50 disabled:pointer-events-none ${assistantIntent === "create_campaign"
-                                ? "bg-[#136D6D] text-white border-[#136D6D]"
-                                : "bg-white text-[#072929] border-[#e8e8e3] hover:border-[#136D6D]"
-                            }`}
+                        className={`assistant-setup-intent-btn ${assistantIntent === "create_campaign" ? "assistant-setup-intent-btn-active" : ""}`}
                         title="Create campaign"
                     >
                         <Megaphone className="w-4 h-4 shrink-0" />
@@ -617,6 +610,86 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         ) : null}
                     </div>
                     <div className="flex items-center gap-1 shrink-0 pl-2">
+                        <div ref={historyDropdownRef} className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setIsThreadDropdownOpen(!isThreadDropdownOpen)}
+                                className="assistant-header-icon-btn"
+                                title="Chat history"
+                                aria-label="Chat history"
+                            >
+                                <img src={ASSISTANT_ICONS.chatHistory} alt="Chat history" className="w-5 h-5" />
+                            </button>
+                            {isThreadDropdownOpen && (
+                                <div className="assistant-history-dropdown">
+                                    <div className="assistant-history-header">
+                                        <h3 className="assistant-history-title">History</h3>
+                                    </div>
+                                    {isLoadingThreads ? (
+                                        <div className="px-4 py-3 text-sm assistant-muted-text">
+                                            Loading conversations...
+                                        </div>
+                                    ) : threads.length === 0 ? (
+                                        <div className="px-4 py-3 text-sm assistant-muted-text">
+                                            No previous conversations
+                                        </div>
+                                    ) : (
+                                        Object.entries(groupedThreads)
+                                            .sort(([keyA], [keyB]) => {
+                                                const order: Record<string, number> = { 'Today': 0, 'Yesterday': 1 };
+                                                const orderA = order[keyA] ?? 2;
+                                                const orderB = order[keyB] ?? 2;
+                                                if (orderA !== orderB) return orderA - orderB;
+                                                if (orderA === 2) {
+                                                    return new Date(keyB).getTime() - new Date(keyA).getTime();
+                                                }
+                                                return 0;
+                                            })
+                                            .map(([dateGroup, groupThreads]) => (
+                                                <div key={dateGroup}>
+                                                    <div className="assistant-history-date-group">
+                                                        <span>{dateGroup}</span>
+                                                        <span>{groupThreads.length} Total</span>
+                                                    </div>
+                                                    {groupThreads.map((thread) => (
+                                                        <div
+                                                            key={thread.thread_id}
+                                                            className={`assistant-history-item ${currentThread?.thread_id === thread.thread_id ? "assistant-history-item-active" : ""}`}
+                                                        >
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleThreadSelect(thread.thread_id)}
+                                                                className="assistant-history-item-button"
+                                                            >
+                                                                <svg className="w-4 h-4 shrink-0 text-[var(--color-semantic-text-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                                                </svg>
+                                                                <span className="truncate flex-1">{thread.metadata?.title || 'Untitled'}</span>
+                                                                {currentThread?.thread_id === thread.thread_id && (
+                                                                    <Check className="w-4 h-4 text-[var(--color-semantic-text-primary)] shrink-0" />
+                                                                )}
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    deleteThread(thread.thread_id);
+                                                                    setIsThreadDropdownOpen(false);
+                                                                }}
+                                                                className="assistant-history-delete"
+                                                                title="Delete conversation"
+                                                                aria-label="Delete conversation"
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
                         <button
                             type="button"
                             onClick={handleNewThread}
@@ -699,131 +772,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         )}
                 </div>
             </div>
-                <div className="assistant-title-row">
-                    <div className="assistant-title-group">
-                        <span className="assistant-title-text">
-                            {currentThread?.metadata?.title || "New Chat"}
-                        </span>
-                        {currentThread?.thread_id && (
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    deleteThread(currentThread.thread_id);
-                                }}
-                                className="assistant-title-delete"
-                                title="Delete conversation"
-                                aria-label="Delete conversation"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        )}
-                    </div>
-
-                    <CampaignDraftPreview
-                        campaignState={campaignState}
-                        visible={assistantIntent === "create_campaign"}
-                        accountId={assistantScope.accountId ?? undefined}
-                        channelId={assistantScope.channelId ?? undefined}
-                        className="shrink-0"
-                    />
-
-                    <div className="flex items-center gap-2 shrink-0">
-                        {/* Chat History Button + dropdown (ref so click outside closes it) */}
-                        <div ref={historyDropdownRef} className="relative">
-                            <button
-                                onClick={() => setIsThreadDropdownOpen(!isThreadDropdownOpen)}
-                                className="p-2 relative"
-                                title="Chat history"
-                            >
-                                <img src={ASSISTANT_ICONS.chatHistory} alt="Chat history" className="w-5 h-5" />
-
-                                {/* Dropdown Menu */}
-                                {isThreadDropdownOpen && (
-                                    <div className="assistant-history-dropdown">
-                                        {/* History Header */}
-                                        <div className="assistant-history-header">
-                                            <h3 className="assistant-history-title">History</h3>
-                                        </div>
-
-                                        {/* Loading State */}
-                                        {isLoadingThreads ? (
-                                            <div className="px-4 py-3 text-sm assistant-muted-text">
-                                                Loading conversations...
-                                            </div>
-                                        ) : threads.length === 0 ? (
-                                            <div className="px-4 py-3 text-sm assistant-muted-text">
-                                                No previous conversations
-                                            </div>
-                                        ) : (
-                                            /* Thread List Grouped by Date */
-                                            Object.entries(groupedThreads)
-                                                .sort(([keyA], [keyB]) => {
-                                                    // Order: Today, Yesterday, then by date descending
-                                                    const order: Record<string, number> = { 'Today': 0, 'Yesterday': 1 };
-                                                    const orderA = order[keyA] ?? 2;
-                                                    const orderB = order[keyB] ?? 2;
-
-                                                    if (orderA !== orderB) return orderA - orderB;
-
-                                                    // If both are dates, sort by date descending
-                                                    if (orderA === 2) {
-                                                        return new Date(keyB).getTime() - new Date(keyA).getTime();
-                                                    }
-                                                    return 0;
-                                                })
-                                                .map(([dateGroup, groupThreads]) => (
-                                                    <div key={dateGroup}>
-                                                        {/* Date Group Header with Count */}
-                                                        <div className="assistant-history-date-group">
-                                                            <span>{dateGroup}</span>
-                                                            <span>{groupThreads.length} Total</span>
-                                                        </div>
-
-                                                        {/* Threads in Group */}
-                                                        {groupThreads.map((thread) => (
-                                                            <div
-                                                                key={thread.thread_id}
-                                                                className={`assistant-history-item ${currentThread?.thread_id === thread.thread_id ? "assistant-history-item-active" : ""}`}
-                                                            >
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleThreadSelect(thread.thread_id)}
-                                                                    className="assistant-history-item-button"
-                                                                >
-                                                                    <svg className="w-4 h-4 shrink-0 text-[var(--color-semantic-text-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                                                    </svg>
-                                                                    <span className="truncate flex-1">{thread.metadata?.title || 'Untitled'}</span>
-                                                                    {currentThread?.thread_id === thread.thread_id && (
-                                                                        <Check className="w-4 h-4 text-[var(--color-semantic-text-primary)] shrink-0" />
-                                                                    )}
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        deleteThread(thread.thread_id);
-                                                                        setIsThreadDropdownOpen(false);
-                                                                    }}
-                                                                    className="assistant-history-delete"
-                                                                    title="Delete conversation"
-                                                                    aria-label="Delete conversation"
-                                                                >
-                                                                    <X className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ))
-                                        )}
-                                    </div>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto interactive-scrollbar px-4 py-4">
                 {!hasMessages ? (
