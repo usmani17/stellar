@@ -9,6 +9,23 @@ import { getAvailableBiddingStrategies, getDefaultBiddingStrategy } from "./util
 
 interface GoogleBiddingStrategyFormProps extends BaseCampaignFormProps {
   showTitle?: boolean; // Whether to show "Bidding Strategy" title (default: true)
+  /** When provided, only render fields whose keys are in this list. Used by Assistant chat to show AI-requested fields only. */
+  visibleKeys?: string[];
+}
+
+const BIDDING_FORM_KEYS = {
+  bidding_strategy_type: "bidding_strategy_type",
+  target_cpa_micros: "target_cpa_micros",
+  target_roas: "target_roas",
+  target_spend_micros: "target_spend_micros",
+  target_impression_share_location: "target_impression_share_location",
+  target_impression_share_location_fraction_micros: "target_impression_share_location_fraction_micros",
+  target_impression_share_cpc_bid_ceiling_micros: "target_impression_share_cpc_bid_ceiling_micros",
+} as const;
+
+function shouldShowField(key: string, visibleKeys?: string[]): boolean {
+  if (!visibleKeys || visibleKeys.length === 0) return true;
+  return visibleKeys.includes(key);
 }
 
 export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps> = ({
@@ -16,6 +33,7 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
   errors,
   onChange,
   showTitle = true,
+  visibleKeys,
 }) => {
   return (
     <>
@@ -28,6 +46,7 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
       <div className="space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Bidding Strategy Type */}
+          {shouldShowField(BIDDING_FORM_KEYS.bidding_strategy_type, visibleKeys) && (
           <div>
             <label className="form-label">
               Strategy Type
@@ -39,9 +58,10 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
               buttonClassName="edit-button w-full"
             />
           </div>
+          )}
 
           {/* Target CPA (required when TARGET_CPA is selected) */}
-          {formData.bidding_strategy_type === "TARGET_CPA" && (
+          {shouldShowField(BIDDING_FORM_KEYS.target_cpa_micros, visibleKeys) && formData.bidding_strategy_type === "TARGET_CPA" && (
             <div>
               <label className="form-label">
                 Target CPA ($) *
@@ -76,7 +96,7 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
           )}
 
           {/* Target ROAS (required when TARGET_ROAS is selected) */}
-          {formData.bidding_strategy_type === "TARGET_ROAS" && (
+          {shouldShowField(BIDDING_FORM_KEYS.target_roas, visibleKeys) && formData.bidding_strategy_type === "TARGET_ROAS" && (
             <div>
               <label className="form-label">
                 Target ROAS *
@@ -107,7 +127,7 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
           )}
 
           {/* Target Spend (required when TARGET_SPEND is selected) */}
-          {formData.bidding_strategy_type === "TARGET_SPEND" && (
+          {shouldShowField(BIDDING_FORM_KEYS.target_spend_micros, visibleKeys) && formData.bidding_strategy_type === "TARGET_SPEND" && (
             <div>
               <label className="form-label">
                 Target Spend ($) *
@@ -142,7 +162,7 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
           )}
 
           {/* Target Impression Share - Location */}
-          {formData.bidding_strategy_type === "TARGET_IMPRESSION_SHARE" && (
+          {shouldShowField(BIDDING_FORM_KEYS.target_impression_share_location, visibleKeys) && formData.bidding_strategy_type === "TARGET_IMPRESSION_SHARE" && (
             <div className="col-span-full">
               <label className="form-label mb-3 block">
                 Where do you want your ads to appear? *
@@ -194,6 +214,7 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
         {/* Target Impression Share - Additional fields in same row */}
         {formData.bidding_strategy_type === "TARGET_IMPRESSION_SHARE" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {shouldShowField(BIDDING_FORM_KEYS.target_impression_share_location_fraction_micros, visibleKeys) && (
             <div>
               <label className="form-label">
                 Percent (%) impression share to target *
@@ -226,7 +247,9 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
                 Target impression share percentage (0-100)
               </p>
             </div>
+            )}
 
+            {shouldShowField(BIDDING_FORM_KEYS.target_impression_share_cpc_bid_ceiling_micros, visibleKeys) && (
             <div>
               <label className="form-label">
                 Maximum CPC bid limit *
@@ -258,6 +281,7 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
                 Maximum CPC bid limit in dollars
               </p>
             </div>
+            )}
           </div>
         )}
       </div>

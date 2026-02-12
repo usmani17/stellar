@@ -10,18 +10,31 @@ import type { ContentBlock, ThreadMessage } from "../services/ai/threads";
 export type StreamToolCall = { call: { id?: string; name: string; args?: Record<string, unknown> } };
 
 /** Raw stream message from LangGraph SDK */
-type RawStreamMessage = { type?: string; content?: unknown; id?: string; additional_kwargs?: Record<string, unknown> };
+type RawStreamMessage = {
+  type?: string;
+  content?: unknown;
+  id?: string;
+  name?: string;
+  tool_call_id?: string;
+  additional_kwargs?: Record<string, unknown>;
+};
 
 /**
  * Parse a single raw stream message into ThreadMessage format.
  * Uses getToolCalls to extract tool_use blocks (SDK may drop them when merging).
+ * Preserves human, ai, tool, and system types.
  */
 export function parseStreamMessage(
   m: RawStreamMessage,
   idx: number,
   getToolCalls: ((msg: unknown) => StreamToolCall[]) | undefined
 ): ThreadMessage {
-  const type = (m.type === "human" ? "human" : "ai") as "human" | "ai";
+  const rawType = m.type;
+  const type = (
+    rawType === "human" ? "human" :
+    rawType === "tool" ? "tool" :
+    rawType === "system" ? "system" : "ai"
+  ) as "human" | "ai" | "tool" | "system";
   const rawContent = m.content ?? "";
   let content: ThreadMessage["content"] = rawContent as ThreadMessage["content"];
 
@@ -47,12 +60,17 @@ export function parseStreamMessage(
     }
   }
 
-  return {
+  const parsed: ThreadMessage = {
     id: m.id ?? `msg-${idx}`,
     type,
     content,
     additional_kwargs: m.additional_kwargs,
   } as ThreadMessage;
+  if (type === "tool") {
+    (parsed as { name?: string; tool_call_id?: string }).name = m.name;
+    (parsed as { name?: string; tool_call_id?: string }).tool_call_id = m.tool_call_id;
+  }
+  return parsed;
 }
 
 /**

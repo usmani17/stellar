@@ -5,17 +5,18 @@ import type { CurrentQuestionSchemaItem } from "../../types/agent";
 import { Check, Square, X, ChevronDown, BarChart3, Megaphone, ArrowUp, Plus } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
-import type { Thread, ContentBlock, ThreadMessageContent, TextContent, ToolUseContent } from "../../services/ai/threads";
+import type { Thread, ContentBlock, ThreadMessageContent, TextContent } from "../../services/ai/threads";
 import StellarMarkDown from "../ai/StellarMarkDown";
 import { MessageContent } from "../ai/MessageContent";
 import { isStringContent } from "../../utils/ai-formatter";
-import ToolUseBlock from "../ai/ToolUseBlock";
+import { ToolCallsDisplay } from "../ai/ToolCallsDisplay";
+import { ToolResultDisplay } from "../ai/ToolResultDisplay";
 import CampaignDraftPreview from "../ai/CampaignDraftPreview";
 import { accountsService, type Account } from "../../services/accounts";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
-import { type SchemaFormBlockHandle, SchemaFormBlock } from "../layout/Assistant";
+import { CampaignFormForChat, type CampaignFormForChatHandle } from "../layout/Assistant";
 import { getDisplayName } from "../../utils/assistantDisplayNames";
 
 // Helper function to check if content is a ContentBlock array
@@ -116,6 +117,18 @@ interface AccountProfileOption {
     advertiser_name?: string;
 }
 
+function getToolCallsFromMessage(msg: { tool_calls?: Array<{ id?: string; name?: string; args?: Record<string, unknown> }>; content?: unknown }): Array<{ id?: string; name: string; args?: Record<string, unknown> }> {
+    if (msg.tool_calls?.length) {
+        return msg.tool_calls.map((tc) => ({ id: tc.id, name: tc.name ?? "", args: tc.args }));
+    }
+    if (Array.isArray(msg.content)) {
+        return msg.content
+            .filter((b): b is ContentBlock => typeof b === "object" && b != null && (b as ContentBlock).type === "tool_use")
+            .map((b) => ({ id: (b as { id?: string }).id, name: (b as { name?: string }).name ?? "", args: ((b as { input?: Record<string, unknown> }).input ?? {}) as Record<string, unknown> }));
+    }
+    return [];
+}
+
 function profileDisplayName(p: AccountProfileOption): string {
     return p.name ?? p.advertiser_name ?? p.customer_id ?? p.advertiser_id ?? String(p.id);
 }
@@ -161,7 +174,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const historyDropdownRef = useRef<HTMLDivElement>(null);
-    const schemaFormRef = useRef<SchemaFormBlockHandle | null>(null);
+    const schemaFormRef = useRef<CampaignFormForChatHandle | null>(null);
     const [isThreadDropdownOpen, setIsThreadDropdownOpen] = useState(false);
 
     const [accounts, setAccounts] = useState<Account[]>([]);
@@ -786,110 +799,118 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             const lastHumanIndex = messages.map((m, i) => (m.type === "human" ? i : -1)).filter((i) => i >= 0).pop() ?? -1;
                             const streamingAiIndex = lastHumanIndex + 1;
                             const isStreamingThisBubble = isStreaming && message.type === "ai" && messageIndex === streamingAiIndex;
-                            return (
-                                <div
-                                    key={message.id}
-                                    className={`flex ${message.type === "human" ? "justify-end" : "justify-start"
-                                        }`}
-                                >
-                                    <div
-                                        className={`max-w-[85%] min-w-0 ${message.type === "human"
-                                            ? "flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e8e8e3] rounded-[12px] shadow-sm overflow-x-auto"
-                                            : "flex flex-col items-start p-4 gap-3 h-auto bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm"
-                                            }`}
-                                    >
-                                        {/* Human Message */}
-                                        {message.type === "human" && (
+                            const msgType = (message as { type?: string }).type;
+
+                            if (msgType === "human") {
+                                return (
+                                    <div key={message.id} className="flex justify-end">
+                                        <div className="max-w-[85%] min-w-0 flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e8e8e3] rounded-[12px] shadow-sm overflow-x-auto">
                                             <div
                                                 className="text-[14px] font-normal leading-[20px] tracking-[0.1px] text-[#072929] min-w-0 max-w-full overflow-x-auto"
                                                 style={{ fontFamily: "'GT America Trial', sans-serif" }}
                                             >
                                                 <MessageContent content={extractTextContent(message.content)} />
                                             </div>
-                                        )}
+                                        </div>
+                                    </div>
+                                );
+                            }
 
+                            if (msgType === "tool") {
+                                const toolMsg = message as { name?: string; tool_call_id?: string; content?: unknown };
+                                return (
+                                    <div key={message.id} className="flex justify-start">
+                                        <ToolResultDisplay
+                                            name={toolMsg.name}
+                                            toolCallId={toolMsg.tool_call_id}
+                                            content={toolMsg.content ?? ""}
+                                        />
+                                    </div>
+                                );
+                            }
+
+                            if (msgType === "ai") {
+                                const toolCalls = getToolCallsFromMessage(message);
+                                return (
+                                <div key={message.id} className="flex justify-start">
+                                    <div className="max-w-[85%] min-w-0 flex flex-col items-start p-4 gap-3 h-auto bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm">
                                         {/* AI Message: single bubble — "Currently analyzing" / "Steps taken" above, then content (so steps never hide) */}
-                                        {message.type === "ai" && (
-                                            <div className="flex flex-col items-start gap-3 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
-                                                {/* Steps: streaming (currentThinkingSteps) or completed (message.additional_kwargs.thinkingSteps); fallback to other additional_kwargs */}
-                                                {(() => {
-                                                    const completedSteps = (message.additional_kwargs?.thinkingSteps as string[] | undefined) ?? [];
-                                                    const hasStreamingSteps = isStreamingThisBubble && currentThinkingSteps.length > 0;
-                                                    const hasCompletedSteps = completedSteps.length > 0;
-                                                    const hasOtherKwargs = message.additional_kwargs && Object.keys(message.additional_kwargs).filter(k => k !== "thinkingSteps").length > 0;
-                                                    const showStepsBlock = hasStreamingSteps || hasCompletedSteps || hasOtherKwargs;
-                                                    const steps = hasStreamingSteps ? currentThinkingSteps : completedSteps;
-                                                    const isCompleted = hasCompletedSteps && !isStreamingThisBubble;
-                                                    if (!showStepsBlock) return null;
-                                                    return (
-                                                        <div className="flex flex-col gap-1.5 w-full">
-                                                            <span className="text-[11px] font-medium uppercase tracking-wider text-[#556179]">
-                                                                {isCompleted ? "Steps taken" : "Currently analyzing"}
-                                                            </span>
-                                                            {steps.length > 0 ? (
-                                                                <div className="flex flex-wrap gap-1.5">
-                                                                    {steps.map((step, index) => (
-                                                                        <span
-                                                                            key={index}
-                                                                            className={`inline-flex items-center gap-1.5 rounded-md border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929] ${isCompleted ? "bg-[#E8E8E3]/50" : "bg-white"}`}
-                                                                        >
-                                                                            {isCompleted ? (
-                                                                                <Check className="w-3 h-3 text-[#136D6D] shrink-0" />
-                                                                            ) : (
-                                                                                <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full animate-pulse shrink-0" />
-                                                                            )}
-                                                                            {getDisplayName(step, "node")}
-                                                                        </span>
-                                                                    ))}
-                                                                </div>
-                                                            ) : hasOtherKwargs ? (
-                                                                <div className="flex flex-wrap gap-1.5">
-                                                                    {Object.entries(message.additional_kwargs ?? {}).filter(([k]) => k !== "thinkingSteps").map(([key, value]) => (
-                                                                        <span
-                                                                            key={key}
-                                                                            className="inline-flex items-center rounded-md bg-white border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929]"
-                                                                        >
-                                                                            {key}: {String(value)}
-                                                                        </span>
-                                                                    ))}
-                                                                </div>
-                                                            ) : null}
-                                                        </div>
-                                                    );
-                                                })()}
+                                        <div className="flex flex-col items-start gap-3 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
+                                            {/* Steps: streaming (currentThinkingSteps) or completed (message.additional_kwargs.thinkingSteps); fallback to other additional_kwargs */}
+                                            {(() => {
+                                                const completedSteps = (message.additional_kwargs?.thinkingSteps as string[] | undefined) ?? [];
+                                                const hasStreamingSteps = isStreamingThisBubble && currentThinkingSteps.length > 0;
+                                                const hasCompletedSteps = completedSteps.length > 0;
+                                                const hasOtherKwargs = message.additional_kwargs && Object.keys(message.additional_kwargs).filter(k => k !== "thinkingSteps").length > 0;
+                                                const showStepsBlock = hasStreamingSteps || hasCompletedSteps || hasOtherKwargs;
+                                                const steps = hasStreamingSteps ? currentThinkingSteps : completedSteps;
+                                                const isCompleted = hasCompletedSteps && !isStreamingThisBubble;
+                                                if (!showStepsBlock) return null;
+                                                return (
+                                                    <div className="flex flex-col gap-1.5 w-full">
+                                                        <span className="text-[11px] font-medium uppercase tracking-wider text-[#556179]">
+                                                            {isCompleted ? "Steps taken" : "Currently analyzing"}
+                                                        </span>
+                                                        {steps.length > 0 ? (
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {steps.map((step, index) => (
+                                                                    <span
+                                                                        key={index}
+                                                                        className={`inline-flex items-center gap-1.5 rounded-md border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929] ${isCompleted ? "bg-[#E8E8E3]/50" : "bg-white"}`}
+                                                                    >
+                                                                        {isCompleted ? (
+                                                                            <Check className="w-3 h-3 text-[#136D6D] shrink-0" />
+                                                                        ) : (
+                                                                            <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full animate-pulse shrink-0" />
+                                                                        )}
+                                                                        {getDisplayName(step, "node")}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        ) : hasOtherKwargs ? (
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {Object.entries(message.additional_kwargs ?? {}).filter(([k]) => k !== "thinkingSteps").map(([key, value]) => (
+                                                                    <span
+                                                                        key={key}
+                                                                        className="inline-flex items-center rounded-md bg-white border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929]"
+                                                                    >
+                                                                        {key}: {String(value)}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
+                                                );
+                                            })()}
 
-                                                {/* Text / markdown content (streamed message below analyzing) */}
-                                                {isContentBlockArray(message.content) ? (
-                                                    <div className="w-full space-y-2">
-                                                        {/* Render tool_use blocks first (above), then text (message below) */}
-                                                        {(() => {
-                                                            const blocks = message.content as ContentBlock[];
-                                                            const toolBlocks = blocks.filter((b): b is ToolUseContent => b.type === "tool_use");
-                                                            const textBlocks = blocks.filter((b): b is TextContent => b.type === "text");
-                                                            return [...toolBlocks, ...textBlocks].map((block, idx) => (
-                                                                <div key={idx}>
-                                                                    {block.type === "text" && (
-                                                                        <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929]">
-                                                                            <StellarMarkDown content={(block as any).text} type="ai" />
-                                                                        </div>
-                                                                    )}
-                                                                    {block.type === "tool_use" && (
-                                                                        <ToolUseBlock block={block} />
-                                                                    )}
-                                                                </div>
-                                                            ));
-                                                        })()}
-                                                    </div>
-                                                ) : isStringContent(message.content) ? (
-                                                    <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full prose prose-sm max-w-none">
-                                                        <StellarMarkDown content={message.content} type="ai" />
-                                                    </div>
-                                                ) : null}
-                                            </div>
-                                        )}
+                                            {toolCalls.length > 0 && (
+                                                <ToolCallsDisplay toolCalls={toolCalls} compact />
+                                            )}
+
+                                            {/* Text / markdown content (streamed message below analyzing) */}
+                                            {isContentBlockArray(message.content) ? (
+                                                <div className="w-full space-y-2">
+                                                    {(() => {
+                                                        const blocks = message.content as ContentBlock[];
+                                                        const textBlocks = blocks.filter((b): b is TextContent => b.type === "text");
+                                                        return textBlocks.map((block, idx) => (
+                                                            <div key={idx} className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929]">
+                                                                <StellarMarkDown content={(block as TextContent).text} type="ai" />
+                                                            </div>
+                                                        ));
+                                                    })()}
+                                                </div>
+                                            ) : isStringContent(message.content) ? (
+                                                <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full prose prose-sm max-w-none">
+                                                    <StellarMarkDown content={message.content} type="ai" />
+                                                </div>
+                                            ) : null}
+                                        </div>
                                     </div>
                                 </div>
                             );
+                            }
+                            return null;
                         })}
 
                         {/* Thinking at the very end when streaming — only when last message is AI (otherwise we show the "waiting for first token" block below) */}
@@ -937,18 +958,26 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             </div>
                         )}
 
-                        {/* Campaign: current_questions_schema form fields — hide while waiting for AI response, show again after */}
+                        {/* Campaign: form fields — use CampaignFormForChat (reuses campaign form components) for full campaign support */}
                         {SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema && schemaFormKey && !isLoading && !isStreaming && (
-                            <SchemaFormBlock
+                            <CampaignFormForChat
                                 ref={schemaFormRef}
                                 key={schemaFormKey}
                                 questionsSchema={questionsSchema as CurrentQuestionSchemaItem[]}
                                 campaignDraft={campaignState?.campaign_draft as Record<string, unknown> | undefined}
+                                campaignType={(campaignState?.campaign_draft as Record<string, unknown> | undefined)?.campaign_type as string || campaignState?.campaign_type as string || "SEARCH"}
                                 onSend={sendMessage}
                                 disabled={isLoading || isStreaming}
-                                inputValue={inputValue}
-                                onInputClear={() => setInputValue("")}
                                 profileId={assistantScope.profileId ?? undefined}
+                                accountId={assistantScope.accountId ?? undefined}
+                                channelId={assistantScope.channelId ?? undefined}
+                                googleProfiles={accountProfiles.map((p) => ({
+                                    value: String(p.id),
+                                    label: profileDisplayName(p),
+                                    customer_id: p.customer_id ?? "",
+                                    customer_id_raw: (p.customer_id ?? "").replace(/-/g, ""),
+                                    profile_id: p.id,
+                                }))}
                             />
                         )}
 

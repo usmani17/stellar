@@ -28,6 +28,13 @@ interface GoogleDemandGenCampaignFormProps extends BaseCampaignFormProps {
   googleProfiles?: Array<{ value: string; label: string; customer_id: string; customer_id_raw: string; profile_id?: number }>;
   // Test button – fill entire form with test data
   onFillTest?: () => void;
+  /** When provided, only render fields whose keys are in this list. Used by Assistant chat. */
+  visibleKeys?: string[];
+}
+
+function shouldShowField(key: string, visibleKeys?: string[]): boolean {
+  if (!visibleKeys || visibleKeys.length === 0) return true;
+  return visibleKeys.includes(key);
 }
 
 /** Create a blob from an image URL and crop region (for upload). */
@@ -78,6 +85,7 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
   selectedProfileId,
   googleProfiles,
   onFillTest,
+  visibleKeys,
 }) => {
   const minHeadlines = getMinHeadlines("DEMAND_GEN");
   const maxHeadlines = getMaxHeadlines();
@@ -91,6 +99,8 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
   const [createImageAssetOpen, setCreateImageAssetOpen] = useState(false);
   const [logoCropModalOpen, setLogoCropModalOpen] = useState(false);
   const [logoCropImageUrl, setLogoCropImageUrl] = useState("");
+  /** When both video_id and video_url are empty, which input to show (id vs url). */
+  const [videoPreferredMode, setVideoPreferredMode] = useState<"id" | "url">("id");
 
   const handleSelectAsset = (asset: Asset) => {
     if (asset.type === "IMAGE" && "image_url" in asset) {
@@ -172,6 +182,7 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
       </div>
 
       {/* Final URL */}
+      {shouldShowField("final_url", visibleKeys) && (
       <div>
         <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
           Final URL *
@@ -191,56 +202,57 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
           </p>
         )}
       </div>
+      )}
 
       {/* Video Input - Radio to choose between video_url and video_id */}
+      {(shouldShowField("video_id", visibleKeys) || shouldShowField("video_url", visibleKeys)) && (
       <div>
         <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
           Video Asset *
         </label>
         <div className="space-y-3">
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="video_type"
-                checked={!formData.video_url || !!formData.video_id}
-                onChange={() => {
-                  onChange("video_url", "");
-                  if (!formData.video_id) {
-                    onChange("video_id", "");
-                  }
-                }}
-                className="w-4 h-4 accent-forest-f40"
-              />
-              <span className="text-[13px] text-[#072929]">YouTube Video ID</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="video_type"
-                checked={!!formData.video_url && !formData.video_id}
-                onChange={() => {
-                  onChange("video_id", "");
-                  if (!formData.video_url) {
+          {/* Only show radio when both keys are visible; otherwise show single input */}
+          {(shouldShowField("video_id", visibleKeys) && shouldShowField("video_url", visibleKeys)) && (
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="video_type"
+                  checked={!!formData.video_id || (!formData.video_url && !formData.video_id && videoPreferredMode === "id")}
+                  onChange={() => {
+                    setVideoPreferredMode("id");
                     onChange("video_url", "");
-                  }
-                }}
-                className="w-4 h-4 accent-forest-f40"
-              />
-              <span className="text-[13px] text-[#072929]">Video URL</span>
-            </label>
-          </div>
-          
-          {(!formData.video_url || formData.video_id) && (
+                  }}
+                  className="w-4 h-4 accent-forest-f40"
+                />
+                <span className="text-[13px] text-[#072929]">YouTube Video ID</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="video_type"
+                  checked={!!formData.video_url || (!formData.video_url && !formData.video_id && videoPreferredMode === "url")}
+                  onChange={() => {
+                    setVideoPreferredMode("url");
+                    onChange("video_id", "");
+                  }}
+                  className="w-4 h-4 accent-forest-f40"
+                />
+                <span className="text-[13px] text-[#072929]">Video URL</span>
+              </label>
+            </div>
+          )}
+
+          {/* YouTube Video ID input - show when only video_id requested, or when Video ID mode selected */}
+          {shouldShowField("video_id", visibleKeys) && (!shouldShowField("video_url", visibleKeys) || !!formData.video_id || (!formData.video_url && !formData.video_id && videoPreferredMode === "id")) && (
             <div>
               <input
                 type="text"
                 value={formData.video_id || ""}
                 onChange={(e) => {
-                  onChange("video_id", e.target.value);
-                  if (e.target.value) {
-                    onChange("video_url", "");
-                  }
+                  const v = e.target.value;
+                  onChange("video_id", v);
+                  if (v) onChange("video_url", "");
                 }}
                 className={`campaign-input w-full ${
                   errors.video_id ? "border-red-500" : "border-gray-200"
@@ -257,17 +269,17 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
               </p>
             </div>
           )}
-          
-          {(!formData.video_id || formData.video_url) && (
+
+          {/* Video URL input - show when only video_url requested, or when Video URL mode selected */}
+          {shouldShowField("video_url", visibleKeys) && (!shouldShowField("video_id", visibleKeys) || !!formData.video_url || (!formData.video_url && !formData.video_id && videoPreferredMode === "url")) && (
             <div>
               <input
                 type="url"
                 value={formData.video_url || ""}
                 onChange={(e) => {
-                  onChange("video_url", e.target.value);
-                  if (e.target.value) {
-                    onChange("video_id", "");
-                  }
+                  const v = e.target.value;
+                  onChange("video_url", v);
+                  if (v) onChange("video_id", "");
                 }}
                 className={`campaign-input w-full ${
                   errors.video_url ? "border-red-500" : "border-gray-200"
@@ -286,8 +298,10 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
           )}
         </div>
       </div>
+      )}
 
       {/* Logo URL – Select existing asset, Create/Upload, or paste URL; optional crop to square */}
+      {shouldShowField("logo_url", visibleKeys) && (
       <div>
         <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
           Logo URL *
@@ -387,8 +401,10 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
           Enter URL, select existing asset, or create/upload. Logo must be 1:1 (min 128×128). Use Crop to square if needed.
         </p>
       </div>
+      )}
 
       {/* Business Name */}
+      {shouldShowField("business_name", visibleKeys) && (
       <div>
         <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
           Business Name *
@@ -408,8 +424,10 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
           </p>
         )}
       </div>
+      )}
 
       {/* Headlines */}
+      {shouldShowField("headlines", visibleKeys) && (
       <div>
         <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
           Headlines * ({minHeadlines}-{maxHeadlines} required)
@@ -454,8 +472,10 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
           </p>
         )}
       </div>
+      )}
 
       {/* Descriptions */}
+      {shouldShowField("descriptions", visibleKeys) && (
       <div>
         <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
           Descriptions * ({minDescriptions}-{maxDescriptions} required)
@@ -500,8 +520,10 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
           </p>
         )}
       </div>
+      )}
 
       {/* Long Headlines (required for In-Feed: 1-5, max 90 chars each) */}
+      {shouldShowField("long_headlines", visibleKeys) && (
       <div>
         <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
           Long Headlines * (1-5 required for In-Feed, max 90 chars each)
@@ -542,9 +564,12 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
           <p className="text-[10px] text-red-500 mt-1">{errors.long_headlines}</p>
         )}
       </div>
+      )}
 
       {/* Optional Fields */}
+      {(shouldShowField("ad_group_name", visibleKeys) || shouldShowField("ad_name", visibleKeys)) && (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {shouldShowField("ad_group_name", visibleKeys) && (
         <div>
           <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
             Ad Group Name
@@ -557,7 +582,8 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
             placeholder="Optional ad group name"
           />
         </div>
-
+        )}
+        {shouldShowField("ad_name", visibleKeys) && (
         <div>
           <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
             Ad Name
@@ -570,9 +596,12 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
             placeholder="Optional ad name"
           />
         </div>
+        )}
       </div>
+      )}
 
       {/* Channel Controls */}
+      {shouldShowField("channel_controls", visibleKeys) && (
       <div>
         <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
           Channel Controls
@@ -643,6 +672,7 @@ export const GoogleDemandGenCampaignForm: React.FC<GoogleDemandGenCampaignFormPr
           Control where your Demand Gen ads appear. All channels are enabled by default.
         </p>
       </div>
+      )}
 
       {/* Asset Selector Modal (select existing logo assets) */}
       {profileId && (

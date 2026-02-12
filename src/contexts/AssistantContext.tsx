@@ -115,10 +115,10 @@ const CHAT_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
 ];
 
 const CAMPAIGN_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
-  { id: "c1", text: "Create a Demand Gen campaign" },
+  { id: "c1", text: "Create a Demand Gen (YouTube) campaign" },
   { id: "c2", text: "Set up a Search campaign" },
   { id: "c3", text: "Create a Performance Max campaign" },
-  { id: "c4", text: "I want to create a YouTube video campaign" },
+  { id: "c4", text: "Create a Shopping campaign" },
 ];
 
 export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: string; channelId?: string }> = ({
@@ -223,6 +223,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     assistantId: currentAssistantId ?? "",
     threadId: currentThreadId,
     throttle: 16,
+    fetchStateHistory: true,
     onThreadId: onThreadIdFromStream,
     messagesKey: "messages",
     onError: useCallback((err: unknown) => {
@@ -279,6 +280,16 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const prevLoadingRefForAccum = React.useRef<boolean>(stream.isLoading);
   const lastMergedMessagesRef = React.useRef<ThreadMessage[] | null>(null);
   const lastMergedThreadIdRef = React.useRef<string | null>(null);
+  const persistedMessagesRef = React.useRef<ThreadMessage[]>([]);
+  const persistedForThreadIdRef = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    if (currentThreadId !== persistedForThreadIdRef.current) {
+      persistedMessagesRef.current = [];
+      persistedForThreadIdRef.current = currentThreadId;
+    }
+  }, [currentThreadId]);
+
   const mergedForDisplay = React.useMemo(() => {
     if (stream.isLoading || !currentThreadId || !streamMessages.length) return null;
     const accumulated: AccumulatedToolContent = {
@@ -293,10 +304,17 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   }, [stream.isLoading, streamMessages, currentThreadId, currentThread?.thinkingSteps]);
   const lastMergedForThread =
     lastMergedThreadIdRef.current === currentThreadId ? lastMergedMessagesRef.current : null;
-  const baseMessages: ThreadMessage[] =
-    isStreamThread && stream.isLoading
-      ? streamMessages
-      : (mergedForDisplay ?? lastMergedForThread ?? streamMessages ?? currentThread?.values?.messages ?? []);
+
+  const baseMessages: ThreadMessage[] = React.useMemo(() => {
+    const currentRun = isStreamThread && stream.isLoading ? streamMessages : (mergedForDisplay ?? lastMergedForThread ?? streamMessages ?? currentThread?.values?.messages ?? []);
+    if (stream.isLoading && persistedMessagesRef.current.length > 0 && currentRun.length > 0) {
+      const prev = persistedMessagesRef.current;
+      const currentIds = new Set((currentRun as { id?: string }[]).map((m) => m.id));
+      const prevOnly = prev.filter((m) => !currentIds.has(m.id));
+      return [...prevOnly, ...currentRun];
+    }
+    return currentRun;
+  }, [isStreamThread, stream.isLoading, streamMessages, mergedForDisplay, lastMergedForThread, currentThread?.values?.messages]);
 
   // When campaign has reply_text but last AI message lacks text, inject it (e.g. "Fill in YouTube video ID")
   const messages: ThreadMessage[] = useMemo(() => {
@@ -325,6 +343,8 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   if (prevLoadingRefForAccum.current && !stream.isLoading) {
     prevLoadingRefForAccum.current = false;
   } else if (!prevLoadingRefForAccum.current && stream.isLoading) {
+    const toPersist = lastMergedMessagesRef.current ?? persistedMessagesRef.current;
+    if (toPersist.length > 0) persistedMessagesRef.current = toPersist;
     accumulatedToolContentRef.current.clear();
     accumulatedByAiIndexRef.current = [];
     lastMergedMessagesRef.current = null;
@@ -373,6 +393,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     accumulatedByAiIndexRef.current = [];
     lastMergedMessagesRef.current = newMessages;
     lastMergedThreadIdRef.current = currentThreadId;
+    persistedMessagesRef.current = newMessages;
     setThreads(prev => prev.map(t => {
       if (t.thread_id !== currentThreadId) return t;
       return {
