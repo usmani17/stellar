@@ -1892,11 +1892,11 @@ export const GoogleCampaignDetail: React.FC = () => {
 
                 {activeTab === "Assets" &&
                   campaignDetail?.campaign.advertising_channel_type ===
-                  "DEMAND_GEN" && (
+                    "DEMAND_GEN" && (
                     <GoogleCampaignDetailAssetsTab
+                      profileId={profileId}
                       accountId={accountId}
                       channelId={channelId}
-                      profileId={profileId}
                     />
                   )}
 

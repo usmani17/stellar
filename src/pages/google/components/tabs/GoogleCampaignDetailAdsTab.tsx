@@ -16,6 +16,7 @@ import {
 } from "../BulkUpdateConfirmationModal";
 import { BulkActionsDropdown } from "../BulkActionsDropdown";
 import { formatStatusForDisplay } from "../../utils/googleAdsUtils";
+import { Loader } from "../../../../components/ui/Loader";
 
 interface GoogleCampaignDetailAdsTabProps {
   ads: GoogleAd[];
@@ -389,8 +390,8 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
       <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
         <div className="overflow-x-auto w-full">
           {loading ? (
-            <div className="text-center py-8 text-[#556179] text-[13.3px]">
-              Loading ads...
+            <div className="flex justify-center py-8">
+              <Loader size="lg" message="Loading ads..." />
             </div>
           ) : ads.length === 0 ? (
             <div className="text-center py-8">

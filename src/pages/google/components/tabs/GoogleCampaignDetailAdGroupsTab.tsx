@@ -860,8 +860,8 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
         <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
           <div className="overflow-x-auto w-full">
             {loading ? (
-              <div className="text-center py-8 text-[#556179] text-[13.3px]">
-                Loading ad groups...
+              <div className="flex justify-center py-8">
+                <Loader size="lg" message="Loading ad groups..." />
               </div>
             ) : adgroups.length === 0 ? (
               <div className="text-center py-8">

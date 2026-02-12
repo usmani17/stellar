@@ -31,7 +31,8 @@ export interface FilterItem {
   | "keywordText"
   | "keyword_text"
   | "match_type"
-  | "expression";
+  | "expression"
+  | "assetType";
   operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId, keywordText, keyword_text, match_type, expression
   value: string | number | string[] | { min: number; max: number }; // Support arrays for multi-select fields (type, state, profile_name), and object for "between" operator
 }
@@ -115,6 +116,13 @@ const CHANNEL_TYPE_OPTIONS = [
   "SMART",
 ];
 const ASSET_TYPE_OPTIONS = ["Image", "Video"];
+// Google Ads asset types (for Demand Gen campaign Assets tab)
+const GOOGLE_ASSET_TYPE_OPTIONS = [
+  { value: "IMAGE", label: "Image" },
+  { value: "TEXT", label: "Text" },
+  { value: "YOUTUBE_VIDEO", label: "YouTube Video" },
+  { value: "SITELINK", label: "Sitelink" },
+];
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
   isOpen,
@@ -964,10 +972,17 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 />
               ) : isAssetType ? (
                 <Dropdown<string>
-                  options={ASSET_TYPE_OPTIONS.map((opt) => ({
-                    value: opt,
-                    label: opt,
-                  }))}
+                  options={
+                    channelType === "google"
+                      ? GOOGLE_ASSET_TYPE_OPTIONS.map((opt) => ({
+                          value: opt.value,
+                          label: opt.label,
+                        }))
+                      : ASSET_TYPE_OPTIONS.map((opt) => ({
+                          value: opt,
+                          label: opt,
+                        }))
+                  }
                   value={filterValue || undefined}
                   placeholder="Select Asset Type"
                   onChange={(value) => setFilterValue(value)}

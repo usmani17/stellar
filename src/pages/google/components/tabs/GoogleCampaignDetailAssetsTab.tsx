@@ -1,38 +1,63 @@
 import React, { useState, useMemo } from "react";
-import { Plus, Upload, Image, Video, Type, Link } from "lucide-react";
-import { Checkbox } from "../../../../components/ui/Checkbox";
+import { Plus, Upload, Image, Video, Type, Link, Eye } from "lucide-react";
 import { Button } from "../../../../components/ui";
+import { Loader } from "../../../../components/ui/Loader";
 import { AssetSelectorModal } from "../../../../components/google/AssetSelectorModal";
+import { AssetDetailModal } from "../../../../components/google/AssetDetailModal";
+import {
+  FilterPanel,
+  type FilterValues,
+} from "../../../../components/filters/FilterPanel";
 import { useAssets } from "../../../../hooks/queries/useAssets";
 import type { Asset } from "../../../../services/googleAdwords/googleAdwordsAssets";
 
 const ASSETS_PAGE_SIZE = 10;
 
+const ASSET_TYPE_FILTER_FIELDS = [
+  { value: "assetType", label: "Asset Type" },
+];
+
 interface GoogleCampaignDetailAssetsTabProps {
   profileId?: number | null;
+  accountId?: string;
+  channelId?: string;
 }
 
 export const GoogleCampaignDetailAssetsTab: React.FC<GoogleCampaignDetailAssetsTabProps> = ({
   profileId,
+  accountId,
+  channelId,
 }) => {
-  // Fetch real assets from Google Ads API
   const { data: assets = [], isLoading, error, refetch } = useAssets(profileId || undefined);
-  const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
   const [assetSelectorOpen, setAssetSelectorOpen] = useState(false);
+  const [viewAsset, setViewAsset] = useState<Asset | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterValues>([]);
 
   const filterAssets = (list: Asset[]) => {
-    if (!searchTerm) return list;
-    const search = searchTerm.toLowerCase();
-    return list.filter(asset =>
-      asset.name.toLowerCase().includes(search) ||
-      asset.type.toLowerCase().includes(search) ||
-      (asset.field_type && asset.field_type.toLowerCase().includes(search))
-    );
+    let result = list;
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      result = result.filter(
+        (asset) =>
+          asset.name.toLowerCase().includes(search) ||
+          asset.type.toLowerCase().includes(search) ||
+          (asset.field_type && asset.field_type.toLowerCase().includes(search))
+      );
+    }
+    const assetTypeFilter = filters.find((f) => f.field === "assetType");
+    if (assetTypeFilter && typeof assetTypeFilter.value === "string") {
+      result = result.filter((asset) => asset.type === assetTypeFilter.value);
+    }
+    return result;
   };
 
-  const filteredAssets = useMemo(() => filterAssets(assets), [assets, searchTerm]);
+  const filteredAssets = useMemo(
+    () => filterAssets(assets),
+    [assets, searchTerm, filters]
+  );
   const totalPages = Math.max(1, Math.ceil(filteredAssets.length / ASSETS_PAGE_SIZE));
   const paginatedAssets = useMemo(
     () =>
@@ -45,32 +70,6 @@ export const GoogleCampaignDetailAssetsTab: React.FC<GoogleCampaignDetailAssetsT
 
   const handlePageChange = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedAssetIds(prev => {
-        const next = new Set(prev);
-        paginatedAssets.forEach(asset => next.add(asset.id));
-        return next;
-      });
-    } else {
-      setSelectedAssetIds(prev => {
-        const next = new Set(prev);
-        paginatedAssets.forEach(asset => next.delete(asset.id));
-        return next;
-      });
-    }
-  };
-
-  const handleSelectAsset = (id: string, checked: boolean) => {
-    const newSelected = new Set(selectedAssetIds);
-    if (checked) {
-      newSelected.add(id);
-    } else {
-      newSelected.delete(id);
-    }
-    setSelectedAssetIds(newSelected);
   };
 
   const handleCreateAsset = () => {
@@ -134,12 +133,8 @@ export const GoogleCampaignDetailAssetsTab: React.FC<GoogleCampaignDetailAssetsT
 
   if (isLoading) {
     return (
-      <div className="text-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Loading Assets</h3>
-        <p className="text-gray-500">
-          Fetching your Google Ads assets...
-        </p>
+      <div className="flex justify-center py-12">
+        <Loader size="lg" message="Fetching your Google Ads assets..." />
       </div>
     );
   }
@@ -161,8 +156,8 @@ export const GoogleCampaignDetailAssetsTab: React.FC<GoogleCampaignDetailAssetsT
 
   return (
     <div className="p-6">
-      {/* Toolbar: search + Create Asset */}
-      <div className="flex items-center justify-between mb-4">
+      {/* Toolbar: search, Add Filter, Create Asset (right-aligned) */}
+      <div className="flex flex-wrap items-center justify-end gap-3 mb-4">
         <div className="relative">
           <input
             type="text"
@@ -180,6 +175,36 @@ export const GoogleCampaignDetailAssetsTab: React.FC<GoogleCampaignDetailAssetsT
         </div>
         <button
           type="button"
+          onClick={() => setIsFilterPanelOpen((prev) => !prev)}
+          className="edit-button"
+        >
+          <svg
+            className="w-5 h-5 text-[#072929]"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+            />
+          </svg>
+          <span className="text-[10.64px] text-[#072929] font-normal">
+            Add Filter
+          </span>
+          <svg
+            className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isFilterPanelOpen ? "rotate-180" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        <button
+          type="button"
           onClick={handleCreateAsset}
           className="create-entity-button flex items-center gap-2"
         >
@@ -188,21 +213,30 @@ export const GoogleCampaignDetailAssetsTab: React.FC<GoogleCampaignDetailAssetsT
         </button>
       </div>
 
-      {/* Assets Table - same styling as Ad Groups tab */}
+      {/* Filter Panel */}
+      {isFilterPanelOpen && (
+        <div className="mb-4">
+          <FilterPanel
+            isOpen
+            onClose={() => setIsFilterPanelOpen(false)}
+            onApply={(newFilters) => {
+              setFilters(newFilters);
+              setCurrentPage(1);
+            }}
+            initialFilters={filters}
+            filterFields={ASSET_TYPE_FILTER_FIELDS}
+            channelType="google"
+            accountId={accountId}
+          />
+        </div>
+      )}
+
+      {/* Assets Table */}
       <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
         <div className="overflow-x-auto w-full">
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#e8e8e3]">
-                <th className="table-header w-[35px]">
-                <div className="flex items-center justify-center">
-                  <Checkbox
-                    checked={paginatedAssets.length > 0 && paginatedAssets.every(asset => selectedAssetIds.has(asset.id))}
-                    onChange={(checked) => handleSelectAll(checked)}
-                    size="small"
-                  />
-                </div>
-                </th>
                 <th className="table-header">Asset Name</th>
                 <th className="table-header">Type</th>
                 <th className="table-header hidden md:table-cell">Field Type</th>
@@ -214,15 +248,6 @@ export const GoogleCampaignDetailAssetsTab: React.FC<GoogleCampaignDetailAssetsT
             <tbody>
               {paginatedAssets.map((asset) => (
                 <tr key={asset.id} className="border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors">
-                  <td className="table-cell">
-                    <div className="flex items-center justify-center">
-                      <Checkbox
-                        checked={selectedAssetIds.has(asset.id)}
-                        onChange={(checked) => handleSelectAsset(asset.id, checked)}
-                        size="small"
-                      />
-                    </div>
-                  </td>
                   <td className="table-cell min-w-[200px]">
                     <div className="flex items-center gap-2">
                       {getAssetIcon(asset)}
@@ -237,7 +262,7 @@ export const GoogleCampaignDetailAssetsTab: React.FC<GoogleCampaignDetailAssetsT
                     </div>
                   </td>
                   <td className="table-cell">
-                    <span className="table-text leading-[1.26]">{asset.type.replace(/_/g, ' ')}</span>
+                    <span className="table-text leading-[1.26]">{asset.type.replace(/_/g, " ")}</span>
                   </td>
                   <td className="table-cell hidden md:table-cell">
                     <span className="table-text leading-[1.26]">{getAssetTypeName(asset)}</span>
@@ -249,19 +274,15 @@ export const GoogleCampaignDetailAssetsTab: React.FC<GoogleCampaignDetailAssetsT
                     <span className="table-text leading-[1.26]">{getAssetSize(asset)}</span>
                   </td>
                   <td className="table-cell">
-                    <div className="flex items-center gap-1">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 px-2"
-                      onClick={() => handleAssetSelected(asset)}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 flex items-center gap-1"
+                      onClick={() => setViewAsset(asset)}
                     >
-                      Select
+                      <Eye className="w-4 h-4" />
+                      View
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-8 px-2 text-red-600 hover:text-red-700">
-                      Delete
-                    </Button>
-                    </div>
                   </td>
                 </tr>
               ))}
@@ -350,6 +371,13 @@ export const GoogleCampaignDetailAssetsTab: React.FC<GoogleCampaignDetailAssetsT
           </div>
         </div>
       )}
+
+      {/* Asset Detail Modal - view asset in popup */}
+      <AssetDetailModal
+        isOpen={!!viewAsset}
+        onClose={() => setViewAsset(null)}
+        asset={viewAsset}
+      />
 
       {/* Asset Selector Modal for browsing and creating assets */}
       {profileId && (

@@ -15,7 +15,7 @@ export const CreateGoogleDemandGenAdSection: React.FC<CreateGoogleDemandGenAdSec
       className="create-entity-button"
     >
       <span className="text-[10.64px] text-white font-normal">
-        {isOpen ? "Cancel" : "Create Ad"}
+        Create Ad
       </span>
       <svg
         className={`w-4 h-4 !text-white transition-transform ${
