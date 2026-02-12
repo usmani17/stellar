@@ -10,24 +10,30 @@ import {
 } from "./utils";
 import { GoogleBiddingStrategyForm } from "./GoogleBiddingStrategyForm";
 
+function shouldShowBaseField(key: string, visibleKeys?: string[]): boolean {
+  if (!visibleKeys || visibleKeys.length === 0) return true;
+  return visibleKeys.includes(key);
+}
+
 interface BaseGoogleCampaignFormProps {
   formData: CreateGoogleCampaignData;
   errors: Partial<Record<keyof CreateGoogleCampaignData, string>>;
   onChange: (field: keyof CreateGoogleCampaignData, value: any) => void;
   mode?: "create" | "edit";
-  // Google Profiles
-  googleProfiles: Array<{ value: string; label: string; customer_id: string; customer_id_raw: string; profile_id?: number }>;
-  selectedProfileId: string;
-  setSelectedProfileId: (id: string) => void;
-  loadingProfiles: boolean;
-  profilesError: string | null;
-  // Budgets
-  budgetOptions: Array<{ value: string; label: string }>;
-  selectedBudgetId: string;
-  setSelectedBudgetId: (id: string) => void;
-  useCustomBudgetName: boolean;
-  setUseCustomBudgetName: (value: boolean) => void;
-  loadingBudgets: boolean;
+  // Google Profiles (optional when chatMode)
+  googleProfiles?: Array<{ value: string; label: string; customer_id: string; customer_id_raw: string; profile_id?: number }>;
+  selectedProfileId?: string;
+  setSelectedProfileId?: (id: string) => void;
+  loadingProfiles?: boolean;
+  profilesError?: string | null;
+  // Budgets (optional when chatMode / simpleBudgetMode)
+  // When using existing budget: value=resource_name, label="Name ($X)", name=budget name. Custom: value=__CUSTOM__, label="Custom..."
+  budgetOptions?: Array<{ value: string; label: string; name?: string }>;
+  selectedBudgetId?: string;
+  setSelectedBudgetId?: (id: string) => void;
+  useCustomBudgetName?: boolean;
+  setUseCustomBudgetName?: (value: boolean) => void;
+  loadingBudgets?: boolean;
   // Quick fill handlers
   onQuickFillPerformanceMax?: () => void;
   onQuickFillShopping?: () => void;
@@ -37,6 +43,12 @@ interface BaseGoogleCampaignFormProps {
   hideProfileSelector?: boolean;
   /** When true, hide Campaign Type selector and quick fill buttons */
   hideCampaignType?: boolean;
+  /** When true, use simple budget_amount/budget_name inputs instead of budget dropdown. Used by Assistant chat. */
+  simpleBudgetMode?: boolean;
+  /** When provided, only render base fields whose keys are in this list. Used by Assistant chat. */
+  visibleKeys?: string[];
+  /** When true, render fields one per line (single column). Used by Assistant chat. */
+  flatLayout?: boolean;
 }
 
 export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
@@ -44,27 +56,33 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
   errors,
   onChange,
   mode = "create",
-  googleProfiles,
-  selectedProfileId,
-  setSelectedProfileId,
-  loadingProfiles,
-  profilesError,
-  budgetOptions,
-  selectedBudgetId,
-  setSelectedBudgetId,
-  useCustomBudgetName,
-  setUseCustomBudgetName,
-  loadingBudgets,
+  googleProfiles = [],
+  selectedProfileId = "",
+  setSelectedProfileId = () => {},
+  loadingProfiles = false,
+  profilesError = null,
+  budgetOptions = [],
+  selectedBudgetId = "",
+  setSelectedBudgetId = () => {},
+  useCustomBudgetName = false,
+  setUseCustomBudgetName = () => {},
+  loadingBudgets = false,
   onQuickFillPerformanceMax,
   onQuickFillShopping,
   onQuickFillSearch,
   onQuickFillDemandGen,
   hideProfileSelector = false,
   hideCampaignType = false,
+  simpleBudgetMode = false,
+  visibleKeys,
+  flatLayout = false,
 }) => {
+  const showField = (k: string) => shouldShowBaseField(k, visibleKeys);
+  const gridClass = flatLayout ? "flex flex-col gap-3" : "grid grid-cols-1 md:grid-cols-3 gap-4";
+
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={gridClass}>
         {/* Google Ads Account (Profile) - hidden on draft detail page */}
         {!hideProfileSelector && (
         <div>
@@ -110,7 +128,7 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
         )}
 
         {/* Campaign Type - hidden on draft detail page */}
-        {!hideCampaignType && (
+        {!hideCampaignType && showField("campaign_type") && (
         <div>
           <label className="form-label">
             Campaign Type *
@@ -179,6 +197,7 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
         )}
 
         {/* Campaign Name */}
+        {showField("name") && (
         <div>
           <label className="form-label">
             Campaign Name *
@@ -197,8 +216,10 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
             <p className="text-[10px] text-red-500 mt-1">{errors.name}</p>
           )}
         </div>
+        )}
 
         {/* Budget Amount */}
+        {showField("budget_amount") && (
         <div>
           <label className="form-label">
             Budget Amount ($) *
@@ -236,13 +257,15 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
             </p>
           )}
         </div>
+        )}
 
         {/* Budget Name */}
+        {showField("budget_name") && (
         <div>
           <label className="form-label">
             Budget Name
           </label>
-          {useCustomBudgetName || selectedBudgetId === "__CUSTOM__" ? (
+          {(simpleBudgetMode || useCustomBudgetName || selectedBudgetId === "__CUSTOM__") ? (
             <div>
               <input
                 type="text"
@@ -254,32 +277,38 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
                   }`}
                 placeholder="Enter custom budget name"
               />
+              {!simpleBudgetMode && (
               <button
                 type="button"
                 onClick={() => {
-                  setUseCustomBudgetName(false);
-                  setSelectedBudgetId("");
+                  setUseCustomBudgetName?.(false);
+                  setSelectedBudgetId?.("");
                   onChange("budget_name", "");
+                  onChange("budget_resource_name", undefined);
                 }}
                 className="text-[10px] text-[#136D6D] mt-1 hover:underline"
               >
                 ← Back to budget list
               </button>
+              )}
             </div>
           ) : (
             <Dropdown<string>
               options={budgetOptions}
-              value={selectedBudgetId || (formData.budget_name && budgetOptions.find(opt => opt.value === formData.budget_name) ? formData.budget_name : "")}
+              value={selectedBudgetId || formData.budget_resource_name || (formData.budget_name && budgetOptions.find(opt => opt.value === formData.budget_name) ? formData.budget_name : "")}
               placeholder={loadingBudgets ? "Loading budgets..." : "Select a budget or choose Custom..."}
               onChange={(value) => {
                 if (value === "__CUSTOM__") {
                   setUseCustomBudgetName(true);
                   setSelectedBudgetId("__CUSTOM__");
                   onChange("budget_name", "");
+                  onChange("budget_resource_name", undefined);
                 } else {
+                  const opt = budgetOptions.find((o) => o.value === value);
                   setUseCustomBudgetName(false);
                   setSelectedBudgetId(value);
-                  onChange("budget_name", value);
+                  onChange("budget_resource_name", value);
+                  onChange("budget_name", opt?.name ?? opt?.label ?? value);
                 }
               }}
               disabled={loadingBudgets}
@@ -290,8 +319,10 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
             />
           )}
         </div>
+        )}
 
         {/* Start Date */}
+        {showField("start_date") && (
         <div>
           <label className="form-label">
             Start Date*
@@ -319,8 +350,10 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
             );
           })()}
         </div>
+        )}
 
         {/* End Date */}
+        {showField("end_date") && (
         <div>
           <label className="form-label">
             End Date
@@ -333,8 +366,10 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
               }`}
           />
         </div>
+        )}
 
         {/* Status */}
+        {showField("status") && (
         <div>
           <label className="form-label">
             Status
@@ -346,6 +381,7 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
             buttonClassName="edit-button w-full"
           />
         </div>
+        )}
       </div>
 
       {/* Bidding Strategy Section - Only show for non-Search/Shopping/Performance Max campaigns (they have tabs) */}

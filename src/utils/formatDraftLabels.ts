@@ -69,6 +69,8 @@ const CAMPAIGN_TYPE_MAP: Record<string, string> = {
   DEMAND_GEN: "Demand Gen",
   PERFORMANCE_MAX: "Performance Max",
   SEARCH: "Search",
+  SHOPPING: "Shopping",
+  VIDEO: "Video",
 };
 
 export function formatCampaignType(value: string | null | undefined): string {

@@ -65,6 +65,12 @@ export const DEVICE_OPTIONS = [
   { value: "CONNECTED_TV", label: "Connected TV", icon: "📺" },
 ];
 
+export const MATCH_TYPE_OPTIONS = [
+  { value: "BROAD", label: "Broad" },
+  { value: "PHRASE", label: "Phrase" },
+  { value: "EXACT", label: "Exact" },
+];
+
 // Utility Functions
 
 /**

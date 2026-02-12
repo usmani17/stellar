@@ -11,6 +11,8 @@ interface GoogleBiddingStrategyFormProps extends BaseCampaignFormProps {
   showTitle?: boolean; // Whether to show "Bidding Strategy" title (default: true)
   /** When provided, only render fields whose keys are in this list. Used by Assistant chat to show AI-requested fields only. */
   visibleKeys?: string[];
+  /** When true, render fields one per line (single column). Used by Assistant chat. */
+  flatLayout?: boolean;
 }
 
 const BIDDING_FORM_KEYS = {
@@ -34,7 +36,10 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
   onChange,
   showTitle = true,
   visibleKeys,
+  flatLayout = false,
 }) => {
+  const gridClass = flatLayout ? "flex flex-col gap-3" : "grid grid-cols-1 md:grid-cols-3 gap-4";
+
   return (
     <>
       {showTitle && (
@@ -44,7 +49,7 @@ export const GoogleBiddingStrategyForm: React.FC<GoogleBiddingStrategyFormProps>
       )}
 
       <div className="space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className={gridClass}>
           {/* Bidding Strategy Type */}
           {shouldShowField(BIDDING_FORM_KEYS.bidding_strategy_type, visibleKeys) && (
           <div>

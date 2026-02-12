@@ -29,6 +29,10 @@ interface GooglePerformanceMaxAssetGroupFormProps extends BaseCampaignFormProps 
   profileId?: number | null;
   // Campaign type for min/max requirements (defaults to PERFORMANCE_MAX)
   campaignType?: "PERFORMANCE_MAX" | "SHOPPING" | "SEARCH" | "DEMAND_GEN" | "DISPLAY" | "VIDEO";
+  /** When true, render only the Image Assets section (marketing + square marketing image). Used by Assistant chat form. */
+  showOnlyImageAssets?: boolean;
+  /** When provided with showOnlyImageAssets, if includes "asset_group_name" then also show asset group name input. */
+  visibleKeys?: string[];
 }
 
 // Asset tab definitions
@@ -60,6 +64,8 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
   setErrors,
   profileId,
   campaignType = "PERFORMANCE_MAX",
+  showOnlyImageAssets = false,
+  visibleKeys,
 }) => {
   const minHeadlines = getMinHeadlines(campaignType);
   const maxHeadlines = getMaxHeadlines();
@@ -381,6 +387,114 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
     setAssetSelectorIndex(index !== undefined ? index : null);
     setAssetSelectorOpen(true);
   };
+
+  const imageAssetsSection = (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label className="form-label mb-1">
+          Marketing Image URL * <span className="text-[10px] text-[#556179] font-normal">(1.91:1 aspect ratio, min 600x314px)</span>
+        </label>
+        {formData.marketing_image_asset_id ? (
+          <div className="space-y-2">
+            <div className="relative">
+              <input
+                type="url"
+                value={formData.marketing_image_url || ""}
+                disabled
+                readOnly
+                className="campaign-input w-full pr-28 bg-gray-50 border-gray-200 cursor-not-allowed"
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">From Asset</span>
+                <button type="button" onClick={() => { onChange("marketing_image_url", ""); onChange("marketing_image_asset_id", undefined); onChange("marketing_image_asset_resource_name", undefined); setMarketingImagePreview(null); }} className="text-red-500 hover:text-red-700 text-sm font-medium" title="Remove selected asset">×</button>
+              </div>
+            </div>
+            {marketingImagePreview && (
+              <div><p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p><div className="inline-block border border-gray-200 rounded bg-white p-1"><img src={marketingImagePreview} alt="Marketing" className="max-w-48 max-h-32 w-auto h-auto object-contain block rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; setMarketingImagePreview(null); }} /></div></div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="relative">
+              <input type="url" value={formData.marketing_image_url || ""} onChange={(e) => { onChange("marketing_image_url", e.target.value); const v = e.target.value.trim(); setMarketingImagePreview((v && /^https?:\/\//.test(v)) ? v : null); }} className={`campaign-input w-full pr-28 ${errors.marketing_image_url ? "border-red-500" : ""}`} placeholder="https://example.com/image.png" />
+              {profileId && <div className="absolute right-2 top-1/2 -translate-y-1/2"><button type="button" onClick={() => openAssetSelector("IMAGE")} className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap">Select Asset</button></div>}
+            </div>
+            {marketingImagePreview && <div><p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p><div className="inline-block border border-gray-200 rounded bg-white p-1"><img src={marketingImagePreview} alt="Marketing" className="max-w-48 max-h-32 w-auto h-auto object-contain block rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; setMarketingImagePreview(null); }} /></div></div>}
+          </div>
+        )}
+        {errors.marketing_image_url && <p className="text-[10px] text-red-500 mt-1">{errors.marketing_image_url}</p>}
+        <p className="text-[10px] text-[#556179] mt-1">Landscape (1.91:1, min 600×314px).</p>
+      </div>
+      <div>
+        <label className="form-label mb-1">
+          Square Marketing Image URL * <span className="text-[10px] text-[#556179] font-normal">(1:1 aspect ratio, min 300x300px)</span>
+        </label>
+        {formData.square_marketing_image_asset_id ? (
+          <div className="space-y-2">
+            <div className="relative">
+              <input type="url" value={formData.square_marketing_image_url || ""} disabled readOnly className="campaign-input w-full pr-28 bg-gray-50 border-gray-200 cursor-not-allowed" />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">From Asset</span>
+                <button type="button" onClick={() => { onChange("square_marketing_image_url", ""); onChange("square_marketing_image_asset_id", undefined); onChange("square_marketing_image_asset_resource_name", undefined); setSquareMarketingImagePreview(null); }} className="text-red-500 hover:text-red-700 text-sm font-medium" title="Remove selected asset">×</button>
+              </div>
+            </div>
+            {squareMarketingImagePreview && <div><p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p><div className="inline-block border border-gray-200 rounded p-1 bg-white"><img src={squareMarketingImagePreview} alt="Square" className="w-32 h-32 object-contain rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; setSquareMarketingImagePreview(null); }} /></div></div>}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="relative">
+              <input type="url" value={formData.square_marketing_image_url || ""} onChange={(e) => { onChange("square_marketing_image_url", e.target.value); const v = e.target.value.trim(); setSquareMarketingImagePreview((v && /^https?:\/\//.test(v)) ? v : null); }} className={`campaign-input w-full pr-28 ${errors.square_marketing_image_url ? "border-red-500" : ""}`} placeholder="https://example.com/square-image.png" />
+              {profileId && <div className="absolute right-2 top-1/2 -translate-y-1/2"><button type="button" onClick={() => openAssetSelector("SQUARE_IMAGE")} className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap">Select Asset</button></div>}
+            </div>
+            {squareMarketingImagePreview && <div><p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p><div className="inline-block border border-gray-200 rounded p-1 bg-white"><img src={squareMarketingImagePreview} alt="Square" className="w-32 h-32 object-contain rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; setSquareMarketingImagePreview(null); }} /></div></div>}
+          </div>
+        )}
+        {errors.square_marketing_image_url && <p className="text-[10px] text-red-500 mt-1">{errors.square_marketing_image_url}</p>}
+        <p className="text-[10px] text-[#556179] mt-1">Square (1:1, min 300×300px).</p>
+      </div>
+    </div>
+  );
+
+  if (showOnlyImageAssets) {
+    const showAssetGroupName = visibleKeys?.includes("asset_group_name");
+    return (
+      <>
+        {showAssetGroupName && (
+          <div className="mb-4">
+            <label className="form-label">Asset group name</label>
+            <input
+              type="text"
+              value={formData.asset_group_name || ""}
+              onChange={(e) => onChange("asset_group_name", e.target.value)}
+              className={`campaign-input w-full ${errors.asset_group_name ? "border-red-500" : "border-gray-200"}`}
+              placeholder="e.g. My Asset Group"
+            />
+            {errors.asset_group_name && (
+              <p className="text-[10px] text-red-500 mt-1">{errors.asset_group_name}</p>
+            )}
+          </div>
+        )}
+        <div className="space-y-4 mt-4">{imageAssetsSection}</div>
+        {assetSelectorError && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between gap-2">
+            <p className="text-sm text-red-600">{assetSelectorError}</p>
+            <button onClick={() => setAssetSelectorError(null)} className="text-red-600 hover:text-red-800 flex-shrink-0">×</button>
+          </div>
+        )}
+        {profileId && (
+          <AssetSelectorModal
+            isOpen={assetSelectorOpen}
+            onClose={() => { setAssetSelectorOpen(false); setAssetSelectorType(null); setAssetSelectorIndex(null); setAssetSelectorError(null); }}
+            onSelect={handleSelectAsset}
+            profileId={profileId}
+            assetType={assetSelectorType === "IMAGE" || assetSelectorType === "SQUARE_IMAGE" ? "IMAGE" : undefined}
+            title={assetSelectorType === "IMAGE" ? "Select Marketing Image (1.91:1)" : assetSelectorType === "SQUARE_IMAGE" ? "Select Square Image (1:1)" : "Select Asset"}
+            initialTab="Image"
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <>
@@ -1097,231 +1211,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
           {/* Image Assets Tab */}
           {activeAssetTab === "images" && (
             <div className="p-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="form-label mb-1">
-                    Marketing Image URL * <span className="text-[10px] text-[#556179] font-normal">(1.91:1 aspect ratio, min 600x314px)</span>
-                  </label>
-                  {formData.marketing_image_asset_id ? (
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <input
-                          type="url"
-                          value={formData.marketing_image_url || ""}
-                          disabled
-                          readOnly
-                          className="campaign-input w-full pr-28 bg-gray-50 border-gray-200 cursor-not-allowed"
-                        />
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                          <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
-                            From Asset
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onChange("marketing_image_url", "");
-                              onChange("marketing_image_asset_id", undefined);
-                              onChange("marketing_image_asset_resource_name", undefined);
-                              setMarketingImagePreview(null);
-                            }}
-                            className="text-red-500 hover:text-red-700 text-sm font-medium"
-                            title="Remove selected asset"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      </div>
-                      {marketingImagePreview && (
-                        <div>
-                          <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
-                          <div className="inline-block border border-gray-200 rounded bg-white p-1">
-                            <img
-                              src={marketingImagePreview}
-                              alt="Marketing image preview"
-                              className="max-w-48 max-h-32 w-auto h-auto object-contain block rounded"
-                              onError={(e) => {
-                                const img = e.currentTarget;
-                                img.style.display = "none";
-                                setMarketingImagePreview(null);
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <input
-                          type="url"
-                          value={formData.marketing_image_url || ""}
-                          onChange={(e) => {
-                            onChange("marketing_image_url", e.target.value);
-                            const urlValue = e.target.value.trim();
-                            if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
-                              setMarketingImagePreview(urlValue);
-                            } else {
-                              setMarketingImagePreview(null);
-                            }
-                          }}
-                          className={`campaign-input w-full pr-28 ${
-                            errors.marketing_image_url ? "border-red-500" : ""
-                          }`}
-                          placeholder="https://example.com/image.png"
-                        />
-                        {profileId && (
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                            <button
-                              type="button"
-                              onClick={() => openAssetSelector("IMAGE")}
-                              className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
-                            >
-                              Select Asset
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      {marketingImagePreview && (
-                        <div>
-                          <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
-                          <div className="inline-block border border-gray-200 rounded bg-white p-1">
-                            <img
-                              src={marketingImagePreview}
-                              alt="Marketing image preview"
-                              className="max-w-48 max-h-32 w-auto h-auto object-contain block rounded"
-                              onError={(e) => {
-                                const img = e.currentTarget;
-                                img.style.display = "none";
-                                setMarketingImagePreview(null);
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {errors.marketing_image_url && (
-                    <p className="text-[10px] text-red-500 mt-1">
-                      {errors.marketing_image_url}
-                    </p>
-                  )}
-                  <p className="text-[10px] text-[#556179] mt-1">
-                    Required. Enter image URL directly or select from assets. Must be 1.91:1 aspect ratio (landscape), minimum 600x314px, recommended 1200x628px.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="form-label mb-1">
-                    Square Marketing Image URL * <span className="text-[10px] text-[#556179] font-normal">(1:1 aspect ratio, min 300x300px)</span>
-                  </label>
-                  {formData.square_marketing_image_asset_id ? (
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <input
-                          type="url"
-                          value={formData.square_marketing_image_url || ""}
-                          disabled
-                          readOnly
-                          className="campaign-input w-full pr-28 bg-gray-50 border-gray-200 cursor-not-allowed"
-                        />
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                          <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
-                            From Asset
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onChange("square_marketing_image_url", "");
-                              onChange("square_marketing_image_asset_id", undefined);
-                              onChange("square_marketing_image_asset_resource_name", undefined);
-                              setSquareMarketingImagePreview(null);
-                            }}
-                            className="text-red-500 hover:text-red-700 text-sm font-medium"
-                            title="Remove selected asset"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      </div>
-                      {squareMarketingImagePreview && (
-                        <div>
-                          <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
-                          <div className="inline-block border border-gray-200 rounded p-1 bg-white">
-                            <img
-                              src={squareMarketingImagePreview}
-                              alt="Square marketing image preview"
-                              className="w-32 h-32 object-contain rounded"
-                              onError={(e) => {
-                                const img = e.currentTarget;
-                                img.style.display = "none";
-                                setSquareMarketingImagePreview(null);
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <input
-                          type="url"
-                          value={formData.square_marketing_image_url || ""}
-                          onChange={(e) => {
-                            onChange("square_marketing_image_url", e.target.value);
-                            const urlValue = e.target.value.trim();
-                            if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
-                              setSquareMarketingImagePreview(urlValue);
-                            } else {
-                              setSquareMarketingImagePreview(null);
-                            }
-                          }}
-                          className={`campaign-input w-full pr-28 ${
-                            errors.square_marketing_image_url ? "border-red-500" : ""
-                          }`}
-                          placeholder="https://example.com/square-image.png"
-                        />
-                        {profileId && (
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                            <button
-                              type="button"
-                              onClick={() => openAssetSelector("SQUARE_IMAGE")}
-                              className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
-                            >
-                              Select Asset
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      {squareMarketingImagePreview && (
-                        <div>
-                          <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
-                          <div className="inline-block border border-gray-200 rounded p-1 bg-white">
-                            <img
-                              src={squareMarketingImagePreview}
-                              alt="Square marketing image preview"
-                              className="w-32 h-32 object-contain rounded"
-                              onError={(e) => {
-                                const img = e.currentTarget;
-                                img.style.display = "none";
-                                setSquareMarketingImagePreview(null);
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {errors.square_marketing_image_url && (
-                    <p className="text-[10px] text-red-500 mt-1">
-                      {errors.square_marketing_image_url}
-                    </p>
-                  )}
-                  <p className="text-[10px] text-[#556179] mt-1">
-                    Required. Enter image URL directly or select from assets. Must be 1:1 aspect ratio (square), minimum 300x300px, recommended 1200x1200px.
-                  </p>
-                </div>
-              </div>
+              {imageAssetsSection}
             </div>
           )}
 

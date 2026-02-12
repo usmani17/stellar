@@ -3,16 +3,18 @@
  * Preview how the form looks inside the Assistant chat layout.
  * Visit /test-chat-form to use.
  */
-import React, { useState } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { CampaignFormForChat } from "../../components/ai/CampaignFormForChat";
 import { getFieldLabel } from "../../components/ai/campaignFormFieldLabels";
 import type { CurrentQuestionSchemaItem } from "../../types/agent";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
+import { campaignsService } from "../../services/campaigns";
 
 const ALL_FIELD_GROUPS: { label: string; keys: string[] }[] = [
   { label: "Base", keys: ["name", "campaign_type", "budget_amount", "budget_name", "start_date", "end_date", "status"] },
   { label: "Bidding", keys: ["bidding_strategy_type", "target_cpa_micros", "target_roas", "target_spend_micros", "target_impression_share_location", "target_impression_share_location_fraction_micros", "target_impression_share_cpc_bid_ceiling_micros"] },
   { label: "Demand Gen", keys: ["final_url", "video_id", "video_url", "logo_url", "business_name", "headlines", "descriptions", "long_headlines", "ad_group_name", "ad_name", "channel_controls"] },
+  { label: "Performance Max", keys: ["asset_group_name", "marketing_image_url", "square_marketing_image_url"] },
   { label: "Search", keys: ["adgroup_name", "keywords", "match_type"] },
   { label: "Shopping", keys: ["merchant_id", "sales_country", "campaign_priority", "enable_local"] },
   {
@@ -38,10 +40,106 @@ export const ChatFormTestPage: React.FC = () => {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set(["name", "budget_amount", "bidding_strategy_type"]));
   const [campaignType, setCampaignType] = useState<string>("SEARCH");
   const [lastSubmit, setLastSubmit] = useState<string | null>(null);
-  const [accountId, setAccountId] = useState("");
-  const [channelId, setChannelId] = useState("");
-  const [profileId, setProfileId] = useState("");
+  const [accountId, setAccountId] = useState("20");
+  const [channelId, setChannelId] = useState("31");
+  const [profileId, setProfileId] = useState("21");
   const [showControls, setShowControls] = useState(true);
+  const [languageOptions, setLanguageOptions] = useState<Array<{ value: string; label: string; id: string }>>([]);
+  const [locationOptions, setLocationOptions] = useState<Array<{ value: string; label: string; id: string; type: string; countryCode: string }>>([]);
+  const [loadingLanguages, setLoadingLanguages] = useState(false);
+  const [loadingLocations, setLoadingLocations] = useState(false);
+
+  const needsTargeting =
+    campaignType === "SEARCH" || campaignType === "SHOPPING" || campaignType === "PERFORMANCE_MAX";
+
+  const fetchLanguages = useCallback(async () => {
+    const aid = accountId.trim();
+    const cid = channelId.trim();
+    const pid = profileId.trim();
+    if (!aid || !cid || !pid || !needsTargeting) {
+      setLanguageOptions([]);
+      return;
+    }
+    const accountIdNum = parseInt(aid, 10);
+    const channelIdNum = parseInt(cid, 10);
+    if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+      setLanguageOptions([]);
+      return;
+    }
+    setLoadingLanguages(true);
+    try {
+      const languages = await campaignsService.getGoogleLanguageConstants(
+        accountIdNum,
+        channelIdNum,
+        pid
+      );
+      setLanguageOptions(
+        languages.map((lang) => ({ value: lang.id, label: lang.name, id: lang.id }))
+      );
+    } catch (err) {
+      console.error("Error fetching languages:", err);
+      setLanguageOptions([]);
+    } finally {
+      setLoadingLanguages(false);
+    }
+  }, [accountId, channelId, profileId, needsTargeting]);
+
+  const fetchLocations = useCallback(async () => {
+    const aid = accountId.trim();
+    const cid = channelId.trim();
+    const pid = profileId.trim();
+    if (!aid || !cid || !pid || !needsTargeting) {
+      setLocationOptions([]);
+      return;
+    }
+    const accountIdNum = parseInt(aid, 10);
+    const channelIdNum = parseInt(cid, 10);
+    if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+      setLocationOptions([]);
+      return;
+    }
+    const countryCode = campaignType === "SHOPPING" ? "US" : undefined;
+    setLoadingLocations(true);
+    try {
+      const locations = await campaignsService.getGoogleGeoTargetConstants(
+        accountIdNum,
+        channelIdNum,
+        pid,
+        undefined,
+        countryCode
+      );
+      setLocationOptions(
+        locations.map((loc) => ({
+          value: loc.id,
+          label: `${loc.name} (${loc.type})`,
+          id: loc.id,
+          type: loc.type,
+          countryCode: loc.countryCode || "",
+        }))
+      );
+    } catch (err) {
+      console.error("Error fetching locations:", err);
+      setLocationOptions([]);
+    } finally {
+      setLoadingLocations(false);
+    }
+  }, [accountId, channelId, profileId, needsTargeting, campaignType]);
+
+  useEffect(() => {
+    if (needsTargeting && accountId.trim() && channelId.trim() && profileId.trim()) {
+      fetchLanguages();
+    } else {
+      setLanguageOptions([]);
+    }
+  }, [needsTargeting, accountId, channelId, profileId, fetchLanguages]);
+
+  useEffect(() => {
+    if (needsTargeting && accountId.trim() && channelId.trim() && profileId.trim()) {
+      fetchLocations();
+    } else {
+      setLocationOptions([]);
+    }
+  }, [needsTargeting, accountId, channelId, profileId, fetchLocations]);
 
   const toggleKey = (key: string) => {
     setSelectedKeys((prev) => {
@@ -72,6 +170,29 @@ export const ChatFormTestPage: React.FC = () => {
   const clearAll = () => setSelectedKeys(new Set());
   const biddingStrategyOnly = () =>
     setSelectedKeys(new Set(["name", "campaign_type", "budget_amount", "bidding_strategy_type"]));
+  const performanceMaxPreset = () => {
+    setCampaignType("PERFORMANCE_MAX");
+    setSelectedKeys(
+      new Set([
+        "name",
+        "campaign_type",
+        "budget_amount",
+        "budget_name",
+        "start_date",
+        "end_date",
+        "status",
+        "final_url",
+        "asset_group_name",
+        "business_name",
+        "logo_url",
+        "headlines",
+        "descriptions",
+        "marketing_image_url",
+        "square_marketing_image_url",
+        "long_headlines",
+      ])
+    );
+  };
   const searchWithTargeting = () =>
     setSelectedKeys(
       new Set([
@@ -144,7 +265,7 @@ export const ChatFormTestPage: React.FC = () => {
           </div>
 
           <div>
-            <span className="text-xs font-medium text-[#072929] block mb-2">Account / Channel / Profile (for merchant dropdown)</span>
+            <span className="text-xs font-medium text-[#072929] block mb-2">Account / Channel / Profile (for Select asset, merchant, language & location)</span>
             <div className="flex flex-col gap-2">
               <input
                 type="text"
@@ -177,6 +298,7 @@ export const ChatFormTestPage: React.FC = () => {
                 <button type="button" onClick={selectAll} className="text-[10px] text-[#136D6D] hover:underline">All</button>
                 <button type="button" onClick={clearAll} className="text-[10px] text-gray-500 hover:underline">Clear</button>
                 <button type="button" onClick={biddingStrategyOnly} className="text-[10px] text-amber-600 hover:underline">Bidding only</button>
+                <button type="button" onClick={performanceMaxPreset} className="text-[10px] text-emerald-600 hover:underline">PMax</button>
                 <button type="button" onClick={searchWithTargeting} className="text-[10px] text-purple-600 hover:underline">Search + Targeting</button>
               </div>
             </div>
@@ -256,6 +378,10 @@ export const ChatFormTestPage: React.FC = () => {
                         accountId={accountId.trim() || undefined}
                         channelId={channelId.trim() || undefined}
                         profileId={profileId.trim() || undefined}
+                        languageOptions={languageOptions}
+                        locationOptions={locationOptions}
+                        loadingLanguages={loadingLanguages}
+                        loadingLocations={loadingLocations}
                       />
                     </div>
                   </div>

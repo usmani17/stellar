@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import type { BaseCampaignFormProps } from "./types";
-import { DEVICE_OPTIONS } from "./utils";
+import { DEVICE_OPTIONS, MATCH_TYPE_OPTIONS } from "./utils";
 import { GoogleLanguageTargetingForm } from "./GoogleLanguageTargetingForm";
 import { GoogleLocationTargetingForm } from "./GoogleLocationTargetingForm";
 import { GoogleTrackingTemplateForm } from "./GoogleTrackingTemplateForm";
@@ -29,6 +29,12 @@ interface GoogleSearchCampaignFormProps extends BaseCampaignFormProps {
   // Conversion action props
   selectedConversionActions?: Array<{ id: string; name: string }>;
   onSelectConversionActionsClick: () => void;
+  /** When provided, only render fields whose keys are in this list. Used by Assistant chat. */
+  visibleKeys?: string[];
+  /** When true, render without tabs (flat sections). Used by Assistant chat. */
+  flatMode?: boolean;
+  /** When true, render fields one per line (single column). Used by Assistant chat. */
+  flatLayout?: boolean;
 }
 
 // Tab definitions
@@ -60,9 +66,219 @@ export const GoogleSearchCampaignForm: React.FC<GoogleSearchCampaignFormProps> =
   onCustomParametersChange,
   // selectedConversionActions, onSelectConversionActionsClick — used when Conversion Actions section is enabled
   errors = {},
+  visibleKeys,
+  flatMode = false,
+  flatLayout = false,
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>("bidding");
 
+  const showKey = (k: string) => !visibleKeys || visibleKeys.length === 0 || visibleKeys.includes(k);
+
+  /* Flat mode: render sections without tabs (for Assistant chat) */
+  if (flatMode) {
+    return (
+      <div className="space-y-4">
+        {/* Search-specific: adgroup_name, keywords, match_type */}
+        {(showKey("adgroup_name") || showKey("keywords") || showKey("match_type")) && (
+          <div className="space-y-3">
+            {showKey("adgroup_name") && (
+              <div>
+                <label className="form-label">Ad group name</label>
+                <input
+                  type="text"
+                  value={formData.adgroup_name || ""}
+                  onChange={(e) => onChange("adgroup_name", e.target.value)}
+                  className="campaign-input w-full"
+                  placeholder="Ad Group 1"
+                />
+              </div>
+            )}
+            {showKey("keywords") && (
+              <div>
+                <label className="form-label">Keywords</label>
+                <input
+                  type="text"
+                  value={Array.isArray(formData.keywords) ? formData.keywords.join(", ") : (formData.keywords as string) || ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    onChange("keywords", v.includes(",") ? v.split(",").map((s) => s.trim()).filter(Boolean) : v);
+                  }}
+                  className="campaign-input w-full"
+                  placeholder="One per line or comma-separated"
+                />
+              </div>
+            )}
+            {showKey("match_type") && (
+              <div>
+                <label className="form-label">Match type</label>
+                <select
+                  value={formData.match_type || "BROAD"}
+                  onChange={(e) => onChange("match_type", e.target.value)}
+                  className="campaign-input w-full"
+                >
+                  {MATCH_TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Network Settings */}
+        {showKey("network_settings") && (
+          <div className="space-y-3">
+            <h3 className="text-[13px] font-semibold text-[#072929]">Network Settings</h3>
+            <div className={flatLayout ? "flex flex-col gap-3" : "grid grid-cols-1 md:grid-cols-2 gap-6"}>
+              <div
+                className={`border rounded-lg p-4 bg-white transition-colors cursor-pointer ${
+                  formData.network_settings?.target_search_network ? "border-forest-f40 bg-forest-f40/5" : "border-gray-200 hover:border-gray-300"
+                }`}
+                onClick={() =>
+                  onChange("network_settings", {
+                    target_google_search: formData.network_settings?.target_google_search ?? true,
+                    target_search_network: !formData.network_settings?.target_search_network,
+                    target_content_network: formData.network_settings?.target_content_network ?? false,
+                    target_partner_search_network: formData.network_settings?.target_partner_search_network ?? false,
+                  })
+                }
+              >
+                <h4 className="text-[13px] font-semibold text-[#072929]">Search Network</h4>
+                <p className="text-[11px] text-[#556179] mt-2">Ads on Google Search and search partner sites.</p>
+                <label className="flex items-center gap-2 cursor-pointer mt-3" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={formData.network_settings?.target_search_network ?? false}
+                    onChange={(e) => {
+                      onChange("network_settings", {
+                        target_google_search: formData.network_settings?.target_google_search ?? true,
+                        target_search_network: e.target.checked,
+                        target_content_network: formData.network_settings?.target_content_network ?? false,
+                        target_partner_search_network: formData.network_settings?.target_partner_search_network ?? false,
+                      });
+                    }}
+                    className="w-4 h-4 accent-forest-f40 border-gray-300 rounded"
+                  />
+                  <span className="text-[12px] text-[#072929]">Include Google search partners</span>
+                </label>
+              </div>
+              <div
+                className={`border rounded-lg p-4 bg-white transition-colors cursor-pointer ${
+                  formData.network_settings?.target_content_network ? "border-forest-f40 bg-forest-f40/5" : "border-gray-200 hover:border-gray-300"
+                }`}
+                onClick={() =>
+                  onChange("network_settings", {
+                    target_google_search: formData.network_settings?.target_google_search ?? true,
+                    target_search_network: formData.network_settings?.target_search_network ?? true,
+                    target_content_network: !formData.network_settings?.target_content_network,
+                    target_partner_search_network: formData.network_settings?.target_partner_search_network ?? false,
+                  })
+                }
+              >
+                <h4 className="text-[13px] font-semibold text-[#072929]">Display Network</h4>
+                <p className="text-[11px] text-[#556179] mt-2">Additional conversions with unused Search budget.</p>
+                <label className="flex items-center gap-2 cursor-pointer mt-3" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={formData.network_settings?.target_content_network ?? false}
+                    onChange={(e) => {
+                      onChange("network_settings", {
+                        target_google_search: formData.network_settings?.target_google_search ?? true,
+                        target_search_network: formData.network_settings?.target_search_network ?? true,
+                        target_content_network: e.target.checked,
+                        target_partner_search_network: formData.network_settings?.target_partner_search_network ?? false,
+                      });
+                    }}
+                    className="w-4 h-4 accent-forest-f40 border-gray-300 rounded"
+                  />
+                  <span className="text-[12px] text-[#072929]">Include Display Network</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Device Targeting */}
+        {showKey("device_ids") && (
+          <div className="space-y-3">
+            <h3 className="text-[13px] font-semibold text-[#072929]">Device Targeting</h3>
+            <div className={flatLayout ? "flex flex-col gap-2" : "grid grid-cols-2 md:grid-cols-4 gap-4"}>
+              {DEVICE_OPTIONS.map((device) => (
+                <div key={device.value} className="border border-gray-200 rounded-lg p-4 bg-white">
+                  <label className="flex flex-col items-center gap-2 cursor-pointer">
+                    <div className="text-3xl mb-1">{device.icon}</div>
+                    <input
+                      type="checkbox"
+                      checked={formData.device_ids?.includes(device.value) ?? false}
+                      onChange={(e) => {
+                        const currentIds = formData.device_ids || [];
+                        if (e.target.checked) {
+                          onChange("device_ids", [...currentIds, device.value]);
+                        } else {
+                          onChange("device_ids", currentIds.filter((id) => id !== device.value));
+                        }
+                      }}
+                      className="w-4 h-4 accent-forest-f40 border-gray-300 rounded"
+                    />
+                    <span className="text-[12px] text-[#072929] font-medium">{device.label}</span>
+                  </label>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-[#556179]">Select devices to target. If none selected, ads show on all devices.</p>
+          </div>
+        )}
+
+        {/* Language Targeting */}
+        {showKey("language_ids") && (
+          <div className="p-3">
+            <GoogleLanguageTargetingForm
+              languageIds={formData.language_ids}
+              languageOptions={languageOptions}
+              loadingLanguages={loadingLanguages}
+              onLanguageIdsChange={(ids) => onChange("language_ids", ids)}
+              errors={errors}
+              showTitle={true}
+            />
+          </div>
+        )}
+
+        {/* Location Targeting */}
+        {showKey("location_ids") && (
+          <div className="p-3">
+            <GoogleLocationTargetingForm
+              locationIds={formData.location_ids}
+              excludedLocationIds={formData.excluded_location_ids}
+              locationOptions={locationOptions}
+              loadingLocations={loadingLocations}
+              onLocationIdsChange={onLocationIdsChange}
+              onExcludedLocationIdsChange={onExcludedLocationIdsChange}
+              errors={errors}
+              showTitle={true}
+            />
+          </div>
+        )}
+
+        {/* Campaign URL Options */}
+        {(showKey("tracking_url_template") || showKey("final_url_suffix") || showKey("url_custom_parameters")) && (
+          <div className="p-3">
+            <GoogleTrackingTemplateForm
+              trackingUrlTemplate={trackingUrlTemplate}
+              finalUrlSuffix={finalUrlSuffix}
+              urlCustomParameters={urlCustomParameters}
+              onTrackingUrlTemplateChange={onTrackingUrlTemplateChange}
+              onFinalUrlSuffixChange={onFinalUrlSuffixChange}
+              onCustomParametersChange={onCustomParametersChange}
+              title="Campaign URL Options"
+              showTitle={true}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* Tabbed mode (default) */
   return (
     <div className="tabs-container mt-2">
       <div className="">

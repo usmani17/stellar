@@ -11,6 +11,7 @@ import { MessageContent } from "../ai/MessageContent";
 import { isStringContent } from "../../utils/ai-formatter";
 import { ToolCallsDisplay } from "../ai/ToolCallsDisplay";
 import { ToolResultDisplay } from "../ai/ToolResultDisplay";
+import { CampaignDraftPreview } from "../ai/CampaignDraftPreview";
 import { accountsService, type Account } from "../../services/accounts";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
@@ -690,6 +691,15 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 </div>
                             )}
                         </div>
+                        {assistantIntent === "create_campaign" && (
+                            <CampaignDraftPreview
+                                campaignState={campaignState}
+                                visible
+                                accountId={assistantScope.accountId ?? undefined}
+                                channelId={assistantScope.channelId ?? undefined}
+                                className="shrink-0"
+                            />
+                        )}
                         <button
                             type="button"
                             onClick={handleNewThread}

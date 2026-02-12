@@ -284,10 +284,11 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       }
       const budgets = await googleAdwordsCampaignsService.getGoogleBudgets(accountIdNum, channelIdNum, selectedProfileId);
       
-      // Format budgets for dropdown
+      // Format budgets for dropdown: value=resource_name for linking, name for display
       const options = budgets.map((budget) => ({
-        value: budget.name,
+        value: budget.resource_name,
         label: `${budget.name} ($${budget.amount_dollars?.toFixed(2) || '0.00'})`,
+        name: budget.name,
       }));
       
       // Add "Custom" option at the beginning

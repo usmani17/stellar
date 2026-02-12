@@ -10,6 +10,11 @@ import { GoogleLocationTargetingForm } from "./GoogleLocationTargetingForm";
 import { GoogleTrackingTemplateForm } from "./GoogleTrackingTemplateForm";
 import { GoogleBiddingStrategyForm } from "./GoogleBiddingStrategyForm";
 
+function shouldShowShoppingField(key: string, visibleKeys?: string[]): boolean {
+  if (!visibleKeys || visibleKeys.length === 0) return true;
+  return visibleKeys.includes(key);
+}
+
 interface GoogleShoppingCampaignFormProps extends ShoppingCampaignFormProps {
   // Location targeting props
   locationOptions: Array<{ value: string; label: string; id: string; type: string; countryCode: string }>;
@@ -23,6 +28,12 @@ interface GoogleShoppingCampaignFormProps extends ShoppingCampaignFormProps {
   onTrackingUrlTemplateChange: (value: string) => void;
   onFinalUrlSuffixChange: (value: string) => void;
   onCustomParametersChange: (params: Array<{ key: string; value: string }> | undefined) => void;
+  /** When provided, only render shopping setting fields in this list. Used by Assistant chat. */
+  visibleKeys?: string[];
+  /** When true, only show Shopping Settings section (no tabs). Used by Assistant chat. */
+  flatMode?: boolean;
+  /** When true, render fields one per line (single column). Used by Assistant chat. */
+  flatLayout?: boolean;
 }
 
 // Tab definitions
@@ -58,8 +69,88 @@ export const GoogleShoppingCampaignForm: React.FC<GoogleShoppingCampaignFormProp
   onTrackingUrlTemplateChange,
   onFinalUrlSuffixChange,
   onCustomParametersChange,
+  visibleKeys,
+  flatMode = false,
+  flatLayout = false,
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>("bidding");
+  const showField = (k: string) => shouldShowShoppingField(k, visibleKeys);
+
+  if (flatMode) {
+    const gridClass = flatLayout ? "flex flex-col gap-3" : "grid grid-cols-1 md:grid-cols-2 gap-4";
+    return (
+      <div className="space-y-4">
+        <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">Shopping Settings</h3>
+        <div className={gridClass}>
+          {showField("merchant_id") && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="form-label mb-0">Merchant ID *</label>
+                <button
+                  type="button"
+                  onClick={onFetchMerchantAccounts}
+                  disabled={loadingMerchantAccounts}
+                  className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] disabled:text-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
+                >
+                  <svg className={`w-3 h-3 ${loadingMerchantAccounts ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {loadingMerchantAccounts ? "Refreshing..." : "Refresh"}
+                </button>
+              </div>
+              <Dropdown<string>
+                options={merchantAccountOptions}
+                value={formData.merchant_id || ""}
+                onChange={(v) => onChange("merchant_id", v)}
+                placeholder={loadingMerchantAccounts ? "Loading merchant accounts..." : merchantAccountOptions.length === 0 ? "No merchant accounts available" : "Select merchant account"}
+                buttonClassName="edit-button w-full"
+                searchable={true}
+                searchPlaceholder="Search merchant accounts..."
+                emptyMessage={loadingMerchantAccounts ? "Loading..." : merchantAccountsError || "No Merchant Center accounts found."}
+                disabled={loadingMerchantAccounts}
+              />
+              {merchantAccountsError && <p className="text-[10px] text-yellow-600 mt-1">{merchantAccountsError}</p>}
+            </div>
+          )}
+          {showField("sales_country") && (
+            <div>
+              <label className="form-label">Sales Country</label>
+              <Dropdown<string>
+                options={SALES_COUNTRY_OPTIONS}
+                value={formData.sales_country || "US"}
+                onChange={(v) => onChange("sales_country", v)}
+                buttonClassName="edit-button w-full"
+              />
+            </div>
+          )}
+          {showField("campaign_priority") && (
+            <div>
+              <label className="form-label">Campaign Priority</label>
+              <Dropdown<number>
+                options={CAMPAIGN_PRIORITY_OPTIONS}
+                value={formData.campaign_priority || 0}
+                onChange={(v) => onChange("campaign_priority", v)}
+                buttonClassName="w-full edit-button"
+              />
+            </div>
+          )}
+          {showField("enable_local") && (
+            <div className="pt-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.enable_local || false}
+                  onChange={(e) => onChange("enable_local", e.target.checked)}
+                  className="w-4 h-4 accent-forest-f40 border-gray-300 rounded"
+                />
+                <span className="form-label mb-0">Enable Local</span>
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-6 space-y-4">
@@ -70,6 +161,7 @@ export const GoogleShoppingCampaignForm: React.FC<GoogleShoppingCampaignFormProp
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Merchant ID */}
+        {showField("merchant_id") && (
         <div>
           <div className="flex items-center justify-between mb-1">
             <label className="form-label mb-0">
@@ -140,8 +232,10 @@ export const GoogleShoppingCampaignForm: React.FC<GoogleShoppingCampaignFormProp
             </p>
           )}
         </div>
+        )}
 
         {/* Sales Country */}
+        {showField("sales_country") && (
         <div>
           <label className="form-label">
             Sales Country
@@ -154,8 +248,10 @@ export const GoogleShoppingCampaignForm: React.FC<GoogleShoppingCampaignFormProp
             disabled={mode === "edit" && formData.campaign_type === "SHOPPING"}
           />
         </div>
+        )}
 
         {/* Campaign Priority */}
+        {showField("campaign_priority") && (
         <div>
           <label className="form-label">
             Campaign Priority
@@ -170,8 +266,10 @@ export const GoogleShoppingCampaignForm: React.FC<GoogleShoppingCampaignFormProp
             Priority determines how your Shopping campaigns compete with each other. Low (0) = lowest priority, High (2) = highest priority.
           </p>
         </div>
+        )}
 
         {/* Enable Local */}
+        {showField("enable_local") && (
         <div className="pt-6">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -192,6 +290,7 @@ export const GoogleShoppingCampaignForm: React.FC<GoogleShoppingCampaignFormProp
             Enable local inventory ads to show your products to nearby customers with local inventory available.
           </p>
         </div>
+        )}
       </div>
 
       {/* Advanced Settings Tabs */}

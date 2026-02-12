@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { FileText } from "lucide-react";
 import type { CampaignSetupState } from "../../types/agent";
+import { formatCampaignType } from "../../utils/formatDraftLabels";
 
 const MAX_VALUE_LENGTH = 48;
 
@@ -24,12 +25,23 @@ function getLabelForKey(
 }
 
 function getDraftPreviewRows(campaignState: CampaignSetupState): { label: string; value: string }[] {
-  const draft = { ...(campaignState.campaign_draft ?? {}), ...(campaignState.draft_setup_json ?? {}) };
+  const draft = {
+    ...(campaignState.campaign_draft ?? {}),
+    ...(campaignState.draft_setup_json ?? {}),
+    // Include campaign_type from top level if not already in draft (backend may send it separately)
+    ...(campaignState.campaign_type != null &&
+    campaignState.campaign_type !== "" &&
+    !("campaign_type" in (campaignState.campaign_draft ?? {})) &&
+    !("campaign_type" in (campaignState.draft_setup_json ?? {}))
+      ? { campaign_type: campaignState.campaign_type }
+      : {}),
+  };
   const schema = campaignState.current_questions_schema as Array<{ key?: string; label?: string }> | undefined;
   const rows: { label: string; value: string }[] = [];
   for (const [key, raw] of Object.entries(draft)) {
     if (raw == null || raw === "") continue;
-    const value = typeof raw === "object" ? JSON.stringify(raw) : String(raw);
+    const rawStr = typeof raw === "object" ? JSON.stringify(raw) : String(raw);
+    const value = key === "campaign_type" ? formatCampaignType(rawStr) : rawStr;
     rows.push({ label: getLabelForKey(key, schema), value });
   }
   return rows;
@@ -136,17 +148,28 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
               </div>
             )}
 
-            {canLinkToDraft && (
-              <div className="mt-4 pt-3 border-t border-[#e8e8e3]">
-                <Link
-                  to={`/brands/${accountId}/${channelId}/google/drafts/${savedDraftId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full px-3 py-2 text-xs font-medium bg-[#136D6D] text-white rounded-lg hover:opacity-90 transition-opacity text-center"
-                  onClick={() => setOpen(false)}
-                >
-                  View draft
-                </Link>
+            {(canLinkToDraft || (accountId && channelId)) && (
+              <div className="mt-4 pt-3 border-t border-[#e8e8e3] space-y-2">
+                {accountId && channelId && (
+                  <Link
+                    to={`/brands/${accountId}/${channelId}/google/drafts`}
+                    className="block w-full px-3 py-2 text-xs font-medium text-[#136D6D] bg-[#136D6D]/10 rounded-lg hover:bg-[#136D6D]/20 transition-colors text-center"
+                    onClick={() => setOpen(false)}
+                  >
+                    View all drafts
+                  </Link>
+                )}
+                {canLinkToDraft && (
+                  <Link
+                    to={`/brands/${accountId}/${channelId}/google/drafts/${savedDraftId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full px-3 py-2 text-xs font-medium bg-[#136D6D] text-white rounded-lg hover:opacity-90 transition-opacity text-center"
+                    onClick={() => setOpen(false)}
+                  >
+                    View current draft
+                  </Link>
+                )}
               </div>
             )}
           </div>

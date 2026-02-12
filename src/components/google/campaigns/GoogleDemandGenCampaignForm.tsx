@@ -10,7 +10,6 @@ import {
   getMaxDescriptions,
 } from "./utils";
 import { AssetSelectorModal } from "../AssetSelectorModal";
-import { CreateImageAssetModal } from "../CreateImageAssetModal";
 import {
   ImageCropModal,
   type CropCoordinates,
@@ -34,6 +33,8 @@ interface GoogleDemandGenCampaignFormProps extends BaseCampaignFormProps {
   setLogoPreview: (preview: string | null) => void;
   // Profile for asset selector / create asset
   selectedProfileId?: string;
+  /** Direct profile ID (numeric). When provided, used for Select asset even without googleProfiles. Used by Assistant chat. */
+  profileId?: number | null;
   googleProfiles?: Array<{
     value: string;
     label: string;
@@ -45,6 +46,10 @@ interface GoogleDemandGenCampaignFormProps extends BaseCampaignFormProps {
   onFillTest?: () => void;
   /** When provided, only render fields whose keys are in this list. Used by Assistant chat. */
   visibleKeys?: string[];
+  /** Optional override for section title (e.g. "Performance Max Settings" when reused for PMax). */
+  sectionTitle?: string;
+  /** When true, render fields one per line (single column). Used by Assistant chat. */
+  flatLayout?: boolean;
 }
 
 function shouldShowField(key: string, visibleKeys?: string[]): boolean {
@@ -110,9 +115,12 @@ export const GoogleDemandGenCampaignForm: React.FC<
   logoPreview,
   setLogoPreview,
   selectedProfileId,
+  profileId: profileIdProp,
   googleProfiles,
   onFillTest,
   visibleKeys,
+  sectionTitle = "Demand Gen Settings",
+  flatLayout = false,
 }) => {
   const minHeadlines = getMinHeadlines("DEMAND_GEN");
   const maxHeadlines = getMaxHeadlines();
@@ -122,10 +130,10 @@ export const GoogleDemandGenCampaignForm: React.FC<
   const selectedProfile = googleProfiles?.find(
     (p) => p.value === selectedProfileId,
   );
-  const profileId = selectedProfile?.profile_id ?? null;
+  const profileId = profileIdProp ?? selectedProfile?.profile_id ?? null;
 
   const [assetSelectorOpen, setAssetSelectorOpen] = useState(false);
-  const [createImageAssetOpen, setCreateImageAssetOpen] = useState(false);
+  const [assetSelectorType, setAssetSelectorType] = useState<"LOGO" | "BUSINESS_NAME" | null>(null);
   const [logoCropModalOpen, setLogoCropModalOpen] = useState(false);
   const [logoCropImageUrl, setLogoCropImageUrl] = useState("");
   /** When both video_id and video_url are empty, which input to show (id vs url). */
@@ -134,29 +142,23 @@ export const GoogleDemandGenCampaignForm: React.FC<
   );
 
   const handleSelectAsset = (asset: Asset) => {
-    if (asset.type === "IMAGE" && "image_url" in asset) {
+    if (assetSelectorType === "LOGO" && asset.type === "IMAGE" && "image_url" in asset) {
       onChange("logo_url", asset.image_url || "");
       onChange("logo_asset_resource_name", asset.resource_name);
       onChange("logo_asset_id", asset.id);
       if (asset.image_url) setLogoPreview(asset.image_url);
+    } else if (assetSelectorType === "BUSINESS_NAME" && asset.type === "TEXT" && "text" in asset) {
+      onChange("business_name", asset.text);
+      onChange("business_name_asset_id", asset.id);
+      onChange("business_name_asset_resource_name", asset.resource_name);
     }
     setAssetSelectorOpen(false);
+    setAssetSelectorType(null);
   };
 
-  const handleCreateImageSuccess = (asset: {
-    id: string;
-    resource_name: string;
-    image_url?: string;
-  }) => {
-    onChange("logo_url", asset.image_url || "");
-    onChange("logo_asset_id", asset.id);
-    onChange("logo_asset_resource_name", asset.resource_name);
-    if (asset.image_url) setLogoPreview(asset.image_url);
-    setCreateImageAssetOpen(false);
-  };
-
-  const openAssetSelector = () => {
+  const openAssetSelector = (type: "LOGO" | "BUSINESS_NAME") => {
     if (!profileId) return;
+    setAssetSelectorType(type);
     setAssetSelectorOpen(true);
   };
 
@@ -211,7 +213,7 @@ export const GoogleDemandGenCampaignForm: React.FC<
     <div className="mt-6 space-y-4">
       <div className="flex items-center justify-between border-b border-gray-200 pb-2">
         <h3 className="text-[14px] font-semibold text-[#072929]">
-          Demand Gen Settings
+          {sectionTitle}
         </h3>
         {onFillTest && (
           <button
@@ -402,7 +404,7 @@ export const GoogleDemandGenCampaignForm: React.FC<
             </div>
           ) : (
             <div className="space-y-2">
-              <div className="relative flex gap-2 items-center">
+              <div className="relative">
                 <input
                   type="url"
                   value={formData.logo_url || ""}
@@ -419,32 +421,25 @@ export const GoogleDemandGenCampaignForm: React.FC<
                       setLogoPreview(null);
                     }
                   }}
-                  className={`campaign-input w-full flex-1 ${
+                  className={`campaign-input w-full pr-36 ${
                     errors.logo_url ? "border-red-500" : "border-gray-200"
                   }`}
                   placeholder="https://example.com/logo.png"
                 />
                 {profileId && (
-                  <div className="flex gap-1 shrink-0">
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
                     <button
                       type="button"
-                      onClick={openAssetSelector}
-                      className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap px-2 py-1.5 border border-[#136D6D] rounded"
+                      onClick={() => openAssetSelector("LOGO")}
+                      className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
                     >
                       Select asset
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCreateImageAssetOpen(true)}
-                      className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap px-2 py-1.5 border border-[#136D6D] rounded"
-                    >
-                      Create / Upload
                     </button>
                     {formData.logo_url?.trim() && (
                       <button
                         type="button"
                         onClick={openCropModal}
-                        className="text-xs text-[#556179] hover:text-[#072929] font-medium whitespace-nowrap px-2 py-1.5 border border-gray-300 rounded"
+                        className="text-xs text-[#556179] hover:text-[#072929] font-medium whitespace-nowrap"
                         title="Crop to 1:1 square"
                       >
                         Crop
@@ -484,22 +479,73 @@ export const GoogleDemandGenCampaignForm: React.FC<
       {shouldShowField("business_name", visibleKeys) && (
         <div>
           <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-            Business Name *
+            Business Name * <span className="text-[10px] font-normal">(max 25 characters)</span>
           </label>
-          <input
-            type="text"
-            value={formData.business_name || ""}
-            onChange={(e) => onChange("business_name", e.target.value)}
-            className={`campaign-input w-full ${
-              errors.business_name ? "border-red-500" : "border-gray-200"
-            }`}
-            placeholder="My Business Name"
-          />
+          {formData.business_name_asset_id ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={formData.business_name || ""}
+                disabled
+                readOnly
+                maxLength={25}
+                className={`campaign-input w-full bg-gray-50 border-gray-200 cursor-not-allowed ${
+                  errors.business_name ? "border-red-500" : ""
+                }`}
+              />
+              <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
+                From Asset
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  onChange("business_name", "");
+                  onChange("business_name_asset_id", undefined);
+                  onChange("business_name_asset_resource_name", undefined);
+                }}
+                className="text-red-500 hover:text-red-700 text-sm font-medium"
+                title="Remove selected asset"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <div className="relative">
+              <input
+                type="text"
+                value={formData.business_name || ""}
+                onChange={(e) => {
+                  onChange("business_name", e.target.value);
+                  if (!e.target.value) {
+                    onChange("business_name_asset_id", undefined);
+                    onChange("business_name_asset_resource_name", undefined);
+                  }
+                }}
+                maxLength={25}
+                className={`campaign-input w-full pr-28 ${
+                  errors.business_name ? "border-red-500" : "border-gray-200"
+                }`}
+                placeholder="My Business Name or select from assets"
+              />
+              {profileId && (
+                <button
+                  type="button"
+                  onClick={() => openAssetSelector("BUSINESS_NAME")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
+                >
+                  Select asset
+                </button>
+              )}
+            </div>
+          )}
           {errors.business_name && (
             <p className="text-[10px] text-red-500 mt-1">
               {errors.business_name}
             </p>
           )}
+          <p className="text-[10px] text-[#556179] mt-1">
+            Enter text or select from existing Business Name assets.
+          </p>
         </div>
       )}
 
@@ -652,7 +698,7 @@ export const GoogleDemandGenCampaignForm: React.FC<
       {/* Optional Fields */}
       {(shouldShowField("ad_group_name", visibleKeys) ||
         shouldShowField("ad_name", visibleKeys)) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={flatLayout ? "flex flex-col gap-3" : "grid grid-cols-1 md:grid-cols-2 gap-4"}>
           {shouldShowField("ad_group_name", visibleKeys) && (
             <div>
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
@@ -726,7 +772,7 @@ export const GoogleDemandGenCampaignForm: React.FC<
               All channels
             </button>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-white border border-gray-200 rounded">
+          <div className={flatLayout ? "flex flex-col gap-2 p-3 bg-white border border-gray-200 rounded" : "grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-white border border-gray-200 rounded"}>
             {[
               { key: "gmail", label: "Gmail" },
               { key: "discover", label: "Google Discover" },
@@ -765,27 +811,19 @@ export const GoogleDemandGenCampaignForm: React.FC<
         </div>
       )}
 
-      {/* Asset Selector Modal (select existing logo assets) */}
+      {/* Asset Selector Modal (select logo or business name assets) */}
       {profileId && (
         <AssetSelectorModal
           isOpen={assetSelectorOpen}
-          onClose={() => setAssetSelectorOpen(false)}
+          onClose={() => {
+            setAssetSelectorOpen(false);
+            setAssetSelectorType(null);
+          }}
           onSelect={handleSelectAsset}
           profileId={profileId}
-          assetType="IMAGE"
-          title="Select Logo"
-          initialTab="Logo"
-        />
-      )}
-
-      {/* Create / Upload image asset – on success fill logo fields */}
-      {profileId && (
-        <CreateImageAssetModal
-          isOpen={createImageAssetOpen}
-          onClose={() => setCreateImageAssetOpen(false)}
-          onSuccess={handleCreateImageSuccess}
-          profileId={profileId}
-          title="Create Logo Asset"
+          assetType={assetSelectorType === "BUSINESS_NAME" ? "TEXT" : assetSelectorType === "LOGO" ? "IMAGE" : undefined}
+          title={assetSelectorType === "BUSINESS_NAME" ? "Select Business Name Asset" : assetSelectorType === "LOGO" ? "Select Logo" : "Select Asset"}
+          initialTab={assetSelectorType === "BUSINESS_NAME" ? "Business Name" : assetSelectorType === "LOGO" ? "Logo" : undefined}
         />
       )}
 

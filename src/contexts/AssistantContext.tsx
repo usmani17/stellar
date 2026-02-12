@@ -119,6 +119,9 @@ const CAMPAIGN_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   { id: "c2", text: "Set up a Search campaign" },
   { id: "c3", text: "Create a Performance Max campaign" },
   { id: "c4", text: "Create a Shopping campaign" },
+  { id: "c-analyze-1", text: "Analyze my campaigns and create a Search campaign for me" },
+  { id: "c-analyze-2", text: "Analyze my top campaigns, find budget waste, and create a new campaign optimized for my account" },
+  
 ];
 
 export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: string; channelId?: string }> = ({

@@ -5,19 +5,21 @@
  */
 import React, { useState, useCallback, useEffect, forwardRef, useImperativeHandle } from "react";
 import type { CreateGoogleCampaignData } from "../google/campaigns/types";
+import { BaseGoogleCampaignForm } from "../google/campaigns/BaseGoogleCampaignForm";
 import { GoogleBiddingStrategyForm } from "../google/campaigns/GoogleBiddingStrategyForm";
 import { GoogleDemandGenCampaignForm } from "../google/campaigns/GoogleDemandGenCampaignForm";
+import { GoogleSearchCampaignForm } from "../google/campaigns/GoogleSearchCampaignForm";
+import { GoogleShoppingCampaignForm } from "../google/campaigns/GoogleShoppingCampaignForm";
 import { GoogleLanguageTargetingForm } from "../google/campaigns/GoogleLanguageTargetingForm";
 import { GoogleLocationTargetingForm } from "../google/campaigns/GoogleLocationTargetingForm";
 import { GoogleTrackingTemplateForm } from "../google/campaigns/GoogleTrackingTemplateForm";
-import { Dropdown } from "../ui/Dropdown";
+import { GoogleDeviceTargetingForm } from "../google/campaigns/GoogleDeviceTargetingForm";
+import { GooglePerformanceMaxAssetGroupForm } from "../google/campaigns/GooglePerformanceMaxAssetGroupForm";
 import { getFieldLabel } from "./campaignFormFieldLabels";
-import { getDefaultFormData, SALES_COUNTRY_OPTIONS, CAMPAIGN_PRIORITY_OPTIONS, DEVICE_OPTIONS } from "../google/campaigns/utils";
+import { getDefaultFormData } from "../google/campaigns/utils";
 import { campaignsService } from "../../services/campaigns";
+import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
 import type { CurrentQuestionSchemaItem } from "../../types/agent";
-
-const inputBaseClass =
-  "w-full px-3 py-2 text-sm text-[#072929] bg-white border border-[#E8E8E3] rounded-[8px] placeholder:text-[#6b7280] focus:outline-none focus:ring-2 focus:ring-[#136D6D]/40 focus:border-[#136D6D]";
 
 const BASE_FIELD_KEYS = ["name", "campaign_type", "budget_amount", "budget_name", "start_date", "end_date", "status"];
 
@@ -88,6 +90,10 @@ function getKeysForForm(schema: CurrentQuestionSchemaItem[]): string[] {
   return schema.map((q) => q.key).filter(Boolean);
 }
 
+function isRequested(key: string, requestedKeys: string[]): boolean {
+  return requestedKeys.includes(key);
+}
+
 function pickKeys<T extends Record<string, unknown>>(obj: T, keys: string[]): Partial<T> {
   const out: Partial<T> = {};
   for (const k of keys) {
@@ -136,6 +142,10 @@ export interface CampaignFormForChatProps {
   languageOptions?: Array<{ value: string; label: string; id: string }>;
   /** Optional: location options for Location Targeting (required for location_ids to work) */
   locationOptions?: Array<{ value: string; label: string; id: string; type: string; countryCode: string }>;
+  /** Optional: loading state for language options (shows Loading... in dropdown) */
+  loadingLanguages?: boolean;
+  /** Optional: loading state for location options (shows Loading... in dropdown) */
+  loadingLocations?: boolean;
 }
 
 export interface CampaignFormForChatHandle {
@@ -155,6 +165,8 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   googleProfiles = [],
   languageOptions = [],
   locationOptions = [],
+  loadingLanguages = false,
+  loadingLocations = false,
 }, ref) => {
   const requestedKeys = getKeysForForm(questionsSchema);
   const ct = (campaignType || "").toUpperCase();
@@ -171,6 +183,49 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const [merchantAccountOptions, setMerchantAccountOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingMerchantAccounts, setLoadingMerchantAccounts] = useState(false);
   const [merchantAccountsError, setMerchantAccountsError] = useState<string | null>(null);
+  const [budgetOptions, setBudgetOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [loadingBudgets, setLoadingBudgets] = useState(false);
+  const [selectedBudgetId, setSelectedBudgetId] = useState<string>("");
+  const [useCustomBudgetName, setUseCustomBudgetName] = useState(false);
+
+  const fetchBudgets = useCallback(async () => {
+    if (!accountId || !channelId || !profileId) {
+      setBudgetOptions([]);
+      return;
+    }
+    setLoadingBudgets(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+        throw new Error("Invalid account or channel");
+      }
+      const pid = String(profileId);
+      const budgets = await googleAdwordsCampaignsService.getGoogleBudgets(accountIdNum, channelIdNum, pid);
+      const options = budgets.map((budget) => ({
+        value: budget.resource_name,
+        label: `${budget.name} ($${budget.amount_dollars?.toFixed(2) || "0.00"})`,
+        name: budget.name,
+      }));
+      setBudgetOptions([
+        { value: "__CUSTOM__", label: "Custom..." },
+        ...options,
+      ]);
+    } catch (err) {
+      console.error("Error fetching budgets:", err);
+      setBudgetOptions([{ value: "__CUSTOM__", label: "Custom..." }]);
+    } finally {
+      setLoadingBudgets(false);
+    }
+  }, [accountId, channelId, profileId]);
+
+  useEffect(() => {
+    if (accountId && channelId && profileId) {
+      fetchBudgets();
+    } else {
+      setBudgetOptions([]);
+    }
+  }, [accountId, channelId, profileId, fetchBudgets]);
 
   const fetchMerchantAccounts = useCallback(async () => {
     if (!accountId || ct !== "SHOPPING" || !profileId || !channelId) {
@@ -241,6 +296,10 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
         keysToUse.push("tracking_url_template", "final_url_suffix", "url_custom_parameters");
         keysToUse = [...new Set(keysToUse)];
       }
+      if (requestedKeys.includes("budget_name") && formData.budget_resource_name) {
+        keysToUse.push("budget_resource_name");
+        keysToUse = [...new Set(keysToUse)];
+      }
       const vals: Record<string, string> = {};
       for (const k of keysToUse) {
         const v = formData[k as keyof CreateGoogleCampaignData];
@@ -276,9 +335,129 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
     });
   }, []);
 
+  const validate = useCallback((): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    const req = (key: string) => isRequested(key, requestedKeys);
+
+    // Base required fields (when requested)
+    if (req("name") && (!formData.name?.trim())) {
+      newErrors.name = "Campaign name is required";
+    }
+    if (req("budget_amount") && (!formData.budget_amount || formData.budget_amount <= 0)) {
+      newErrors.budget_amount = "Budget must be greater than 0";
+    }
+
+    const ct = (formData.campaign_type || "").toUpperCase();
+
+    if (ct === "DEMAND_GEN") {
+      if (req("final_url") && (!formData.final_url?.trim())) {
+        newErrors.final_url = "Final URL is required";
+      } else if (req("final_url") && formData.final_url?.trim() && !/^https?:\/\/.+/.test(formData.final_url)) {
+        newErrors.final_url = "Final URL must be a valid URL (http:// or https://)";
+      }
+      if (req("logo_url") && (!formData.logo_url?.trim() || formData.logo_url === "https://example.com")) {
+        newErrors.logo_url = "Logo URL is required. Please provide a valid logo URL.";
+      } else if (req("logo_url") && formData.logo_url?.trim() && !/^https?:\/\/.+/.test(formData.logo_url)) {
+        newErrors.logo_url = "Logo URL must be a valid URL (http:// or https://)";
+      }
+      if ((req("video_id") || req("video_url")) && !formData.video_url?.trim() && !formData.video_id?.trim()) {
+        newErrors.video_id = "Either video URL or video ID is required";
+        newErrors.video_url = "Either video URL or video ID is required";
+      } else if (req("video_url") && formData.video_url?.trim() && !/^https?:\/\/.+/.test(formData.video_url)) {
+        newErrors.video_url = "Video URL must be a valid URL (http:// or https://)";
+      } else if (req("video_id") && formData.video_id?.trim() && !/^[a-zA-Z0-9_-]{11}$/.test(formData.video_id)) {
+        newErrors.video_id = "Video ID must be a valid YouTube video ID (11 characters)";
+      }
+      if (req("business_name") && !formData.business_name?.trim()) {
+        newErrors.business_name = "Business name is required";
+      }
+      if (req("headlines")) {
+        const valid = (formData.headlines || []).filter((h) => h?.trim());
+        if (valid.length < 3) newErrors.headlines = "At least 3 headlines are required";
+        else if (valid.length > 15) newErrors.headlines = "Maximum 15 headlines allowed";
+      }
+      if (req("descriptions")) {
+        const valid = (formData.descriptions || []).filter((d) => d?.trim());
+        if (valid.length < 2) newErrors.descriptions = "At least 2 descriptions are required";
+        else if (valid.length > 4) newErrors.descriptions = "Maximum 4 descriptions allowed";
+      }
+      if (req("long_headlines")) {
+        const src = (formData.long_headlines || []).filter((h) => h && String(h).trim());
+        if (src.length < 1) newErrors.long_headlines = "At least 1 long headline is required. Max 90 characters each.";
+        else if (src.length > 5) newErrors.long_headlines = "Maximum 5 long headlines allowed";
+        else if (src.some((h) => String(h).length > 90)) newErrors.long_headlines = "Each long headline must be 90 characters or less";
+      }
+    }
+
+    if (ct === "SHOPPING" && req("merchant_id") && !formData.merchant_id?.trim()) {
+      newErrors.merchant_id = "Merchant ID is required";
+    }
+
+    if (ct === "PERFORMANCE_MAX") {
+      if (req("business_name") && !formData.business_name?.trim()) {
+        newErrors.business_name = "Business name is required";
+      }
+      if (req("logo_url") && (!formData.logo_url?.trim() || formData.logo_url === "https://example.com")) {
+        newErrors.logo_url = "Square logo URL is required. Must be 1:1 aspect ratio.";
+      } else if (req("logo_url") && formData.logo_url?.trim() && !/^https?:\/\/.+/.test(formData.logo_url)) {
+        newErrors.logo_url = "Logo URL must be a valid URL (http:// or https://)";
+      }
+      if (req("headlines")) {
+        const valid = (formData.headlines || []).filter((h) => h?.trim());
+        if (valid.length < 3) newErrors.headlines = "At least 3 headlines are required";
+        else if (valid.length > 15) newErrors.headlines = "Maximum 15 headlines allowed";
+      }
+      if (req("descriptions")) {
+        const valid = (formData.descriptions || []).filter((d) => d?.trim());
+        if (valid.length < 2) newErrors.descriptions = "At least 2 descriptions are required";
+        else if (valid.length > 4) newErrors.descriptions = "Maximum 4 descriptions allowed";
+      }
+      if (req("marketing_image_url") && (!formData.marketing_image_url?.trim() || formData.marketing_image_url === "https://example.com")) {
+        newErrors.marketing_image_url = "Marketing Image URL is required";
+      } else if (req("marketing_image_url") && formData.marketing_image_url?.trim() && !/^https?:\/\/.+/.test(formData.marketing_image_url)) {
+        newErrors.marketing_image_url = "Marketing Image URL must be a valid URL";
+      }
+      if (req("square_marketing_image_url") && (!formData.square_marketing_image_url?.trim() || formData.square_marketing_image_url === "https://example.com")) {
+        newErrors.square_marketing_image_url = "Square Marketing Image URL is required";
+      } else if (req("square_marketing_image_url") && formData.square_marketing_image_url?.trim() && !/^https?:\/\/.+/.test(formData.square_marketing_image_url)) {
+        newErrors.square_marketing_image_url = "Square Marketing Image URL must be a valid URL";
+      }
+    }
+
+    // Bidding strategy conditional
+    if (req("bidding_strategy_type")) {
+      if (formData.bidding_strategy_type === "TARGET_CPA" && req("target_cpa_micros") && (!formData.target_cpa_micros || formData.target_cpa_micros <= 0)) {
+        newErrors.target_cpa_micros = "Target CPA is required and must be greater than 0";
+      }
+      if (formData.bidding_strategy_type === "TARGET_ROAS" && req("target_roas") && (!formData.target_roas || formData.target_roas <= 0)) {
+        newErrors.target_roas = "Target ROAS is required and must be greater than 0";
+      }
+      if (formData.bidding_strategy_type === "TARGET_SPEND" && req("target_spend_micros") && (!formData.target_spend_micros || formData.target_spend_micros <= 0)) {
+        newErrors.target_spend_micros = "Target Spend is required and must be greater than 0";
+      }
+      if (formData.bidding_strategy_type === "TARGET_IMPRESSION_SHARE") {
+        if (req("target_impression_share_location") && !formData.target_impression_share_location) {
+          newErrors.target_impression_share_location = "Location is required";
+        }
+        if (req("target_impression_share_location_fraction_micros") && (!formData.target_impression_share_location_fraction_micros || formData.target_impression_share_location_fraction_micros <= 0)) {
+          newErrors.target_impression_share_location_fraction_micros = "Target impression share is required and must be greater than 0";
+        }
+        if (req("target_impression_share_cpc_bid_ceiling_micros") && (!formData.target_impression_share_cpc_bid_ceiling_micros || formData.target_impression_share_cpc_bid_ceiling_micros <= 0)) {
+          newErrors.target_impression_share_cpc_bid_ceiling_micros = "Maximum CPC bid ceiling is required and must be greater than 0";
+        }
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [formData, requestedKeys]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (disabled) return;
+
+    if (!validate()) return;
 
     // When bidding_strategy_type is requested, include strategy-specific keys that have values (conditional fields)
     let keysToSubmit = [...requestedKeys];
@@ -380,97 +559,49 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   };
 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [marketingImagePreview, setMarketingImagePreview] = useState<string | null>(null);
+  const [squareMarketingImagePreview, setSquareMarketingImagePreview] = useState<string | null>(null);
+
+  const profileIdNum = profileId != null ? (typeof profileId === "number" ? profileId : parseInt(String(profileId), 10)) : null;
+
+  useEffect(() => {
+    const m = formData.marketing_image_url?.trim();
+    setMarketingImagePreview(m && /^https?:\/\//.test(m) ? m : null);
+  }, [formData.marketing_image_url]);
+  useEffect(() => {
+    const s = formData.square_marketing_image_url?.trim();
+    setSquareMarketingImagePreview(s && /^https?:\/\//.test(s) ? s : null);
+  }, [formData.square_marketing_image_url]);
+
+  const hasValidationErrors = Object.keys(errors).length > 0;
 
   return (
     <div className="mt-2 p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[10px]">
       <p className="text-sm font-medium text-[#072929] mb-3">Fill in the details</p>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        {/* Base fields (name, budget, dates, status) */}
+      {hasValidationErrors && (
+        <p className="text-xs text-red-500 mb-2" role="alert">
+          Please fix the required fields below before submitting.
+        </p>
+      )}
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {/* Base fields */}
         {baseKeys.length > 0 && (
-          <div className="space-y-3">
-            {baseKeys.includes("name") && (
-              <div>
-                <label className="block text-xs font-medium text-[#072929] mb-1">Campaign name *</label>
-                <input
-                  type="text"
-                  value={formData.name || ""}
-                  onChange={(e) => onChange("name", e.target.value)}
-                  placeholder="Enter campaign name"
-                  className={inputBaseClass}
-                  disabled={disabled}
-                />
-              </div>
-            )}
-            {baseKeys.includes("budget_amount") && (
-              <div>
-                <label className="block text-xs font-medium text-[#072929] mb-1">Daily budget ($) *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.budget_amount ?? ""}
-                  onChange={(e) => {
-                    const v = parseFloat(e.target.value);
-                    onChange("budget_amount", !isNaN(v) ? v : 0);
-                  }}
-                  placeholder="0.00"
-                  className={inputBaseClass}
-                  disabled={disabled}
-                />
-              </div>
-            )}
-            {baseKeys.includes("budget_name") && (
-              <div>
-                <label className="block text-xs font-medium text-[#072929] mb-1">Budget name</label>
-                <input
-                  type="text"
-                  value={formData.budget_name || ""}
-                  onChange={(e) => onChange("budget_name", e.target.value)}
-                  placeholder="Select a budget or choose Custom..."
-                  className={inputBaseClass}
-                  disabled={disabled}
-                />
-              </div>
-            )}
-            {baseKeys.includes("start_date") && (
-              <div>
-                <label className="block text-xs font-medium text-[#072929] mb-1">Start date</label>
-                <input
-                  type="date"
-                  value={formData.start_date || ""}
-                  onChange={(e) => onChange("start_date", e.target.value)}
-                  className={inputBaseClass}
-                  disabled={disabled}
-                />
-              </div>
-            )}
-            {baseKeys.includes("end_date") && (
-              <div>
-                <label className="block text-xs font-medium text-[#072929] mb-1">End date</label>
-                <input
-                  type="date"
-                  value={formData.end_date || ""}
-                  onChange={(e) => onChange("end_date", e.target.value)}
-                  className={inputBaseClass}
-                  disabled={disabled}
-                />
-              </div>
-            )}
-            {baseKeys.includes("status") && (
-              <div>
-                <label className="block text-xs font-medium text-[#072929] mb-1">Status</label>
-                <select
-                  value={formData.status || "PAUSED"}
-                  onChange={(e) => onChange("status", e.target.value)}
-                  className={inputBaseClass}
-                  disabled={disabled}
-                >
-                  <option value="ENABLED">Enabled</option>
-                  <option value="PAUSED">Paused</option>
-                </select>
-              </div>
-            )}
-          </div>
+          <BaseGoogleCampaignForm
+            formData={formData}
+            errors={errors}
+            onChange={onChange}
+            mode="create"
+            hideProfileSelector
+            simpleBudgetMode={!(accountId && channelId && profileId)}
+            budgetOptions={budgetOptions}
+            selectedBudgetId={selectedBudgetId}
+            setSelectedBudgetId={setSelectedBudgetId}
+            useCustomBudgetName={useCustomBudgetName}
+            setUseCustomBudgetName={setUseCustomBudgetName}
+            loadingBudgets={loadingBudgets}
+            visibleKeys={baseKeys}
+            flatLayout
+          />
         )}
 
         {/* Bidding */}
@@ -481,6 +612,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             onChange={onChange}
             showTitle={true}
             visibleKeys={biddingKeys}
+            flatLayout
           />
         )}
 
@@ -502,275 +634,154 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             logoPreview={logoPreview}
             setLogoPreview={setLogoPreview}
             selectedProfileId={profileId != null ? String(profileId) : undefined}
+            profileId={profileIdNum ?? undefined}
             googleProfiles={googleProfiles}
-            visibleKeys={demandGenKeys}
+              visibleKeys={demandGenKeys}
+              flatLayout
           />
         )}
 
-        {/* Search-specific (simple inputs; full form has tabs) */}
-        {searchKeys.length > 0 && ct === "SEARCH" && (
-          <div className="space-y-3">
-            {searchKeys.includes("adgroup_name") && (
-              <div>
-                <label className="block text-xs font-medium text-[#072929] mb-1">Ad group name</label>
-                <input
-                  type="text"
-                  value={formData.adgroup_name || ""}
-                  onChange={(e) => onChange("adgroup_name", e.target.value)}
-                  placeholder="Ad Group 1"
-                  className={inputBaseClass}
-                  disabled={disabled}
-                />
-              </div>
-            )}
-            {searchKeys.includes("keywords") && (
-              <div>
-                <label className="block text-xs font-medium text-[#072929] mb-1">Keywords</label>
-                <input
-                  type="text"
-                  value={Array.isArray(formData.keywords) ? formData.keywords.join(", ") : (formData.keywords as string) || ""}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    onChange("keywords", v.includes(",") ? v.split(",").map((s) => s.trim()).filter(Boolean) : v);
-                  }}
-                  placeholder="One per line or comma-separated"
-                  className={inputBaseClass}
-                  disabled={disabled}
-                />
-              </div>
-            )}
-            {searchKeys.includes("match_type") && (
-              <div>
-                <label className="block text-xs font-medium text-[#072929] mb-1">Match type</label>
-                <select
-                  value={formData.match_type || "BROAD"}
-                  onChange={(e) => onChange("match_type", e.target.value)}
-                  className={inputBaseClass}
-                  disabled={disabled}
-                >
-                  <option value="BROAD">Broad</option>
-                  <option value="PHRASE">Phrase</option>
-                  <option value="EXACT">Exact</option>
-                </select>
-              </div>
-            )}
-          </div>
+        {/* Search-specific + targeting for SEARCH */}
+        {ct === "SEARCH" && (searchKeys.length > 0 || targetingKeys.length > 0) && (
+          <GoogleSearchCampaignForm
+            formData={formData}
+            errors={errors}
+            onChange={onChange}
+            languageOptions={languageOptions}
+            loadingLanguages={loadingLanguages}
+            locationOptions={locationOptions}
+            loadingLocations={loadingLocations}
+            onLocationIdsChange={(ids) => onChange("location_ids", ids)}
+            onExcludedLocationIdsChange={(ids) => onChange("excluded_location_ids", ids)}
+            trackingUrlTemplate={formData.tracking_url_template || ""}
+            finalUrlSuffix={formData.final_url_suffix || ""}
+            urlCustomParameters={formData.url_custom_parameters || []}
+            onTrackingUrlTemplateChange={(v) => onChange("tracking_url_template", v)}
+            onFinalUrlSuffixChange={(v) => onChange("final_url_suffix", v)}
+            onCustomParametersChange={(p) => onChange("url_custom_parameters", p ?? [])}
+            onSelectConversionActionsClick={() => {}}
+            visibleKeys={[...searchKeys, ...targetingKeys]}
+            flatMode
+            flatLayout
+          />
         )}
 
         {/* Shopping-specific */}
         {shoppingKeys.length > 0 && ct === "SHOPPING" && (
-          <div className="space-y-3">
-            {shoppingKeys.includes("merchant_id") && (
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-medium text-[#072929]">Merchant ID *</label>
-                  {accountId && channelId && profileId && (
-                    <button
-                      type="button"
-                      onClick={fetchMerchantAccounts}
-                      disabled={loadingMerchantAccounts}
-                      className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] disabled:text-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
-                    >
-                      <svg className={`w-3 h-3 ${loadingMerchantAccounts ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      {loadingMerchantAccounts ? "Refreshing..." : "Refresh"}
-                    </button>
-                  )}
-                </div>
-                {accountId && channelId && profileId ? (
-                  <Dropdown<string>
-                    options={merchantAccountOptions}
-                    value={formData.merchant_id || ""}
-                    onChange={(v) => onChange("merchant_id", v)}
-                    placeholder={
-                      loadingMerchantAccounts
-                        ? "Loading merchant accounts..."
-                        : merchantAccountOptions.length === 0
-                        ? "No merchant accounts available"
-                        : "Select merchant account"
-                    }
-                    buttonClassName="edit-button w-full"
-                    searchable={true}
-                    searchPlaceholder="Search merchant accounts..."
-                    emptyMessage={loadingMerchantAccounts ? "Loading..." : merchantAccountsError || "No Merchant Center accounts found."}
-                    disabled={loadingMerchantAccounts || disabled}
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    value={formData.merchant_id || ""}
-                    onChange={(e) => onChange("merchant_id", e.target.value)}
-                    placeholder="Select account & profile above to load merchants, or enter ID"
-                    className={inputBaseClass}
-                    disabled={disabled}
-                  />
-                )}
-                {merchantAccountsError && accountId && channelId && profileId && (
-                  <p className="text-[10px] text-yellow-600 mt-1">{merchantAccountsError}</p>
-                )}
-              </div>
-            )}
-            {shoppingKeys.includes("sales_country") && (
-              <div>
-                <label className="block text-xs font-medium text-[#072929] mb-1">Sales country</label>
-                <Dropdown<string>
-                  options={SALES_COUNTRY_OPTIONS}
-                  value={formData.sales_country || "US"}
-                  onChange={(v) => onChange("sales_country", v)}
-                  buttonClassName="edit-button w-full"
-                  disabled={disabled}
-                />
-              </div>
-            )}
-            {shoppingKeys.includes("campaign_priority") && (
-              <div>
-                <label className="block text-xs font-medium text-[#072929] mb-1">Campaign Priority</label>
-                <Dropdown<number>
-                  options={CAMPAIGN_PRIORITY_OPTIONS}
-                  value={formData.campaign_priority ?? 0}
-                  onChange={(v) => onChange("campaign_priority", v)}
-                  buttonClassName="edit-button w-full"
-                  disabled={disabled}
-                />
-              </div>
-            )}
-            {shoppingKeys.includes("enable_local") && (
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.enable_local || false}
-                    onChange={(e) => onChange("enable_local", e.target.checked)}
-                    className="w-4 h-4 accent-[#136D6D] border-gray-300 rounded"
-                    disabled={disabled}
-                  />
-                  <span className="text-xs font-medium text-[#072929]">Enable Local</span>
-                </label>
-              </div>
-            )}
-          </div>
+          <GoogleShoppingCampaignForm
+            formData={formData}
+            errors={errors}
+            onChange={onChange}
+            mode="create"
+            merchantAccountOptions={merchantAccountOptions}
+            loadingMerchantAccounts={loadingMerchantAccounts}
+            merchantAccountsError={merchantAccountsError}
+            onFetchMerchantAccounts={fetchMerchantAccounts}
+            languageOptions={languageOptions}
+            loadingLanguages={loadingLanguages}
+            locationOptions={locationOptions}
+            loadingLocations={loadingLocations}
+            onLocationIdsChange={(ids) => onChange("location_ids", ids)}
+            onExcludedLocationIdsChange={(ids) => onChange("excluded_location_ids", ids)}
+            trackingUrlTemplate={formData.tracking_url_template || ""}
+            finalUrlSuffix={formData.final_url_suffix || ""}
+            urlCustomParameters={formData.url_custom_parameters || []}
+            onTrackingUrlTemplateChange={(v) => onChange("tracking_url_template", v)}
+            onFinalUrlSuffixChange={(v) => onChange("final_url_suffix", v)}
+            onCustomParametersChange={(p) => onChange("url_custom_parameters", p ?? [])}
+            visibleKeys={shoppingKeys}
+            flatMode
+            flatLayout
+          />
         )}
 
         {/* PMax: reuse Demand Gen form for overlapping fields */}
         {pmaxKeys.length > 0 && ct === "PERFORMANCE_MAX" && (
-          <GoogleDemandGenCampaignForm
-            formData={formData}
-            errors={errors}
-            onChange={onChange}
-            onAddHeadline={onAddHeadline}
-            onRemoveHeadline={onRemoveHeadline}
-            onUpdateHeadline={onUpdateHeadline}
-            onAddDescription={onAddDescription}
-            onRemoveDescription={onRemoveDescription}
-            onUpdateDescription={onUpdateDescription}
-            onAddLongHeadline={onAddLongHeadline}
-            onRemoveLongHeadline={onRemoveLongHeadline}
-            onUpdateLongHeadline={onUpdateLongHeadline}
-            logoPreview={logoPreview}
-            setLogoPreview={setLogoPreview}
-            selectedProfileId={profileId != null ? String(profileId) : undefined}
-            googleProfiles={googleProfiles}
-            visibleKeys={pmaxKeys}
-          />
+          <>
+            <GoogleDemandGenCampaignForm
+              formData={formData}
+              errors={errors}
+              onChange={onChange}
+              onAddHeadline={onAddHeadline}
+              onRemoveHeadline={onRemoveHeadline}
+              onUpdateHeadline={onUpdateHeadline}
+              onAddDescription={onAddDescription}
+              onRemoveDescription={onRemoveDescription}
+              onUpdateDescription={onUpdateDescription}
+              onAddLongHeadline={onAddLongHeadline}
+              onRemoveLongHeadline={onRemoveLongHeadline}
+              onUpdateLongHeadline={onUpdateLongHeadline}
+              logoPreview={logoPreview}
+              setLogoPreview={setLogoPreview}
+              selectedProfileId={profileId != null ? String(profileId) : undefined}
+              profileId={profileIdNum ?? undefined}
+              googleProfiles={googleProfiles}
+              visibleKeys={pmaxKeys}
+              sectionTitle="Performance Max Settings"
+              flatLayout
+            />
+            {/* Performance Max–only: asset group name, marketing image URLs (reuse existing form with Select asset) */}
+            {(requestedKeys.includes("asset_group_name") ||
+              requestedKeys.includes("marketing_image_url") ||
+              requestedKeys.includes("square_marketing_image_url")) && (
+              <GooglePerformanceMaxAssetGroupForm
+                formData={formData}
+                errors={errors}
+                onChange={onChange}
+                onAddHeadline={onAddHeadline}
+                onRemoveHeadline={onRemoveHeadline}
+                onUpdateHeadline={onUpdateHeadline}
+                onAddDescription={onAddDescription}
+                onRemoveDescription={onRemoveDescription}
+                onUpdateDescription={onUpdateDescription}
+                logoPreview={logoPreview}
+                setLogoPreview={setLogoPreview}
+                marketingImagePreview={marketingImagePreview}
+                setMarketingImagePreview={setMarketingImagePreview}
+                squareMarketingImagePreview={squareMarketingImagePreview}
+                setSquareMarketingImagePreview={setSquareMarketingImagePreview}
+                setErrors={setErrors}
+                profileId={profileIdNum ?? undefined}
+                campaignType={ct as "PERFORMANCE_MAX"}
+                showOnlyImageAssets
+                visibleKeys={requestedKeys.filter((k) =>
+                  ["asset_group_name", "marketing_image_url", "square_marketing_image_url"].includes(k)
+                )}
+              />
+            )}
+          </>
         )}
 
-        {/* Targeting: Network Settings, Device Targeting, Language Targeting, Location Targeting, Campaign URL Options */}
-        {targetingKeys.length > 0 && (
+        {/* Targeting: Device, Language, Location, Campaign URL Options (for SHOPPING/PMax; SEARCH uses GoogleSearchCampaignForm) */}
+        {targetingKeys.length > 0 && (ct === "SHOPPING" || ct === "PERFORMANCE_MAX") && (
           <div className="space-y-4">
-            {targetingKeys.includes("network_settings") && ct === "SEARCH" && (
-              <div className="space-y-3">
-                <h3 className="text-[13px] font-semibold text-[#072929]">Network Settings</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-[#E8E8E3] bg-white">
-                    <input
-                      type="checkbox"
-                      checked={formData.network_settings?.target_search_network ?? false}
-                      onChange={(e) =>
-                        onChange("network_settings", {
-                          ...formData.network_settings,
-                          target_google_search: formData.network_settings?.target_google_search ?? true,
-                          target_search_network: e.target.checked,
-                          target_content_network: formData.network_settings?.target_content_network ?? false,
-                          target_partner_search_network: formData.network_settings?.target_partner_search_network ?? false,
-                        })
-                      }
-                      className="w-4 h-4 accent-[#136D6D] border-gray-300 rounded"
-                      disabled={disabled}
-                    />
-                    <span className="text-xs text-[#072929]">Search Network</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-[#E8E8E3] bg-white">
-                    <input
-                      type="checkbox"
-                      checked={formData.network_settings?.target_content_network ?? false}
-                      onChange={(e) =>
-                        onChange("network_settings", {
-                          ...formData.network_settings,
-                          target_google_search: formData.network_settings?.target_google_search ?? true,
-                          target_search_network: formData.network_settings?.target_search_network ?? true,
-                          target_content_network: e.target.checked,
-                          target_partner_search_network: formData.network_settings?.target_partner_search_network ?? false,
-                        })
-                      }
-                      className="w-4 h-4 accent-[#136D6D] border-gray-300 rounded"
-                      disabled={disabled}
-                    />
-                    <span className="text-xs text-[#072929]">Display Network</span>
-                  </label>
-                </div>
-              </div>
+            {targetingKeys.includes("device_ids") && (
+              <GoogleDeviceTargetingForm
+                deviceIds={formData.device_ids}
+                onChange={onChange}
+                showTitle={true}
+                disabled={disabled}
+                flatLayout
+              />
             )}
 
-            {targetingKeys.includes("device_ids") && (ct === "SEARCH" || ct === "PERFORMANCE_MAX") && (
-              <div className="space-y-3">
-                <h3 className="text-[13px] font-semibold text-[#072929]">Device Targeting</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {DEVICE_OPTIONS.map((device) => (
-                    <label
-                      key={device.value}
-                      className="flex flex-col items-center gap-2 cursor-pointer p-3 rounded-lg border border-[#E8E8E3] bg-white"
-                    >
-                      <span className="text-xl">{device.icon}</span>
-                      <input
-                        type="checkbox"
-                        checked={formData.device_ids?.includes(device.value) ?? false}
-                        onChange={(e) => {
-                          const current = formData.device_ids || [];
-                          if (e.target.checked) {
-                            onChange("device_ids", [...current, device.value]);
-                          } else {
-                            onChange("device_ids", current.filter((id) => id !== device.value));
-                          }
-                        }}
-                        className="w-4 h-4 accent-[#136D6D] border-gray-300 rounded"
-                        disabled={disabled}
-                      />
-                      <span className="text-xs font-medium text-[#072929]">{device.label}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-[10px] text-[#556179]">Select devices to target. If none selected, ads show on all devices.</p>
-              </div>
-            )}
-
-            {targetingKeys.includes("language_ids") && (ct === "SEARCH" || ct === "PERFORMANCE_MAX" || ct === "SHOPPING") && (
+            {targetingKeys.includes("language_ids") && (
               <GoogleLanguageTargetingForm
                 languageIds={formData.language_ids}
                 languageOptions={languageOptions}
-                loadingLanguages={false}
+                loadingLanguages={loadingLanguages}
                 onLanguageIdsChange={(ids) => onChange("language_ids", ids)}
                 errors={errors}
                 showTitle={true}
               />
             )}
 
-            {targetingKeys.includes("location_ids") && (ct === "SEARCH" || ct === "PERFORMANCE_MAX" || ct === "SHOPPING") && (
+            {targetingKeys.includes("location_ids") && (
               <GoogleLocationTargetingForm
                 locationIds={formData.location_ids}
                 excludedLocationIds={formData.excluded_location_ids}
                 locationOptions={locationOptions}
-                loadingLocations={false}
+                loadingLocations={loadingLocations}
                 onLocationIdsChange={(ids) => onChange("location_ids", ids)}
                 onExcludedLocationIdsChange={(ids) => onChange("excluded_location_ids", ids)}
                 errors={errors}

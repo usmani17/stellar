@@ -33,6 +33,7 @@ export interface CreateGoogleCampaignData {
   name: string;
   budget_amount?: number; // Optional; empty by default in create form
   budget_name?: string;
+  budget_resource_name?: string; // Resource name when using existing budget (e.g. customers/123/campaignBudgets/456)
   start_date?: string; // YYYY-MM-DD format
   end_date?: string; // YYYY-MM-DD format
   status?: "ENABLED" | "PAUSED";

@@ -12,6 +12,7 @@ const ALL_FIELD_GROUPS: { label: string; keys: string[] }[] = [
   { label: "Base", keys: ["name", "campaign_type", "budget_amount", "budget_name", "start_date", "end_date", "status"] },
   { label: "Bidding", keys: ["bidding_strategy_type", "target_cpa_micros", "target_roas", "target_spend_micros", "target_impression_share_location", "target_impression_share_location_fraction_micros", "target_impression_share_cpc_bid_ceiling_micros"] },
   { label: "Demand Gen", keys: ["final_url", "video_id", "video_url", "logo_url", "business_name", "headlines", "descriptions", "long_headlines", "ad_group_name", "ad_name", "channel_controls"] },
+  { label: "Performance Max", keys: ["asset_group_name", "marketing_image_url", "square_marketing_image_url"] },
   { label: "Search", keys: ["adgroup_name", "keywords", "match_type"] },
   { label: "Shopping", keys: ["merchant_id", "sales_country", "campaign_priority", "enable_local"] },
   {
