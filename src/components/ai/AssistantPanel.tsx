@@ -573,26 +573,23 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             className={`flex flex-col h-full bg-[var(--color-semantic-background-primary)] shadow-lg ${className}`}
         >
             {/* Top row: chat tabs (left) + New Chat & Close (right) */}
-            <div className="border-b border-[#e8e8e3] bg-white">
-                <div className="flex items-center justify-between gap-2 px-3 py-2 min-h-[44px]">
-                    <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto interactive-scrollbar" style={{ scrollbarWidth: 'thin' }}>
+            <div className="assistant-top-row">
+                <div className="assistant-top-row-inner">
+                    <div className="assistant-tabs-scroll interactive-scrollbar" style={{ scrollbarWidth: 'thin' }}>
                         {isLoadingThreads ? (
-                            <span className="text-xs text-[#556179] shrink-0">Loading...</span>
+                            <span className="assistant-muted-text">Loading...</span>
                         ) : threads.length > 0 ? (
                             [...threads]
                                 .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
                                 .map((thread) => (
                                     <div
                                         key={thread.thread_id}
-                                        className={`group/tab flex items-center gap-1 shrink-0 px-2 py-1.5 pr-1.5 rounded-lg text-sm transition-colors border ${currentThread?.thread_id === thread.thread_id
-                                                ? 'bg-[#136D6D]/12 text-[#136D6D] border-[#136D6D]/30'
-                                                : 'bg-[#f9f9f6] text-[#072929] border-[#e8e8e3] hover:border-[#136D6D]/30 hover:bg-[#f0f0f0]'
-                                            }`}
+                                        className={`assistant-tab-pill ${currentThread?.thread_id === thread.thread_id ? "assistant-tab-pill-active" : ""}`}
                                     >
                                         <button
                                             type="button"
                                             onClick={() => handleThreadSelect(thread.thread_id)}
-                                            className="flex items-center gap-2 min-w-0 flex-1 py-0.5 rounded"
+                                            className="assistant-tab-pill-button"
                                             title={thread.metadata?.title || 'Untitled'}
                                         >
                                             <svg className="w-4 h-4 shrink-0 text-current opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -600,7 +597,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                             </svg>
                                             <span className="max-w-[120px] truncate">{thread.metadata?.title || 'Untitled'}</span>
                                             {currentThread?.thread_id === thread.thread_id && (
-                                                <Check className="w-4 h-4 shrink-0 text-[#136D6D]" />
+                                                <Check className="w-4 h-4 shrink-0 text-[var(--color-semantic-status-primary)]" />
                                             )}
                                         </button>
                                         <button
@@ -609,7 +606,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                 e.stopPropagation();
                                                 deleteThread(thread.thread_id);
                                             }}
-                                            className="p-1 rounded text-[#6b7280] hover:text-[#072929] hover:bg-black/10 opacity-0 group-hover/tab:opacity-100 transition-opacity shrink-0"
+                                            className="assistant-tab-delete"
                                             title="Delete conversation"
                                             aria-label="Delete conversation"
                                         >
@@ -623,7 +620,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         <button
                             type="button"
                             onClick={handleNewThread}
-                            className="relative z-[100] p-2 rounded-md text-[#072929] hover:bg-[#f0f0f0] transition-colors"
+                            className="assistant-header-icon-btn"
                             title="New conversation"
                             aria-label="New chat"
                         >
@@ -636,7 +633,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 e.stopPropagation();
                                 closeAssistant();
                             }}
-                            className="relative z-[100] p-2 rounded-md text-[#072929] hover:bg-[#f0f0f0] transition-colors"
+                            className="assistant-header-icon-btn"
                             title="Close assistant"
                             aria-label="Close assistant"
                         >
@@ -646,8 +643,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 </div>
             </div>
             {/* Second row: account/channel (left only) */}
-            <div className="border-b border-[#e8e8e3] px-4 py-2.5 bg-[#f9f9f6] min-h-[44px]">
-                <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <div className="assistant-account-row">
+                <div className="assistant-account-row-inner">
                         {selectedAccount && (
                             <div className="flex items-center gap-1.5 min-w-0 max-w-full">
                                 <div
@@ -658,7 +655,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 >
                                     {selectedAccount.name?.[0]?.toUpperCase() || "A"}
                                 </div>
-                                <span className="text-[13.2px] text-[#072929] truncate" title={selectedAccount.name}>
+                                <span className="assistant-account-label" title={selectedAccount.name}>
                                     {selectedAccount.name}
                                 </span>
                             </div>
@@ -666,7 +663,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         {selectedProfileOption && (
                             <>
                                 {selectedAccount && (
-                                    <span className="text-[13.2px] text-[#556179] shrink-0" aria-hidden>•</span>
+                                    <span className="assistant-channel-label shrink-0" aria-hidden>•</span>
                                 )}
                                 <div className="flex items-center gap-1.5 min-w-0 max-w-full">
                                     {assistantScope.marketplace === "amazon" && (
@@ -684,7 +681,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                         </svg>
                                     )}
                                     <span
-                                        className="text-[13.2px] text-[#556179] truncate"
+                                        className="assistant-channel-label truncate"
                                         title={`${profileDisplayName(selectedProfileOption)} (${profileIdForDisplay(selectedProfileOption)})`}
                                     >
                                         {profileDisplayName(selectedProfileOption)} ({profileIdForDisplay(selectedProfileOption)})
@@ -694,22 +691,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         )}
                         {assistantIntent && (selectedAccount || selectedProfileOption) && (
                             <>
-                                <span className="text-[#d0d0cc] shrink-0" aria-hidden>•</span>
-                                <span
-                                    className={`text-xs font-medium rounded px-2 py-0.5 shrink-0 ${assistantIntent === "analyze"
-                                            ? "bg-[#136D6D]/12 text-[#136D6D] border border-[#136D6D]/30"
-                                            : "bg-[#136D6D]/12 text-[#136D6D] border border-[#136D6D]/30"
-                                        }`}
-                                >
+                                <span className="text-[var(--color-neutral-300)] shrink-0" aria-hidden>•</span>
+                                <span className="assistant-intent-badge">
                                     {assistantIntent === "analyze" ? "Analyze" : "Create Campaign"}
                                 </span>
                             </>
                         )}
                 </div>
             </div>
-                <div className="flex items-center justify-between gap-2 px-4 py-3">
-                    <div className="group flex items-center gap-2 flex-1 min-w-0">
-                        <span className="text-sm font-medium text-[#072929] truncate">
+                <div className="assistant-title-row">
+                    <div className="assistant-title-group">
+                        <span className="assistant-title-text">
                             {currentThread?.metadata?.title || "New Chat"}
                         </span>
                         {currentThread?.thread_id && (
@@ -719,7 +711,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                     e.stopPropagation();
                                     deleteThread(currentThread.thread_id);
                                 }}
-                                className="p-1 rounded-md text-[#6b7280] hover:text-[#072929] hover:bg-[#f0f0f0] transition-colors shrink-0 opacity-70 group-hover:opacity-100"
+                                className="assistant-title-delete"
                                 title="Delete conversation"
                                 aria-label="Delete conversation"
                             >
@@ -748,19 +740,19 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
                                 {/* Dropdown Menu */}
                                 {isThreadDropdownOpen && (
-                                    <div className="absolute top-full right-0 mt-1 w-80 bg-white rounded-xl shadow-xl border border-[#e8e8e3] z-50 max-h-[600px] overflow-y-auto">
+                                    <div className="assistant-history-dropdown">
                                         {/* History Header */}
-                                        <div className="sticky top-0 px-4 py-3 border-b border-[#e8e8e3] bg-white rounded-t-xl">
-                                            <h3 className="text-lg font-medium text-[#072929]">History</h3>
+                                        <div className="assistant-history-header">
+                                            <h3 className="assistant-history-title">History</h3>
                                         </div>
 
                                         {/* Loading State */}
                                         {isLoadingThreads ? (
-                                            <div className="px-4 py-3 text-sm text-gray-500">
+                                            <div className="px-4 py-3 text-sm assistant-muted-text">
                                                 Loading conversations...
                                             </div>
                                         ) : threads.length === 0 ? (
-                                            <div className="px-4 py-3 text-sm text-gray-500">
+                                            <div className="px-4 py-3 text-sm assistant-muted-text">
                                                 No previous conversations
                                             </div>
                                         ) : (
@@ -783,31 +775,28 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                 .map(([dateGroup, groupThreads]) => (
                                                     <div key={dateGroup}>
                                                         {/* Date Group Header with Count */}
-                                                        <div className="flex items-center justify-between px-4 py-2 border-b border-[#e8e8e3] bg-[#f9f9f6]">
-                                                            <span className="text-sm font-medium text-[#072929]">{dateGroup}</span>
-                                                            <span className="text-sm text-[#072929]">{groupThreads.length} Total</span>
+                                                        <div className="assistant-history-date-group">
+                                                            <span>{dateGroup}</span>
+                                                            <span>{groupThreads.length} Total</span>
                                                         </div>
 
                                                         {/* Threads in Group */}
                                                         {groupThreads.map((thread) => (
                                                             <div
                                                                 key={thread.thread_id}
-                                                                className={`group/hist flex items-center gap-2 w-full px-4 py-3 text-sm border-b border-[#f0f0f0] ${currentThread?.thread_id === thread.thread_id
-                                                                    ? 'bg-[#f0f0f0] text-[#072929]'
-                                                                    : 'text-[#072929] hover:bg-[#f9f9f6]'
-                                                                    }`}
+                                                                className={`assistant-history-item ${currentThread?.thread_id === thread.thread_id ? "assistant-history-item-active" : ""}`}
                                                             >
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleThreadSelect(thread.thread_id)}
-                                                                    className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                                                                    className="assistant-history-item-button"
                                                                 >
-                                                                    <svg className="w-4 h-4 shrink-0 text-[#072929]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                    <svg className="w-4 h-4 shrink-0 text-[var(--color-semantic-text-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                                                                     </svg>
                                                                     <span className="truncate flex-1">{thread.metadata?.title || 'Untitled'}</span>
                                                                     {currentThread?.thread_id === thread.thread_id && (
-                                                                        <Check className="w-4 h-4 text-[#072929] shrink-0" />
+                                                                        <Check className="w-4 h-4 text-[var(--color-semantic-text-primary)] shrink-0" />
                                                                     )}
                                                                 </button>
                                                                 <button
@@ -817,7 +806,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                                         deleteThread(thread.thread_id);
                                                                         setIsThreadDropdownOpen(false);
                                                                     }}
-                                                                    className="p-1.5 rounded text-[#6b7280] hover:text-[#072929] hover:bg-black/10 opacity-0 group-hover/hist:opacity-100 transition-opacity shrink-0"
+                                                                    className="assistant-history-delete"
                                                                     title="Delete conversation"
                                                                     aria-label="Delete conversation"
                                                                 >

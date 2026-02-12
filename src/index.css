@@ -1187,3 +1187,312 @@ body input[type="submit"]:disabled {
 .interactive-scrollbar.scrolling::-webkit-scrollbar-thumb {
   background: rgba(107, 114, 128, 0.5); /* Chrome, Safari, Opera */
 }
+
+/* ============================================
+   Assistant panel (chatbox) – uses semantic tokens above
+   ============================================ */
+
+/* Top row: chat tabs + New Chat & Close */
+.assistant-top-row {
+  border-bottom: 1px solid var(--color-semantic-border-default);
+  background-color: var(--color-common-white);
+}
+
+.assistant-top-row-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  min-height: 44px;
+}
+
+.assistant-tabs-scroll {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+/* Single chat tab pill */
+.assistant-tab-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  padding: 0.25rem 0.5rem 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  font-size: var(--font-size-h400);
+  transition: color 0.2s, background-color 0.2s, border-color 0.2s;
+  border: 1px solid var(--color-semantic-border-default);
+  background-color: var(--color-sandstorm-s0);
+  color: var(--color-semantic-text-primary);
+}
+
+.assistant-tab-pill:hover {
+  border-color: rgba(19, 109, 109, 0.3);
+  background-color: var(--color-neutral-100);
+}
+
+.assistant-tab-pill-active {
+  background-color: rgba(19, 109, 109, 0.12);
+  color: var(--color-semantic-status-primary);
+  border-color: rgba(19, 109, 109, 0.3);
+}
+
+.assistant-tab-pill-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1;
+  padding: 0.125rem 0;
+  border-radius: 0.25rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+/* Delete (X) on tab – visible on group hover */
+.assistant-tab-delete {
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  color: var(--color-neutral-n100);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s, background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.assistant-tab-pill:hover .assistant-tab-delete,
+.assistant-tab-delete:focus {
+  opacity: 1;
+}
+
+.assistant-tab-delete:hover {
+  color: var(--color-semantic-text-primary);
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* New Chat & Close header buttons */
+.assistant-header-icon-btn {
+  position: relative;
+  z-index: 100;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  color: var(--color-semantic-text-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.assistant-header-icon-btn:hover {
+  background-color: var(--color-neutral-100);
+}
+
+/* Second row: account/channel only */
+.assistant-account-row {
+  border-bottom: 1px solid var(--color-semantic-border-default);
+  padding: 0.5rem 1rem;
+  min-height: 44px;
+  background-color: var(--color-semantic-background-primary);
+}
+
+.assistant-account-row-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.assistant-account-label {
+  font-size: 13.2px;
+  color: var(--color-semantic-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.assistant-channel-label {
+  font-size: 13.2px;
+  color: var(--color-neutral-n300);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.assistant-intent-badge {
+  font-size: var(--font-size-h300);
+  font-weight: 500;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+  background-color: rgba(19, 109, 109, 0.12);
+  color: var(--color-semantic-status-primary);
+  border: 1px solid rgba(19, 109, 109, 0.3);
+}
+
+/* Chat title row (thread name + delete + history) */
+.assistant-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.assistant-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.assistant-title-text {
+  font-size: var(--font-size-h400);
+  font-weight: 500;
+  color: var(--color-semantic-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Delete next to chat title – subtle, full opacity on group hover */
+.assistant-title-delete {
+  padding: 0.25rem;
+  border-radius: 0.375rem;
+  color: var(--color-neutral-n100);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.2s, color 0.2s, background-color 0.2s;
+}
+
+.assistant-title-group:hover .assistant-title-delete,
+.assistant-title-delete:focus {
+  opacity: 1;
+}
+
+.assistant-title-delete:hover {
+  color: var(--color-semantic-text-primary);
+  background-color: var(--color-neutral-100);
+}
+
+/* History dropdown panel */
+.assistant-history-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.25rem;
+  width: 20rem;
+  max-height: 600px;
+  overflow-y: auto;
+  background-color: var(--color-common-white);
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--color-semantic-border-default);
+  z-index: 50;
+}
+
+.assistant-history-header {
+  position: sticky;
+  top: 0;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-semantic-border-default);
+  background-color: var(--color-common-white);
+  border-radius: 0.75rem 0.75rem 0 0;
+}
+
+.assistant-history-title {
+  font-size: var(--font-size-h900);
+  font-weight: 500;
+  color: var(--color-semantic-text-primary);
+}
+
+.assistant-history-date-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--color-semantic-border-default);
+  background-color: var(--color-semantic-background-primary);
+  font-size: var(--font-size-h400);
+  font-weight: 500;
+  color: var(--color-semantic-text-primary);
+}
+
+.assistant-history-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: var(--font-size-h400);
+  border-bottom: 1px solid var(--color-neutral-100);
+  color: var(--color-semantic-text-primary);
+  transition: background-color 0.2s;
+}
+
+.assistant-history-item:hover {
+  background-color: var(--color-semantic-background-primary);
+}
+
+.assistant-history-item-active {
+  background-color: var(--color-neutral-100);
+}
+
+.assistant-history-item-button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+}
+
+.assistant-history-delete {
+  padding: 0.375rem;
+  border-radius: 0.25rem;
+  color: var(--color-neutral-n100);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s, background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.assistant-history-item:hover .assistant-history-delete,
+.assistant-history-delete:focus {
+  opacity: 1;
+}
+
+.assistant-history-delete:hover {
+  color: var(--color-semantic-text-primary);
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Loading / empty state text in assistant */
+.assistant-muted-text {
+  font-size: var(--font-size-h300);
+  color: var(--color-neutral-n300);
+  flex-shrink: 0;
+}
