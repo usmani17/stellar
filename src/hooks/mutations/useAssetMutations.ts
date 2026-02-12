@@ -49,10 +49,12 @@ export const useCreateImageAsset = (profileId: number) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: CreateImageAssetPayload) => {
+    mutationFn: async (args: CreateImageAssetPayload & { fieldType?: string }) => {
+      const { fieldType, ...payload } = args;
       const response = await googleAdwordsAssetsService.createImageAsset(
         profileId,
-        payload
+        payload,
+        fieldType
       );
       if (response.success) {
         return response.asset;

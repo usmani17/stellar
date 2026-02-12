@@ -9,6 +9,8 @@ interface CreateImageAssetModalProps {
   onSuccess: (asset: any) => void;
   profileId: number;
   title?: string;
+  /** When "LOGO", backend links the asset as a logo (1:1 square for Demand Gen). */
+  fieldType?: string;
 }
 
 export const CreateImageAssetModal: React.FC<CreateImageAssetModalProps> = ({
@@ -17,6 +19,7 @@ export const CreateImageAssetModal: React.FC<CreateImageAssetModalProps> = ({
   onSuccess,
   profileId,
   title = "Create Image Asset",
+  fieldType,
 }) => {
   const [imageUrl, setImageUrl] = useState("");
   const [assetName, setAssetName] = useState("");
@@ -117,10 +120,11 @@ export const CreateImageAssetModal: React.FC<CreateImageAssetModalProps> = ({
     setError(null);
 
     try {
-      const payload: CreateImageAssetPayload = {
+      const payload: CreateImageAssetPayload & { fieldType?: string } = {
         image_url: imageUrl.trim(),
         asset_name: assetName.trim() || undefined,
       };
+      if (fieldType) payload.fieldType = fieldType;
 
       const asset = await createImageAssetMutation.mutateAsync(payload);
       onSuccess(asset);

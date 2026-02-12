@@ -784,7 +784,8 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
         onClose={() => setCreateImageAssetOpen(false)}
         onSuccess={() => {}} // React Query mutations handle cache updates automatically
         profileId={profileId}
-        title="Create Image Asset"
+        title={activeTab === "Logo" ? "Create Logo Asset (1:1 square)" : "Create Image Asset"}
+        fieldType={activeTab === "Logo" ? "LOGO" : undefined}
       />
 
       {/* Create YouTube Video Asset Modal */}
