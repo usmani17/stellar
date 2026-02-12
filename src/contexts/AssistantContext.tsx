@@ -492,7 +492,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         ...(propChannelId && { channelId: propChannelId }),
       }));
     }
-  }, [propAccountId, propChannelId]);
+  }, []);
 
   // Sync selectedGraphId when user selects a thread (so graph selector matches the thread's graph)
   useEffect(() => {
