@@ -339,18 +339,22 @@ export const GoogleCampaignDetail: React.FC = () => {
     }>;
   }>({ isOpen: false, message: "" });
 
+  // Normalized campaign channel type (DB may return "Demand Gen" or "DEMAND_GEN")
+  const campaignChannelType = useMemo(() => {
+    const raw = campaignDetail?.campaign?.advertising_channel_type;
+    if (!raw) return "";
+    return String(raw).toUpperCase().replace(/\s+/g, "_");
+  }, [campaignDetail?.campaign?.advertising_channel_type]);
+
   // Compute available tabs based on campaign type
   const tabs = useMemo(() => {
-    if (!campaignDetail?.campaign?.advertising_channel_type) {
+    if (!campaignChannelType) {
       return ["Overview", "Ad Groups", "Ads", "Keywords", "Logs"];
     }
 
-    const channelType =
-      campaignDetail.campaign.advertising_channel_type.toUpperCase();
-
-    if (channelType === "PERFORMANCE_MAX") {
+    if (campaignChannelType === "PERFORMANCE_MAX") {
       return ["Overview", "Asset Groups", "Negative Keywords", "Logs"];
-    } else if (channelType === "SHOPPING") {
+    } else if (campaignChannelType === "SHOPPING") {
       return [
         "Overview",
         "Ad Groups",
@@ -358,10 +362,10 @@ export const GoogleCampaignDetail: React.FC = () => {
         "Shopping Ads",
         "Logs",
       ];
-    } else if (channelType === "DEMAND_GEN") {
+    } else if (campaignChannelType === "DEMAND_GEN") {
       return [
         "Overview",
-        "Ad Groups", 
+        "Ad Groups",
         "Ads",
         "Assets",
         "Logs",
@@ -377,7 +381,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         "Logs",
       ];
     }
-  }, [campaignDetail?.campaign?.advertising_channel_type]);
+  }, [campaignChannelType]);
 
   // Set page title
   useEffect(() => {
@@ -1818,8 +1822,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                                 setIsAdsFilterPanelOpen(false);
                               }}
                             />
-                          ) : campaignDetail?.campaign
-                            .advertising_channel_type === "DEMAND_GEN" ? (
+                          ) : campaignChannelType === "DEMAND_GEN" ? (
                             <CreateGoogleDemandGenAdSection
                               isOpen={isCreateDemandGenAdSectionOpen}
                               onToggle={() => {
@@ -1868,8 +1871,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                               loading={createShoppingEntitiesLoading}
                               submitError={createShoppingEntitiesError}
                             />
-                          ) : campaignDetail?.campaign
-                            .advertising_channel_type === "DEMAND_GEN" &&
+                          ) : campaignChannelType === "DEMAND_GEN" &&
                             isCreateDemandGenAdSectionOpen &&
                             campaignId &&
                             accountId ? (
@@ -1890,9 +1892,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     </>
                   )}
 
-                {activeTab === "Assets" &&
-                  campaignDetail?.campaign.advertising_channel_type ===
-                    "DEMAND_GEN" && (
+                {activeTab === "Assets" && campaignChannelType === "DEMAND_GEN" && (
                     <GoogleCampaignDetailAssetsTab
                       profileId={profileId}
                       accountId={accountId}
@@ -1900,7 +1900,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     />
                   )}
 
-                {activeTab === "Keywords" && campaignDetail?.campaign.advertising_channel_type !== "DEMAND_GEN" && (
+                {activeTab === "Keywords" && campaignChannelType !== "DEMAND_GEN" && (
                   <>
                     <GoogleCampaignDetailKeywordsTab
                       keywords={keywords}
@@ -1988,7 +1988,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   </>
                 )}
 
-                {activeTab === "Negative Keywords" && campaignDetail?.campaign.advertising_channel_type !== "DEMAND_GEN" && (
+                {activeTab === "Negative Keywords" && campaignChannelType !== "DEMAND_GEN" && (
                   <>
                     <GoogleCampaignDetailNegativeKeywordsTab
                       negativeKeywords={negativeKeywords}

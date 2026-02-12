@@ -197,4 +197,27 @@ export const googleAdwordsAdGroupsService = {
     );
     return response.data;
   },
+
+  /**
+   * Add targeting criteria to an ad group (audiences, exclusions, locations).
+   * Used for Demand Gen and other campaign types.
+   * POST .../campaigns/{campaignId}/ad-groups/{adGroupId}/targeting/
+   */
+  addAdGroupTargeting: async (
+    accountId: number,
+    channelId: number,
+    campaignId: string | number,
+    adGroupId: string | number,
+    payload: {
+      audience_adds?: Array<{ user_list_resource_name: string; bid_modifier?: number }>;
+      audience_excludes?: string[];
+      location_geo_ids?: string[];
+    }
+  ): Promise<{ message: string; criterion_resource_names: string[] }> => {
+    const response = await api.post(
+      `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/ad-groups/${adGroupId}/targeting/`,
+      payload
+    );
+    return response.data;
+  },
 };
