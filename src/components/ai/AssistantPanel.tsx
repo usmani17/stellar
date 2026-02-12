@@ -265,7 +265,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         const textPart = inputValue.trim();
         const schema = SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema ? (questionsSchema as CurrentQuestionSchemaItem[]) : [];
         const formValues = SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema && schemaFormRef.current ? schemaFormRef.current.getValues() : {};
-        
+
         const formParts =
             schema.length > 0 && Object.keys(formValues).length > 0
                 ? (schema
@@ -451,22 +451,22 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             {selectedProfileOption && (() => {
                                 const ct = (selectedProfileOption.channel_type ?? assistantScope.marketplace ?? "").toLowerCase();
                                 return (
-                                <>
-                                    {ct === "amazon" && (
-                                        <img src={AmazonIcon} alt="Amazon" className="w-4 h-4 shrink-0" />
-                                    )}
-                                    {ct === "google" && (
-                                        <img src={GoogleIcon} alt="Google" className="w-4 h-4 shrink-0" />
-                                    )}
-                                    {ct === "meta" && (
-                                        <img src={MetaIcon} alt="Meta" className="w-4 h-4 shrink-0" />
-                                    )}
-                                    {ct === "tiktok" && (
-                                        <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-                                        </svg>
-                                    )}
-                                </>
+                                    <>
+                                        {ct === "amazon" && (
+                                            <img src={AmazonIcon} alt="Amazon" className="w-4 h-4 shrink-0" />
+                                        )}
+                                        {ct === "google" && (
+                                            <img src={GoogleIcon} alt="Google" className="w-4 h-4 shrink-0" />
+                                        )}
+                                        {ct === "meta" && (
+                                            <img src={MetaIcon} alt="Meta" className="w-4 h-4 shrink-0" />
+                                        )}
+                                        {ct === "tiktok" && (
+                                            <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                                <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                                            </svg>
+                                        )}
+                                    </>
                                 );
                             })()}
                             <span className="truncate">
@@ -718,58 +718,58 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             {/* Second row: account/channel (left only) */}
             <div className="assistant-account-row">
                 <div className="assistant-account-row-inner">
-                        {selectedAccount && (
+                    {selectedAccount && (
+                        <div className="flex items-center gap-1.5 min-w-0 max-w-full">
+                            <div
+                                className="w-5 h-5 rounded flex-shrink-0 text-white text-[10px] flex items-center justify-center font-semibold"
+                                style={{
+                                    backgroundColor: getInitialColor(selectedAccount.name?.[0]?.toUpperCase() || "A"),
+                                }}
+                            >
+                                {selectedAccount.name?.[0]?.toUpperCase() || "A"}
+                            </div>
+                            <span className="assistant-account-label" title={selectedAccount.name}>
+                                {selectedAccount.name}
+                            </span>
+                        </div>
+                    )}
+                    {selectedProfileOption && (
+                        <>
+                            {selectedAccount && (
+                                <span className="assistant-channel-label shrink-0" aria-hidden>•</span>
+                            )}
                             <div className="flex items-center gap-1.5 min-w-0 max-w-full">
-                                <div
-                                    className="w-5 h-5 rounded flex-shrink-0 text-white text-[10px] flex items-center justify-center font-semibold"
-                                    style={{
-                                        backgroundColor: getInitialColor(selectedAccount.name?.[0]?.toUpperCase() || "A"),
-                                    }}
+                                {assistantScope.marketplace === "amazon" && (
+                                    <img src={AmazonIcon} alt="Amazon" className="w-4 h-4 flex-shrink-0" />
+                                )}
+                                {assistantScope.marketplace === "google" && (
+                                    <img src={GoogleIcon} alt="Google" className="w-4 h-4 flex-shrink-0" />
+                                )}
+                                {assistantScope.marketplace === "meta" && (
+                                    <img src={MetaIcon} alt="Meta" className="w-4 h-4 flex-shrink-0" />
+                                )}
+                                {assistantScope.marketplace === "tiktok" && (
+                                    <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                                    </svg>
+                                )}
+                                <span
+                                    className="assistant-channel-label truncate"
+                                    title={`${profileDisplayName(selectedProfileOption)} (${profileIdForDisplay(selectedProfileOption)})`}
                                 >
-                                    {selectedAccount.name?.[0]?.toUpperCase() || "A"}
-                                </div>
-                                <span className="assistant-account-label" title={selectedAccount.name}>
-                                    {selectedAccount.name}
+                                    {profileDisplayName(selectedProfileOption)} ({profileIdForDisplay(selectedProfileOption)})
                                 </span>
                             </div>
-                        )}
-                        {selectedProfileOption && (
-                            <>
-                                {selectedAccount && (
-                                    <span className="assistant-channel-label shrink-0" aria-hidden>•</span>
-                                )}
-                                <div className="flex items-center gap-1.5 min-w-0 max-w-full">
-                                    {assistantScope.marketplace === "amazon" && (
-                                        <img src={AmazonIcon} alt="Amazon" className="w-4 h-4 flex-shrink-0" />
-                                    )}
-                                    {assistantScope.marketplace === "google" && (
-                                        <img src={GoogleIcon} alt="Google" className="w-4 h-4 flex-shrink-0" />
-                                    )}
-                                    {assistantScope.marketplace === "meta" && (
-                                        <img src={MetaIcon} alt="Meta" className="w-4 h-4 flex-shrink-0" />
-                                    )}
-                                    {assistantScope.marketplace === "tiktok" && (
-                                        <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-                                        </svg>
-                                    )}
-                                    <span
-                                        className="assistant-channel-label truncate"
-                                        title={`${profileDisplayName(selectedProfileOption)} (${profileIdForDisplay(selectedProfileOption)})`}
-                                    >
-                                        {profileDisplayName(selectedProfileOption)} ({profileIdForDisplay(selectedProfileOption)})
-                                    </span>
-                                </div>
-                            </>
-                        )}
-                        {assistantIntent && (selectedAccount || selectedProfileOption) && (
-                            <>
-                                <span className="text-[var(--color-neutral-300)] shrink-0" aria-hidden>•</span>
-                                <span className="assistant-intent-badge">
-                                    {assistantIntent === "analyze" ? "Analyze" : "Create Campaign"}
-                                </span>
-                            </>
-                        )}
+                        </>
+                    )}
+                    {assistantIntent && (selectedAccount || selectedProfileOption) && (
+                        <>
+                            <span className="text-[var(--color-neutral-300)] shrink-0" aria-hidden>•</span>
+                            <span className="assistant-intent-badge">
+                                {assistantIntent === "analyze" ? "Analyze" : "Create Campaign"}
+                            </span>
+                        </>
+                    )}
                 </div>
             </div>
             {/* Messages Area */}
@@ -824,8 +824,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
                             if (msgType === "human") {
                                 return (
-                                    <div key={message.id} className="flex justify-end">
-                                        <div className="max-w-[85%] min-w-0 flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e8e8e3] rounded-[12px] shadow-sm overflow-x-auto">
+                                    <div key={message.id} className="flex justify-end human">
+                                        <div className=" min-w-0 flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e8e8e3] rounded-[12px] shadow-sm overflow-x-auto">
                                             <div
                                                 className="text-[14px] font-normal leading-[20px] tracking-[0.1px] text-[#072929] min-w-0 max-w-full overflow-x-auto"
                                                 style={{ fontFamily: "'GT America Trial', sans-serif" }}
@@ -840,96 +840,95 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             if (msgType === "tool") {
                                 const toolMsg = message as { name?: string; tool_call_id?: string; content?: unknown };
                                 return (
-                                    <div key={message.id} className="flex justify-start">
-                                        <ToolResultDisplay
-                                            name={toolMsg.name}
-                                            toolCallId={toolMsg.tool_call_id}
-                                            content={toolMsg.content ?? ""}
-                                        />
-                                    </div>
+                                    <ToolResultDisplay
+                                        name={toolMsg.name}
+                                        toolCallId={toolMsg.tool_call_id}
+                                        content={toolMsg.content ?? ""}
+                                    />
                                 );
                             }
 
                             if (msgType === "ai") {
                                 const toolCalls = getToolCallsFromMessage(message);
+                                if (!message.content) return null;
                                 return (
-                                <div key={message.id} className="flex justify-start">
-                                    <div className="max-w-[85%] min-w-0 flex flex-col items-start p-4 gap-3 h-auto bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm">
-                                        {/* AI Message: single bubble — "Currently analyzing" / "Steps taken" above, then content (so steps never hide) */}
-                                        <div className="flex flex-col items-start gap-3 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
-                                            {/* Steps: streaming (currentThinkingSteps) or completed (message.additional_kwargs.thinkingSteps); fallback to other additional_kwargs */}
-                                            {(() => {
-                                                const completedSteps = (message.additional_kwargs?.thinkingSteps as string[] | undefined) ?? [];
-                                                const hasStreamingSteps = isStreamingThisBubble && currentThinkingSteps.length > 0;
-                                                const hasCompletedSteps = completedSteps.length > 0;
-                                                const hasOtherKwargs = message.additional_kwargs && Object.keys(message.additional_kwargs).filter(k => k !== "thinkingSteps").length > 0;
-                                                const showStepsBlock = hasStreamingSteps || hasCompletedSteps || hasOtherKwargs;
-                                                const steps = hasStreamingSteps ? currentThinkingSteps : completedSteps;
-                                                const isCompleted = hasCompletedSteps && !isStreamingThisBubble;
-                                                if (!showStepsBlock) return null;
-                                                return (
-                                                    <div className="flex flex-col gap-1.5 w-full">
-                                                        <span className="text-[11px] font-medium uppercase tracking-wider text-[#556179]">
-                                                            {isCompleted ? "Steps taken" : "Currently analyzing"}
-                                                        </span>
-                                                        {steps.length > 0 ? (
-                                                            <div className="flex flex-wrap gap-1.5">
-                                                                {steps.map((step, index) => (
-                                                                    <span
-                                                                        key={index}
-                                                                        className={`inline-flex items-center gap-1.5 rounded-md border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929] ${isCompleted ? "bg-[#E8E8E3]/50" : "bg-white"}`}
-                                                                    >
-                                                                        {isCompleted ? (
-                                                                            <Check className="w-3 h-3 text-[#136D6D] shrink-0" />
-                                                                        ) : (
-                                                                            <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full animate-pulse shrink-0" />
-                                                                        )}
-                                                                        {getDisplayName(step, "node")}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        ) : hasOtherKwargs ? (
-                                                            <div className="flex flex-wrap gap-1.5">
-                                                                {Object.entries(message.additional_kwargs ?? {}).filter(([k]) => k !== "thinkingSteps").map(([key, value]) => (
-                                                                    <span
-                                                                        key={key}
-                                                                        className="inline-flex items-center rounded-md bg-white border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929]"
-                                                                    >
-                                                                        {key}: {String(value)}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        ) : null}
+                                    <div key={message.id} className="flex justify-start ai">
+                                        <div className=" min-w-0 flex flex-col items-start p-4 gap-3 h-auto bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm">
+                                            {/* AI Message: single bubble — "Currently analyzing" / "Steps taken" above, then content (so steps never hide) */}
+                                            <div className="flex flex-col items-start gap-3 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
+                                                {/* Steps: streaming (currentThinkingSteps) or completed (message.additional_kwargs.thinkingSteps); fallback to other additional_kwargs */}
+                                                {(() => {
+                                                    const completedSteps = (message.additional_kwargs?.thinkingSteps as string[] | undefined) ?? [];
+                                                    const hasStreamingSteps = isStreamingThisBubble && currentThinkingSteps.length > 0;
+                                                    const hasCompletedSteps = completedSteps.length > 0;
+                                                    const hasOtherKwargs = message.additional_kwargs && Object.keys(message.additional_kwargs).filter(k => k !== "thinkingSteps").length > 0;
+                                                    const showStepsBlock = hasStreamingSteps || hasCompletedSteps || hasOtherKwargs;
+                                                    const steps = hasStreamingSteps ? currentThinkingSteps : completedSteps;
+                                                    const isCompleted = hasCompletedSteps && !isStreamingThisBubble;
+                                                    if (!showStepsBlock) return null;
+                                                    return (
+                                                        <div className="flex flex-col gap-1.5 w-full">
+                                                            <span className="text-[11px] font-medium uppercase tracking-wider text-[#556179]">
+                                                                {isCompleted ? "Steps taken" : "Currently analyzing"}
+                                                            </span>
+                                                            {steps.length > 0 ? (
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {steps.map((step, index) => (
+                                                                        <span
+                                                                            key={index}
+                                                                            className={`inline-flex items-center gap-1.5 rounded-md border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929] ${isCompleted ? "bg-[#E8E8E3]/50" : "bg-white"}`}
+                                                                        >
+                                                                            {isCompleted ? (
+                                                                                <Check className="w-3 h-3 text-[#136D6D] shrink-0" />
+                                                                            ) : (
+                                                                                <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full animate-pulse shrink-0" />
+                                                                            )}
+                                                                            {getDisplayName(step, "node")}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            ) : hasOtherKwargs ? (
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {Object.entries(message.additional_kwargs ?? {}).filter(([k]) => k !== "thinkingSteps").map(([key, value]) => (
+                                                                        <span
+                                                                            key={key}
+                                                                            className="inline-flex items-center rounded-md bg-white border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929]"
+                                                                        >
+                                                                            {key}: {String(value)}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                    );
+                                                })()}
+
+                                                {toolCalls.length > 0 && (
+                                                    <ToolCallsDisplay toolCalls={toolCalls} compact />
+                                                )}
+
+                                                {/* Text / markdown content (streamed message below analyzing) */}
+                                                {isContentBlockArray(message.content) ? (
+                                                    <div className="w-full space-y-2">
+                                                        {(() => {
+                                                            const blocks = message.content as ContentBlock[];
+                                                            const textBlocks = blocks.filter((b): b is TextContent => b.type === "text");
+                                                            return textBlocks.map((block, idx) => (
+                                                                <div key={idx} className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929]">
+                                                                    <StellarMarkDown content={(block as TextContent).text} type="ai" />
+                                                                </div>
+                                                            ));
+                                                        })()}
                                                     </div>
-                                                );
-                                            })()}
-
-                                            {toolCalls.length > 0 && (
-                                                <ToolCallsDisplay toolCalls={toolCalls} compact />
-                                            )}
-
-                                            {/* Text / markdown content (streamed message below analyzing) */}
-                                            {isContentBlockArray(message.content) ? (
-                                                <div className="w-full space-y-2">
-                                                    {(() => {
-                                                        const blocks = message.content as ContentBlock[];
-                                                        const textBlocks = blocks.filter((b): b is TextContent => b.type === "text");
-                                                        return textBlocks.map((block, idx) => (
-                                                            <div key={idx} className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929]">
-                                                                <StellarMarkDown content={(block as TextContent).text} type="ai" />
-                                                            </div>
-                                                        ));
-                                                    })()}
-                                                </div>
-                                            ) : isStringContent(message.content) ? (
-                                                <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full prose prose-sm max-w-none">
-                                                    <StellarMarkDown content={message.content} type="ai" />
-                                                </div>
-                                            ) : null}
+                                                ) : isStringContent(message.content) ? (
+                                                    <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full prose prose-sm max-w-none">
+                                                        <StellarMarkDown content={message.content} type="ai" />
+                                                    </div>
+                                                ) : null}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
+                                );
                             }
                             return null;
                         })}
@@ -937,7 +936,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         {/* Thinking at the very end when streaming — only when last message is AI (otherwise we show the "waiting for first token" block below) */}
                         {isStreaming && messages.length > 0 && messages[messages.length - 1]?.type === "ai" && (
                             <div className="flex justify-start">
-                                <div className="max-w-[85%] p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] flex items-center gap-2 text-[#556179]">
+                                <div className=" p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] flex items-center gap-2 text-[#556179]">
                                     <img src={StellarLogo} alt="" className="h-4 w-4 opacity-80" />
                                     <span className="text-xs font-medium">Thinking</span>
                                     <div className="flex gap-1 ml-1">
@@ -1005,8 +1004,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         {/* Streaming State - only when we don't yet have the streaming AI bubble (e.g. waiting for first token) */}
                         {(isLoading || isStreaming) && !(messages.length > 0 && messages[messages.length - 1]?.type === "ai") && (
                             <div className="flex justify-start">
-                                <div className="max-w-[85%] w-full p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm flex flex-col gap-3">
-                                        {currentThinkingSteps.length > 0 && (
+                                <div className=" w-full p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm flex flex-col gap-3">
+                                    {currentThinkingSteps.length > 0 && (
                                         <div className="flex flex-col gap-1.5">
                                             <span className="text-[11px] font-medium uppercase tracking-wider text-[#556179]">
                                                 Currently analyzing
