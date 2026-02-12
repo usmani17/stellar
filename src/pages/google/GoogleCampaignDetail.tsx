@@ -281,18 +281,24 @@ export const GoogleCampaignDetail: React.FC = () => {
         parseInt(accountId || ""),
         parseInt(channelId),
         parseInt(campaignId || ""),
-        data
+        { ad: data }
       );
 
-      if (response.success) {
+      if (response?.ad) {
         setIsCreateDemandGenAdSectionOpen(false);
         loadAdsFromHook?.();
-        alert("Demand Gen ad created successfully!");
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: "Demand Gen ad created successfully!",
+          isSuccess: true,
+        });
       } else {
-        setCreateDemandGenAdError(response.error || "Failed to create ad");
+        setCreateDemandGenAdError(response?.error || "Failed to create ad");
       }
     } catch (err: any) {
-      setCreateDemandGenAdError(err.message || "An error occurred while creating the ad");
+      const msg = err.response?.data?.error ?? err.message ?? "An error occurred while creating the ad";
+      setCreateDemandGenAdError(msg);
     } finally {
       setCreateDemandGenAdLoading(false);
     }
@@ -1876,6 +1882,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                               onSubmit={handleCreateDemandGenAd}
                               loading={createDemandGenAdLoading}
                               submitError={createDemandGenAdError}
+                              profileId={profileId}
                             />
                           ) : undefined
                         }

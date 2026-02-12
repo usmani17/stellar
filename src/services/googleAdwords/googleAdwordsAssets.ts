@@ -139,11 +139,14 @@ export const googleAdwordsAssetsService = {
 
   createImageAsset: async (
     profileId: number,
-    payload: CreateImageAssetPayload
+    payload: CreateImageAssetPayload,
+    fieldType?: string
   ): Promise<{ success: boolean; asset: ImageAsset }> => {
+    const params = fieldType ? { field_type: fieldType } : undefined;
     const response = await api.post(
       `/google-adwords/profiles/${profileId}/assets/image/`,
-      payload
+      payload,
+      params ? { params } : undefined
     );
     return response.data;
   },

@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, FlaskConical } from "lucide-react";
+import type { Asset } from "../../services/googleAdwords/googleAdwordsAssets";
+import { AssetSelectorModal } from "./AssetSelectorModal";
+
+/** Selected asset stored for display; we send only resource_name to the API. */
+export interface SelectedAssetEntry {
+  resource_name: string;
+  name: string;
+}
 
 interface CreateGoogleDemandGenAdPanelProps {
   isOpen: boolean;
@@ -7,6 +15,8 @@ interface CreateGoogleDemandGenAdPanelProps {
   onSubmit: (data: any) => void;
   loading?: boolean;
   submitError?: string | null;
+  /** Required for asset selector (videos, logos, images). */
+  profileId?: number | null;
 }
 
 type DemandGenAdType = "DemandGenVideoResponsiveAdInfo" | "DemandGenMultiAssetAdInfo" | "DemandGenCarouselAdInfo";
@@ -15,16 +25,19 @@ interface FormData {
   ad_type: DemandGenAdType;
   final_urls: string[];
   business_name: string;
-  videos: string[];
-  logo_images: string[];
+  /** Video assets selected via AssetSelectorModal (resource names sent to API). */
+  videos: SelectedAssetEntry[];
+  /** Logo image assets selected via AssetSelectorModal. */
+  logo_images: SelectedAssetEntry[];
   headlines: string[];
   descriptions: string[];
   long_headlines: string[];
-  images: string[];
+  /** Image assets for Multi Asset ad, selected via AssetSelectorModal. */
+  images: SelectedAssetEntry[];
+  /** Carousel cards: only asset (image resource name) per card; API has no headline/description per card. */
   carousel_cards: Array<{
     asset: string;
-    headline: string;
-    description: string;
+    assetName?: string;
   }>;
 }
 
@@ -34,21 +47,46 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
   onSubmit,
   loading = false,
   submitError = null,
+  profileId = null,
 }) => {
   const [formData, setFormData] = useState<FormData>({
     ad_type: "DemandGenMultiAssetAdInfo",
     final_urls: [""],
     business_name: "",
-    videos: [""],
-    logo_images: [""],
+    videos: [],
+    logo_images: [],
     headlines: ["", "", ""],
     descriptions: ["", ""],
     long_headlines: [""],
-    images: [""],
-    carousel_cards: [{ asset: "", headline: "", description: "" }],
+    images: [],
+    carousel_cards: [{ asset: "" }, { asset: "" }],
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [assetSelectorOpen, setAssetSelectorOpen] = useState(false);
+  const [assetSelectorType, setAssetSelectorType] = useState<"VIDEO" | "LOGO" | "IMAGE" | "CAROUSEL_IMAGE">("VIDEO");
+  const [carouselAssetSelectorIndex, setCarouselAssetSelectorIndex] = useState<number | null>(null);
+
+  const handleSelectAsset = (asset: Asset) => {
+    if (assetSelectorType === "CAROUSEL_IMAGE" && carouselAssetSelectorIndex !== null) {
+      updateArrayItem("carousel_cards", carouselAssetSelectorIndex, {
+        ...formData.carousel_cards[carouselAssetSelectorIndex],
+        asset: asset.resource_name,
+        assetName: asset.name || asset.resource_name,
+      });
+      setCarouselAssetSelectorIndex(null);
+    } else {
+      const entry: SelectedAssetEntry = { resource_name: asset.resource_name, name: asset.name || asset.resource_name };
+      if (assetSelectorType === "VIDEO") {
+        updateField("videos", [...formData.videos, entry]);
+      } else if (assetSelectorType === "LOGO") {
+        updateField("logo_images", [...formData.logo_images, entry]);
+      } else {
+        updateField("images", [...formData.images, entry]);
+      }
+    }
+    setAssetSelectorOpen(false);
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -82,35 +120,44 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
       });
     }
 
-    // Type-specific validations
+    // Type-specific validations (videos/logo_images/images are selected assets only)
     if (formData.ad_type === "DemandGenVideoResponsiveAdInfo") {
-      if (formData.videos.length === 0 || !formData.videos[0].trim()) {
-        newErrors.videos = "At least one video is required for Video Responsive ads";
+      if (formData.videos.length === 0) {
+        newErrors.videos = "Select at least one video asset";
       }
-      if (formData.logo_images.length === 0 || !formData.logo_images[0].trim()) {
-        newErrors.logo_images = "At least one logo image is required for Video Responsive ads";
+      if (formData.logo_images.length === 0) {
+        newErrors.logo_images = "Select at least one logo asset";
       }
     }
 
     if (formData.ad_type === "DemandGenMultiAssetAdInfo") {
-      if (formData.images.length === 0 || !formData.images[0].trim()) {
-        newErrors.images = "At least one image is required for Multi Asset ads";
+      if (formData.logo_images.length === 0) {
+        newErrors.logo_images = "Select at least one logo asset (required for Multi Asset ad)";
+      }
+      if (formData.images.length === 0) {
+        newErrors.images = "Select at least one image asset";
       }
     }
 
     if (formData.ad_type === "DemandGenCarouselAdInfo") {
-      if (formData.carousel_cards.length === 0) {
-        newErrors.carousel_cards = "At least one carousel card is required";
+      if (!formData.business_name.trim()) {
+        newErrors.business_name = "Business name is required for Carousel ad";
+      }
+      if (formData.logo_images.length === 0) {
+        newErrors.logo_images = "Select at least one logo asset (required for Carousel ad)";
+      }
+      if (!formData.headlines.some(h => h.trim())) {
+        newErrors.headlines = "At least one headline is required for Carousel ad";
+      }
+      if (!formData.descriptions.some(d => d.trim())) {
+        newErrors.descriptions = "At least one description is required for Carousel ad";
+      }
+      if (formData.carousel_cards.length < 2) {
+        newErrors.carousel_cards = "At least 2 carousel cards are required";
       } else {
         formData.carousel_cards.forEach((card, index) => {
           if (!card.asset.trim()) {
-            newErrors[`carousel_asset_${index}`] = `Card ${index + 1} asset is required`;
-          }
-          if (!card.headline.trim()) {
-            newErrors[`carousel_headline_${index}`] = `Card ${index + 1} headline is required`;
-          }
-          if (!card.description.trim()) {
-            newErrors[`carousel_description_${index}`] = `Card ${index + 1} description is required`;
+            newErrors[`carousel_asset_${index}`] = `Card ${index + 1} image asset is required`;
           }
         });
       }
@@ -127,19 +174,19 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
       return;
     }
 
-    // Clean the data before submission
+    // Clean the data before submission (videos/logo_images/images are asset resource names only)
     const cleanedData = {
       ...formData,
       final_urls: formData.final_urls.filter(url => url.trim()),
-      videos: formData.videos.filter(video => video.trim()),
-      logo_images: formData.logo_images.filter(img => img.trim()),
+      videos: formData.videos.map(v => v.resource_name),
+      logo_images: formData.logo_images.map(l => l.resource_name),
       headlines: formData.headlines.filter(h => h.trim()),
       descriptions: formData.descriptions.filter(d => d.trim()),
       long_headlines: formData.long_headlines.filter(lh => lh.trim()),
-      images: formData.images.filter(img => img.trim()),
-      carousel_cards: formData.carousel_cards.filter(card => 
-        card.asset.trim() && card.headline.trim() && card.description.trim()
-      ),
+      images: formData.images.map(i => i.resource_name),
+      carousel_cards: formData.carousel_cards
+        .filter(card => card.asset.trim())
+        .map(card => ({ asset: card.asset })),
     };
 
     onSubmit(cleanedData);
@@ -174,16 +221,56 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
     }));
   };
 
+  /** Fill form with sample data for the currently selected ad type. Videos/logos/images must be selected via asset selector. */
+  const fillWithTestData = () => {
+    const common = {
+      final_urls: ["https://www.example.com"],
+      business_name: "Interplanetary Cruises",
+      headlines: ["Interplanetary cruises", "Headline 2", "Headline 3"],
+      descriptions: ["Book now for an extra discount", "Description 2"],
+      long_headlines: ["Travel the World"],
+    };
+    setFormData(prev => {
+      if (prev.ad_type === "DemandGenVideoResponsiveAdInfo") {
+        return { ...prev, ...common, videos: prev.videos, logo_images: prev.logo_images };
+      }
+      if (prev.ad_type === "DemandGenMultiAssetAdInfo") {
+        return { ...prev, ...common, images: prev.images };
+      }
+      if (prev.ad_type === "DemandGenCarouselAdInfo") {
+        return {
+          ...prev,
+          ...common,
+          carousel_cards: [
+            { asset: "" },
+            { asset: "" },
+          ],
+        };
+      }
+      return { ...prev, ...common };
+    });
+    setErrors({});
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6] mb-4">
       {/* Form */}
       <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between gap-2 mb-4">
           <h2 className="text-[16px] font-semibold text-[#072929]">
             Create Ad
           </h2>
+          <button
+            type="button"
+            onClick={fillWithTestData}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11.2px] font-medium text-[#136D6D] border border-[#136D6D]/40 rounded-lg hover:bg-[#136D6D]/8 transition-colors"
+            title="Fill form with sample data for the selected ad type"
+          >
+            <FlaskConical className="w-4 h-4" />
+            Fill with test data
+          </button>
         </div>
 
         {/* Ad Type Selection */}
@@ -191,41 +278,15 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
           <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
             Ad Type
           </h3>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="ad_type"
-                value="DemandGenMultiAssetAdInfo"
-                checked={formData.ad_type === "DemandGenMultiAssetAdInfo"}
-                onChange={(e) => updateField("ad_type", e.target.value as DemandGenAdType)}
-                className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D]"
-              />
-              <span className="text-[13.3px] text-[#072929]">Multi Asset Ad</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="ad_type"
-                value="DemandGenVideoResponsiveAdInfo"
-                checked={formData.ad_type === "DemandGenVideoResponsiveAdInfo"}
-                onChange={(e) => updateField("ad_type", e.target.value as DemandGenAdType)}
-                className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D]"
-              />
-              <span className="text-[13.3px] text-[#072929]">Video Responsive Ad</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="ad_type"
-                value="DemandGenCarouselAdInfo"
-                checked={formData.ad_type === "DemandGenCarouselAdInfo"}
-                onChange={(e) => updateField("ad_type", e.target.value as DemandGenAdType)}
-                className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D]"
-              />
-              <span className="text-[13.3px] text-[#072929]">Carousel Ad</span>
-            </label>
-          </div>
+          <select
+            value={formData.ad_type}
+            onChange={(e) => updateField("ad_type", e.target.value as DemandGenAdType)}
+            className="campaign-input w-full max-w-xs text-[13.3px] text-[#072929]"
+          >
+            <option value="DemandGenMultiAssetAdInfo">Multi Asset Ad</option>
+            <option value="DemandGenVideoResponsiveAdInfo">Video Responsive Ad</option>
+            <option value="DemandGenCarouselAdInfo">Carousel Ad</option>
+          </select>
         </div>
 
         {/* Common Fields */}
@@ -430,85 +491,77 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
             <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
               Video Responsive Ad Fields
             </h3>
-            
-            {/* Videos */}
+            <p className="text-[11.2px] text-[#556179] mb-3">
+              Select existing assets (created in Assets). Videos and logos are linked by resource name.
+            </p>
+
+            {/* Videos: asset selection only */}
             <div className="mb-3">
-              <label className="form-label-small">
-                Videos *
-              </label>
-              {formData.videos.map((video, index) => (
-                <div key={index} className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={video}
-                    onChange={(e) => updateArrayItem("videos", index, e.target.value)}
-                    className={`campaign-input flex-1 ${
-                      errors.videos && index === 0 ? "border-red-500" : ""
-                    }`}
-                    placeholder="YouTube video ID or URL"
-                  />
-                  {formData.videos.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeArrayItem("videos", index)}
-                      className="p-2 hover:bg-red-50 rounded transition-colors"
-                      title="Remove video"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-600" />
-                    </button>
-                  )}
-                </div>
-              ))}
+              <label className="form-label-small">Videos *</label>
+              {formData.videos.length > 0 && (
+                <ul className="space-y-2 mb-2">
+                  {formData.videos.map((video, index) => (
+                    <li key={index} className="flex items-center justify-between gap-2 py-2 px-3 bg-white border border-[#e8e8e3] rounded-lg">
+                      <span className="text-[13px] text-[#072929] truncate" title={video.resource_name}>
+                        {video.name || video.resource_name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeArrayItem("videos", index)}
+                        className="p-1.5 hover:bg-red-50 rounded transition-colors shrink-0"
+                        title="Remove video"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <button
                 type="button"
-                onClick={() => addArrayItem("videos", "")}
-                className="mt-2 text-[11.2px] text-[#136D6D] hover:underline"
+                onClick={() => { setAssetSelectorType("VIDEO"); setAssetSelectorOpen(true); }}
+                disabled={!profileId}
+                className="px-3 py-2 text-[11.2px] font-medium text-[#136D6D] border border-[#136D6D]/40 rounded-lg hover:bg-[#136D6D]/8 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                + Add Video
+                + Select video asset
               </button>
-              {errors.videos && (
-                <p className="text-[10px] text-red-500 mt-1">{errors.videos}</p>
+              {!profileId && (
+                <p className="text-[10px] text-[#556179] mt-1">Select a profile in the campaign to choose assets.</p>
               )}
+              {errors.videos && <p className="text-[10px] text-red-500 mt-1">{errors.videos}</p>}
             </div>
 
-            {/* Logo Images */}
+            {/* Logo Images: asset selection only */}
             <div className="mb-3">
-              <label className="form-label-small">
-                Logo Images *
-              </label>
-              {formData.logo_images.map((logo, index) => (
-                <div key={index} className="flex gap-2 mb-2">
-                  <input
-                    type="url"
-                    value={logo}
-                    onChange={(e) => updateArrayItem("logo_images", index, e.target.value)}
-                    className={`campaign-input flex-1 ${
-                      errors.logo_images && index === 0 ? "border-red-500" : ""
-                    }`}
-                    placeholder="Logo image URL"
-                  />
-                  {formData.logo_images.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeArrayItem("logo_images", index)}
-                      className="p-2 hover:bg-red-50 rounded transition-colors"
-                      title="Remove logo"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-600" />
-                    </button>
-                  )}
-                </div>
-              ))}
+              <label className="form-label-small">Logo images *</label>
+              {formData.logo_images.length > 0 && (
+                <ul className="space-y-2 mb-2">
+                  {formData.logo_images.map((logo, index) => (
+                    <li key={index} className="flex items-center justify-between gap-2 py-2 px-3 bg-white border border-[#e8e8e3] rounded-lg">
+                      <span className="text-[13px] text-[#072929] truncate" title={logo.resource_name}>
+                        {logo.name || logo.resource_name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeArrayItem("logo_images", index)}
+                        className="p-1.5 hover:bg-red-50 rounded transition-colors shrink-0"
+                        title="Remove logo"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <button
                 type="button"
-                onClick={() => addArrayItem("logo_images", "")}
-                className="mt-2 text-[11.2px] text-[#136D6D] hover:underline"
+                onClick={() => { setAssetSelectorType("LOGO"); setAssetSelectorOpen(true); }}
+                disabled={!profileId}
+                className="px-3 py-2 text-[11.2px] font-medium text-[#136D6D] border border-[#136D6D]/40 rounded-lg hover:bg-[#136D6D]/8 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                + Add Logo
+                + Select logo asset
               </button>
-              {errors.logo_images && (
-                <p className="text-[10px] text-red-500 mt-1">{errors.logo_images}</p>
-              )}
+              {errors.logo_images && <p className="text-[10px] text-red-500 mt-1">{errors.logo_images}</p>}
             </div>
           </div>
         )}
@@ -518,45 +571,80 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
             <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
               Multi Asset Ad Fields
             </h3>
-            
-            {/* Images */}
+            <p className="text-[11.2px] text-[#556179] mb-3">
+              Logo (1:1 square) is required. Add marketing images and optional videos for best performance.
+            </p>
+
+            {/* Logo images: required for Multi Asset */}
             <div className="mb-3">
-              <label className="form-label-small">
-                Images *
-              </label>
-              {formData.images.map((image, index) => (
-                <div key={index} className="flex gap-2 mb-2">
-                  <input
-                    type="url"
-                    value={image}
-                    onChange={(e) => updateArrayItem("images", index, e.target.value)}
-                    className={`campaign-input flex-1 ${
-                      errors.images && index === 0 ? "border-red-500" : ""
-                    }`}
-                    placeholder="Image URL"
-                  />
-                  {formData.images.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeArrayItem("images", index)}
-                      className="p-2 hover:bg-red-50 rounded transition-colors"
-                      title="Remove image"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-600" />
-                    </button>
-                  )}
-                </div>
-              ))}
+              <label className="form-label-small">Logo images *</label>
+              {formData.logo_images.length > 0 && (
+                <ul className="space-y-2 mb-2">
+                  {formData.logo_images.map((logo, index) => (
+                    <li key={index} className="flex items-center justify-between gap-2 py-2 px-3 bg-white border border-[#e8e8e3] rounded-lg">
+                      <span className="text-[13px] text-[#072929] truncate" title={logo.resource_name}>
+                        {logo.name || logo.resource_name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeArrayItem("logo_images", index)}
+                        className="p-1.5 hover:bg-red-50 rounded transition-colors shrink-0"
+                        title="Remove logo"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <button
                 type="button"
-                onClick={() => addArrayItem("images", "")}
-                className="mt-2 text-[11.2px] text-[#136D6D] hover:underline"
+                onClick={() => { setAssetSelectorType("LOGO"); setAssetSelectorOpen(true); }}
+                disabled={!profileId}
+                className="px-3 py-2 text-[11.2px] font-medium text-[#136D6D] border border-[#136D6D]/40 rounded-lg hover:bg-[#136D6D]/8 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                + Add Image
+                + Select logo asset
               </button>
-              {errors.images && (
-                <p className="text-[10px] text-red-500 mt-1">{errors.images}</p>
+              {!profileId && (
+                <p className="text-[10px] text-[#556179] mt-1">Select a profile in the campaign to choose assets.</p>
               )}
+              {errors.logo_images && <p className="text-[10px] text-red-500 mt-1">{errors.logo_images}</p>}
+            </div>
+
+            {/* Images: asset selection only */}
+            <div className="mb-3">
+              <label className="form-label-small">Marketing images *</label>
+              {formData.images.length > 0 && (
+                <ul className="space-y-2 mb-2">
+                  {formData.images.map((image, index) => (
+                    <li key={index} className="flex items-center justify-between gap-2 py-2 px-3 bg-white border border-[#e8e8e3] rounded-lg">
+                      <span className="text-[13px] text-[#072929] truncate" title={image.resource_name}>
+                        {image.name || image.resource_name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeArrayItem("images", index)}
+                        className="p-1.5 hover:bg-red-50 rounded transition-colors shrink-0"
+                        title="Remove image"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                onClick={() => { setAssetSelectorType("IMAGE"); setAssetSelectorOpen(true); }}
+                disabled={!profileId}
+                className="px-3 py-2 text-[11.2px] font-medium text-[#136D6D] border border-[#136D6D]/40 rounded-lg hover:bg-[#136D6D]/8 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                + Select image asset
+              </button>
+              {!profileId && (
+                <p className="text-[10px] text-[#556179] mt-1">Select a profile in the campaign to choose assets.</p>
+              )}
+              {errors.images && <p className="text-[10px] text-red-500 mt-1">{errors.images}</p>}
             </div>
           </div>
         )}
@@ -566,17 +654,57 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
             <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
               Carousel Ad Fields
             </h3>
+            <p className="text-[11.2px] text-[#556179] mb-3">
+              Logo (1:1 square) is required. Each card is one marketing image (2–10 cards). Use consistent aspect ratio. Headlines and descriptions come from the ad-level fields above.
+            </p>
+
+            {/* Logo image: required for Carousel (single logo used by API) */}
+            <div className="mb-3">
+              <label className="form-label-small">Logo image *</label>
+              <p className="text-[10px] text-[#556179] mb-1">Square 1:1 logo for branding. One logo is used for the carousel ad.</p>
+              {formData.logo_images.length > 0 && (
+                <ul className="space-y-2 mb-2">
+                  {formData.logo_images.map((logo, index) => (
+                    <li key={index} className="flex items-center justify-between gap-2 py-2 px-3 bg-white border border-[#e8e8e3] rounded-lg">
+                      <span className="text-[13px] text-[#072929] truncate" title={logo.resource_name}>
+                        {logo.name || logo.resource_name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeArrayItem("logo_images", index)}
+                        className="p-1.5 hover:bg-red-50 rounded transition-colors shrink-0"
+                        title="Remove logo"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                onClick={() => { setAssetSelectorType("LOGO"); setAssetSelectorOpen(true); }}
+                disabled={!profileId}
+                className="px-3 py-2 text-[11.2px] font-medium text-[#136D6D] border border-[#136D6D]/40 rounded-lg hover:bg-[#136D6D]/8 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                + Select logo asset
+              </button>
+              {!profileId && (
+                <p className="text-[10px] text-[#556179] mt-1">Select a profile in the campaign to choose assets.</p>
+              )}
+              {errors.logo_images && <p className="text-[10px] text-red-500 mt-1">{errors.logo_images}</p>}
+            </div>
             
-            {/* Carousel Cards */}
+            {/* Carousel Cards: only asset (image) per card; no per-card headline/description in API */}
             <div className="mb-3">
               <label className="form-label-small">
-                Carousel Cards *
+                Carousel Cards * (min 2)
               </label>
               {formData.carousel_cards.map((card, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-gray-900 text-sm">Card {index + 1}</h4>
-                    {formData.carousel_cards.length > 1 && (
+                    <h4 className="font-medium text-gray-900 text-sm">Card {index + 1} — Image</h4>
+                    {formData.carousel_cards.length > 2 && (
                       <button
                         type="button"
                         onClick={() => removeArrayItem("carousel_cards", index)}
@@ -587,73 +715,55 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
                       </button>
                     )}
                   </div>
-                  
-                  <div className="space-y-3">
-                    <div>
-                      <label className="form-label-small">
-                        Asset *
-                      </label>
-                      <input
-                        type="text"
-                        value={card.asset}
-                        onChange={(e) => updateArrayItem("carousel_cards", index, { ...card, asset: e.target.value })}
-                        className={`campaign-input w-full ${
-                          errors[`carousel_asset_${index}`] ? "border-red-500" : ""
-                        }`}
-                        placeholder="Asset resource name or URL"
-                      />
-                      {errors[`carousel_asset_${index}`] && (
-                        <p className="text-[10px] text-red-500 mt-1">{errors[`carousel_asset_${index}`]}</p>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <label className="form-label-small">
-                        Headline *
-                      </label>
-                      <input
-                        type="text"
-                        value={card.headline}
-                        onChange={(e) => updateArrayItem("carousel_cards", index, { ...card, headline: e.target.value })}
-                        className={`campaign-input w-full ${
-                          errors[`carousel_headline_${index}`] ? "border-red-500" : ""
-                        }`}
-                        placeholder="Card headline"
-                        maxLength={30}
-                      />
-                      {errors[`carousel_headline_${index}`] && (
-                        <p className="text-[10px] text-red-500 mt-1">{errors[`carousel_headline_${index}`]}</p>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <label className="form-label-small">
-                        Description *
-                      </label>
-                      <textarea
-                        value={card.description}
-                        onChange={(e) => updateArrayItem("carousel_cards", index, { ...card, description: e.target.value })}
-                        className={`campaign-input w-full resize-none ${
-                          errors[`carousel_description_${index}`] ? "border-red-500" : ""
-                        }`}
-                        placeholder="Card description"
-                        maxLength={90}
-                        rows={2}
-                      />
-                      {errors[`carousel_description_${index}`] && (
-                        <p className="text-[10px] text-red-500 mt-1">{errors[`carousel_description_${index}`]}</p>
-                      )}
-                    </div>
+                  <div>
+                    <p className="text-[11.2px] text-[#556179] mb-1">
+                      Select a marketing image asset from the asset library.
+                    </p>
+                    {card.asset ? (
+                      <div className="flex items-center justify-between gap-2 py-2 px-3 bg-white border border-[#e8e8e3] rounded-lg">
+                        <span className="text-[13px] text-[#072929] truncate" title={card.asset}>
+                          {card.assetName || card.asset}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => updateArrayItem("carousel_cards", index, { ...card, asset: "", assetName: undefined })}
+                          className="p-1.5 hover:bg-red-50 rounded transition-colors shrink-0"
+                          title="Clear asset"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600" />
+                        </button>
+                      </div>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssetSelectorType("CAROUSEL_IMAGE");
+                        setCarouselAssetSelectorIndex(index);
+                        setAssetSelectorOpen(true);
+                      }}
+                      disabled={!profileId}
+                      className="mt-1 px-3 py-2 text-[11.2px] font-medium text-[#136D6D] border border-[#136D6D]/40 rounded-lg hover:bg-[#136D6D]/8 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {card.asset ? "Change asset" : "Select image asset"}
+                    </button>
+                    {!profileId && (
+                      <p className="text-[10px] text-[#556179] mt-1">Select a profile in the campaign to choose assets.</p>
+                    )}
+                    {errors[`carousel_asset_${index}`] && (
+                      <p className="text-[10px] text-red-500 mt-1">{errors[`carousel_asset_${index}`]}</p>
+                    )}
                   </div>
                 </div>
               ))}
-              <button
-                type="button"
-                onClick={() => addArrayItem("carousel_cards", { asset: "", headline: "", description: "" })}
-                className="mt-2 text-[11.2px] text-[#136D6D] hover:underline"
-              >
-                + Add Card
-              </button>
+              {formData.carousel_cards.length < 10 && (
+                <button
+                  type="button"
+                  onClick={() => addArrayItem("carousel_cards", { asset: "" })}
+                  className="mt-2 text-[11.2px] text-[#136D6D] hover:underline"
+                >
+                  + Add Card
+                </button>
+              )}
               {errors.carousel_cards && (
                 <p className="text-[10px] text-red-500 mt-1">{errors.carousel_cards}</p>
               )}
@@ -687,6 +797,37 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
           {loading ? "Creating..." : "Create Ad"}
         </button>
       </div>
+
+      {profileId != null && (
+        <AssetSelectorModal
+          isOpen={assetSelectorOpen}
+          onClose={() => {
+            setAssetSelectorOpen(false);
+            setCarouselAssetSelectorIndex(null);
+          }}
+          onSelect={handleSelectAsset}
+          profileId={profileId}
+          assetType={
+            assetSelectorType === "VIDEO"
+              ? "YOUTUBE_VIDEO"
+              : "IMAGE"
+          }
+          title={
+            assetSelectorType === "VIDEO"
+              ? "Select video asset"
+              : assetSelectorType === "LOGO"
+                ? "Select Logo"
+                : "Select image asset"
+          }
+          initialTab={
+            assetSelectorType === "VIDEO"
+              ? "YouTube Video"
+              : assetSelectorType === "LOGO"
+                ? "Logo"
+                : "Image"
+          }
+        />
+      )}
     </div>
   );
 };
