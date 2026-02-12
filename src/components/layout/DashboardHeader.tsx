@@ -155,6 +155,10 @@ export const DashboardHeader: React.FC = () => {
   );
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [accountSearchQuery, setAccountSearchQuery] = useState("");
+  const [hoveredAccountPosition, setHoveredAccountPosition] = useState<{
+    top: number;
+    accountId: number;
+  } | null>(null);
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -307,8 +311,8 @@ export const DashboardHeader: React.FC = () => {
   // Filter accounts based on search query
   const filteredAccounts = accountSearchQuery.trim()
     ? accounts.filter((acc) =>
-        acc.name.toLowerCase().includes(accountSearchQuery.toLowerCase())
-      )
+      acc.name.toLowerCase().includes(accountSearchQuery.toLowerCase())
+    )
     : accounts;
   // When URL has channelId (e.g. Amazon/TikTok with multiple channels), show that channel; else first of current marketplace type
   const urlChannelId = getChannelIdFromUrl(location.pathname);
@@ -451,7 +455,9 @@ export const DashboardHeader: React.FC = () => {
                   autoFocus
                 />
               </div>
-              <ul>
+              {/* Scrollable accounts list - max 10 items visible */}
+              <div className="max-h-[400px] overflow-y-auto">
+                <ul>
                 {filteredAccounts.length === 0 && accountSearchQuery ? (
                   <li className="px-3 py-4 text-center">
                     <p className="text-[12.32px] text-[#556179]">
@@ -482,22 +488,34 @@ export const DashboardHeader: React.FC = () => {
                       <li key={account.id} className="relative">
                         <button
                           onMouseDown={(e) => e.stopPropagation()}
-                          onMouseEnter={() => {
+                          onMouseEnter={(e) => {
                             if (hoverTimeoutRef.current) {
                               clearTimeout(hoverTimeoutRef.current);
                               hoverTimeoutRef.current = null;
                             }
                             setExpandedAccountId(account.id);
+                            // Calculate position relative to the main dropdown container
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const mainDropdownContainer = accountDropdownRef.current?.querySelector('.absolute.top-\\[42px\\]');
+                            if (mainDropdownContainer) {
+                              const containerRect = mainDropdownContainer.getBoundingClientRect();
+                              setHoveredAccountPosition({
+                                top: rect.top - containerRect.top,
+                                accountId: account.id,
+                              });
+                            }
                           }}
                           onMouseLeave={() => {
                             hoverTimeoutRef.current = window.setTimeout(() => {
                               setExpandedAccountId(null);
+                              setHoveredAccountPosition(null);
                             }, 150);
                           }}
                           onClick={() => {
                             navigate(`/brands/${account.id}/integrations`);
                             setIsAccountDropdownOpen(false);
                             setExpandedAccountId(null);
+                            setHoveredAccountPosition(null);
                           }}
                           className={`w-full flex items-center gap-2 px-3 py-2 text-[12.32px] text-left ${expandedAccountId === account.id
                             ? "bg-gray-50"
@@ -527,38 +545,48 @@ export const DashboardHeader: React.FC = () => {
                             />
                           </svg>
                         </button>
-
-                        {expandedAccountId === account.id && (
-                          <div
-                            className="absolute top-0 left-full"
-                            onMouseEnter={() => {
-                              if (hoverTimeoutRef.current) {
-                                clearTimeout(hoverTimeoutRef.current);
-                                hoverTimeoutRef.current = null;
-                              }
-                              setExpandedAccountId(account.id);
-                            }}
-                            onMouseLeave={() => {
-                              setExpandedAccountId(null);
-                            }}
-                          >
-                            <AccountChannelsList
-                              accountId={account.id}
-                              channels={account.channels || []}
-                              navigate={navigate}
-                              onClose={() => {
-                                setIsAccountDropdownOpen(false);
-                                setExpandedAccountId(null);
-                              }}
-                              entity={currentEntity || "campaigns"}
-                            />
-                          </div>
-                        )}
                       </li>
                     );
                   })
                 )}
               </ul>
+            </div>
+
+              {/* Channels dropdown - rendered outside scrollable container */}
+            {expandedAccountId && hoveredAccountPosition && (
+              <div
+                className="absolute left-full"
+                style={{ top: hoveredAccountPosition.top }}
+                onMouseEnter={() => {
+                  if (hoverTimeoutRef.current) {
+                    clearTimeout(hoverTimeoutRef.current);
+                    hoverTimeoutRef.current = null;
+                  }
+                }}
+                onMouseLeave={() => {
+                  setExpandedAccountId(null);
+                  setHoveredAccountPosition(null);
+                }}
+              >
+                {(() => {
+                  const account = accounts.find(acc => acc.id === expandedAccountId);
+                  if (!account) return null;
+                  return (
+                    <AccountChannelsList
+                      accountId={account.id}
+                      channels={account.channels || []}
+                      navigate={navigate}
+                      onClose={() => {
+                        setIsAccountDropdownOpen(false);
+                        setExpandedAccountId(null);
+                        setHoveredAccountPosition(null);
+                      }}
+                      entity={currentEntity || "campaigns"}
+                    />
+                  );
+                })()}
+              </div>
+            )}
             </div>
           )}
         </div>
