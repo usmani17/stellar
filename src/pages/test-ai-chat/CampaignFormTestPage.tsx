@@ -14,6 +14,19 @@ const ALL_FIELD_GROUPS: { label: string; keys: string[] }[] = [
   { label: "Demand Gen", keys: ["final_url", "video_id", "video_url", "logo_url", "business_name", "headlines", "descriptions", "long_headlines", "ad_group_name", "ad_name", "channel_controls"] },
   { label: "Search", keys: ["adgroup_name", "keywords", "match_type"] },
   { label: "Shopping", keys: ["merchant_id", "sales_country", "campaign_priority", "enable_local"] },
+  {
+    label: "Targeting (Network, Device, Language, Location, URL)",
+    keys: [
+      "network_settings",
+      "device_ids",
+      "language_ids",
+      "location_ids",
+      "excluded_location_ids",
+      "tracking_url_template",
+      "final_url_suffix",
+      "url_custom_parameters",
+    ],
+  },
 ];
 
 const CAMPAIGN_TYPES = ["SEARCH", "SHOPPING", "DEMAND_GEN", "PERFORMANCE_MAX"] as const;
@@ -55,6 +68,26 @@ export const CampaignFormTestPage: React.FC = () => {
   const clearAll = () => setSelectedKeys(new Set());
   const biddingStrategyOnly = () =>
     setSelectedKeys(new Set(["name", "campaign_type", "budget_amount", "bidding_strategy_type"]));
+  const searchWithTargeting = () =>
+    setSelectedKeys(
+      new Set([
+        "name",
+        "campaign_type",
+        "budget_amount",
+        "bidding_strategy_type",
+        "adgroup_name",
+        "keywords",
+        "match_type",
+        "network_settings",
+        "device_ids",
+        "language_ids",
+        "location_ids",
+        "excluded_location_ids",
+        "tracking_url_template",
+        "final_url_suffix",
+        "url_custom_parameters",
+      ])
+    );
 
   const questionsSchema: CurrentQuestionSchemaItem[] = Array.from(selectedKeys).map((key) => ({
     key,
@@ -159,6 +192,13 @@ export const CampaignFormTestPage: React.FC = () => {
               className="px-3 py-1.5 text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200 rounded hover:bg-amber-200"
             >
               Bidding strategy only (conditional fields)
+            </button>
+            <button
+              type="button"
+              onClick={searchWithTargeting}
+              className="px-3 py-1.5 text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200 rounded hover:bg-purple-200"
+            >
+              Search + Targeting (network, device, language, location, URL)
             </button>
           </div>
           {ALL_FIELD_GROUPS.map((group) => (

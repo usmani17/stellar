@@ -33,6 +33,10 @@ interface BaseGoogleCampaignFormProps {
   onQuickFillShopping?: () => void;
   onQuickFillSearch?: () => void;
   onQuickFillDemandGen?: () => void;
+  /** When true, hide Google Ads Account selector (e.g. on draft detail page) */
+  hideProfileSelector?: boolean;
+  /** When true, hide Campaign Type selector and quick fill buttons */
+  hideCampaignType?: boolean;
 }
 
 export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
@@ -55,11 +59,14 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
   onQuickFillShopping,
   onQuickFillSearch,
   onQuickFillDemandGen,
+  hideProfileSelector = false,
+  hideCampaignType = false,
 }) => {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Google Ads Account (Profile) - always show to prevent layout shift */}
+        {/* Google Ads Account (Profile) - hidden on draft detail page */}
+        {!hideProfileSelector && (
         <div>
           <label className="form-label">
             Google Ads Account *
@@ -100,8 +107,10 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
             </p>
           )}
         </div>
+        )}
 
-        {/* Campaign Type */}
+        {/* Campaign Type - hidden on draft detail page */}
+        {!hideCampaignType && (
         <div>
           <label className="form-label">
             Campaign Type *
@@ -167,6 +176,7 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
             </p>
           )}
         </div>
+        )}
 
         {/* Campaign Name */}
         <div>
@@ -207,13 +217,13 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
                 onChange("budget_amount", numValue);
               } else if (value === "") {
                 // Allow empty value while typing
-                onChange("budget_amount", "");
+                onChange("budget_amount", undefined);
               }
             }}
             onBlur={(e) => {
               const value = e.target.value;
               if (value === "") {
-                onChange("budget_amount", 0);
+                onChange("budget_amount", undefined);
               }
             }}
             className={`campaign-input w-full ${errors.budget_amount ? "border-red-500" : ""

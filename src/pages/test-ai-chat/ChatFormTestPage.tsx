@@ -15,6 +15,19 @@ const ALL_FIELD_GROUPS: { label: string; keys: string[] }[] = [
   { label: "Demand Gen", keys: ["final_url", "video_id", "video_url", "logo_url", "business_name", "headlines", "descriptions", "long_headlines", "ad_group_name", "ad_name", "channel_controls"] },
   { label: "Search", keys: ["adgroup_name", "keywords", "match_type"] },
   { label: "Shopping", keys: ["merchant_id", "sales_country", "campaign_priority", "enable_local"] },
+  {
+    label: "Targeting (Network, Device, Language, Location, URL)",
+    keys: [
+      "network_settings",
+      "device_ids",
+      "language_ids",
+      "location_ids",
+      "excluded_location_ids",
+      "tracking_url_template",
+      "final_url_suffix",
+      "url_custom_parameters",
+    ],
+  },
 ];
 
 const CAMPAIGN_TYPES = ["SEARCH", "SHOPPING", "DEMAND_GEN", "PERFORMANCE_MAX"] as const;
@@ -59,6 +72,26 @@ export const ChatFormTestPage: React.FC = () => {
   const clearAll = () => setSelectedKeys(new Set());
   const biddingStrategyOnly = () =>
     setSelectedKeys(new Set(["name", "campaign_type", "budget_amount", "bidding_strategy_type"]));
+  const searchWithTargeting = () =>
+    setSelectedKeys(
+      new Set([
+        "name",
+        "campaign_type",
+        "budget_amount",
+        "bidding_strategy_type",
+        "adgroup_name",
+        "keywords",
+        "match_type",
+        "network_settings",
+        "device_ids",
+        "language_ids",
+        "location_ids",
+        "excluded_location_ids",
+        "tracking_url_template",
+        "final_url_suffix",
+        "url_custom_parameters",
+      ])
+    );
 
   const questionsSchema: CurrentQuestionSchemaItem[] = Array.from(selectedKeys).map((key) => ({
     key,
@@ -140,10 +173,11 @@ export const ChatFormTestPage: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-[#072929]">Fields to show</span>
-              <div className="flex gap-1">
+                <div className="flex gap-1 flex-wrap">
                 <button type="button" onClick={selectAll} className="text-[10px] text-[#136D6D] hover:underline">All</button>
                 <button type="button" onClick={clearAll} className="text-[10px] text-gray-500 hover:underline">Clear</button>
                 <button type="button" onClick={biddingStrategyOnly} className="text-[10px] text-amber-600 hover:underline">Bidding only</button>
+                <button type="button" onClick={searchWithTargeting} className="text-[10px] text-purple-600 hover:underline">Search + Targeting</button>
               </div>
             </div>
             {ALL_FIELD_GROUPS.map((group) => (

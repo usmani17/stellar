@@ -49,11 +49,12 @@ const TEST_METADATA = {
   auth_token: "123123123",
 } as const;
 
+/** Same prompts as Assistant panel (CAMPAIGN_SUGGESTED_PROMPTS in AssistantContext) */
 const SUGGESTED_PROMPTS = [
-  "Create a Demand Gen campaign",
-  "Set up a Search campaign",
-  "Create a Performance Max campaign",
-  "I want to create a YouTube video campaign",
+  { id: "c1", text: "Create a Demand Gen (YouTube) campaign" },
+  { id: "c2", text: "Set up a Search campaign" },
+  { id: "c3", text: "Create a Performance Max campaign" },
+  { id: "c4", text: "Create a Shopping campaign" },
 ];
 
 function extractTextContent(content: ThreadMessage["content"]): string {
@@ -373,18 +374,21 @@ export const TestAIChatToolsPage: React.FC = () => {
             <p className="text-sm text-gray-600 text-center max-w-sm">
               Test the campaign creation flow with proper streaming and tool call display.
             </p>
-            <div className="flex flex-col gap-2 w-full max-w-sm">
-              <p className="text-xs font-medium text-[#556179]">Suggested prompts:</p>
-              {SUGGESTED_PROMPTS.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => setInputValue(prompt)}
-                  className="text-left px-4 py-3 rounded-lg border border-[#E8E8E3] bg-white hover:border-[#136D6D] hover:bg-[#136D6D]/5 text-sm text-[#072929] transition-colors"
-                >
-                  {prompt}
-                </button>
-              ))}
+            <div className="flex flex-col gap-2 w-full max-w-md">
+              <p className="text-sm text-gray-600 mb-3">Would you like to:</p>
+              <div className="flex flex-col gap-2">
+                {SUGGESTED_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt.id}
+                    type="button"
+                    onClick={() => sendChatMessage(prompt.text)}
+                    className="assistant-prompt-button"
+                    disabled={isStreaming}
+                  >
+                    {prompt.text}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         ) : (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -7,6 +7,10 @@ import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { entitiesDraftsService, type EntityDraft } from "../services/ai/entitiesDrafts";
 import { formatPlatform, formatCurrentStatus, formatCampaignType } from "../utils/formatDraftLabels";
 import { Alert, Loader } from "../components/ui";
+import { CreateGoogleCampaignPanel, type CreateGoogleCampaignData } from "../components/google/CreateGoogleCampaignPanel";
+import { getDefaultFormData } from "../components/google/campaigns/utils";
+import { googleAdwordsCampaignsService } from "../services/googleAdwords/googleAdwordsCampaigns";
+import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../components/google/CreateGooglePmaxAssetGroupPanel";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -22,6 +26,47 @@ function formatDate(iso: string | null): string {
   } catch {
     return iso;
   }
+}
+
+function parseDraftToInitialData(draft: EntityDraft): Partial<CreateGoogleCampaignData> | null {
+  const rawJson = draft.draft_json;
+  if (rawJson == null) return null;
+  let parsed: Record<string, unknown>;
+  if (typeof rawJson === "string") {
+    try {
+      parsed = JSON.parse(rawJson) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  } else {
+    parsed = rawJson as Record<string, unknown>;
+  }
+  const ct = ((draft.campaign_type || parsed.campaign_type) as string) || "SEARCH";
+  const campaignType = String(ct).toUpperCase();
+  const defaults = getDefaultFormData(campaignType) as CreateGoogleCampaignData;
+  const merged: Partial<CreateGoogleCampaignData> = {
+    ...defaults,
+    campaign_type: (defaults.campaign_type || campaignType || "SEARCH") as CreateGoogleCampaignData["campaign_type"],
+    ...(parsed as Partial<CreateGoogleCampaignData>),
+  };
+  if (draft.profile_id && !merged.profile_id) {
+    merged.profile_id = String(draft.profile_id);
+  }
+  // Normalize types for form compatibility
+  if (merged.budget_amount != null && typeof merged.budget_amount !== "number") {
+    const num = parseFloat(String(merged.budget_amount));
+    merged.budget_amount = !isNaN(num) ? num : 0;
+  }
+  if (merged.name != null && typeof merged.name !== "string") {
+    merged.name = String(merged.name);
+  }
+  if (merged.start_date != null && typeof merged.start_date === "string" && merged.start_date.length >= 10) {
+    merged.start_date = merged.start_date.slice(0, 10);
+  }
+  if (merged.end_date != null && typeof merged.end_date === "string" && merged.end_date.length >= 10) {
+    merged.end_date = merged.end_date.slice(0, 10);
+  }
+  return merged;
 }
 
 export const DraftDetail: React.FC = () => {
@@ -40,6 +85,9 @@ export const DraftDetail: React.FC = () => {
   const [publishLoading, setPublishLoading] = useState(false);
   const [publishError, setPublishError] = useState("");
   const [publishSuccess, setPublishSuccess] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [createSuccess, setCreateSuccess] = useState<{ campaignId: string | number; campaignName: string } | null>(null);
 
   useEffect(() => {
     if (!draftId) {
@@ -82,6 +130,82 @@ export const DraftDetail: React.FC = () => {
         setPublishError(msg);
       })
       .finally(() => setPublishLoading(false));
+  };
+
+  const isGoogleCampaignDraft =
+    draft &&
+    (draft.platform || "").toLowerCase() === "google" &&
+    (draft.level || "").toLowerCase() === "campaign";
+
+  const initialCampaignData = useMemo(() => {
+    if (!draft || !isGoogleCampaignDraft) return null;
+    return parseDraftToInitialData(draft);
+  }, [draft, isGoogleCampaignDraft]);
+
+  const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
+    if (!accountIdNum || !channelIdNum || isNaN(accountIdNum) || isNaN(channelIdNum)) {
+      setCreateError("Account and channel are required");
+      return;
+    }
+    setCreateLoading(true);
+    setCreateError(null);
+    setCreateSuccess(null);
+    try {
+      let payload: Record<string, unknown> = { ...(data as unknown as Record<string, unknown>) };
+      if (draft?.profile_id && !payload.profile_id) {
+        payload.profile_id = String(draft.profile_id);
+      }
+      if (
+        data.campaign_type === "PERFORMANCE_MAX" &&
+        !SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION
+      ) {
+        const {
+          asset_group_name,
+          headlines,
+          descriptions,
+          long_headlines,
+          marketing_image_url,
+          square_marketing_image_url,
+          headline_asset_resource_names,
+          description_asset_resource_names,
+          long_headline_asset_resource_names,
+          marketing_image_asset_resource_name,
+          square_marketing_image_asset_resource_name,
+          video_asset_resource_names,
+          sitelink_asset_resource_names,
+          callout_asset_resource_names,
+          headline_asset_ids,
+          description_asset_ids,
+          long_headline_asset_ids,
+          marketing_image_asset_id,
+          square_marketing_image_asset_id,
+          video_asset_ids,
+          sitelink_asset_ids,
+          callout_asset_ids,
+          ...rest
+        } = payload;
+        payload = rest;
+      }
+      const response = await googleAdwordsCampaignsService.createGoogleCampaign(
+        accountIdNum,
+        channelIdNum,
+        payload as Parameters<typeof googleAdwordsCampaignsService.createGoogleCampaign>[2]
+      );
+      const newCampaignId = response?.campaign_id;
+      setCreateSuccess({
+        campaignId: newCampaignId ?? "",
+        campaignName: data.name,
+      });
+    } catch (err: unknown) {
+      const errObj = err as { response?: { data?: { error?: string } }; message?: string };
+      const msg =
+        errObj?.response?.data?.error ??
+        errObj?.message ??
+        "Failed to create campaign";
+      setCreateError(msg);
+    } finally {
+      setCreateLoading(false);
+    }
   };
 
   const rawJson = draft?.draft_json;
@@ -141,7 +265,7 @@ export const DraftDetail: React.FC = () => {
                   <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
                     Draft: {draft.name ?? draft.draft_id}
                   </h1>
-                  {canPublish && (
+                  {canPublish && !isGoogleCampaignDraft && (
                     <button
                       type="button"
                       onClick={handlePublish}
@@ -160,6 +284,29 @@ export const DraftDetail: React.FC = () => {
                   <Alert variant="error">
                     {publishError}
                   </Alert>
+                )}
+                {createSuccess && (
+                  <Alert variant="success">
+                    Campaign &quot;{createSuccess.campaignName}&quot; created successfully!{" "}
+                    {createSuccess.campaignId && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          accountIdNum &&
+                          channelIdNum &&
+                          navigate(
+                            `/brands/${accountIdNum}/${channelIdNum}/google/campaigns/${createSuccess.campaignId}`
+                          )
+                        }
+                        className="underline ml-1 font-medium"
+                      >
+                        View Campaign
+                      </button>
+                    )}
+                  </Alert>
+                )}
+                {createError && (
+                  <Alert variant="error">{createError}</Alert>
                 )}
 
                 <div className="space-y-6">
@@ -214,14 +361,32 @@ export const DraftDetail: React.FC = () => {
                     </div>
                   )}
 
-                  <section>
-                    <h2 className="text-[16px] font-semibold text-[#072929] mb-2">Generated JSON</h2>
-                    <div className="rounded-xl border border-[#e8e8e3] bg-[#f9f9f6] max-h-[280px] min-h-0 overflow-hidden">
-                      <pre className="p-4 text-[13px] font-mono whitespace-pre-wrap break-all overflow-auto h-full max-h-[280px] m-0">
-                        {draftJsonString || "{}"}
-                      </pre>
-                    </div>
-                  </section>
+                  {isGoogleCampaignDraft && accountIdNum && channelIdNum ? (
+                    <section>
+                      <CreateGoogleCampaignPanel
+                        isOpen={true}
+                        onClose={() => navigate(draftsListPath)}
+                        onSubmit={handleCreateGoogleCampaign}
+                        accountId={String(accountIdNum)}
+                        channelId={String(channelIdNum)}
+                        loading={createLoading}
+                        submitError={createError}
+                        mode="create"
+                        initialData={initialCampaignData}
+                        hideProfileSelector={true}
+                        hideCampaignType={true}
+                      />
+                    </section>
+                  ) : (
+                    <section>
+                      <h2 className="text-[16px] font-semibold text-[#072929] mb-2">Generated JSON</h2>
+                      <div className="rounded-xl border border-[#e8e8e3] bg-[#f9f9f6] max-h-[280px] min-h-0 overflow-hidden">
+                        <pre className="p-4 text-[13px] font-mono whitespace-pre-wrap break-all overflow-auto h-full max-h-[280px] m-0">
+                          {draftJsonString || "{}"}
+                        </pre>
+                      </div>
+                    </section>
+                  )}
                 </div>
               </>
             )}

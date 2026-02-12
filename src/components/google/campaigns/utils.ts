@@ -187,7 +187,7 @@ export const getDefaultFormData = (campaignType: string): Partial<CreateGoogleCa
   const base = {
     campaign_type: campaignType as CreateGoogleCampaignData["campaign_type"],
     name: "",
-    budget_amount: 0,
+    budget_amount: undefined,
     budget_name: "",
     status: "PAUSED" as const,
     bidding_strategy_type: getDefaultBiddingStrategy(campaignType),

@@ -20,6 +20,10 @@ export interface CreateGoogleCampaignPanelProps {
   initialData?: Partial<CreateGoogleCampaignData> | null;
   campaignId?: string | number;
   refreshMessage?: RefreshMessage | null;
+  /** When true (e.g. draft detail page), hide Google Ads Account selector */
+  hideProfileSelector?: boolean;
+  /** When true (e.g. draft detail page), hide Campaign Type selector and quick fill buttons */
+  hideCampaignType?: boolean;
 }
 
 export interface CreateGoogleCampaignData {
@@ -27,7 +31,7 @@ export interface CreateGoogleCampaignData {
   customer_id?: string;
   profile_id?: string; // Google profile id (backend can resolve by this or customer_id)
   name: string;
-  budget_amount: number;
+  budget_amount?: number; // Optional; empty by default in create form
   budget_name?: string;
   start_date?: string; // YYYY-MM-DD format
   end_date?: string; // YYYY-MM-DD format

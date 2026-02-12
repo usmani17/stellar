@@ -7,9 +7,12 @@ import React, { useState, useCallback, useEffect, forwardRef, useImperativeHandl
 import type { CreateGoogleCampaignData } from "../google/campaigns/types";
 import { GoogleBiddingStrategyForm } from "../google/campaigns/GoogleBiddingStrategyForm";
 import { GoogleDemandGenCampaignForm } from "../google/campaigns/GoogleDemandGenCampaignForm";
+import { GoogleLanguageTargetingForm } from "../google/campaigns/GoogleLanguageTargetingForm";
+import { GoogleLocationTargetingForm } from "../google/campaigns/GoogleLocationTargetingForm";
+import { GoogleTrackingTemplateForm } from "../google/campaigns/GoogleTrackingTemplateForm";
 import { Dropdown } from "../ui/Dropdown";
 import { getFieldLabel } from "./campaignFormFieldLabels";
-import { getDefaultFormData, SALES_COUNTRY_OPTIONS, CAMPAIGN_PRIORITY_OPTIONS } from "../google/campaigns/utils";
+import { getDefaultFormData, SALES_COUNTRY_OPTIONS, CAMPAIGN_PRIORITY_OPTIONS, DEVICE_OPTIONS } from "../google/campaigns/utils";
 import { campaignsService } from "../../services/campaigns";
 import type { CurrentQuestionSchemaItem } from "../../types/agent";
 
@@ -44,6 +47,31 @@ const DEMAND_GEN_FIELD_KEYS = [
 
 const SEARCH_FIELD_KEYS = ["adgroup_name", "keywords", "match_type"];
 const SHOPPING_FIELD_KEYS = ["merchant_id", "sales_country", "campaign_priority", "enable_local"];
+const TARGETING_FIELD_KEYS = [
+  "network_settings",
+  "device_ids",
+  "language_ids",
+  "location_ids",
+  "excluded_location_ids",
+  "tracking_url_template",
+  "final_url_suffix",
+  "url_custom_parameters",
+];
+
+/** Campaign types that support each targeting field */
+const TARGETING_BY_CAMPAIGN_TYPE: Record<string, string[]> = {
+  SEARCH: TARGETING_FIELD_KEYS,
+  SHOPPING: ["device_ids", "language_ids", "location_ids", "excluded_location_ids", "tracking_url_template", "final_url_suffix", "url_custom_parameters"],
+  PERFORMANCE_MAX: ["device_ids", "language_ids", "location_ids", "excluded_location_ids", "tracking_url_template", "final_url_suffix", "url_custom_parameters"],
+  DEMAND_GEN: ["tracking_url_template", "final_url_suffix", "url_custom_parameters"],
+};
+
+function targetingKeySupported(campaignType: string, key: string): boolean {
+  const allowed = TARGETING_BY_CAMPAIGN_TYPE[campaignType];
+  if (!allowed) return false;
+  return allowed.includes(key);
+}
+
 const PMAX_FIELD_KEYS = [
   "final_url",
   "asset_group_name",
@@ -63,8 +91,9 @@ function getKeysForForm(schema: CurrentQuestionSchemaItem[]): string[] {
 function pickKeys<T extends Record<string, unknown>>(obj: T, keys: string[]): Partial<T> {
   const out: Partial<T> = {};
   for (const k of keys) {
-    if (k in obj && obj[k] !== undefined && obj[k] !== "") {
-      out[k as keyof T] = obj[k];
+    const val = obj[k];
+    if (k in obj && val !== undefined && val !== null && val !== "") {
+      out[k as keyof T] = val as T[keyof T];
     }
   }
   return out;
@@ -72,7 +101,23 @@ function pickKeys<T extends Record<string, unknown>>(obj: T, keys: string[]): Pa
 
 function formatValue(v: unknown): string {
   if (v == null) return "";
-  if (Array.isArray(v)) return v.filter(Boolean).join(", ");
+  if (Array.isArray(v)) {
+    const first = v[0];
+    if (first && typeof first === "object" && "key" in first && "value" in first) {
+      return (v as Array<{ key: string; value: string }>)
+        .filter((p) => p.key || p.value)
+        .map((p) => `${p.key}=${p.value}`)
+        .join(", ");
+    }
+    return v.filter(Boolean).join(", ");
+  }
+  if (typeof v === "object" && v !== null && "target_search_network" in v) {
+    const ns = v as { target_search_network?: boolean; target_content_network?: boolean };
+    const parts: string[] = [];
+    if (ns.target_search_network) parts.push("Search Network");
+    if (ns.target_content_network) parts.push("Display Network");
+    return parts.length > 0 ? parts.join(", ") : "None";
+  }
   if (typeof v === "object") return JSON.stringify(v);
   return String(v);
 }
@@ -87,6 +132,10 @@ export interface CampaignFormForChatProps {
   accountId?: string;
   channelId?: string;
   googleProfiles?: Array<{ value: string; label: string; customer_id: string; customer_id_raw: string; profile_id?: number }>;
+  /** Optional: language options for Language Targeting (required for language_ids to work) */
+  languageOptions?: Array<{ value: string; label: string; id: string }>;
+  /** Optional: location options for Location Targeting (required for location_ids to work) */
+  locationOptions?: Array<{ value: string; label: string; id: string; type: string; countryCode: string }>;
 }
 
 export interface CampaignFormForChatHandle {
@@ -104,6 +153,8 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   accountId,
   channelId,
   googleProfiles = [],
+  languageOptions = [],
+  locationOptions = [],
 }, ref) => {
   const requestedKeys = getKeysForForm(questionsSchema);
   const ct = (campaignType || "").toUpperCase();
@@ -182,11 +233,30 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
         }
         keysToUse = [...new Set(keysToUse)];
       }
+      if (
+        requestedKeys.includes("tracking_url_template") ||
+        requestedKeys.includes("final_url_suffix") ||
+        requestedKeys.includes("url_custom_parameters")
+      ) {
+        keysToUse.push("tracking_url_template", "final_url_suffix", "url_custom_parameters");
+        keysToUse = [...new Set(keysToUse)];
+      }
       const vals: Record<string, string> = {};
       for (const k of keysToUse) {
         const v = formData[k as keyof CreateGoogleCampaignData];
         if (v !== undefined && v !== "" && v != null) {
-          vals[k] = Array.isArray(v) ? v.join("\n") : typeof v === "object" ? JSON.stringify(v) : String(v);
+          if (k === "url_custom_parameters" && Array.isArray(v)) {
+            vals[k] = (v as Array<{ key: string; value: string }>)
+              .filter((p) => p.key || p.value)
+              .map((p) => `${p.key}=${p.value}`)
+              .join("\n");
+          } else if (Array.isArray(v)) {
+            vals[k] = v.join("\n");
+          } else if (typeof v === "object") {
+            vals[k] = JSON.stringify(v);
+          } else {
+            vals[k] = String(v);
+          }
         }
       }
       return vals;
@@ -214,23 +284,33 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
     let keysToSubmit = [...requestedKeys];
     if (requestedKeys.includes("bidding_strategy_type")) {
       const strat = formData.bidding_strategy_type;
-      if (strat === "TARGET_CPA" && formData.target_cpa_micros != null && formData.target_cpa_micros !== "")
+      if (strat === "TARGET_CPA" && typeof formData.target_cpa_micros === "number")
         keysToSubmit.push("target_cpa_micros");
-      if (strat === "TARGET_ROAS" && formData.target_roas != null && formData.target_roas !== "")
+      if (strat === "TARGET_ROAS" && typeof formData.target_roas === "number")
         keysToSubmit.push("target_roas");
-      if (strat === "TARGET_SPEND" && formData.target_spend_micros != null && formData.target_spend_micros !== "")
+      if (strat === "TARGET_SPEND" && typeof formData.target_spend_micros === "number")
         keysToSubmit.push("target_spend_micros");
       if (strat === "TARGET_IMPRESSION_SHARE") {
         if (formData.target_impression_share_location) keysToSubmit.push("target_impression_share_location");
-        if (formData.target_impression_share_location_fraction_micros != null && formData.target_impression_share_location_fraction_micros !== "")
+        if (typeof formData.target_impression_share_location_fraction_micros === "number")
           keysToSubmit.push("target_impression_share_location_fraction_micros");
-        if (formData.target_impression_share_cpc_bid_ceiling_micros != null && formData.target_impression_share_cpc_bid_ceiling_micros !== "")
+        if (typeof formData.target_impression_share_cpc_bid_ceiling_micros === "number")
           keysToSubmit.push("target_impression_share_cpc_bid_ceiling_micros");
       }
       keysToSubmit = [...new Set(keysToSubmit)];
     }
 
-    const values = pickKeys(formData, keysToSubmit);
+    // When any tracking URL key is requested, include all tracking elements in submit (tracking_url_template, final_url_suffix, url_custom_parameters)
+    const hasAnyTrackingKey =
+      requestedKeys.includes("tracking_url_template") ||
+      requestedKeys.includes("final_url_suffix") ||
+      requestedKeys.includes("url_custom_parameters");
+    if (hasAnyTrackingKey) {
+      keysToSubmit.push("tracking_url_template", "final_url_suffix", "url_custom_parameters");
+      keysToSubmit = [...new Set(keysToSubmit)];
+    }
+
+    const values = pickKeys(formData as unknown as Record<string, unknown>, keysToSubmit);
     const parts = keysToSubmit
       .map((key) => {
         const v = values[key];
@@ -254,10 +334,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const searchKeys = requestedKeys.filter((k) => SEARCH_FIELD_KEYS.includes(k));
   const shoppingKeys = requestedKeys.filter((k) => SHOPPING_FIELD_KEYS.includes(k));
   const pmaxKeys = requestedKeys.filter((k) => PMAX_FIELD_KEYS.includes(k));
-
-  const hasHeadlines = formData.headlines && Array.isArray(formData.headlines);
-  const hasDescriptions = formData.descriptions && Array.isArray(formData.descriptions);
-  const hasLongHeadlines = formData.long_headlines && Array.isArray(formData.long_headlines);
+  const targetingKeys = requestedKeys.filter((k) => TARGETING_FIELD_KEYS.includes(k) && targetingKeySupported(ct, k));
 
   const onAddHeadline = () => {
     const arr = [...(formData.headlines || [""])];
@@ -337,6 +414,19 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                     onChange("budget_amount", !isNaN(v) ? v : 0);
                   }}
                   placeholder="0.00"
+                  className={inputBaseClass}
+                  disabled={disabled}
+                />
+              </div>
+            )}
+            {baseKeys.includes("budget_name") && (
+              <div>
+                <label className="block text-xs font-medium text-[#072929] mb-1">Budget name</label>
+                <input
+                  type="text"
+                  value={formData.budget_name || ""}
+                  onChange={(e) => onChange("budget_name", e.target.value)}
+                  placeholder="Select a budget or choose Custom..."
                   className={inputBaseClass}
                   disabled={disabled}
                 />
@@ -583,6 +673,124 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             googleProfiles={googleProfiles}
             visibleKeys={pmaxKeys}
           />
+        )}
+
+        {/* Targeting: Network Settings, Device Targeting, Language Targeting, Location Targeting, Campaign URL Options */}
+        {targetingKeys.length > 0 && (
+          <div className="space-y-4">
+            {targetingKeys.includes("network_settings") && ct === "SEARCH" && (
+              <div className="space-y-3">
+                <h3 className="text-[13px] font-semibold text-[#072929]">Network Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-[#E8E8E3] bg-white">
+                    <input
+                      type="checkbox"
+                      checked={formData.network_settings?.target_search_network ?? false}
+                      onChange={(e) =>
+                        onChange("network_settings", {
+                          ...formData.network_settings,
+                          target_google_search: formData.network_settings?.target_google_search ?? true,
+                          target_search_network: e.target.checked,
+                          target_content_network: formData.network_settings?.target_content_network ?? false,
+                          target_partner_search_network: formData.network_settings?.target_partner_search_network ?? false,
+                        })
+                      }
+                      className="w-4 h-4 accent-[#136D6D] border-gray-300 rounded"
+                      disabled={disabled}
+                    />
+                    <span className="text-xs text-[#072929]">Search Network</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-[#E8E8E3] bg-white">
+                    <input
+                      type="checkbox"
+                      checked={formData.network_settings?.target_content_network ?? false}
+                      onChange={(e) =>
+                        onChange("network_settings", {
+                          ...formData.network_settings,
+                          target_google_search: formData.network_settings?.target_google_search ?? true,
+                          target_search_network: formData.network_settings?.target_search_network ?? true,
+                          target_content_network: e.target.checked,
+                          target_partner_search_network: formData.network_settings?.target_partner_search_network ?? false,
+                        })
+                      }
+                      className="w-4 h-4 accent-[#136D6D] border-gray-300 rounded"
+                      disabled={disabled}
+                    />
+                    <span className="text-xs text-[#072929]">Display Network</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {targetingKeys.includes("device_ids") && (ct === "SEARCH" || ct === "PERFORMANCE_MAX") && (
+              <div className="space-y-3">
+                <h3 className="text-[13px] font-semibold text-[#072929]">Device Targeting</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {DEVICE_OPTIONS.map((device) => (
+                    <label
+                      key={device.value}
+                      className="flex flex-col items-center gap-2 cursor-pointer p-3 rounded-lg border border-[#E8E8E3] bg-white"
+                    >
+                      <span className="text-xl">{device.icon}</span>
+                      <input
+                        type="checkbox"
+                        checked={formData.device_ids?.includes(device.value) ?? false}
+                        onChange={(e) => {
+                          const current = formData.device_ids || [];
+                          if (e.target.checked) {
+                            onChange("device_ids", [...current, device.value]);
+                          } else {
+                            onChange("device_ids", current.filter((id) => id !== device.value));
+                          }
+                        }}
+                        className="w-4 h-4 accent-[#136D6D] border-gray-300 rounded"
+                        disabled={disabled}
+                      />
+                      <span className="text-xs font-medium text-[#072929]">{device.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-[10px] text-[#556179]">Select devices to target. If none selected, ads show on all devices.</p>
+              </div>
+            )}
+
+            {targetingKeys.includes("language_ids") && (ct === "SEARCH" || ct === "PERFORMANCE_MAX" || ct === "SHOPPING") && (
+              <GoogleLanguageTargetingForm
+                languageIds={formData.language_ids}
+                languageOptions={languageOptions}
+                loadingLanguages={false}
+                onLanguageIdsChange={(ids) => onChange("language_ids", ids)}
+                errors={errors}
+                showTitle={true}
+              />
+            )}
+
+            {targetingKeys.includes("location_ids") && (ct === "SEARCH" || ct === "PERFORMANCE_MAX" || ct === "SHOPPING") && (
+              <GoogleLocationTargetingForm
+                locationIds={formData.location_ids}
+                excludedLocationIds={formData.excluded_location_ids}
+                locationOptions={locationOptions}
+                loadingLocations={false}
+                onLocationIdsChange={(ids) => onChange("location_ids", ids)}
+                onExcludedLocationIdsChange={(ids) => onChange("excluded_location_ids", ids)}
+                errors={errors}
+                showTitle={true}
+              />
+            )}
+
+            {(targetingKeys.includes("tracking_url_template") || targetingKeys.includes("final_url_suffix") || targetingKeys.includes("url_custom_parameters")) && (
+              <GoogleTrackingTemplateForm
+                trackingUrlTemplate={formData.tracking_url_template || ""}
+                finalUrlSuffix={formData.final_url_suffix || ""}
+                urlCustomParameters={formData.url_custom_parameters || []}
+                onTrackingUrlTemplateChange={(v) => onChange("tracking_url_template", v)}
+                onFinalUrlSuffixChange={(v) => onChange("final_url_suffix", v)}
+                onCustomParametersChange={(p) => onChange("url_custom_parameters", p ?? [])}
+                title="Campaign URL Options"
+                showTitle={true}
+              />
+            )}
+          </div>
         )}
 
         <button

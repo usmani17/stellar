@@ -44,6 +44,15 @@ export const CAMPAIGN_FIELD_LABELS: Record<string, string> = {
   asset_group_name: "Asset group name",
   marketing_image_url: "Marketing image URL",
   square_marketing_image_url: "Square marketing image URL",
+  // Targeting (Network, Device, Language, Location, URL)
+  network_settings: "Network Settings",
+  device_ids: "Device Targeting",
+  language_ids: "Language Targeting",
+  location_ids: "Location Targeting",
+  excluded_location_ids: "Excluded Locations",
+  tracking_url_template: "Tracking URL Template",
+  final_url_suffix: "Final URL Suffix",
+  url_custom_parameters: "Custom URL Parameters",
 };
 
 export function getFieldLabel(key: string): string {

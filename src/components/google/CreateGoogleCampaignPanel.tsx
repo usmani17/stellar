@@ -40,6 +40,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   mode = "create",
   initialData = null,
   refreshMessage = null,
+  hideProfileSelector = false,
+  hideCampaignType = false,
 }) => {
   const [showRefreshDetails, setShowRefreshDetails] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -75,7 +77,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   const [formData, setFormData] = useState<CreateGoogleCampaignData>({
     campaign_type: "SEARCH",
     name: "",
-    budget_amount: 0,
+    budget_amount: undefined,
     budget_name: "",
     status: "PAUSED",
     bidding_strategy_type: "MANUAL_CPC", // Default for Search
@@ -378,20 +380,20 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     fetchMerchantAccounts();
   }, [isOpen, formData.campaign_type, accountId, selectedProfileId, fetchMerchantAccounts]);
 
-  // Set selectedProfileId from initialData in edit mode when profiles are loaded
+  // Set selectedProfileId from initialData in edit/create mode when profiles are loaded
   useEffect(() => {
-    if (mode === "edit" && initialData?.customer_id && googleProfiles.length > 0 && !selectedProfileId) {
-      // Find profile that matches the customer_id from initialData
+    if (googleProfiles.length === 0 || selectedProfileId) return;
+    if (mode === "edit" && initialData?.customer_id) {
       const matchingProfile = googleProfiles.find(p => {
-        // Match by customer_id (formatted) or customer_id_raw
-        return p.customer_id === initialData.customer_id || 
+        return p.customer_id === initialData.customer_id ||
                p.customer_id_raw === initialData.customer_id?.replace(/-/g, '') ||
                p.value === initialData.customer_id?.replace(/-/g, '');
       });
-      
-      if (matchingProfile) {
-        setSelectedProfileId(matchingProfile.value);
-      }
+      if (matchingProfile) setSelectedProfileId(matchingProfile.value);
+    } else if (mode === "create" && initialData?.profile_id) {
+      const profileIdStr = String(initialData.profile_id).trim();
+      const matchingProfile = googleProfiles.find(p => p.value === profileIdStr);
+      if (matchingProfile) setSelectedProfileId(matchingProfile.value);
     }
   }, [mode, initialData, googleProfiles, selectedProfileId]);
 
@@ -546,11 +548,11 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     }
   }, [isOpen, formData.campaign_type, accountId, selectedProfileId, fetchLanguages]);
 
-  // Reset form when panel closes or load initial data when in edit mode
+  // Reset form when panel closes or load initial data when in edit/create mode
   useEffect(() => {
     if (!isOpen) {
       resetForm();
-    } else if (mode === "edit" && initialData) {
+    } else if ((mode === "edit" || mode === "create") && initialData) {
       // Convert micros to dollars for bidding strategy fields
       const convertedData = {
         ...initialData,
@@ -610,7 +612,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     setFormData({
       campaign_type: "SEARCH",
       name: "",
-      budget_amount: 0,
+      budget_amount: undefined,
       budget_name: "",
       status: "PAUSED",
       bidding_strategy_type: "MANUAL_CPC", // Default for Search
@@ -1613,6 +1615,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             onQuickFillShopping={quickFillShopping}
             onQuickFillSearch={quickFillSearch}
             onQuickFillDemandGen={quickFillDemandGen}
+            hideProfileSelector={hideProfileSelector}
+            hideCampaignType={hideCampaignType}
           />
 
           {/* Campaign Type Specific Components */}
