@@ -61,6 +61,11 @@ export const AccountsHeader: React.FC = () => {
                 <div className="text-[10.56px] text-[#556179] mt-1">
                   {user?.email}
                 </div>
+                {user?.role && (
+                  <div className="text-[10.56px] text-[#556179] mt-0.5 capitalize">
+                    {user.role}
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => {
