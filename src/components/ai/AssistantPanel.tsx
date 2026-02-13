@@ -366,7 +366,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     <span className={`assistant-setup-step-num ${assistantScope.accountId ? "assistant-setup-step-num-active" : ""}`}>
                         1
                     </span>
-                    1. Select account
+                    Select account
                 </label>
                 <div className="relative" ref={accountDropdownRef}>
                     <button
@@ -436,7 +436,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     <span className={`assistant-setup-step-num ${assistantScope.accountId ? "assistant-setup-step-num-active" : ""}`}>
                         2
                     </span>
-                    2. Select integration & profile
+                    Select integration & profile
                 </label>
                 <div className="relative" ref={integrationProfileDropdownRef}>
                     <button
@@ -531,7 +531,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     <span className={`assistant-setup-step-num ${assistantScope.channelId && assistantScope.profileId ? "assistant-setup-step-num-active" : ""}`}>
                         3
                     </span>
-                    3. What would you like to do?
+                    What would you like to do?
                 </label>
                 <div className="assistant-setup-intent-btns">
                     <button

@@ -636,8 +636,8 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             selectedProfileId={profileId != null ? String(profileId) : undefined}
             profileId={profileIdNum ?? undefined}
             googleProfiles={googleProfiles}
-              visibleKeys={demandGenKeys}
-              flatLayout
+            visibleKeys={demandGenKeys}
+            flatLayout
           />
         )}
 
@@ -659,7 +659,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             onTrackingUrlTemplateChange={(v) => onChange("tracking_url_template", v)}
             onFinalUrlSuffixChange={(v) => onChange("final_url_suffix", v)}
             onCustomParametersChange={(p) => onChange("url_custom_parameters", p ?? [])}
-            onSelectConversionActionsClick={() => {}}
+            onSelectConversionActionsClick={() => { }}
             visibleKeys={[...searchKeys, ...targetingKeys]}
             flatMode
             flatLayout
@@ -724,31 +724,31 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             {(requestedKeys.includes("asset_group_name") ||
               requestedKeys.includes("marketing_image_url") ||
               requestedKeys.includes("square_marketing_image_url")) && (
-              <GooglePerformanceMaxAssetGroupForm
-                formData={formData}
-                errors={errors}
-                onChange={onChange}
-                onAddHeadline={onAddHeadline}
-                onRemoveHeadline={onRemoveHeadline}
-                onUpdateHeadline={onUpdateHeadline}
-                onAddDescription={onAddDescription}
-                onRemoveDescription={onRemoveDescription}
-                onUpdateDescription={onUpdateDescription}
-                logoPreview={logoPreview}
-                setLogoPreview={setLogoPreview}
-                marketingImagePreview={marketingImagePreview}
-                setMarketingImagePreview={setMarketingImagePreview}
-                squareMarketingImagePreview={squareMarketingImagePreview}
-                setSquareMarketingImagePreview={setSquareMarketingImagePreview}
-                setErrors={setErrors}
-                profileId={profileIdNum ?? undefined}
-                campaignType={ct as "PERFORMANCE_MAX"}
-                showOnlyImageAssets
-                visibleKeys={requestedKeys.filter((k) =>
-                  ["asset_group_name", "marketing_image_url", "square_marketing_image_url"].includes(k)
-                )}
-              />
-            )}
+                <GooglePerformanceMaxAssetGroupForm
+                  formData={formData}
+                  errors={errors}
+                  onChange={onChange}
+                  onAddHeadline={onAddHeadline}
+                  onRemoveHeadline={onRemoveHeadline}
+                  onUpdateHeadline={onUpdateHeadline}
+                  onAddDescription={onAddDescription}
+                  onRemoveDescription={onRemoveDescription}
+                  onUpdateDescription={onUpdateDescription}
+                  logoPreview={logoPreview}
+                  setLogoPreview={setLogoPreview}
+                  marketingImagePreview={marketingImagePreview}
+                  setMarketingImagePreview={setMarketingImagePreview}
+                  squareMarketingImagePreview={squareMarketingImagePreview}
+                  setSquareMarketingImagePreview={setSquareMarketingImagePreview}
+                  setErrors={setErrors}
+                  profileId={profileIdNum ?? undefined}
+                  campaignType={ct as "PERFORMANCE_MAX"}
+                  showOnlyImageAssets
+                  visibleKeys={requestedKeys.filter((k) =>
+                    ["asset_group_name", "marketing_image_url", "square_marketing_image_url"].includes(k)
+                  )}
+                />
+              )}
           </>
         )}
 
@@ -809,7 +809,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
           disabled={disabled}
           className="self-start mt-1 px-4 py-2 text-sm font-medium bg-[#136D6D] text-white rounded-[8px] hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none"
         >
-          Send answers
+          Submit
         </button>
       </form>
     </div>
