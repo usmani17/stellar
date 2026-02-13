@@ -639,7 +639,8 @@ export const AccountProfiles: React.FC = () => {
       <Sidebar />
       <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
         <DashboardHeader />
-        <div className="p-8 bg-white">
+        {/* Main content - top padding for fixed header */}
+        <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-white">
 
           {syncError && (
             <div className="mb-4 flex items-center gap-2 p-3 rounded-[12px] bg-red-50 border border-red-100 text-red-800 text-sm">

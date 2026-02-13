@@ -287,16 +287,15 @@ export const DashboardHeader: React.FC = () => {
     ? (currentEntity as "campaigns" | "adgroups" | "ads" | "keywords")
     : null;
 
-  // Hide date picker on profile, integrations, account selection, and drafts pages
+  // Hide date picker on user profile, account selection, and drafts pages (show on integrations and account profiles)
   const isProfilePage = location.pathname === "/profile";
-  const isIntegrationsPage = /^\/brands\/\d+\/integrations$/.test(location.pathname);
   const isAccountSelectionPage =
     /^\/channels\/\d+\/(select-google-accounts|select-tiktok-profiles|select-meta-profiles|list-profiles)$/.test(
       location.pathname,
     );
   const isDraftsPage = /^\/brands\/\d+\/\d+\/google\/drafts(\/|$)/.test(location.pathname);
   const shouldHideDatePicker =
-    isProfilePage || isIntegrationsPage || isAccountSelectionPage || isDraftsPage;
+    isProfilePage || isAccountSelectionPage || isDraftsPage;
 
   // Use channels from accounts data if available, otherwise fall back to API call
   // This avoids unnecessary API calls when channels are already included in accounts response
