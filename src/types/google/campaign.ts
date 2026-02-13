@@ -1,11 +1,14 @@
+import { CAMPAIGN_STATUS_SAVED_DRAFT } from "../../constants/google";
+
+export type GoogleCampaignStatus = "ENABLED" | "PAUSED" | "REMOVED" | typeof CAMPAIGN_STATUS_SAVED_DRAFT;
 
 export interface IGoogleCampaign {
     id: number;
-    campaign_id: number;
+    campaign_id: number | string;
     customer_id: string;
     campaign_name: string;
     account_name?: string;
-    status: "ENABLED" | "PAUSED" | "REMOVED";
+    status: GoogleCampaignStatus;
     advertising_channel_type: string;
     advertising_channel_sub_type?: string;
     bidding_strategy_type?: string;
@@ -114,6 +117,8 @@ export interface IGoogleCampaignsTableProps {
     getSortIcon: (column: string) => React.ReactElement;
     onEditCampaign?: (campaign: IGoogleCampaign) => void;
     editLoadingCampaignId?: string | number | null;
+    onPublishDraft?: (campaign: IGoogleCampaign) => void;
+    publishLoadingCampaignId?: string | null;
     isPanelOpen?: boolean; // When true, editable fields become read-only
     /** Currency code for the currency column (e.g. USD, AUD, EUR). Shown before Impressions. */
     currencyCode?: string;

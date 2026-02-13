@@ -974,7 +974,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                         {assistantScope.accountId && assistantScope.channelId ? (
                                             <>{" "}
                                                 <Link
-                                                    to={`/brands/${assistantScope.accountId}/${assistantScope.channelId}/google/drafts/${campaignState.saved_draft_id}`}
+                                                    to={`/brands/${assistantScope.accountId}/${assistantScope.channelId}/google/campaigns/${campaignState.saved_draft_id}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="text-[#136D6D] font-medium hover:underline"

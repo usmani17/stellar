@@ -498,7 +498,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
     }
     
     // Fallback to type-based operators if no operators specified
-    const isStringField = field.type === "string";
+    const isStringField = field.type === "string" || field.type === "text";
     return isStringField ? STRING_OPERATORS : NUMERIC_OPERATORS;
   };
 

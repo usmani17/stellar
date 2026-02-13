@@ -954,9 +954,9 @@ export function GoogleAdsTable<T = any>({
                 ))
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length + 1} className="table-cell">
-                    <div className="flex items-center justify-center py-8">
-                      <p className="text-[13.3px] text-[#556179] mb-4 text-center">{emptyMessage}</p>
+                  <td colSpan={columns.length + 1} className="table-cell w-full align-middle">
+                    <div className="flex items-center justify-center w-full min-h-[200px] py-8">
+                      <p className="text-[13.3px] text-[#556179] text-center">{emptyMessage}</p>
                     </div>
                   </td>
                 </tr>

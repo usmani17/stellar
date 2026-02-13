@@ -7,7 +7,7 @@ import api from './api';
 export interface FilterField {
   field_name: string;
   label: string;
-  type: 'string' | 'number' | 'static_dropdown' | 'dynamic_dropdown' | 'multi_select';
+  type: 'string' | 'number' | 'text' | 'static_dropdown' | 'dynamic_dropdown' | 'multi_select';
   operators: string[];
   default_operator: string | null;
   options: Array<{ value: string; label: string }> | null;

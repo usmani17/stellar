@@ -39,9 +39,11 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   submitError = null,
   mode = "create",
   initialData = null,
+  campaignId,
   refreshMessage = null,
   hideProfileSelector = false,
   hideCampaignType = false,
+  onPublishDraft,
 }) => {
   const [showRefreshDetails, setShowRefreshDetails] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -97,6 +99,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   const [errors, setErrors] = useState<
     Partial<Record<keyof CreateGoogleCampaignData, string>>
   >({});
+  const [publishLoading, setPublishLoading] = useState(false);
 
   // Scroll to first error field when errors are set
   useEffect(() => {
@@ -1079,22 +1082,16 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     return isValid;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("handleSubmit called", { mode, formData, loading });
-
-    // Prevent submission of VIDEO campaigns
+  /** Build submit payload after validation. Returns null if validation fails. */
+  const buildSubmitPayload = (): CreateGoogleCampaignData | null => {
     if (formData.campaign_type === "VIDEO") {
       setErrors({
         campaign_type: "VIDEO campaigns cannot be created or modified via the Google Ads API. Please use the Google Ads UI to create Video campaigns, or use Demand Gen or Performance Max campaigns for video placements.",
       });
-      return;
+      return null;
     }
-
     const validationResult = validate();
     if (!validationResult) {
-      // Get the current errors (they were just set by validate())
-      // Use a small timeout to ensure state has updated, or check errors state
       setTimeout(() => {
         const firstErrorField = Object.keys(errors)[0];
         if (firstErrorField) {
@@ -1104,11 +1101,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           }
         }
       }, 0);
-      return;
+      return null;
     }
-
-    console.log("Validation passed, proceeding with submit");
-
     // Filter out empty headlines and descriptions, and align asset ID arrays
     let filteredHeadlines: string[] | undefined;
     let filteredHeadlineAssetIds: (string | undefined)[] | undefined;
@@ -1227,7 +1221,15 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         ? Math.round(formData.target_impression_share_cpc_bid_ceiling_micros * 1000000) 
         : undefined,
     };
+    return payload;
+  };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log("handleSubmit called", { mode, formData, loading });
+    const payload = buildSubmitPayload();
+    if (!payload) return;
+    console.log("Validation passed, proceeding with submit");
     try {
       await onSubmit(payload);
       console.log("onSubmit completed successfully");
@@ -1235,8 +1237,20 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       setErrors({});
     } catch (error: any) {
       console.error("Error in handleSubmit:", error);
-      // Error handling is done in parent component, but log it here for debugging
-      // Re-throw so parent can handle it
+      throw error;
+    }
+  };
+
+  const handleSaveAsDraft = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = buildSubmitPayload();
+    if (!payload) return;
+    try {
+      await onSubmit(payload, { saveAsDraft: true });
+      resetForm();
+      setErrors({});
+    } catch (error: any) {
+      console.error("Error in handleSaveAsDraft:", error);
       throw error;
     }
   };
@@ -1778,14 +1792,52 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             type="button"
             onClick={handleCancel}
             className="cancel-button"
-            disabled={loading}
+            disabled={loading || publishLoading}
           >
             Cancel
           </button>
+          {mode === "edit" && campaignId && String(campaignId).startsWith("draft-") && onPublishDraft && (
+            <button
+              type="button"
+              onClick={async () => {
+                setPublishLoading(true);
+                try {
+                  await onPublishDraft(formData);
+                } finally {
+                  setPublishLoading(false);
+                }
+              }}
+              className="create-entity-button font-semibold text-[11.2px] flex items-center gap-2 bg-[#136D6D] hover:bg-[#0f5a5a] text-white px-4 py-2 rounded-lg"
+              disabled={loading || publishLoading}
+            >
+              {publishLoading && (
+                <svg
+                  className="animate-spin h-4 w-4"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              )}
+              {publishLoading ? "Publishing..." : "Publish"}
+            </button>
+          )}
+          {mode === "create" && (
+            <button
+              type="button"
+              onClick={handleSaveAsDraft}
+              className="cancel-button font-semibold text-[11.2px] flex items-center gap-2"
+              disabled={loading || publishLoading}
+            >
+              Save as Draft
+            </button>
+          )}
           <button
             type="submit"
             className="create-entity-button font-semibold text-[11.2px] flex items-center gap-2"
-            disabled={loading}
+            disabled={loading || publishLoading}
           >
             {loading && (
               <svg

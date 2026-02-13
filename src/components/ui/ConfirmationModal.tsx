@@ -1,4 +1,5 @@
 import React from "react";
+import { Loader } from "./Loader";
 
 export type ConfirmationModalType = "danger" | "warning" | "info" | "success";
 export type ConfirmationModalSize = "sm" | "md" | "lg";
@@ -16,6 +17,7 @@ interface ConfirmationModalProps {
   type?: ConfirmationModalType;
   size?: ConfirmationModalSize;
   isLoading?: boolean;
+  loadingLabel?: string; // Label shown on confirm button when isLoading (e.g. "Saving...", "Publishing...")
   isDangerous?: boolean; // If true, applies red styling (useful for delete/destructive actions)
   children?: React.ReactNode; // Custom content for the modal body
   confirmButtonClassName?: string; // Override confirm button styling
@@ -35,6 +37,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   type = "info",
   size = "md",
   isLoading = false,
+  loadingLabel = "Saving...",
   isDangerous = false,
   children,
   confirmButtonClassName,
@@ -109,7 +112,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+      className="fixed inset-0 bg-black/75 flex items-center justify-center z-[999999]"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isLoading) {
           onClose();
@@ -171,11 +174,18 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           <button
             onClick={onConfirm}
             disabled={isLoading}
-            className={`px-4 py-2 text-[12.16px] text-white rounded-lg disabled:opacity-50 ${
+            className={`px-4 py-2 text-[12.16px] text-white rounded-lg disabled:opacity-50 inline-flex items-center justify-center gap-2 ${
               confirmButtonClassName || getConfirmButtonColor()
             }`}
           >
-            {isLoading ? "Saving..." : confirmButtonLabel}
+            {isLoading ? (
+              <>
+                <Loader size="sm" showMessage={false} />
+                <span>{loadingLabel}</span>
+              </>
+            ) : (
+              confirmButtonLabel
+            )}
           </button>
         </div>
       </div>

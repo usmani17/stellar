@@ -56,6 +56,8 @@ import { CreateGoogleDemandGenAdSection } from "../../components/google/CreateGo
 import { CreateGoogleDemandGenAdPanel } from "../../components/google/CreateGoogleDemandGenAdPanel";
 import { ErrorModal } from "../../components/ui/ErrorModal";
 import { Loader } from "../../components/ui/Loader";
+import { Send } from "lucide-react";
+import { CAMPAIGN_STATUS_SAVED_DRAFT } from "../../constants/google";
 import { googleAdwordsAdsService } from "../../services/googleAdwords/googleAdwordsAds";
 import {
   formatCurrency2Decimals,
@@ -338,6 +340,40 @@ export const GoogleCampaignDetail: React.FC = () => {
       user_message?: string;
     }>;
   }>({ isOpen: false, message: "" });
+
+  const isDraftCampaign = useMemo(() => {
+    const status = (campaignDetail?.campaign?.status || "").toUpperCase();
+    return !loading && !!campaignDetail && (status === CAMPAIGN_STATUS_SAVED_DRAFT || status === "DRAFT");
+  }, [loading, campaignDetail]);
+
+  const [publishDraftLoading, setPublishDraftLoading] = useState(false);
+  const handlePublishDraftFromDetail = async () => {
+    if (!accountId || !channelId || !campaignId) return;
+    const draftId = String(campaignId);
+    if (!draftId.startsWith("draft-")) return;
+    setPublishDraftLoading(true);
+    try {
+      await googleAdwordsCampaignsService.publishGoogleCampaignDraft(
+        parseInt(accountId, 10),
+        parseInt(channelId, 10),
+        draftId
+      );
+      setErrorModal({
+        isOpen: true,
+        message: "Draft published successfully. Redirecting to campaigns list.",
+        isSuccess: true,
+      });
+      const channelIdNum = parseInt(channelId, 10);
+      navigate(`/brands/${accountId}/${channelIdNum}/google/campaigns`);
+    } catch (err: any) {
+      setErrorModal({
+        isOpen: true,
+        message: err?.response?.data?.error || err?.message || "Failed to publish draft.",
+      });
+    } finally {
+      setPublishDraftLoading(false);
+    }
+  };
 
   // Normalized campaign channel type (DB may return "Demand Gen" or "DEMAND_GEN")
   const campaignChannelType = useMemo(() => {
@@ -1231,7 +1267,33 @@ export const GoogleCampaignDetail: React.FC = () => {
                   )}
               </div>
 
-              {/* Campaign Entity Information Card */}
+              {/* Draft campaign: show message and publish option */}
+              {isDraftCampaign && (
+                <div className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-6 max-w-2xl">
+                  <p className="text-[#072929] text-base mb-4">
+                    This campaign is a draft. Publish it to view details.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handlePublishDraftFromDetail}
+                    disabled={publishDraftLoading}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5656] disabled:opacity-60 text-sm font-medium"
+                  >
+                    {publishDraftLoading ? (
+                      <Loader size="sm" showMessage={false} />
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" aria-hidden />
+                        Publish draft
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* Campaign Entity Information Card - only when not draft */}
+              {!isDraftCampaign && (
+              <>
               <GoogleCampaignInformation
                 campaignDetail={campaignDetail}
                 editingField={editingField}
@@ -2240,6 +2302,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                   />
                 )}
               </div>
+            </>
+              )}
             </div>
           </div>
         </Assistant>

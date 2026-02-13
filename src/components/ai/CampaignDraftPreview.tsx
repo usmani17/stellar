@@ -51,7 +51,7 @@ export interface CampaignDraftPreviewProps {
   campaignState: CampaignSetupState | undefined;
   visible: boolean;
   onApplyDraft?: (draft: Record<string, unknown>) => void;
-  /** accountId and channelId for building draft link (e.g. /brands/:accountId/:channelId/google/drafts/:draftId) */
+  /** accountId and channelId for building draft link (e.g. /brands/:accountId/:channelId/google/campaigns/:draftCampaignId) */
   accountId?: string;
   channelId?: string;
   className?: string;
@@ -152,16 +152,16 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
               <div className="mt-4 pt-3 border-t border-[#e8e8e3] space-y-2">
                 {accountId && channelId && (
                   <Link
-                    to={`/brands/${accountId}/${channelId}/google/drafts`}
+                    to={`/brands/${accountId}/${channelId}/google/campaigns`}
                     className="block w-full px-3 py-2 text-xs font-medium text-[#136D6D] bg-[#136D6D]/10 rounded-lg hover:bg-[#136D6D]/20 transition-colors text-center"
                     onClick={() => setOpen(false)}
                   >
-                    View all drafts
+                    View campaigns
                   </Link>
                 )}
                 {canLinkToDraft && (
                   <Link
-                    to={`/brands/${accountId}/${channelId}/google/drafts/${savedDraftId}`}
+                    to={`/brands/${accountId}/${channelId}/google/campaigns/${savedDraftId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block w-full px-3 py-2 text-xs font-medium bg-[#136D6D] text-white rounded-lg hover:opacity-90 transition-opacity text-center"

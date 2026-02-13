@@ -81,23 +81,26 @@ export const useGoogleCampaignDetail = ({
         return;
       }
 
-      // Parse campaignId - it's a string from URL params
-      const campaignIdNum = parseInt(currentCampaignId, 10);
-      if (isNaN(campaignIdNum)) {
-        console.error("Invalid campaign ID:", currentCampaignId);
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+
+      // Support both numeric IDs and draft IDs (e.g. "draft-xxx")
+      const campaignIdParam =
+        String(currentCampaignId).startsWith("draft-")
+          ? currentCampaignId
+          : parseInt(currentCampaignId, 10);
+      if (typeof campaignIdParam === "number" && isNaN(campaignIdParam)) {
         setLoading(false);
         isLoadingRef.current = false;
         return;
       }
 
-      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
       const data = await googleAdwordsCampaignsService.getGoogleCampaignDetail(
         accountIdNum,
         channelIdNum,
-        campaignIdNum,
+        campaignIdParam,
         startDate ? toLocalDateString(startDate) : undefined,
         endDate ? toLocalDateString(endDate) : undefined
       );

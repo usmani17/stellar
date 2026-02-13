@@ -11,8 +11,6 @@ import { GoogleAdGroups } from "../pages/google/GoogleAdGroups";
 import { GoogleAds } from "../pages/google/GoogleAds";
 import { GoogleKeywords } from "../pages/google/GoogleKeywords";
 import { LogHistory } from "../pages/LogHistory";
-import { DraftsList } from "../pages/DraftsList";
-import { DraftDetail } from "../pages/DraftDetail";
 
 function GoogleRoutes() {
     return (
@@ -102,38 +100,6 @@ function GoogleRoutes() {
                                             <GoogleKeywords />
                                         </Layout>
                                     </GoogleSyncStatusWrapper>
-                                </BrandAccessRoute>
-                            </AccountRequiredRoute>
-                        </WorkspaceRequiredRoute>
-                    </ProtectedRoute>
-                }
-            />
-            <Route
-                path="/brands/:accountId/:channelId/google/drafts"
-                element={
-                    <ProtectedRoute>
-                        <WorkspaceRequiredRoute>
-                            <AccountRequiredRoute>
-                                <BrandAccessRoute>
-                                    <Layout>
-                                        <DraftsList />
-                                    </Layout>
-                                </BrandAccessRoute>
-                            </AccountRequiredRoute>
-                        </WorkspaceRequiredRoute>
-                    </ProtectedRoute>
-                }
-            />
-            <Route
-                path="/brands/:accountId/:channelId/google/drafts/:draftId"
-                element={
-                    <ProtectedRoute>
-                        <WorkspaceRequiredRoute>
-                            <AccountRequiredRoute>
-                                <BrandAccessRoute>
-                                    <Layout>
-                                        <DraftDetail />
-                                    </Layout>
                                 </BrandAccessRoute>
                             </AccountRequiredRoute>
                         </WorkspaceRequiredRoute>

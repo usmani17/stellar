@@ -1,12 +1,13 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { GoogleAdsTable } from "./GoogleAdsTable";
 import { Loader } from "../../../components/ui/Loader";
 import { ConfirmationModal } from "../../../components/ui/ConfirmationModal";
 import type { IGoogleCampaignsTableProps, IGoogleCampaign } from "../../../types/google/campaign";
 import type { IColumnDefinition } from "../../../types/google";
-import { TrashIcon } from "lucide-react";
+import { TrashIcon, Send } from "lucide-react";
 import { getStatusWithDefault } from "../utils/googleAdsUtils";
+import { CAMPAIGN_STATUS_SAVED_DRAFT } from "../../../constants/google";
 
 
 export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
@@ -44,11 +45,24 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
   getSortIcon,
   onEditCampaign,
   editLoadingCampaignId,
+  onPublishDraft,
+  publishLoadingCampaignId,
   isPanelOpen = false,
   currencyCode,
 }) => {
   const navigate = useNavigate();
   const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
+  const [showPublishDraftConfirmation, setShowPublishDraftConfirmation] = useState(false);
+  const [campaignToPublish, setCampaignToPublish] = useState<IGoogleCampaign | null>(null);
+  const wasPublishLoadingRef = useRef(false);
+  useEffect(() => {
+    const isLoading = !!campaignToPublish && publishLoadingCampaignId === campaignToPublish.campaign_id;
+    if (wasPublishLoadingRef.current && !isLoading) {
+      setShowPublishDraftConfirmation(false);
+      setCampaignToPublish(null);
+    }
+    wasPublishLoadingRef.current = isLoading;
+  }, [campaignToPublish, publishLoadingCampaignId]);
   const [pendingRemoveChange, setPendingRemoveChange] = useState<{
     value: string;
     campaignId: string | number;
@@ -87,7 +101,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       render: (value: any, row: IGoogleCampaign) => {
         const navPath = channelId ? `/brands/${accountId}/${channelId}/google/campaigns/${row.campaign_id}` : `/brands/${accountId}/google-campaigns/${row.campaign_id}`;
         return (
-          <div className="group relative flex items-center gap-2">
+          <div className="group relative flex items-center gap-2 z-10">
             {onEditCampaign && (
               <button
                 type="button"
@@ -118,20 +132,41 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
                 )}
               </button>
             )}
-            <a
-              href={navPath}
-              onClick={(e) => {
-                e.stopPropagation();
-                // Only prevent default for regular clicks (not Ctrl/Cmd/middle click)
-                if (!e.metaKey && !e.ctrlKey && e.button !== 1) {
+            {(getStatusWithDefault(row.status).toUpperCase() === CAMPAIGN_STATUS_SAVED_DRAFT || getStatusWithDefault(row.status).toUpperCase() === "DRAFT") ? (
+              <span className="table-edit-link cursor-default">{value}</span>
+            ) : (
+              <a
+                href={navPath}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!e.metaKey && !e.ctrlKey && e.button !== 1) {
+                    e.preventDefault();
+                    navigate(navPath);
+                  }
+                }}
+                className="table-edit-link"
+              >
+                {value}
+              </a>
+            )}
+            {(getStatusWithDefault(row.status).toUpperCase() === CAMPAIGN_STATUS_SAVED_DRAFT || getStatusWithDefault(row.status).toUpperCase() === "DRAFT") && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
                   e.preventDefault();
-                  navigate(navPath);
-                }
-              }}
-              className="table-edit-link"
-            >
-              {value}
-            </a>
+                  if (onPublishDraft) {
+                    setCampaignToPublish(row);
+                    setShowPublishDraftConfirmation(true);
+                  }
+                }}
+                className="table-edit-icon flex-shrink-0 relative z-10 cursor-pointer !opacity-100 pointer-events-auto"
+                title="Publish draft to Google Ads"
+                disabled={!onPublishDraft || publishLoadingCampaignId === row.campaign_id}
+              >
+                <Send className="w-4 h-4 text-[#136D6D]" aria-hidden />
+              </button>
+            )}
           </div>
         );
       },
@@ -164,14 +199,15 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       width: "w-[140px]",
       maxWidth: "max-w-[140px]",
       editable: (row: IGoogleCampaign) => {
-        // Don't allow editing status if campaign is REMOVED
+        // Don't allow editing status if campaign is REMOVED or DRAFT (use Publish for drafts)
         const status = getStatusWithDefault(row.status).toUpperCase();
-        return status !== "REMOVED";
+        return status !== "REMOVED" && status !== CAMPAIGN_STATUS_SAVED_DRAFT && status !== "DRAFT";
       },
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
         { value: "PAUSED", label: "Paused" },
         { value: "REMOVED", label: "Remove" },
+        { value: CAMPAIGN_STATUS_SAVED_DRAFT, label: "Draft" },
       ],
       getValue: (row: IGoogleCampaign) => getStatusWithDefault(row.status),
     },
@@ -507,6 +543,29 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
         type="danger"
         size="sm"
         icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+      />
+      <ConfirmationModal
+        isOpen={showPublishDraftConfirmation}
+        onClose={() => {
+          setShowPublishDraftConfirmation(false);
+          setCampaignToPublish(null);
+        }}
+        onConfirm={() => {
+          if (campaignToPublish && onPublishDraft) {
+            onPublishDraft(campaignToPublish);
+          }
+        }}
+        isLoading={!!campaignToPublish && publishLoadingCampaignId === campaignToPublish.campaign_id}
+        loadingLabel="Publishing..."
+        title="Publish this draft to Google Ads?"
+        message={
+          campaignToPublish
+            ? `"${campaignToPublish.campaign_name || "Unnamed Campaign"}" will be created in Google Ads and will appear as a live campaign.`
+            : ""
+        }
+        type="primary"
+        size="sm"
+        icon={<Send className="w-6 h-6 text-[#136D6D]" />}
       />
     </>
   );

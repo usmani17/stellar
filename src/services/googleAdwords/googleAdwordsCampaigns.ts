@@ -61,6 +61,27 @@ export const googleAdwordsCampaignsService = {
     return response.data;
   },
 
+  createGoogleCampaignDraft: async (
+    accountId: number,
+    channelId: number,
+    payload: Parameters<typeof googleAdwordsCampaignsService.createGoogleCampaign>[2]
+  ): Promise<{ campaignId: string; campaign: Record<string, unknown> }> => {
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/create/`;
+    const response = await api.post(url, { ...payload, save_as_draft: true });
+    return response.data;
+  },
+
+  publishGoogleCampaignDraft: async (
+    accountId: number,
+    channelId: number,
+    campaignId: string,
+    payload?: Record<string, unknown>
+  ): Promise<{ success: boolean; campaign_id?: string; [key: string]: unknown }> => {
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/create/`;
+    const response = await api.post(url, { ...(payload ?? {}), campaign_id: campaignId });
+    return response.data;
+  },
+
   createGoogleSearchEntities: async (
     accountId: number,
     channelId: number,
@@ -324,6 +345,7 @@ export const googleAdwordsCampaignsService = {
       page_size: params?.page_size,
       start_date: params?.start_date,
       end_date: params?.end_date,
+      draft_only: params?.draft_only ?? false,
     };
 
     console.log("🔍 [SERVICE DEBUG] Payload being sent to backend:", payload);

@@ -11,7 +11,7 @@ export interface RefreshMessage {
 export interface CreateGoogleCampaignPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: CreateGoogleCampaignData) => Promise<void>;
+  onSubmit: (data: CreateGoogleCampaignData, options?: { saveAsDraft?: boolean }) => Promise<void>;
   accountId?: string;
   channelId?: string;
   loading?: boolean;
@@ -24,6 +24,8 @@ export interface CreateGoogleCampaignPanelProps {
   hideProfileSelector?: boolean;
   /** When true (e.g. draft detail page), hide Campaign Type selector and quick fill buttons */
   hideCampaignType?: boolean;
+  /** When editing a draft, call this when user clicks Publish (sends current form data to publish endpoint) */
+  onPublishDraft?: (data: CreateGoogleCampaignData) => Promise<void>;
 }
 
 export interface CreateGoogleCampaignData {

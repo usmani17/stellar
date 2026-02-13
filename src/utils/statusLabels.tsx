@@ -1,4 +1,5 @@
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { CAMPAIGN_STATUS_SAVED_DRAFT } from "../constants/google";
 
 /**
  * Convert campaign status to human-readable label
@@ -10,6 +11,8 @@ export const getStatusBadgeLabel = (status: string): any => {
     ENABLED: "Enable",
     PAUSED: "Paused",
     REMOVED: "Removed",
+    [CAMPAIGN_STATUS_SAVED_DRAFT]: "Draft",
+    DRAFT: "Draft", // backward compat: legacy rows
   };
     const statusLabel = statusMap[status.toUpperCase()] || "Paused";
     return <StatusBadge status={statusLabel} />;
@@ -47,6 +50,8 @@ export const getStatusLabel = (status: string): string => {
     ENABLED: "Enabled",
     PAUSED: "Paused",
     REMOVED: "Removed",
+    [CAMPAIGN_STATUS_SAVED_DRAFT]: "Draft",
+    DRAFT: "Draft", // backward compat: legacy rows
     PENDING: "Pending",
     ACTIVE: "Active",
     INACTIVE: "Inactive",

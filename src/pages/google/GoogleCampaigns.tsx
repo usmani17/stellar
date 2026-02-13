@@ -113,6 +113,7 @@ export const GoogleCampaigns: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const [showDraftsOnly, setShowDraftsOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>(""); // For input field and client-side filtering
   const [apiSearchQuery, setApiSearchQuery] = useState<string>(""); // For backend API calls
   const isLoadingRef = useRef(false);
@@ -137,6 +138,9 @@ export const GoogleCampaigns: React.FC = () => {
     undefined
   );
   const [editLoadingCampaignId, setEditLoadingCampaignId] = useState<
+    string | number | null
+  >(null);
+  const [publishLoadingCampaignId, setPublishLoadingCampaignId] = useState<
     string | number | null
   >(null);
   const [errorModal, setErrorModal] = useState<{
@@ -454,6 +458,7 @@ export const GoogleCampaigns: React.FC = () => {
           : undefined,
         end_date: endDate ? endDateStr : undefined,
         filters: filters || [], // Pass filters array directly - ensure it's always an array
+        draft_only: showDraftsOnly,
         ...(apiSearchQuery && {
           campaign_name__icontains: apiSearchQuery,
         }),
@@ -522,7 +527,75 @@ export const GoogleCampaigns: React.FC = () => {
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate, filters, apiSearchQuery]);
+  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate, filters, apiSearchQuery, showDraftsOnly]);
+
+  const handlePublishDraft = useCallback(
+    async (row: IGoogleCampaign) => {
+      if (!accountId || !channelId) return;
+      const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
+      const draftId = String(row.campaign_id);
+      if (!draftId.startsWith("draft-")) return;
+      try {
+        setPublishLoadingCampaignId(row.campaign_id);
+        await googleAdwordsCampaignsService.publishGoogleCampaignDraft(
+          accountIdNum,
+          channelIdNum,
+          draftId
+        );
+        await loadCampaigns(accountIdNum, channelIdNum);
+        setErrorModal({
+          isOpen: true,
+          message: "Draft published successfully. The campaign is now live in Google Ads.",
+          isSuccess: true,
+        });
+      } catch (err: any) {
+        const message =
+          err?.response?.data?.error || err?.message || "Failed to publish draft.";
+        setErrorModal({ isOpen: true, message });
+      } finally {
+        setPublishLoadingCampaignId(null);
+      }
+    },
+    [accountId, channelId, loadCampaigns]
+  );
+
+  const handlePublishDraftFromPanel = useCallback(
+    async (data: CreateGoogleCampaignData) => {
+      if (!accountId || !channelId || !campaignId) return;
+      const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
+      const draftId = String(campaignId);
+      if (!draftId.startsWith("draft-")) return;
+      try {
+        await googleAdwordsCampaignsService.publishGoogleCampaignDraft(
+          accountIdNum,
+          channelIdNum,
+          draftId,
+          data as unknown as Record<string, unknown>
+        );
+        setIsCreateCampaignPanelOpen(false);
+        setInitialCampaignData(null);
+        setCampaignFormMode("create");
+        setCampaignId(undefined);
+        setRefreshMessage(null);
+        await loadCampaigns(accountIdNum, channelIdNum);
+        setErrorModal({
+          isOpen: true,
+          message: "Draft published successfully. The campaign is now live in Google Ads.",
+          isSuccess: true,
+        });
+      } catch (err: any) {
+        const message =
+          err?.response?.data?.error || err?.message || "Failed to publish draft.";
+        setErrorModal({ isOpen: true, message });
+        throw err;
+      }
+    },
+    [accountId, channelId, campaignId, loadCampaigns]
+  );
 
   // Apply client-side filtering if searchQuery is different from apiSearchQuery
   const filteredCampaigns = useMemo(() => {
@@ -572,6 +645,7 @@ export const GoogleCampaigns: React.FC = () => {
           startDate: startDate ? startDateStr : null,
           endDate: endDate ? endDateStr : null,
           apiSearchQuery,
+          showDraftsOnly,
         });
 
         // Only call loadCampaigns if the request parameters have actually changed
@@ -589,13 +663,15 @@ export const GoogleCampaigns: React.FC = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, channelId, currentPage, itemsPerPage, filters, startDate, endDate, sorting, apiSearchQuery]);
+  }, [accountId, channelId, currentPage, itemsPerPage, filters, startDate, endDate, sorting, apiSearchQuery, showDraftsOnly]);
 
-  const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
+  const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData, options?: { saveAsDraft?: boolean }) => {
+    const saveAsDraft = options?.saveAsDraft === true;
     console.log("handleCreateGoogleCampaign called", {
       accountId,
       campaignFormMode,
       campaignId,
+      saveAsDraft,
       data: { ...data, keywords: data.keywords ? "..." : undefined } // Don't log full keywords array
     });
 
@@ -703,6 +779,32 @@ export const GoogleCampaigns: React.FC = () => {
       if (!channelIdNum || isNaN(channelIdNum)) {
         throw new Error("Channel ID is required");
       }
+
+      // Save as draft: same payload, draft endpoint — no campaign created on Google
+      if (saveAsDraft) {
+        await googleAdwordsCampaignsService.createGoogleCampaignDraft(
+          accountIdNum,
+          channelIdNum,
+          payload
+        );
+        setIsCreateCampaignPanelOpen(false);
+        setCreateCampaignLoading(false);
+        setCreateCampaignError(null);
+        setInitialCampaignData(null);
+        setCampaignFormMode("create");
+        setCampaignId(undefined);
+        setErrorModal({
+          isOpen: true,
+          title: "Draft saved",
+          message: `Campaign "${data.name}" saved as draft. You can publish it later from the campaigns list.`,
+          isSuccess: true,
+        });
+        if (channelIdNum && !isNaN(channelIdNum)) {
+          await loadCampaigns(accountIdNum, channelIdNum);
+        }
+        return;
+      }
+
       const response = await googleAdwordsCampaignsService.createGoogleCampaign(
         accountIdNum,
         channelIdNum,
@@ -1630,92 +1732,145 @@ export const GoogleCampaigns: React.FC = () => {
         return;
       }
 
-      // Step 1: Refresh campaign from Google API to get latest data
-      let refreshedCampaignData = null;
-      try {
-        const refreshResponse =
-          await campaignsService.refreshGoogleCampaignFromAPI(
-            accountIdNum,
-            channelId ? parseInt(channelId, 10) : 0,
-            row.campaign_id
-          );
-        refreshedCampaignData = refreshResponse.campaign;
-        // Success - data refreshed from API
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        setEditLoadingCampaignId(null);
+        setRefreshMessage(null);
+        return;
+      }
+      const isDraft = String(row.campaign_id).startsWith("draft-");
+
+      // Step 1: For drafts, fetch detail from DB only (no Google API refresh). For live campaigns, refresh from API or fallback to detail.
+      let refreshedCampaignData: any = null;
+      if (isDraft) {
         setRefreshMessage({
-          type: "success",
-          message: "Campaign data refreshed from Google Ads API",
-          details: refreshResponse.message || "Latest data loaded successfully",
+          type: "loading",
+          message: "Loading draft campaign...",
         });
-      } catch (refreshError: any) {
-        // Failed to refresh from API, use cached data from database
-        console.warn(
-          "Failed to refresh campaign from API, using cached data:",
-          refreshError
-        );
-        const errorMessage =
-          refreshError?.response?.data?.error ||
-          refreshError?.message ||
-          "Could not fetch latest from Google API";
-        setRefreshMessage({
-          type: "error",
-          message: "Using cached data",
-          details: errorMessage,
-        });
-        // Fallback: Fetch from database
         try {
-          const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-          if (!channelIdNum || isNaN(channelIdNum)) {
-            throw new Error("Channel ID is required");
-          }
           const campaignDetail = await googleAdwordsCampaignsService.getGoogleCampaignDetail(
             accountIdNum,
             channelIdNum,
             row.campaign_id
           );
           refreshedCampaignData = campaignDetail?.campaign || null;
+          setRefreshMessage({
+            type: "success",
+            message: "Draft loaded",
+            details: "Draft campaign data loaded",
+          });
         } catch (detailError) {
-          console.warn("Failed to fetch campaign detail:", detailError);
+          console.warn("Failed to fetch draft detail:", detailError);
+          setRefreshMessage({
+            type: "error",
+            message: "Failed to load draft",
+            details: (detailError as any)?.message || "Could not load draft",
+          });
+        }
+      } else {
+        try {
+          const refreshResponse =
+            await campaignsService.refreshGoogleCampaignFromAPI(
+              accountIdNum,
+              channelIdNum,
+              row.campaign_id
+            );
+          refreshedCampaignData = refreshResponse.campaign;
+          setRefreshMessage({
+            type: "success",
+            message: "Campaign data refreshed from Google Ads API",
+            details: refreshResponse.message || "Latest data loaded successfully",
+          });
+        } catch (refreshError: any) {
+          console.warn(
+            "Failed to refresh campaign from API, using cached data:",
+            refreshError
+          );
+          setRefreshMessage({
+            type: "error",
+            message: "Using cached data",
+            details:
+              refreshError?.response?.data?.error ||
+              refreshError?.message ||
+              "Could not fetch latest from Google API",
+          });
+          try {
+            const campaignDetail = await googleAdwordsCampaignsService.getGoogleCampaignDetail(
+              accountIdNum,
+              channelIdNum,
+              row.campaign_id
+            );
+            refreshedCampaignData = campaignDetail?.campaign || null;
+          } catch (detailError) {
+            console.warn("Failed to fetch campaign detail:", detailError);
+          }
         }
       }
 
       // Step 2: Use refreshed data or fallback to row data
       const campaignData = refreshedCampaignData || row;
-      const extra_data = campaignData.extra_data || row.extra_data || {};
+      let extra_data: Record<string, any> = campaignData.extra_data ?? row.extra_data ?? {};
+      if (typeof extra_data === "string") {
+        try {
+          extra_data = JSON.parse(extra_data);
+        } catch {
+          extra_data = {};
+        }
+      }
+      const creation_payload = extra_data?.creation_payload || {};
       const shopping_setting = extra_data.shopping_setting || {};
       const campaignType =
         ((campaignData.campaign_type ||
           campaignData.advertising_channel_type ||
-          row.advertising_channel_type?.toUpperCase()) as any) ||
+          row.advertising_channel_type?.toUpperCase() ||
+          extra_data.campaign_type ||
+          creation_payload.campaign_type) as any) ||
         "PERFORMANCE_MAX";
 
-      // Map campaign data to CreateGoogleCampaignData format using refreshed data
+      // Budget: support daily_budget (dollars) or campaign_budget_amount_micros (micros) or creation_payload.budget_amount
+      const budgetFromMicros =
+        (campaignData.campaign_budget_amount_micros != null
+          ? Number(campaignData.campaign_budget_amount_micros) / 1_000_000
+          : undefined) as number | undefined;
+      const budgetAmount =
+        campaignData.budget_amount ??
+        campaignData.daily_budget ??
+        row.daily_budget ??
+        budgetFromMicros ??
+        (typeof creation_payload.budget_amount === "number" ? creation_payload.budget_amount : undefined) ??
+        0;
+
+      // Map campaign data to CreateGoogleCampaignData format using refreshed data and creation_payload for drafts
       const initial: Partial<CreateGoogleCampaignData> = {
         name:
           campaignData.name ||
           campaignData.campaign_name ||
           row.campaign_name ||
+          creation_payload.name ||
           "",
         campaign_type: campaignType,
-        budget_amount:
-          campaignData.budget_amount ||
-          campaignData.daily_budget ||
-          row.daily_budget ||
-          0,
-        budget_name: campaignData.budget_name || undefined,
+        budget_amount: budgetAmount,
+        budget_name: campaignData.budget_name ?? creation_payload.budget_name ?? undefined,
         status:
           (campaignData.status?.toUpperCase() as any) ||
           (row.status?.toUpperCase() as any) ||
+          (creation_payload.status?.toUpperCase() as any) ||
           "PAUSED",
         start_date:
           parseDateToYYYYMMDD(campaignData.start_date) ||
           parseDateToYYYYMMDD(row.start_date) ||
+          (creation_payload.start_date ? parseDateToYYYYMMDD(creation_payload.start_date) : undefined) ||
           undefined,
         end_date:
           parseDateToYYYYMMDD(campaignData.end_date) ||
           parseDateToYYYYMMDD(row.end_date) ||
+          (creation_payload.end_date ? parseDateToYYYYMMDD(creation_payload.end_date) : undefined) ||
           undefined,
         // Bidding strategy fields
-        bidding_strategy_type: campaignData.bidding_strategy_type || undefined,
+        bidding_strategy_type:
+          campaignData.bidding_strategy_type ||
+          creation_payload.bidding_strategy_type ||
+          undefined,
         target_cpa_micros: campaignData.target_cpa_micros,
         target_roas: campaignData.target_roas,
         target_impression_share_location: campaignData.target_impression_share_location,
@@ -1800,6 +1955,32 @@ export const GoogleCampaigns: React.FC = () => {
         }
       }
 
+      // For Demand Gen campaigns (including drafts), populate from extra_data.creation_payload
+      if (campaignType === "DEMAND_GEN") {
+        const cp = creation_payload;
+        if (cp.name) initial.name = cp.name;
+        if (cp.start_date) initial.start_date = parseDateToYYYYMMDD(cp.start_date) || initial.start_date;
+        if (cp.end_date) initial.end_date = parseDateToYYYYMMDD(cp.end_date) || initial.end_date;
+        if (typeof cp.budget_amount === "number") initial.budget_amount = cp.budget_amount;
+        if (cp.budget_name) initial.budget_name = cp.budget_name;
+        if (cp.bidding_strategy_type) initial.bidding_strategy_type = cp.bidding_strategy_type;
+        if (cp.headlines && Array.isArray(cp.headlines)) initial.headlines = cp.headlines;
+        if (cp.descriptions && Array.isArray(cp.descriptions)) initial.descriptions = cp.descriptions;
+        if (cp.long_headlines && Array.isArray(cp.long_headlines)) initial.long_headlines = cp.long_headlines;
+        if (cp.video_id) initial.video_id = cp.video_id;
+        if (cp.final_url) initial.final_url = cp.final_url;
+        if (cp.ad_group_name) initial.ad_group_name = cp.ad_group_name;
+        if (cp.ad_name) initial.ad_name = cp.ad_name;
+        if (cp.business_name) initial.business_name = cp.business_name;
+        if (cp.logo_url) initial.logo_url = cp.logo_url;
+        if (cp.channel_controls && typeof cp.channel_controls === "object") {
+          initial.channel_controls = cp.channel_controls;
+        }
+        // Ensure arrays for Demand Gen form
+        if (!initial.headlines || !Array.isArray(initial.headlines)) initial.headlines = [""];
+        if (!initial.descriptions || !Array.isArray(initial.descriptions)) initial.descriptions = [""];
+      }
+
       setInitialCampaignData(initial);
       setCampaignId(row.campaign_id);
       // After data is loaded and form state is set, smoothly scroll to top
@@ -1848,6 +2029,7 @@ export const GoogleCampaigns: React.FC = () => {
               : undefined,
             end_date: endDate ? endDateStr : undefined,
             filters: filters, // Pass filters array directly
+            draft_only: showDraftsOnly,
           };
 
           const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
@@ -3549,6 +3731,7 @@ export const GoogleCampaigns: React.FC = () => {
                         initialData={initialCampaignData}
                         campaignId={campaignId}
                         refreshMessage={refreshMessage}
+                        onPublishDraft={handlePublishDraftFromPanel}
                       />
                     )}
                 </>
@@ -3607,7 +3790,40 @@ export const GoogleCampaigns: React.FC = () => {
 
               {/* Search, Edit and Export Buttons - Above Table */}
               <div className="relative">
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  {/* Draft campaigns only switch - "Draft" rightmost when off, leftmost when on; thumb slides */}
+                  <div className="flex items-center">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={showDraftsOnly}
+                      onClick={() => {
+                        setShowDraftsOnly((prev) => !prev);
+                        setCurrentPage(1);
+                      }}
+                      className={`relative inline-flex items-center h-6 w-16 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-[#072929] focus:ring-offset-2 overflow-hidden ${
+                        showDraftsOnly ? "bg-forest-f40" : "bg-gray-200"
+                      }`}
+                    >
+                      {/* "Draft" label: rightmost when off (thumb left), leftmost when on (thumb right) */}
+                      <span
+                        className={`absolute top-1/2 -translate-y-1/2 pointer-events-none text-[10.64px] font-medium whitespace-nowrap transition-all duration-200 ${
+                          showDraftsOnly
+                            ? "left-2 right-auto text-white"
+                            : "left-auto right-2 text-[#556179]"
+                        }`}
+                      >
+                        Draft
+                      </span>
+                      {/* Thumb - vertically centered, slides left/right */}
+                      <span
+                        className={`absolute top-1/2 -translate-y-1/2 left-0.5 w-5 h-5 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
+                          showDraftsOnly ? "translate-x-10" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
                   {/* Search Box */}
                   <div className="search-input-container flex gap-[8px] h-[40px] items-center p-[10px] w-[272px]">
                     <div className="relative shrink-0 size-[12px]">
@@ -3861,6 +4077,7 @@ export const GoogleCampaigns: React.FC = () => {
                   </span>
                 </Button>
               </div> */}
+                  </div>
                 </div>
                 {isCreateCampaignPanelOpen && (
                   <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[8px] cursor-not-allowed" />
@@ -4432,6 +4649,8 @@ export const GoogleCampaigns: React.FC = () => {
                       getSortIcon={getSortIcon}
                       onEditCampaign={handleOpenEditCampaign}
                       editLoadingCampaignId={editLoadingCampaignId}
+                      onPublishDraft={handlePublishDraft}
+                      publishLoadingCampaignId={publishLoadingCampaignId}
                       isPanelOpen={isCreateCampaignPanelOpen}
                       currencyCode={currencyCode}
                     />
@@ -4534,7 +4753,7 @@ export const GoogleCampaigns: React.FC = () => {
                   {refreshMessage.message}
                 </span>
               </div>
-            </div>ƒƒ
+            </div>
           </div>
         )}
     </div>
