@@ -54,7 +54,7 @@ export const Sidebar: React.FC = () => {
   const hasUsersAccess = user?.role !== "team"; // Owner and Manager can see Users tab
   const accountId = getCurrentAccountId(location.pathname);
   const { isCollapsed, toggleSidebar, sidebarWidth } = useSidebar();
-  const { getAccountById } = useAccounts();
+  const { accounts, getAccountById } = useAccounts();
   const accountIdNum = accountId !== null ? accountId : undefined;
   const currentAccount = accountIdNum != null ? getAccountById(accountIdNum) : null;
   const { data: channelsFromApi = [] } = useChannels(accountIdNum);
@@ -322,7 +322,7 @@ export const Sidebar: React.FC = () => {
     >
       <div className="p-4">
         {/* Logo and Toggle Button */}
-        <div className="mb-8 flex items-center gap-3 justify-between">
+        <div className="mb-2 flex items-center gap-3 justify-between">
           {!isCollapsed && (
             <img
               src={StellarLogo}
@@ -359,6 +359,18 @@ export const Sidebar: React.FC = () => {
             </svg>
           </button>
         </div>
+
+        {/* Workspace name - top left when sidebar expanded */}
+        {hasWorkspace && user?.workspace?.name && !isCollapsed && (
+          <div className="mb-6 px-1">
+            <p
+              className="text-[11px] font-medium text-[rgba(0,0,0,0.5)] truncate"
+              title={user.workspace.name}
+            >
+              {user.workspace.name}
+            </p>
+          </div>
+        )}
 
         {/* Brands Section - sub-nav: Brands, Channels, Profiles, Users (hidden when no workspace) */}
         {hasWorkspace && (
@@ -480,37 +492,35 @@ export const Sidebar: React.FC = () => {
                       Profiles
                     </span>
                   </Link>
-                  {hasUsersAccess && (
-                    <Link
-                      to={
-                        accountId
-                          ? buildAccountRoute(accountId, "users")
+                </div>
+              )}
+              {/* Users - always visible; without brand go to first brand's users (full AccountUsers UI with create, pagination) */}
+              {hasUsersAccess && (
+                <div className="mt-1 ml-[15px]">
+                  <Link
+                    to={
+                      accountId
+                        ? buildAccountRoute(accountId, "users")
+                        : accounts.length > 0
+                          ? buildAccountRoute(accounts[0].id, "users")
                           : "/workspace/team"
-                      }
-                      onClick={(e) =>
-                        handleAccountRequiredClick(e, () =>
-                          accountId
-                            ? buildAccountRoute(accountId, "users")
-                            : "/workspace/team",
-                        )
-                      }
-                      className={`flex items-center p-2 rounded-xl gap-2 ${
-                        isActive("/workspace/team") || isActive("/brands/" + (accountId ?? "") + "/users")
-                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                      }`}
-                      title="Users"
-                    >
-                      <img
-                        src={isActive("/workspace/team") || isActive("/brands/" + (accountId ?? "") + "/users") ? UsersActiveIcon : UsersIcon}
-                        alt=""
-                        className="w-5 h-5 shrink-0"
-                      />
-                      <span className="text-[12.32px] font-normal leading-[16px]">
-                        Users
-                      </span>
-                    </Link>
-                  )}
+                    }
+                    className={`flex items-center p-2 rounded-xl gap-2 ${
+                      isActive("/workspace/team") || isActive("/brands/" + (accountId ?? "") + "/users")
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                    }`}
+                    title="Users"
+                  >
+                    <img
+                      src={isActive("/workspace/team") || isActive("/brands/" + (accountId ?? "") + "/users") ? UsersActiveIcon : UsersIcon}
+                      alt=""
+                      className="w-5 h-5 shrink-0"
+                    />
+                    <span className="text-[12.32px] font-normal leading-[16px]">
+                      Users
+                    </span>
+                  </Link>
                 </div>
               )}
             </>

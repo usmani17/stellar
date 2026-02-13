@@ -1,4 +1,5 @@
 import axios from "axios";
+import { clearAccountIdFromStorage } from "../utils/urlHelpers";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
@@ -109,6 +110,7 @@ api.interceptors.response.use(
           localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
+          clearAccountIdFromStorage();
           const path = window.location.pathname + window.location.search + (window.location.hash || "");
           if (path && path !== "/login") {
             sessionStorage.setItem("loginRedirect", path);
@@ -142,6 +144,7 @@ api.interceptors.response.use(
           localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
+          clearAccountIdFromStorage();
           const path = window.location.pathname + window.location.search + (window.location.hash || "");
           if (path && path !== "/login") {
             sessionStorage.setItem("loginRedirect", path);

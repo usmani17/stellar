@@ -62,6 +62,18 @@ export const saveAccountIdToStorage = (accountId: number): void => {
 };
 
 /**
+ * Clear last selected account ID from localStorage.
+ * Call this on logout so the next user/session does not use the previous user's selection.
+ */
+export const clearAccountIdFromStorage = (): void => {
+  try {
+    localStorage.removeItem(LAST_SELECTED_ACCOUNT_KEY);
+  } catch (error) {
+    console.error('Error clearing account ID from storage:', error);
+  }
+};
+
+/**
  * Get current account ID from URL params or localStorage fallback
  * @param pathname - Current pathname
  * @returns account_id as number or null if not found
