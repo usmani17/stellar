@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAccounts } from "../contexts/AccountsContext";
 import { useSidebar } from "../contexts/SidebarContext";
@@ -506,6 +506,9 @@ export const AccountProfiles: React.FC = () => {
   const [selectedIntegrationChannelId, setSelectedIntegrationChannelId] =
     useState<number | "all">("all");
 
+  // Prevent duplicate profiles request (React StrictMode double-mount in dev)
+  const profilesRequestIdRef = useRef<number | null>(null);
+
   const integrationsList = useMemo(() => {
     const seen = new Set<number>();
     const list: { channel_id: number; channel_name: string }[] = [];
@@ -581,6 +584,12 @@ export const AccountProfiles: React.FC = () => {
       setLoading(false);
       return;
     }
+    // Skip duplicate run (e.g. React StrictMode double-invokes effects in dev)
+    if (profilesRequestIdRef.current === accountIdNum) {
+      return;
+    }
+    profilesRequestIdRef.current = accountIdNum;
+
     let cancelled = false;
     setLoading(true);
     setSyncStatusLoading(false);
