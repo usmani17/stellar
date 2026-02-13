@@ -48,8 +48,6 @@ export interface AssistantScope {
   marketplace?: string | null;
 }
 
-export type AssistantIntent = "analyze" | "create_campaign" | null;
-
 // Extended Thread with runtime state (not from API). Exported so Assistant UI can read campaignState.
 export interface ThreadWithRuntime extends Thread {
   isStreaming?: boolean;
@@ -93,16 +91,13 @@ interface AssistantContextType {
   isStreaming: boolean;
   currentThinkingSteps: string[];
   assistants: AssistantSearchResult[];
-  selectedGraphId: GraphId;
-  setSelectedGraphId: (id: GraphId) => void;
+  selectedGraphId: GraphId | null;
+  setSelectedGraphId: (id: GraphId | null) => void;
   onApplyDraft?: (draft: Record<string, unknown>) => void;
 
   /** Scope selected in panel (account, channel, profile). When set, overrides route params when sending. */
   assistantScope: AssistantScope;
   setAssistantScope: (updates: Partial<AssistantScope>) => void;
-  /** Intent: Analyze or Create Campaign. When set, can drive suggested prompts and run metadata. */
-  assistantIntent: AssistantIntent;
-  setAssistantIntent: (intent: AssistantIntent) => void;
 }
 
 const AssistantContext = createContext<AssistantContextType | undefined>(undefined);
@@ -142,7 +137,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingThreads, setIsLoadingThreads] = useState(false);
-  const [selectedGraphId, setSelectedGraphId] = useState<GraphId>("chat");
+  const [selectedGraphId, setSelectedGraphId] = useState<GraphId|null>(null);
   const [assistants, setAssistants] = useState<AssistantSearchResult[]>([]);
 
   const [assistantScope, setAssistantScopeState] = useState<AssistantScope>({
@@ -152,7 +147,6 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     profileName: null,
     marketplace: null,
   });
-  const [assistantIntent, setAssistantIntent] = useState<AssistantIntent>(null);
 
   const setAssistantScope = useCallback((updates: Partial<AssistantScope>) => {
     setAssistantScopeState((prev) => ({ ...prev, ...updates }));
@@ -177,6 +171,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   const effectiveMarketplace = assistantScope.marketplace ?? null;
 
   const onThreadIdFromStream = useCallback((threadId: string) => {
+    if (!selectedGraphId) return;
     const title = pendingThreadTitleRef.current
       ? (pendingThreadTitleRef.current.length > 50
           ? pendingThreadTitleRef.current.slice(0, 47) + "..."
@@ -408,11 +403,15 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     }));
   }, [stream.isLoading, currentThreadId, currentThread?.thinkingSteps]);
 
-  // Sync campaign state from stream.values into current thread (backend sends campaign_draft etc. at top level of values)
+  // Sync campaign state from stream.values into current thread only when a run just finished.
+  // Otherwise switching to another thread would apply the previous thread's stream.values (stale) to the new thread.
+  const prevStreamLoadingRef = React.useRef<boolean>(stream.isLoading);
   useEffect(() => {
-    if (stream.isLoading) return;
+    const justFinished = prevStreamLoadingRef.current && !stream.isLoading;
+    prevStreamLoadingRef.current = stream.isLoading;
+    if (!justFinished || !currentThreadId) return;
     const vals = stream.values != null && typeof stream.values === "object" ? (stream.values as Record<string, unknown>) : undefined;
-    if (!currentThreadId || !vals) return;
+    if (!vals) return;
     const hasCampaignState = "campaign_draft" in vals || "reply_text" in vals || "current_questions_schema" in vals;
     if (!hasCampaignState) return;
     const campaignState = vals as CampaignSetupState;
@@ -497,15 +496,6 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     }
   }, []);
 
-  // Sync selectedGraphId when user selects a thread (so graph selector matches the thread's graph)
-  useEffect(() => {
-    if (!currentThreadId || !currentThread) return;
-    const graphId = (currentThread.metadata as { graph_id?: GraphId })?.graph_id;
-    if (graphId === "chat" || graphId === "campaign_setup") {
-      setSelectedGraphId(graphId);
-    }
-  }, [currentThreadId, currentThread?.metadata, currentThread]);
-
   // Select thread - load full history if needed
   const selectThread = useCallback(async (threadId: string) => {
     setIsLoading(true);
@@ -523,12 +513,15 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         if (history.length > 0) {
           // Get latest state from history; normalize messages for consistent display with stream
           const latestState = history[history.length - 1];
-          const values = latestState.values
+          const rawValues = latestState.values;
+          const values = rawValues
             ? {
-              ...latestState.values,
-              messages: normalizeThreadMessages(latestState.values.messages),
+              ...rawValues,
+              messages: normalizeThreadMessages(rawValues.messages),
             }
-            : latestState.values;
+            : rawValues;
+          const hasCampaign = rawValues && typeof rawValues === "object" && ("campaign_draft" in rawValues || "reply_text" in rawValues || "current_questions_schema" in rawValues);
+          const campaignStateFromHistory = hasCampaign ? (rawValues as CampaignSetupState) : undefined;
 
           setThreads(prev => prev.map(t =>
             t.thread_id === threadId
@@ -536,7 +529,8 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
                 ...t,
                 ...fullThread,
                 values: values ?? fullThread.values,
-                updated_at: fullThread.updated_at
+                updated_at: fullThread.updated_at,
+                campaignState: campaignStateFromHistory,
               }
               : t
           ));
@@ -544,6 +538,14 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       }
 
       setCurrentThreadId(threadId);
+
+      // When we didn't load history and the selected thread is a chat thread, clear campaign state so we don't show a previous thread's campaign state (e.g. switched from campaign to chat).
+      const selectedMeta = existingThread?.metadata as ThreadMetaData | undefined;
+      if (!needsHistory && selectedMeta?.graph_id === "chat") {
+        setThreads(prev => prev.map(t =>
+          t.thread_id === threadId ? { ...t, campaignState: undefined } : t
+        ));
+      }
 
       // Sync context state from selected thread's metadata
       const selectedThread = threads.find(t => t.thread_id === threadId);
@@ -558,16 +560,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
           profileId: metadata.profile_id ?? null,
           marketplace: metadata.platform ?? null,
         }));
-
-        // Update assistant intent from thread metadata
-        if (metadata.intent && (metadata.intent === "analyze" || metadata.intent === "create_campaign")) {
-          setAssistantIntent(metadata.intent);
-        }
-
-        // Update selected graph ID from thread metadata
-        if (metadata.graph_id && (metadata.graph_id === "chat" || metadata.graph_id === "campaign_setup")) {
-          setSelectedGraphId(metadata.graph_id);
-        }
+        setSelectedGraphId(metadata.graph_id ?? "chat");
       }
     } catch (error) {
       console.error('Failed to select thread:', error);
@@ -579,6 +572,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   // Start new thread - add to array immediately
   const startNewThread = useCallback(() => {
     setCurrentThreadId(null);
+    setSelectedGraphId(null);
   }, []);
 
   // Delete thread from UI and persist deletion to backend
@@ -693,7 +687,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       integration_id: channelIdNum ?? effectiveChannelId ?? undefined,
       profile_id: effectiveProfileId ?? undefined,
       marketplace: effectiveMarketplace ?? undefined,
-      intent: assistantIntent ?? "analyze",
+      graph_id: selectedGraphId,
       ...(currentThreadId ? { thread_id: currentThreadId } : {}),
     };
     if (effectiveProfileName != null || effectiveMarketplace != null) {
@@ -714,7 +708,6 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
       session_id: undefined, // Add when available
       platform: effectiveMarketplace ?? undefined,
       auth_token: "123123123", // Consider making this dynamic
-      intent: assistantIntent ?? "analyze",
       assistant_id: currentAssistantId,
       graph_id: selectedGraphId,
     };
@@ -739,7 +732,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     } catch (error) {
       console.error("Error sending message:", error);
     }
-  }, [user?.id, currentAssistantId, streamApiUrl, effectiveAccountId, effectiveChannelId, effectiveProfileId, effectiveProfileName, effectiveMarketplace, assistantIntent, currentThreadId, threads, stream]);
+  }, [user?.id, currentAssistantId, streamApiUrl, effectiveAccountId, effectiveChannelId, effectiveProfileId, effectiveProfileName, effectiveMarketplace, selectedGraphId, currentThreadId, threads, stream]);
 
   const cancelRun = useCallback(async () => {
     try {
@@ -798,8 +791,6 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
 
         assistantScope,
         setAssistantScope,
-        assistantIntent,
-        setAssistantIntent,
       }}
     >
       {children}
@@ -809,6 +800,7 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
 
 export const useAssistant = (): AssistantContextType => {
   const context = useContext(AssistantContext);
+  // console.log("AssistantContext value: "  + context?.currentThreadId, context?.currentThread);
   if (context === undefined) {
     throw new Error("useAssistant must be used within an AssistantProvider");
   }

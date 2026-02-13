@@ -19,8 +19,9 @@ export type GraphId = "chat" | "campaign_setup";
  */
 export function getAssistantIdForGraph(
 	assistants: AssistantSearchResult[],
-	graphId: GraphId
+	graphId: GraphId | null
 ): string {
+	if (!graphId) return "";
 	const found = assistants.find((a) => a.graph_id === graphId);
 	return found?.assistant_id ?? graphId;
 }
