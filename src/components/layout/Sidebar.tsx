@@ -40,8 +40,9 @@ import ProfilesIcon from "../../assets/images/profiles.svg";
 import ProfilesActiveIcon from "../../assets/images/profiles-active.svg";
 import UsersIcon from "../../assets/images/users.svg";
 import UsersActiveIcon from "../../assets/images/users-active.svg";
+import WorkspaceIcon from "../../assets/workspace.svg";
 
-const BRANDS_SECTION_STORAGE_KEY = "brands-section-collapsed";
+const WORKSPACE_SECTION_STORAGE_KEY = "workspace-section-collapsed";
 const AMAZON_SECTION_STORAGE_KEY = "amazon-section-collapsed";
 const GOOGLE_SECTION_STORAGE_KEY = "google-section-collapsed";
 const TIKTOK_SECTION_STORAGE_KEY = "tiktok-section-collapsed";
@@ -98,9 +99,9 @@ export const Sidebar: React.FC = () => {
       const saved = localStorage.getItem(TIKTOK_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
-  const [isBrandsSectionCollapsed, setIsBrandsSectionCollapsed] =
+  const [isWorkspaceSectionCollapsed, setIsWorkspaceSectionCollapsed] =
     useState<boolean>(() => {
-      const saved = localStorage.getItem(BRANDS_SECTION_STORAGE_KEY);
+      const saved = localStorage.getItem(WORKSPACE_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
 
@@ -115,7 +116,7 @@ export const Sidebar: React.FC = () => {
       location.pathname === "/workspace/team";
 
     if (isBrandsArea) {
-      setIsBrandsSectionCollapsed(false);
+      setIsWorkspaceSectionCollapsed(false);
     }
     // If on brands page, collapse all marketplace sections
     if (location.pathname === "/brands") {
@@ -135,10 +136,10 @@ export const Sidebar: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem(
-      BRANDS_SECTION_STORAGE_KEY,
-      String(isBrandsSectionCollapsed),
+      WORKSPACE_SECTION_STORAGE_KEY,
+      String(isWorkspaceSectionCollapsed),
     );
-  }, [isBrandsSectionCollapsed]);
+  }, [isWorkspaceSectionCollapsed]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -166,8 +167,8 @@ export const Sidebar: React.FC = () => {
     setIsTikTokSectionCollapsed((prev) => !prev);
   };
 
-  const toggleBrandsSection = () => {
-    setIsBrandsSectionCollapsed((prev) => !prev);
+  const toggleWorkspaceSection = () => {
+    setIsWorkspaceSectionCollapsed((prev) => !prev);
   };
 
   const isActive = (path: string) => {
@@ -372,34 +373,36 @@ export const Sidebar: React.FC = () => {
           </div>
         )}
 
-        {/* Brands Section - sub-nav: Brands, Channels, Profiles, Users (hidden when no workspace) */}
+        {/* Workspace Section - sub-nav: Brands, Integrations, Profiles, Users (hidden when no workspace) */}
         {hasWorkspace && (
         <div className="mb-6">
           {!isCollapsed ? (
             <>
-              <div className="mb-3 flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-                <h2
-                  className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide"
-                  onClick={toggleBrandsSection}
-                >
-                  Brands
-                </h2>
+              <div className="mb-3 flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                <div className="flex items-center gap-2 min-w-0" onClick={toggleWorkspaceSection}>
+                  <img src={WorkspaceIcon} alt="" className="w-5 h-5 shrink-0" />
+                  <h2
+                    className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide truncate"
+                  >
+                    Workspace
+                  </h2>
+                </div>
                 <button
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    toggleBrandsSection();
+                    toggleWorkspaceSection();
                   }}
-                  className="p-1 rounded hover:bg-gray-100 transition-colors"
+                  className="p-1 rounded hover:bg-gray-100 transition-colors shrink-0"
                   aria-label={
-                    isBrandsSectionCollapsed
-                      ? "Expand Brands section"
-                      : "Collapse Brands section"
+                    isWorkspaceSectionCollapsed
+                      ? "Expand Workspace section"
+                      : "Collapse Workspace section"
                   }
                 >
                   <svg
                     className={`w-4 h-4 text-gray-600 transition-transform ${
-                      isBrandsSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
+                      isWorkspaceSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
                     }`}
                     fill="none"
                     viewBox="0 0 24 24"
@@ -414,7 +417,7 @@ export const Sidebar: React.FC = () => {
                   </svg>
                 </button>
               </div>
-              {!isBrandsSectionCollapsed && (
+              {!isWorkspaceSectionCollapsed && (
                 <div className="space-y-1 ml-[15px]">
                   <Link
                     to="/brands"
@@ -492,35 +495,32 @@ export const Sidebar: React.FC = () => {
                       Profiles
                     </span>
                   </Link>
-                </div>
-              )}
-              {/* Users - always visible; without brand go to first brand's users (full AccountUsers UI with create, pagination) */}
-              {hasUsersAccess && (
-                <div className="mt-1 ml-[15px]">
-                  <Link
-                    to={
-                      accountId
-                        ? buildAccountRoute(accountId, "users")
-                        : accounts.length > 0
-                          ? buildAccountRoute(accounts[0].id, "users")
-                          : "/workspace/team"
-                    }
-                    className={`flex items-center p-2 rounded-xl gap-2 ${
-                      isActive("/workspace/team") || isActive("/brands/" + (accountId ?? "") + "/users")
-                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                    }`}
-                    title="Users"
-                  >
-                    <img
-                      src={isActive("/workspace/team") || isActive("/brands/" + (accountId ?? "") + "/users") ? UsersActiveIcon : UsersIcon}
-                      alt=""
-                      className="w-5 h-5 shrink-0"
-                    />
-                    <span className="text-[12.32px] font-normal leading-[16px]">
-                      Users
-                    </span>
-                  </Link>
+                  {hasUsersAccess && (
+                    <Link
+                      to={
+                        accountId
+                          ? buildAccountRoute(accountId, "users")
+                          : accounts.length > 0
+                            ? buildAccountRoute(accounts[0].id, "users")
+                            : "/workspace/team"
+                      }
+                      className={`flex items-center p-2 rounded-xl gap-2 ${
+                        isActive("/workspace/team") || isActive("/brands/" + (accountId ?? "") + "/users")
+                          ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                          : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                      }`}
+                      title="Users"
+                    >
+                      <img
+                        src={isActive("/workspace/team") || isActive("/brands/" + (accountId ?? "") + "/users") ? UsersActiveIcon : UsersIcon}
+                        alt=""
+                        className="w-5 h-5 shrink-0"
+                      />
+                      <span className="text-[12.32px] font-normal leading-[16px]">
+                        Users
+                      </span>
+                    </Link>
+                  )}
                 </div>
               )}
             </>
@@ -532,10 +532,10 @@ export const Sidebar: React.FC = () => {
                   ? "w-full bg-forest-f60 !text-white hover:!text-white"
                   : "text-black hover:bg-transparent"
               }`}
-              title="Brands"
+              title="Workspace"
             >
               <img
-                src={isActive("/brands") ? BrandsActiveIcon : BrandsIcon}
+                src={WorkspaceIcon}
                 alt=""
                 className="w-5 h-5 shrink-0"
               />
