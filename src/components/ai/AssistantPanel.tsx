@@ -162,11 +162,10 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         deleteThread,
         cancelRun,
         setSelectedGraphId,
+        selectedGraphId,
         closeAssistant,
         assistantScope,
         setAssistantScope,
-        assistantIntent,
-        setAssistantIntent,
     } = useAssistant();
 
     const threadWithRuntime = currentThread as ThreadWithRuntime | null;
@@ -322,7 +321,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
     const handleNewThread = () => {
         startNewThread();
-        setAssistantIntent(null);
         setIsThreadDropdownOpen(false);
     };
 
@@ -351,7 +349,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         assistantScope.accountId &&
         assistantScope.channelId &&
         assistantScope.profileId &&
-        assistantIntent
+        selectedGraphId
     );
 
     const contextSection = (
@@ -536,9 +534,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 <div className="assistant-setup-intent-btns">
                     <button
                         type="button"
-                        onClick={() => setAssistantIntent(assistantIntent === "analyze" ? null : "analyze")}
+                        onClick={() => setSelectedGraphId("chat")}
                         disabled={!assistantScope.accountId || !assistantScope.channelId || !assistantScope.profileId}
-                        className={`assistant-setup-intent-btn ${assistantIntent === "analyze" ? "assistant-setup-intent-btn-active" : ""}`}
+                        className={`assistant-setup-intent-btn ${selectedGraphId === "chat" ? "assistant-setup-intent-btn-active" : ""}`}
                         title="Analyze campaigns"
                     >
                         <BarChart3 className="w-4 h-4 shrink-0" />
@@ -546,12 +544,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     </button>
                     <button
                         type="button"
-                        onClick={() => {
-                            setAssistantIntent(assistantIntent === "create_campaign" ? null : "create_campaign");
-                            if (assistantIntent !== "create_campaign") setSelectedGraphId("campaign_setup");
-                        }}
+                        onClick={() => setSelectedGraphId("campaign_setup")}
                         disabled={!assistantScope.accountId || !assistantScope.channelId || !assistantScope.profileId}
-                        className={`assistant-setup-intent-btn ${assistantIntent === "create_campaign" ? "assistant-setup-intent-btn-active" : ""}`}
+                        className={`assistant-setup-intent-btn ${selectedGraphId === "campaign_setup" ? "assistant-setup-intent-btn-active" : ""}`}
                         title="Create campaign"
                     >
                         <Megaphone className="w-4 h-4 shrink-0" />
@@ -586,9 +581,16 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                             className="assistant-tab-pill-button"
                                             title={thread.metadata?.title || 'Untitled'}
                                         >
-                                            <svg className="w-4 h-4 shrink-0 text-current opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                            </svg>
+
+                                            {thread.metadata.graph_id === "campaign_setup" ? (
+                                                <Megaphone className="w-4 h-4 shrink-0" />
+                                            ) : thread.metadata.graph_id === "chat" ? (
+                                                <BarChart3 className="w-4 h-4 shrink-0" />
+                                            ) : (
+                                                <svg className="w-4 h-4 shrink-0 text-[var(--color-semantic-text-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                                </svg>
+                                            )}
                                             <span className="max-w-[120px] truncate">{thread.metadata?.title || 'Untitled'}</span>
                                             {currentThread?.thread_id === thread.thread_id && (
                                                 <Check className="w-4 h-4 shrink-0 text-[var(--color-semantic-status-primary)]" />
@@ -662,9 +664,15 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                                 onClick={() => handleThreadSelect(thread.thread_id)}
                                                                 className="assistant-history-item-button"
                                                             >
-                                                                <svg className="w-4 h-4 shrink-0 text-[var(--color-semantic-text-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                                                </svg>
+                                                                {thread.metadata.graph_id === "campaign_setup" ? (
+                                                                    <Megaphone className="w-4 h-4 shrink-0" />
+                                                                ) : thread.metadata.graph_id === "chat" ? (
+                                                                    <BarChart3 className="w-4 h-4 shrink-0" />
+                                                                ) : (
+                                                                    <svg className="w-4 h-4 shrink-0 text-[var(--color-semantic-text-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                                                    </svg>
+                                                                )}
                                                                 <span className="truncate flex-1">{thread.metadata?.title || 'Untitled'}</span>
                                                                 {currentThread?.thread_id === thread.thread_id && (
                                                                     <Check className="w-4 h-4 text-[var(--color-semantic-text-primary)] shrink-0" />
@@ -691,15 +699,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 </div>
                             )}
                         </div>
-                        {assistantIntent === "create_campaign" && (
-                            <CampaignDraftPreview
-                                campaignState={campaignState}
-                                visible
-                                accountId={assistantScope.accountId ?? undefined}
-                                channelId={assistantScope.channelId ?? undefined}
-                                className="shrink-0"
-                            />
-                        )}
                         <button
                             type="button"
                             onClick={handleNewThread}
@@ -772,13 +771,22 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             </div>
                         </>
                     )}
-                    {assistantIntent && (selectedAccount || selectedProfileOption) && (
+                    {(selectedAccount || selectedProfileOption) && (
                         <>
                             <span className="text-[var(--color-neutral-300)] shrink-0" aria-hidden>•</span>
                             <span className="assistant-intent-badge">
-                                {assistantIntent === "analyze" ? "Analyze" : "Create Campaign"}
+                                {selectedGraphId === "chat" ? "Analyze" : "Create Campaign"}
                             </span>
                         </>
+                    )}
+                    {selectedGraphId === "campaign_setup" && (
+                        <CampaignDraftPreview
+                            campaignState={campaignState}
+                            visible
+                            accountId={assistantScope.accountId ?? undefined}
+                            channelId={assistantScope.channelId ?? undefined}
+                            className="shrink-0 ml-auto"
+                        />
                     )}
                 </div>
             </div>
@@ -795,10 +803,10 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             Assistant
                         </h3>
 
-                        {/* Set up your session - hidden as soon as user clicks Analyze or Create Campaign */}
-                        {!assistantIntent && contextSection}
+                        {/* Set up your session - hidden once user has messages */}
+                        {!selectedGraphId && contextSection}
 
-                        {!assistantIntent ? (
+                        {!selectedGraphId ? (
                             <p className="text-sm text-gray-600 text-center px-4">
                                 {!assistantScope.accountId
                                     ? "Select an account above to start."

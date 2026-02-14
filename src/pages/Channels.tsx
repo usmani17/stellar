@@ -295,8 +295,8 @@ export const Channels: React.FC = () => {
         {/* Header */}
         <DashboardHeader />
 
-        {/* Main Content Area */}
-        <div className="p-8 bg-white">
+        {/* Main Content Area - top padding for fixed header */}
+        <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-white">
           {successMessage && (
             <Banner
               type="success"

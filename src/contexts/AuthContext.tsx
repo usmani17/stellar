@@ -12,6 +12,7 @@ import {
   type LoginCredentials,
   type RegisterData,
 } from "../services/auth";
+import { clearAccountIdFromStorage } from "../utils/urlHelpers";
 
 interface AuthContextType {
   user: User | null;
@@ -86,6 +87,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       localStorage.setItem("accessToken", response.tokens.access);
       localStorage.setItem("refreshToken", response.tokens.refresh);
       localStorage.setItem("user", JSON.stringify(response.user));
+      clearAccountIdFromStorage();
       setUser(response.user);
     } catch (error) {
       // Re-throw the error so it can be handled by the Login component
@@ -127,6 +129,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     localStorage.setItem("accessToken", response.tokens.access);
     localStorage.setItem("refreshToken", response.tokens.refresh);
     localStorage.setItem("user", JSON.stringify(response.user));
+    clearAccountIdFromStorage();
     setUser(response.user);
   };
 
@@ -167,10 +170,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         // Try to get Auth0 logout URL from backend
         try {
           const { logout_url } = await authService.getAuth0LogoutUrl();
-          // Clear local storage first
+          // Clear local storage first (including previous session's account selection)
           localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
+          clearAccountIdFromStorage();
           setUser(null);
           // Redirect to Auth0 logout
           window.location.href = logout_url;
@@ -188,6 +192,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
+    clearAccountIdFromStorage();
     setUser(null);
     window.location.href = "/login";
   };

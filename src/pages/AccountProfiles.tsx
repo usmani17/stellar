@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAccounts } from "../contexts/AccountsContext";
 import { useSidebar } from "../contexts/SidebarContext";
@@ -506,6 +506,9 @@ export const AccountProfiles: React.FC = () => {
   const [selectedIntegrationChannelId, setSelectedIntegrationChannelId] =
     useState<number | "all">("all");
 
+  // Prevent duplicate profiles request (React StrictMode double-mount in dev)
+  const profilesRequestIdRef = useRef<number | null>(null);
+
   const integrationsList = useMemo(() => {
     const seen = new Set<number>();
     const list: { channel_id: number; channel_name: string }[] = [];
@@ -581,6 +584,12 @@ export const AccountProfiles: React.FC = () => {
       setLoading(false);
       return;
     }
+    // Skip duplicate run (e.g. React StrictMode double-invokes effects in dev)
+    if (profilesRequestIdRef.current === accountIdNum) {
+      return;
+    }
+    profilesRequestIdRef.current = accountIdNum;
+
     let cancelled = false;
     setLoading(true);
     setSyncStatusLoading(false);
@@ -639,7 +648,8 @@ export const AccountProfiles: React.FC = () => {
       <Sidebar />
       <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
         <DashboardHeader />
-        <div className="p-8 bg-white">
+        {/* Main content - top padding for fixed header */}
+        <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-white">
 
           {syncError && (
             <div className="mb-4 flex items-center gap-2 p-3 rounded-[12px] bg-red-50 border border-red-100 text-red-800 text-sm">

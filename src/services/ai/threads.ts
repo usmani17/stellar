@@ -1,3 +1,5 @@
+import type { GraphId } from "./assistant";
+
 export interface ThreadCreateRequest {
   thread_id?: string;
   metadata?: ThreadMetaData;
@@ -249,7 +251,7 @@ export interface ContextMetadata {
 export interface ThreadMetaData extends ContextMetadata {
   title?: string;
   assistant_id?: string;
-  graph_id?: string;
+  graph_id?: GraphId;
 }
 
 
@@ -276,7 +278,7 @@ export interface ThreadHistoryCheckpoint {
 }
 
 export interface ThreadHistoryMetadata {
-  graph_id: string;
+  graph_id: GraphId;
   assistant_id: string;
   user_id: number;
   created_by: string;
