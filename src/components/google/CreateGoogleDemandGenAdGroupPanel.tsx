@@ -33,7 +33,7 @@ const CHANNEL_OPTIONS = [
 interface CreateGoogleDemandGenAdGroupPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (entity: DemandGenAdGroupInput) => void;
+  onSubmit: (entity: DemandGenAdGroupInput, options?: { saveAsDraft?: boolean }) => void;
   campaignId: string;
   campaignName?: string;
   loading?: boolean;
@@ -79,12 +79,12 @@ export const CreateGoogleDemandGenAdGroupPanel: React.FC<
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = (asDraft?: boolean) => {
     if (!validate()) return;
-    onSubmit({
-      name: name.trim(),
-      channel_controls: channelControls,
-    });
+    onSubmit(
+      { name: name.trim(), channel_controls: channelControls },
+      asDraft ? { saveAsDraft: true } : undefined
+    );
   };
 
   const handleCancel = () => {
@@ -199,7 +199,15 @@ export const CreateGoogleDemandGenAdGroupPanel: React.FC<
         </button>
         <button
           type="button"
-          onClick={handleSubmit}
+          onClick={() => handleSubmit(true)}
+          disabled={loading}
+          className="cancel-button font-semibold text-[11.2px] flex items-center gap-2 px-4 py-2"
+        >
+          Save as Draft
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSubmit()}
           disabled={loading}
           className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >

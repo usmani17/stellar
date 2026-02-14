@@ -17,6 +17,7 @@ export const googleAdwordsKeywordsService = {
       end_date?: string;
       campaign_id?: string | number;
       adgroup_id?: string | number;
+      draft_only?: boolean;
     }
   ): Promise<{
     keywords: any[];
@@ -54,11 +55,12 @@ export const googleAdwordsKeywordsService = {
       end_date: params?.end_date,
     };
     
-    // Add campaign_id and adgroup_id if provided
+    // Add campaign_id, adgroup_id, and draft_only if provided
     if (campaignId) payload.campaign_id = campaignId;
     if (adgroupId) payload.adgroup_id = adgroupId;
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
     if (params?.adgroup_id) payload.adgroup_id = params.adgroup_id;
+    if (params?.draft_only !== undefined) payload.draft_only = params.draft_only;
 
     const response = await api.post(`/google-adwords/${accountId}/channels/${channelId}/keywords/`, payload);
     return response.data;

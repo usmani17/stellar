@@ -36,6 +36,7 @@ export interface GoogleNegativeKeywordsQueryParams {
   order?: "asc" | "desc";
   campaign_id?: string;
   adgroup_id?: string;
+  draft_only?: boolean;
 }
 
 export interface CreateNegativeKeywordInput {
@@ -47,6 +48,7 @@ export interface CreateNegativeKeywordsRequest {
   negativeKeywords: CreateNegativeKeywordInput[];
   level: "campaign" | "adgroup";
   adGroupId?: string;
+  save_as_draft?: boolean;
 }
 
 export interface BulkUpdateNegativeKeywordsRequest {
@@ -76,9 +78,10 @@ export const googleAdwordsNegativeKeywordsService = {
       page_size: params?.page_size,
     };
     
-    // Add campaign_id and adgroup_id if provided (not part of filters array)
+    // Add campaign_id, adgroup_id, and draft_only if provided (not part of filters array)
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
     if (params?.adgroup_id) payload.adgroup_id = params.adgroup_id;
+    if (params?.draft_only !== undefined) payload.draft_only = params.draft_only;
     
     const url = `/google-adwords/${accountId}/channels/${channelId}/negative-keywords/`;
     const response = await api.post<GoogleNegativeKeywordsResponse>(url, payload);

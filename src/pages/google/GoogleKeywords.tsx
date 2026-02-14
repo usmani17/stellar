@@ -97,6 +97,7 @@ export const GoogleKeywords: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const [showDraftsOnly, setShowDraftsOnly] = useState(false);
   const isLoadingRef = useRef(false);
   const lastRequestParamsRef = useRef<string>(""); // Track last request to prevent duplicate calls
 
@@ -320,6 +321,7 @@ export const GoogleKeywords: React.FC = () => {
           : undefined,
         end_date: endDate ? endDateStr : undefined,
         filters: filters, // Pass filters array directly
+        draft_only: showDraftsOnly,
       };
 
       const response = await googleAdwordsKeywordsService.getGoogleKeywords(
@@ -369,7 +371,7 @@ export const GoogleKeywords: React.FC = () => {
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString(), filters]);
+  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString(), filters, showDraftsOnly]);
 
   useEffect(() => {
     if (sorting) return;
@@ -387,6 +389,7 @@ export const GoogleKeywords: React.FC = () => {
           filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
           startDate: startDate ? startDateStr : null,
           endDate: endDate ? endDateStr : null,
+          showDraftsOnly,
         });
 
         // Only call loadKeywords if the request parameters have actually changed
@@ -401,7 +404,7 @@ export const GoogleKeywords: React.FC = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, channelId, currentPage, itemsPerPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting]);
+  }, [accountId, channelId, currentPage, itemsPerPage, filters, startDate?.toISOString(), endDate?.toISOString(), sorting, showDraftsOnly]);
 
 
   // Sync status hook (after loadKeywords is defined)
@@ -451,6 +454,7 @@ export const GoogleKeywords: React.FC = () => {
               : undefined,
             end_date: endDate ? endDateStr : undefined,
             filters: filters, // Pass filters array directly
+            draft_only: showDraftsOnly,
           };
 
           const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
@@ -2052,8 +2056,38 @@ export const GoogleKeywords: React.FC = () => {
                 )}
               </div>
 
-              {/* Edit and Export Buttons - Above Table */}
-              <div className="flex items-center justify-end gap-2">
+              {/* Draft switch and Edit/Export - Above Table */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={showDraftsOnly}
+                    onClick={() => {
+                      setShowDraftsOnly((prev) => !prev);
+                      setCurrentPage(1);
+                    }}
+                    className={`relative inline-flex items-center h-6 w-16 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-[#072929] focus:ring-offset-2 overflow-hidden ${
+                      showDraftsOnly ? "bg-forest-f40" : "bg-gray-200"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1/2 -translate-y-1/2 pointer-events-none text-[10.64px] font-medium whitespace-nowrap transition-all duration-200 ${
+                        showDraftsOnly
+                          ? "left-2 right-auto text-white"
+                          : "left-auto right-2 text-[#556179]"
+                      }`}
+                    >
+                      Draft
+                    </span>
+                    <span
+                      className={`absolute top-1/2 -translate-y-1/2 left-0.5 w-5 h-5 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
+                        showDraftsOnly ? "translate-x-10" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
                 <div
                   className="relative inline-flex justify-end"
                   ref={dropdownRef}
@@ -2227,6 +2261,7 @@ export const GoogleKeywords: React.FC = () => {
                       )}
                     </div>
                   )}
+                </div>
                 </div>
               </div>
 

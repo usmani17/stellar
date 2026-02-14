@@ -51,6 +51,8 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
   ] = useState(false);
   const [negativeKeywordsFilters, setNegativeKeywordsFilters] =
     useState<FilterValues>([]);
+  const [showDraftsOnlyNegativeKeywords, setShowDraftsOnlyNegativeKeywords] =
+    useState(false);
 
   // Sync state
   const [syncingNegativeKeywords, setSyncingNegativeKeywords] = useState(false);
@@ -95,6 +97,7 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
             page_size: 100,
             sort_by: negativeKeywordsSortBy,
             order: negativeKeywordsSortOrder,
+            draft_only: showDraftsOnlyNegativeKeywords,
           }
         );
 
@@ -107,7 +110,7 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
     } finally {
       setNegativeKeywordsLoading(false);
     }
-  }, [accountId, channelId, campaignId, negativeKeywordsFilters, negativeKeywordsCurrentPage, negativeKeywordsSortBy, negativeKeywordsSortOrder]);
+  }, [accountId, channelId, campaignId, negativeKeywordsFilters, negativeKeywordsCurrentPage, negativeKeywordsSortBy, negativeKeywordsSortOrder, showDraftsOnlyNegativeKeywords]);
 
   // Load negative keywords when dependencies change
   useEffect(() => {
@@ -424,6 +427,8 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
     setIsNegativeKeywordsFilterPanelOpen,
     negativeKeywordsFilters,
     setNegativeKeywordsFilters,
+    showDraftsOnlyNegativeKeywords,
+    setShowDraftsOnlyNegativeKeywords,
     
     // Sync
     syncingNegativeKeywords,

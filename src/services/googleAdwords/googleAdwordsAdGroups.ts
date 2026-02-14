@@ -15,6 +15,7 @@ export const googleAdwordsAdGroupsService = {
       start_date?: string;
       end_date?: string;
       campaign_id?: string | number;
+      draft_only?: boolean;
     }
   ): Promise<{
     adgroups: any[];
@@ -47,9 +48,10 @@ export const googleAdwordsAdGroupsService = {
       end_date: params?.end_date,
     };
     
-    // Add campaign_id if provided
+    // Add campaign_id and draft_only if provided
     if (campaignId) payload.campaign_id = campaignId;
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
+    if (params?.draft_only !== undefined) payload.draft_only = params.draft_only;
 
     const response = await api.post(`/google-adwords/${accountId}/channels/${channelId}/adgroups/`, payload);
     return response.data;
@@ -174,11 +176,11 @@ export const googleAdwordsAdGroupsService = {
     return response.data;
   },
 
-  /** Create a Demand Gen ad group under an existing Demand Gen campaign. */
+  /** Create a Demand Gen ad group under an existing Demand Gen campaign. Supports draft (campaignId can be "draft-xxx"). */
   createDemandGenAdGroup: async (
     accountId: number,
     channelId: number,
-    campaignId: number,
+    campaignId: string | number,
     payload: {
       name: string;
       channel_controls?: {
@@ -189,6 +191,7 @@ export const googleAdwordsAdGroupsService = {
         youtube_in_stream?: boolean;
         youtube_shorts?: boolean;
       };
+      save_as_draft?: boolean;
     }
   ): Promise<{ success: boolean; ad_group_id?: string; ad_group_resource_name?: string; error?: string }> => {
     const response = await api.post(

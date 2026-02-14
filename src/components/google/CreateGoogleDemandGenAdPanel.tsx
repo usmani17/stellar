@@ -12,7 +12,7 @@ export interface SelectedAssetEntry {
 interface CreateGoogleDemandGenAdPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: any, options?: { saveAsDraft?: boolean }) => void;
   loading?: boolean;
   submitError?: string | null;
   /** Required for asset selector (videos, logos, images). */
@@ -190,6 +190,25 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
     };
 
     onSubmit(cleanedData);
+  };
+
+  const handleSaveAsDraft = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    const cleanedData = {
+      ...formData,
+      final_urls: formData.final_urls.filter(url => url.trim()),
+      videos: formData.videos.map(v => v.resource_name),
+      logo_images: formData.logo_images.map(l => l.resource_name),
+      headlines: formData.headlines.filter(h => h.trim()),
+      descriptions: formData.descriptions.filter(d => d.trim()),
+      long_headlines: formData.long_headlines.filter(lh => lh.trim()),
+      images: formData.images.map(i => i.resource_name),
+      carousel_cards: formData.carousel_cards
+        .filter(card => card.asset.trim())
+        .map(card => ({ asset: card.asset })),
+    };
+    onSubmit(cleanedData, { saveAsDraft: true });
   };
 
   const updateField = (field: keyof FormData, value: any) => {
@@ -787,6 +806,14 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
           className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
         >
           Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSaveAsDraft}
+          disabled={loading}
+          className="cancel-button font-semibold text-[11.2px] flex items-center gap-2 px-4 py-2"
+        >
+          Save as Draft
         </button>
         <button
           type="button"

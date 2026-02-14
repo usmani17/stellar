@@ -63,6 +63,9 @@ export const useGoogleCampaignDetailKeywords = ({
   const [useMobileFinalUrl, setUseMobileFinalUrl] = useState(false);
   const [finalUrlEditLoading, setFinalUrlEditLoading] = useState(false);
 
+  // Draft-only filter (switch above table)
+  const [showDraftsOnlyKeywords, setShowDraftsOnlyKeywords] = useState(false);
+
   // Load keywords
   const loadKeywords = useCallback(async () => {
     try {
@@ -89,6 +92,7 @@ export const useGoogleCampaignDetailKeywords = ({
           page_size: 100,
           sort_by: keywordsSortBy,
           order: keywordsSortOrder,
+          draft_only: showDraftsOnlyKeywords,
         }
       );
 
@@ -101,7 +105,7 @@ export const useGoogleCampaignDetailKeywords = ({
     } finally {
       setKeywordsLoading(false);
     }
-  }, [accountId, campaignId, keywordsFilters, keywordsCurrentPage, keywordsSortBy, keywordsSortOrder]);
+  }, [accountId, campaignId, keywordsFilters, keywordsCurrentPage, keywordsSortBy, keywordsSortOrder, showDraftsOnlyKeywords]);
 
   // Load keywords when dependencies change
   useEffect(() => {
@@ -118,6 +122,7 @@ export const useGoogleCampaignDetailKeywords = ({
     keywordsSortBy,
     keywordsSortOrder,
     keywordsFilters,
+    showDraftsOnlyKeywords,
     loadKeywords,
   ]);
 
@@ -728,6 +733,10 @@ export const useGoogleCampaignDetailKeywords = ({
     setIsKeywordsFilterPanelOpen,
     keywordsFilters,
     setKeywordsFilters,
+    
+    // Draft switch
+    showDraftsOnlyKeywords,
+    setShowDraftsOnlyKeywords,
     
     // Sync
     syncingKeywords,

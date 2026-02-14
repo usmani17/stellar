@@ -37,6 +37,9 @@ export const useGoogleCampaignDetailAds = ({
   const [isAdsFilterPanelOpen, setIsAdsFilterPanelOpen] = useState(false);
   const [adsFilters, setAdsFilters] = useState<FilterValues>([]);
 
+  // Draft-only filter (switch above table)
+  const [showDraftsOnlyAds, setShowDraftsOnlyAds] = useState(false);
+
   // Sync state
   const [syncingAds, setSyncingAds] = useState(false);
   const [syncingAdsAnalytics, setSyncingAdsAnalytics] = useState(false);
@@ -67,6 +70,7 @@ export const useGoogleCampaignDetailAds = ({
           page_size: 100,
           sort_by: adsSortBy,
           order: adsSortOrder,
+          draft_only: showDraftsOnlyAds,
         }
       );
 
@@ -79,7 +83,7 @@ export const useGoogleCampaignDetailAds = ({
     } finally {
       setAdsLoading(false);
     }
-  }, [accountId, channelId, campaignId, adsFilters, adsCurrentPage, adsSortBy, adsSortOrder]);
+  }, [accountId, channelId, campaignId, adsFilters, adsCurrentPage, adsSortBy, adsSortOrder, showDraftsOnlyAds]);
 
   // Load ads when dependencies change
   useEffect(() => {
@@ -96,6 +100,7 @@ export const useGoogleCampaignDetailAds = ({
     adsSortBy,
     adsSortOrder,
     adsFilters,
+    showDraftsOnlyAds,
     loadAds,
   ]);
 
@@ -379,6 +384,10 @@ export const useGoogleCampaignDetailAds = ({
     setIsAdsFilterPanelOpen,
     adsFilters,
     setAdsFilters,
+    
+    // Draft switch
+    showDraftsOnlyAds,
+    setShowDraftsOnlyAds,
     
     // Sync
     syncingAds,

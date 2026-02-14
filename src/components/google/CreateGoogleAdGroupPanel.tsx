@@ -14,7 +14,7 @@ export interface AdGroupInput {
 interface CreateGoogleAdGroupPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (entity: AdGroupInput) => void;
+  onSubmit: (entity: AdGroupInput, options?: { saveAsDraft?: boolean }) => void;
   campaignId: string;
   campaignName?: string;
   loading?: boolean;
@@ -110,6 +110,22 @@ export const CreateGoogleAdGroupPanel: React.FC<
       };
 
       onSubmit(entity);
+    };
+
+    const handleSaveAsDraft = () => {
+      if (!validate()) return;
+      const entity: AdGroupInput = {
+        adgroup: {
+          name: adgroupName.trim(),
+          ...(adgroupBid !== undefined && adgroupBid > 0 && { cpc_bid: adgroupBid }),
+          ...(trackingUrlTemplate.trim() && { tracking_url_template: trackingUrlTemplate.trim() }),
+          ...(finalUrlSuffix.trim() && { final_url_suffix: finalUrlSuffix.trim() }),
+          ...(urlCustomParameters.length > 0 && urlCustomParameters.some(p => p.key.trim() && p.value.trim()) && {
+            url_custom_parameters: urlCustomParameters.filter(p => p.key.trim() && p.value.trim())
+          }),
+        },
+      };
+      onSubmit(entity, { saveAsDraft: true });
     };
 
     const handleCancel = () => {
@@ -244,6 +260,14 @@ export const CreateGoogleAdGroupPanel: React.FC<
             className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
           >
             Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveAsDraft}
+            disabled={loading}
+            className="cancel-button font-semibold text-[11.2px] flex items-center gap-2 px-4 py-2"
+          >
+            Save as Draft
           </button>
           <button
             type="button"

@@ -278,7 +278,7 @@ export const useGoogleCampaignDetailAssetGroups = ({
   }, []);
 
   // Handler for creating Performance Max asset group
-  const handleCreatePmaxAssetGroup = useCallback(async (entity: PmaxAssetGroupInput) => {
+  const handleCreatePmaxAssetGroup = useCallback(async (entity: PmaxAssetGroupInput, options?: { saveAsDraft?: boolean }) => {
     if (!accountId || !channelId || !campaignId) return;
 
     setCreatePmaxAssetGroupLoading(true);
@@ -292,7 +292,11 @@ export const useGoogleCampaignDetailAssetGroups = ({
         throw new Error("Invalid account ID, channel ID, or campaign ID");
       }
 
-      const payload = profileId != null ? { ...entity, profile_id: profileId } : entity;
+      const payload = {
+        ...entity,
+        ...(profileId != null && { profile_id: profileId }),
+        ...(options?.saveAsDraft && { save_as_draft: true }),
+      };
       const response = await googleAdwordsCampaignsService.createGooglePmaxAssetGroup(
         accountIdNum,
         channelIdNum,

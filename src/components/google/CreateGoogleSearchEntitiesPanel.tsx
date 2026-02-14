@@ -22,7 +22,7 @@ export interface SearchEntityInput {
 interface CreateGoogleSearchEntitiesPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (entity: SearchEntityInput) => void;
+  onSubmit: (entity: SearchEntityInput, options?: { saveAsDraft?: boolean }) => void;
   campaignId: string;
   loading?: boolean;
   submitError?: string | null;
@@ -178,6 +178,30 @@ export const CreateGoogleSearchEntitiesPanel: React.FC<
       }
 
       onSubmit(entity);
+    };
+
+    const handleSaveAsDraft = () => {
+      if (!validate()) return;
+      const filteredHeadlines = headlines.filter((h) => h.trim());
+      const filteredDescriptions = descriptions.filter((d) => d.trim());
+      const entity: SearchEntityInput = {};
+      if (adgroupName.trim()) {
+        entity.adgroup = {
+          name: adgroupName.trim(),
+          ...(adgroupBid !== undefined && adgroupBid > 0 && { cpc_bid: adgroupBid }),
+        };
+      }
+      if (filteredHeadlines.length >= 3 && filteredDescriptions.length >= 2) {
+        entity.ad = {
+          headlines: filteredHeadlines,
+          descriptions: filteredDescriptions,
+          ...(finalUrl.trim() && { final_url: finalUrl.trim() }),
+        };
+      }
+      if (keywords.length > 0) {
+        entity.keywords = keywords;
+      }
+      onSubmit(entity, { saveAsDraft: true });
     };
 
     const handleCancel = () => {
@@ -573,12 +597,16 @@ export const CreateGoogleSearchEntitiesPanel: React.FC<
 
       {/* Footer Actions */}
       <div className="p-4 flex items-center justify-end gap-3">
+        <button type="button" onClick={handleCancel} className="cancel-button">
+          Cancel
+        </button>
         <button
           type="button"
-          onClick={handleCancel}
-          className="cancel-button"
+          onClick={handleSaveAsDraft}
+          disabled={loading}
+          className="cancel-button font-semibold text-[11.2px] flex items-center gap-2 px-4 py-2"
         >
-          Cancel
+          Save as Draft
         </button>
         <button
           type="button"

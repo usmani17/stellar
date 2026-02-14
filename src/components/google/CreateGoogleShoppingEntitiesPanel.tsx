@@ -15,7 +15,7 @@ export interface ShoppingEntityInput {
 interface CreateGoogleShoppingEntitiesPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (entity: ShoppingEntityInput) => void;
+  onSubmit: (entity: ShoppingEntityInput, options?: { saveAsDraft?: boolean }) => void;
   campaignId: string;
   accountId: string;
   channelId?: string;
@@ -41,7 +41,7 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
     0.01
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   // Adgroup search state
   const [adgroupSearchQuery, setAdgroupSearchQuery] = useState("");
   const [adgroupOptions, setAdgroupOptions] = useState<Array<{ value: string; label: string; adgroup_id: number }>>([]);
@@ -172,6 +172,17 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
     onSubmit(entity);
   };
 
+  const handleSaveAsDraft = () => {
+    if (!validate()) return;
+    const entity: ShoppingEntityInput = {
+      product_group: { cpc_bid: productGroupBid ?? 0.01 },
+    };
+    if (selectedAdGroupId) {
+      entity.adgroup_id = parseInt(selectedAdGroupId, 10);
+    }
+    onSubmit(entity, { saveAsDraft: true });
+  };
+
   const handleCancel = () => {
     setProductGroupBid(0.01);
     setSelectedAdGroupId("");
@@ -295,12 +306,16 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
 
       {/* Footer Actions */}
       <div className="p-4 flex items-center justify-end gap-3">
+        <button type="button" onClick={handleCancel} className="cancel-button">
+          Cancel
+        </button>
         <button
           type="button"
-          onClick={handleCancel}
-          className="cancel-button"
+          onClick={handleSaveAsDraft}
+          disabled={loading}
+          className="cancel-button font-semibold text-[11.2px] flex items-center gap-2 px-4 py-2"
         >
-          Cancel
+          Save as Draft
         </button>
         <button
           type="button"

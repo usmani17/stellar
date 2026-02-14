@@ -239,6 +239,8 @@ export const GoogleCampaignDetail: React.FC = () => {
     setIsNegativeKeywordsFilterPanelOpen,
     negativeKeywordsFilters,
     setNegativeKeywordsFilters,
+    showDraftsOnlyNegativeKeywords,
+    setShowDraftsOnlyNegativeKeywords,
     syncingNegativeKeywords,
     isCreateNegativeKeywordPanelOpen,
     setIsCreateNegativeKeywordPanelOpen,
@@ -274,7 +276,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   const [createDemandGenAdLoading, setCreateDemandGenAdLoading] = useState(false);
   const [createDemandGenAdError, setCreateDemandGenAdError] = useState<string | null>(null);
 
-  const handleCreateDemandGenAd = async (data: any) => {
+  const handleCreateDemandGenAd = async (data: any, options?: { saveAsDraft?: boolean }) => {
     setCreateDemandGenAdLoading(true);
     setCreateDemandGenAdError(null);
 
@@ -283,7 +285,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         parseInt(accountId || ""),
         parseInt(channelId),
         parseInt(campaignId || ""),
-        { ad: data }
+        { ad: data, ...(options?.saveAsDraft && { save_as_draft: true }) }
       );
 
       if (response?.ad) {
@@ -480,6 +482,8 @@ export const GoogleCampaignDetail: React.FC = () => {
     setIsAdsFilterPanelOpen,
     adsFilters,
     setAdsFilters,
+    showDraftsOnlyAds,
+    setShowDraftsOnlyAds,
     syncingAds,
     syncingAdsAnalytics,
     handleSelectAllAds,
@@ -525,6 +529,8 @@ export const GoogleCampaignDetail: React.FC = () => {
     setIsAdGroupsFilterPanelOpen,
     adgroupsFilters,
     setAdgroupsFilters,
+    showDraftsOnlyAdGroups,
+    setShowDraftsOnlyAdGroups,
     syncingAdGroups,
     syncingAdGroupsAnalytics,
     isCreateSearchEntitiesPanelOpen,
@@ -601,6 +607,8 @@ export const GoogleCampaignDetail: React.FC = () => {
     setIsKeywordsFilterPanelOpen,
     keywordsFilters,
     setKeywordsFilters,
+    showDraftsOnlyKeywords,
+    setShowDraftsOnlyKeywords,
     syncingKeywords,
     syncingKeywordsAnalytics,
     showKeywordTextEditModal,
@@ -1713,6 +1721,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                     accountId={accountId}
                     channelId={channelId}
                     onBulkUpdateComplete={loadAdGroups}
+                    showDraftsOnly={showDraftsOnlyAdGroups}
+                    onToggleDraftsOnly={() => {
+                      setShowDraftsOnlyAdGroups((p) => !p);
+                      setAdgroupsCurrentPage(1);
+                    }}
                     createButton={
                       campaignDetail?.campaign.advertising_channel_type ===
                         "SEARCH" ||
@@ -1861,6 +1874,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                         onBulkUpdateComplete={loadAdsFromHook}
                         formatCurrency={formatCurrency2Decimals}
                         formatPercentage={formatPercentage}
+                        showDraftsOnly={showDraftsOnlyAds}
+                        onToggleDraftsOnly={() => {
+                          setShowDraftsOnlyAds((p) => !p);
+                          setAdsCurrentPage(1);
+                        }}
                         createButton={
                           campaignDetail?.campaign.advertising_channel_type ===
                             "SEARCH" ? (
@@ -2011,6 +2029,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                       channelId={channelId}
                       onBulkUpdateComplete={loadKeywords}
                       formatCurrency2Decimals={formatCurrency2Decimals}
+                      showDraftsOnly={showDraftsOnlyKeywords}
+                      onToggleDraftsOnly={() => {
+                        setShowDraftsOnlyKeywords((p) => !p);
+                        setKeywordsCurrentPage(1);
+                      }}
                       createButton={
                         campaignDetail?.campaign.advertising_channel_type ===
                           "SEARCH" ? (
@@ -2100,6 +2123,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                       onBulkUpdateComplete={
                         negativeKeywordsHook.loadNegativeKeywords
                       }
+                      showDraftsOnly={showDraftsOnlyNegativeKeywords}
+                      onToggleDraftsOnly={() => {
+                        setShowDraftsOnlyNegativeKeywords((p) => !p);
+                        setNegativeKeywordsCurrentPage(1);
+                      }}
                       createButton={
                         <CreateGoogleNegativeKeywordSection
                           isOpen={isCreateNegativeKeywordPanelOpen}

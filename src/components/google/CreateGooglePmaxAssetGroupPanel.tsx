@@ -40,7 +40,7 @@ export interface AssetGroupInitialData {
 interface CreateGooglePmaxAssetGroupPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (entity: PmaxAssetGroupInput) => void;
+  onSubmit: (entity: PmaxAssetGroupInput, options?: { saveAsDraft?: boolean }) => void;
   campaignId: string;
   loading?: boolean;
   submitError?: string | null;
@@ -308,6 +308,33 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
       onSubmit(entity);
     };
 
+    const handleSaveAsDraft = () => {
+      if (!validate()) return;
+      const longHeadline = formData.long_headlines && formData.long_headlines.length > 0 ? formData.long_headlines[0]?.trim() : "";
+      const entity: PmaxAssetGroupInput = {
+        asset_group: {
+          name: formData.asset_group_name?.trim() || "",
+          ...(formData.final_url?.trim() && { final_url: formData.final_url.trim() }),
+        },
+        assets: {
+          headlines: formData.headlines?.filter((h) => h.trim()) || [],
+          descriptions: formData.descriptions?.filter((d) => d.trim()) || [],
+          long_headline: longHeadline,
+          ...(formData.marketing_image_url?.trim() && { marketing_image_url: formData.marketing_image_url.trim() }),
+          ...(formData.square_marketing_image_url?.trim() && { square_marketing_image_url: formData.square_marketing_image_url.trim() }),
+          ...(formData.business_name?.trim() && { business_name: formData.business_name.trim() }),
+          ...(formData.logo_url?.trim() && { logo_url: formData.logo_url.trim() }),
+          ...(formData.video_asset_resource_names && formData.video_asset_resource_names.length > 0 && {
+            video_asset_resource_names: formData.video_asset_resource_names,
+          }),
+          ...(formData.sitelink_asset_resource_names && formData.sitelink_asset_resource_names.length > 0 && {
+            sitelink_asset_resource_names: formData.sitelink_asset_resource_names,
+          }),
+        },
+      };
+      onSubmit(entity, { saveAsDraft: true });
+    };
+
     const handleCancel = () => {
       if (editMode && initialData) {
         // Reset to initial data in edit mode
@@ -406,6 +433,16 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
           >
             Cancel
           </button>
+          {!editMode && (
+            <button
+              type="button"
+              onClick={handleSaveAsDraft}
+              disabled={loading}
+              className="cancel-button font-semibold text-[11.2px] flex items-center gap-2 px-4 py-2"
+            >
+              Save as Draft
+            </button>
+          )}
           <button
             type="button"
             onClick={handleSubmit}

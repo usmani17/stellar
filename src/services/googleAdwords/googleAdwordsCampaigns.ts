@@ -67,7 +67,7 @@ export const googleAdwordsCampaignsService = {
     payload: Parameters<typeof googleAdwordsCampaignsService.createGoogleCampaign>[2]
   ): Promise<{ campaignId: string; campaign: Record<string, unknown> }> => {
     const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/create/`;
-    const response = await api.post(url, { ...payload, save_as_draft: true });
+    const response = await api.post(url, { ...(payload as Record<string, unknown>), save_as_draft: true });
     return response.data;
   },
 
@@ -85,9 +85,10 @@ export const googleAdwordsCampaignsService = {
   createGoogleSearchEntities: async (
     accountId: number,
     channelId: number,
-    campaignId: number,
+    campaignId: string | number,
     payload: {
-      adgroup_id?: number; // Optional: use existing adgroup
+      adgroup_id?: string | number; // Optional: use existing adgroup or draft-xxx to publish
+      save_as_draft?: boolean;
       adgroup?: {
         name: string;
         cpc_bid?: number; // Optional, in dollars
@@ -156,12 +157,38 @@ export const googleAdwordsCampaignsService = {
     return response.data;
   },
 
+  /** Create search entities (ad group, ad, keywords) as draft only (DB, no Google API). */
+  createGoogleSearchEntitiesDraft: async (
+    accountId: number,
+    channelId: number,
+    campaignId: string | number,
+    payload: Parameters<typeof googleAdwordsCampaignsService.createGoogleSearchEntities>[3]
+  ): Promise<{ adgroup?: { id: string; name: string }; ad?: { id: string }; keywords?: Array<{ id: string }> }> => {
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/search-entities/create/`;
+    const response = await api.post(url, { ...(payload as Record<string, unknown>), save_as_draft: true });
+    return response.data;
+  },
+
+  /** Publish a draft search ad group (and optional ad/keywords) via the same create endpoint. */
+  publishGoogleSearchEntitiesDraft: async (
+    accountId: number,
+    channelId: number,
+    campaignId: string | number,
+    draftAdgroupId: string,
+    payload?: Record<string, unknown>
+  ): Promise<Awaited<ReturnType<typeof googleAdwordsCampaignsService.createGoogleSearchEntities>>> => {
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/search-entities/create/`;
+    const response = await api.post(url, { ...(payload ?? {}), adgroup_id: draftAdgroupId });
+    return response.data;
+  },
+
   createGooglePmaxAssetGroup: async (
     accountId: number,
     channelId: number,
     campaignId: number,
     payload: {
       profile_id?: number; // Optional; use this profile (must belong to channel). If omitted, backend uses selected profile.
+      save_as_draft?: boolean;
       asset_group: {
         name: string;
         final_url?: string; // Optional
@@ -199,7 +226,7 @@ export const googleAdwordsCampaignsService = {
   createGoogleShoppingEntities: async (
     accountId: number,
     channelId: number,
-    campaignId: number,
+    campaignId: string | number,
     payload: {
       adgroup_id?: number; // Optional: use existing adgroup
       adgroup?: {
@@ -208,6 +235,7 @@ export const googleAdwordsCampaignsService = {
       product_group: {
         cpc_bid?: number; // Optional, in dollars, default 0.01
       };
+      save_as_draft?: boolean;
     }
   ): Promise<{
     adgroup?: {
@@ -297,6 +325,7 @@ export const googleAdwordsCampaignsService = {
       page_size?: number;
       start_date?: string;
       end_date?: string;
+      draft_only?: boolean;
     }
   ): Promise<{
     campaigns: any[];

@@ -43,7 +43,7 @@ export interface AdInput {
 interface CreateGoogleAdPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (entity: AdInput) => void;
+  onSubmit: (entity: AdInput, options?: { saveAsDraft?: boolean }) => void;
   campaignId: string;
   accountId: string;
   channelId?: string;
@@ -72,7 +72,7 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
     square_marketing_image_urls: [""],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   // Adgroup search state
   const [adgroupSearchQuery, setAdgroupSearchQuery] = useState("");
   const [adgroupOptions, setAdgroupOptions] = useState<Array<{ value: string; label: string; adgroup_id: number }>>([]);
@@ -479,10 +479,8 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
     }
   };
 
-  const handleSubmit = () => {
-    if (!validate()) {
-      return;
-    }
+  const handleSubmit = (asDraft?: boolean) => {
+    if (!validate()) return;
 
     const entity: AdInput = {
       adgroup_id: parseInt(selectedAdGroupId, 10),
@@ -519,7 +517,7 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
       },
     };
 
-    onSubmit(entity);
+    onSubmit(entity, asDraft ? { saveAsDraft: true } : undefined);
   };
 
   const handleFillDummyValues = () => {
@@ -694,7 +692,15 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
         </button>
         <button
           type="button"
-          onClick={handleSubmit}
+          onClick={() => handleSubmit(true)}
+          disabled={loading}
+          className="cancel-button font-semibold text-[11.2px] flex items-center gap-2 px-4 py-2"
+        >
+          Save as Draft
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSubmit()}
           disabled={loading}
           className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >

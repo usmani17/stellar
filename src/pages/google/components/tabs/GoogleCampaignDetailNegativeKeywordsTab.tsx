@@ -64,6 +64,8 @@ interface GoogleCampaignDetailNegativeKeywordsTabProps {
   accountId?: string;
   channelId?: string;
   onBulkUpdateComplete?: () => void;
+  showDraftsOnly?: boolean;
+  onToggleDraftsOnly?: () => void;
 }
 
 export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
@@ -98,6 +100,8 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
   accountId,
   channelId,
   onBulkUpdateComplete,
+  showDraftsOnly = false,
+  onToggleDraftsOnly,
 }) => {
     // Check if this is a Performance Max campaign
     const isPerformanceMax = campaignType?.toUpperCase() === "PERFORMANCE_MAX";
@@ -535,11 +539,39 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
           </div>
         )}
 
-        {/* Header with Filter Button and Sync Button */}
+        {/* Header with Draft switch, Filter Button and Sync Button */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
-            Negative Keywords
-          </h2>
+          <div className="flex items-center gap-3">
+            {onToggleDraftsOnly != null && (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showDraftsOnly}
+                onClick={() => {
+                  onToggleDraftsOnly();
+                  onPageChange(1);
+                }}
+                className={`relative inline-flex items-center h-6 w-16 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-[#072929] focus:ring-offset-2 overflow-hidden ${
+                  showDraftsOnly ? "bg-forest-f40" : "bg-gray-200"
+                }`}
+              >
+                <span
+                  className={`absolute top-1/2 -translate-y-1/2 pointer-events-none text-[10.64px] font-medium whitespace-nowrap transition-all duration-200 ${
+                    showDraftsOnly
+                      ? "left-2 right-auto text-white"
+                      : "left-auto right-2 text-[#556179]"
+                  }`}
+                >
+                  Draft
+                </span>
+                <span
+                  className={`absolute top-1/2 -translate-y-1/2 left-0.5 w-5 h-5 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
+                    showDraftsOnly ? "translate-x-10" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {createButton}
             {accountId && channelId && onBulkUpdateComplete && (

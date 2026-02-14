@@ -90,6 +90,9 @@ export const useGoogleCampaignDetailAdGroups = ({
   const [nameEditValue, setNameEditValue] = useState<string>("");
   const [nameEditLoading, setNameEditLoading] = useState(false);
 
+  // Draft-only filter (switch above table)
+  const [showDraftsOnlyAdGroups, setShowDraftsOnlyAdGroups] = useState(false);
+
   // Load ad groups
   const loadAdGroups = useCallback(async () => {
     try {
@@ -115,6 +118,7 @@ export const useGoogleCampaignDetailAdGroups = ({
           page_size: 100,
           sort_by: adgroupsSortBy,
           order: adgroupsSortOrder,
+          draft_only: showDraftsOnlyAdGroups,
         }
       );
 
@@ -127,7 +131,7 @@ export const useGoogleCampaignDetailAdGroups = ({
     } finally {
       setAdgroupsLoading(false);
     }
-  }, [accountId, campaignId, adgroupsFilters, adgroupsCurrentPage, adgroupsSortBy, adgroupsSortOrder]);
+  }, [accountId, campaignId, adgroupsFilters, adgroupsCurrentPage, adgroupsSortBy, adgroupsSortOrder, showDraftsOnlyAdGroups]);
 
   // Load ad groups when dependencies change
   useEffect(() => {
@@ -148,6 +152,7 @@ export const useGoogleCampaignDetailAdGroups = ({
     adgroupsSortBy,
     adgroupsSortOrder,
     adgroupsFilters,
+    showDraftsOnlyAdGroups,
     loadAdGroups,
   ]);
 
@@ -301,7 +306,7 @@ export const useGoogleCampaignDetailAdGroups = ({
   }, [accountId, channelId, startDate, endDate, loadAdGroups]);
 
   // Create handlers
-  const handleCreateAdGroup = useCallback(async (entity: AdGroupInput) => {
+  const handleCreateAdGroup = useCallback(async (entity: AdGroupInput, options?: { saveAsDraft?: boolean }) => {
     if (!accountId || !campaignId || !channelId) return;
 
     setCreateSearchEntitiesLoading(true);
@@ -318,16 +323,18 @@ export const useGoogleCampaignDetailAdGroups = ({
         throw new Error("Invalid channel ID");
       }
 
-      const campaignIdNum = parseInt(campaignId, 10);
-      if (isNaN(campaignIdNum)) {
+      // campaignId can be numeric or "draft-xxx" for draft campaigns
+      const campaignIdForApi = String(campaignId).startsWith("draft-") ? campaignId : parseInt(campaignId, 10);
+      if (typeof campaignIdForApi === "number" && isNaN(campaignIdForApi)) {
         throw new Error("Invalid campaign ID");
       }
 
+      const payload = { ...entity, ...(options?.saveAsDraft && { save_as_draft: true }) };
       const response = await googleAdwordsCampaignsService.createGoogleSearchEntities(
         accountIdNum,
         channelIdNum,
-        campaignIdNum,
-        entity
+        campaignIdForApi,
+        payload
       );
 
       // Build summary message
@@ -426,7 +433,7 @@ export const useGoogleCampaignDetailAdGroups = ({
     }
   }, [accountId, channelId, campaignId, loadAdGroups, onError, onReloadAds]);
 
-  const handleCreateShoppingAdGroup = useCallback(async (entity: AdGroupInput) => {
+  const handleCreateShoppingAdGroup = useCallback(async (entity: AdGroupInput, options?: { saveAsDraft?: boolean }) => {
     if (!accountId || !campaignId || !channelId) return;
 
     setCreateShoppingEntitiesLoading(true);
@@ -443,24 +450,28 @@ export const useGoogleCampaignDetailAdGroups = ({
         throw new Error("Invalid channel ID");
       }
 
-      const campaignIdNum = parseInt(campaignId, 10);
-      if (isNaN(campaignIdNum)) {
+      // campaignId can be numeric or "draft-xxx" for draft campaigns
+      const campaignIdForApi = String(campaignId).startsWith("draft-") ? campaignId : parseInt(campaignId, 10);
+      if (typeof campaignIdForApi === "number" && isNaN(campaignIdForApi)) {
         throw new Error("Invalid campaign ID");
       }
 
       // Convert AdGroupInput to ShoppingEntityInput (only adgroup, no product_group)
-      const shoppingEntity = {
+      const shoppingEntity: Record<string, unknown> = {
         adgroup: entity.adgroup,
         product_group: {
           cpc_bid: 0.01, // Default bid, but this won't be used since we're only creating ad group
         },
       };
+      if (options?.saveAsDraft) {
+        shoppingEntity.save_as_draft = true;
+      }
 
       const response = await googleAdwordsCampaignsService.createGoogleShoppingEntities(
         accountIdNum,
         channelIdNum,
-        campaignIdNum,
-        shoppingEntity
+        campaignIdForApi as number,
+        shoppingEntity as Parameters<typeof googleAdwordsCampaignsService.createGoogleShoppingEntities>[3]
       );
 
       if (response.error) {
@@ -514,7 +525,7 @@ export const useGoogleCampaignDetailAdGroups = ({
   }, [accountId, channelId, campaignId, loadAdGroups, onError]);
 
   const handleCreateDemandGenAdGroup = useCallback(
-    async (entity: DemandGenAdGroupInput) => {
+    async (entity: DemandGenAdGroupInput, options?: { saveAsDraft?: boolean }) => {
       if (!accountId || !channelId || !campaignId) return;
 
       setCreateDemandGenAdGroupLoading(true);
@@ -523,19 +534,25 @@ export const useGoogleCampaignDetailAdGroups = ({
       try {
         const accountIdNum = parseInt(accountId, 10);
         const channelIdNum = parseInt(channelId, 10);
-        const campaignIdNum = parseInt(campaignId, 10);
-        if (isNaN(accountIdNum) || isNaN(channelIdNum) || isNaN(campaignIdNum)) {
-          throw new Error("Invalid account, channel, or campaign ID");
+        const campaignIdForApi = String(campaignId).startsWith("draft-") ? campaignId : parseInt(campaignId, 10);
+        if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+          throw new Error("Invalid account or channel ID");
         }
+        if (typeof campaignIdForApi === "number" && isNaN(campaignIdForApi)) {
+          throw new Error("Invalid campaign ID");
+        }
+
+        const payload = {
+          name: entity.name,
+          channel_controls: entity.channel_controls,
+          ...(options?.saveAsDraft && { save_as_draft: true }),
+        };
 
         const response = await googleAdwordsAdGroupsService.createDemandGenAdGroup(
           accountIdNum,
           channelIdNum,
-          campaignIdNum,
-          {
-            name: entity.name,
-            channel_controls: entity.channel_controls,
-          }
+          campaignIdForApi,
+          payload
         );
 
         if (response.error) {
@@ -814,7 +831,11 @@ export const useGoogleCampaignDetailAdGroups = ({
     setIsAdGroupsFilterPanelOpen,
     adgroupsFilters,
     setAdgroupsFilters,
-    
+
+    // Draft switch
+    showDraftsOnlyAdGroups,
+    setShowDraftsOnlyAdGroups,
+
     // Sync
     syncingAdGroups,
     syncingAdGroupsAnalytics,

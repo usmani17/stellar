@@ -11,7 +11,7 @@ export interface NegativeKeywordInput {
 interface CreateGoogleNegativeKeywordPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { negativeKeywords: NegativeKeywordInput[]; level: "campaign" | "adgroup"; adGroupId?: string }) => void;
+  onSubmit: (data: { negativeKeywords: NegativeKeywordInput[]; level: "campaign" | "adgroup"; adGroupId?: string; save_as_draft?: boolean }) => void;
   campaignId: string;
   accountId: string;
   campaignType?: string;
@@ -110,7 +110,7 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
     setErrors({}); // Clear any existing errors
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = (asDraft?: boolean) => {
     if (negativeKeywords.length === 0) {
       setErrors({ keywords: "At least one negative keyword is required" });
       return;
@@ -122,7 +122,7 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
     }
 
     setErrors({});
-    
+
     const keywordInputs: NegativeKeywordInput[] = negativeKeywords.map((kw) => ({
       text: kw.text,
       matchType: kw.match_type,
@@ -132,6 +132,7 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
       negativeKeywords: keywordInputs,
       level,
       adGroupId: level === "adgroup" ? selectedAdGroupId : undefined,
+      save_as_draft: asDraft ?? false,
     });
   };
 
@@ -357,7 +358,15 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
         </button>
         <button
           type="button"
-          onClick={handleSubmit}
+          onClick={() => handleSubmit(true)}
+          disabled={loading || negativeKeywords.length === 0}
+          className="cancel-button font-semibold text-[11.2px] flex items-center gap-2 px-4 py-2"
+        >
+          Save as Draft
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSubmit(false)}
           disabled={loading || negativeKeywords.length === 0}
           className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
