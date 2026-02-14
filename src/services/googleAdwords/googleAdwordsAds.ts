@@ -162,9 +162,9 @@ export const googleAdwordsAdsService = {
   createDemandGenAd: async (
     accountId: number,
     channelId: number,
-    campaignId: number,
+    campaignId: string | number,
     payload: {
-      adgroup_id?: number;
+      adgroup_id?: string | number;
       save_as_draft?: boolean;
       ad: {
         ad_type: "DemandGenVideoResponsiveAdInfo" | "DemandGenMultiAssetAdInfo" | "DemandGenCarouselAdInfo";
@@ -184,7 +184,7 @@ export const googleAdwordsAdsService = {
       };
     }
   ) => {
-    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/demand-gen-entities/create/`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${String(campaignId)}/demand-gen-entities/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },

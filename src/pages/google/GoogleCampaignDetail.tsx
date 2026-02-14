@@ -281,10 +281,11 @@ export const GoogleCampaignDetail: React.FC = () => {
     setCreateDemandGenAdError(null);
 
     try {
+      const cid = campaignId ?? "";
       const response = await googleAdwordsAdsService.createDemandGenAd(
-        parseInt(accountId || ""),
-        parseInt(channelId),
-        parseInt(campaignId || ""),
+        parseInt(accountId || "", 10),
+        parseInt(channelId, 10),
+        cid,
         { ad: data, ...(options?.saveAsDraft && { save_as_draft: true }) }
       );
 
@@ -811,7 +812,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // handleCreateAdGroup is now in useGoogleCampaignDetailAdGroups hook
 
   // Handler for creating Ad (using existing adgroup)
-  const handleCreateAd = async (entity: AdInput) => {
+  const handleCreateAd = async (entity: AdInput, options?: { saveAsDraft?: boolean }) => {
     if (!accountId || !campaignId) return;
 
     setCreateSearchEntitiesLoading(true);
@@ -828,17 +829,25 @@ export const GoogleCampaignDetail: React.FC = () => {
         throw new Error("Invalid channel ID");
       }
 
-      const campaignIdNum = parseInt(campaignId, 10);
-      if (isNaN(campaignIdNum)) {
+      const campaignIdForApi =
+        String(campaignId).toLowerCase().startsWith("draft-")
+          ? campaignId
+          : parseInt(campaignId, 10);
+      if (typeof campaignIdForApi === "number" && isNaN(campaignIdForApi)) {
         throw new Error("Invalid campaign ID");
       }
+
+      const payload = {
+        ...entity,
+        ...(options?.saveAsDraft && { save_as_draft: true }),
+      };
 
       const response =
         await googleAdwordsCampaignsService.createGoogleSearchEntities(
           accountIdNum,
           channelIdNum,
-          campaignIdNum,
-          entity,
+          campaignIdForApi,
+          payload,
         );
 
       // Build summary message - only count entities that were actually created
@@ -926,7 +935,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   };
 
   // Handler for creating Keywords (using existing adgroup)
-  const handleCreateKeywords = async (entity: KeywordInput) => {
+  const handleCreateKeywords = async (entity: KeywordInput, options?: { saveAsDraft?: boolean }) => {
     if (!accountId || !campaignId) return;
 
     setCreateSearchEntitiesLoading(true);
@@ -943,17 +952,25 @@ export const GoogleCampaignDetail: React.FC = () => {
         throw new Error("Invalid channel ID");
       }
 
-      const campaignIdNum = parseInt(campaignId, 10);
-      if (isNaN(campaignIdNum)) {
+      const campaignIdForApi =
+        String(campaignId).toLowerCase().startsWith("draft-")
+          ? campaignId
+          : parseInt(campaignId, 10);
+      if (typeof campaignIdForApi === "number" && isNaN(campaignIdForApi)) {
         throw new Error("Invalid campaign ID");
       }
+
+      const payload = {
+        ...entity,
+        ...(options?.saveAsDraft && { save_as_draft: true }),
+      };
 
       const response =
         await googleAdwordsCampaignsService.createGoogleSearchEntities(
           accountIdNum,
           channelIdNum,
-          campaignIdNum,
-          entity,
+          campaignIdForApi,
+          payload,
         );
 
       // Build summary message - only count entities that were actually created

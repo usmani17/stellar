@@ -3,7 +3,7 @@ import { Dropdown } from "../ui/Dropdown";
 import { campaignsService } from "../../services/campaigns";
 
 export interface KeywordInput {
-  adgroup_id: number; // Required: always use existing adgroup
+  adgroup_id: number | string; // Required: existing adgroup id (number or "draft-xxx")
   keywords: Array<{
     text: string;
     match_type: "EXACT" | "PHRASE" | "BROAD";
@@ -233,25 +233,42 @@ export const CreateGoogleKeywordPanel: React.FC<
     setErrors({}); // Clear any existing errors
   };
 
+  const buildEntity = (): KeywordInput | null => {
+    const rawAdGroupId = selectedAdGroupId?.trim() || "";
+    if (!rawAdGroupId) {
+      setErrors((e) => ({ ...e, adgroup: "Please select an ad group" }));
+      return null;
+    }
+    const adgroupId: number | string =
+      rawAdGroupId.toLowerCase().startsWith("draft-")
+        ? rawAdGroupId
+        : parseInt(rawAdGroupId, 10);
+    return {
+      keywords,
+      adgroup_id: adgroupId,
+    };
+  };
+
   const handleSubmit = () => {
-    if (!validate()) {
+    if (!validate()) return;
+    const rawAdGroupId = selectedAdGroupId?.trim() || "";
+    if (rawAdGroupId && rawAdGroupId.toLowerCase().startsWith("draft-")) {
+      setErrors((e) => ({
+        ...e,
+        adgroup:
+          "You selected a draft ad group. To create live keywords, select a published ad group. To create draft keywords, use Save as Draft.",
+      }));
       return;
     }
-
-    const entity: KeywordInput = {
-      keywords: keywords,
-      adgroup_id: parseInt(selectedAdGroupId, 10),
-    };
-
+    const entity = buildEntity();
+    if (!entity) return;
     onSubmit(entity);
   };
 
   const handleSaveAsDraft = () => {
     if (!validate()) return;
-    const entity: KeywordInput = {
-      keywords,
-      adgroup_id: parseInt(selectedAdGroupId, 10),
-    };
+    const entity = buildEntity();
+    if (!entity) return;
     onSubmit(entity, { saveAsDraft: true });
   };
 

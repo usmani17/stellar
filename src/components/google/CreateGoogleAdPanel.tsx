@@ -4,7 +4,7 @@ import { campaignsService } from "../../services/campaigns";
 import { CreateGoogleSearchAdTypeForm, type AdFormData } from "./CreateGoogleSearchAdTypeForm";
 
 export interface AdInput {
-  adgroup_id: number; // Required: always use existing adgroup
+  adgroup_id: number | string; // Required: existing adgroup id (number or "draft-xxx")
   ad_type: "RESPONSIVE_SEARCH_AD" | "RESPONSIVE_DISPLAY_AD";
   ad: {
     // RSA fields
@@ -481,9 +481,26 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
 
   const handleSubmit = (asDraft?: boolean) => {
     if (!validate()) return;
+    const rawAdGroupId = selectedAdGroupId?.trim() || "";
+    if (!rawAdGroupId) {
+      setErrors((e) => ({ ...e, adgroup: "Please select an ad group" }));
+      return;
+    }
+    const isDraftAdGroup = rawAdGroupId.toLowerCase().startsWith("draft-");
+    if (!asDraft && isDraftAdGroup) {
+      setErrors((e) => ({
+        ...e,
+        adgroup:
+          "You selected a draft ad group. To create a live ad, select a published ad group. To create a draft ad, use Save as Draft.",
+      }));
+      return;
+    }
+    const adgroupId: number | string = isDraftAdGroup
+      ? rawAdGroupId
+      : parseInt(rawAdGroupId, 10);
 
     const entity: AdInput = {
-      adgroup_id: parseInt(selectedAdGroupId, 10),
+      adgroup_id: adgroupId,
       ad_type: formData.ad_type,
       ad: {
         headlines: formData.headlines?.filter((h) => h.trim()) || [],
