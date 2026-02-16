@@ -45,9 +45,11 @@ const DEMAND_GEN_FIELD_KEYS = [
   "ad_group_name",
   "ad_name",
   "channel_controls",
+  "business_name_asset_id",
+  "logo_asset_id",
 ];
 
-const SEARCH_FIELD_KEYS = ["adgroup_name", "keywords", "match_type"];
+const SEARCH_FIELD_KEYS = ["adgroup_name", "keywords", "match_type", "keyword_targets"];
 const SHOPPING_FIELD_KEYS = ["merchant_id", "sales_country", "campaign_priority", "enable_local"];
 const TARGETING_FIELD_KEYS = [
   "network_settings",
@@ -84,6 +86,16 @@ const PMAX_FIELD_KEYS = [
   "marketing_image_url",
   "square_marketing_image_url",
   "long_headlines",
+  "business_name_asset_id",
+  "logo_asset_id",
+  "marketing_image_asset_id",
+  "square_marketing_image_asset_id",
+  "headline_asset_ids",
+  "description_asset_ids",
+  "long_headline_asset_ids",
+  "video_asset_ids",
+  "sitelink_asset_ids",
+  "callout_asset_ids",
 ];
 
 function getKeysForForm(schema: CurrentQuestionSchemaItem[]): string[] {
@@ -92,6 +104,21 @@ function getKeysForForm(schema: CurrentQuestionSchemaItem[]): string[] {
 
 function isRequested(key: string, requestedKeys: string[]): boolean {
   return requestedKeys.includes(key);
+}
+
+/** Strip entity prefix (e.g. "ad.logo_url" → "logo_url") for field matching */
+function stripEntityPrefix(key: string): string {
+  const parts = key.split(".");
+  return parts.length > 1 ? parts[parts.length - 1] : key;
+}
+
+/** Check if field key matches any requested key (with or without entity prefix) */
+function isFieldRequested(fieldKey: string, requestedKeys: string[]): boolean {
+  // Check exact match first
+  if (requestedKeys.includes(fieldKey)) return true;
+  // Check if any requested key matches after stripping entity prefix
+  const strippedField = stripEntityPrefix(fieldKey);
+  return requestedKeys.some(k => stripEntityPrefix(k) === strippedField || k === fieldKey);
 }
 
 function pickKeys<T extends Record<string, unknown>>(obj: T, keys: string[]): Partial<T> {
@@ -504,16 +531,16 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
     }
   };
 
-  const baseKeys = requestedKeys.filter((k) => BASE_FIELD_KEYS.includes(k));
+  const baseKeys = requestedKeys.filter((k) => BASE_FIELD_KEYS.some(f => stripEntityPrefix(k) === f));
   // When bidding_strategy_type is requested, pass ALL bidding keys so conditional fields can show based on selected strategy
-  const biddingKeys = requestedKeys.includes("bidding_strategy_type")
+  const biddingKeys = requestedKeys.some(k => stripEntityPrefix(k) === "bidding_strategy_type")
     ? BIDDING_FIELD_KEYS
-    : requestedKeys.filter((k) => BIDDING_FIELD_KEYS.includes(k));
-  const demandGenKeys = requestedKeys.filter((k) => DEMAND_GEN_FIELD_KEYS.includes(k));
-  const searchKeys = requestedKeys.filter((k) => SEARCH_FIELD_KEYS.includes(k));
-  const shoppingKeys = requestedKeys.filter((k) => SHOPPING_FIELD_KEYS.includes(k));
-  const pmaxKeys = requestedKeys.filter((k) => PMAX_FIELD_KEYS.includes(k));
-  const targetingKeys = requestedKeys.filter((k) => TARGETING_FIELD_KEYS.includes(k) && targetingKeySupported(ct, k));
+    : requestedKeys.filter((k) => BIDDING_FIELD_KEYS.some(f => stripEntityPrefix(k) === f));
+  const demandGenKeys = requestedKeys.filter((k) => DEMAND_GEN_FIELD_KEYS.some(f => stripEntityPrefix(k) === f));
+  const searchKeys = requestedKeys.filter((k) => SEARCH_FIELD_KEYS.some(f => stripEntityPrefix(k) === f));
+  const shoppingKeys = requestedKeys.filter((k) => SHOPPING_FIELD_KEYS.some(f => stripEntityPrefix(k) === f));
+  const pmaxKeys = requestedKeys.filter((k) => PMAX_FIELD_KEYS.some(f => stripEntityPrefix(k) === f));
+  const targetingKeys = requestedKeys.filter((k) => TARGETING_FIELD_KEYS.some(f => stripEntityPrefix(k) === f) && targetingKeySupported(ct, stripEntityPrefix(k)));
 
   const onAddHeadline = () => {
     const arr = [...(formData.headlines || [""])];
