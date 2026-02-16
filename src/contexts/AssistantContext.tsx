@@ -19,7 +19,11 @@ import {
   draftToCampaignState,
 } from "../services/ai/assistantDrafts";
 import type { CampaignSetupState } from "../types/agent";
-import { deriveCampaignStateFromContent } from "../utils/chartJsonParser";
+import {
+  deriveCampaignStateFromContent,
+  isEventStream,
+  extractDisplayContentFromEvents,
+} from "../utils/chartJsonParser";
 
 export const ASSISTANT_PANEL_WIDTH = "550px";
 export const ASSISTANT_PANEL_VIEW: "fixed" | "floating" = "floating";
@@ -274,11 +278,15 @@ export const AssistantProvider: React.FC<{
             });
           }
           if (turn.final_message) {
+            const isEvents = isEventStream(turn.final_message);
+            const displayContent = isEvents
+              ? extractDisplayContentFromEvents(JSON.parse(turn.final_message))
+              : turn.final_message;
             msgs.push({
               type: "ai",
               id: `a-${turn.id}`,
-              content: turn.final_message,
-              timeline: [{ type: "text", content: turn.final_message }],
+              content: displayContent,
+              timeline: [{ type: "text", content: displayContent }],
               isStreaming: false,
             });
           }
