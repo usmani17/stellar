@@ -724,8 +724,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     )}
                 </div>
             </div>
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto interactive-scrollbar px-4 py-4">
+            {/* Messages Area - min-h-0 allows flex child to shrink so overflow only when content exceeds available space */}
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden interactive-scrollbar px-4 py-4">
                 {isLoading && currentSessionId && !hasMessages ? (
                     /* Loading history for selected session */
                     <div className="flex flex-col items-center justify-center h-full gap-4">
@@ -829,14 +829,14 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                             </div>
                                                         )}
                                                         {item.type === "text" && item.content && (
-                                                            <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full prose prose-sm max-w-none">
+                                                            <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full prose prose-sm max-w-none [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-6 [&_ol]:pl-6">
                                                                 <ContentWithCharts content={item.content} type="ai" />
                                                             </div>
                                                         )}
                                                     </div>
                                                 ))}
                                                 {timeline.length === 0 && !aiStreaming && content && (
-                                                    <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full prose prose-sm max-w-none">
+                                                    <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full prose prose-sm max-w-none [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-6 [&_ol]:pl-6">
                                                         <ContentWithCharts content={content} type="ai" />
                                                     </div>
                                                 )}

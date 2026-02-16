@@ -131,15 +131,19 @@ export const StellarMarkDown: React.FC<StellarMarkDownProps> = ({ content, type 
                         <p className="text-sm last:mb-0">{children}</p>
                     ),
                     ul: ({ children }) => (
-                        <ul className="text-sm list-disc pl-5 mb-2 last:mb-0">{children}</ul>
+                        <ul className="text-sm list-disc list-outside pl-6 mb-2 last:mb-0 space-y-1">
+                            {children}
+                        </ul>
                     ),
                     ol: ({ children }) => (
-                        <ol className="text-sm list-decimal pl-5 mb-2 last:mb-0">
+                        <ol className="text-sm list-decimal list-outside pl-6 mb-2 last:mb-0 space-y-1">
                             {children}
                         </ol>
                     ),
                     li: ({ children }) => (
-                        <li className="text-sm mb-1 last:mb-0">{children}</li>
+                        <li className="text-sm mb-0.5 last:mb-0 [&>ul]:mt-1 [&>ol]:mt-1 [&>ul]:ml-3 [&>ol]:ml-3">
+                            {children}
+                        </li>
                     ),
                     blockquote: ({ children }) => (
                         <blockquote
@@ -212,12 +216,22 @@ export const StellarMarkDown: React.FC<StellarMarkDownProps> = ({ content, type 
                         <del className="line-through">{children}</del>
                     ),
                     table: ({ children }) => (
-                        <div className="overflow-x-auto max-w-[490px]">
-                            <table className="min-w-full my-2 border border-gray">{children}</table>
+                        <div className="overflow-x-auto w-full max-w-full my-2 -mx-1">
+                            <table className="w-max min-w-full border-collapse border border-gray text-sm">
+                                {children}
+                            </table>
                         </div>
                     ),
-                    th: ({ children }) => <th className="border border-gray px-4 py-2">{children}</th>,
-                    td: ({ children }) => <td className="border border-gray px-4 py-2">{children}</td>,
+                    th: ({ children }) => (
+                        <th className="border border-gray px-3 py-2 text-left text-xs font-medium text-gray-600 whitespace-nowrap">
+                            {children}
+                        </th>
+                    ),
+                    td: ({ children }) => (
+                        <td className="border border-gray px-3 py-2 text-sm text-gray-800 whitespace-nowrap">
+                            {children}
+                        </td>
+                    ),
                 }}
             >
                 {stringContent}
