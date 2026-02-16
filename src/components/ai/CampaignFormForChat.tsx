@@ -202,7 +202,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       }
       const pid = String(profileId);
       const budgets = await googleAdwordsCampaignsService.getGoogleBudgets(accountIdNum, channelIdNum, pid);
-      const options = budgets.map((budget) => ({
+      const options = budgets.map((budget : any) => ({
         value: budget.resource_name,
         label: `${budget.name} ($${budget.amount_dollars?.toFixed(2) || "0.00"})`,
         name: budget.name,
@@ -574,6 +574,10 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   }, [formData.square_marketing_image_url]);
 
   const hasValidationErrors = Object.keys(errors).length > 0;
+
+  if (requestedKeys.length === 0) {
+    return null;
+  }
 
   return (
     <div className="mt-2 p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[10px]">

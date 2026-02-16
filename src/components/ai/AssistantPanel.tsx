@@ -14,7 +14,7 @@ import { accountsService, type Account } from "../../services/accounts";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
-import { CampaignFormForChat, type CampaignFormForChatHandle } from "../layout/Assistant";
+import { CampaignFormForChat, type CampaignFormForChatHandle } from "../ai/CampaignFormForChat";
 
 // Helper function to group sessions by date, ordered by latest first
 const groupSessionsByDate = (sessions: SessionWithMessages[]): Record<string, SessionWithMessages[]> => {

@@ -1304,6 +1304,8 @@ body input[type="submit"]:disabled {
   padding: 0.5rem 1rem;
   min-height: 44px;
   background-color: var(--color-semantic-background-primary);
+  z-index: 20;
+  box-shadow: 0 8px 12px -6px rgba(0, 0, 0, 0.3);
 }
 
 .assistant-account-row-inner {
