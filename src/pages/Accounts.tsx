@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { useAuth } from "../contexts/AuthContext";
 import { useSidebar } from "../contexts/SidebarContext";
@@ -34,8 +34,6 @@ export const Accounts: React.FC = () => {
   } = useAccountsPaginated(currentPage, BRANDS_PAGE_SIZE);
   const { sidebarWidth } = useSidebar();
   const navigate = useNavigate();
-  const location = useLocation();
-  const accessError = (location.state as { accessError?: string } | null)?.accessError;
   const [loading, setLoading] = useState(true);
 
   const handlePageChange = (newPage: number) => {
@@ -338,15 +336,6 @@ export const Accounts: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white">
-          {accessError && (
-            <Banner
-              type="error"
-              message={accessError}
-              dismissable={true}
-              onDismiss={() => navigate("/brands", { replace: true, state: {} })}
-              className="mb-6"
-            />
-          )}
           {successMessage && (
             <Banner
               type="success"

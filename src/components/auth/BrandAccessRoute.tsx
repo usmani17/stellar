@@ -82,13 +82,8 @@ export const BrandAccessRoute: React.FC<BrandAccessRouteProps> = ({
   }
 
   if (status === "denied") {
-    return (
-      <Navigate
-        to="/brands"
-        replace
-        state={{ accessError: errorMessage || "You do not have access to this brand or integration." }}
-      />
-    );
+    // Redirect without passing accessError so Brands/Users pages stay clean (message only on Integrations/Profiles)
+    return <Navigate to="/brands" replace state={{}} />;
   }
 
   return <>{children}</>;
