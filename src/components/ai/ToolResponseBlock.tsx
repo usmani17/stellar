@@ -5,7 +5,7 @@ import type { ThreadMessage } from "../../services/ai/threads";
 import { isStringContent } from "../../utils/ai-formatter";
 
 // Component to render tool response - skipped for now
-// @ts-ignore
+// @ts-expect-error ThreadMessage from legacy threads service
 const ToolResponseBlock: React.FC<{ message: ThreadMessage }> = ({ message }) => {
   const isError = message.status === "error";
 

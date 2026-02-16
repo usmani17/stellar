@@ -4,32 +4,24 @@ import React, {
   useState,
   useCallback,
   useEffect,
-  useMemo,
+  useRef,
   type ReactNode,
 } from "react";
-import { useStream } from "@langchain/langgraph-sdk/react";
 import { useAuth } from "./AuthContext";
-import { threadsService, type Thread, type ThreadMessage, type ContentBlock, type ThreadMetaData, type ContextMetadata, normalizeThreadMessages } from "../services/ai/threads";
+import { streamPixisChat, type PixisTimelineItem } from "../services/ai/pixisChat";
 import {
-  parseStreamMessages,
-  mergeAccumulatedToolBlocks,
-  applyThinkingStepsToLastAi,
-  shouldSkipOnFinishMessages,
-  extractToolBlocksFromContent,
-  type AccumulatedToolContent,
-} from "../utils/aiStreamMessageParser";
-import { runsService } from "../services/ai/runs";
-import { assistantService, getAssistantIdForGraph, type AssistantSearchResult, type GraphId } from "../services/ai/assistant";
+  pixisAiSessionsService,
+  type PixisSession,
+  type PixisThread,
+} from "../services/ai/pixisAiSessions";
+import {
+  getSessionDrafts,
+  draftToCampaignState,
+} from "../services/ai/assistantDrafts";
 import type { CampaignSetupState } from "../types/agent";
-
-const getStreamApiUrl = (): string => {
-  const baseUrl = import.meta.env.VITE_AI_AGENT_BASE_URL;
-  if (!baseUrl) return "";
-  return String(baseUrl).replace(/\/$/, "");
-};
+import { deriveCampaignStateFromContent } from "../utils/chartJsonParser";
 
 export const ASSISTANT_PANEL_WIDTH = "550px";
-// "fixed" will make the main content shrink, while "floating" will be displayed over the main content.
 export const ASSISTANT_PANEL_VIEW: "fixed" | "floating" = "floating";
 
 export interface SuggestedPrompt {
@@ -37,24 +29,30 @@ export interface SuggestedPrompt {
   text: string;
 }
 
-/** User-selected scope in the assistant panel (overrides route params when set). */
 export interface AssistantScope {
   accountId: string | null;
   channelId: string | null;
   profileId: number | null;
-  /** Profile display name (from selected integration/profile). */
   profileName?: string | null;
-  /** Channel/marketplace type (e.g. google, meta, tiktok) for LangGraph context. */
   marketplace?: string | null;
 }
 
-// Extended Thread with runtime state (not from API). Exported so Assistant UI can read campaignState.
-export interface ThreadWithRuntime extends Thread {
-  isStreaming?: boolean;
-  thinkingSteps?: string[];
-  pendingMessageId?: string | null;
+/** Session with runtime state (messages, etc.) */
+export interface SessionWithMessages extends PixisSession {
+  messages?: ChatMessage[];
   campaignState?: CampaignSetupState;
 }
+
+export type ChatMessage =
+  | { type: "human"; id: string; content: string }
+  | {
+      type: "ai";
+      id: string;
+      content: string;
+      timeline: PixisTimelineItem[];
+      isStreaming: boolean;
+      error?: string;
+    };
 
 interface AssistantContextType {
   isOpen: boolean;
@@ -62,42 +60,32 @@ interface AssistantContextType {
   openAssistant: () => void;
   closeAssistant: () => void;
 
-  // Single source of truth - all threads in one array with runtime state
-  threads: ThreadWithRuntime[];
+  sessions: SessionWithMessages[];
+  currentSession: SessionWithMessages | null;
+  currentSessionId: string | null;
 
-  // Current thread (derived from threads array)
-  currentThread: ThreadWithRuntime | null;
-  currentThreadId: string | null;
-
-  // Actions
   sendMessage: (content: string) => Promise<void>;
   cancelRun: () => Promise<void>;
-  selectThread: (threadId: string) => Promise<void>;
-  startNewThread: () => void;
-  deleteThread: (threadId: string) => void;
-  updateThreadTitle: (threadId: string, title: string) => void;
+  selectSession: (sessionId: string) => Promise<void>;
+  startNewSession: () => void;
+  deleteSession: (sessionId: string) => Promise<void>;
+  updateSessionTitle: (sessionId: string, title: string) => void;
 
-  // UI state
   inputValue: string;
   setInputValue: (value: string) => void;
   isLoading: boolean;
-  isLoadingThreads: boolean;
+  isLoadingSessions: boolean;
+  deletingSessionId: string | null;
   suggestedPrompts: SuggestedPrompt[];
 
-  // Backward compatibility - derived from currentThread
-  messages: ThreadMessage[];
-  addMessage: (type: "human" | "ai", content: string) => void;
-  clearMessages: () => void;
+  messages: ChatMessage[];
   isStreaming: boolean;
-  currentThinkingSteps: string[];
-  assistants: AssistantSearchResult[];
-  selectedGraphId: GraphId | null;
-  setSelectedGraphId: (id: GraphId | null) => void;
-  onApplyDraft?: (draft: Record<string, unknown>) => void;
 
-  /** Scope selected in panel (account, channel, profile). When set, overrides route params when sending. */
   assistantScope: AssistantScope;
   setAssistantScope: (updates: Partial<AssistantScope>) => void;
+
+  /** Campaign state from last AI response (e.g. from campaign-setup block) */
+  campaignState: CampaignSetupState | undefined;
 }
 
 const AssistantContext = createContext<AssistantContextType | undefined>(undefined);
@@ -107,38 +95,30 @@ const CHAT_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   { id: "2", text: "Suggest budget optimization" },
   { id: "3", text: "Analyze ACOS trends" },
   { id: "4", text: "Compare campaign efficiency" },
+  { id: "5", text: "Create campaign" },
 ];
 
-const CAMPAIGN_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
-  { id: "c1", text: "Create a Demand Gen (YouTube) campaign" },
-  { id: "c2", text: "Set up a Search campaign" },
-  { id: "c3", text: "Create a Performance Max campaign" },
-  { id: "c4", text: "Create a Shopping campaign" },
-  { id: "c-analyze-1", text: "Analyze my campaigns and create a Search campaign for me" },
-  { id: "c-analyze-2", text: "Analyze my top campaigns, find budget waste, and create a new campaign optimized for my account" },
-  
-];
+function msgId(): string {
+  return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
 
-export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: string; channelId?: string }> = ({
-  children,
-  accountId: propAccountId,
-  channelId: propChannelId,
-}) => {
-  const { user } = useAuth();
+export const AssistantProvider: React.FC<{
+  children: ReactNode;
+  accountId?: string;
+  channelId?: string;
+}> = ({ children, accountId: propAccountId, channelId: propChannelId }) => {
+  const { user, getAccessToken } = useAuth();
 
-  // Single array holds ALL threads with runtime state
-  const [threads, setThreads] = useState<ThreadWithRuntime[]>([]);
-
-  // Current thread ID reference
-  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
-
-  // UI state
+  const [sessions, setSessions] = useState<SessionWithMessages[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [pendingConversation, setPendingConversation] = useState<{
+    messages: ChatMessage[];
+  } | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingThreads, setIsLoadingThreads] = useState(false);
-  const [selectedGraphId, setSelectedGraphId] = useState<GraphId|null>(null);
-  const [assistants, setAssistants] = useState<AssistantSearchResult[]>([]);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
   const [assistantScope, setAssistantScopeState] = useState<AssistantScope>({
     accountId: null,
@@ -152,340 +132,92 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
     setAssistantScopeState((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  const suggestedPrompts = selectedGraphId === "campaign_setup" ? CAMPAIGN_SUGGESTED_PROMPTS : CHAT_SUGGESTED_PROMPTS;
-  const currentAssistantId = getAssistantIdForGraph(assistants, selectedGraphId);
-  const streamApiUrl = useMemo(() => getStreamApiUrl(), []);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const sendingNewSessionRef = useRef(false);
+  const streamingSessionIdRef = useRef<string | null>(null);
+  const pendingNewSessionRef = useRef<{ id: string; cursor_session_id: string } | null>(null);
+  const isNewSessionFlowRef = useRef(false);
 
-  // When stream creates a new thread, use first message as title if we have it
-  const pendingThreadTitleRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      assistantScope.accountId &&
+      assistantScope.channelId &&
+      assistantScope.profileId
+    ) {
+      // Ready to chat
+    }
+  }, [assistantScope.accountId, assistantScope.channelId, assistantScope.profileId]);
 
-  // Accumulate tool-rich content during streaming (LangGraph SDK drops tool_calls when merging)
-  const accumulatedToolContentRef = React.useRef<Map<string, ThreadMessage["content"]>>(new Map());
-  const accumulatedByAiIndexRef = React.useRef<ThreadMessage["content"][]>([]);
-
-  // Effective scope: panel selection overrides route params
   const effectiveAccountId = assistantScope.accountId ?? propAccountId ?? null;
   const effectiveChannelId = assistantScope.channelId ?? propChannelId ?? null;
   const effectiveProfileId = assistantScope.profileId;
-  const effectiveProfileName = assistantScope.profileName ?? null;
   const effectiveMarketplace = assistantScope.marketplace ?? null;
 
-  const onThreadIdFromStream = useCallback((threadId: string) => {
-    if (!selectedGraphId) return;
-    const title = pendingThreadTitleRef.current
-      ? (pendingThreadTitleRef.current.length > 50
-          ? pendingThreadTitleRef.current.slice(0, 47) + "..."
-          : pendingThreadTitleRef.current)
-      : undefined;
-    if (pendingThreadTitleRef.current) pendingThreadTitleRef.current = null;
+  const currentSession =
+    sessions.find((s) => s.id === currentSessionId) ?? null;
 
-    const accountIdNum = effectiveAccountId ? parseInt(effectiveAccountId, 10) : undefined;
-    const channelIdNum = effectiveChannelId ? parseInt(effectiveChannelId, 10) : undefined;
-    
-    const threadMetadata: ThreadMetaData = {
-      title,
-      graph_id: selectedGraphId,
-      user_id: user?.id,
-      account_id: accountIdNum,
-      channel_id: channelIdNum,
-      profile_id: effectiveProfileId ?? undefined,
-      workspace_id: user?.workspace?.id,
-      folder_id: undefined, // Add when available
-      session_id: undefined, // Add when available
-      platform: effectiveMarketplace ?? undefined,
-      auth_token: "123123123", // Consider making this dynamic
-      assistant_id: currentAssistantId,
-    };
+  const messages: ChatMessage[] =
+    pendingConversation?.messages ?? currentSession?.messages ?? [];
+  const isStreaming =
+    messages.length > 0 &&
+    messages[messages.length - 1]?.type === "ai" &&
+    (messages[messages.length - 1] as Extract<ChatMessage, { type: "ai" }>)
+      .isStreaming;
 
-    setThreads(prev => {
-      if (prev.some(t => t.thread_id === threadId)) return prev;
-      return [...prev, {
-        thread_id: threadId,
-        metadata: threadMetadata,
-        values: { messages: [] },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        status: "idle",
-      } as ThreadWithRuntime];
-    });
-    setCurrentThreadId(threadId);
-    if (title) {
-      threadsService.updateThread(threadId, { metadata: threadMetadata }).catch((err) =>
-        console.warn("[Assistant] Failed to persist thread title:", err)
-      );
-    }
-  }, [selectedGraphId, effectiveAccountId, effectiveChannelId, effectiveProfileId, effectiveMarketplace, user?.id, user?.workspace?.id]);
+  const campaignState = (() => {
+    const fromSession = currentSession?.campaignState as CampaignSetupState | undefined;
+    const lastAi = [...messages].reverse().find((m) => m.type === "ai");
+    const content = lastAi?.type === "ai" ? (lastAi.content || "") : "";
+    const derived = content ? deriveCampaignStateFromContent(content) : null;
+    if (!fromSession && !derived) return undefined;
+    return {
+      ...fromSession,
+      ...derived,
+      current_questions_schema:
+        fromSession?.current_questions_schema?.length
+          ? fromSession.current_questions_schema
+          : derived?.current_questions_schema,
+    } as CampaignSetupState;
+  })();
 
-  const stream = useStream({
-    apiUrl: streamApiUrl || undefined,
-    assistantId: currentAssistantId ?? "",
-    threadId: currentThreadId,
-    throttle: 16,
-    fetchStateHistory: true,
-    onThreadId: onThreadIdFromStream,
-    messagesKey: "messages",
-    onError: useCallback((err: unknown) => {
-      console.error("Stream error:", err);
-    }, []),
-    onFinish: useCallback((state: unknown, run?: { thread_id?: string }) => {
-      const threadId = run?.thread_id ?? currentThreadId;
-      if (!threadId) return;
-      const s = state != null && typeof state === "object" ? (state as Record<string, unknown>) : {};
-      const values = s.values != null && typeof s.values === "object" ? (s.values as Record<string, unknown>) : null;
-      const rawMessages = values?.messages ?? s.messages;
-      const hasCampaignState = values && ("campaign_draft" in values || "reply_text" in values || "current_questions_schema" in values);
-      const campaignState = hasCampaignState ? (values as CampaignSetupState) : undefined;
-      const normalized = Array.isArray(rawMessages) && rawMessages.length > 0
-        ? normalizeThreadMessages(rawMessages as Parameters<typeof normalizeThreadMessages>[0])
-        : null;
-      const skipMessages = shouldSkipOnFinishMessages({
-        byId: accumulatedToolContentRef.current,
-        byAiIndex: accumulatedByAiIndexRef.current,
-      });
-      setThreads(prev => prev.map(t => {
-        if (t.thread_id !== threadId) return t;
-        const next: ThreadWithRuntime = { ...t, updated_at: new Date().toISOString() };
-        if (normalized && !skipMessages) next.values = { ...(t.values || {}), messages: normalized };
-        if (campaignState) next.campaignState = campaignState;
-        return next;
-      }));
-    }, [currentThreadId]),
-    onUpdateEvent: useCallback((data: Record<string, unknown>) => {
-      const excludeFromSteps = ["messages", "analysis", "corrected_analysis", "build_draft"];
-      const keys = data && typeof data === "object" ? Object.keys(data).filter(k => !excludeFromSteps.includes(k)) : [];
-      if (keys.length > 0 && currentThreadId) {
-        setThreads(prev => prev.map(t => {
-          if (t.thread_id !== currentThreadId) return t;
-          const existing = t.thinkingSteps ?? [];
-          const newKeys = keys.filter(k => !existing.includes(k));
-          const merged = newKeys.length > 0 ? [...existing, ...newKeys] : existing;
-          return { ...t, thinkingSteps: merged, updated_at: new Date().toISOString() };
-        }));
-      }
-    }, [currentThreadId]),
-  });
+  const loadSessions = useCallback(async () => {
+    const token = await getAccessToken();
+    if (!token || !effectiveAccountId) return;
+    const accountIdNum = parseInt(effectiveAccountId, 10);
+    if (Number.isNaN(accountIdNum)) return;
 
-  // Derived: get current thread directly from array
-  const currentThread = threads.find(t => t.thread_id === currentThreadId) || null;
-
-  // When we're on the stream's thread, use stream.messages; otherwise use thread history from our list
-  const streamMessages: ThreadMessage[] = useMemo(() => {
-    const getToolCalls = (stream as { getToolCalls?: (msg: unknown) => Array<{ call: { id?: string; name: string; args?: Record<string, unknown> } }> }).getToolCalls;
-    return parseStreamMessages(stream.messages ?? [], getToolCalls);
-  }, [stream.messages, stream]);
-
-  const isStreamThread = currentThreadId != null; // stream is bound to currentThreadId when set
-  const prevLoadingRefForAccum = React.useRef<boolean>(stream.isLoading);
-  const lastMergedMessagesRef = React.useRef<ThreadMessage[] | null>(null);
-  const lastMergedThreadIdRef = React.useRef<string | null>(null);
-  const persistedMessagesRef = React.useRef<ThreadMessage[]>([]);
-  const persistedForThreadIdRef = React.useRef<string | null>(null);
-
-  useEffect(() => {
-    if (currentThreadId !== persistedForThreadIdRef.current) {
-      persistedMessagesRef.current = [];
-      persistedForThreadIdRef.current = currentThreadId;
-    }
-  }, [currentThreadId]);
-
-  const mergedForDisplay = React.useMemo(() => {
-    if (stream.isLoading || !currentThreadId || !streamMessages.length) return null;
-    const accumulated: AccumulatedToolContent = {
-      byId: accumulatedToolContentRef.current,
-      byAiIndex: accumulatedByAiIndexRef.current,
-    };
-    if (shouldSkipOnFinishMessages(accumulated)) {
-      const merged = mergeAccumulatedToolBlocks(streamMessages, accumulated);
-      return applyThinkingStepsToLastAi(merged, currentThread?.thinkingSteps ?? []);
-    }
-    return null;
-  }, [stream.isLoading, streamMessages, currentThreadId, currentThread?.thinkingSteps]);
-  const lastMergedForThread =
-    lastMergedThreadIdRef.current === currentThreadId ? lastMergedMessagesRef.current : null;
-
-  const baseMessages: ThreadMessage[] = React.useMemo(() => {
-    const currentRun = isStreamThread && stream.isLoading ? streamMessages : (mergedForDisplay ?? lastMergedForThread ?? streamMessages ?? currentThread?.values?.messages ?? []);
-    if (stream.isLoading && persistedMessagesRef.current.length > 0 && currentRun.length > 0) {
-      const prev = persistedMessagesRef.current;
-      const currentIds = new Set((currentRun as { id?: string }[]).map((m) => m.id));
-      const prevOnly = prev.filter((m) => !currentIds.has(m.id));
-      return [...prevOnly, ...currentRun];
-    }
-    return currentRun;
-  }, [isStreamThread, stream.isLoading, streamMessages, mergedForDisplay, lastMergedForThread, currentThread?.values?.messages]);
-
-  // When campaign has reply_text but last AI message lacks text, inject it (e.g. "Fill in YouTube video ID")
-  const messages: ThreadMessage[] = useMemo(() => {
-    const replyText = currentThread?.campaignState?.reply_text?.trim();
-    if (!replyText || !baseMessages.length) return baseMessages;
-    const lastIdx = baseMessages.length - 1;
-    const last = baseMessages[lastIdx];
-    if ((last as { type?: string }).type !== "ai") return baseMessages;
-    const content = last.content;
-    const hasText =
-      typeof content === "string" ? !!content?.trim() : Array.isArray(content) && content.some((b: unknown) => typeof b === "object" && b != null && (b as { type?: string }).type === "text" && (b as { text?: string }).text);
-    if (hasText) return baseMessages;
-    const textBlock: ContentBlock = { type: "text", text: replyText };
-    const toolBlocks = Array.isArray(content)
-      ? content.filter((b): b is ContentBlock => typeof b === "object" && b != null && (b as { type?: string }).type === "tool_use")
-      : [];
-    const newContent: ThreadMessage["content"] = toolBlocks.length > 0 ? [...toolBlocks, textBlock] : replyText;
-    return [
-      ...baseMessages.slice(0, lastIdx),
-      { ...last, content: newContent },
-    ];
-  }, [baseMessages, currentThread?.campaignState?.reply_text]);
-
-  const isStreaming = stream.isLoading;
-
-  if (prevLoadingRefForAccum.current && !stream.isLoading) {
-    prevLoadingRefForAccum.current = false;
-  } else if (!prevLoadingRefForAccum.current && stream.isLoading) {
-    const toPersist = lastMergedMessagesRef.current ?? persistedMessagesRef.current;
-    if (toPersist.length > 0) persistedMessagesRef.current = toPersist;
-    accumulatedToolContentRef.current.clear();
-    accumulatedByAiIndexRef.current = [];
-    lastMergedMessagesRef.current = null;
-    lastMergedThreadIdRef.current = null;
-    prevLoadingRefForAccum.current = true;
-  }
-  useEffect(() => {
-    if (!stream.isLoading) return;
-    const byId = accumulatedToolContentRef.current;
-    const byIndex = [...accumulatedByAiIndexRef.current];
-    let aiIdx = 0;
-    streamMessages.forEach((msg) => {
-      if ((msg as { type?: string }).type !== "ai") return;
-      const c = msg.content;
-      if (Array.isArray(c) && extractToolBlocksFromContent(c).length > 0) {
-        byId.set(msg.id ?? `ai-${aiIdx}`, c);
-        byIndex[aiIdx] = c;
-      }
-      aiIdx += 1;
-    });
-    accumulatedByAiIndexRef.current = byIndex;
-  }, [streamMessages, stream.isLoading]);
-
-  const currentThinkingSteps = currentThread?.thinkingSteps ?? [];
-
-  // Persist stream messages (including tool calls) into thread when stream finishes, so tool calls don't vanish.
-  // Also persist thinking steps on the last AI message and clear from thread.
-  const prevLoadingRef = React.useRef<boolean>(stream.isLoading);
-  const streamMessagesRef = React.useRef<ThreadMessage[]>([]);
-  streamMessagesRef.current = streamMessages;
-  useEffect(() => {
-    const justFinished = prevLoadingRef.current && !stream.isLoading;
-    prevLoadingRef.current = stream.isLoading;
-    if (!justFinished || !currentThreadId) return;
-    const latest = streamMessagesRef.current;
-    if (!latest?.length) return;
-    const accumulated: AccumulatedToolContent = {
-      byId: accumulatedToolContentRef.current,
-      byAiIndex: accumulatedByAiIndexRef.current,
-    };
-    const newMessages = applyThinkingStepsToLastAi(
-      mergeAccumulatedToolBlocks(latest, accumulated),
-      currentThread?.thinkingSteps ?? []
-    );
-    accumulatedToolContentRef.current.clear();
-    accumulatedByAiIndexRef.current = [];
-    lastMergedMessagesRef.current = newMessages;
-    lastMergedThreadIdRef.current = currentThreadId;
-    persistedMessagesRef.current = newMessages;
-    setThreads(prev => prev.map(t => {
-      if (t.thread_id !== currentThreadId) return t;
-      return {
-        ...t,
-        values: { ...(t.values || {}), messages: newMessages },
-        thinkingSteps: [],
-        updated_at: new Date().toISOString(),
-      };
-    }));
-  }, [stream.isLoading, currentThreadId, currentThread?.thinkingSteps]);
-
-  // Sync campaign state from stream.values into current thread only when a run just finished.
-  // Otherwise switching to another thread would apply the previous thread's stream.values (stale) to the new thread.
-  const prevStreamLoadingRef = React.useRef<boolean>(stream.isLoading);
-  useEffect(() => {
-    const justFinished = prevStreamLoadingRef.current && !stream.isLoading;
-    prevStreamLoadingRef.current = stream.isLoading;
-    if (!justFinished || !currentThreadId) return;
-    const vals = stream.values != null && typeof stream.values === "object" ? (stream.values as Record<string, unknown>) : undefined;
-    if (!vals) return;
-    const hasCampaignState = "campaign_draft" in vals || "reply_text" in vals || "current_questions_schema" in vals;
-    if (!hasCampaignState) return;
-    const campaignState = vals as CampaignSetupState;
-    setThreads(prev => prev.map(t =>
-      t.thread_id === currentThreadId
-        ? { ...t, campaignState, updated_at: new Date().toISOString() }
-        : t
-    ));
-  }, [currentThreadId, stream.values, stream.isLoading]);
-
-  // Load all assistants on mount
-  useEffect(() => {
-    (async () => {
-      try {
-        const results = await assistantService.search({ metadata: { created_by: "system" }, limit: 100 });
-        setAssistants(results);
-      } catch (err) {
-        console.error("Failed to load assistants", err);
-      }
-    })();
-  }, []);
-  // Load threads from API
-  const loadThreads = useCallback(async () => {
-    if (!user?.id) return;
-
-    setIsLoadingThreads(true);
+    setIsLoadingSessions(true);
     try {
-      const threadList = await threadsService.searchThreads({
-        metadata: { user_id: user.id },
-        sort_by: 'updated_at',
-        sort_order: 'desc',
-        limit: 50
-      });
-
-      // Merge with existing runtime state; preserve local messages with tool blocks when API has fewer
-      const countToolBlocks = (msgs: ThreadMessage[] | undefined) =>
-        (msgs ?? []).reduce((n, m) => {
-          const c = m.content;
-          return n + (Array.isArray(c) ? c.filter((b: unknown) => typeof b === "object" && b != null && (b as { type?: string }).type === "tool_use").length : 0);
-        }, 0);
-      setThreads(prev => {
-        const existingByThread = new Map(prev.map(t => [t.thread_id, t]));
-        return threadList.map(apiThread => {
-          const existing = existingByThread.get(apiThread.thread_id);
-          const existingToolCount = countToolBlocks(existing?.values?.messages);
-          const apiToolCount = countToolBlocks(apiThread.values?.messages);
-          const preserveMessages = existingToolCount > apiToolCount && existing?.values?.messages;
-          const values = preserveMessages
-            ? { ...(apiThread.values ?? {}), messages: existing!.values!.messages }
-            : apiThread.values;
+      const { sessions: list } = await pixisAiSessionsService.list(
+        accountIdNum,
+        token,
+        { limit: 50 }
+      );
+      setSessions((prev) => {
+        const byId = new Map(prev.map((s) => [s.id, s]));
+        const fromApi = list.map((api) => {
+          const existing = byId.get(api.id);
           return {
-            ...apiThread,
-            values,
-            isStreaming: existing?.isStreaming || false,
-            thinkingSteps: existing?.thinkingSteps ?? [],
+            ...api,
+            messages: existing?.messages,
             campaignState: existing?.campaignState,
-          };
+          } as SessionWithMessages;
         });
+        return fromApi;
       });
-    } catch (error) {
-      console.error('Failed to load threads:', error);
+    } catch (err) {
+      console.error("Failed to load sessions:", err);
     } finally {
-      setIsLoadingThreads(false);
+      setIsLoadingSessions(false);
     }
-  }, [user?.id]);
+  }, [effectiveAccountId, getAccessToken]);
 
-  // Load threads when assistant opens
   useEffect(() => {
-    if (isOpen && user?.id) {
-      loadThreads();
+    if (isOpen && effectiveAccountId && user?.id) {
+      loadSessions();
     }
-  }, [isOpen, user?.id, loadThreads]);
+  }, [isOpen, effectiveAccountId, user?.id, loadSessions]);
 
-  // Pre-fill scope from route when on a channel page (user can still change in panel)
   useEffect(() => {
     if (propAccountId || propChannelId) {
       setAssistantScopeState((prev) => ({
@@ -494,256 +226,479 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         ...(propChannelId && { channelId: propChannelId }),
       }));
     }
-  }, []);
+  }, [propAccountId, propChannelId]);
 
-  // Select thread - load full history if needed
-  const selectThread = useCallback(async (threadId: string) => {
-    setIsLoading(true);
-    try {
-      // Check if we need to load full history
-      const existingThread = threads.find(t => t.thread_id === threadId);
-      const needsHistory = !existingThread?.values?.messages?.length;
-
-      if (needsHistory) {
-        const history = await threadsService.getThreadHistory(threadId, { limit: 1000 });
-        const fullThread = await threadsService.getThread(threadId);
-        // @ts-ignore
-        const threadRuns = await runsService.getThreadRuns(threadId);
-
-        if (history.length > 0) {
-          // Get latest state from history; normalize messages for consistent display with stream
-          const latestState = history[history.length - 1];
-          const rawValues = latestState.values;
-          const values = rawValues
-            ? {
-              ...rawValues,
-              messages: normalizeThreadMessages(rawValues.messages),
-            }
-            : rawValues;
-          const hasCampaign = rawValues && typeof rawValues === "object" && ("campaign_draft" in rawValues || "reply_text" in rawValues || "current_questions_schema" in rawValues);
-          const campaignStateFromHistory = hasCampaign ? (rawValues as CampaignSetupState) : undefined;
-
-          setThreads(prev => prev.map(t =>
-            t.thread_id === threadId
-              ? {
-                ...t,
-                ...fullThread,
-                values: values ?? fullThread.values,
-                updated_at: fullThread.updated_at,
-                campaignState: campaignStateFromHistory,
-              }
-              : t
-          ));
-        }
-      }
-
-      setCurrentThreadId(threadId);
-
-      // When we didn't load history and the selected thread is a chat thread, clear campaign state so we don't show a previous thread's campaign state (e.g. switched from campaign to chat).
-      const selectedMeta = existingThread?.metadata as ThreadMetaData | undefined;
-      if (!needsHistory && selectedMeta?.graph_id === "chat") {
-        setThreads(prev => prev.map(t =>
-          t.thread_id === threadId ? { ...t, campaignState: undefined } : t
-        ));
-      }
-
-      // Sync context state from selected thread's metadata
-      const selectedThread = threads.find(t => t.thread_id === threadId);
-      if (selectedThread?.metadata) {
-        const metadata = selectedThread.metadata as ThreadMetaData;
-        
-        // Update assistant scope from thread metadata
-        setAssistantScopeState(prev => ({
+  const selectSession = useCallback(
+    async (sessionId: string) => {
+      const sel = sessions.find((s) => s.id === sessionId);
+      if (sel) {
+        setCurrentSessionId(sessionId);
+        setAssistantScopeState((prev) => ({
           ...prev,
-          accountId: metadata.account_id?.toString() ?? null,
-          channelId: metadata.channel_id?.toString() ?? null,
-          profileId: metadata.profile_id ?? null,
-          marketplace: metadata.platform ?? null,
+          accountId: sel.account_id?.toString() ?? prev.accountId,
+          channelId: sel.channel_id?.toString() ?? prev.channelId,
+          profileId: (sel.profile_id != null ? Number(sel.profile_id) : undefined) ?? prev.profileId,
         }));
-        setSelectedGraphId(metadata.graph_id ?? "chat");
       }
-    } catch (error) {
-      console.error('Failed to select thread:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [threads]);
+      setIsLoading(true);
+      try {
+        const token = await getAccessToken();
+        if (!token) return;
 
-  // Start new thread - add to array immediately
-  const startNewThread = useCallback(() => {
-    setCurrentThreadId(null);
-    setSelectedGraphId(null);
+        const existing = sessions.find((s) => s.id === sessionId);
+        const needsHistory = !existing?.messages?.length;
+
+        if (needsHistory) {
+          const [{ history }, drafts] = await Promise.all([
+            pixisAiSessionsService.getHistory(sessionId, token),
+            getSessionDrafts(sessionId, token).catch(() => []),
+          ]);
+          const msgs: ChatMessage[] = [];
+          for (const turn of history as PixisThread[]) {
+            if (turn.user_query) {
+              msgs.push({
+                type: "human",
+                id: `h-${turn.id}`,
+                content: turn.user_query,
+              });
+            }
+            if (turn.final_message) {
+              msgs.push({
+                type: "ai",
+                id: `a-${turn.id}`,
+                content: turn.final_message,
+                timeline: [{ type: "text", content: turn.final_message }],
+                isStreaming: false,
+              });
+            }
+          }
+          const latestDraft = drafts
+            .filter((d) => d.status === "in_progress")
+            .sort((a, b) => (b.draft_index ?? 0) - (a.draft_index ?? 0))[0];
+          const campaignState = latestDraft
+            ? draftToCampaignState(latestDraft)
+            : undefined;
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === sessionId
+                ? { ...s, messages: msgs, campaignState }
+                : s
+            )
+          );
+        }
+      } catch (err) {
+        console.error("Failed to select session:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [sessions, getAccessToken]
+  );
+
+  const startNewSession = useCallback(() => {
+    setCurrentSessionId(null);
+    setPendingConversation(null);
   }, []);
 
-  // Delete thread from UI and persist deletion to backend
-  const deleteThread = useCallback((threadId: string) => {
-    setThreads(prev => prev.filter(t => t.thread_id !== threadId));
-    if (currentThreadId === threadId) {
-      setCurrentThreadId(null);
-    }
-    threadsService.deleteThread(threadId).catch((err) =>
-      console.warn("[Assistant] Failed to delete thread on backend:", err)
-    );
-  }, [currentThreadId]);
-
-  // Update thread title (local state + persist to backend)
-  const updateThreadTitle = useCallback((threadId: string, title: string) => {
-    setThreads(prev => prev.map(t =>
-      t.thread_id === threadId
-        ? { ...t, metadata: { ...t.metadata, title } as ThreadMetaData, updated_at: new Date().toISOString() }
-        : t
-    ));
-    const updatedMetadata: Partial<ThreadMetaData> = { title };
-    threadsService.updateThread(threadId, { metadata: updatedMetadata }).catch((err) =>
-      console.warn("[Assistant] Failed to persist thread title:", err)
-    );
-  }, []);
-
-  // Add message to current thread - directly modify array
-  const addMessage = useCallback((type: "human" | "ai", content: string) => {
-    if (!currentThreadId) return;
-
-    const newMessage: ThreadMessage = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type,
-      content,
-    };
-
-    setThreads(prev => prev.map(t => {
-      if (t.thread_id !== currentThreadId) return t;
-
-      const currentValues = t.values || { messages: [] };
-      const currentMessages = currentValues.messages || [];
-
-      return {
-        ...t,
-        values: {
-          ...currentValues,
-          messages: [...currentMessages, newMessage]
-        },
-        updated_at: new Date().toISOString()
-      };
-    }));
-  }, [currentThreadId]);
-
-  // Clear messages
-  const clearMessages = useCallback(() => {
-    if (!currentThreadId) return;
-
-    setThreads(prev => prev.map(t =>
-      t.thread_id === currentThreadId
-        ? {
-          ...t,
-          values: { ...t.values, messages: [] },
-          isStreaming: false,
-          thinkingSteps: [],
-          pendingMessageId: null
+  const deleteSession = useCallback(
+    async (sessionId: string) => {
+      setDeletingSessionId(sessionId);
+      try {
+        const token = await getAccessToken();
+        if (token) {
+          await pixisAiSessionsService.delete(sessionId, token);
         }
-        : t
-    ));
-  }, [currentThreadId]);
-
-  // Main send message (useStream path)
-  const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || !user?.id || !currentAssistantId || !streamApiUrl) return;
-
-    const trimmed = content.trim();
-    const titleFromContent = trimmed.length > 50 ? trimmed.slice(0, 47) + "..." : trimmed;
-
-    // Name the chat from the first message: for new thread, store for onThreadId; for existing thread with no title, set now
-    if (!currentThreadId) {
-      pendingThreadTitleRef.current = trimmed;
-    } else {
-      const thread = threads.find(t => t.thread_id === currentThreadId);
-      if (thread && !thread.metadata?.title) {
-        const updatedMetadata: ThreadMetaData = { ...thread.metadata, title: titleFromContent } as ThreadMetaData;
-        setThreads(prev => prev.map(t =>
-          t.thread_id === currentThreadId
-            ? { ...t, metadata: updatedMetadata, updated_at: new Date().toISOString() }
-            : t
-        ));
-        threadsService.updateThread(currentThreadId, { metadata: { title: titleFromContent } }).catch((err) =>
-          console.warn("[Assistant] Failed to persist thread title:", err)
-        );
+        setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+        if (currentSessionId === sessionId) {
+          setCurrentSessionId(null);
+        }
+      } catch (err) {
+        console.warn("Failed to delete session:", err);
+      } finally {
+        setDeletingSessionId(null);
       }
-    }
+    },
+    [currentSessionId, getAccessToken]
+  );
 
-    const accountIdNum = effectiveAccountId ? parseInt(effectiveAccountId, 10) : undefined;
-    const channelIdNum = effectiveChannelId ? parseInt(effectiveChannelId, 10) : undefined;
-
-    setInputValue("");
-
-    // Clear thinking steps when starting new turn so next run gets a fresh list
-    if (currentThreadId) {
-      setThreads(prev => prev.map(t =>
-        t.thread_id === currentThreadId ? { ...t, thinkingSteps: [] } : t
-      ));
-    }
-
-    const humanMessage = { type: "human" as const, content, id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}` };
-    const configurable: Record<string, unknown> = {
-      user_id: user.id,
-      account_id: accountIdNum ?? effectiveAccountId ?? undefined,
-      integration_id: channelIdNum ?? effectiveChannelId ?? undefined,
-      profile_id: effectiveProfileId ?? undefined,
-      marketplace: effectiveMarketplace ?? undefined,
-      graph_id: selectedGraphId,
-      ...(currentThreadId ? { thread_id: currentThreadId } : {}),
-    };
-    if (effectiveProfileName != null || effectiveMarketplace != null) {
-      configurable.profile = {
-        id: effectiveProfileId,
-        name: effectiveProfileName,
-        channel_type: effectiveMarketplace,
-      };
-    }
-
-    const contextMetadata: ContextMetadata = {
-      user_id: user.id,
-      account_id: accountIdNum,
-      channel_id: channelIdNum,
-      profile_id: effectiveProfileId ?? undefined,
-      workspace_id: user?.workspace?.id,
-      folder_id: undefined, // Add when available
-      session_id: undefined, // Add when available
-      platform: effectiveMarketplace ?? undefined,
-      auth_token: "123123123", // Consider making this dynamic
-      assistant_id: currentAssistantId,
-      graph_id: selectedGraphId,
-    };
-
-    try {
-      await stream.submit(
-        { messages: [humanMessage] },
-        {
-          metadata: contextMetadata,
-          config: { recursion_limit: 75, configurable },
-          streamResumable: true,
-          streamSubgraphs: true,
-          onDisconnect: "continue",
-          streamMode: ["messages-tuple", "updates", "values"],
-          threadId: currentThreadId ?? undefined,
-          optimisticValues: (prev: { messages?: unknown[] }) => ({
-            ...prev,
-            messages: [...(prev.messages ?? []), humanMessage],
-          }),
-        }
+  const updateSessionTitle = useCallback(
+    (sessionId: string, title: string) => {
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId
+            ? { ...s, title, updated_at: new Date().toISOString() }
+            : s
+        )
       );
-    } catch (error) {
-      console.error("Error sending message:", error);
-    }
-  }, [user?.id, currentAssistantId, streamApiUrl, effectiveAccountId, effectiveChannelId, effectiveProfileId, effectiveProfileName, effectiveMarketplace, selectedGraphId, currentThreadId, threads, stream]);
+      getAccessToken().then((token) => {
+        if (token) {
+          pixisAiSessionsService
+            .patch(sessionId, { title }, token)
+            .catch((err) =>
+              console.warn("Failed to update session title:", err)
+            );
+        }
+      });
+    },
+    [getAccessToken]
+  );
+
+  const sendMessage = useCallback(
+    async (content: string) => {
+      const token = await getAccessToken();
+      if (!token || !user?.id) return;
+
+      const trimmed = content.trim();
+      if (!trimmed) return;
+
+      const accountIdNum = effectiveAccountId
+        ? parseInt(effectiveAccountId, 10)
+        : undefined;
+      const channelIdNum = effectiveChannelId
+        ? parseInt(effectiveChannelId, 10)
+        : undefined;
+
+      if (!accountIdNum) return;
+
+      setInputValue("");
+      abortControllerRef.current = new AbortController();
+
+      const humanMsg: ChatMessage = {
+        type: "human",
+        id: msgId(),
+        content: trimmed,
+      };
+
+      const aiMsg: Extract<ChatMessage, { type: "ai" }> = {
+        type: "ai",
+        id: msgId(),
+        content: "",
+        timeline: [],
+        isStreaming: true,
+      };
+
+      const appendToCurrent = (updates: Partial<SessionWithMessages>) => {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === currentSessionId ? { ...s, ...updates } : s
+          )
+        );
+      };
+
+      if (currentSessionId) {
+        streamingSessionIdRef.current = currentSessionId;
+        const session = sessions.find((s) => s.id === currentSessionId);
+        const msgs = [...(session?.messages ?? []), humanMsg, { ...aiMsg }];
+        appendToCurrent({ messages: msgs });
+      } else {
+        sendingNewSessionRef.current = true;
+        isNewSessionFlowRef.current = true;
+        streamingSessionIdRef.current = null;
+        setPendingConversation({ messages: [humanMsg, { ...aiMsg }] });
+      }
+
+      setIsLoading(true);
+
+      const timelineRef = { current: [...aiMsg.timeline] };
+      const updateTimeline = (item: PixisTimelineItem) => {
+        if (item.type === "text") {
+          const last = timelineRef.current[timelineRef.current.length - 1];
+          if (last?.type === "text") {
+            timelineRef.current[timelineRef.current.length - 1] = item;
+          } else {
+            timelineRef.current.push(item);
+          }
+        } else {
+          timelineRef.current.push(item);
+        }
+        if (streamingSessionIdRef.current === null) {
+          setPendingConversation((p) => {
+            if (!p) return p;
+            const msgs = p.messages;
+            const last = msgs[msgs.length - 1];
+            if (last?.type !== "ai" || !last.isStreaming) return p;
+            return {
+              messages: [
+                ...msgs.slice(0, -1),
+                { ...last, timeline: [...timelineRef.current] },
+              ],
+            };
+          });
+        } else {
+          setSessions((prev) =>
+            prev.map((s) => {
+              const msgs = s.messages ?? [];
+              const last = msgs[msgs.length - 1];
+              if (
+                last?.type === "ai" &&
+                last.isStreaming &&
+                s.id === streamingSessionIdRef.current
+              ) {
+                return {
+                  ...s,
+                  messages: [
+                    ...msgs.slice(0, -1),
+                    { ...last, timeline: [...timelineRef.current] },
+                  ],
+                };
+              }
+              return s;
+            })
+          );
+        }
+      };
+
+      try {
+        const result = await streamPixisChat(
+          {
+            query: trimmed,
+            session_id: (sessions.find((s) => s.id === currentSessionId) as
+              | (PixisSession & { cursor_session_id?: string })
+              | undefined)?.cursor_session_id ?? currentSessionId ?? undefined,
+            account_id: accountIdNum,
+            channel_id: channelIdNum,
+        profile_id: effectiveProfileId != null ? String(effectiveProfileId) : undefined,
+        workspace_id: user?.workspace?.id ?? undefined,
+            user_id: user?.id != null ? String(user.id) : undefined,
+            platform: effectiveMarketplace ?? undefined,
+          },
+          token,
+          {
+            onInit: (data) => {
+              const cursorSid = data.session_id;
+              const dbId = data.session_db_id;
+              if (cursorSid && sendingNewSessionRef.current) {
+                // Store real ids in ref for onResult; keep streamingSessionIdRef as __pending__
+                // so onMessage/onTimelineItem find the session (React may not have applied replacement yet)
+                const id = dbId ?? cursorSid;
+                pendingNewSessionRef.current = { id, cursor_session_id: cursorSid };
+                sendingNewSessionRef.current = false;
+              }
+            },
+            onMessage: (text) => {
+              if (streamingSessionIdRef.current === null) {
+                setPendingConversation((p) => {
+                  if (!p) return p;
+                  const msgs = p.messages;
+                  const last = msgs[msgs.length - 1];
+                  if (last?.type !== "ai" || !last.isStreaming) return p;
+                  return {
+                    messages: [
+                      ...msgs.slice(0, -1),
+                      { ...last, content: text },
+                    ],
+                  };
+                });
+              } else {
+                setSessions((prev) =>
+                  prev.map((s) => {
+                    const msgs = s.messages ?? [];
+                    const last = msgs[msgs.length - 1];
+                    if (
+                      last?.type === "ai" &&
+                      last.isStreaming &&
+                      s.id === streamingSessionIdRef.current
+                    ) {
+                      return {
+                        ...s,
+                        messages: [
+                          ...msgs.slice(0, -1),
+                          { ...last, content: text },
+                        ],
+                      };
+                    }
+                    return s;
+                  })
+                );
+              }
+            },
+            onTimelineItem: updateTimeline,
+            onResult: (ev) => {
+              const finalContent = ev.full_message ?? "";
+              const pending = pendingNewSessionRef.current;
+              const realId = pending?.id ?? ev.session_db_id ?? ev.session_id ?? ev.sessionId;
+
+              if (isNewSessionFlowRef.current) {
+                setPendingConversation((p) => {
+                  if (!p) return p;
+                  const msgs = p.messages;
+                  const last = msgs[msgs.length - 1];
+                  if (last?.type !== "ai") return p;
+                  const timeline = [...(last.timeline ?? [])];
+                  const lastTl = timeline[timeline.length - 1];
+                  if (lastTl?.type === "text") {
+                    timeline[timeline.length - 1] = { type: "text", content: finalContent };
+                  } else if (finalContent) {
+                    timeline.push({ type: "text", content: finalContent });
+                  }
+                  const finalizedMessages: ChatMessage[] = [
+                    ...msgs.slice(0, -1),
+                    { ...last, content: finalContent, timeline, isStreaming: false },
+                  ];
+                  const newSession: SessionWithMessages = {
+                    id: realId ?? `new-${Date.now()}`,
+                    cursor_session_id: pending?.cursor_session_id ?? null,
+                    user_id: user?.id?.toString() ?? null,
+                    workspace_id: user?.workspace?.id ?? null,
+                    account_id: accountIdNum ?? null,
+                    channel_id: channelIdNum ?? null,
+                    profile_id: effectiveProfileId != null ? String(effectiveProfileId) : null,
+                    created_at: new Date().toISOString(),
+                    last_activity_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    title: (msgs[0]?.type === "human" ? msgs[0].content : "New chat").slice(0, 50),
+                    messages: finalizedMessages,
+                  };
+                  setSessions((prev) => {
+                    const withoutDup = realId ? prev.filter((s) => s.id !== realId) : prev;
+                    return [...withoutDup, newSession];
+                  });
+                  setCurrentSessionId(realId ?? newSession.id);
+                  sendingNewSessionRef.current = false;
+                  isNewSessionFlowRef.current = false;
+                  pendingNewSessionRef.current = null;
+                  return null;
+                });
+              } else {
+                setSessions((prev) => {
+                  const streamId = streamingSessionIdRef.current;
+                  const target = prev.find((s) => {
+                    if (s.id !== streamId) return false;
+                    const m = s.messages ?? [];
+                    const last = m[m.length - 1];
+                    return last?.type === "ai" && last.isStreaming;
+                  });
+                  if (!target) return prev;
+                  const msgs = target.messages ?? [];
+                  const last = msgs[msgs.length - 1];
+                  const aiLast = last?.type === "ai" ? last : null;
+                  if (!aiLast) return prev;
+                  const timeline = [...(aiLast.timeline ?? [])];
+                  const lastTl = timeline[timeline.length - 1];
+                  if (lastTl?.type === "text") {
+                    timeline[timeline.length - 1] = { type: "text", content: finalContent };
+                  } else if (finalContent) {
+                    timeline.push({ type: "text", content: finalContent });
+                  }
+                  const updated = {
+                    ...target,
+                    messages: [
+                      ...msgs.slice(0, -1),
+                      { ...aiLast, content: finalContent, timeline, isStreaming: false },
+                    ],
+                    updated_at: new Date().toISOString(),
+                    last_activity_at: new Date().toISOString(),
+                  };
+                  return prev.map((s) => (s.id === target.id ? updated : s));
+                });
+              }
+            },
+            onError: (err) => {
+              if (isNewSessionFlowRef.current) {
+                setPendingConversation((p) => {
+                  if (!p) return p;
+                  const msgs = p.messages;
+                  const last = msgs[msgs.length - 1];
+                  if (last?.type !== "ai" || !last.isStreaming) return p;
+                  return {
+                    messages: [
+                      ...msgs.slice(0, -1),
+                      { ...last, isStreaming: false, error: err.message },
+                    ],
+                  };
+                });
+                isNewSessionFlowRef.current = false;
+              } else {
+                setSessions((prev) =>
+                  prev.map((s) => {
+                    const msgs = s.messages ?? [];
+                    const last = msgs[msgs.length - 1];
+                    if (
+                      last?.type === "ai" &&
+                      last.isStreaming &&
+                      s.id === streamingSessionIdRef.current
+                    ) {
+                      return {
+                        ...s,
+                        messages: [
+                          ...msgs.slice(0, -1),
+                          { ...last, isStreaming: false, error: err.message },
+                        ],
+                      };
+                    }
+                    return s;
+                  })
+                );
+              }
+            },
+          },
+          { signal: abortControllerRef.current?.signal }
+        );
+
+      } catch (e) {
+        if ((e as Error).name !== "AbortError") {
+          if (isNewSessionFlowRef.current) {
+            setPendingConversation((p) => {
+              if (!p) return p;
+              const msgs = p.messages;
+              const last = msgs[msgs.length - 1];
+              if (last?.type !== "ai" || !last.isStreaming) return p;
+              return {
+                messages: [
+                  ...msgs.slice(0, -1),
+                  { ...last, isStreaming: false, error: (e as Error).message },
+                ],
+              };
+            });
+            isNewSessionFlowRef.current = false;
+          } else {
+            setSessions((prev) =>
+              prev.map((s) => {
+                const msgs = s.messages ?? [];
+                const last = msgs[msgs.length - 1];
+                if (
+                  last?.type === "ai" &&
+                  last.isStreaming &&
+                  s.id === streamingSessionIdRef.current
+                ) {
+                  return {
+                    ...s,
+                    messages: [
+                      ...msgs.slice(0, -1),
+                      { ...last, isStreaming: false, error: (e as Error).message },
+                    ],
+                  };
+                }
+                return s;
+              })
+            );
+          }
+        }
+      } finally {
+        setIsLoading(false);
+        abortControllerRef.current = null;
+        sendingNewSessionRef.current = false;
+        streamingSessionIdRef.current = null;
+      }
+    },
+    [
+      user?.id,
+      user?.workspace?.id,
+      effectiveAccountId,
+      effectiveChannelId,
+      effectiveProfileId,
+      effectiveMarketplace,
+      currentSessionId,
+      sessions,
+      getAccessToken,
+    ]
+  );
 
   const cancelRun = useCallback(async () => {
-    try {
-      await stream.stop();
-    } catch (error) {
-      console.error("Failed to stop stream:", error);
-    }
-  }, [stream]);
+    abortControllerRef.current?.abort();
+  }, []);
 
-  // UI actions
-  const toggleAssistant = useCallback(() => setIsOpen(prev => !prev), []);
+  const toggleAssistant = useCallback(() => setIsOpen((prev) => !prev), []);
   const openAssistant = useCallback(() => setIsOpen(true), []);
   const closeAssistant = useCallback(() => setIsOpen(false), []);
 
@@ -754,43 +709,26 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
         toggleAssistant,
         openAssistant,
         closeAssistant,
-
-        // Single array source of truth
-        threads,
-
-        // Current state derived from array
-        currentThread,
-        currentThreadId,
-
-        // Actions
+        sessions,
+        currentSession,
+        currentSessionId,
         sendMessage,
-        selectThread,
-        startNewThread,
-        deleteThread,
-        updateThreadTitle,
-
-        // UI state
+        cancelRun,
+        selectSession,
+        startNewSession,
+        deleteSession,
+        updateSessionTitle,
         inputValue,
         setInputValue,
         isLoading,
-        isLoadingThreads,
-        suggestedPrompts,
-
-        // Backward compatibility
+        isLoadingSessions,
+        deletingSessionId,
+        suggestedPrompts: CHAT_SUGGESTED_PROMPTS,
         messages,
-        addMessage,
-        clearMessages,
         isStreaming,
-        currentThinkingSteps,
-        cancelRun,
-
-        assistants,
-        selectedGraphId,
-        setSelectedGraphId,
-        onApplyDraft: undefined,
-
         assistantScope,
         setAssistantScope,
+        campaignState,
       }}
     >
       {children}
@@ -798,9 +736,9 @@ export const AssistantProvider: React.FC<{ children: ReactNode; accountId?: stri
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components -- context file exports provider + hook
 export const useAssistant = (): AssistantContextType => {
   const context = useContext(AssistantContext);
-  // console.log("AssistantContext value: "  + context?.currentThreadId, context?.currentThread);
   if (context === undefined) {
     throw new Error("useAssistant must be used within an AssistantProvider");
   }

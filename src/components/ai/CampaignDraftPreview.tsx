@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { FileText } from "lucide-react";
+import { FileText, ChevronDown, ChevronUp } from "lucide-react";
 import type { CampaignSetupState } from "../../types/agent";
 import { formatCampaignType } from "../../utils/formatDraftLabels";
 
@@ -55,6 +55,91 @@ export interface CampaignDraftPreviewProps {
   accountId?: string;
   channelId?: string;
   className?: string;
+  /** "dropdown" = floating panel on click; "expandable" = inline expand/collapse below the trigger */
+  layout?: "dropdown" | "expandable";
+}
+
+function DraftContent({
+  rows,
+  validationErrors,
+  canLinkToDraft,
+  accountId,
+  channelId,
+  savedDraftId,
+  onClose,
+  compact,
+}: {
+  rows: { label: string; value: string }[];
+  validationErrors: string[];
+  canLinkToDraft: boolean;
+  accountId?: string;
+  channelId?: string;
+  savedDraftId?: string;
+  onClose?: () => void;
+  compact?: boolean;
+}) {
+  const padding = compact ? "p-3" : "p-4";
+  return (
+    <div className={`overflow-y-auto flex-1 ${padding}`}>
+      {rows.length === 0 ? (
+        <p className="text-sm text-[#6b7280]">No draft fields yet.</p>
+      ) : (
+        <dl className="space-y-3">
+          {rows.map(({ label, value }) => (
+            <div key={label} className="flex flex-col gap-0.5">
+              <dt className="text-[10px] font-semibold uppercase tracking-wider text-[#556179]">
+                {label}
+              </dt>
+              <dd
+                className="text-sm text-[#072929] break-words"
+                title={value.length > MAX_VALUE_LENGTH ? value : undefined}
+              >
+                {value.length > MAX_VALUE_LENGTH ? `${value.slice(0, MAX_VALUE_LENGTH)}…` : value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
+      {validationErrors.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-[#e8e8e3]">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-[#556179] mb-1.5">
+            Validation
+          </p>
+          <ul className="space-y-1 text-xs text-red-600">
+            {validationErrors.map((err, i) => (
+              <li key={i}>{err}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {(canLinkToDraft || (accountId && channelId)) && (
+        <div className="mt-4 pt-3 border-t border-[#e8e8e3] space-y-2">
+          {accountId && channelId && (
+            <Link
+              to={`/brands/${accountId}/${channelId}/google/campaigns`}
+              className="block w-full px-3 py-2 text-xs font-medium text-[#136D6D] bg-[#136D6D]/10 rounded-lg hover:bg-[#136D6D]/20 transition-colors text-center"
+              onClick={onClose}
+            >
+              View campaigns
+            </Link>
+          )}
+          {canLinkToDraft && savedDraftId && (
+            <Link
+              to={`/brands/${accountId}/${channelId}/google/campaigns/${savedDraftId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full px-3 py-2 text-xs font-medium bg-[#136D6D] text-white rounded-lg hover:opacity-90 transition-opacity text-center"
+              onClick={onClose}
+            >
+              View current draft
+            </Link>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
@@ -63,6 +148,7 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
   accountId,
   channelId,
   className = "",
+  layout = "dropdown",
 }) => {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -74,10 +160,10 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
   );
   const validationErrors = campaignState?.validation_errors ?? [];
   const savedDraftId = campaignState?.saved_draft_id;
-  const canLinkToDraft = savedDraftId && accountId && channelId;
+  const canLinkToDraft = !!(savedDraftId && accountId && channelId);
 
   useEffect(() => {
-    if (!open) return;
+    if (layout !== "dropdown" || !open) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setOpen(false);
@@ -85,9 +171,66 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
+  }, [open, layout]);
 
   if (!showButton) return null;
+
+  const headerContent = (
+    <>
+      <h3 className="text-sm font-semibold text-[#072929]">Campaign draft</h3>
+      <p className="text-xs text-[#556179] mt-0.5">Current values collected so far</p>
+    </>
+  );
+
+  const panelContent = (
+    <DraftContent
+      rows={rows}
+      validationErrors={validationErrors}
+      canLinkToDraft={canLinkToDraft}
+      accountId={accountId}
+      channelId={channelId}
+      savedDraftId={savedDraftId}
+      onClose={() => setOpen(false)}
+      compact={layout === "expandable"}
+    />
+  );
+
+  if (layout === "expandable") {
+    return (
+      <div ref={wrapperRef} className={`mt-3 w-full ${className}`}>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="w-full flex items-center justify-between gap-2 p-2 rounded-md text-[#072929] hover:bg-[#f0f0f0] transition-colors border border-[#e8e8e3]"
+          title="Current campaign draft"
+          aria-label={open ? "Collapse draft" : "Expand draft"}
+          aria-expanded={open}
+        >
+          <span className="flex items-center gap-1.5">
+            <FileText className="w-5 h-5 shrink-0 text-[#136D6D]" />
+            <span className="text-xs font-medium text-[#072929]">Draft</span>
+          </span>
+          {open ? (
+            <ChevronUp className="w-4 h-4 text-[#556179] shrink-0" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-[#556179] shrink-0" />
+          )}
+        </button>
+        {open && (
+          <div
+            className="mt-1 w-full bg-[#f9f9f6] border border-[#e8e8e3] rounded-lg overflow-hidden flex flex-col max-h-[320px]"
+            role="region"
+            aria-label="Campaign draft preview"
+          >
+            <div className="px-4 py-2 border-b border-[#e8e8e3] bg-[#f9f9f6] shrink-0">
+              {headerContent}
+            </div>
+            {panelContent}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
@@ -110,69 +253,9 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
           aria-label="Campaign draft preview"
         >
           <div className="sticky top-0 px-4 py-3 border-b border-[#e8e8e3] bg-[#f9f9f6] rounded-t-xl">
-            <h3 className="text-sm font-semibold text-[#072929]">Campaign draft</h3>
-            <p className="text-xs text-[#556179] mt-0.5">Current values collected so far</p>
+            {headerContent}
           </div>
-
-          <div className="overflow-y-auto flex-1 p-4">
-            {rows.length === 0 ? (
-              <p className="text-sm text-[#6b7280]">No draft fields yet.</p>
-            ) : (
-              <dl className="space-y-3">
-                {rows.map(({ label, value }) => (
-                  <div key={label} className="flex flex-col gap-0.5">
-                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-[#556179]">
-                      {label}
-                    </dt>
-                    <dd
-                      className="text-sm text-[#072929] break-words"
-                      title={value.length > MAX_VALUE_LENGTH ? value : undefined}
-                    >
-                      {value.length > MAX_VALUE_LENGTH ? `${value.slice(0, MAX_VALUE_LENGTH)}…` : value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-
-            {validationErrors.length > 0 && (
-              <div className="mt-4 pt-3 border-t border-[#e8e8e3]">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#556179] mb-1.5">
-                  Validation
-                </p>
-                <ul className="space-y-1 text-xs text-red-600">
-                  {validationErrors.map((err, i) => (
-                    <li key={i}>{err}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {(canLinkToDraft || (accountId && channelId)) && (
-              <div className="mt-4 pt-3 border-t border-[#e8e8e3] space-y-2">
-                {accountId && channelId && (
-                  <Link
-                    to={`/brands/${accountId}/${channelId}/google/campaigns`}
-                    className="block w-full px-3 py-2 text-xs font-medium text-[#136D6D] bg-[#136D6D]/10 rounded-lg hover:bg-[#136D6D]/20 transition-colors text-center"
-                    onClick={() => setOpen(false)}
-                  >
-                    View campaigns
-                  </Link>
-                )}
-                {canLinkToDraft && (
-                  <Link
-                    to={`/brands/${accountId}/${channelId}/google/campaigns/${savedDraftId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full px-3 py-2 text-xs font-medium bg-[#136D6D] text-white rounded-lg hover:opacity-90 transition-opacity text-center"
-                    onClick={() => setOpen(false)}
-                  >
-                    View current draft
-                  </Link>
-                )}
-              </div>
-            )}
-          </div>
+          {panelContent}
         </div>
       )}
     </div>

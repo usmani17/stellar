@@ -33,15 +33,19 @@ export function MessageContent({ content }: { content: string }) {
   if (parts.length === 1 && parts[0].type === "text") {
     const trimmed = parts[0].value.trim();
     if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      let jsonFormatted: string | null = null;
       try {
         const parsed = JSON.parse(trimmed);
-        return (
-          <pre className="my-0 rounded bg-gray-100 p-2 text-xs overflow-x-auto text-left font-mono whitespace-pre-wrap wrap-break-word">
-            <code>{JSON.stringify(parsed, null, 2)}</code>
-          </pre>
-        );
+        jsonFormatted = JSON.stringify(parsed, null, 2);
       } catch {
         // not valid JSON, fall through
+      }
+      if (jsonFormatted !== null) {
+        return (
+          <pre className="my-0 rounded bg-gray-100 p-2 text-xs overflow-x-auto text-left font-mono whitespace-pre-wrap wrap-break-word">
+            <code>{jsonFormatted}</code>
+          </pre>
+        );
       }
     }
   }

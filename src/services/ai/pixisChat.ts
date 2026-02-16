@@ -1,0 +1,141 @@
+/**
+ * Pixis AI chat streaming (POST /chat).
+ * SSE stream format: data: { type, subtype?, session_id?, message?, ... }
+ * Uses VITE_AI_AGENT_BASE_URL.
+ */
+
+export interface PixisChatStreamEvent {
+  type?: string;
+  subtype?: string;
+  session_id?: string;
+  sessionId?: string;
+  session_db_id?: string;
+  message?: { content?: Array<{ text?: string }> };
+  tool_call?: unknown;
+  full_message?: string;
+  [key: string]: unknown;
+}
+
+export interface PixisChatParams {
+  query: string;
+  session_id?: string | null;
+  session_db_id?: string | null;
+  account_id?: number;
+  channel_id?: number;
+  profile_id?: string;
+  workspace_id?: number;
+  user_id?: string;
+  platform?: string;
+}
+
+/** Timeline item for ordered display: thinking | tool_call | text */
+export type PixisTimelineItem =
+  | { type: "thinking" }
+  | { type: "tool_call"; label: string }
+  | { type: "text"; content: string };
+
+const getBaseUrl = (): string => {
+  const baseUrl = import.meta.env.VITE_AI_AGENT_BASE_URL;
+  if (!baseUrl) throw new Error("VITE_AI_AGENT_BASE_URL is not set");
+  return String(baseUrl).replace(/\/$/, "");
+};
+
+export async function streamPixisChat(
+  params: PixisChatParams,
+  accessToken: string,
+  callbacks: {
+    onInit?: (data: { session_id?: string; session_db_id?: string }) => void;
+    onMessage?: (text: string) => void;
+    onToolCall?: (label: string) => void;
+    /** Called for each timeline item in order: tool_call or text (consumer updates last text item when same type) */
+    onTimelineItem?: (item: PixisTimelineItem) => void;
+    onResult?: (data: PixisChatStreamEvent) => void;
+    onError?: (err: Error) => void;
+  },
+  options?: { signal?: AbortSignal }
+): Promise<{ session_id?: string; session_db_id?: string }> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(params),
+    signal: options?.signal,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Pixis chat failed: ${res.status} ${errText}`);
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("No response body");
+
+  const decoder = new TextDecoder();
+  let buf = "";
+  let sessionId: string | undefined;
+  let sessionDbId: string | undefined;
+  let accumulated = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (options?.signal?.aborted) break;
+    buf += decoder.decode(value, { stream: true });
+    const parts = buf.split(/\n\n|\r\n\r\n/);
+    buf = parts.pop() ?? "";
+
+    for (const block of parts) {
+      let data = "";
+      for (const line of block.split("\n")) {
+        if (line.startsWith("data: ")) data = line.slice(6);
+      }
+      if (!data) continue;
+      try {
+        const ev: PixisChatStreamEvent = JSON.parse(data);
+        const etype = ev.type ?? "";
+        const subtype = ev.subtype ?? "";
+
+        if (etype === "system" && subtype === "init") {
+          sessionId = ev.session_id ?? ev.sessionId;
+          sessionDbId = ev.session_db_id;
+          callbacks.onInit?.({ session_id: sessionId, session_db_id: sessionDbId });
+        }
+
+        if (etype === "assistant") {
+          const text = ev.message?.content?.[0]?.text ?? "";
+          if (text) {
+            accumulated = text.startsWith(accumulated) ? text : accumulated + text;
+            callbacks.onMessage?.(accumulated);
+            callbacks.onTimelineItem?.({ type: "text", content: accumulated });
+          }
+        }
+
+        if (etype === "tool_call" && subtype === "started") {
+          const tc = ev.tool_call as { shellToolCall?: unknown; readToolCall?: { args?: { path?: string } }; writeToolCall?: { args?: { path?: string } } } | undefined;
+          let label = "Processing...";
+          if (tc?.shellToolCall) label = "Querying datasource...";
+          else if (tc?.readToolCall) {
+            const p = tc.readToolCall?.args?.path ?? "";
+            label = `Reading: ${p.split("/").pop() ?? "file"}`;
+          } else if (tc?.writeToolCall) {
+            const p = tc.writeToolCall?.args?.path ?? "";
+            label = `Writing: ${p.split("/").pop() ?? "file"}`;
+          }
+          callbacks.onToolCall?.(label);
+          callbacks.onTimelineItem?.({ type: "tool_call", label });
+        }
+
+        if (etype === "result") {
+          callbacks.onResult?.(ev);
+        }
+      } catch (e) {
+        callbacks.onError?.(e instanceof Error ? e : new Error(String(e)));
+      }
+    }
+  }
+
+  return { session_id: sessionId, session_db_id: sessionDbId };
+}

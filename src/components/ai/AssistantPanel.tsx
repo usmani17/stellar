@@ -1,82 +1,46 @@
 import React, { useRef, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { useAssistant, type ThreadWithRuntime } from "../../contexts/AssistantContext";
+import { useAssistant, type SessionWithMessages } from "../../contexts/AssistantContext";
+import type { PixisTimelineItem } from "../../services/ai/pixisChat";
 import type { CurrentQuestionSchemaItem } from "../../types/agent";
-import { Check, Square, X, ChevronDown, BarChart3, Megaphone, ArrowUp, Plus } from "lucide-react";
+import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
-import type { Thread, ContentBlock, ThreadMessageContent, TextContent } from "../../services/ai/threads";
-import StellarMarkDown from "../ai/StellarMarkDown";
 import { MessageContent } from "../ai/MessageContent";
-import { isStringContent } from "../../utils/ai-formatter";
-import { ToolCallsDisplay } from "../ai/ToolCallsDisplay";
-import { ToolResultDisplay } from "../ai/ToolResultDisplay";
+import { ContentWithCharts } from "../ai/ContentWithCharts";
 import { CampaignDraftPreview } from "../ai/CampaignDraftPreview";
 import { accountsService, type Account } from "../../services/accounts";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
 import { CampaignFormForChat, type CampaignFormForChatHandle } from "../layout/Assistant";
-import { getDisplayName } from "../../utils/assistantDisplayNames";
 
-// Helper function to check if content is a ContentBlock array
-const isContentBlockArray = (content: ThreadMessageContent): content is ContentBlock[] => {
-    return Array.isArray(content) && content.length > 0 && typeof content[0] === "object" && "type" in content[0];
-};
-
-// Helper function to extract plain text from content
-const extractTextContent = (content: ThreadMessageContent): string => {
-    if (isStringContent(content)) {
-        return content;
-    }
-    if (isContentBlockArray(content)) {
-        return content
-            .filter((block) => "type" in block && block.type === "text")
-            .map((block) => (block as any).text || "")
-            .join("\n");
-    }
-    return "";
-};
-
-
-// Helper function to group threads by date, ordered by latest first
-const groupThreadsByDate = (threads: Thread[]): Record<string, Thread[]> => {
-    const groups: Record<string, Thread[]> = {};
+// Helper function to group sessions by date, ordered by latest first
+const groupSessionsByDate = (sessions: SessionWithMessages[]): Record<string, SessionWithMessages[]> => {
+    const groups: Record<string, SessionWithMessages[]> = {};
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    // Sort threads by updated_at in descending order (latest first)
-    const sortedThreads = [...threads].sort((a, b) => {
-        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-    });
+    const sorted = [...sessions]
+      .filter((s) => s.id !== "__pending__")
+      .sort((a, b) =>
+        new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime()
+      );
 
-    sortedThreads.forEach(thread => {
-        const threadDate = new Date(thread.updated_at);
-        const threadDateStr = threadDate.toDateString();
+    sorted.forEach((session) => {
+        const d = new Date(session.updated_at ?? session.created_at ?? 0);
+        const ds = d.toDateString();
         const todayStr = today.toDateString();
         const yesterdayStr = yesterday.toDateString();
-
         let groupKey: string;
-        if (threadDateStr === todayStr) {
-            groupKey = 'Today';
-        } else if (threadDateStr === yesterdayStr) {
-            groupKey = 'Yesterday';
-        } else {
-            // Format as "Jan 15, 2026"
-            groupKey = threadDate.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-            });
-        }
-
-        if (!groups[groupKey]) {
-            groups[groupKey] = [];
-        }
-        groups[groupKey].push(thread);
+        if (ds === todayStr) groupKey = "Today";
+        else if (ds === yesterdayStr) groupKey = "Yesterday";
+        else groupKey = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        if (!groups[groupKey]) groups[groupKey] = [];
+        groups[groupKey].push(session);
     });
-
     return groups;
 };
 
@@ -117,18 +81,6 @@ interface AccountProfileOption {
     advertiser_name?: string;
 }
 
-function getToolCallsFromMessage(msg: { tool_calls?: Array<{ id?: string; name?: string; args?: Record<string, unknown> }>; content?: unknown }): Array<{ id?: string; name: string; args?: Record<string, unknown> }> {
-    if (msg.tool_calls?.length) {
-        return msg.tool_calls.map((tc) => ({ id: tc.id, name: tc.name ?? "", args: tc.args }));
-    }
-    if (Array.isArray(msg.content)) {
-        return msg.content
-            .filter((b): b is ContentBlock => typeof b === "object" && b != null && (b as ContentBlock).type === "tool_use")
-            .map((b) => ({ id: (b as { id?: string }).id, name: (b as { name?: string }).name ?? "", args: ((b as { input?: Record<string, unknown> }).input ?? {}) as Record<string, unknown> }));
-    }
-    return [];
-}
-
 function profileDisplayName(p: AccountProfileOption): string {
     return p.name ?? p.advertiser_name ?? p.customer_id ?? p.advertiser_id ?? String(p.id);
 }
@@ -152,30 +104,27 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         setInputValue,
         sendMessage,
         suggestedPrompts,
-        currentThinkingSteps,
         isStreaming,
-        threads,
-        currentThread,
-        isLoadingThreads,
-        selectThread,
-        startNewThread,
-        deleteThread,
+        sessions,
+        currentSessionId,
+        isLoadingSessions,
+        selectSession,
+        startNewSession,
+        deleteSession,
+        deletingSessionId,
         cancelRun,
-        setSelectedGraphId,
-        selectedGraphId,
         closeAssistant,
         assistantScope,
         setAssistantScope,
+        campaignState,
     } = useAssistant();
-
-    const threadWithRuntime = currentThread as ThreadWithRuntime | null;
-    const campaignState = threadWithRuntime?.campaignState;
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const historyDropdownRef = useRef<HTMLDivElement>(null);
     const schemaFormRef = useRef<CampaignFormForChatHandle | null>(null);
-    const [isThreadDropdownOpen, setIsThreadDropdownOpen] = useState(false);
+    const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);
+    const [sessionToDelete, setSessionToDelete] = useState<{ id: string; title: string; anchorRect: DOMRect; source: "tab" | "history" } | null>(null);
 
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [accountProfiles, setAccountProfiles] = useState<AccountProfileOption[]>([]);
@@ -190,7 +139,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     useEffect(() => {
         if (!isOpen) return;
         let cancelled = false;
-        setIsLoadingAccounts(true);
+        queueMicrotask(() => setIsLoadingAccounts(true));
         accountsService.getAccounts({ all: true })
             .then((list) => {
                 if (!cancelled) setAccounts(list);
@@ -204,13 +153,13 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     // Load profiles when account is selected
     useEffect(() => {
         if (!assistantScope.accountId) {
-            setAccountProfiles([]);
+            queueMicrotask(() => setAccountProfiles([]));
             return;
         }
         const accountIdNum = parseInt(assistantScope.accountId, 10);
         if (Number.isNaN(accountIdNum)) return;
         let cancelled = false;
-        setIsLoadingProfiles(true);
+        queueMicrotask(() => setIsLoadingProfiles(true));
         accountsService.getAccountProfiles(accountIdNum)
             .then((res) => {
                 if (!cancelled && res?.profiles) setAccountProfiles(res.profiles as AccountProfileOption[]);
@@ -224,12 +173,15 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         return () => { cancelled = true; };
     }, [assistantScope.accountId]);
 
-    // Close dropdown when clicking outside
+    // Close dropdown and delete popup when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             const target = event.target as Node;
-            if (historyDropdownRef.current && !historyDropdownRef.current.contains(target)) {
-                setIsThreadDropdownOpen(false);
+            const el = target as Element;
+            const isInPopup = el.closest?.(".assistant-delete-popup");
+            if (sessionToDelete && !isInPopup) setSessionToDelete(null);
+            if (historyDropdownRef.current && !historyDropdownRef.current.contains(target) && !isInPopup) {
+                setIsSessionDropdownOpen(false);
             }
             if (accountDropdownRef.current && !accountDropdownRef.current.contains(target)) {
                 setIsAccountDropdownOpen(false);
@@ -241,7 +193,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [sessionToDelete]);
 
     // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
@@ -314,14 +266,34 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         // Shift+Enter: allow default (insert newline)
     };
 
-    const handleThreadSelect = async (threadId: string) => {
-        await selectThread(threadId);
-        setIsThreadDropdownOpen(false);
+    const handleSessionSelect = async (sessionId: string) => {
+        await selectSession(sessionId);
+        setIsSessionDropdownOpen(false);
     };
 
-    const handleNewThread = () => {
-        startNewThread();
-        setIsThreadDropdownOpen(false);
+    const handleNewSession = () => {
+        startNewSession();
+        // Clear profile so user must select it again (account can remain selected from previous session)
+        setAssistantScope({ channelId: null, profileId: null, profileName: null, marketplace: null });
+        setIsSessionDropdownOpen(false);
+        setIsAccountDropdownOpen(false);
+        setIsIntegrationProfileDropdownOpen(false);
+    };
+
+    const handleDeleteClick = (session: SessionWithMessages, e: React.MouseEvent, source: "tab" | "history") => {
+        e.stopPropagation();
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setSessionToDelete({ id: session.id, title: session.title || "Untitled", anchorRect: rect, source });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!sessionToDelete) return;
+        await deleteSession(sessionToDelete.id);
+        setSessionToDelete(null);
+    };
+
+    const handleCancelDelete = () => {
+        setSessionToDelete(null);
     };
 
     const questionsSchema = campaignState?.current_questions_schema;
@@ -335,9 +307,10 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     useEffect(() => {
         if (!schemaFormKey || !questionsSchema?.length) return;
         console.log("[Assistant] Fill-in-the-details form questions (from AI):", questionsSchema);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- questionsSchema intentionally omitted to avoid log on every stream chunk
     }, [schemaFormKey]);
 
-    const groupedThreads = groupThreadsByDate(threads);
+    const groupedSessions = groupSessionsByDate(sessions);
     const hasMessages = messages.length > 0;
 
     const selectedAccount = accounts.find((a) => String(a.id) === assistantScope.accountId);
@@ -348,14 +321,13 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     const canChat = !!(
         assistantScope.accountId &&
         assistantScope.channelId &&
-        assistantScope.profileId &&
-        selectedGraphId
+        assistantScope.profileId
     );
 
     const contextSection = (
         <div className="assistant-setup-card">
             <p className="assistant-setup-heading">
-                Set up your session in 3 steps
+                Set up your session in 2 steps
             </p>
 
             {/* Step 1: Account */}
@@ -523,37 +495,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 </div>
             </div>
 
-            {/* Step 3: What would you like to do? */}
-            <div className="assistant-setup-step">
-                <label className="assistant-setup-label">
-                    <span className={`assistant-setup-step-num ${assistantScope.channelId && assistantScope.profileId ? "assistant-setup-step-num-active" : ""}`}>
-                        3
-                    </span>
-                    What would you like to do?
-                </label>
-                <div className="assistant-setup-intent-btns">
-                    <button
-                        type="button"
-                        onClick={() => setSelectedGraphId("chat")}
-                        disabled={!assistantScope.accountId || !assistantScope.channelId || !assistantScope.profileId}
-                        className={`assistant-setup-intent-btn ${selectedGraphId === "chat" ? "assistant-setup-intent-btn-active" : ""}`}
-                        title="Analyze campaigns"
-                    >
-                        <BarChart3 className="w-4 h-4 shrink-0" />
-                        Analyze
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setSelectedGraphId("campaign_setup")}
-                        disabled={!assistantScope.accountId || !assistantScope.channelId || !assistantScope.profileId}
-                        className={`assistant-setup-intent-btn ${selectedGraphId === "campaign_setup" ? "assistant-setup-intent-btn-active" : ""}`}
-                        title="Create campaign"
-                    >
-                        <Megaphone className="w-4 h-4 shrink-0" />
-                        Create Campaign
-                    </button>
-                </div>
-            </div>
         </div>
     );
 
@@ -565,49 +506,51 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             <div className="assistant-top-row">
                 <div className="assistant-top-row-inner">
                     <div className="assistant-tabs-scroll interactive-scrollbar" style={{ scrollbarWidth: 'thin' }}>
-                        {isLoadingThreads ? (
+                        {isLoadingSessions ? (
                             <span className="assistant-muted-text">Loading...</span>
-                        ) : threads.length > 0 ? (
-                            [...threads]
-                                .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-                                .map((thread) => (
+                        ) : sessions.filter((s) => s.id !== "__pending__").length > 0 ? (
+                            [...sessions]
+                                .filter((s) => s.id !== "__pending__")
+                                .sort((a, b) => new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime())
+                                .map((session) => (
                                     <div
-                                        key={thread.thread_id}
-                                        className={`assistant-tab-pill ${currentThread?.thread_id === thread.thread_id ? "assistant-tab-pill-active" : ""}`}
+                                        key={session.id}
+                                        className={`assistant-tab-pill ${currentSessionId === session.id ? "assistant-tab-pill-active" : ""}`}
                                     >
                                         <button
                                             type="button"
-                                            onClick={() => handleThreadSelect(thread.thread_id)}
+                                            onClick={() => handleSessionSelect(session.id)}
                                             className="assistant-tab-pill-button"
-                                            title={thread.metadata?.title || 'Untitled'}
+                                            title={session.title || "Untitled"}
+                                            disabled={isLoading}
                                         >
-
-                                            {thread.metadata.graph_id === "campaign_setup" ? (
-                                                <Megaphone className="w-4 h-4 shrink-0" />
-                                            ) : thread.metadata.graph_id === "chat" ? (
-                                                <BarChart3 className="w-4 h-4 shrink-0" />
+                                            {isLoading && currentSessionId === session.id ? (
+                                                <div className="flex gap-0.5">
+                                                    <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" />
+                                                    <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                                                    <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                                                </div>
                                             ) : (
-                                                <svg className="w-4 h-4 shrink-0 text-[var(--color-semantic-text-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                                </svg>
+                                                <BarChart3 className="w-4 h-4 shrink-0" />
                                             )}
-                                            <span className="max-w-[120px] truncate">{thread.metadata?.title || 'Untitled'}</span>
-                                            {currentThread?.thread_id === thread.thread_id && (
-                                                <Check className="w-4 h-4 shrink-0 text-[var(--color-semantic-status-primary)]" />
-                                            )}
+                                            <span className="max-w-[120px] truncate">{session.title || "Untitled"}</span>
                                         </button>
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                deleteThread(thread.thread_id);
-                                            }}
-                                            className="assistant-tab-delete"
-                                            title="Delete conversation"
-                                            aria-label="Delete conversation"
-                                        >
-                                            <X className="w-3.5 h-3.5" />
-                                        </button>
+                                        <div className="relative" onClick={(e) => e.stopPropagation()}>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => handleDeleteClick(session, e, "tab")}
+                                                className="assistant-tab-delete"
+                                                title="Delete conversation"
+                                                aria-label="Delete conversation"
+                                                disabled={deletingSessionId === session.id}
+                                            >
+                                                {deletingSessionId === session.id ? (
+                                                    <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                    <X className="w-3.5 h-3.5" />
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
                                 ))
                         ) : null}
@@ -616,81 +559,80 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         <div ref={historyDropdownRef} className="relative">
                             <button
                                 type="button"
-                                onClick={() => setIsThreadDropdownOpen(!isThreadDropdownOpen)}
+                                onClick={() => setIsSessionDropdownOpen(!isSessionDropdownOpen)}
                                 className="assistant-header-icon-btn"
                                 title="Chat history"
                                 aria-label="Chat history"
                             >
                                 <img src={ASSISTANT_ICONS.chatHistory} alt="Chat history" className="w-5 h-5" />
                             </button>
-                            {isThreadDropdownOpen && (
+                            {isSessionDropdownOpen && (
                                 <div className="assistant-history-dropdown">
                                     <div className="assistant-history-header">
                                         <h3 className="assistant-history-title">History</h3>
                                     </div>
-                                    {isLoadingThreads ? (
+                                    {isLoadingSessions ? (
                                         <div className="px-4 py-3 text-sm assistant-muted-text">
                                             Loading conversations...
                                         </div>
-                                    ) : threads.length === 0 ? (
+                                    ) : sessions.filter((s) => s.id !== "__pending__").length === 0 ? (
                                         <div className="px-4 py-3 text-sm assistant-muted-text">
                                             No previous conversations
                                         </div>
                                     ) : (
-                                        Object.entries(groupedThreads)
+                                        Object.entries(groupedSessions)
                                             .sort(([keyA], [keyB]) => {
-                                                const order: Record<string, number> = { 'Today': 0, 'Yesterday': 1 };
+                                                const order: Record<string, number> = { Today: 0, Yesterday: 1 };
                                                 const orderA = order[keyA] ?? 2;
                                                 const orderB = order[keyB] ?? 2;
                                                 if (orderA !== orderB) return orderA - orderB;
-                                                if (orderA === 2) {
-                                                    return new Date(keyB).getTime() - new Date(keyA).getTime();
-                                                }
+                                                if (orderA === 2) return new Date(keyB).getTime() - new Date(keyA).getTime();
                                                 return 0;
                                             })
-                                            .map(([dateGroup, groupThreads]) => (
+                                            .map(([dateGroup, groupSessions]) => (
                                                 <div key={dateGroup}>
                                                     <div className="assistant-history-date-group">
                                                         <span>{dateGroup}</span>
-                                                        <span>{groupThreads.length} Total</span>
+                                                        <span>{groupSessions.length} Total</span>
                                                     </div>
-                                                    {groupThreads.map((thread) => (
+                                                    {groupSessions.map((session) => (
                                                         <div
-                                                            key={thread.thread_id}
-                                                            className={`assistant-history-item ${currentThread?.thread_id === thread.thread_id ? "assistant-history-item-active" : ""}`}
+                                                            key={session.id}
+                                                            className={`assistant-history-item ${currentSessionId === session.id ? "assistant-history-item-active" : ""}`}
                                                         >
                                                             <button
                                                                 type="button"
-                                                                onClick={() => handleThreadSelect(thread.thread_id)}
+                                                                onClick={() => handleSessionSelect(session.id)}
                                                                 className="assistant-history-item-button"
+                                                                disabled={isLoading}
                                                             >
-                                                                {thread.metadata.graph_id === "campaign_setup" ? (
-                                                                    <Megaphone className="w-4 h-4 shrink-0" />
-                                                                ) : thread.metadata.graph_id === "chat" ? (
-                                                                    <BarChart3 className="w-4 h-4 shrink-0" />
+                                                                {isLoading && currentSessionId === session.id ? (
+                                                                    <div className="flex gap-0.5 shrink-0">
+                                                                        <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
+                                                                        <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                                                                        <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                                                                    </div>
                                                                 ) : (
-                                                                    <svg className="w-4 h-4 shrink-0 text-[var(--color-semantic-text-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                                                    </svg>
+                                                                    <BarChart3 className="w-4 h-4 shrink-0" />
                                                                 )}
-                                                                <span className="truncate flex-1">{thread.metadata?.title || 'Untitled'}</span>
-                                                                {currentThread?.thread_id === thread.thread_id && (
-                                                                    <Check className="w-4 h-4 text-[var(--color-semantic-text-primary)] shrink-0" />
-                                                                )}
+                                                                <span className="truncate flex-1">{session.title || "Untitled"}</span>
                                                             </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    deleteThread(thread.thread_id);
-                                                                    setIsThreadDropdownOpen(false);
-                                                                }}
-                                                                className="assistant-history-delete"
-                                                                title="Delete conversation"
-                                                                aria-label="Delete conversation"
-                                                            >
-                                                                <X className="w-4 h-4" />
-                                                            </button>
+                                                            <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => handleDeleteClick(session, e, "history")}
+                                                                    className="assistant-history-delete"
+                                                                    title="Delete conversation"
+                                                                    aria-label="Delete conversation"
+                                                                    disabled={deletingSessionId === session.id}
+                                                                >
+                                                                    {deletingSessionId === session.id ? (
+                                                                        <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                                                    ) : (
+                                                                        <X className="w-4 h-4" />
+                                                                    )}
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -701,7 +643,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         </div>
                         <button
                             type="button"
-                            onClick={handleNewThread}
+                            onClick={handleNewSession}
                             className="assistant-header-icon-btn"
                             title="New conversation"
                             aria-label="New chat"
@@ -771,15 +713,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             </div>
                         </>
                     )}
-                    {(selectedAccount || selectedProfileOption) && (
-                        <>
-                            <span className="text-[var(--color-neutral-300)] shrink-0" aria-hidden>•</span>
-                            <span className="assistant-intent-badge">
-                                {selectedGraphId === "chat" ? "Analyze" : "Create Campaign"}
-                            </span>
-                        </>
-                    )}
-                    {selectedGraphId === "campaign_setup" && (
+                    {campaignState && (
                         <CampaignDraftPreview
                             campaignState={campaignState}
                             visible
@@ -792,7 +726,19 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             </div>
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto interactive-scrollbar px-4 py-4">
-                {!hasMessages ? (
+                {isLoading && currentSessionId && !hasMessages ? (
+                    /* Loading history for selected session */
+                    <div className="flex flex-col items-center justify-center h-full gap-4">
+                        <div className="flex items-center gap-2 text-[#556179]">
+                            <div className="flex gap-1">
+                                <span className="w-2 h-2 bg-[#136D6D]/60 rounded-full animate-bounce" />
+                                <span className="w-2 h-2 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                                <span className="w-2 h-2 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                            </div>
+                            <span className="text-sm font-medium">Loading conversation...</span>
+                        </div>
+                    </div>
+                ) : !hasMessages ? (
                     /* Empty State: show 3-step setup until user selects Analyze or Create Campaign; then hide setup and show prompts only */
                     <div className="flex flex-col items-center justify-center h-full gap-6">
                         {/* Assistant logo and title at top, above setup */}
@@ -803,16 +749,16 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             Assistant
                         </h3>
 
-                        {/* Set up your session - hidden once user has messages */}
-                        {!selectedGraphId && contextSection}
+                        {/* Set up your session - hidden once user has full scope */}
+                        {!canChat && contextSection}
 
-                        {!selectedGraphId ? (
+                        {!canChat ? (
                             <p className="text-sm text-gray-600 text-center px-4">
                                 {!assistantScope.accountId
                                     ? "Select an account above to start."
                                     : !assistantScope.channelId || !assistantScope.profileId
                                         ? "Select an integration–profile above to start."
-                                        : "Click Analyze or Create Campaign above to continue."}
+                                        : "Start typing to begin."}
                             </p>
                         ) : (
                             <div className="w-full max-w-sm">
@@ -834,115 +780,76 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 ) : (
                     /* Messages List */
                     <div className="flex flex-col gap-4">
-                        {messages.map((message, messageIndex) => {
-                            const lastHumanIndex = messages.map((m, i) => (m.type === "human" ? i : -1)).filter((i) => i >= 0).pop() ?? -1;
-                            const streamingAiIndex = lastHumanIndex + 1;
-                            const isStreamingThisBubble = isStreaming && message.type === "ai" && messageIndex === streamingAiIndex;
-                            const msgType = (message as { type?: string }).type;
-
-                            if (msgType === "human") {
+                        {messages.map((message) => {
+                            if (message.type === "human") {
                                 return (
                                     <div key={message.id} className="flex justify-end human">
-                                        <div className=" min-w-0 flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e8e8e3] rounded-[12px] shadow-sm overflow-x-auto">
-                                            <div
-                                                className="text-[14px] font-normal leading-[20px] tracking-[0.1px] text-[#072929] min-w-0 max-w-full overflow-x-auto"
-                                                style={{ fontFamily: "'GT America Trial', sans-serif" }}
-                                            >
-                                                <MessageContent content={extractTextContent(message.content)} />
+                                        <div className="min-w-0 flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e8e8e3] rounded-[12px] shadow-sm overflow-x-auto">
+                                            <div className="text-[14px] font-normal leading-[20px] tracking-[0.1px] text-[#072929] min-w-0 max-w-full overflow-x-auto" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
+                                                <MessageContent content={message.content} />
                                             </div>
                                         </div>
                                     </div>
                                 );
                             }
-
-                            if (msgType === "tool") {
-                                const toolMsg = message as { name?: string; tool_call_id?: string; content?: unknown };
-                                return (
-                                    <ToolResultDisplay
-                                        name={toolMsg.name}
-                                        toolCallId={toolMsg.tool_call_id}
-                                        content={toolMsg.content ?? ""}
-                                    />
-                                );
-                            }
-
-                            if (msgType === "ai") {
-                                const toolCalls = getToolCallsFromMessage(message);
-                                if (!message.content) return null;
+                            if (message.type === "ai") {
+                                const { content, timeline, isStreaming: aiStreaming, error } = message;
                                 return (
                                     <div key={message.id} className="flex justify-start ai">
-                                        <div className=" min-w-0 flex flex-col items-start p-4 gap-3 h-auto bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm">
-                                            {/* AI Message: single bubble — "Currently analyzing" / "Steps taken" above, then content (so steps never hide) */}
-                                            <div className="flex flex-col items-start gap-3 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
-                                                {/* Steps: streaming (currentThinkingSteps) or completed (message.additional_kwargs.thinkingSteps); fallback to other additional_kwargs */}
-                                                {(() => {
-                                                    const completedSteps = (message.additional_kwargs?.thinkingSteps as string[] | undefined) ?? [];
-                                                    const hasStreamingSteps = isStreamingThisBubble && currentThinkingSteps.length > 0;
-                                                    const hasCompletedSteps = completedSteps.length > 0;
-                                                    const hasOtherKwargs = message.additional_kwargs && Object.keys(message.additional_kwargs).filter(k => k !== "thinkingSteps").length > 0;
-                                                    const showStepsBlock = hasStreamingSteps || hasCompletedSteps || hasOtherKwargs;
-                                                    const steps = hasStreamingSteps ? currentThinkingSteps : completedSteps;
-                                                    const isCompleted = hasCompletedSteps && !isStreamingThisBubble;
-                                                    if (!showStepsBlock) return null;
-                                                    return (
-                                                        <div className="flex flex-col gap-1.5 w-full">
-                                                            <span className="text-[11px] font-medium uppercase tracking-wider text-[#556179]">
-                                                                {isCompleted ? "Steps taken" : "Currently analyzing"}
-                                                            </span>
-                                                            {steps.length > 0 ? (
-                                                                <div className="flex flex-wrap gap-1.5">
-                                                                    {steps.map((step, index) => (
-                                                                        <span
-                                                                            key={index}
-                                                                            className={`inline-flex items-center gap-1.5 rounded-md border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929] ${isCompleted ? "bg-[#E8E8E3]/50" : "bg-white"}`}
-                                                                        >
-                                                                            {isCompleted ? (
-                                                                                <Check className="w-3 h-3 text-[#136D6D] shrink-0" />
-                                                                            ) : (
-                                                                                <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full animate-pulse shrink-0" />
-                                                                            )}
-                                                                            {getDisplayName(step, "node")}
-                                                                        </span>
-                                                                    ))}
-                                                                </div>
-                                                            ) : hasOtherKwargs ? (
-                                                                <div className="flex flex-wrap gap-1.5">
-                                                                    {Object.entries(message.additional_kwargs ?? {}).filter(([k]) => k !== "thinkingSteps").map(([key, value]) => (
-                                                                        <span
-                                                                            key={key}
-                                                                            className="inline-flex items-center rounded-md bg-white border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929]"
-                                                                        >
-                                                                            {key}: {String(value)}
-                                                                        </span>
-                                                                    ))}
-                                                                </div>
-                                                            ) : null}
+                                        <div className="min-w-0 flex flex-col items-start p-4 gap-2 w-full max-w-full bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm">
+                                            {error && <div className="text-sm text-red-600">{error}</div>}
+                                            <div className="flex flex-col gap-2 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
+                                                {timeline.length === 0 && aiStreaming && (
+                                                    <div className="flex items-center gap-2 text-[#556179]">
+                                                        <span className="text-xs font-medium">Thinking</span>
+                                                        <div className="flex gap-1">
+                                                            <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
+                                                            <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                                                            <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
                                                         </div>
-                                                    );
-                                                })()}
-
-                                                {toolCalls.length > 0 && (
-                                                    <ToolCallsDisplay toolCalls={toolCalls} compact />
+                                                    </div>
                                                 )}
-
-                                                {/* Text / markdown content (streamed message below analyzing) */}
-                                                {isContentBlockArray(message.content) ? (
-                                                    <div className="w-full space-y-2">
-                                                        {(() => {
-                                                            const blocks = message.content as ContentBlock[];
-                                                            const textBlocks = blocks.filter((b): b is TextContent => b.type === "text");
-                                                            return textBlocks.map((block, idx) => (
-                                                                <div key={idx} className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929]">
-                                                                    <StellarMarkDown content={(block as TextContent).text} type="ai" />
+                                                {timeline.map((item: PixisTimelineItem, idx: number) => (
+                                                    <div key={idx} className="flex items-start gap-2 w-full">
+                                                        {item.type === "thinking" && (
+                                                            <div className="flex items-center gap-2 text-[#556179]">
+                                                                <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full animate-pulse shrink-0" />
+                                                                <span className="text-xs">Processing...</span>
+                                                                <div className="flex gap-1">
+                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
+                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
                                                                 </div>
-                                                            ));
-                                                        })()}
+                                                            </div>
+                                                        )}
+                                                        {item.type === "tool_call" && (
+                                                            <div className="flex items-center gap-2 text-[#556179] text-sm">
+                                                                <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full shrink-0" />
+                                                                <span>{item.label}</span>
+                                                            </div>
+                                                        )}
+                                                        {item.type === "text" && item.content && (
+                                                            <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full prose prose-sm max-w-none">
+                                                                <ContentWithCharts content={item.content} type="ai" />
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                ) : isStringContent(message.content) ? (
+                                                ))}
+                                                {timeline.length === 0 && !aiStreaming && content && (
                                                     <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full prose prose-sm max-w-none">
-                                                        <StellarMarkDown content={message.content} type="ai" />
+                                                        <ContentWithCharts content={content} type="ai" />
                                                     </div>
-                                                ) : null}
+                                                )}
+                                                {aiStreaming && timeline.length > 0 && (
+                                                    <div className="flex items-center gap-2 text-[#556179]">
+                                                        <span className="text-xs font-medium">Thinking</span>
+                                                        <div className="flex gap-1">
+                                                            <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
+                                                            <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                                                            <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -951,10 +858,10 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             return null;
                         })}
 
-                        {/* Thinking at the very end when streaming — only when last message is AI (otherwise we show the "waiting for first token" block below) */}
-                        {isStreaming && messages.length > 0 && messages[messages.length - 1]?.type === "ai" && (
+                        {/* Waiting for first token */}
+                        {isStreaming && (messages.length === 0 || messages[messages.length - 1]?.type !== "ai") && (
                             <div className="flex justify-start">
-                                <div className=" p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] flex items-center gap-2 text-[#556179]">
+                                <div className="p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] flex items-center gap-2 text-[#556179]">
                                     <img src={StellarLogo} alt="" className="h-4 w-4 opacity-80" />
                                     <span className="text-xs font-medium">Thinking</span>
                                     <div className="flex gap-1 ml-1">
@@ -1019,40 +926,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             />
                         )}
 
-                        {/* Streaming State - only when we don't yet have the streaming AI bubble (e.g. waiting for first token) */}
-                        {(isLoading || isStreaming) && !(messages.length > 0 && messages[messages.length - 1]?.type === "ai") && (
-                            <div className="flex justify-start">
-                                <div className=" w-full p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm flex flex-col gap-3">
-                                    {currentThinkingSteps.length > 0 && (
-                                        <div className="flex flex-col gap-1.5">
-                                            <span className="text-[11px] font-medium uppercase tracking-wider text-[#556179]">
-                                                Currently analyzing
-                                            </span>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {currentThinkingSteps.map((step, index) => (
-                                                    <span
-                                                        key={index}
-                                                        className="inline-flex items-center gap-1.5 rounded-md bg-white border border-[#E8E8E3] px-2 py-1 text-xs text-[#072929]"
-                                                    >
-                                                        <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full animate-pulse" />
-                                                        {getDisplayName(step, "node")}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    <div className="flex items-center gap-2 text-[#556179]">
-                                        <img src={StellarLogo} alt="" className="h-4 w-4 opacity-80" />
-                                        <span className="text-xs font-medium">Thinking</span>
-                                        <div className="flex gap-1 ml-1">
-                                            <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
-                                            <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-                                            <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                         <div ref={messagesEndRef} />
                     </div>
                 )}
@@ -1105,6 +978,24 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     </div>
                 </form>
             </div>
+
+            {sessionToDelete && deletingSessionId !== sessionToDelete.id && createPortal(
+                <div
+                    className="assistant-delete-popup fixed z-[9999] min-w-[160px] py-2 px-2 bg-white border border-gray-200 rounded-lg shadow-lg"
+                    style={{
+                        top: sessionToDelete.source === "tab" ? sessionToDelete.anchorRect.bottom + 4 : undefined,
+                        bottom: sessionToDelete.source === "history" ? window.innerHeight - sessionToDelete.anchorRect.top + 8 : undefined,
+                        left: sessionToDelete.anchorRect.right - 160,
+                    }}
+                >
+                    <p className="text-xs text-[#556179] px-2 mb-2">Delete this conversation?</p>
+                    <div className="flex gap-1.5 justify-end">
+                        <button type="button" onClick={handleCancelDelete} className="text-xs text-[#556179] hover:bg-gray-100 px-2 py-1 rounded">No</button>
+                        <button type="button" onClick={handleConfirmDelete} className="text-xs text-red-600 hover:bg-red-50 px-2 py-1 rounded font-medium">Yes</button>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 };
