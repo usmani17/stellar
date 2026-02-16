@@ -564,7 +564,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 title="Chat history"
                                 aria-label="Chat history"
                             >
-                                <img src={ASSISTANT_ICONS.chatHistory} alt="Chat history" className="w-5 h-5" />
+                                <span dangerouslySetInnerHTML={{ __html: ASSISTANT_ICONS.chatHistory }} />
                             </button>
                             {isSessionDropdownOpen && (
                                 <div className="assistant-history-dropdown">
