@@ -1315,7 +1315,8 @@ body input[type="submit"]:disabled {
 }
 
 .assistant-account-label {
-  font-size: 13.2px;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--color-semantic-text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -1323,11 +1324,108 @@ body input[type="submit"]:disabled {
 }
 
 .assistant-channel-label {
-  font-size: 13.2px;
-  color: var(--color-neutral-n300);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-semantic-text-primary);
+  opacity: 0.85;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* AI message content — clean typography and list styling */
+.assistant-message-content {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: #072929;
+  width: 100%;
+  max-width: none;
+}
+
+.assistant-message-content ul {
+  list-style-type: disc;
+  list-style-position: outside;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0 0.5rem 0;
+}
+
+.assistant-message-content ol {
+  list-style-type: decimal;
+  list-style-position: outside;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0 0.5rem 0;
+}
+
+.assistant-message-content ol li::marker,
+.assistant-message-content ul li::marker {
+  font-size: 14px;
+  font-weight: 400;
+  color: #6b7280;
+}
+
+.assistant-message-content li {
+  margin-bottom: 0.25rem;
+  line-height: 1.5;
+}
+
+.assistant-message-content li:last-child {
+  margin-bottom: 0;
+}
+
+.assistant-message-content li > ul,
+.assistant-message-content li > ol {
+  margin-top: 0.5rem;
+  margin-left: 1rem;
+}
+
+.assistant-message-content p {
+  margin: 0 0 0.5rem 0;
+}
+
+.assistant-message-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* AI message tables */
+.assistant-message-content .assistant-table,
+.assistant-table {
+  font-size: 14px;
+}
+
+.assistant-message-content .assistant-table-th,
+.assistant-table-th {
+  padding: 0.625rem 0.875rem;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: #556179;
+  background-color: #F9F9F6;
+  border-bottom: 1px solid #E8E8E3;
+  white-space: nowrap;
+}
+
+.assistant-message-content .assistant-table-td,
+.assistant-table-td {
+  padding: 0.625rem 0.875rem;
+  font-size: 14px;
+  color: #072929;
+  border-bottom: 1px solid #E8E8E3;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.assistant-message-content .assistant-table tr:last-child td,
+.assistant-table tr:last-child td {
+  border-bottom: none;
+}
+
+.assistant-message-content .assistant-table th:not(:last-child),
+.assistant-message-content .assistant-table td:not(:last-child),
+.assistant-table th:not(:last-child),
+.assistant-table td:not(:last-child) {
+  border-right: 1px solid #E8E8E3;
 }
 
 .assistant-intent-badge {
@@ -1511,11 +1609,10 @@ body input[type="submit"]:disabled {
 }
 
 .assistant-setup-heading {
-  font-size: var(--font-size-h300);
-  font-weight: 500;
-  color: var(--color-neutral-n300);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-semantic-text-primary);
+  letter-spacing: -0.01em;
   text-align: center;
 }
 
@@ -1529,23 +1626,24 @@ body input[type="submit"]:disabled {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: var(--font-size-h400);
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-semantic-text-primary);
+  letter-spacing: -0.01em;
 }
 
 .assistant-setup-step-num {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.375rem;
+  height: 1.375rem;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 9999px;
-  font-size: var(--font-size-h100);
-  font-weight: 700;
-  background-color: var(--color-semantic-border-default);
-  color: var(--color-neutral-n100);
+  border-radius: 0.375rem;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: #e8e8e3;
+  color: #6b7280;
 }
 
 .assistant-setup-step-num-active {

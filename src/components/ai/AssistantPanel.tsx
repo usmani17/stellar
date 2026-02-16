@@ -829,14 +829,14 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                             </div>
                                                         )}
                                                         {item.type === "text" && item.content && (
-                                                            <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full prose prose-sm max-w-none [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-6 [&_ol]:pl-6">
+                                                            <div className="assistant-message-content">
                                                                 <ContentWithCharts content={item.content} type="ai" />
                                                             </div>
                                                         )}
                                                     </div>
                                                 ))}
                                                 {timeline.length === 0 && !aiStreaming && content && (
-                                                    <div className="text-[14px] font-normal leading-5 tracking-[0.1px] text-[#072929] w-full prose prose-sm max-w-none [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-6 [&_ol]:pl-6">
+                                                    <div className="assistant-message-content">
                                                         <ContentWithCharts content={content} type="ai" />
                                                     </div>
                                                 )}

@@ -14,6 +14,13 @@ function getLinkText(children: React.ReactNode): string {
         .trim();
 }
 
+// Vague heuristic for AI process/intro text – will refine later
+function looksLikeAiProcessText(text: string): boolean {
+    const t = text.trim();
+    if (t.length === 0 || t.length > 500) return false;
+    return /^(analyzing|querying|running|checking|gathering|fetching|loading|processing|here'?s?\b)/i.test(t);
+}
+
 function getFileNameFromUrl(url: string): string {
     try {
         const pathname = new URL(url).pathname;
@@ -127,28 +134,38 @@ export const StellarMarkDown: React.FC<StellarMarkDownProps> = ({ content, type 
                             {children}
                         </code>
                     ),
-                    p: ({ children }) => (
-                        <p className="text-sm last:mb-0">{children}</p>
-                    ),
+                    p: ({ children }) => {
+                        // TODO: vague logic for now – will update later
+                        const text = getLinkText(children);
+                        const asQuote = type === "ai" && looksLikeAiProcessText(text);
+                        if (asQuote) {
+                            return (
+                                <blockquote className="border-l-4 border-[#E8E8E3] pl-4 my-2 text-[14px] leading-[1.6] text-[#556179] not-italic last:mb-0">
+                                    {children}
+                                </blockquote>
+                            );
+                        }
+                        return <p className="text-[14px] leading-[1.6] last:mb-0">{children}</p>;
+                    },
                     ul: ({ children }) => (
-                        <ul className="text-sm list-disc list-outside pl-6 mb-2 last:mb-0 space-y-1">
+                        <ul className="text-[14px] list-disc list-outside pl-5 mb-2 last:mb-0 space-y-1.5 [&_li::marker]:text-[#6b7280]">
                             {children}
                         </ul>
                     ),
                     ol: ({ children }) => (
-                        <ol className="text-sm list-decimal list-outside pl-6 mb-2 last:mb-0 space-y-1">
+                        <ol className="text-[14px] list-decimal list-outside pl-5 mb-2 last:mb-0 space-y-3 [&_li::marker]:text-[14px] [&_li::marker]:font-normal [&_li::marker]:text-[#6b7280]">
                             {children}
                         </ol>
                     ),
                     li: ({ children }) => (
-                        <li className="text-sm mb-0.5 last:mb-0 [&>ul]:mt-1 [&>ol]:mt-1 [&>ul]:ml-3 [&>ol]:ml-3">
+                        <li className="text-[14px] leading-[1.6] mb-0.5 last:mb-0 pl-0.5 [&>ul]:mt-2 [&>ol]:mt-2 [&>ul]:ml-4 [&>ol]:ml-4 [&>p]:mb-0.5">
                             {children}
                         </li>
                     ),
                     blockquote: ({ children }) => (
                         <blockquote
-                            className={`border-l-4 ${type === "human" ? "border-white/30" : "border-gray-300"
-                                } pl-4 italic my-2`}
+                            className={`border-l-4 pl-4 my-2 ${type === "human" ? "border-white/30 italic" : "border-[#E8E8E3] text-[#556179] not-italic"
+                                }`}
                         >
                             {children}
                         </blockquote>
@@ -216,19 +233,19 @@ export const StellarMarkDown: React.FC<StellarMarkDownProps> = ({ content, type 
                         <del className="line-through">{children}</del>
                     ),
                     table: ({ children }) => (
-                        <div className="overflow-x-auto w-full max-w-full my-2 -mx-1">
-                            <table className="w-max min-w-full border-collapse border border-gray text-sm">
+                        <div className="overflow-x-auto w-full max-w-full my-3 rounded-lg border border-[#E8E8E3] shadow-sm">
+                            <table className="assistant-table w-full min-w-full border-collapse text-[14px]">
                                 {children}
                             </table>
                         </div>
                     ),
                     th: ({ children }) => (
-                        <th className="border border-gray px-3 py-2 text-left text-xs font-medium text-gray-600 whitespace-nowrap">
+                        <th className="assistant-table-th">
                             {children}
                         </th>
                     ),
                     td: ({ children }) => (
-                        <td className="border border-gray px-3 py-2 text-sm text-gray-800 whitespace-nowrap">
+                        <td className="assistant-table-td">
                             {children}
                         </td>
                     ),

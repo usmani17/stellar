@@ -60,9 +60,9 @@ function CampaignSetupBlock({ data }: { data: CampaignSetupData }) {
   } as CampaignSetupState;
 
   return (
-    <div className="my-4 p-4 bg-indigo-50/50 border border-indigo-200 rounded-xl text-sm">
+    <div className="my-4 p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-xl text-sm shadow-sm">
       <div className="flex items-center gap-2 mb-3">
-        <strong className="text-gray-900">
+        <strong className="text-[#072929] font-semibold">
           {platform} · {campaign_type}
         </strong>
         {complete && (
@@ -72,33 +72,21 @@ function CampaignSetupBlock({ data }: { data: CampaignSetupData }) {
         )}
       </div>
       {tableRows.length > 0 && (
-        <div className="overflow-x-auto mb-3">
-          <table className="min-w-full border border-gray-200 rounded">
+        <div className="overflow-x-auto mb-3 rounded-lg border border-[#E8E8E3] overflow-hidden">
+          <table className="assistant-table min-w-full w-full border-collapse">
             <thead>
-              <tr className="bg-gray-50">
-                <th className="border border-gray-200 px-3 py-2 text-left text-xs font-medium text-gray-600">
-                  Entity
-                </th>
-                <th className="border border-gray-200 px-3 py-2 text-left text-xs font-medium text-gray-600">
-                  Field
-                </th>
-                <th className="border border-gray-200 px-3 py-2 text-left text-xs font-medium text-gray-600">
-                  Value
-                </th>
+              <tr>
+                <th className="assistant-table-th">Entity</th>
+                <th className="assistant-table-th">Field</th>
+                <th className="assistant-table-th">Value</th>
               </tr>
             </thead>
             <tbody>
               {tableRows.map((r, i) => (
                 <tr key={i}>
-                  <td className="border border-gray-200 px-3 py-2 text-gray-700">
-                    {r.entity}
-                  </td>
-                  <td className="border border-gray-200 px-3 py-2 text-gray-700">
-                    {r.field}
-                  </td>
-                  <td className="border border-gray-200 px-3 py-2 text-gray-700">
-                    {r.value}
-                  </td>
+                  <td className="assistant-table-td">{r.entity}</td>
+                  <td className="assistant-table-td">{r.field}</td>
+                  <td className="assistant-table-td">{r.value}</td>
                 </tr>
               ))}
             </tbody>
@@ -129,7 +117,7 @@ export function ContentWithCharts({ content, type = "ai" }: ContentWithChartsPro
   const segments = parseContentWithBlocks(content);
 
   return (
-    <span className="block whitespace-pre-wrap text-left">
+    <div className="block text-left space-y-4">
       {segments.map((seg, i) =>
         seg.type === "markdown" ? (
           <StellarMarkDown key={i} content={seg.content} type={type} />
@@ -139,6 +127,6 @@ export function ContentWithCharts({ content, type = "ai" }: ContentWithChartsPro
           <CampaignSetupBlock key={i} data={seg.data} />
         ) : null
       )}
-    </span>
+    </div>
   );
 }

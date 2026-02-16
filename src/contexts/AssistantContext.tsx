@@ -15,7 +15,7 @@ import {
   type PixisThread,
 } from "../services/ai/pixisAiSessions";
 import {
-  getSessionDrafts,
+  getSessionActiveDraft,
   draftToCampaignState,
 } from "../services/ai/assistantDrafts";
 import type { CampaignSetupState } from "../types/agent";
@@ -137,6 +137,8 @@ export const AssistantProvider: React.FC<{
   const streamingSessionIdRef = useRef<string | null>(null);
   const pendingNewSessionRef = useRef<{ id: string; cursor_session_id: string } | null>(null);
   const isNewSessionFlowRef = useRef(false);
+  const sessionsRef = useRef<SessionWithMessages[]>([]);
+  sessionsRef.current = sessions;
 
   useEffect(() => {
     if (
@@ -230,69 +232,74 @@ export const AssistantProvider: React.FC<{
 
   const selectSession = useCallback(
     async (sessionId: string) => {
-      const sel = sessions.find((s) => s.id === sessionId);
+      const sel = sessionsRef.current.find((s) => s.id === sessionId);
+      setCurrentSessionId(sessionId);
       if (sel) {
-        setCurrentSessionId(sessionId);
-        setAssistantScopeState((prev) => ({
-          ...prev,
-          accountId: sel.account_id?.toString() ?? prev.accountId,
-          channelId: sel.channel_id?.toString() ?? prev.channelId,
-          profileId: (sel.profile_id != null ? Number(sel.profile_id) : undefined) ?? prev.profileId,
-        }));
+        setAssistantScopeState((prev) => {
+          const nextAccountId = sel.account_id?.toString() ?? prev.accountId;
+          const nextChannelId = sel.channel_id?.toString() ?? prev.channelId;
+          const nextProfileId = (sel.profile_id != null ? Number(sel.profile_id) : undefined) ?? prev.profileId;
+          if (prev.accountId === nextAccountId && prev.channelId === nextChannelId && prev.profileId === nextProfileId) {
+            return prev;
+          }
+          return {
+            ...prev,
+            accountId: nextAccountId,
+            channelId: nextChannelId,
+            profileId: nextProfileId,
+          };
+        });
       }
+      const existing = sessionsRef.current.find((s) => s.id === sessionId);
+      const needsHistory = !existing?.messages?.length;
+
+      if (!needsHistory) return;
+
       setIsLoading(true);
       try {
         const token = await getAccessToken();
         if (!token) return;
 
-        const existing = sessions.find((s) => s.id === sessionId);
-        const needsHistory = !existing?.messages?.length;
-
-        if (needsHistory) {
-          const [{ history }, drafts] = await Promise.all([
-            pixisAiSessionsService.getHistory(sessionId, token),
-            getSessionDrafts(sessionId, token).catch(() => []),
-          ]);
-          const msgs: ChatMessage[] = [];
-          for (const turn of history as PixisThread[]) {
-            if (turn.user_query) {
-              msgs.push({
-                type: "human",
-                id: `h-${turn.id}`,
-                content: turn.user_query,
-              });
-            }
-            if (turn.final_message) {
-              msgs.push({
-                type: "ai",
-                id: `a-${turn.id}`,
-                content: turn.final_message,
-                timeline: [{ type: "text", content: turn.final_message }],
-                isStreaming: false,
-              });
-            }
+        const [{ history }, activeDraft] = await Promise.all([
+          pixisAiSessionsService.getHistory(sessionId, token),
+          getSessionActiveDraft(sessionId, token).catch(() => null),
+        ]);
+        const msgs: ChatMessage[] = [];
+        for (const turn of history as PixisThread[]) {
+          if (turn.user_query) {
+            msgs.push({
+              type: "human",
+              id: `h-${turn.id}`,
+              content: turn.user_query,
+            });
           }
-          const latestDraft = drafts
-            .filter((d) => d.status === "in_progress")
-            .sort((a, b) => (b.draft_index ?? 0) - (a.draft_index ?? 0))[0];
-          const campaignState = latestDraft
-            ? draftToCampaignState(latestDraft)
-            : undefined;
-          setSessions((prev) =>
-            prev.map((s) =>
-              s.id === sessionId
-                ? { ...s, messages: msgs, campaignState }
-                : s
-            )
-          );
+          if (turn.final_message) {
+            msgs.push({
+              type: "ai",
+              id: `a-${turn.id}`,
+              content: turn.final_message,
+              timeline: [{ type: "text", content: turn.final_message }],
+              isStreaming: false,
+            });
+          }
         }
+        const campaignState = activeDraft
+          ? draftToCampaignState(activeDraft)
+          : undefined;
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === sessionId
+              ? { ...s, messages: msgs, campaignState }
+              : s
+          )
+        );
       } catch (err) {
         console.error("Failed to select session:", err);
       } finally {
         setIsLoading(false);
       }
     },
-    [sessions, getAccessToken]
+    [getAccessToken]
   );
 
   const startNewSession = useCallback(() => {
