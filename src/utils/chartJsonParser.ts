@@ -248,7 +248,7 @@ export function deriveCampaignStateFromContent(
       ui_hint: "text",
     }))
   );
-  const keysForForm = data.keys_for_form?.length ? new Set(data.keys_for_form) : null;
+  const keysForForm = Array.isArray(data.keys_for_form) ? new Set(data.keys_for_form) : null;
   const current_questions_schema = keysForForm
     ? allSchema.filter((s) => {
         if (keysForForm.has(s.key)) return true;
