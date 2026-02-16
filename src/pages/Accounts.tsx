@@ -546,7 +546,7 @@ export const Accounts: React.FC = () => {
                                 onClick={() => setShowCreateAccount(true)}
                                 className="rounded-lg"
                               >
-                                Create Your First Account
+                                Create Your First Brand
                               </Button>
                             </div>
                           )}
