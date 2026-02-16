@@ -60,45 +60,22 @@ function CampaignSetupBlock({ data }: { data: CampaignSetupData }) {
   } as CampaignSetupState;
 
   return (
-    <div className="my-4 p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-xl text-sm shadow-sm">
-      <div className="flex items-center gap-2 mb-3">
-        <strong className="text-[#072929] font-semibold">
-          {platform} · {campaign_type}
+      
+      <CampaignDraftPreview
+        campaignState={campaignState}
+        visible={!complete}
+        layout="expandable"
+        title={<div className="flex items-center gap-2 mb-3">
+        <strong className="text-gray-900">
+         Draft for {platform} · {campaign_type}
         </strong>
         {complete && (
           <span className="text-xs text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded font-medium">
             Complete
           </span>
         )}
-      </div>
-      {tableRows.length > 0 && (
-        <div className="overflow-x-auto mb-3 rounded-lg border border-[#E8E8E3] overflow-hidden">
-          <table className="assistant-table min-w-full w-full border-collapse">
-            <thead>
-              <tr>
-                <th className="assistant-table-th">Entity</th>
-                <th className="assistant-table-th">Field</th>
-                <th className="assistant-table-th">Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tableRows.map((r, i) => (
-                <tr key={i}>
-                  <td className="assistant-table-td">{r.entity}</td>
-                  <td className="assistant-table-td">{r.field}</td>
-                  <td className="assistant-table-td">{r.value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <CampaignDraftPreview
-        campaignState={campaignState}
-        visible={!complete}
-        layout="expandable"
+      </div>}
       />
-    </div>
   );
 }
 
