@@ -17,7 +17,8 @@ export interface AssistantDraft {
   entity_draft_id?: string | null;
   platform?: string | null;
   campaign_type?: string | null;
-  current_question_keys?: string[] | null;
+  /** Array of keys, or object like { campaign: { name, budget_amount, ... } } from API */
+  current_question_keys?: string[] | Record<string, Record<string, unknown>> | null;
   validation_error?: string | null;
   current_draft_state?: Record<string, unknown> | null;
   account_id?: number | null;
@@ -71,11 +72,26 @@ export function getActiveDraftFromList(drafts: AssistantDraft[]): AssistantDraft
     .sort((a, b) => (b.draft_index ?? 0) - (a.draft_index ?? 0))[0];
 }
 
+/** Flatten current_question_keys to string[] — API returns array or object { entity: { key: type } }. */
+function toFlatKeys(val: unknown): string[] {
+  if (Array.isArray(val)) return val.filter((x): x is string => typeof x === "string");
+  if (val && typeof val === "object") {
+    const keys: string[] = [];
+    for (const v of Object.values(val)) {
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        keys.push(...Object.keys(v));
+      }
+    }
+    return keys;
+  }
+  return [];
+}
+
 /**
  * Convert the latest in-progress draft to CampaignSetupState for form display.
  */
 export function draftToCampaignState(draft: AssistantDraft): CampaignSetupState {
-  const keys = draft.current_question_keys ?? [];
+  const keys = toFlatKeys(draft.current_question_keys);
   const draftState = draft.current_draft_state ?? {};
   const current_questions_schema = keys.map((key) => ({
     key,
