@@ -6,7 +6,7 @@ import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { workspaceService, type WorkspaceUser } from "../services/workspace";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
-import { Alert, Dropdown } from "../components/ui";
+import { Alert, Dropdown, Checkbox } from "../components/ui";
 import { type Account, type Channel } from "../services/accounts";
 
 const ROLE_OPTIONS = [
@@ -172,6 +172,7 @@ export const WorkspaceSettings: React.FC = () => {
       );
       setMessage("Integrations assigned to team member");
       setAssignTeamId(null);
+      workspaceService.getUsers(workspace.id).then((d) => setUsers(d.users));
     } catch (err: any) {
       setError(err.response?.data?.error || "Failed to assign integrations");
     } finally {
@@ -530,7 +531,11 @@ export const WorkspaceSettings: React.FC = () => {
               {/* Assign brands modal */}
               {assignManagerId && (
                 <AssignBrandsModal
+                  key={`assign-brands-${assignManagerId}`}
                   accounts={accounts}
+                  initialSelectedAccountIds={
+                    users.find((u) => u.id === assignManagerId)?.assigned_account_ids ?? []
+                  }
                   onConfirm={handleAssignAccounts}
                   onCancel={() => setAssignManagerId(null)}
                   loading={assignLoading}
@@ -540,7 +545,11 @@ export const WorkspaceSettings: React.FC = () => {
               {/* Assign channels modal */}
               {assignTeamId && (
                 <AssignChannelsModal
+                  key={`assign-channels-${assignTeamId}`}
                   channels={allChannels}
+                  initialSelectedChannelIds={
+                    users.find((u) => u.id === assignTeamId)?.assigned_channel_ids ?? []
+                  }
                   onConfirm={handleAssignChannels}
                   onCancel={() => setAssignTeamId(null)}
                   loading={assignLoading}
@@ -556,41 +565,61 @@ export const WorkspaceSettings: React.FC = () => {
 
 function AssignBrandsModal({
   accounts,
+  initialSelectedAccountIds = [],
   onConfirm,
   onCancel,
   loading,
 }: {
   accounts: Account[];
+  initialSelectedAccountIds?: number[];
   onConfirm: (accountIds: number[]) => Promise<void>;
   onCancel: () => void;
   loading: boolean;
 }) {
-  const [selected, setSelected] = useState<number[]>([]);
+  const [selected, setSelected] = useState<number[]>(initialSelectedAccountIds);
+  const [searchQuery, setSearchQuery] = useState("");
   const toggle = (id: number) => {
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = q
+    ? accounts.filter((a) => (a.name ?? "").toLowerCase().includes(q))
+    : accounts;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-md w-full max-h-[80vh] overflow-auto">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-md w-full max-h-[80vh] flex flex-col">
         <h3 className="text-[16px] font-semibold text-[#072929] mb-4">Assign brands to manager</h3>
-        <div className="space-y-2 mb-4">
-          {accounts.map((a) => (
-            <label key={a.id} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={selected.includes(a.id)}
-                onChange={() => toggle(a.id)}
-              />
-              <span className="text-[13px] text-[#072929]">{a.name}</span>
-            </label>
-          ))}
+        <div className="mb-3">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search brands..."
+            className="w-full px-3 py-2 text-sm border border-[#e8e8e3] rounded-lg bg-white text-[#072929] placeholder:text-[#556179] focus:outline-none focus:ring-2 focus:ring-[#136d6d] focus:border-transparent"
+            aria-label="Search brands"
+          />
+        </div>
+        <div className="space-y-2 mb-4 overflow-y-auto min-h-0 flex-1">
           {accounts.length === 0 && (
             <p className="text-[#556179] text-sm">No brands in workspace</p>
           )}
+          {accounts.length > 0 && filtered.length === 0 && (
+            <p className="text-[#556179] text-sm">No brands match your search</p>
+          )}
+          {filtered.map((a) => (
+            <div key={a.id} className="w-full">
+              <Checkbox
+                checked={selected.includes(a.id)}
+                onChange={() => toggle(a.id)}
+                label={a.name ?? ""}
+                className="text-[13px] text-[#072929] w-full"
+              />
+            </div>
+          ))}
         </div>
-        <div className="flex gap-2 justify-end">
+        <div className="flex gap-2 justify-end shrink-0">
           <button onClick={onCancel} className="cancel-button">
             Cancel
           </button>
@@ -609,48 +638,68 @@ function AssignBrandsModal({
 
 function AssignChannelsModal({
   channels,
+  initialSelectedChannelIds = [],
   onConfirm,
   onCancel,
   loading,
 }: {
   channels: Array<Channel & { account_name?: string }>;
+  initialSelectedChannelIds?: number[];
   onConfirm: (channelIds: number[]) => Promise<void>;
   onCancel: () => void;
   loading: boolean;
 }) {
-  const [selected, setSelected] = useState<number[]>([]);
+  const [selected, setSelected] = useState<number[]>(initialSelectedChannelIds);
+  const [searchQuery, setSearchQuery] = useState("");
   const toggle = (id: number) => {
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = q
+    ? channels.filter((ch) => {
+        const label = `${ch.channel_name ?? ""} ${ch.channel_type ?? ""} ${ch.account_name ?? ""}`.toLowerCase();
+        return label.includes(q);
+      })
+    : channels;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-md w-full max-h-[80vh] overflow-auto">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-md w-full max-h-[80vh] flex flex-col">
         <h3 className="text-[16px] font-semibold text-[#072929] mb-4">
           Assign integrations to team member
         </h3>
-        <div className="space-y-2 mb-4">
-          {channels.map((ch) => (
-            <label key={ch.id} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={selected.includes(ch.id)}
-                onChange={() => toggle(ch.id)}
-              />
-              <span className="text-[13px] text-[#072929]">
-                {ch.channel_name} ({ch.channel_type}){" "}
-                {ch.account_name && ` – ${ch.account_name}`}
-              </span>
-            </label>
-          ))}
+        <div className="mb-3">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search integrations..."
+            className="w-full px-3 py-2 text-sm border border-[#e8e8e3] rounded-lg bg-white text-[#072929] placeholder:text-[#556179] focus:outline-none focus:ring-2 focus:ring-[#136d6d] focus:border-transparent"
+            aria-label="Search integrations"
+          />
+        </div>
+        <div className="space-y-2 mb-4 overflow-y-auto min-h-0 flex-1">
           {channels.length === 0 && (
             <p className="text-[#556179] text-sm">
               No integrations in workspace. Add brands and integrations first.
             </p>
           )}
+          {channels.length > 0 && filtered.length === 0 && (
+            <p className="text-[#556179] text-sm">No integrations match your search</p>
+          )}
+          {filtered.map((ch) => (
+            <div key={ch.id} className="w-full">
+              <Checkbox
+                checked={selected.includes(ch.id)}
+                onChange={() => toggle(ch.id)}
+                label={`${ch.channel_name} (${ch.channel_type})${ch.account_name ? ` – ${ch.account_name}` : ""}`}
+                className="text-[13px] text-[#072929] w-full"
+              />
+            </div>
+          ))}
         </div>
-        <div className="flex gap-2 justify-end">
+        <div className="flex gap-2 justify-end shrink-0">
           <button onClick={onCancel} className="cancel-button">
             Cancel
           </button>

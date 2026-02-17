@@ -8,6 +8,10 @@ export interface WorkspaceUser {
   role: 'owner' | 'manager' | 'team';
   assigned_brands_count?: number;
   assigned_integrations_count?: number;
+  /** Manager: account IDs already assigned to this user (for assign-brands modal). */
+  assigned_account_ids?: number[];
+  /** Team: channel IDs already assigned to this user (for assign-integrations modal). */
+  assigned_channel_ids?: number[];
 }
 
 export interface WorkspaceUsersResponse {
