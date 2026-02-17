@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAssistant, type SessionWithMessages } from "../../contexts/AssistantContext";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
-import type { CurrentQuestionSchemaItem } from "../../types/agent";
 import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
@@ -239,17 +238,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         if (isLoading || isStreaming) return;
         if (!canChat) return;
         const textPart = inputValue.trim();
-        const schema = SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema ? (questionsSchema as CurrentQuestionSchemaItem[]) : [];
+        const schema = SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema ? questionsSchema : [];
         const formValues = SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema && schemaFormRef.current ? schemaFormRef.current.getValues() : {};
 
         const formParts =
             schema.length > 0 && Object.keys(formValues).length > 0
                 ? (schema
                     .map((item) => {
-                        const v = formValues[item.key];
+                        const v = formValues[item];
                         if (v === undefined || v === "") return null;
-                        const label = item.label || item.key;
-                        if (item.ui_hint === "channel_controls") {
+                        const label = item || item;
+                        if (item === "channel_controls") {
                             try {
                                 const obj = JSON.parse(v) as Record<string, boolean>;
                                 const parts = Object.entries(obj).map(([k, val]) => `${k}:${val}`);
@@ -324,17 +323,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
     const questionsSchema = campaignState?.current_questions_schema;
     const hasQuestionsSchema = questionsSchema && questionsSchema.length > 0;
-    const schemaFormKey = hasQuestionsSchema
-        ? (questionsSchema as CurrentQuestionSchemaItem[]).map((q) => q.key).join(",")
-        : "";
-
-    // Log the suggestion questions we show in "Fill in the details" so you can verify correct schema from AI.
-    // Use schemaFormKey (stable string) as dependency to avoid running on every stream update (questionsSchema is a new ref each time).
-    useEffect(() => {
-        if (!schemaFormKey || !questionsSchema?.length) return;
-        console.log("[Assistant] Fill-in-the-details form questions (from AI):", questionsSchema);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- questionsSchema intentionally omitted to avoid log on every stream chunk
-    }, [schemaFormKey]);
 
     const groupedSessions = groupSessionsByDate(sessions);
     const hasMessages = messages.length > 0;
@@ -1007,11 +995,10 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         )}
 
                         {/* Campaign: form fields — use CampaignFormForChat (reuses campaign form components) for full campaign support */}
-                        {SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema && schemaFormKey && !isLoading && !isStreaming && (
+                        {SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema && !isLoading && !isStreaming && (
                             <CampaignFormForChat
                                 ref={schemaFormRef}
-                                key={schemaFormKey}
-                                questionsSchema={questionsSchema as CurrentQuestionSchemaItem[]}
+                                questionsSchema={questionsSchema as string[]}
                                 campaignDraft={campaignState?.campaign_draft as Record<string, unknown> | undefined}
                                 campaignType={(campaignState?.campaign_draft as Record<string, unknown> | undefined)?.campaign_type as string || campaignState?.campaign_type as string || "SEARCH"}
                                 onSend={sendMessage}
@@ -1019,13 +1006,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 profileId={assistantScope.profileId ?? undefined}
                                 accountId={assistantScope.accountId ?? undefined}
                                 channelId={assistantScope.channelId ?? undefined}
-                                googleProfiles={accountProfiles.map((p) => ({
-                                    value: String(p.id),
-                                    label: profileDisplayName(p),
-                                    customer_id: p.customer_id ?? "",
-                                    customer_id_raw: (p.customer_id ?? "").replace(/-/g, ""),
-                                    profile_id: p.id,
-                                }))}
                             />
                         )}
 

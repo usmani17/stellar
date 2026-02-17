@@ -2,43 +2,31 @@
  * Test page for CampaignFormForChat visibleKeys behavior.
  * Toggle field checkboxes to show/hide form fields – simulates what the AI sends via current_questions_schema.
  * Visit /test-campaign-form to use.
- */
+ 
+
+"keys_for_form": ["budget_name", "location_ids", "excluded_location_ids", "language_ids", "tracking_url_template", "final_url_suffix", "url_custom_parameters", "business_name_asset_id", "logo_asset_id", "marketing_image_asset_id", "square_marketing_image_asset_id", "headline_asset_ids", "description_asset_ids", "long_headline_asset_ids", "video_asset_ids", "sitelink_asset_ids", "callout_asset_ids"],
+*/
+
 import React, { useState } from "react";
 import { CampaignFormForChat } from "../../components/ai/CampaignFormForChat";
-import { getFieldLabel } from "../../components/ai/campaignFormFieldLabels";
-import type { CurrentQuestionSchemaItem } from "../../types/agent";
 
 const ALL_FIELD_GROUPS: { label: string; keys: string[] }[] = [
-  { label: "Base", keys: ["name", "campaign_type", "budget_amount", "budget_name", "start_date", "end_date", "status"] },
-  { label: "Bidding", keys: ["bidding_strategy_type", "target_cpa_micros", "target_roas", "target_spend_micros", "target_impression_share_location", "target_impression_share_location_fraction_micros", "target_impression_share_cpc_bid_ceiling_micros"] },
-  { label: "Demand Gen", keys: ["final_url", "video_id", "video_url", "logo_url", "business_name", "headlines", "descriptions", "long_headlines", "ad_group_name", "ad_name", "channel_controls"] },
-  { label: "Performance Max", keys: ["asset_group_name", "marketing_image_url", "square_marketing_image_url"] },
-  { label: "Search", keys: ["adgroup_name", "keywords", "match_type"] },
-  { label: "Shopping", keys: ["merchant_id", "sales_country", "campaign_priority", "enable_local"] },
-  {
-    label: "Targeting (Network, Device, Language, Location, URL)",
-    keys: [
-      "network_settings",
-      "device_ids",
-      "language_ids",
-      "location_ids",
-      "excluded_location_ids",
-      "tracking_url_template",
-      "final_url_suffix",
-      "url_custom_parameters",
-    ],
-  },
+  { label: "URL Customization", keys: ["budget_name", "tracking_url_template", "final_url_suffix", "url_custom_parameters"] },
+  { label: "Targeting (Location & Language)", keys: ["location_ids", "excluded_location_ids", "language_ids"] },
+  { label: "Asset IDs (Demand Gen & Perf Max)", keys: ["business_name_asset_id", "logo_asset_id", "marketing_image_asset_id", "square_marketing_image_asset_id"] },
+  { label: "Headline/Description Asset IDs", keys: ["headline_asset_ids", "description_asset_ids", "long_headline_asset_ids"] },
+  { label: "Media Asset IDs", keys: ["video_asset_ids", "sitelink_asset_ids", "callout_asset_ids"] },
 ];
 
 const CAMPAIGN_TYPES = ["SEARCH", "SHOPPING", "DEMAND_GEN", "PERFORMANCE_MAX"] as const;
 
 export const CampaignFormTestPage: React.FC = () => {
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set(["name", "budget_amount", "bidding_strategy_type"]));
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set(["budget_name", "tracking_url_template", "final_url_suffix", "url_custom_parameters"]));
   const [campaignType, setCampaignType] = useState<string>("SEARCH");
   const [lastSubmit, setLastSubmit] = useState<string | null>(null);
-  const [accountId, setAccountId] = useState("");
-  const [channelId, setChannelId] = useState("");
-  const [profileId, setProfileId] = useState("");
+  const [accountId, setAccountId] = useState('20');
+  const [channelId, setChannelId] = useState('31');
+  const [profileId, setProfileId] = useState('21');
 
   const toggleKey = (key: string) => {
     setSelectedKeys((prev) => {
@@ -68,41 +56,24 @@ export const CampaignFormTestPage: React.FC = () => {
   const selectAll = () => setSelectedKeys(new Set(ALL_FIELD_GROUPS.flatMap((g) => g.keys)));
   const clearAll = () => setSelectedKeys(new Set());
   const biddingStrategyOnly = () =>
-    setSelectedKeys(new Set(["name", "campaign_type", "budget_amount", "bidding_strategy_type"]));
+    setSelectedKeys(new Set(["budget_name", "tracking_url_template", "final_url_suffix", "url_custom_parameters"]));
   const searchWithTargeting = () =>
     setSelectedKeys(
       new Set([
-        "name",
-        "campaign_type",
-        "budget_amount",
-        "bidding_strategy_type",
-        "adgroup_name",
-        "keywords",
-        "match_type",
-        "network_settings",
-        "device_ids",
-        "language_ids",
-        "location_ids",
-        "excluded_location_ids",
+        "budget_name",
         "tracking_url_template",
         "final_url_suffix",
         "url_custom_parameters",
+        "location_ids",
+        "excluded_location_ids",
+        "language_ids",
       ])
     );
 
-  const questionsSchema: CurrentQuestionSchemaItem[] = Array.from(selectedKeys).map((key) => ({
-    key,
-    type: "string",
-    required: false,
-    ui_hint: "text",
-    label: getFieldLabel(key),
-  }));
+  const questionsSchema: string[] = Array.from(selectedKeys);
 
   const campaignDraft: Record<string, unknown> = {
     campaign_type: campaignType,
-    name: "Test Campaign",
-    budget_amount: 50,
-    status: "PAUSED",
   };
 
   return (
@@ -113,7 +84,7 @@ export const CampaignFormTestPage: React.FC = () => {
           Select which fields to show in the form. Only selected fields will appear below – simulates AI sending keys via current_questions_schema.
         </p>
         <p className="text-sm text-amber-700 bg-amber-50 rounded px-3 py-2 border border-amber-200">
-          <strong>Bidding:</strong> Selecting only <code className="bg-amber-100 px-1 rounded">bidding_strategy_type</code> will show conditional fields (Target CPA, Target ROAS, Target Spend, etc.) based on the chosen strategy. Use &quot;Bidding strategy only&quot; preset to test.
+          <strong>Fields shown:</strong> Only fields with <code className="bg-amber-100 px-1 rounded">need_form: true</code> are included – these handle asset selection, URL customization, and targeting specs (locations, languages).
         </p>
         <p className="text-sm text-blue-700 bg-blue-50 rounded px-3 py-2 border border-blue-200">
           <strong>Merchant dropdown:</strong> For Shopping + merchant_id, fill Account ID, Channel ID, and Profile ID below to load the merchant dropdown (falls back to text input when empty).
@@ -192,14 +163,14 @@ export const CampaignFormTestPage: React.FC = () => {
               onClick={biddingStrategyOnly}
               className="px-3 py-1.5 text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200 rounded hover:bg-amber-200"
             >
-              Bidding strategy only (conditional fields)
+              URL Customization (default preset)
             </button>
             <button
               type="button"
               onClick={searchWithTargeting}
               className="px-3 py-1.5 text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200 rounded hover:bg-purple-200"
             >
-              Search + Targeting (network, device, language, location, URL)
+              + Targeting (location & language)
             </button>
           </div>
           {ALL_FIELD_GROUPS.map((group) => (

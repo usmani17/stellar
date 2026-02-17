@@ -8,7 +8,7 @@ import React, {
   type ReactNode,
 } from "react";
 import { useAuth } from "./AuthContext";
-import { streamPixisChat, type PixisTimelineItem } from "../services/ai/pixisChat";
+import { streamPixisChat, type PixisTimelineItem, type CampaignDraftData } from "../services/ai/pixisChat";
 import {
   pixisAiSessionsService,
   type PixisSession,
@@ -90,6 +90,9 @@ interface AssistantContextType {
 
   /** Campaign state from last AI response (e.g. from campaign-setup block) */
   campaignState: CampaignSetupState | undefined;
+
+  /** Campaign draft data from AI agent (e.g. from campaign-draft event) */
+  campaignDraft: CampaignDraftData | null;
 }
 
 const AssistantContext = createContext<AssistantContextType | undefined>(undefined);
@@ -123,6 +126,7 @@ export const AssistantProvider: React.FC<{
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [campaignDraft, setCampaignDraft] = useState<CampaignDraftData | null>(null);
 
   const [assistantScope, setAssistantScopeState] = useState<AssistantScope>({
     accountId: null,
@@ -528,6 +532,9 @@ export const AssistantProvider: React.FC<{
               }
             },
             onTimelineItem: updateTimeline,
+            onCampaignDraft: (data) => {
+              setCampaignDraft(data);
+            },
             onResult: (ev) => {
               const finalContent = ev.full_message ?? "";
               const pending = pendingNewSessionRef.current;
@@ -744,6 +751,7 @@ export const AssistantProvider: React.FC<{
         assistantScope,
         setAssistantScope,
         campaignState,
+        campaignDraft,
       }}
     >
       {children}

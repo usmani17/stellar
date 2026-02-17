@@ -13,6 +13,15 @@ export interface PixisChatStreamEvent {
   message?: { content?: Array<{ text?: string }> };
   tool_call?: unknown;
   full_message?: string;
+  // Campaign draft fields
+  draft_id?: string;
+  platform?: string;
+  campaign_type?: string;
+  complete?: boolean;
+  draft?: Record<string, unknown>;
+  questions?: Record<string, unknown>;
+  keys_for_form?: string[];
+  validation_error?: string | null;
   [key: string]: unknown;
 }
 
@@ -34,6 +43,18 @@ export type PixisTimelineItem =
   | { type: "tool_call"; label: string }
   | { type: "text"; content: string };
 
+/** Campaign draft data from AI agent */
+export interface CampaignDraftData {
+  draft_id: string;
+  platform: string;
+  campaign_type: string;
+  complete: boolean;
+  draft: Record<string, unknown>;
+  questions: Record<string, unknown>;
+  keys_for_form: string[];
+  validation_error: string | null;
+}
+
 const getBaseUrl = (): string => {
   const baseUrl = import.meta.env.VITE_AI_AGENT_BASE_URL;
   if (!baseUrl) throw new Error("VITE_AI_AGENT_BASE_URL is not set");
@@ -49,6 +70,7 @@ export async function streamPixisChat(
     onToolCall?: (label: string) => void;
     /** Called for each timeline item in order: tool_call or text (consumer updates last text item when same type) */
     onTimelineItem?: (item: PixisTimelineItem) => void;
+    onCampaignDraft?: (data: CampaignDraftData) => void;
     onResult?: (data: PixisChatStreamEvent) => void;
     onError?: (err: Error) => void;
   },
@@ -126,6 +148,19 @@ export async function streamPixisChat(
           }
           callbacks.onToolCall?.(label);
           callbacks.onTimelineItem?.({ type: "tool_call", label });
+        }
+
+        if (etype === "campaign-draft") {
+          callbacks.onCampaignDraft?.({
+            draft_id: ev.draft_id ?? "",
+            platform: ev.platform ?? "",
+            campaign_type: ev.campaign_type ?? "",
+            complete: ev.complete ?? false,
+            draft: ev.draft ?? {},
+            questions: ev.questions ?? {},
+            keys_for_form: ev.keys_for_form ?? [],
+            validation_error: ev.validation_error ?? null,
+          });
         }
 
         if (etype === "result") {
