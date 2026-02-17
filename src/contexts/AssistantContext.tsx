@@ -12,13 +12,12 @@ import { streamPixisChat, type PixisTimelineItem, type CampaignDraftData } from 
 import {
   pixisAiSessionsService,
   type PixisSession,
-  type PixisThread,
+  type PixisThreadHistory,
 } from "../services/ai/pixisAiSessions";
 import {
   getSessionActiveDraft,
   draftToCampaignState,
 } from "../services/ai/assistantDrafts";
-import type { CampaignSetupState } from "../types/agent";
 import {
   deriveCampaignStateFromContent,
   isEventStream,
@@ -44,7 +43,7 @@ export interface AssistantScope {
 /** Session with runtime state (messages, etc.) */
 export interface SessionWithMessages extends PixisSession {
   messages?: ChatMessage[];
-  campaignState?: CampaignSetupState;
+  campaignState?: CampaignDraftData;
 }
 
 export type ChatMessage =
@@ -89,10 +88,7 @@ interface AssistantContextType {
   setAssistantScope: (updates: Partial<AssistantScope>) => void;
 
   /** Campaign state from last AI response (e.g. from campaign-setup block) */
-  campaignState: CampaignSetupState | undefined;
-
-  /** Campaign draft data from AI agent (e.g. from campaign-draft event) */
-  campaignDraft: CampaignDraftData | null;
+  campaignState: CampaignDraftData | undefined;
 }
 
 const AssistantContext = createContext<AssistantContextType | undefined>(undefined);
@@ -126,7 +122,6 @@ export const AssistantProvider: React.FC<{
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
-  const [campaignDraft, setCampaignDraft] = useState<CampaignDraftData | null>(null);
 
   const [assistantScope, setAssistantScopeState] = useState<AssistantScope>({
     accountId: null,
@@ -174,21 +169,35 @@ export const AssistantProvider: React.FC<{
     (messages[messages.length - 1] as Extract<ChatMessage, { type: "ai" }>)
       .isStreaming;
 
-  const campaignState = (() => {
-    const fromSession = currentSession?.campaignState as CampaignSetupState | undefined;
-    const lastAi = [...messages].reverse().find((m) => m.type === "ai");
+  // Helper to extract campaign state from messages
+  const extractCampaignStateFromMessages = (msgs: ChatMessage[], fromSession?: CampaignDraftData): CampaignDraftData | undefined => {
+    let fromEvent: CampaignDraftData | undefined;
+    for (const msg of [...msgs].reverse()) {
+      if (msg.type === "ai" && "timeline" in msg && msg.timeline) {
+        const draftEvent = msg.timeline.find(
+          (item) => item.type === "campaign-draft"
+        );
+        if (draftEvent && draftEvent.type === "campaign-draft") {
+          fromEvent = draftEvent.data;
+          break;
+        }
+      }
+    }
+    
+    const lastAi = [...msgs].reverse().find((m) => m.type === "ai");
     const content = lastAi?.type === "ai" ? (lastAi.content || "") : "";
     const derived = content ? deriveCampaignStateFromContent(content) : null;
-    if (!fromSession && !derived) return undefined;
+
+    if (!fromSession && !fromEvent && !derived) return undefined;
     return {
       ...fromSession,
+      ...fromEvent,
       ...derived,
-      current_questions_schema:
-        fromSession?.current_questions_schema?.length
-          ? fromSession.current_questions_schema
-          : derived?.current_questions_schema,
-    } as CampaignSetupState;
-  })();
+    } as CampaignDraftData;
+  };
+
+  const initialcampaignState = extractCampaignStateFromMessages(messages, currentSession?.campaignState as CampaignDraftData | undefined);
+  const [campaignState, setCampaignState] = useState<CampaignDraftData | undefined>(initialcampaignState);
 
   const loadSessions = useCallback(async () => {
     const token = await getAccessToken();
@@ -273,7 +282,7 @@ export const AssistantProvider: React.FC<{
           getSessionActiveDraft(sessionId, token).catch(() => null),
         ]);
         const msgs: ChatMessage[] = [];
-        for (const turn of history as PixisThread[]) {
+        for (const turn of history as PixisThreadHistory[]) {
           if (turn.user_query) {
             msgs.push({
               type: "human",
@@ -295,13 +304,15 @@ export const AssistantProvider: React.FC<{
             });
           }
         }
-        const campaignState = activeDraft
-          ? draftToCampaignState(activeDraft)
-          : undefined;
+        
+        // Use helper to extract campaign state from messages + activeDraft
+        const initialDraft = activeDraft ? draftToCampaignState(activeDraft) : undefined;
+        const _campaignState = extractCampaignStateFromMessages(msgs, initialDraft);
+        setCampaignState(_campaignState);
         setSessions((prev) =>
           prev.map((s) =>
             s.id === sessionId
-              ? { ...s, messages: msgs, campaignState }
+              ? { ...s, messages: msgs, campaignState: _campaignState }
               : s
           )
         );
@@ -468,7 +479,7 @@ export const AssistantProvider: React.FC<{
       };
 
       try {
-        const result = await streamPixisChat(
+        await streamPixisChat(
           {
             query: trimmed,
             session_id: (sessions.find((s) => s.id === currentSessionId) as
@@ -533,7 +544,7 @@ export const AssistantProvider: React.FC<{
             },
             onTimelineItem: updateTimeline,
             onCampaignDraft: (data) => {
-              setCampaignDraft(data);
+              setCampaignState(data);
             },
             onResult: (ev) => {
               const finalContent = ev.full_message ?? "";
@@ -751,7 +762,6 @@ export const AssistantProvider: React.FC<{
         assistantScope,
         setAssistantScope,
         campaignState,
-        campaignDraft,
       }}
     >
       {children}

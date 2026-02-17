@@ -37,11 +37,12 @@ export interface PixisChatParams {
   platform?: string;
 }
 
-/** Timeline item for ordered display: thinking | tool_call | text */
+/** Timeline item for ordered display: thinking | tool_call | text | campaign-draft */
 export type PixisTimelineItem =
   | { type: "thinking" }
   | { type: "tool_call"; label: string }
-  | { type: "text"; content: string };
+  | { type: "text"; content: string }
+  | { type: "campaign-draft"; data: CampaignDraftData };
 
 /** Campaign draft data from AI agent */
 export interface CampaignDraftData {

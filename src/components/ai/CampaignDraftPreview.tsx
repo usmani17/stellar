@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { FileText, ChevronDown, ChevronUp } from "lucide-react";
-import type { CampaignSetupState } from "../../types/agent";
 import { formatCampaignType } from "../../utils/formatDraftLabels";
+import type { CampaignDraftData } from "../../services/ai/pixisChat";
 
 const MAX_VALUE_LENGTH = 48;
 
@@ -24,19 +24,17 @@ function getLabelForKey(
   return humanizeKey(key);
 }
 
-function getDraftPreviewRows(campaignState: CampaignSetupState): { label: string; value: string }[] {
+function getDraftPreviewRows(campaignState: CampaignDraftData): { label: string; value: string }[] {
   const draft = {
-    ...(campaignState.campaign_draft ?? {}),
-    ...(campaignState.draft_setup_json ?? {}),
+    ...(campaignState.draft ?? {}),
     // Include campaign_type from top level if not already in draft (backend may send it separately)
     ...(campaignState.campaign_type != null &&
     campaignState.campaign_type !== "" &&
-    !("campaign_type" in (campaignState.campaign_draft ?? {})) &&
-    !("campaign_type" in (campaignState.draft_setup_json ?? {}))
+    !("campaign_type" in (campaignState.draft ?? {}))
       ? { campaign_type: campaignState.campaign_type }
       : {}),
   };
-  const schema = campaignState.current_questions_schema as Array<{ key?: string; label?: string }> | undefined;
+  const schema = undefined;
   const rows: { label: string; value: string }[] = [];
   for (const [key, raw] of Object.entries(draft)) {
     if (raw == null || raw === "") continue;
@@ -48,7 +46,7 @@ function getDraftPreviewRows(campaignState: CampaignSetupState): { label: string
 }
 
 export interface CampaignDraftPreviewProps {
-  campaignState: CampaignSetupState | undefined;
+  campaignState: CampaignDraftData | undefined;
   visible: boolean;
   onApplyDraft?: (draft: Record<string, unknown>) => void;
   /** accountId and channelId for building draft link (e.g. /brands/:accountId/:channelId/google/campaigns/:draftCampaignId) */
@@ -160,8 +158,8 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
     () => (campaignState ? getDraftPreviewRows(campaignState) : []),
     [campaignState]
   );
-  const validationErrors = campaignState?.validation_errors ?? [];
-  const savedDraftId = campaignState?.saved_draft_id;
+  const validationErrors = campaignState?.validation_error ? [campaignState.validation_error] : [];
+  const savedDraftId = campaignState?.draft_id;
   const canLinkToDraft = !!(savedDraftId && accountId && channelId);
 
   useEffect(() => {

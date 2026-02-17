@@ -94,6 +94,7 @@ export interface CampaignSetupData {
   validation_error: Record<string, string> | null;
 }
 
+
 export function parseCampaignSetupJson(jsonStr: string): CampaignSetupData | null {
   try {
     const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
@@ -204,14 +205,6 @@ export function parseContentWithBlocks(raw: string): ContentSegment[] {
   return segments;
 }
 
-/** Campaign setup state derived from message content. */
-export interface DerivedCampaignSetupState {
-  campaign_draft?: Record<string, unknown>;
-  campaign_type?: string;
-  draft_setup_json?: Record<string, unknown>;
-  validation_errors?: string[];
-  current_questions_schema?: Array<{ key: string; label?: string; type: string; ui_hint: string }>;
-}
 
 /**
  * Find the last campaign-setup block in content and convert to DerivedCampaignSetupState.
@@ -219,54 +212,11 @@ export interface DerivedCampaignSetupState {
  */
 export function deriveCampaignStateFromContent(
   content: string
-): DerivedCampaignSetupState | null {
+): CampaignSetupData | null {
   const segments = parseContentWithBlocks(content);
   const setupSeg = [...segments].reverse().find((s) => s.type === "campaign-setup");
   if (!setupSeg || setupSeg.type !== "campaign-setup") return null;
   const data = setupSeg.data;
 
-  const draftFlat: Record<string, unknown> = {};
-  for (const [entity, fields] of Object.entries(data.draft)) {
-    if (fields && typeof fields === "object") {
-      for (const [key, val] of Object.entries(fields)) {
-        if (val != null && val !== "") {
-          draftFlat[entity ? `${entity}.${key}` : key] = val;
-        }
-      }
-    }
-  }
-
-  const validationErrors: string[] = data.validation_error
-    ? Object.entries(data.validation_error).map(([k, v]) => `${k}: ${v}`)
-    : [];
-
-  const allSchema = Object.entries(data.questions).flatMap(([entity, qs]) =>
-    Object.entries(qs || {}).map(([key, hint]) => ({
-      key: entity ? `${entity}.${key}` : key,
-      label: hint || key,
-      type: "string",
-      ui_hint: "text",
-    }))
-  );
-  const keysForForm =
-    Array.isArray(data.keys_for_form) && data.keys_for_form.length > 0
-      ? new Set(data.keys_for_form)
-      : null;
-  const current_questions_schema =
-    keysForForm === null
-      ? [] // When keys_for_form is empty or missing, do not show the "Fill in the details" form
-      : allSchema.filter((s) => {
-          if (keysForForm.has(s.key)) return true;
-          const leafKey = s.key.split(".").pop() ?? s.key;
-          return keysForForm.has(leafKey);
-        });
-
-  return {
-    campaign_draft: draftFlat,
-    campaign_type: data.campaign_type,
-    draft_setup_json: Object.keys(draftFlat).length > 0 ? draftFlat : undefined,
-    validation_errors: validationErrors.length > 0 ? validationErrors : undefined,
-    current_questions_schema:
-      current_questions_schema.length > 0 ? current_questions_schema : undefined,
-  };
+  return data;
 }

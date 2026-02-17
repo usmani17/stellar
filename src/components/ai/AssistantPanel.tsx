@@ -244,7 +244,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         const formParts =
             schema.length > 0 && Object.keys(formValues).length > 0
                 ? (schema
-                    .map((item) => {
+                    .map((item: any) => {
                         const v = formValues[item];
                         if (v === undefined || v === "") return null;
                         const label = item || item;
@@ -321,7 +321,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         setSessionToDelete(null);
     };
 
-    const questionsSchema = campaignState?.current_questions_schema;
+    const questionsSchema = campaignState?.keys_for_form;
     const hasQuestionsSchema = questionsSchema && questionsSchema.length > 0;
 
     const groupedSessions = groupSessionsByDate(sessions);
@@ -965,22 +965,20 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         )}
 
                         {/* Campaign: validation errors or draft ready (only when saved_draft_id exists) */}
-                        {campaignState && ((campaignState.validation_errors && campaignState.validation_errors.length > 0) || (campaignState.draft_setup_json && Object.keys(campaignState.draft_setup_json).length > 0 && campaignState.saved_draft_id)) && (
+                        {campaignState && ((campaignState.validation_error && campaignState.validation_error.length > 0) || (campaignState.draft && Object.keys(campaignState.draft).length > 0 && campaignState.draft_id)) && (
                             <div className="flex flex-col gap-2 mt-2 p-3 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[10px]">
-                                {campaignState.validation_errors && campaignState.validation_errors.length > 0 && (
+                                {campaignState.validation_error && campaignState.validation_error.length > 0 && (
                                     <div className="text-xs text-red-600">
-                                        {campaignState.validation_errors.map((err: string, i: number) => (
-                                            <div key={i}>{err}</div>
-                                        ))}
+                                          {campaignState.validation_error}
                                     </div>
                                 )}
-                                {campaignState.draft_setup_json && Object.keys(campaignState.draft_setup_json).length > 0 && campaignState.saved_draft_id && (
+                                {campaignState.draft && Object.keys(campaignState.draft).length > 0 && campaignState.draft_id && (
                                     <span className="text-xs text-[#072929]">
                                         Draft ready.
                                         {assistantScope.accountId && assistantScope.channelId ? (
                                             <>{" "}
                                                 <Link
-                                                    to={`/brands/${assistantScope.accountId}/${assistantScope.channelId}/google/campaigns/${campaignState.saved_draft_id}`}
+                                                    to={`/brands/${assistantScope.accountId}/${assistantScope.channelId}/google/campaigns/${campaignState.draft_id}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="text-[#136D6D] font-medium hover:underline"
@@ -999,8 +997,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             <CampaignFormForChat
                                 ref={schemaFormRef}
                                 questionsSchema={questionsSchema as string[]}
-                                campaignDraft={campaignState?.campaign_draft as Record<string, unknown> | undefined}
-                                campaignType={(campaignState?.campaign_draft as Record<string, unknown> | undefined)?.campaign_type as string || campaignState?.campaign_type as string || "SEARCH"}
+                                campaignDraft={campaignState?.draft as Record<string, unknown> | undefined}
+                                campaignType={(campaignState?.draft as Record<string, unknown> | undefined)?.campaign_type as string || campaignState?.campaign_type as string || "SEARCH"}
                                 onSend={sendMessage}
                                 disabled={isLoading || isStreaming}
                                 profileId={assistantScope.profileId ?? undefined}
