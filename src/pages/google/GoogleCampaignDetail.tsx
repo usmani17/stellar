@@ -350,6 +350,39 @@ export const GoogleCampaignDetail: React.FC = () => {
   }, [loading, campaignDetail]);
 
   const [publishDraftLoading, setPublishDraftLoading] = useState(false);
+  const [publishLoadingAdGroupId, setPublishLoadingAdGroupId] = useState<string | number | null>(null);
+
+  const handlePublishAdGroupDraft = async (adgroup: { id: number; adgroup_id?: number; adgroup_name?: string; name?: string }) => {
+    if (!accountId || !channelId || !campaignId) return;
+    const draftId = String(adgroup.adgroup_id ?? adgroup.id);
+    if (!draftId.startsWith("draft-")) return;
+    setPublishLoadingAdGroupId(draftId);
+    try {
+      await googleAdwordsCampaignsService.publishGoogleSearchEntitiesDraft(
+        parseInt(accountId, 10),
+        parseInt(channelId, 10),
+        campaignId,
+        draftId
+      );
+      setErrorModal({ isOpen: true, message: "Draft ad group published successfully.", isSuccess: true });
+      if (loadAdGroups) await loadAdGroups();
+    } catch (err: any) {
+      setErrorModal({ isOpen: true, message: err?.response?.data?.error || err?.message || "Failed to publish draft ad group." });
+    } finally {
+      setPublishLoadingAdGroupId(null);
+    }
+  };
+
+  const handlePublishKeywordDraft = () => {
+    setErrorModal({ isOpen: true, message: "Publish the parent ad group to publish draft keywords.", isSuccess: false });
+  };
+  const handlePublishAdDraft = () => {
+    setErrorModal({ isOpen: true, message: "Publish the parent ad group to publish draft ads.", isSuccess: false });
+  };
+  const handlePublishNegativeKeywordDraft = () => {
+    setErrorModal({ isOpen: true, message: "Publish for draft negative keywords is not yet available.", isSuccess: false });
+  };
+
   const handlePublishDraftFromDetail = async () => {
     if (!accountId || !channelId || !campaignId) return;
     const draftId = String(campaignId);
@@ -1743,6 +1776,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                       setShowDraftsOnlyAdGroups((p) => !p);
                       setAdgroupsCurrentPage(1);
                     }}
+                    onPublishDraft={handlePublishAdGroupDraft}
+                    publishLoadingId={publishLoadingAdGroupId ?? undefined}
                     createButton={
                       campaignDetail?.campaign.advertising_channel_type ===
                         "SEARCH" ||
@@ -1896,6 +1931,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                           setShowDraftsOnlyAds((p) => !p);
                           setAdsCurrentPage(1);
                         }}
+                        onPublishDraft={handlePublishAdDraft}
+                        publishLoadingId={undefined}
                         createButton={
                           campaignDetail?.campaign.advertising_channel_type ===
                             "SEARCH" ? (
@@ -2051,6 +2088,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                         setShowDraftsOnlyKeywords((p) => !p);
                         setKeywordsCurrentPage(1);
                       }}
+                      onPublishDraft={handlePublishKeywordDraft}
+                      publishLoadingId={undefined}
                       createButton={
                         campaignDetail?.campaign.advertising_channel_type ===
                           "SEARCH" ? (
@@ -2145,6 +2184,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                         setShowDraftsOnlyNegativeKeywords((p) => !p);
                         setNegativeKeywordsCurrentPage(1);
                       }}
+                      onPublishDraft={handlePublishNegativeKeywordDraft}
+                      publishLoadingId={undefined}
                       createButton={
                         <CreateGoogleNegativeKeywordSection
                           isOpen={isCreateNegativeKeywordPanelOpen}

@@ -143,14 +143,14 @@ const ROLE_OPTIONS = [
 
 const ROLE_FILTER_OPTIONS = [
   { value: "", label: "All roles" },
-  { value: "owner", label: "Owner" },
+  { value: "admin", label: "Admin" },
   { value: "manager", label: "Manager" },
   { value: "team", label: "Team" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
-  owner: "Owner",
-  admin: "Owner",
+  owner: "Admin",
+  admin: "Admin",
   manager: "Manager",
   team: "Team",
 };
@@ -302,7 +302,7 @@ function AccountUsersContent({
   }, [createPanelOpen, createRole, accountIdNum, accounts]);
 
   const isManagerOrOwner =
-    user?.role === "owner" ||
+    (user?.role as string) === "admin" || user?.role === "owner" ||
     user?.role === "manager" ||
     (user?.role !== "team" && !!user?.workspace?.id);
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -454,7 +454,7 @@ function AccountUsersContent({
     setEditUser(u);
     setEditFirstName(u.first_name || "");
     setEditLastName(u.last_name || "");
-    setEditRole((u.role === "owner" ? "admin" : u.role) as "admin" | "manager" | "team");
+    setEditRole(((u.role as string) === "owner" || (u.role as string) === "admin" ? "admin" : u.role) as "admin" | "manager" | "team");
     setError("");
     setMessage("");
   };
@@ -742,9 +742,9 @@ function AccountUsersContent({
                       <label className="form-label">Role</label>
                       <Dropdown<string>
                         options={
-                          user?.role === "owner"
+                          (user?.role as string) === "admin" || user?.role === "owner"
                             ? [
-                                { value: "admin", label: "Owner" },
+                                { value: "admin", label: "Admin" },
                                 ...ROLE_OPTIONS,
                               ]
                             : ROLE_OPTIONS
@@ -838,7 +838,7 @@ function AccountUsersContent({
                           {u.role === "team" && (
                             <>{u.assigned_integrations_count ?? 0} integration{(u.assigned_integrations_count ?? 0) !== 1 ? "s" : ""}</>
                           )}
-                          {(u.role === "owner" || (u.role !== "manager" && u.role !== "team")) && "—"}
+                          {((u.role as string) === "admin" || u.role === "owner" || (u.role !== "manager" && u.role !== "team")) && "—"}
                         </span>
                       </td>
                       {isManagerOrOwner && (

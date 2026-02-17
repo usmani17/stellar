@@ -132,23 +132,19 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
                 )}
               </button>
             )}
-            {(getStatusWithDefault(row.status).toUpperCase() === CAMPAIGN_STATUS_SAVED_DRAFT || getStatusWithDefault(row.status).toUpperCase() === "DRAFT") ? (
-              <span className="table-edit-link cursor-default">{value}</span>
-            ) : (
-              <a
-                href={navPath}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!e.metaKey && !e.ctrlKey && e.button !== 1) {
-                    e.preventDefault();
-                    navigate(navPath);
-                  }
-                }}
-                className="table-edit-link"
-              >
-                {value}
-              </a>
-            )}
+            <a
+              href={navPath}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!e.metaKey && !e.ctrlKey && e.button !== 1) {
+                  e.preventDefault();
+                  navigate(navPath);
+                }
+              }}
+              className="table-edit-link"
+            >
+              {value}
+            </a>
             {(getStatusWithDefault(row.status).toUpperCase() === CAMPAIGN_STATUS_SAVED_DRAFT || getStatusWithDefault(row.status).toUpperCase() === "DRAFT") && (
               <button
                 type="button"
