@@ -1268,12 +1268,18 @@ export const GoogleCampaigns: React.FC = () => {
         updatePayload.final_url_suffix = newFinalUrlSuffix;
       }
 
-      const originalUrlParams = original.url_custom_parameters || [];
-      const newUrlParams = data.url_custom_parameters || [];
-      if (
-        JSON.stringify(originalUrlParams.sort()) !==
-        JSON.stringify(newUrlParams.sort())
-      ) {
+      const toUrlParamsArray = (v: unknown): Array<{ key: string; value: string }> => {
+        if (Array.isArray(v)) return v;
+        if (v && typeof v === "object" && !Array.isArray(v)) {
+          return Object.entries(v).map(([key, val]) => ({ key, value: String(val ?? "") }));
+        }
+        return [];
+      };
+      const originalUrlParams = toUrlParamsArray(original.url_custom_parameters);
+      const newUrlParams = toUrlParamsArray(data.url_custom_parameters);
+      const sortParams = (arr: Array<{ key: string; value: string }>) =>
+        [...arr].sort((a, b) => (a.key || "").localeCompare(b.key || ""));
+      if (JSON.stringify(sortParams(originalUrlParams)) !== JSON.stringify(sortParams(newUrlParams))) {
         updatePayload.url_custom_parameters = newUrlParams;
       }
 
@@ -1383,6 +1389,23 @@ export const GoogleCampaigns: React.FC = () => {
         }
       }
 
+      // 12. Draft campaigns: no restrictions – send all form fields so backend can persist any field
+      const isDraftCampaign = String(campaignId).startsWith("draft-");
+      if (isDraftCampaign) {
+        const draftPayloadKeys = [
+          "headlines", "descriptions", "long_headlines", "ad_name", "ad_group_name",
+          "video_id", "video_url", "final_url", "business_name", "logo_url", "channel_controls",
+          "name", "status", "start_date", "end_date", "value", "budget_name", "bidding_strategy_type",
+          "tracking_url_template", "final_url_suffix", "url_custom_parameters",
+        ];
+        for (const key of draftPayloadKeys) {
+          const value = (data as Record<string, unknown>)[key];
+          if (value !== undefined) {
+            (updatePayload as Record<string, unknown>)[key] = value;
+          }
+        }
+      }
+
       // Separate PMax assets from campaign update payload
       const pmaxAssets = updatePayload.pmax_assets;
       const campaignUpdatePayload = { ...updatePayload };
@@ -1395,35 +1418,31 @@ export const GoogleCampaigns: React.FC = () => {
       );
       const hasPmaxChanges = !!pmaxAssets;
 
-      // Execute single update if there are changes
-      if (!hasCampaignChanges && !hasPmaxChanges) {
-        // No changes detected, show message and don't close the panel
+      // For non-draft campaigns, require at least one change. Drafts have no restriction.
+      if (!isDraftCampaign && !hasCampaignChanges && !hasPmaxChanges) {
         console.log("No changes detected");
         const errorMessage =
           "No changes detected. Please modify at least one field (name, status, budget, start date, end date, bidding strategy, targeting, network settings, URL tracking, Shopping Settings, or Performance Max assets).";
         setCreateCampaignError(errorMessage);
-
-        // Also show in modal for better visibility
         setErrorModal({
           isOpen: true,
           title: "No Changes",
           message: errorMessage,
           isSuccess: false,
         });
-
         setCreateCampaignLoading(false);
         throw new Error(errorMessage);
       }
 
-      // Update campaign-level fields if there are any changes
-      if (hasCampaignChanges || hasPmaxChanges) {
+      // Proceed with update (for drafts we always allow; for non-drafts we already ensured there are changes)
+      if (hasCampaignChanges || hasPmaxChanges || isDraftCampaign) {
         const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
         if (!channelIdNum || isNaN(channelIdNum)) {
           throw new Error("Channel ID is required");
         }
 
-        // If only PMAX assets changed, include them in the payload
-        let payloadToSend = hasCampaignChanges ? campaignUpdatePayload : updatePayload;
+        // If only PMAX assets changed, include them; for drafts with no other changes send campaign payload (may only have campaignIds)
+        let payloadToSend = hasCampaignChanges || isDraftCampaign ? campaignUpdatePayload : updatePayload;
 
         console.log("Making bulkUpdateGoogleCampaigns call with:", {
           hasCampaignChanges,
@@ -1818,6 +1837,10 @@ export const GoogleCampaigns: React.FC = () => {
         }
       }
       const creation_payload = extra_data?.creation_payload || {};
+      const draft_state = extra_data?.draft_state ?? null;
+      const draft_campaign = draft_state?.campaign && typeof draft_state.campaign === "object" ? draft_state.campaign : {};
+      const draft_ad_group = draft_state?.ad_group && typeof draft_state.ad_group === "object" ? draft_state.ad_group : {};
+      const draft_ad = draft_state?.ad && typeof draft_state.ad === "object" ? draft_state.ad : {};
       const shopping_setting = extra_data.shopping_setting || {};
       const campaignType =
         ((campaignData.campaign_type ||
@@ -1840,46 +1863,60 @@ export const GoogleCampaigns: React.FC = () => {
         (typeof creation_payload.budget_amount === "number" ? creation_payload.budget_amount : undefined) ??
         0;
 
-      // Map campaign data to CreateGoogleCampaignData format using refreshed data and creation_payload for drafts
+      // Map campaign data to CreateGoogleCampaignData format using refreshed data, creation_payload, or draft_state (agent drafts)
       const initial: Partial<CreateGoogleCampaignData> = {
         name:
-          campaignData.name ||
-          campaignData.campaign_name ||
-          row.campaign_name ||
-          creation_payload.name ||
-          "",
-        campaign_type: campaignType,
-        budget_amount: budgetAmount,
-        budget_name: campaignData.budget_name ?? creation_payload.budget_name ?? undefined,
+          draft_campaign.name ??
+          (campaignData.name ||
+            campaignData.campaign_name ||
+            row.campaign_name ||
+            creation_payload.name ||
+            ""),
+        campaign_type: (draft_state?.campaign_type as any) || campaignType,
+        budget_amount:
+          (typeof draft_campaign.budget_amount === "number" ? draft_campaign.budget_amount : undefined) ??
+          budgetAmount,
+        budget_name:
+          (draft_campaign.budget_name as string | undefined) ??
+          campaignData.budget_name ??
+          creation_payload.budget_name ??
+          undefined,
         status:
-          (campaignData.status?.toUpperCase() as any) ||
-          (row.status?.toUpperCase() as any) ||
-          (creation_payload.status?.toUpperCase() as any) ||
-          "PAUSED",
+          (draft_campaign.status?.toUpperCase() as any) ??
+          ((campaignData.status?.toUpperCase() as any) ||
+            (row.status?.toUpperCase() as any) ||
+            (creation_payload.status?.toUpperCase() as any) ||
+            "PAUSED"),
         start_date:
-          parseDateToYYYYMMDD(campaignData.start_date) ||
-          parseDateToYYYYMMDD(row.start_date) ||
-          (creation_payload.start_date ? parseDateToYYYYMMDD(creation_payload.start_date) : undefined) ||
-          undefined,
+          (draft_campaign.start_date ? parseDateToYYYYMMDD(draft_campaign.start_date) : undefined) ??
+          ((parseDateToYYYYMMDD(campaignData.start_date) ||
+            parseDateToYYYYMMDD(row.start_date) ||
+            (creation_payload.start_date ? parseDateToYYYYMMDD(creation_payload.start_date) : undefined)) ??
+            undefined),
         end_date:
-          parseDateToYYYYMMDD(campaignData.end_date) ||
-          parseDateToYYYYMMDD(row.end_date) ||
-          (creation_payload.end_date ? parseDateToYYYYMMDD(creation_payload.end_date) : undefined) ||
-          undefined,
+          (draft_campaign.end_date ? parseDateToYYYYMMDD(draft_campaign.end_date) : undefined) ??
+          ((parseDateToYYYYMMDD(campaignData.end_date) ||
+            parseDateToYYYYMMDD(row.end_date) ||
+            (creation_payload.end_date ? parseDateToYYYYMMDD(creation_payload.end_date) : undefined)) ??
+            undefined),
         // Bidding strategy fields
         bidding_strategy_type:
-          campaignData.bidding_strategy_type ||
-          creation_payload.bidding_strategy_type ||
-          undefined,
+          (draft_campaign.bidding_strategy_type as string) ??
+          (campaignData.bidding_strategy_type ||
+            creation_payload.bidding_strategy_type ||
+            undefined),
         target_cpa_micros: campaignData.target_cpa_micros,
         target_roas: campaignData.target_roas,
         target_impression_share_location: campaignData.target_impression_share_location,
         target_impression_share_location_fraction_micros: campaignData.target_impression_share_location_fraction_micros,
         target_impression_share_cpc_bid_ceiling_micros: campaignData.target_impression_share_cpc_bid_ceiling_micros,
         // UTM parameters
-        tracking_url_template: campaignData.tracking_url_template || undefined,
-        final_url_suffix: campaignData.final_url_suffix || undefined,
-        url_custom_parameters: campaignData.url_custom_parameters || undefined,
+        tracking_url_template:
+          (draft_campaign.tracking_url_template as string) ?? campaignData.tracking_url_template ?? undefined,
+        final_url_suffix:
+          (draft_campaign.final_url_suffix as string) ?? campaignData.final_url_suffix ?? undefined,
+        url_custom_parameters:
+          (draft_campaign.url_custom_parameters as any) ?? campaignData.url_custom_parameters ?? undefined,
         // Targeting fields
         location_ids: campaignData.location_ids || [],
         excluded_location_ids: campaignData.excluded_location_ids || [],
@@ -1979,6 +2016,32 @@ export const GoogleCampaigns: React.FC = () => {
         // Ensure arrays for Demand Gen form
         if (!initial.headlines || !Array.isArray(initial.headlines)) initial.headlines = [""];
         if (!initial.descriptions || !Array.isArray(initial.descriptions)) initial.descriptions = [""];
+      }
+
+      // When draft was created by agent, extra_data.draft_state has full payload (campaign, ad_group, ad). Populate form so all fields are visible.
+      if (draft_state && (Object.keys(draft_campaign).length > 0 || Object.keys(draft_ad_group).length > 0 || Object.keys(draft_ad).length > 0)) {
+        if (draft_ad_group.ad_group_name != null) initial.ad_group_name = String(draft_ad_group.ad_group_name);
+        if (draft_ad.ad_name != null) initial.ad_name = String(draft_ad.ad_name);
+        if (draft_ad.video_id != null) initial.video_id = String(draft_ad.video_id);
+        if (draft_ad.video_url != null) initial.video_url = String(draft_ad.video_url);
+        if (draft_ad.final_url != null) initial.final_url = String(draft_ad.final_url);
+        if (draft_ad.business_name != null) initial.business_name = String(draft_ad.business_name);
+        if (draft_ad.logo_url != null) initial.logo_url = String(draft_ad.logo_url);
+        if (draft_ad.headlines && Array.isArray(draft_ad.headlines)) initial.headlines = draft_ad.headlines;
+        if (draft_ad.descriptions && Array.isArray(draft_ad.descriptions)) initial.descriptions = draft_ad.descriptions;
+        if (draft_ad.long_headlines && Array.isArray(draft_ad.long_headlines)) initial.long_headlines = draft_ad.long_headlines;
+        if (draft_ad.channel_controls && typeof draft_ad.channel_controls === "object") {
+          initial.channel_controls = { ...initial.channel_controls, ...draft_ad.channel_controls };
+        }
+        if (draft_campaign.final_url_suffix != null) initial.final_url_suffix = String(draft_campaign.final_url_suffix);
+        if (draft_campaign.tracking_url_template != null) initial.tracking_url_template = String(draft_campaign.tracking_url_template);
+        if (draft_campaign.url_custom_parameters != null && typeof draft_campaign.url_custom_parameters === "object") {
+          initial.url_custom_parameters = draft_campaign.url_custom_parameters;
+        }
+        if (campaignType === "DEMAND_GEN") {
+          if (!initial.headlines || !Array.isArray(initial.headlines)) initial.headlines = [""];
+          if (!initial.descriptions || !Array.isArray(initial.descriptions)) initial.descriptions = [""];
+        }
       }
 
       setInitialCampaignData(initial);

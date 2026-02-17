@@ -7,7 +7,7 @@ import { FilterPanel, type FilterValues } from "../../../../components/filters/F
 import type { GoogleAd } from "./GoogleTypes";
 import { formatCurrency2Decimals, formatPercentage as formatPercentageUtil } from "../../utils/campaignDetailHelpers";
 import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal";
-import { TrashIcon } from "lucide-react";
+import { TrashIcon, Send } from "lucide-react";
 import { googleAdwordsAdsService } from "../../../../services/googleAdwords/googleAdwordsAds";
 import {
   BulkUpdateConfirmationModal,
@@ -53,6 +53,8 @@ interface GoogleCampaignDetailAdsTabProps {
   formatPercentage?: (value: number | string | undefined) => string;
   showDraftsOnly?: boolean;
   onToggleDraftsOnly?: () => void;
+  onPublishDraft?: (ad: GoogleAd) => void;
+  publishLoadingId?: string | number;
 }
 
 export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProps> = ({
@@ -88,7 +90,13 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
   formatPercentage = formatPercentageUtil,
   showDraftsOnly = false,
   onToggleDraftsOnly,
+  onPublishDraft,
+  publishLoadingId,
 }) => {
+  const isDraftAd = (a: GoogleAd) => {
+    const s = (a.status || "").toUpperCase();
+    return s === "SAVED_DRAFT" || s === "DRAFT" || String(a.ad_id ?? a.id).startsWith("draft-");
+  };
   const [editingAdId, setEditingAdId] = useState<number | null>(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
   // Modal state for status changes - matches Amazon pattern
@@ -601,9 +609,29 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                         </div>
                       </td>
                       <td className="table-cell">
+                        <div className="flex items-center gap-1">
                         <span className="table-text leading-[1.26]">
                           {ad.ad_type || "—"}
                         </span>
+                        {onPublishDraft && isDraftAd(ad) && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPublishDraft(ad);
+                            }}
+                            className="table-edit-icon flex-shrink-0 cursor-pointer !opacity-100 pointer-events-auto"
+                            title="Publish draft to Google Ads"
+                            disabled={publishLoadingId === ad.id || publishLoadingId === ad.ad_id}
+                          >
+                            {publishLoadingId === ad.id || publishLoadingId === ad.ad_id ? (
+                              <Loader size="sm" showMessage={false} />
+                            ) : (
+                              <Send className="w-4 h-4 text-[#136D6D]" aria-hidden />
+                            )}
+                          </button>
+                        )}
+                        </div>
                       </td>
                       <td className="table-cell hidden lg:table-cell min-w-[200px]">
                         <span className="table-text leading-[1.26]">

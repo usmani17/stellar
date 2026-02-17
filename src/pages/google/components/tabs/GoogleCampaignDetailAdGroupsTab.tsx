@@ -17,7 +17,7 @@ import {
   STATUS_DROPDOWN_OPTIONS,
 } from "../../utils/googleAdsUtils";
 import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal";
-import { TrashIcon } from "lucide-react";
+import { TrashIcon, Send } from "lucide-react";
 import {
   BulkUpdateConfirmationModal,
   type BulkUpdatePreviewRow,
@@ -64,6 +64,8 @@ interface GoogleCampaignDetailAdGroupsTabProps {
   createPanel?: React.ReactNode;
   showDraftsOnly?: boolean;
   onToggleDraftsOnly?: () => void;
+  onPublishDraft?: (adgroup: GoogleAdGroup) => void;
+  publishLoadingId?: string | number;
 }
 
 export const GoogleCampaignDetailAdGroupsTab: React.FC<
@@ -101,7 +103,13 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
   createPanel,
   showDraftsOnly = false,
   onToggleDraftsOnly,
+  onPublishDraft,
+  publishLoadingId,
 }) => {
+    const isDraftAdGroup = (ag: GoogleAdGroup) => {
+      const s = (ag.status || "").toUpperCase();
+      return s === "SAVED_DRAFT" || s === "DRAFT" || String(ag.adgroup_id ?? ag.id).startsWith("draft-");
+    };
     const [editingAdGroupId, setEditingAdGroupId] = useState<number | null>(null);
     const [editingField, setEditingField] = useState<"status" | "bid" | "name" | null>(
       null
@@ -1035,6 +1043,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                           </div>
                         </td>
                         <td className="table-cell min-w-[250px] max-w-[300px]">
+                          <div className="flex items-center gap-1">
                           {(() => {
                             if (isRemoved) {
                               return (
@@ -1113,6 +1122,25 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                               />
                             );
                           })()}
+                          {onPublishDraft && isDraftAdGroup(adgroup) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onPublishDraft(adgroup);
+                              }}
+                              className="table-edit-icon flex-shrink-0 cursor-pointer !opacity-100 pointer-events-auto"
+                              title="Publish draft to Google Ads"
+                              disabled={publishLoadingId === adgroup.id || publishLoadingId === adgroup.adgroup_id}
+                            >
+                              {publishLoadingId === adgroup.id || publishLoadingId === adgroup.adgroup_id ? (
+                                <Loader size="sm" showMessage={false} />
+                              ) : (
+                                <Send className="w-4 h-4 text-[#136D6D]" aria-hidden />
+                              )}
+                            </button>
+                          )}
+                          </div>
                         </td>
                         <td className="table-cell hidden md:table-cell w-[150px] max-w-[150px]">
                           {(() => {
