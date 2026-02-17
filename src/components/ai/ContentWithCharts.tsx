@@ -60,57 +60,22 @@ function CampaignSetupBlock({ data }: { data: CampaignSetupData }) {
   } as CampaignSetupState;
 
   return (
-    <div className="my-4 p-4 bg-indigo-50/50 border border-indigo-200 rounded-xl text-sm">
-      <div className="flex items-center gap-2 mb-3">
+      
+      <CampaignDraftPreview
+        campaignState={campaignState}
+        visible={!complete}
+        layout="expandable"
+        title={<div className="flex items-center gap-2 mb-3">
         <strong className="text-gray-900">
-          {platform} · {campaign_type}
+         Draft for {platform} · {campaign_type}
         </strong>
         {complete && (
           <span className="text-xs text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded font-medium">
             Complete
           </span>
         )}
-      </div>
-      {tableRows.length > 0 && (
-        <div className="overflow-x-auto mb-3">
-          <table className="min-w-full border border-gray-200 rounded">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="border border-gray-200 px-3 py-2 text-left text-xs font-medium text-gray-600">
-                  Entity
-                </th>
-                <th className="border border-gray-200 px-3 py-2 text-left text-xs font-medium text-gray-600">
-                  Field
-                </th>
-                <th className="border border-gray-200 px-3 py-2 text-left text-xs font-medium text-gray-600">
-                  Value
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {tableRows.map((r, i) => (
-                <tr key={i}>
-                  <td className="border border-gray-200 px-3 py-2 text-gray-700">
-                    {r.entity}
-                  </td>
-                  <td className="border border-gray-200 px-3 py-2 text-gray-700">
-                    {r.field}
-                  </td>
-                  <td className="border border-gray-200 px-3 py-2 text-gray-700">
-                    {r.value}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <CampaignDraftPreview
-        campaignState={campaignState}
-        visible={!complete}
-        layout="expandable"
+      </div>}
       />
-    </div>
   );
 }
 
@@ -129,7 +94,7 @@ export function ContentWithCharts({ content, type = "ai" }: ContentWithChartsPro
   const segments = parseContentWithBlocks(content);
 
   return (
-    <span className="block whitespace-pre-wrap text-left">
+    <div className="block text-left space-y-4">
       {segments.map((seg, i) =>
         seg.type === "markdown" ? (
           <StellarMarkDown key={i} content={seg.content} type={type} />
@@ -139,6 +104,6 @@ export function ContentWithCharts({ content, type = "ai" }: ContentWithChartsPro
           <CampaignSetupBlock key={i} data={seg.data} />
         ) : null
       )}
-    </span>
+    </div>
   );
 }

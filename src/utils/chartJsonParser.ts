@@ -121,6 +121,62 @@ export function parseCampaignSetupJson(jsonStr: string): CampaignSetupData | nul
   }
 }
 
+const EVENT_STREAM_TYPES = new Set([
+  "system",
+  "user",
+  "assistant",
+  "tool_call",
+  "result",
+  "campaign-draft",
+]);
+
+/**
+ * Detect if value is a JSON array of agent events (event stream format).
+ */
+export function isEventStream(value: string): boolean {
+  if (!value || typeof value !== "string") return false;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed) || parsed.length === 0) return false;
+    const first = parsed[0] as Record<string, unknown>;
+    return (
+      first &&
+      typeof first === "object" &&
+      typeof first.type === "string" &&
+      EVENT_STREAM_TYPES.has(first.type)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Extract display text from event stream for rendering.
+ * Uses result event's full_message/result, or concatenates assistant text chunks.
+ */
+export function extractDisplayContentFromEvents(events: unknown[]): string {
+  if (!Array.isArray(events)) return "";
+  const evArr = events as Array<Record<string, unknown>>;
+  const resultEv = [...evArr].reverse().find((e) => e.type === "result");
+  let out = "";
+  if (resultEv) {
+    const full = resultEv.full_message ?? resultEv.result;
+    if (typeof full === "string") out = full;
+  }
+  if (!out) {
+    const parts: string[] = [];
+    for (const ev of evArr) {
+      if (ev.type === "assistant") {
+        const content = ev.message as { content?: Array<{ text?: string }> } | undefined;
+        const text = content?.content?.[0]?.text;
+        if (typeof text === "string") parts.push(text);
+      }
+    }
+    out = parts.join("");
+  }
+  return out;
+}
+
 export function parseContentWithBlocks(raw: string): ContentSegment[] {
   const segments: ContentSegment[] = [];
   let lastIndex = 0;
@@ -192,14 +248,18 @@ export function deriveCampaignStateFromContent(
       ui_hint: "text",
     }))
   );
-  const keysForForm = data.keys_for_form?.length ? new Set(data.keys_for_form) : null;
-  const current_questions_schema = keysForForm
-    ? allSchema.filter((s) => {
-        if (keysForForm.has(s.key)) return true;
-        const leafKey = s.key.split(".").pop() ?? s.key;
-        return keysForForm.has(leafKey);
-      })
-    : allSchema;
+  const keysForForm =
+    Array.isArray(data.keys_for_form) && data.keys_for_form.length > 0
+      ? new Set(data.keys_for_form)
+      : null;
+  const current_questions_schema =
+    keysForForm === null
+      ? [] // When keys_for_form is empty or missing, do not show the "Fill in the details" form
+      : allSchema.filter((s) => {
+          if (keysForForm.has(s.key)) return true;
+          const leafKey = s.key.split(".").pop() ?? s.key;
+          return keysForForm.has(leafKey);
+        });
 
   return {
     campaign_draft: draftFlat,

@@ -3,9 +3,6 @@ import { useAssistant, ASSISTANT_PANEL_VIEW } from "../../contexts/AssistantCont
 import { GripVertical } from "lucide-react";
 import { AssistantPanel } from "../ai/AssistantPanel";
 
-/** Re-export campaign form used in the Assistant chat. Uses campaign form components with dropdowns (merchant, bidding, etc.). */
-export { CampaignFormForChat } from "../ai/CampaignFormForChat";
-export type { CampaignFormForChatHandle, CampaignFormForChatProps } from "../ai/CampaignFormForChat";
 
 const DEFAULT_PANEL_WIDTH = 550;
 const MIN_PANEL_WIDTH = 380;

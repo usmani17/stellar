@@ -55,6 +55,7 @@ export interface CampaignDraftPreviewProps {
   accountId?: string;
   channelId?: string;
   className?: string;
+  title?: React.ReactNode;
   /** "dropdown" = floating panel on click; "expandable" = inline expand/collapse below the trigger */
   layout?: "dropdown" | "expandable";
 }
@@ -148,6 +149,7 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
   accountId,
   channelId,
   className = "",
+  title,
   layout = "dropdown",
 }) => {
   const [open, setOpen] = useState(false);
@@ -197,7 +199,7 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
 
   if (layout === "expandable") {
     return (
-      <div ref={wrapperRef} className={`mt-3 w-full ${className}`}>
+      <div ref={wrapperRef} className={`hidden mt-3 w-full ${className}`}>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -208,7 +210,7 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
         >
           <span className="flex items-center gap-1.5">
             <FileText className="w-5 h-5 shrink-0 text-[#136D6D]" />
-            <span className="text-xs font-medium text-[#072929]">Draft</span>
+            <span className="text-xs font-medium text-[#072929]">{title || "Draft"}</span>
           </span>
           {open ? (
             <ChevronUp className="w-4 h-4 text-[#556179] shrink-0" />
@@ -233,7 +235,7 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
   }
 
   return (
-    <div ref={wrapperRef} className={`relative ${className}`}>
+    <div ref={wrapperRef} className={`hidden relative ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

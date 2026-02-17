@@ -12,7 +12,7 @@ import {
 import { useAccountsPaginated } from "../hooks/queries/useAccountsPaginated";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
-import { Button, Card, DeleteConfirmationModal, Loader, Menu } from "../components/ui";
+import { Button, Card, DeleteConfirmationModal, Loader } from "../components/ui";
 import { Banner } from "../components/ui/Banner";
 import { GOOGLE_ONLY_UI } from "../constants/featureFlags";
 import AmazonIcon from "../assets/images/amazon-fill.svg";
@@ -310,12 +310,6 @@ export const Accounts: React.FC = () => {
     </svg>
   );
 
-  const AssignUserIcon = () => (
-    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M16 7c0-2.21-1.79-4-4-4S8 4.79 8 7s1.79 4 4 4 4-1.79 4-4zm-4 6c-3.31 0-6 2.69-6 6v2h12v-2c0-3.31-2.69-6-6-6z" />
-    </svg>
-  );
-
   const DeleteIcon = () => (
     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
       <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
@@ -547,7 +541,7 @@ export const Accounts: React.FC = () => {
                                 onClick={() => setShowCreateAccount(true)}
                                 className="rounded-lg"
                               >
-                                Create Your First Account
+                                Create Your First Brand
                               </Button>
                             </div>
                           )}
@@ -754,50 +748,32 @@ export const Accounts: React.FC = () => {
                                         Integrations
                                       </span>
                                     </Button>
-                                    <div className="relative z-30">
-                                      <Menu
-                                        items={[
-                                          {
-                                            label: "Assign User",
-                                            icon: <AssignUserIcon />,
-                                            onClick: () => {
-                                              alert(
-                                                "Assign User functionality coming soon"
-                                              );
-                                            },
-                                          },
-                                          {
-                                            label: "Delete",
-                                            icon: <DeleteIcon />,
-                                            onClick: () =>
-                                              handleDeleteAccount(account.id),
-                                          },
-                                        ]}
-                                      />
-                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleDeleteAccount(account.id)
+                                      }
+                                      disabled={isDeleting}
+                                      className="p-2 rounded-lg text-[#556179] hover:bg-gray-100 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title="Delete"
+                                      aria-label="Delete"
+                                    >
+                                      <DeleteIcon />
+                                    </button>
                                   </>
                                 ) : (
-                                  <div className="relative z-30">
-                                    <Menu
-                                      items={[
-                                        {
-                                          label: "Assign User",
-                                          icon: <AssignUserIcon />,
-                                          onClick: () => {
-                                            alert(
-                                              "Assign User functionality coming soon"
-                                            );
-                                          },
-                                        },
-                                        {
-                                          label: "Delete",
-                                          icon: <DeleteIcon />,
-                                          onClick: () =>
-                                            handleDeleteAccount(account.id),
-                                        },
-                                      ]}
-                                    />
-                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleDeleteAccount(account.id)
+                                    }
+                                    disabled={isDeleting}
+                                    className="p-2 rounded-lg text-[#556179] hover:bg-gray-100 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Delete"
+                                    aria-label="Delete"
+                                  >
+                                    <DeleteIcon />
+                                  </button>
                                 )}
                               </div>
                             </td>
