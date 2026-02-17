@@ -248,12 +248,15 @@ export function deriveCampaignStateFromContent(
       ui_hint: "text",
     }))
   );
-  const keysForForm = Array.isArray(data.keys_for_form) ? new Set(data.keys_for_form) : null;
+  const keysForForm =
+    Array.isArray(data.keys_for_form) && data.keys_for_form.length > 0
+      ? new Set(data.keys_for_form)
+      : null;
   const current_questions_schema = keysForForm
     ? allSchema.filter((s) => {
-        if (keysForForm.has(s.key)) return true;
+        if (keysForForm!.has(s.key)) return true;
         const leafKey = s.key.split(".").pop() ?? s.key;
-        return keysForForm.has(leafKey);
+        return keysForForm!.has(leafKey);
       })
     : allSchema;
 

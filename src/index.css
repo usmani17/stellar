@@ -1390,6 +1390,11 @@ body input[type="submit"]:disabled {
   margin-bottom: 0;
 }
 
+/* Hide redundant hr when draft preview is hidden (agent often adds --- before campaign-setup) */
+.assistant-message-content:has(.hidden) hr {
+  display: none;
+}
+
 /* AI message tables */
 .assistant-message-content .assistant-table,
 .assistant-table {

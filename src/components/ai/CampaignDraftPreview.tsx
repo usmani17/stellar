@@ -199,7 +199,7 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
 
   if (layout === "expandable") {
     return (
-      <div ref={wrapperRef} className={`mt-3 w-full ${className}`}>
+      <div ref={wrapperRef} className={`hidden mt-3 w-full ${className}`}>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -235,7 +235,7 @@ export const CampaignDraftPreview: React.FC<CampaignDraftPreviewProps> = ({
   }
 
   return (
-    <div ref={wrapperRef} className={`relative ${className}`}>
+    <div ref={wrapperRef} className={`hidden relative ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
