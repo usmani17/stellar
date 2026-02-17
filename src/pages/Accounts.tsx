@@ -532,8 +532,8 @@ export const Accounts: React.FC = () => {
                         <td colSpan={isTeam ? 4 : 5} className="table-cell text-center py-8">
                           <p className="text-[14px] text-[#556179] mb-4">
                             {searchQuery
-                              ? "No accounts found"
-                              : "No accounts yet"}
+                              ? "No brands found"
+                              : "No brands yet"}
                           </p>
                           {!searchQuery && !isTeam && (
                             <div className="flex justify-center">
@@ -541,7 +541,7 @@ export const Accounts: React.FC = () => {
                                 onClick={() => setShowCreateAccount(true)}
                                 className="rounded-lg"
                               >
-                                Create Your First Brand
+                                Create your first brand
                               </Button>
                             </div>
                           )}
@@ -789,10 +789,10 @@ export const Accounts: React.FC = () => {
                 updateAccountMutation.isPending ||
                 deleteAccountMutation.isPending ||
                 (isFetching && accounts.length > 0)) && (
-                <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
-                  <Loader size="md" message="Loading accounts..." />
-                </div>
-              )}
+                  <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
+                    <Loader size="md" message="Loading accounts..." />
+                  </div>
+                )}
             </div>
 
             {/* Pagination - outside table container, same as campaigns page */}
@@ -822,11 +822,10 @@ export const Accounts: React.FC = () => {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                          currentPage === pageNum
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
                             ? "bg-white text-[#136D6D] font-semibold"
                             : "text-black hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         {pageNum}
                       </button>
