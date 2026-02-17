@@ -11,6 +11,7 @@ import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { Button, Menu, DeleteConfirmationModal, Loader } from "../components/ui";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
+import { GOOGLE_ONLY_UI } from "../constants/featureFlags";
 import AmazonIcon from "../assets/images/amazon-fill.svg";
 import GoogleIcon from "../assets/images/ri_google-fill.svg";
 import MetaIcon from "../assets/images/mingcute_meta-line.svg";
@@ -359,59 +360,76 @@ export const Channels: React.FC = () => {
                         <span>{isConnecting ? "Connecting..." : "Connect"}</span>
                       </Button>
                     }
-                    items={[
-                      {
-                        label: "Amazon",
-                        icon: (
-                          <img
-                            src={AmazonIcon}
-                            alt="Amazon"
-                            className="w-5 h-5"
-                          />
-                        ),
-                        onClick: handleConnectAmazon,
-                        disabled: isConnecting,
-                      },
-                      {
-                        label: "Google",
-                        icon: (
-                          <img
-                            src={GoogleIcon}
-                            alt="Google"
-                            className="w-5 h-5"
-                          />
-                        ),
-                        onClick: handleConnectGoogle,
-                        disabled: isConnecting,
-                      },
-                      {
-                        label: "TikTok",
-                        icon: (
-                          <svg
-                            className="w-5 h-5"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-                          </svg>
-                        ),
-                        onClick: handleConnectTikTok,
-                        disabled: isConnecting,
-                      },
-                      {
-                        label: "Meta",
-                        icon: (
-                          <img
-                            src={MetaIcon}
-                            alt="Meta"
-                            className="w-5 h-5"
-                          />
-                        ),
-                        onClick: handleConnectMeta,
-                        disabled: isConnecting,
-                      },
-                    ]}
+                    items={
+                      GOOGLE_ONLY_UI
+                        ? [
+                            {
+                              label: "Google",
+                              icon: (
+                                <img
+                                  src={GoogleIcon}
+                                  alt="Google"
+                                  className="w-5 h-5"
+                                />
+                              ),
+                              onClick: handleConnectGoogle,
+                              disabled: isConnecting,
+                            },
+                          ]
+                        : [
+                            {
+                              label: "Amazon",
+                              icon: (
+                                <img
+                                  src={AmazonIcon}
+                                  alt="Amazon"
+                                  className="w-5 h-5"
+                                />
+                              ),
+                              onClick: handleConnectAmazon,
+                              disabled: isConnecting,
+                            },
+                            {
+                              label: "Google",
+                              icon: (
+                                <img
+                                  src={GoogleIcon}
+                                  alt="Google"
+                                  className="w-5 h-5"
+                                />
+                              ),
+                              onClick: handleConnectGoogle,
+                              disabled: isConnecting,
+                            },
+                            {
+                              label: "TikTok",
+                              icon: (
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                                </svg>
+                              ),
+                              onClick: handleConnectTikTok,
+                              disabled: isConnecting,
+                            },
+                            {
+                              label: "Meta",
+                              icon: (
+                                <img
+                                  src={MetaIcon}
+                                  alt="Meta"
+                                  className="w-5 h-5"
+                                />
+                              ),
+                              onClick: handleConnectMeta,
+                              disabled: isConnecting,
+                            },
+                          ]
+                    }
                     align="left"
                   />
                 )}
