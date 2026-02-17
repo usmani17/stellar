@@ -5,7 +5,7 @@ export interface WorkspaceUser {
   email: string;
   first_name: string;
   last_name: string;
-  role: 'owner' | 'manager' | 'team';
+  role: 'owner' | 'admin' | 'manager' | 'team';
   assigned_brands_count?: number;
   assigned_integrations_count?: number;
   /** Manager: account IDs already assigned to this user (for assign-brands modal). */

@@ -1043,7 +1043,8 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                           </div>
                         </td>
                         <td className="table-cell min-w-[250px] max-w-[300px]">
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <div className="flex-1 min-w-0">
                           {(() => {
                             if (isRemoved) {
                               return (
@@ -1122,14 +1123,17 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                               />
                             );
                           })()}
+                            </div>
                           {onPublishDraft && isDraftAdGroup(adgroup) && (
                             <button
                               type="button"
                               onClick={(e) => {
+                                e.preventDefault();
                                 e.stopPropagation();
                                 onPublishDraft(adgroup);
                               }}
-                              className="table-edit-icon flex-shrink-0 cursor-pointer !opacity-100 pointer-events-auto"
+                              className="shrink-0 p-1 rounded cursor-pointer opacity-100 hover:bg-gray-100 border-0 bg-transparent inline-flex items-center justify-center"
+                              style={{ pointerEvents: 'auto' }}
                               title="Publish draft to Google Ads"
                               disabled={publishLoadingId === adgroup.id || publishLoadingId === adgroup.adgroup_id}
                             >

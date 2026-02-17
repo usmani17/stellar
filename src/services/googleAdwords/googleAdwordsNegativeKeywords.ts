@@ -108,6 +108,28 @@ export const googleAdwordsNegativeKeywordsService = {
     return response.data;
   },
 
+  /** Publish a draft negative keyword: creates in Google Ads and removes draft row. */
+  publishDraftNegativeKeyword: async (
+    accountId: number,
+    channelId: number,
+    campaignId: string,
+    draftCriterionId: string
+  ): Promise<{ criterion_id?: string; resource_name?: string; level?: string }> => {
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/negative-keywords/create/`;
+    const response = await api.post(url, { publish_draft_id: draftCriterionId });
+    return response.data;
+  },
+
+  updateDraftNegativeKeyword: async (
+    accountId: number,
+    channelId: number,
+    payload: { draft_id: string; text?: string; match_type?: string }
+  ): Promise<{ updated: boolean; criterion_id: string; level?: string }> => {
+    const url = `/google-adwords/${accountId}/channels/${channelId}/negative-keywords/update-draft/`;
+    const response = await api.patch(url, payload);
+    return response.data;
+  },
+
   bulkUpdateGoogleNegativeKeywords: async (
     accountId: number,
     channelId: number,

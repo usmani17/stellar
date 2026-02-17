@@ -9,7 +9,7 @@ export interface Workspace {
   updated_at: string;
 }
 
-export type UserRole = 'owner' | 'manager' | 'team';
+export type UserRole = 'owner' | 'admin' | 'manager' | 'team';
 
 export interface User {
   id: number;

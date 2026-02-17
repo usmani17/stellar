@@ -188,4 +188,26 @@ export const googleAdwordsAdsService = {
     const response = await api.post(url, payload);
     return response.data;
   },
+
+  /** Publish a draft Demand Gen ad: creates in Google Ads and removes draft row. */
+  publishDemandGenDraftAd: async (
+    accountId: number,
+    channelId: number,
+    campaignId: string | number,
+    draftAdId: string
+  ): Promise<{ ad?: { id?: string; resource_name?: string }; errors?: string[] }> => {
+    const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${String(campaignId)}/demand-gen-entities/create/`;
+    const response = await api.post(url, { ad_id: draftAdId });
+    return response.data;
+  },
+
+  updateDraftAd: async (
+    accountId: number,
+    channelId: number,
+    payload: { draft_id: string; ad: Record<string, unknown> }
+  ): Promise<{ updated: boolean; ad_id: string }> => {
+    const url = `/google-adwords/${accountId}/channels/${channelId}/ads/update-draft/`;
+    const response = await api.patch(url, payload);
+    return response.data;
+  },
 };

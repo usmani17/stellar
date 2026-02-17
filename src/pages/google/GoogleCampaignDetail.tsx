@@ -55,10 +55,15 @@ import { CreateGoogleNegativeKeywordSection } from "../../components/google/Crea
 import { CreateGoogleDemandGenAdSection } from "../../components/google/CreateGoogleDemandGenAdSection";
 import { CreateGoogleDemandGenAdPanel } from "../../components/google/CreateGoogleDemandGenAdPanel";
 import { ErrorModal } from "../../components/ui/ErrorModal";
+import { ConfirmationModal } from "../../components/ui/ConfirmationModal";
 import { Loader } from "../../components/ui/Loader";
 import { Send } from "lucide-react";
+import { CreateGoogleCampaignPanel } from "../../components/google/CreateGoogleCampaignPanel";
+import type { CreateGoogleCampaignData } from "../../components/google/campaigns/types";
 import { CAMPAIGN_STATUS_SAVED_DRAFT } from "../../constants/google";
 import { googleAdwordsAdsService } from "../../services/googleAdwords/googleAdwordsAds";
+import { googleAdwordsKeywordsService } from "../../services/googleAdwords/googleAdwordsKeywords";
+import { googleAdwordsNegativeKeywordsService } from "../../services/googleAdwords/googleAdwordsNegativeKeywords";
 import {
   formatCurrency2Decimals,
   formatPercentage,
@@ -350,40 +355,122 @@ export const GoogleCampaignDetail: React.FC = () => {
   }, [loading, campaignDetail]);
 
   const [publishDraftLoading, setPublishDraftLoading] = useState(false);
-  const [publishLoadingAdGroupId, setPublishLoadingAdGroupId] = useState<string | number | null>(null);
+  const [isDraftCampaignEditPanelOpen, setIsDraftCampaignEditPanelOpen] = useState(false);
+  const [draftCampaignFormLoading, setDraftCampaignFormLoading] = useState(false);
 
-  const handlePublishAdGroupDraft = async (adgroup: { id: number; adgroup_id?: number; adgroup_name?: string; name?: string }) => {
-    if (!accountId || !channelId || !campaignId) return;
-    const draftId = String(adgroup.adgroup_id ?? adgroup.id);
-    if (!draftId.startsWith("draft-")) return;
-    setPublishLoadingAdGroupId(draftId);
+  // Publish draft sub-entity: show confirmation then call same creation endpoint (backend creates in Google and removes draft row)
+  type PublishDraftEntity =
+    | { type: "ad_group"; entity: { id: number; adgroup_id?: number; adgroup_name?: string; name?: string } }
+    | { type: "keyword"; entity: { id: number; keyword_id?: number; keyword_text?: string } }
+    | { type: "ad"; entity: { id: number; ad_id?: number; ad_type?: string } }
+    | { type: "negative_keyword"; entity: { id: number; criterion_id?: string; keyword_text?: string } };
+  const [publishDraftEntity, setPublishDraftEntity] = useState<PublishDraftEntity | null>(null);
+  const [publishDraftSubmitting, setPublishDraftSubmitting] = useState(false);
+
+  const handlePublishAdGroupDraft = (adgroup: { id: number; adgroup_id?: number; adgroup_name?: string; name?: string }) => {
+    setPublishDraftEntity({ type: "ad_group", entity: adgroup });
+  };
+  const handlePublishKeywordDraft = (keyword: { id: number; keyword_id?: number; keyword_text?: string }) => {
+    setPublishDraftEntity({ type: "keyword", entity: keyword });
+  };
+  const handlePublishAdDraft = (ad: { id: number; ad_id?: number; ad_type?: string }) => {
+    setPublishDraftEntity({ type: "ad", entity: ad });
+  };
+  const handlePublishNegativeKeywordDraft = (n: { id: number; criterion_id?: string; keyword_text?: string }) => {
+    setPublishDraftEntity({ type: "negative_keyword", entity: n });
+  };
+
+  const runPublishDraftEntity = async () => {
+    if (!publishDraftEntity || !accountId || !channelId || !campaignId) return;
+    setPublishDraftSubmitting(true);
     try {
-      await googleAdwordsCampaignsService.publishGoogleSearchEntitiesDraft(
-        parseInt(accountId, 10),
-        parseInt(channelId, 10),
-        campaignId,
-        draftId
-      );
-      setErrorModal({ isOpen: true, message: "Draft ad group published successfully.", isSuccess: true });
-      if (loadAdGroups) await loadAdGroups();
+      const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = parseInt(channelId, 10);
+      if (publishDraftEntity.type === "ad_group") {
+        const campaignIdStr = String(campaignId ?? "");
+        if (campaignIdStr.toLowerCase().startsWith("draft-")) {
+          setErrorModal({ isOpen: true, message: "Publish the campaign first, then you can publish ad groups." });
+          return;
+        }
+        const draftId = String(publishDraftEntity.entity.adgroup_id ?? publishDraftEntity.entity.id);
+        if (!draftId.startsWith("draft-")) {
+          setErrorModal({ isOpen: true, message: "Not a draft ad group." });
+          return;
+        }
+        await googleAdwordsCampaignsService.publishGoogleSearchEntitiesDraft(
+          accountIdNum,
+          channelIdNum,
+          campaignId,
+          draftId
+        );
+        setErrorModal({ isOpen: true, message: "Draft ad group published successfully. The draft row will be removed.", isSuccess: true });
+        if (loadAdGroups) await loadAdGroups();
+      } else if (publishDraftEntity.type === "ad") {
+        const campaignIdStr = String(campaignId ?? "");
+        if (campaignIdStr.toLowerCase().startsWith("draft-")) {
+          setErrorModal({ isOpen: true, message: "Publish the campaign first, then you can publish ads." });
+          return;
+        }
+        const draftId = String(publishDraftEntity.entity.ad_id ?? publishDraftEntity.entity.id);
+        if (!draftId.startsWith("draft-")) {
+          setErrorModal({ isOpen: true, message: "Not a draft ad." });
+          return;
+        }
+        await googleAdwordsAdsService.publishDemandGenDraftAd(
+          accountIdNum,
+          channelIdNum,
+          campaignId,
+          draftId
+        );
+        setErrorModal({ isOpen: true, message: "Draft ad published successfully. The draft row will be removed.", isSuccess: true });
+        if (loadAdsFromHook) await loadAdsFromHook();
+      } else if (publishDraftEntity.type === "keyword") {
+        const campaignIdStr = String(campaignId ?? "");
+        if (campaignIdStr.toLowerCase().startsWith("draft-")) {
+          setErrorModal({ isOpen: true, message: "Publish the campaign first, then you can publish keywords." });
+          return;
+        }
+        const draftId = String(publishDraftEntity.entity.keyword_id ?? publishDraftEntity.entity.id);
+        if (!draftId.startsWith("draft-")) {
+          setErrorModal({ isOpen: true, message: "Not a draft keyword." });
+          return;
+        }
+        await googleAdwordsKeywordsService.publishDraftKeyword(
+          accountIdNum,
+          channelIdNum,
+          draftId
+        );
+        setErrorModal({ isOpen: true, message: "Draft keyword published successfully. The draft row will be removed.", isSuccess: true });
+        if (loadKeywords) await loadKeywords();
+      } else if (publishDraftEntity.type === "negative_keyword") {
+        const campaignIdStr = String(campaignId ?? "");
+        if (campaignIdStr.toLowerCase().startsWith("draft-")) {
+          setErrorModal({ isOpen: true, message: "Publish the campaign first, then you can publish negative keywords." });
+          return;
+        }
+        const draftId = String(publishDraftEntity.entity.criterion_id ?? publishDraftEntity.entity.id);
+        if (!draftId.startsWith("draft-")) {
+          setErrorModal({ isOpen: true, message: "Not a draft negative keyword." });
+          return;
+        }
+        await googleAdwordsNegativeKeywordsService.publishDraftNegativeKeyword(
+          accountIdNum,
+          channelIdNum,
+          campaignIdStr,
+          draftId
+        );
+        setErrorModal({ isOpen: true, message: "Draft negative keyword published successfully. The draft row will be removed.", isSuccess: true });
+        if (negativeKeywordsHook.loadNegativeKeywords) await negativeKeywordsHook.loadNegativeKeywords();
+      }
     } catch (err: any) {
-      setErrorModal({ isOpen: true, message: err?.response?.data?.error || err?.message || "Failed to publish draft ad group." });
+      setErrorModal({ isOpen: true, message: err?.response?.data?.error || err?.message || "Failed to publish draft." });
     } finally {
-      setPublishLoadingAdGroupId(null);
+      setPublishDraftSubmitting(false);
+      setPublishDraftEntity(null);
     }
   };
 
-  const handlePublishKeywordDraft = () => {
-    setErrorModal({ isOpen: true, message: "Publish the parent ad group to publish draft keywords.", isSuccess: false });
-  };
-  const handlePublishAdDraft = () => {
-    setErrorModal({ isOpen: true, message: "Publish the parent ad group to publish draft ads.", isSuccess: false });
-  };
-  const handlePublishNegativeKeywordDraft = () => {
-    setErrorModal({ isOpen: true, message: "Publish for draft negative keywords is not yet available.", isSuccess: false });
-  };
-
-  const handlePublishDraftFromDetail = async () => {
+  const handlePublishDraftFromDetail = async (formData?: CreateGoogleCampaignData) => {
     if (!accountId || !channelId || !campaignId) return;
     const draftId = String(campaignId);
     if (!draftId.startsWith("draft-")) return;
@@ -392,8 +479,10 @@ export const GoogleCampaignDetail: React.FC = () => {
       await googleAdwordsCampaignsService.publishGoogleCampaignDraft(
         parseInt(accountId, 10),
         parseInt(channelId, 10),
-        draftId
+        draftId,
+        formData
       );
+      setIsDraftCampaignEditPanelOpen(false);
       setErrorModal({
         isOpen: true,
         message: "Draft published successfully. Redirecting to campaigns list.",
@@ -410,6 +499,49 @@ export const GoogleCampaignDetail: React.FC = () => {
       setPublishDraftLoading(false);
     }
   };
+
+  const handleUpdateDraftCampaign = async (data: CreateGoogleCampaignData) => {
+    if (!accountId || !channelId || !campaignId) return;
+    setDraftCampaignFormLoading(true);
+    try {
+      await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
+        parseInt(accountId, 10),
+        parseInt(channelId, 10),
+        {
+          campaignIds: [campaignId],
+          name: data.name,
+          status: data.status as "ENABLED" | "PAUSED",
+          start_date: data.start_date,
+          end_date: data.end_date,
+          budget: data.budget_amount,
+          bidding_strategy_type: data.bidding_strategy_type,
+        }
+      );
+      setIsDraftCampaignEditPanelOpen(false);
+      setErrorModal({ isOpen: true, message: "Draft saved.", isSuccess: true });
+    } catch (err: any) {
+      setErrorModal({
+        isOpen: true,
+        message: err?.response?.data?.error || err?.message || "Failed to save draft.",
+      });
+    } finally {
+      setDraftCampaignFormLoading(false);
+    }
+  };
+
+  const draftCampaignInitialData = useMemo((): Partial<CreateGoogleCampaignData> | null => {
+    if (!campaignDetail?.campaign || !isDraftCampaign) return null;
+    const c = campaignDetail.campaign as any;
+    return {
+      name: c.name || "",
+      status: (c.status?.toUpperCase() as "ENABLED" | "PAUSED") || "PAUSED",
+      budget_amount: c.daily_budget ?? c.budget_amount,
+      start_date: c.start_date,
+      end_date: c.end_date,
+      campaign_type: (c.advertising_channel_type || c.campaign_type || "SEARCH") as any,
+      bidding_strategy_type: c.bidding_strategy_type,
+    };
+  }, [campaignDetail?.campaign, isDraftCampaign]);
 
   // Normalized campaign channel type (DB may return "Demand Gen" or "DEMAND_GEN")
   const campaignChannelType = useMemo(() => {
@@ -1325,26 +1457,19 @@ export const GoogleCampaignDetail: React.FC = () => {
                   )}
               </div>
 
-              {/* Draft campaign: show message and publish option */}
+              {/* Draft campaign: show message and open edit panel (Edit or Publish) */}
               {isDraftCampaign && (
                 <div className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-6 max-w-2xl">
                   <p className="text-[#072929] text-base mb-4">
-                    This campaign is a draft. Publish it to view details.
+                    This campaign is a draft. Edit or publish it to continue.
                   </p>
                   <button
                     type="button"
-                    onClick={handlePublishDraftFromDetail}
-                    disabled={publishDraftLoading}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5656] disabled:opacity-60 text-sm font-medium"
+                    onClick={() => setIsDraftCampaignEditPanelOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5656] text-sm font-medium"
                   >
-                    {publishDraftLoading ? (
-                      <Loader size="sm" showMessage={false} />
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4" aria-hidden />
-                        Publish draft
-                      </>
-                    )}
+                    <Send className="w-4 h-4" aria-hidden />
+                    Edit or Publish
                   </button>
                 </div>
               )}
@@ -1777,7 +1902,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                       setAdgroupsCurrentPage(1);
                     }}
                     onPublishDraft={handlePublishAdGroupDraft}
-                    publishLoadingId={publishLoadingAdGroupId ?? undefined}
+                    publishLoadingId={
+                      publishDraftEntity?.type === "ad_group" && publishDraftSubmitting
+                        ? (publishDraftEntity.entity.adgroup_id ?? publishDraftEntity.entity.id)
+                        : undefined
+                    }
                     createButton={
                       campaignDetail?.campaign.advertising_channel_type ===
                         "SEARCH" ||
@@ -1932,7 +2061,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                           setAdsCurrentPage(1);
                         }}
                         onPublishDraft={handlePublishAdDraft}
-                        publishLoadingId={undefined}
+                        publishLoadingId={
+                          publishDraftEntity?.type === "ad" && publishDraftSubmitting
+                            ? (publishDraftEntity.entity.ad_id ?? publishDraftEntity.entity.id)
+                            : undefined
+                        }
                         createButton={
                           campaignDetail?.campaign.advertising_channel_type ===
                             "SEARCH" ? (
@@ -2089,7 +2222,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                         setKeywordsCurrentPage(1);
                       }}
                       onPublishDraft={handlePublishKeywordDraft}
-                      publishLoadingId={undefined}
+                      publishLoadingId={
+                        publishDraftEntity?.type === "keyword" && publishDraftSubmitting
+                          ? (publishDraftEntity.entity.keyword_id ?? publishDraftEntity.entity.id)
+                          : undefined
+                      }
                       createButton={
                         campaignDetail?.campaign.advertising_channel_type ===
                           "SEARCH" ? (
@@ -2185,7 +2322,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                         setNegativeKeywordsCurrentPage(1);
                       }}
                       onPublishDraft={handlePublishNegativeKeywordDraft}
-                      publishLoadingId={undefined}
+                      publishLoadingId={
+                        publishDraftEntity?.type === "negative_keyword" && publishDraftSubmitting
+                          ? (publishDraftEntity.entity.criterion_id ?? publishDraftEntity.entity.id)
+                          : undefined
+                      }
                       createButton={
                         <CreateGoogleNegativeKeywordSection
                           isOpen={isCreateNegativeKeywordPanelOpen}
@@ -2779,6 +2920,50 @@ export const GoogleCampaignDetail: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Publish draft sub-entity confirmation */}
+      <ConfirmationModal
+        isOpen={publishDraftEntity !== null}
+        onClose={() => setPublishDraftEntity(null)}
+        onConfirm={runPublishDraftEntity}
+        isLoading={publishDraftSubmitting}
+        loadingLabel="Publishing..."
+        title="Publish this draft to Google Ads?"
+        message={
+          publishDraftEntity
+            ? publishDraftEntity.type === "ad_group"
+              ? `Ad group "${publishDraftEntity.entity.adgroup_name || publishDraftEntity.entity.name || "Unnamed"}" will be created in Google Ads and the draft row will be removed.`
+              : publishDraftEntity.type === "keyword"
+                ? `Keyword "${publishDraftEntity.entity.keyword_text || "Unnamed"}" will be published. The draft row will be removed.`
+                : publishDraftEntity.type === "ad"
+                  ? `Ad (${publishDraftEntity.entity.ad_type || "Unnamed"}) will be created in Google Ads and the draft row will be removed.`
+                  : publishDraftEntity.type === "negative_keyword"
+                    ? `Negative keyword "${publishDraftEntity.entity.keyword_text || "Unnamed"}" will be published. The draft row will be removed.`
+                    : ""
+            : ""
+        }
+        type="info"
+        size="sm"
+        icon={<Send className="w-6 h-6 text-[#136D6D]" />}
+      />
+
+      {/* Draft campaign edit panel (Edit or Publish) */}
+      {accountId && channelId && campaignId && isDraftCampaign && (
+        <CreateGoogleCampaignPanel
+          isOpen={isDraftCampaignEditPanelOpen}
+          onClose={() => setIsDraftCampaignEditPanelOpen(false)}
+          onSubmit={handleUpdateDraftCampaign}
+          accountId={accountId}
+          channelId={channelId}
+          mode="edit"
+          campaignId={campaignId}
+          initialData={draftCampaignInitialData ?? undefined}
+          onPublishDraft={handlePublishDraftFromDetail}
+          loading={draftCampaignFormLoading}
+          hideProfileSelector
+          hideCampaignType
+        />
       )}
 
       {/* Error Modal */}

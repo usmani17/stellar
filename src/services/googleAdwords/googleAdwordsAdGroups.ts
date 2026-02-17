@@ -176,6 +176,16 @@ export const googleAdwordsAdGroupsService = {
     return response.data;
   },
 
+  updateDraftAdgroup: async (
+    accountId: number,
+    channelId: number,
+    payload: { draft_id: string; adgroup: { name?: string; cpc_bid?: number; tracking_url_template?: string; final_url_suffix?: string; url_custom_parameters?: Array<{ key: string; value: string }> } }
+  ): Promise<{ updated: boolean; adgroup_id: string }> => {
+    const url = `/google-adwords/${accountId}/channels/${channelId}/adgroups/update-draft/`;
+    const response = await api.patch(url, payload);
+    return response.data;
+  },
+
   /** Create a Demand Gen ad group under an existing Demand Gen campaign. Supports draft (campaignId can be "draft-xxx"). */
   createDemandGenAdGroup: async (
     accountId: number,

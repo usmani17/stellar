@@ -620,7 +620,8 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                               e.stopPropagation();
                               onPublishDraft(ad);
                             }}
-                            className="table-edit-icon flex-shrink-0 cursor-pointer !opacity-100 pointer-events-auto"
+                            className="shrink-0 p-1 rounded cursor-pointer opacity-100 hover:bg-gray-100 border-0 bg-transparent inline-flex items-center justify-center"
+                            style={{ pointerEvents: "auto" }}
                             title="Publish draft to Google Ads"
                             disabled={publishLoadingId === ad.id || publishLoadingId === ad.ad_id}
                           >
@@ -643,11 +644,20 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                           {editingAdId === ad.id && onUpdateAdStatus && !isRemoved ? (
                             <div onClick={(e) => e.stopPropagation()} className="w-full relative">
                               <Dropdown
-                                options={[
-                                  { value: "ENABLED", label: "Enabled" },
-                                  { value: "PAUSED", label: "Paused" },
-                                  { value: "REMOVED", label: "Remove" },
-                                ]}
+                                options={
+                                  isDraftAd(ad)
+                                    ? [
+                                        { value: "SAVED_DRAFT", label: "Saved as draft" },
+                                        { value: "ENABLED", label: "Enabled", disabled: true },
+                                        { value: "PAUSED", label: "Paused", disabled: true },
+                                        { value: "REMOVED", label: "Remove", disabled: true },
+                                      ]
+                                    : [
+                                        { value: "ENABLED", label: "Enabled" },
+                                        { value: "PAUSED", label: "Paused" },
+                                        { value: "REMOVED", label: "Remove" },
+                                      ]
+                                }
                                 value={editingStatus}
                                 onChange={(val) => handleStatusChange(ad.id, val as string)}
                                 defaultOpen={true}
@@ -683,6 +693,8 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                                 ? "Paused"
                                 : ad.status === "REMOVED" || ad.status === "Removed" || ad.status === "REMOVE"
                                 ? "Remove"
+                                : ad.status === "SAVED_DRAFT" || ad.status === "DRAFT"
+                                ? "Saved as draft"
                                 : ad.status || "Enabled"}
                             </span>
                             {onUpdateAdStatus && (
