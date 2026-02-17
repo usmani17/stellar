@@ -252,13 +252,14 @@ export function deriveCampaignStateFromContent(
     Array.isArray(data.keys_for_form) && data.keys_for_form.length > 0
       ? new Set(data.keys_for_form)
       : null;
-  const current_questions_schema = keysForForm
-    ? allSchema.filter((s) => {
-        if (keysForForm!.has(s.key)) return true;
-        const leafKey = s.key.split(".").pop() ?? s.key;
-        return keysForForm!.has(leafKey);
-      })
-    : allSchema;
+  const current_questions_schema =
+    keysForForm === null
+      ? [] // When keys_for_form is empty or missing, do not show the "Fill in the details" form
+      : allSchema.filter((s) => {
+          if (keysForForm.has(s.key)) return true;
+          const leafKey = s.key.split(".").pop() ?? s.key;
+          return keysForForm.has(leafKey);
+        });
 
   return {
     campaign_draft: draftFlat,

@@ -163,7 +163,22 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const hasSitelinkAssetIdsField = isFieldRequested("sitelink_asset_ids", requestedKeys);
   const hasCalloutAssetIdsField = isFieldRequested("callout_asset_ids", requestedKeys);
 
-  if (requestedKeys.length === 0) {
+  // Only render when we have at least one visible field. Asset fields need profileId to show; basic keys are not yet rendered in this component.
+  const hasAnyVisibleAssetField =
+    profileIdNum &&
+    (hasLogoAssetIdField ||
+      hasBusinessNameAssetIdField ||
+      hasMarketingImageAssetIdField ||
+      hasSquareMarketingImageAssetIdField ||
+      hasHeadlineAssetIdsField ||
+      hasDescriptionAssetIdsField ||
+      hasLongHeadlineAssetIdsField ||
+      hasVideoAssetIdsField ||
+      hasSitelinkAssetIdsField ||
+      hasCalloutAssetIdsField);
+  const hasAnyVisibleField = !!hasAnyVisibleAssetField;
+
+  if (requestedKeys.length === 0 || !hasAnyVisibleField) {
     return null;
   }
 
@@ -546,9 +561,9 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
               onChange("callout_asset_ids", newAssets.map(a => a.resource_name));
             }}
             profileId={profileIdNum}
-            assetType="CALLOUT"
+            assetType="TEXT"
             title="Select Callout Assets"
-            initialTab="Callout"
+            initialTab="Text"
             allowMultiple
           />
         </>

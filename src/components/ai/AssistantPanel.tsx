@@ -120,6 +120,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     } = useAssistant();
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesScrollContainerRef = useRef<HTMLDivElement>(null);
+    const userScrolledUpRef = useRef(false);
+    const lastAutoScrollTimeRef = useRef(0);
+    const scrollThrottleMs = 80;
+    const nearBottomThreshold = 120;
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const historyDropdownRef = useRef<HTMLDivElement>(null);
     const schemaFormRef = useRef<CampaignFormForChatHandle | null>(null);
@@ -195,9 +200,24 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [sessionToDelete]);
 
-    // Auto-scroll to bottom when new messages arrive
+    // Reset scroll-follow when switching sessions so we scroll to bottom for new conversation
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        userScrolledUpRef.current = false;
+    }, [currentSessionId]);
+
+    // Auto-scroll to bottom when new messages arrive — smooth, throttled, and respect user scroll-up
+    useEffect(() => {
+        if (userScrolledUpRef.current) return;
+        const container = messagesScrollContainerRef.current;
+        if (!container) return;
+        const now = Date.now();
+        if (now - lastAutoScrollTimeRef.current < scrollThrottleMs) return;
+        lastAutoScrollTimeRef.current = now;
+        requestAnimationFrame(() => {
+            const target = container.scrollHeight - container.clientHeight;
+            if (target <= 0) return;
+            container.scrollTo({ top: target, behavior: "smooth" });
+        });
     }, [messages]);
 
     // Auto-grow textarea so user can see what they type; cap at ASSISTANT_TEXTAREA_MAX_HEIGHT
@@ -242,6 +262,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         const formBlock = formParts.length > 0 ? formParts.join("\n") : "";
         const combined = [formBlock, textPart].filter(Boolean).join("\n\n");
         if (combined) {
+            userScrolledUpRef.current = false;
             sendMessage(combined);
             setInputValue("");
             if (formParts.length > 0) schemaFormRef.current?.clear();
@@ -255,6 +276,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
     const handlePromptClick = (promptText: string) => {
         if (!canChat) return;
+        userScrolledUpRef.current = false;
         sendMessage(promptText);
     };
 
@@ -725,7 +747,18 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 </div>
             </div>
             {/* Messages Area - min-h-0 allows flex child to shrink so overflow only when content exceeds available space */}
-            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden interactive-scrollbar px-4 py-4">
+            <div
+                ref={messagesScrollContainerRef}
+                className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden interactive-scrollbar px-4 py-4"
+                style={{ scrollBehavior: "smooth" }}
+                onScroll={() => {
+                    const el = messagesScrollContainerRef.current;
+                    if (!el) return;
+                    const { scrollTop, scrollHeight, clientHeight } = el;
+                    const distFromBottom = scrollHeight - scrollTop - clientHeight;
+                    userScrolledUpRef.current = distFromBottom > nearBottomThreshold;
+                }}
+            >
                 {isLoading && currentSessionId && !hasMessages ? (
                     /* Loading history for selected session */
                     <div className="flex flex-col items-center justify-center h-full gap-4">
