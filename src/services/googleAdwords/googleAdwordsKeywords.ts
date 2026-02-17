@@ -186,4 +186,25 @@ export const googleAdwordsKeywordsService = {
     const response = await api.post(url, payload);
     return response.data;
   },
+
+  /** Publish a draft keyword: creates in Google Ads and removes draft row. */
+  publishDraftKeyword: async (
+    accountId: number,
+    channelId: number,
+    draftKeywordId: string
+  ): Promise<{ keyword_id?: string; resource_name?: string }> => {
+    const url = `/google-adwords/${accountId}/channels/${channelId}/keywords/publish-draft/`;
+    const response = await api.post(url, { keyword_id: draftKeywordId });
+    return response.data;
+  },
+
+  updateDraftKeyword: async (
+    accountId: number,
+    channelId: number,
+    payload: { draft_id: string; text?: string; match_type?: string; cpc_bid?: number }
+  ): Promise<{ updated: boolean; keyword_id: string }> => {
+    const url = `/google-adwords/${accountId}/channels/${channelId}/keywords/update-draft/`;
+    const response = await api.patch(url, payload);
+    return response.data;
+  },
 };

@@ -577,36 +577,17 @@ export const useGoogleCampaignDetailAdGroups = ({
           });
         }
         await loadAdGroups();
-        
-        // NEW: Add optimistic update to show ad group immediately
-        const newAdGroup: GoogleAdGroup = {
-          id: Date.now(), // Temporary ID for optimistic update
-          adgroup_id: parseInt(response.ad_group_id || '0'),
-          name: entity.name,
-          status: 'ENABLED',
-          cpc_bid_dollars: 0,
-          spends: 0,
-          sales: 0,
-          // Optional fields
-          campaign_id: parseInt(campaignId || '0'),
-          adgroup_name: entity.name,
-        };
 
-        // Add to beginning of adgroups array for immediate display
-        setAdgroups(prev => [newAdGroup, ...prev]);
-        
         // Trigger background sync to get real data (non-blocking)
         googleAdwordsAdGroupsService.syncGoogleAdGroups(
           parseInt(accountId, 10),
           parseInt(channelId, 10)
         ).then(() => {
-          // Reload with real data after sync completes
           setTimeout(() => {
             loadAdGroups();
           }, 1000);
         }).catch(syncError => {
           console.warn("Background sync failed:", syncError);
-          // Keep optimistic data if sync fails, user can manually refresh
         });
       } catch (error: any) {
         const errorMessage =

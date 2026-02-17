@@ -846,11 +846,20 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                               >
                                 <Dropdown
                                   key={`status-${negativeKeyword.id}-${editingNegativeKeywordId}`}
-                                  options={[
-                                    { value: "ENABLED", label: "Enabled" },
-                                    { value: "PAUSED", label: "Paused" },
-                                    { value: "REMOVED", label: "Remove" },
-                                  ]}
+                                  options={
+                                    isDraftNegativeKeyword(negativeKeyword)
+                                      ? [
+                                          { value: "SAVED_DRAFT", label: "Saved as draft" },
+                                          { value: "ENABLED", label: "Enabled", disabled: true },
+                                          { value: "PAUSED", label: "Paused", disabled: true },
+                                          { value: "REMOVED", label: "Remove", disabled: true },
+                                        ]
+                                      : [
+                                          { value: "ENABLED", label: "Enabled" },
+                                          { value: "PAUSED", label: "Paused" },
+                                          { value: "REMOVED", label: "Remove" },
+                                        ]
+                                  }
                                   value={editingStatus}
                                   onChange={(val) =>
                                     handleStatusChange(
@@ -903,11 +912,14 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                                     : negativeKeyword.status === "PAUSED" ||
                                       negativeKeyword.status === "Paused" ||
                                       negativeKeyword.status === "PAUSE"
-                                      ? "Paused"
-                                      : negativeKeyword.status === "REMOVED" ||
+                                    ? "Paused"
+                                    : negativeKeyword.status === "REMOVED" ||
                                         negativeKeyword.status === "Removed" ||
                                         negativeKeyword.status === "REMOVE"
-                                        ? "Remove"
+                                      ? "Remove"
+                                      : negativeKeyword.status === "SAVED_DRAFT" ||
+                                          negativeKeyword.status === "DRAFT"
+                                        ? "Saved as draft"
                                         : negativeKeyword.status || "Enabled"}
                                 </span>
                                 {onUpdateNegativeKeywordStatus && (

@@ -19,6 +19,12 @@ interface CreateGoogleAdGroupPanelProps {
   campaignName?: string;
   loading?: boolean;
   submitError?: string | null;
+  /** When editing a draft: pre-fill form and show Save / Publish / Cancel */
+  mode?: "create" | "editDraft";
+  draftId?: string;
+  initialData?: Partial<AdGroupInput>;
+  onUpdateDraft?: (entity: AdGroupInput) => Promise<void>;
+  onPublishDraft?: () => Promise<void>;
 }
 
 export const CreateGoogleAdGroupPanel: React.FC<
@@ -53,7 +59,7 @@ export const CreateGoogleAdGroupPanel: React.FC<
     const [urlCustomParameters, setUrlCustomParameters] = useState<Array<{ key: string; value: string }>>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    // Reset form when panel closes
+    // Reset form when panel closes; when opening in editDraft mode pre-fill from initialData
     useEffect(() => {
       if (!isOpen) {
         setAdgroupName("");
@@ -62,8 +68,15 @@ export const CreateGoogleAdGroupPanel: React.FC<
         setFinalUrlSuffix("");
         setUrlCustomParameters([]);
         setErrors({});
+      } else if (mode === "editDraft" && initialData?.adgroup) {
+        const ag = initialData.adgroup;
+        setAdgroupName(ag.name ?? "");
+        setAdgroupBid(ag.cpc_bid ?? undefined);
+        setTrackingUrlTemplate(ag.tracking_url_template ?? "");
+        setFinalUrlSuffix(ag.final_url_suffix ?? "");
+        setUrlCustomParameters(ag.url_custom_parameters ?? []);
       }
-    }, [isOpen]);
+    }, [isOpen, mode, initialData]);
 
     // Reset form after successful submission (when loading goes from true to false while panel is open)
     const prevLoadingRef = useRef(loading);
