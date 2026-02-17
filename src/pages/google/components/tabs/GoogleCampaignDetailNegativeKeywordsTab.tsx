@@ -11,7 +11,7 @@ import {
 } from "../../../../components/filters/FilterPanel";
 import type { GoogleNegativeKeyword } from "./GoogleTypes";
 import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal";
-import { TrashIcon } from "lucide-react";
+import { TrashIcon, Send } from "lucide-react";
 import { googleAdwordsNegativeKeywordsService } from "../../../../services/googleAdwords/googleAdwordsNegativeKeywords";
 import {
   BulkUpdateConfirmationModal,
@@ -66,6 +66,8 @@ interface GoogleCampaignDetailNegativeKeywordsTabProps {
   onBulkUpdateComplete?: () => void;
   showDraftsOnly?: boolean;
   onToggleDraftsOnly?: () => void;
+  onPublishDraft?: (negativeKeyword: GoogleNegativeKeyword) => void;
+  publishLoadingId?: string | number;
 }
 
 export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
@@ -102,7 +104,13 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
   onBulkUpdateComplete,
   showDraftsOnly = false,
   onToggleDraftsOnly,
+  onPublishDraft,
+  publishLoadingId,
 }) => {
+    const isDraftNegativeKeyword = (n: GoogleNegativeKeyword) => {
+      const s = (n.status || "").toUpperCase();
+      return s === "SAVED_DRAFT" || s === "DRAFT" || String(n.criterion_id ?? n.id).startsWith("draft-");
+    };
     // Check if this is a Performance Max campaign
     const isPerformanceMax = campaignType?.toUpperCase() === "PERFORMANCE_MAX";
     const [showBulkConfirmationModal, setShowBulkConfirmationModal] =
@@ -778,9 +786,29 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                           </div>
                         </td>
                         <td className="table-cell">
+                          <div className="flex items-center gap-1">
                           <span className="table-text leading-[1.26]">
                             {negativeKeyword.keyword_text || "—"}
                           </span>
+                          {onPublishDraft && isDraftNegativeKeyword(negativeKeyword) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onPublishDraft(negativeKeyword);
+                              }}
+                              className="table-edit-icon flex-shrink-0 cursor-pointer !opacity-100 pointer-events-auto"
+                              title="Publish draft to Google Ads"
+                              disabled={publishLoadingId === negativeKeyword.id || publishLoadingId === negativeKeyword.criterion_id}
+                            >
+                              {publishLoadingId === negativeKeyword.id || publishLoadingId === negativeKeyword.criterion_id ? (
+                                <Loader size="sm" showMessage={false} />
+                              ) : (
+                                <Send className="w-4 h-4 text-[#136D6D]" aria-hidden />
+                              )}
+                            </button>
+                          )}
+                          </div>
                         </td>
                         {!isPerformanceMax && (
                           <td className="table-cell hidden lg:table-cell">

@@ -12,7 +12,7 @@ import {
 import type { GoogleKeyword } from "./GoogleTypes";
 import { formatCurrency2Decimals as formatCurrency2DecimalsUtil, formatPercentage as formatPercentageUtil } from "../../utils/campaignDetailHelpers";
 import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal";
-import { TrashIcon } from "lucide-react";
+import { TrashIcon, Send } from "lucide-react";
 import { googleAdwordsKeywordsService } from "../../../../services/googleAdwords/googleAdwordsKeywords";
 import {
   BulkUpdateConfirmationModal,
@@ -65,6 +65,8 @@ interface GoogleCampaignDetailKeywordsTabProps {
   formatCurrency2Decimals?: (value: number | string | undefined) => string;
   showDraftsOnly?: boolean;
   onToggleDraftsOnly?: () => void;
+  onPublishDraft?: (keyword: GoogleKeyword) => void;
+  publishLoadingId?: string | number;
 }
 
 export const GoogleCampaignDetailKeywordsTab: React.FC<
@@ -105,8 +107,14 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
   formatCurrency2Decimals = formatCurrency2DecimalsUtil,
   showDraftsOnly = false,
   onToggleDraftsOnly,
+  onPublishDraft,
+  publishLoadingId,
 }) => {
   const formatPercentage = formatPercentageUtil;
+  const isDraftKeyword = (kw: GoogleKeyword) => {
+    const s = (kw.status || "").toUpperCase();
+    return s === "SAVED_DRAFT" || s === "DRAFT" || String(kw.keyword_id ?? kw.id).startsWith("draft-");
+  };
   const [editingKeywordId, setEditingKeywordId] = useState<number | null>(null);
   const [showBulkConfirmationModal, setShowBulkConfirmationModal] = useState(false);
   const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLED" | "PAUSED" | null>(null);
@@ -801,6 +809,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                           </div>
                         </td>
                         <td className="table-cell">
+                          <div className="flex items-center gap-1">
                           <span
                             onClick={() =>
                               onStartKeywordTextEdit &&
@@ -813,6 +822,25 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                           >
                             {keyword.keyword_text || "—"}
                           </span>
+                          {onPublishDraft && isDraftKeyword(keyword) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onPublishDraft(keyword);
+                              }}
+                              className="table-edit-icon flex-shrink-0 cursor-pointer !opacity-100 pointer-events-auto"
+                              title="Publish draft to Google Ads"
+                              disabled={publishLoadingId === keyword.id || publishLoadingId === keyword.keyword_id}
+                            >
+                              {publishLoadingId === keyword.id || publishLoadingId === keyword.keyword_id ? (
+                                <Loader size="sm" showMessage={false} />
+                              ) : (
+                                <Send className="w-4 h-4 text-[#136D6D]" aria-hidden />
+                              )}
+                            </button>
+                          )}
+                          </div>
                         </td>
                         <td className="table-cell hidden lg:table-cell min-w-[200px]">
                           <span className="table-text leading-[1.26]">
