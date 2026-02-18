@@ -1928,78 +1928,150 @@ export const GoogleCampaigns: React.FC = () => {
         target_impression_share_location: campaignData.target_impression_share_location,
         target_impression_share_location_fraction_micros: campaignData.target_impression_share_location_fraction_micros,
         target_impression_share_cpc_bid_ceiling_micros: campaignData.target_impression_share_cpc_bid_ceiling_micros,
-        // UTM parameters
+        // UTM parameters (for drafts without draft_state, use creation_payload)
         tracking_url_template:
-          (draft_campaign.tracking_url_template as string) ?? campaignData.tracking_url_template ?? undefined,
+          (draft_campaign.tracking_url_template as string) ??
+          (creation_payload.tracking_url_template != null ? String(creation_payload.tracking_url_template) : undefined) ??
+          campaignData.tracking_url_template ??
+          undefined,
         final_url_suffix:
-          (draft_campaign.final_url_suffix as string) ?? campaignData.final_url_suffix ?? undefined,
+          (draft_campaign.final_url_suffix as string) ??
+          (creation_payload.final_url_suffix != null ? String(creation_payload.final_url_suffix) : undefined) ??
+          campaignData.final_url_suffix ??
+          undefined,
         url_custom_parameters:
-          (draft_campaign.url_custom_parameters as any) ?? campaignData.url_custom_parameters ?? undefined,
-        // Targeting fields
-        location_ids: campaignData.location_ids || [],
-        excluded_location_ids: campaignData.excluded_location_ids || [],
-        language_ids: campaignData.language_ids || [],
-        device_ids: campaignData.device_ids || [],
-        // Shopping-specific fields from extra_data or direct fields
+          (draft_campaign.url_custom_parameters as any) ??
+          (creation_payload.url_custom_parameters != null && typeof creation_payload.url_custom_parameters === "object"
+            ? Array.isArray(creation_payload.url_custom_parameters)
+              ? creation_payload.url_custom_parameters.map((p: { key?: string; value?: string }) => ({ key: String(p?.key ?? ""), value: String(p?.value ?? "") }))
+              : Object.entries(creation_payload.url_custom_parameters).map(([k, v]) => ({ key: k, value: String(v ?? "") }))
+            : undefined) ??
+          campaignData.url_custom_parameters ??
+          undefined,
+        // Targeting fields (for drafts these come from creation_payload; campaignData has them only after API sync)
+        location_ids:
+          (creation_payload.location_ids && Array.isArray(creation_payload.location_ids)
+            ? creation_payload.location_ids.map((id: number | string) => (typeof id === "string" ? parseInt(id, 10) : id)).filter((n: number) => !isNaN(n))
+            : undefined) ?? campaignData.location_ids ?? [],
+        excluded_location_ids:
+          (creation_payload.excluded_location_ids && Array.isArray(creation_payload.excluded_location_ids)
+            ? creation_payload.excluded_location_ids.map((id: number | string) => String(id))
+            : undefined) ?? campaignData.excluded_location_ids ?? [],
+        language_ids:
+          (creation_payload.language_ids && Array.isArray(creation_payload.language_ids)
+            ? creation_payload.language_ids.map((id: number | string) => String(id))
+            : undefined) ?? campaignData.language_ids ?? [],
+        device_ids:
+          (creation_payload.device_ids && Array.isArray(creation_payload.device_ids)
+            ? creation_payload.device_ids.map((id: number | string) => String(id))
+            : undefined) ?? campaignData.device_ids ?? [],
+        // Shopping-specific fields from extra_data or direct fields (drafts: creation_payload)
         merchant_id: campaignData.merchant_id || shopping_setting.merchant_id,
         sales_country:
-          campaignData.sales_country || shopping_setting.sales_country || "US",
+          (creation_payload.sales_country as string | undefined) ??
+          campaignData.sales_country ??
+          shopping_setting.sales_country ??
+          "US",
         campaign_priority:
+          (typeof creation_payload.campaign_priority === "number" ? creation_payload.campaign_priority : undefined) ??
           campaignData.campaign_priority ??
           shopping_setting.campaign_priority ??
           0,
         enable_local:
-          campaignData.enable_local ?? shopping_setting.enable_local ?? false,
+          (creation_payload.enable_local === true || creation_payload.enable_local === false
+            ? creation_payload.enable_local
+            : undefined) ?? campaignData.enable_local ?? shopping_setting.enable_local ?? false,
         // SEARCH specific fields
         network_settings: campaignData.network_settings || undefined,
       };
 
-      // For Performance Max campaigns, use data from refreshed extra_data
+      // When draft was saved from form (created_as_draft + creation_payload), ensure profile and customer are set so selectors show
+      if (isDraft && creation_payload && typeof creation_payload === "object") {
+        if (creation_payload.profile_id != null) {
+          initial.profile_id = String(creation_payload.profile_id);
+        }
+        if (creation_payload.customer_id != null) {
+          initial.customer_id = String(creation_payload.customer_id);
+        }
+      }
+
+      // For Performance Max campaigns, use data from refreshed extra_data or creation_payload (drafts store in creation_payload)
       if (campaignType === "PERFORMANCE_MAX") {
-        // Use PMax data from refreshed extra_data (already fetched from API)
+        // Use PMax data from extra_data (live/synced) or creation_payload (drafts saved from form)
+        const cp = creation_payload;
         if (extra_data.business_name) {
           initial.business_name = extra_data.business_name;
+        } else if (cp?.business_name != null) {
+          initial.business_name = String(cp.business_name);
         }
         if (extra_data.logo_url) {
           initial.logo_url = extra_data.logo_url;
+        } else if (cp?.logo_url != null) {
+          initial.logo_url = String(cp.logo_url);
         }
         if (extra_data.final_url) {
           initial.final_url = extra_data.final_url;
+        } else if (cp?.final_url != null) {
+          initial.final_url = String(cp.final_url);
         }
         if (extra_data.headlines && Array.isArray(extra_data.headlines)) {
           initial.headlines = extra_data.headlines;
+        } else if (cp?.headlines && Array.isArray(cp.headlines)) {
+          initial.headlines = cp.headlines;
         }
         if (extra_data.descriptions && Array.isArray(extra_data.descriptions)) {
           initial.descriptions = extra_data.descriptions;
+        } else if (cp?.descriptions && Array.isArray(cp.descriptions)) {
+          initial.descriptions = cp.descriptions;
         }
         // Handle long_headlines (plural array) - backward compatible with long_headline (singular)
         if (extra_data.long_headlines && Array.isArray(extra_data.long_headlines)) {
           initial.long_headlines = extra_data.long_headlines;
         } else if (extra_data.long_headline) {
-          // Backward compatibility: if singular long_headline exists, convert to array
           initial.long_headlines = [extra_data.long_headline];
+        } else if (cp?.long_headlines && Array.isArray(cp.long_headlines)) {
+          initial.long_headlines = cp.long_headlines;
+        } else if (cp?.long_headline) {
+          initial.long_headlines = [cp.long_headline];
         }
 
         // Handle video, sitelink, and callout asset resource names
         if (extra_data.video_asset_resource_names && Array.isArray(extra_data.video_asset_resource_names)) {
           initial.video_asset_resource_names = extra_data.video_asset_resource_names;
+        } else if (cp?.video_asset_resource_names && Array.isArray(cp.video_asset_resource_names)) {
+          initial.video_asset_resource_names = cp.video_asset_resource_names;
         }
         if (extra_data.sitelink_asset_resource_names && Array.isArray(extra_data.sitelink_asset_resource_names)) {
           initial.sitelink_asset_resource_names = extra_data.sitelink_asset_resource_names;
+        } else if (cp?.sitelink_asset_resource_names && Array.isArray(cp.sitelink_asset_resource_names)) {
+          initial.sitelink_asset_resource_names = cp.sitelink_asset_resource_names;
         }
         if (extra_data.callout_asset_resource_names && Array.isArray(extra_data.callout_asset_resource_names)) {
           initial.callout_asset_resource_names = extra_data.callout_asset_resource_names;
+        } else if (cp?.callout_asset_resource_names && Array.isArray(cp.callout_asset_resource_names)) {
+          initial.callout_asset_resource_names = cp.callout_asset_resource_names;
         }
         if (extra_data.marketing_image_url) {
           initial.marketing_image_url = extra_data.marketing_image_url;
+        } else if (cp?.marketing_image_url != null) {
+          initial.marketing_image_url = String(cp.marketing_image_url);
         }
         if (extra_data.square_marketing_image_url) {
           initial.square_marketing_image_url =
             extra_data.square_marketing_image_url;
+        } else if (cp?.square_marketing_image_url != null) {
+          initial.square_marketing_image_url = String(cp.square_marketing_image_url);
         }
         if (extra_data.asset_group_name) {
           initial.asset_group_name = extra_data.asset_group_name;
+        } else if (cp?.asset_group_name != null) {
+          initial.asset_group_name = String(cp.asset_group_name);
         }
+        // Asset IDs and resource names (drafts often store these in creation_payload)
+        if (cp?.logo_asset_id != null) initial.logo_asset_id = String(cp.logo_asset_id);
+        if (cp?.logo_asset_resource_name != null) initial.logo_asset_resource_name = String(cp.logo_asset_resource_name);
+        if (cp?.business_name_asset_id != null) initial.business_name_asset_id = String(cp.business_name_asset_id);
+        if (cp?.business_name_asset_resource_name != null) initial.business_name_asset_resource_name = String(cp.business_name_asset_resource_name);
 
         // Ensure headlines and descriptions are arrays (even if empty)
         if (!initial.headlines || !Array.isArray(initial.headlines)) {

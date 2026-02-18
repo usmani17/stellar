@@ -33,6 +33,14 @@ function isFieldRequested(fieldKey: string, requestedKeys: string[]): boolean {
   return requestedKeys.includes(fieldKey);
 }
 
+/** Display label for an asset (avoids ", ," when name is empty) */
+function getAssetDisplayName(asset: Asset): string {
+  const name = asset.name?.trim();
+  if (name) return name;
+  if ("text" in asset && typeof asset.text === "string" && asset.text.trim()) return asset.text.trim();
+  return asset.resource_name || "Asset";
+}
+
 export interface CampaignFormForChatProps {
   questionsSchema: string[];
   campaignDraft: Record<string, unknown> | undefined;
@@ -308,8 +316,12 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
 
     const parts: string[] = [];
 
-    // Add formData fields
+    // Keys that are multi-asset arrays: show human-readable summary instead of JSON
+    const assetArrayKeys = ["headline_asset_ids", "description_asset_ids", "long_headline_asset_ids", "video_asset_ids", "sitelink_asset_ids", "callout_asset_ids"];
+
+    // Add formData fields (skip asset array keys; they get explicit lines below)
     for (const key of requestedKeys) {
+      if (assetArrayKeys.includes(key)) continue;
       const v = formData[key as keyof typeof formData];
       if (v !== undefined && v !== "" && v != null) {
         const label = getFieldLabel(key);
@@ -381,6 +393,69 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       }).join(", ");
       parts.push(`${label}: ${locationNames}`);
     }
+
+    // Add multi-asset fields with readable labels (so agent view shows names, not ", ," or JSON)
+    if (isFieldRequested("headline_asset_ids", requestedKeys)) {
+      const count = selectedHeadlineAssets.length || (Array.isArray(formData.headline_asset_ids) ? formData.headline_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("headline_asset_ids");
+        const names = selectedHeadlineAssets.length > 0
+          ? selectedHeadlineAssets.map(getAssetDisplayName).join(", ")
+          : `${count} headline(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("description_asset_ids", requestedKeys)) {
+      const count = selectedDescriptionAssets.length || (Array.isArray(formData.description_asset_ids) ? formData.description_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("description_asset_ids");
+        const names = selectedDescriptionAssets.length > 0
+          ? selectedDescriptionAssets.map(getAssetDisplayName).join(", ")
+          : `${count} description(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("long_headline_asset_ids", requestedKeys)) {
+      const count = selectedLongHeadlineAssets.length || (Array.isArray(formData.long_headline_asset_ids) ? formData.long_headline_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("long_headline_asset_ids");
+        const names = selectedLongHeadlineAssets.length > 0
+          ? selectedLongHeadlineAssets.map(getAssetDisplayName).join(", ")
+          : `${count} long headline(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("video_asset_ids", requestedKeys)) {
+      const count = selectedVideoAssets.length || (Array.isArray(formData.video_asset_ids) ? formData.video_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("video_asset_ids");
+        const names = selectedVideoAssets.length > 0
+          ? selectedVideoAssets.map(getAssetDisplayName).join(", ")
+          : `${count} video(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("sitelink_asset_ids", requestedKeys)) {
+      const count = selectedSitelinkAssets.length || (Array.isArray(formData.sitelink_asset_ids) ? formData.sitelink_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("sitelink_asset_ids");
+        const names = selectedSitelinkAssets.length > 0
+          ? selectedSitelinkAssets.map(getAssetDisplayName).join(", ")
+          : `${count} sitelink(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("callout_asset_ids", requestedKeys)) {
+      const count = selectedCalloutAssets.length || (Array.isArray(formData.callout_asset_ids) ? formData.callout_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("callout_asset_ids");
+        const names = selectedCalloutAssets.length > 0
+          ? selectedCalloutAssets.map(getAssetDisplayName).join(", ")
+          : `${count} callout(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+
     if (parts.length > 0) {
       onSend(parts.join("\n"));
     }
@@ -520,7 +595,9 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
           )}
 
           {/* Headline Assets */}
-          {hasHeadlineAssetIdsField && profileIdNum && (
+          {hasHeadlineAssetIdsField && profileIdNum && (() => {
+            const headlineCount = selectedHeadlineAssets.length || (Array.isArray(formData.headline_asset_ids) ? formData.headline_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Headline Assets
@@ -530,18 +607,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsHeadlineAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedHeadlineAssets.length > 0 ? `Selected ${selectedHeadlineAssets.length} headline(s)` : "Select Headline Assets"}
+                {headlineCount > 0 ? `Selected ${headlineCount} headline(s)` : "Select Headline Assets"}
               </button>
-              {selectedHeadlineAssets.length > 0 && (
+              {headlineCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedHeadlineAssets.map(a => a.name).join(", ")}
+                  {selectedHeadlineAssets.length > 0
+                    ? selectedHeadlineAssets.map(getAssetDisplayName).join(", ")
+                    : `${headlineCount} headline(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Description Assets */}
-          {hasDescriptionAssetIdsField && profileIdNum && (
+          {hasDescriptionAssetIdsField && profileIdNum && (() => {
+            const descCount = selectedDescriptionAssets.length || (Array.isArray(formData.description_asset_ids) ? formData.description_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Description Assets
@@ -551,18 +633,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsDescriptionAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedDescriptionAssets.length > 0 ? `Selected ${selectedDescriptionAssets.length} description(s)` : "Select Description Assets"}
+                {descCount > 0 ? `Selected ${descCount} description(s)` : "Select Description Assets"}
               </button>
-              {selectedDescriptionAssets.length > 0 && (
+              {descCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedDescriptionAssets.map(a => a.name).join(", ")}
+                  {selectedDescriptionAssets.length > 0
+                    ? selectedDescriptionAssets.map(getAssetDisplayName).join(", ")
+                    : `${descCount} description(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Long Headline Assets */}
-          {hasLongHeadlineAssetIdsField && profileIdNum && (
+          {hasLongHeadlineAssetIdsField && profileIdNum && (() => {
+            const longCount = selectedLongHeadlineAssets.length || (Array.isArray(formData.long_headline_asset_ids) ? formData.long_headline_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Long Headline Assets
@@ -572,18 +659,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsLongHeadlineAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedLongHeadlineAssets.length > 0 ? `Selected ${selectedLongHeadlineAssets.length} long headline(s)` : "Select Long Headline Assets"}
+                {longCount > 0 ? `Selected ${longCount} long headline(s)` : "Select Long Headline Assets"}
               </button>
-              {selectedLongHeadlineAssets.length > 0 && (
+              {longCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedLongHeadlineAssets.map(a => a.name).join(", ")}
+                  {selectedLongHeadlineAssets.length > 0
+                    ? selectedLongHeadlineAssets.map(getAssetDisplayName).join(", ")
+                    : `${longCount} long headline(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Video Assets */}
-          {hasVideoAssetIdsField && profileIdNum && (
+          {hasVideoAssetIdsField && profileIdNum && (() => {
+            const videoCount = selectedVideoAssets.length || (Array.isArray(formData.video_asset_ids) ? formData.video_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Video Assets
@@ -593,18 +685,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsVideoAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedVideoAssets.length > 0 ? `Selected ${selectedVideoAssets.length} video(s)` : "Select Video Assets"}
+                {videoCount > 0 ? `Selected ${videoCount} video(s)` : "Select Video Assets"}
               </button>
-              {selectedVideoAssets.length > 0 && (
+              {videoCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedVideoAssets.map(a => a.name).join(", ")}
+                  {selectedVideoAssets.length > 0
+                    ? selectedVideoAssets.map(getAssetDisplayName).join(", ")
+                    : `${videoCount} video(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Sitelink Assets */}
-          {hasSitelinkAssetIdsField && profileIdNum && (
+          {hasSitelinkAssetIdsField && profileIdNum && (() => {
+            const sitelinkCount = selectedSitelinkAssets.length || (Array.isArray(formData.sitelink_asset_ids) ? formData.sitelink_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Sitelink Assets
@@ -614,18 +711,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsSitelinkAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedSitelinkAssets.length > 0 ? `Selected ${selectedSitelinkAssets.length} sitelink(s)` : "Select Sitelink Assets"}
+                {sitelinkCount > 0 ? `Selected ${sitelinkCount} sitelink(s)` : "Select Sitelink Assets"}
               </button>
-              {selectedSitelinkAssets.length > 0 && (
+              {sitelinkCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedSitelinkAssets.map(a => a.name).join(", ")}
+                  {selectedSitelinkAssets.length > 0
+                    ? selectedSitelinkAssets.map(getAssetDisplayName).join(", ")
+                    : `${sitelinkCount} sitelink(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Callout Assets */}
-          {hasCalloutAssetIdsField && profileIdNum && (
+          {hasCalloutAssetIdsField && profileIdNum && (() => {
+            const calloutCount = selectedCalloutAssets.length || (Array.isArray(formData.callout_asset_ids) ? formData.callout_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Callout Assets
@@ -635,15 +737,18 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsCalloutAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedCalloutAssets.length > 0 ? `Selected ${selectedCalloutAssets.length} callout(s)` : "Select Callout Assets"}
+                {calloutCount > 0 ? `Selected ${calloutCount} callout(s)` : "Select Callout Assets"}
               </button>
-              {selectedCalloutAssets.length > 0 && (
+              {calloutCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedCalloutAssets.map(a => a.name).join(", ")}
+                  {selectedCalloutAssets.length > 0
+                    ? selectedCalloutAssets.map(getAssetDisplayName).join(", ")
+                    : `${calloutCount} callout(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Targeting Fields */}
