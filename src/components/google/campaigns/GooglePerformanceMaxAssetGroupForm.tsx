@@ -1089,7 +1089,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                       const longHeadlineAssetId = formData.long_headline_asset_ids?.[index];
                       return (
                         <div key={index} className="flex gap-2 items-center">
-                          <div className="flex-1 flex items-center gap-2">
+                          <div className="flex-1 relative">
                             <input
                               type="text"
                               value={longHeadline}
@@ -1109,46 +1109,48 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                               disabled={!!longHeadlineAssetId}
                               readOnly={!!longHeadlineAssetId}
                               maxLength={90}
-                              className={`campaign-input w-full ${
+                              className={`campaign-input w-full pr-28 ${
                                 errors.long_headlines ? "border-red-500" : ""
                               } ${longHeadlineAssetId ? "bg-gray-50 border-gray-200 cursor-not-allowed" : ""}`}
                               placeholder={`Long Headline ${index + 1} (max 90 characters)`}
                             />
-                            {longHeadlineAssetId && (
-                              <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
-                                From Asset
-                              </span>
-                            )}
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                              {longHeadlineAssetId && (
+                                <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
+                                  From Asset
+                                </span>
+                              )}
+                              {profileId && !longHeadlineAssetId && (
+                                <button
+                                  type="button"
+                                  onClick={() => openAssetSelector("LONG_HEADLINE", index)}
+                                  className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
+                                >
+                                  Select Asset
+                                </button>
+                              )}
+                              {longHeadlineAssetId && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newLongHeadlineAssetIds = [...(formData.long_headline_asset_ids || [])];
+                                    const newLongHeadlineAssetResourceNames = [...(formData.long_headline_asset_resource_names || [])];
+                                    newLongHeadlineAssetIds[index] = undefined;
+                                    newLongHeadlineAssetResourceNames[index] = undefined;
+                                    onChange("long_headline_asset_ids", newLongHeadlineAssetIds);
+                                    onChange("long_headline_asset_resource_names", newLongHeadlineAssetResourceNames);
+                                    const newLongHeadlines = [...(formData.long_headlines || [])];
+                                    newLongHeadlines[index] = "";
+                                    onChange("long_headlines", newLongHeadlines);
+                                  }}
+                                  className="text-red-500 hover:text-red-700 text-sm font-medium"
+                                  title="Remove selected asset"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          {profileId && !longHeadlineAssetId && (
-                            <button
-                              type="button"
-                              onClick={() => openAssetSelector("LONG_HEADLINE", index)}
-                              className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
-                            >
-                              Select Asset
-                            </button>
-                          )}
-                          {longHeadlineAssetId && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newLongHeadlineAssetIds = [...(formData.long_headline_asset_ids || [])];
-                                const newLongHeadlineAssetResourceNames = [...(formData.long_headline_asset_resource_names || [])];
-                                newLongHeadlineAssetIds[index] = undefined;
-                                newLongHeadlineAssetResourceNames[index] = undefined;
-                                onChange("long_headline_asset_ids", newLongHeadlineAssetIds);
-                                onChange("long_headline_asset_resource_names", newLongHeadlineAssetResourceNames);
-                                const newLongHeadlines = [...(formData.long_headlines || [])];
-                                newLongHeadlines[index] = "";
-                                onChange("long_headlines", newLongHeadlines);
-                              }}
-                              className="text-red-500 hover:text-red-700 text-sm font-medium"
-                              title="Remove selected asset"
-                            >
-                              ×
-                            </button>
-                          )}
                           {(formData.long_headlines?.length || 0) > 1 && (
                             <button
                               type="button"
@@ -1168,19 +1170,19 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
                               className="p-2 hover:bg-red-50 rounded transition-colors"
                               title="Remove long headline"
                             >
-                            <svg
-                              className="w-5 h-5 text-red-600"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
+                              <svg
+                                className="w-5 h-5 text-red-600"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
                             </button>
                           )}
                         </div>
