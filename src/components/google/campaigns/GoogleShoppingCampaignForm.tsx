@@ -3,6 +3,7 @@
 
 import React, { useState } from "react";
 import { Dropdown } from "../../ui/Dropdown";
+import { MerchantIdDropdown } from "../MerchantIdDropdown";
 import type { ShoppingCampaignFormProps } from "./types";
 import { SALES_COUNTRY_OPTIONS, CAMPAIGN_PRIORITY_OPTIONS, DEVICE_OPTIONS } from "./utils";
 import { GoogleLanguageTargetingForm } from "./GoogleLanguageTargetingForm";
@@ -53,10 +54,10 @@ export const GoogleShoppingCampaignForm: React.FC<GoogleShoppingCampaignFormProp
   errors,
   onChange,
   mode = "create",
-  merchantAccountOptions,
-  loadingMerchantAccounts,
-  merchantAccountsError,
-  onFetchMerchantAccounts,
+  accountId,
+  channelId,
+  selectedProfileId,
+  isOpen = true,
   languageOptions = [],
   loadingLanguages = false,
   locationOptions,
@@ -83,34 +84,18 @@ export const GoogleShoppingCampaignForm: React.FC<GoogleShoppingCampaignFormProp
         <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">Shopping Settings</h3>
         <div className={gridClass}>
           {showField("merchant_id") && (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="form-label mb-0">Merchant ID *</label>
-                <button
-                  type="button"
-                  onClick={onFetchMerchantAccounts}
-                  disabled={loadingMerchantAccounts}
-                  className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] disabled:text-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
-                >
-                  <svg className={`w-3 h-3 ${loadingMerchantAccounts ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  {loadingMerchantAccounts ? "Refreshing..." : "Refresh"}
-                </button>
-              </div>
-              <Dropdown<string>
-                options={merchantAccountOptions}
-                value={formData.merchant_id || ""}
-                onChange={(v) => onChange("merchant_id", v)}
-                placeholder={loadingMerchantAccounts ? "Loading merchant accounts..." : merchantAccountOptions.length === 0 ? "No merchant accounts available" : "Select merchant account"}
-                buttonClassName="edit-button w-full"
-                searchable={true}
-                searchPlaceholder="Search merchant accounts..."
-                emptyMessage={loadingMerchantAccounts ? "Loading..." : merchantAccountsError || "No Merchant Center accounts found."}
-                disabled={loadingMerchantAccounts}
-              />
-              {merchantAccountsError && <p className="text-[10px] text-yellow-600 mt-1">{merchantAccountsError}</p>}
-            </div>
+            <MerchantIdDropdown
+              value={formData.merchant_id || ""}
+              onChange={(v) => onChange("merchant_id", v)}
+              accountId={accountId}
+              channelId={channelId}
+              selectedProfileId={selectedProfileId}
+              campaignType={formData.campaign_type}
+              isOpen={isOpen}
+              errors={errors}
+              mode={mode}
+              showAccountCount={false}
+            />
           )}
           {showField("sales_country") && (
             <div>
@@ -162,76 +147,18 @@ export const GoogleShoppingCampaignForm: React.FC<GoogleShoppingCampaignFormProp
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Merchant ID */}
         {showField("merchant_id") && (
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="form-label mb-0">
-              Merchant ID *
-            </label>
-            <button
-              type="button"
-              onClick={onFetchMerchantAccounts}
-              disabled={loadingMerchantAccounts}
-              className="text-[10px] text-[#136D6D] hover:text-[#0e5a5a] disabled:text-gray-400 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
-              title="Refresh merchant accounts list"
-            >
-              <svg
-                className={`w-3 h-3 ${loadingMerchantAccounts ? "animate-spin" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-              {loadingMerchantAccounts ? "Refreshing..." : "Refresh"}
-            </button>
-          </div>
-          <Dropdown<string>
-            options={merchantAccountOptions}
+          <MerchantIdDropdown
             value={formData.merchant_id || ""}
-            onChange={(value) => {
-              onChange("merchant_id", value);
-            }}
-            placeholder={
-              loadingMerchantAccounts
-                ? "Loading merchant accounts..."
-                : merchantAccountOptions.length === 0
-                ? "No merchant accounts available"
-                : "Select merchant account"
-            }
-            buttonClassName="edit-button w-full"
-            searchable={true}
-            searchPlaceholder="Search merchant accounts..."
-            emptyMessage={
-              loadingMerchantAccounts
-                ? "Loading..."
-                : merchantAccountsError
-                ? merchantAccountsError
-                : "No Merchant Center accounts found. Please link a Merchant Center account to your Google Ads account."
-            }
-            disabled={loadingMerchantAccounts || (mode === "edit" && formData.campaign_type === "SHOPPING")}
+            onChange={(value) => onChange("merchant_id", value)}
+            accountId={accountId}
+            channelId={channelId}
+            selectedProfileId={selectedProfileId}
+            campaignType={formData.campaign_type}
+            isOpen={isOpen}
+            errors={errors}
+            mode={mode}
+            showAccountCount={true}
           />
-          {errors.merchant_id && (
-            <p className="text-[10px] text-red-500 mt-1">
-              {errors.merchant_id}
-            </p>
-          )}
-          {merchantAccountsError && !errors.merchant_id && (
-            <p className="text-[10px] text-yellow-600 mt-1">
-              {merchantAccountsError}
-            </p>
-          )}
-          {!loadingMerchantAccounts && merchantAccountOptions.length > 0 && !merchantAccountsError && (
-            <p className="text-[10px] text-gray-500 mt-1">
-              {merchantAccountOptions.length} merchant account(s) available
-            </p>
-          )}
-        </div>
         )}
 
         {/* Sales Country */}

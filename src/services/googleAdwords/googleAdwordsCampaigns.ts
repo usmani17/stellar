@@ -1,7 +1,7 @@
 import api from "../api";
 import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../../components/google/CreateGooglePmaxAssetGroupPanel";
 
-export const googleAdwordsCampaignsService = {
+export const googleAdwordsCampaignsService : any = {
   createGoogleCampaign: async (
     accountId: number,
     channelId: number,
