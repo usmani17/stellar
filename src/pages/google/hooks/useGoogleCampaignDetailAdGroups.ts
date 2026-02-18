@@ -108,17 +108,23 @@ export const useGoogleCampaignDetailAdGroups = ({
       if (!channelIdNum || isNaN(channelIdNum)) {
         throw new Error("Channel ID is required");
       }
+      const isDraftCampaign = String(campaignId).toLowerCase().startsWith("draft-");
+      const campaignIdParam = isDraftCampaign ? campaignId : parseInt(campaignId, 10);
+      if (typeof campaignIdParam === "number" && isNaN(campaignIdParam)) {
+        setAdgroupsLoading(false);
+        return;
+      }
       const data = await googleAdwordsAdGroupsService.getGoogleAdGroups(
         accountIdNum,
         channelIdNum,
-        parseInt(campaignId, 10),
+        campaignIdParam,
         {
           filters: adgroupsFilters,
           page: adgroupsCurrentPage,
           page_size: 100,
           sort_by: adgroupsSortBy,
           order: adgroupsSortOrder,
-          draft_only: showDraftsOnlyAdGroups,
+          draft_only: isDraftCampaign || showDraftsOnlyAdGroups,
         }
       );
 

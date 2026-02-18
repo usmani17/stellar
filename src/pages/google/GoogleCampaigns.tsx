@@ -542,16 +542,26 @@ export const GoogleCampaigns: React.FC = () => {
       if (!draftId.startsWith("draft-")) return;
       try {
         setPublishLoadingCampaignId(row.campaign_id);
-        await googleAdwordsCampaignsService.publishGoogleCampaignDraft(
+        const response = await googleAdwordsCampaignsService.publishGoogleCampaignDraft(
           accountIdNum,
           channelIdNum,
           draftId
         );
         await loadCampaigns(accountIdNum, channelIdNum);
+        const newCampaignId = response?.campaign_id != null ? String(response.campaign_id) : null;
         setErrorModal({
           isOpen: true,
           message: "Draft published successfully. The campaign is now live in Google Ads.",
           isSuccess: true,
+          actionButton: newCampaignId
+            ? {
+                text: "View campaign details",
+                onClick: () => {
+                  setErrorModal({ isOpen: false, message: "" });
+                  navigate(`/brands/${accountId}/${channelId}/google/campaigns/${newCampaignId}`);
+                },
+              }
+            : undefined,
         });
       } catch (err: any) {
         const message =
@@ -561,7 +571,7 @@ export const GoogleCampaigns: React.FC = () => {
         setPublishLoadingCampaignId(null);
       }
     },
-    [accountId, channelId, loadCampaigns]
+    [accountId, channelId, loadCampaigns, navigate]
   );
 
   const handlePublishDraftFromPanel = useCallback(
@@ -573,7 +583,7 @@ export const GoogleCampaigns: React.FC = () => {
       const draftId = String(campaignId);
       if (!draftId.startsWith("draft-")) return;
       try {
-        await googleAdwordsCampaignsService.publishGoogleCampaignDraft(
+        const response = await googleAdwordsCampaignsService.publishGoogleCampaignDraft(
           accountIdNum,
           channelIdNum,
           draftId,
@@ -585,10 +595,20 @@ export const GoogleCampaigns: React.FC = () => {
         setCampaignId(undefined);
         setRefreshMessage(null);
         await loadCampaigns(accountIdNum, channelIdNum);
+        const newCampaignId = response?.campaign_id != null ? String(response.campaign_id) : null;
         setErrorModal({
           isOpen: true,
           message: "Draft published successfully. The campaign is now live in Google Ads.",
           isSuccess: true,
+          actionButton: newCampaignId
+            ? {
+                text: "View campaign details",
+                onClick: () => {
+                  setErrorModal({ isOpen: false, message: "" });
+                  navigate(`/brands/${accountId}/${channelId}/google/campaigns/${newCampaignId}`);
+                },
+              }
+            : undefined,
         });
       } catch (err: any) {
         const message =
@@ -597,7 +617,7 @@ export const GoogleCampaigns: React.FC = () => {
         throw err;
       }
     },
-    [accountId, channelId, campaignId, loadCampaigns]
+    [accountId, channelId, campaignId, loadCampaigns, navigate]
   );
 
   // Campaigns are already filtered by backend using debouncedSearchValue; no extra client-side filter needed
@@ -1860,8 +1880,10 @@ export const GoogleCampaigns: React.FC = () => {
         0;
 
       // Map campaign data to CreateGoogleCampaignData format using refreshed data, creation_payload, or draft_state (agent drafts)
+      // Campaign name: prefer campaignName column (row/API), then name/campaign_name, then creation_payload
       const initial: Partial<CreateGoogleCampaignData> = {
         name:
+          (campaignData.campaignName ?? row.campaignName) ??
           draft_campaign.name ??
           (campaignData.name ||
             campaignData.campaign_name ||
@@ -1988,26 +2010,56 @@ export const GoogleCampaigns: React.FC = () => {
         }
       }
 
-      // For Demand Gen campaigns (including drafts), populate from extra_data.creation_payload
+      // For Demand Gen campaigns (including drafts), populate from extra_data.creation_payload.
+      // creation_payload can be flat (cp.name, cp.headlines) or nested (cp.campaign.name, cp.ad.headlines).
       if (campaignType === "DEMAND_GEN") {
         const cp = creation_payload;
-        if (cp.name) initial.name = cp.name;
-        if (cp.start_date) initial.start_date = parseDateToYYYYMMDD(cp.start_date) || initial.start_date;
-        if (cp.end_date) initial.end_date = parseDateToYYYYMMDD(cp.end_date) || initial.end_date;
-        if (typeof cp.budget_amount === "number") initial.budget_amount = cp.budget_amount;
-        if (cp.budget_name) initial.budget_name = cp.budget_name;
-        if (cp.bidding_strategy_type) initial.bidding_strategy_type = cp.bidding_strategy_type;
-        if (cp.headlines && Array.isArray(cp.headlines)) initial.headlines = cp.headlines;
-        if (cp.descriptions && Array.isArray(cp.descriptions)) initial.descriptions = cp.descriptions;
-        if (cp.long_headlines && Array.isArray(cp.long_headlines)) initial.long_headlines = cp.long_headlines;
-        if (cp.video_id) initial.video_id = cp.video_id;
-        if (cp.final_url) initial.final_url = cp.final_url;
-        if (cp.ad_group_name) initial.ad_group_name = cp.ad_group_name;
-        if (cp.ad_name) initial.ad_name = cp.ad_name;
-        if (cp.business_name) initial.business_name = cp.business_name;
-        if (cp.logo_url) initial.logo_url = cp.logo_url;
-        if (cp.channel_controls && typeof cp.channel_controls === "object") {
-          initial.channel_controls = cp.channel_controls;
+        const cpCampaign = cp?.campaign && typeof cp.campaign === "object" ? cp.campaign : {};
+        const cpAdGroup = cp?.ad_group && typeof cp.ad_group === "object" ? cp.ad_group : {};
+        const cpAd = cp?.ad && typeof cp.ad === "object" ? cp.ad : {};
+        // Campaign-level: from cp.campaign or flat cp (name comes from campaignName column above; do not overwrite)
+        const startDate = cpCampaign.start_date ?? cp.start_date;
+        if (startDate) initial.start_date = parseDateToYYYYMMDD(startDate) || initial.start_date;
+        const endDate = cpCampaign.end_date ?? cp.end_date;
+        if (endDate) initial.end_date = parseDateToYYYYMMDD(endDate) || initial.end_date;
+        if (typeof (cpCampaign.budget_amount ?? cp.budget_amount) === "number") {
+          initial.budget_amount = cpCampaign.budget_amount ?? cp.budget_amount;
+        }
+        const budgetName = cpCampaign.budget_name ?? cp.budget_name;
+        if (budgetName) initial.budget_name = budgetName;
+        const biddingType = cpCampaign.bidding_strategy_type ?? cp.bidding_strategy_type;
+        if (biddingType) initial.bidding_strategy_type = biddingType;
+        if (cpCampaign.status != null) initial.status = String(cpCampaign.status).toUpperCase();
+        if (cpCampaign.final_url_suffix != null) initial.final_url_suffix = String(cpCampaign.final_url_suffix);
+        if (cpCampaign.tracking_url_template != null) initial.tracking_url_template = String(cpCampaign.tracking_url_template);
+        if (cpCampaign.url_custom_parameters != null && typeof cpCampaign.url_custom_parameters === "object") {
+          initial.url_custom_parameters = cpCampaign.url_custom_parameters;
+        }
+        // Ad group: from cp.ad_group or flat cp
+        const adGroupName = cpAdGroup.ad_group_name ?? cp.ad_group_name;
+        if (adGroupName) initial.ad_group_name = adGroupName;
+        // Ad-level: from cp.ad or flat cp (headlines, descriptions, video_id, etc.)
+        const adName = cpAd.ad_name ?? cp.ad_name;
+        if (adName) initial.ad_name = adName;
+        const headlines = cpAd.headlines ?? cp.headlines;
+        if (headlines && Array.isArray(headlines)) initial.headlines = headlines;
+        const descriptions = cpAd.descriptions ?? cp.descriptions;
+        if (descriptions && Array.isArray(descriptions)) initial.descriptions = descriptions;
+        const longHeadlines = cpAd.long_headlines ?? cp.long_headlines;
+        if (longHeadlines && Array.isArray(longHeadlines)) initial.long_headlines = longHeadlines;
+        const videoId = cpAd.video_id ?? cp.video_id;
+        if (videoId != null) initial.video_id = String(videoId);
+        const videoUrl = cpAd.video_url ?? cp.video_url;
+        if (videoUrl != null) initial.video_url = String(videoUrl);
+        const finalUrl = cpAd.final_url ?? cp.final_url;
+        if (finalUrl != null) initial.final_url = String(finalUrl);
+        const businessName = cpAd.business_name ?? cp.business_name;
+        if (businessName != null) initial.business_name = String(businessName);
+        const logoUrl = cpAd.logo_url ?? cp.logo_url;
+        if (logoUrl != null) initial.logo_url = String(logoUrl);
+        const channelControls = cpAd.channel_controls ?? cp.channel_controls;
+        if (channelControls && typeof channelControls === "object") {
+          initial.channel_controls = { ...(initial.channel_controls || {}), ...channelControls };
         }
         // Ensure arrays for Demand Gen form
         if (!initial.headlines || !Array.isArray(initial.headlines)) initial.headlines = [""];
@@ -2016,7 +2068,17 @@ export const GoogleCampaigns: React.FC = () => {
 
       // When draft was created by agent, extra_data.draft_state has full payload (campaign, ad_group, ad). Populate form so all fields are visible.
       if (draft_state && (Object.keys(draft_campaign).length > 0 || Object.keys(draft_ad_group).length > 0 || Object.keys(draft_ad).length > 0)) {
-        if (draft_ad_group.ad_group_name != null) initial.ad_group_name = String(draft_ad_group.ad_group_name);
+        // Ad group: name (support both adgroup_name and ad_group_name for Search vs Demand Gen)
+        const agName = draft_ad_group.adgroup_name ?? draft_ad_group.ad_group_name;
+        if (agName != null) {
+          initial.ad_group_name = String(agName);
+          initial.adgroup_name = String(agName);
+        }
+        // Search: keywords from keyword_targets
+        if (draft_ad_group.keyword_targets && Array.isArray(draft_ad_group.keyword_targets)) {
+          initial.keywords = draft_ad_group.keyword_targets.map((k: { text?: string }) => (k?.text != null ? String(k.text) : "")).filter(Boolean);
+        }
+        // Demand Gen ad-level fields
         if (draft_ad.ad_name != null) initial.ad_name = String(draft_ad.ad_name);
         if (draft_ad.video_id != null) initial.video_id = String(draft_ad.video_id);
         if (draft_ad.video_url != null) initial.video_url = String(draft_ad.video_url);
@@ -2029,10 +2091,39 @@ export const GoogleCampaigns: React.FC = () => {
         if (draft_ad.channel_controls && typeof draft_ad.channel_controls === "object") {
           initial.channel_controls = { ...initial.channel_controls, ...draft_ad.channel_controls };
         }
+        // Campaign-level: URL options and targeting (devices, locations, languages, network settings)
         if (draft_campaign.final_url_suffix != null) initial.final_url_suffix = String(draft_campaign.final_url_suffix);
         if (draft_campaign.tracking_url_template != null) initial.tracking_url_template = String(draft_campaign.tracking_url_template);
         if (draft_campaign.url_custom_parameters != null && typeof draft_campaign.url_custom_parameters === "object") {
-          initial.url_custom_parameters = draft_campaign.url_custom_parameters;
+          const ucp = draft_campaign.url_custom_parameters;
+          initial.url_custom_parameters = Array.isArray(ucp)
+            ? ucp.map((p: { key?: string; value?: string }) => ({ key: String(p?.key ?? ""), value: String(p?.value ?? "") }))
+            : Object.entries(ucp).map(([key, value]) => ({ key, value: String(value ?? "") }));
+        }
+        // Search / shared: final_url on campaign (e.g. agent draft)
+        if (draft_campaign.final_url != null) initial.final_url = String(draft_campaign.final_url);
+        // Location and language targeting
+        if (draft_campaign.location_ids != null && Array.isArray(draft_campaign.location_ids)) {
+          initial.location_ids = draft_campaign.location_ids.map((id: number | string) => (typeof id === "string" ? parseInt(id, 10) : id)).filter((n: number) => !isNaN(n));
+        }
+        if (draft_campaign.excluded_location_ids != null && Array.isArray(draft_campaign.excluded_location_ids)) {
+          initial.excluded_location_ids = draft_campaign.excluded_location_ids.map((id: number | string) => String(id));
+        }
+        if (draft_campaign.language_ids != null && Array.isArray(draft_campaign.language_ids)) {
+          initial.language_ids = draft_campaign.language_ids.map((id: number | string) => String(id));
+        }
+        // Device targeting
+        if (draft_campaign.device_ids != null && Array.isArray(draft_campaign.device_ids)) {
+          initial.device_ids = draft_campaign.device_ids.map((id: number | string) => String(id));
+        }
+        // Network settings (Search)
+        if (draft_campaign.network_settings != null && typeof draft_campaign.network_settings === "object") {
+          initial.network_settings = { ...(initial.network_settings || {}), ...draft_campaign.network_settings };
+        }
+        // Search campaign: headlines/descriptions can live on campaign in draft_state
+        if (campaignType === "SEARCH") {
+          if (draft_campaign.headlines && Array.isArray(draft_campaign.headlines)) initial.headlines = draft_campaign.headlines;
+          if (draft_campaign.descriptions && Array.isArray(draft_campaign.descriptions)) initial.descriptions = draft_campaign.descriptions;
         }
         if (campaignType === "DEMAND_GEN") {
           if (!initial.headlines || !Array.isArray(initial.headlines)) initial.headlines = [""];
