@@ -10,6 +10,7 @@ export interface PixisChatStreamEvent {
   session_id?: string;
   sessionId?: string;
   session_db_id?: string;
+  timestamp_ms?: number;
   message?: { content?: Array<{ text?: string }> };
   tool_call?: unknown;
   text?: string;
@@ -40,10 +41,10 @@ export interface PixisChatParams {
 
 /** Timeline item for ordered display: thinking | tool_call | text | campaign-draft */
 export type PixisTimelineItem =
-  | { type: "thinking"; content?: string }
-  | { type: "tool_call"; label: string; status?: "running" | "completed" }
-  | { type: "text"; content: string }
-  | { type: "campaign-draft"; data: CampaignDraftData };
+  | { type: "thinking"; content?: string; timestamp_ms?: number }
+  | { type: "tool_call"; label: string; status?: "running" | "completed"; timestamp_ms?: number }
+  | { type: "text"; content: string; timestamp_ms?: number }
+  | { type: "campaign-draft"; data: CampaignDraftData; timestamp_ms?: number };
 
 /** Campaign draft data from AI agent */
 export interface CampaignDraftData {
@@ -134,7 +135,7 @@ export async function streamPixisChat(
           if (text || subtype === "completed") {
             thinkingAccumulated = thinkingAccumulated + text;
             if (thinkingAccumulated.trim()) {
-              callbacks.onTimelineItem?.({ type: "thinking", content: thinkingAccumulated });
+              callbacks.onTimelineItem?.({ type: "thinking", content: thinkingAccumulated, timestamp_ms: ev.timestamp_ms });
             }
             if (subtype === "completed") {
               thinkingAccumulated = "";
@@ -147,7 +148,7 @@ export async function streamPixisChat(
           if (text) {
             accumulated = text.startsWith(accumulated) ? text : accumulated + text;
             callbacks.onMessage?.(accumulated);
-            callbacks.onTimelineItem?.({ type: "text", content: accumulated });
+            callbacks.onTimelineItem?.({ type: "text", content: accumulated, timestamp_ms: ev.timestamp_ms });
           }
         }
 
@@ -168,7 +169,7 @@ export async function streamPixisChat(
             label = "Processing...";
           }
           callbacks.onToolCall?.(label);
-          callbacks.onTimelineItem?.({ type: "tool_call", label });
+          callbacks.onTimelineItem?.({ type: "tool_call", label, timestamp_ms: ev.timestamp_ms });
         }
 
         if (etype === "campaign-draft") {

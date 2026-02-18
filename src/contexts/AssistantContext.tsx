@@ -450,11 +450,15 @@ export const AssistantProvider: React.FC<{
       const timelineRef = { current: [...aiMsg.timeline] };
       const updateTimeline = (item: PixisTimelineItem) => {
         if (item.type === "text") {
-          const last = timelineRef.current[timelineRef.current.length - 1];
+          const arr = timelineRef.current;
+          const lastIdx = arr.length - 1;
+          const last = arr[lastIdx];
           if (last?.type === "text") {
-            timelineRef.current[timelineRef.current.length - 1] = item;
+            arr[lastIdx] = item; // preserves timestamp_ms from item
           } else {
-            timelineRef.current.push(item);
+            // Last is tool_call/thinking: remove previous text block(s) to avoid duplicates, then append at end for correct order (tool calls before final answer)
+            const kept = arr.filter((t) => t?.type !== "text");
+            timelineRef.current = [...kept, item] as typeof timelineRef.current;
           }
         } else if (item.type === "thinking" && item.content !== undefined) {
           const last = timelineRef.current[timelineRef.current.length - 1];
@@ -576,6 +580,9 @@ export const AssistantProvider: React.FC<{
               const finalContent = ev.full_message ?? "";
               const pending = pendingNewSessionRef.current;
               const realId = pending?.id ?? ev.session_db_id ?? ev.session_id ?? ev.sessionId;
+              const resultTs = typeof (ev as { timestamp_ms?: number }).timestamp_ms === "number"
+                ? (ev as { timestamp_ms?: number }).timestamp_ms
+                : Date.now();
 
               if (isNewSessionFlowRef.current) {
                 setPendingConversation((p) => {
@@ -584,11 +591,15 @@ export const AssistantProvider: React.FC<{
                   const last = msgs[msgs.length - 1];
                   if (last?.type !== "ai") return p;
                   const timeline = [...(last.timeline ?? [])];
-                  const lastTl = timeline[timeline.length - 1];
-                  if (lastTl?.type === "text") {
-                    timeline[timeline.length - 1] = { type: "text", content: finalContent };
-                  } else if (finalContent) {
-                    timeline.push({ type: "text", content: finalContent });
+                  if (finalContent) {
+                    const lastTl = timeline[timeline.length - 1];
+                    if (lastTl?.type === "text") {
+                      timeline[timeline.length - 1] = { type: "text", content: finalContent, timestamp_ms: resultTs };
+                    } else {
+                      const kept = timeline.filter((t) => t?.type !== "text");
+                      timeline.length = 0;
+                      timeline.push(...kept, { type: "text", content: finalContent, timestamp_ms: resultTs });
+                    }
                   }
                   const finalizedMessages: ChatMessage[] = [
                     ...msgs.slice(0, -1),
@@ -634,11 +645,15 @@ export const AssistantProvider: React.FC<{
                   const aiLast = last?.type === "ai" ? last : null;
                   if (!aiLast) return prev;
                   const timeline = [...(aiLast.timeline ?? [])];
-                  const lastTl = timeline[timeline.length - 1];
-                  if (lastTl?.type === "text") {
-                    timeline[timeline.length - 1] = { type: "text", content: finalContent };
-                  } else if (finalContent) {
-                    timeline.push({ type: "text", content: finalContent });
+                  if (finalContent) {
+                    const lastTl = timeline[timeline.length - 1];
+                    if (lastTl?.type === "text") {
+                      timeline[timeline.length - 1] = { type: "text", content: finalContent, timestamp_ms: resultTs };
+                    } else {
+                      const kept = timeline.filter((t) => t?.type !== "text");
+                      timeline.length = 0;
+                      timeline.push(...kept, { type: "text", content: finalContent, timestamp_ms: resultTs });
+                    }
                   }
                   const updated = {
                     ...target,
