@@ -12,6 +12,7 @@ export interface PixisChatStreamEvent {
   session_db_id?: string;
   message?: { content?: Array<{ text?: string }> };
   tool_call?: unknown;
+  text?: string;
   full_message?: string;
   // Campaign draft fields
   draft_id?: string;
@@ -39,8 +40,8 @@ export interface PixisChatParams {
 
 /** Timeline item for ordered display: thinking | tool_call | text | campaign-draft */
 export type PixisTimelineItem =
-  | { type: "thinking" }
-  | { type: "tool_call"; label: string }
+  | { type: "thinking"; content?: string }
+  | { type: "tool_call"; label: string; status?: "running" | "completed" }
   | { type: "text"; content: string }
   | { type: "campaign-draft"; data: CampaignDraftData };
 
@@ -101,6 +102,7 @@ export async function streamPixisChat(
   let sessionId: string | undefined;
   let sessionDbId: string | undefined;
   let accumulated = "";
+  let thinkingAccumulated = "";
 
   while (true) {
     const { done, value } = await reader.read();
@@ -127,6 +129,19 @@ export async function streamPixisChat(
           callbacks.onInit?.({ session_id: sessionId, session_db_id: sessionDbId });
         }
 
+        if (etype === "thinking") {
+          const text = typeof ev.text === "string" ? ev.text : "";
+          if (text || subtype === "completed") {
+            thinkingAccumulated = thinkingAccumulated + text;
+            if (thinkingAccumulated.trim()) {
+              callbacks.onTimelineItem?.({ type: "thinking", content: thinkingAccumulated });
+            }
+            if (subtype === "completed") {
+              thinkingAccumulated = "";
+            }
+          }
+        }
+
         if (etype === "assistant") {
           const text = ev.message?.content?.[0]?.text ?? "";
           if (text) {
@@ -137,15 +152,20 @@ export async function streamPixisChat(
         }
 
         if (etype === "tool_call" && subtype === "started") {
-          const tc = ev.tool_call as { shellToolCall?: unknown; readToolCall?: { args?: { path?: string } }; writeToolCall?: { args?: { path?: string } } } | undefined;
-          let label = "Processing...";
-          if (tc?.shellToolCall) label = "Querying datasource...";
-          else if (tc?.readToolCall) {
+          const tc = ev.tool_call as { name?: string; shellToolCall?: unknown; readToolCall?: { args?: { path?: string } }; writeToolCall?: { args?: { path?: string } } } | undefined;
+          let label: string;
+          if (typeof tc?.name === "string") {
+            label = tc.name;
+          } else if (tc?.shellToolCall) {
+            label = "Querying datasource...";
+          } else if (tc?.readToolCall) {
             const p = tc.readToolCall?.args?.path ?? "";
             label = `Reading: ${p.split("/").pop() ?? "file"}`;
           } else if (tc?.writeToolCall) {
             const p = tc.writeToolCall?.args?.path ?? "";
             label = `Writing: ${p.split("/").pop() ?? "file"}`;
+          } else {
+            label = "Processing...";
           }
           callbacks.onToolCall?.(label);
           callbacks.onTimelineItem?.({ type: "tool_call", label });

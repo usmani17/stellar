@@ -125,6 +125,7 @@ export function parseCampaignSetupJson(jsonStr: string): CampaignSetupData | nul
 const EVENT_STREAM_TYPES = new Set([
   "system",
   "user",
+  "thinking",
   "assistant",
   "tool_call",
   "result",
@@ -149,6 +150,41 @@ export function isEventStream(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Timeline item shape for building display from stored events (matches PixisTimelineItem) */
+export type EventStreamTimelineItem =
+  | { type: "thinking"; content: string }
+  | { type: "tool_call"; label: string }
+  | { type: "text"; content: string };
+
+/**
+ * Build timeline items from stored event stream for history display.
+ * Enables Thoughts + Ran tools to render the same as live streaming.
+ * Preserves chronological order: thinking, tool_call, then text at end.
+ */
+export function eventsToTimeline(events: unknown[]): EventStreamTimelineItem[] {
+  if (!Array.isArray(events)) return [];
+  const out: EventStreamTimelineItem[] = [];
+  const evArr = events as Array<Record<string, unknown>>;
+
+  for (const ev of evArr) {
+    if (ev.type === "thinking") {
+      const content = ev.content ?? ev.text;
+      if (typeof content === "string" && content.trim()) {
+        out.push({ type: "thinking", content });
+      }
+    } else if (ev.type === "tool_call" && typeof ev.label === "string") {
+      out.push({ type: "tool_call", label: ev.label });
+    }
+  }
+
+  const displayText = extractDisplayContentFromEvents(events);
+  if (displayText) {
+    out.push({ type: "text", content: displayText });
+  }
+
+  return out;
 }
 
 /**

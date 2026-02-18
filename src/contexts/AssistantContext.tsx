@@ -22,6 +22,7 @@ import {
   deriveCampaignStateFromContent,
   isEventStream,
   extractDisplayContentFromEvents,
+  eventsToTimeline,
 } from "../utils/chartJsonParser";
 
 export const ASSISTANT_PANEL_WIDTH = "550px";
@@ -292,14 +293,21 @@ export const AssistantProvider: React.FC<{
           }
           if (turn.final_message) {
             const isEvents = isEventStream(turn.final_message);
-            const displayContent = isEvents
-              ? extractDisplayContentFromEvents(JSON.parse(turn.final_message))
-              : turn.final_message;
+            let displayContent: string;
+            let timeline: PixisTimelineItem[];
+            if (isEvents) {
+              const events = JSON.parse(turn.final_message) as unknown[];
+              displayContent = extractDisplayContentFromEvents(events);
+              timeline = eventsToTimeline(events) as PixisTimelineItem[];
+            } else {
+              displayContent = turn.final_message;
+              timeline = [{ type: "text", content: displayContent }];
+            }
             msgs.push({
               type: "ai",
               id: `a-${turn.id}`,
               content: displayContent,
-              timeline: [{ type: "text", content: displayContent }],
+              timeline,
               isStreaming: false,
             });
           }
@@ -434,6 +442,13 @@ export const AssistantProvider: React.FC<{
         if (item.type === "text") {
           const last = timelineRef.current[timelineRef.current.length - 1];
           if (last?.type === "text") {
+            timelineRef.current[timelineRef.current.length - 1] = item;
+          } else {
+            timelineRef.current.push(item);
+          }
+        } else if (item.type === "thinking" && item.content !== undefined) {
+          const last = timelineRef.current[timelineRef.current.length - 1];
+          if (last?.type === "thinking") {
             timelineRef.current[timelineRef.current.length - 1] = item;
           } else {
             timelineRef.current.push(item);

@@ -9,6 +9,8 @@ import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
 import { MessageContent } from "../ai/MessageContent";
 import { ContentWithCharts } from "../ai/ContentWithCharts";
 import { CampaignDraftPreview } from "../ai/CampaignDraftPreview";
+import { ThoughtsSection } from "../ai/ThoughtsSection";
+import { RanToolBadges } from "../ai/RanToolBadges";
 import { accountsService, type Account } from "../../services/accounts";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
@@ -885,11 +887,12 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             }
                             if (message.type === "ai") {
                                 const { content, timeline, isStreaming: aiStreaming, error } = message;
+                                const lastText = [...timeline].reverse().find((i): i is Extract<PixisTimelineItem, { type: "text" }> => i.type === "text" && !!i.content);
                                 return (
                                     <div key={message.id} className="flex justify-start ai">
-                                        <div className="min-w-0 flex flex-col items-start p-4 gap-2 w-full max-w-full bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm">
+                                        <div className="min-w-0 flex flex-col items-start p-4 gap-3 w-full max-w-full bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm">
                                             {error && <div className="text-sm text-red-600">{error}</div>}
-                                            <div className="flex flex-col gap-2 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
+                                            <div className="flex flex-col gap-3 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
                                                 {timeline.length === 0 && aiStreaming && (
                                                     <div className="flex items-center gap-2 text-[#556179]">
                                                         <span className="text-xs font-medium">Thinking</span>
@@ -900,38 +903,28 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                         </div>
                                                     </div>
                                                 )}
-                                                {timeline.map((item: PixisTimelineItem, idx: number) => (
-                                                    <div key={idx} className="flex items-start gap-2 w-full">
-                                                        {item.type === "thinking" && (
-                                                            <div className="flex items-center gap-2 text-[#556179]">
-                                                                <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full animate-pulse shrink-0" />
-                                                                <span className="text-xs">Processing...</span>
-                                                                <div className="flex gap-1">
-                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
-                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {item.type === "tool_call" && (
-                                                            <div className="flex items-center gap-2 text-[#556179] text-sm">
-                                                                <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full shrink-0" />
-                                                                <span>{item.label}</span>
-                                                            </div>
-                                                        )}
-                                                        {item.type === "text" && item.content && (
-                                                            <div className="assistant-message-content">
+                                                {timeline.map((item, idx) => {
+                                                    if (item.type === "thinking" && item.content?.trim()) {
+                                                        return <ThoughtsSection key={`t-${idx}`} content={item.content!} defaultExpanded />;
+                                                    }
+                                                    if (item.type === "tool_call") {
+                                                        return <RanToolBadges key={`tc-${idx}`} tools={[{ label: item.label }]} />;
+                                                    }
+                                                    if (item.type === "text" && item.content) {
+                                                        return (
+                                                            <div key={`txt-${idx}`} className="assistant-message-content w-full">
                                                                 <ContentWithCharts content={item.content} type="ai" />
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                                {timeline.length === 0 && !aiStreaming && content && (
-                                                    <div className="assistant-message-content">
+                                                        );
+                                                    }
+                                                    return null;
+                                                })}
+                                                {timeline.length === 0 && content && (
+                                                    <div className="assistant-message-content w-full">
                                                         <ContentWithCharts content={content} type="ai" />
                                                     </div>
                                                 )}
-                                                {aiStreaming && timeline.length > 0 && (
+                                                {aiStreaming && timeline.length > 0 && !lastText?.content && (
                                                     <div className="flex items-center gap-2 text-[#556179]">
                                                         <span className="text-xs font-medium">Thinking</span>
                                                         <div className="flex gap-1">
