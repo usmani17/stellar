@@ -132,6 +132,18 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
     const spends = getMetricNumber(lg, "spends");
     return interactions > 0 ? spends / interactions : (lg.avg_cost ?? 0);
   };
+
+  const [showDraftsOnly, setShowDraftsOnly] = useState(false);
+  const isDraftListingGroup = (lg: GoogleListingGroup) => {
+    const status = (lg.status || "").toUpperCase();
+    if (status === "SAVED_DRAFT" || status === "DRAFT") return true;
+    const id = lg.ad_id ?? lg.id ?? lg.listing_group_id;
+    return String(id).startsWith("draft-");
+  };
+  const displayedListingGroups = showDraftsOnly
+    ? listingGroups.filter(isDraftListingGroup)
+    : listingGroups;
+
   const [showBulkConfirmationModal, setShowBulkConfirmationModal] = useState(false);
   const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLED" | "PAUSED" | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -142,8 +154,8 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
   } | null>(null);
 
   const getSelectedListingGroupsData = () =>
-    listingGroups.filter((lg) => selectedListingGroupIds.has(lg.id));
-  const selectableListingGroups = listingGroups.filter(
+    displayedListingGroups.filter((lg) => selectedListingGroupIds.has(lg.id));
+  const selectableListingGroups = displayedListingGroups.filter(
     (lg) => (lg.status || "").toUpperCase() !== "REMOVED"
   );
   const isListingGroupRemoved = (lg: { status?: string }) =>
@@ -500,6 +512,26 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
       {/* Create Panel - below create button */}
       {createPanel}
 
+      {/* Show drafts switch - above table */}
+      <div className="flex items-center gap-2 mb-3">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showDraftsOnly}
+          onClick={() => setShowDraftsOnly((prev) => !prev)}
+          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:ring-offset-2 ${
+            showDraftsOnly ? "bg-[#136D6D]" : "bg-gray-200"
+          }`}
+        >
+          <span
+            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+              showDraftsOnly ? "translate-x-5" : "translate-x-1"
+            }`}
+          />
+        </button>
+        <span className="text-[13px] text-[#072929]">Show drafts only</span>
+      </div>
+
       {/* Filter Panel */}
       {isFilterPanelOpen && (
         <div className="mb-4">
@@ -526,10 +558,10 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
             <div className="text-center py-8 text-[#556179] text-[13.3px]">
               Loading shopping ads...
             </div>
-          ) : listingGroups.length === 0 ? (
+          ) : displayedListingGroups.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-[13.3px] text-[#556179] mb-4">
-                No shopping ads found
+                {showDraftsOnly ? "No draft shopping ads found" : "No shopping ads found"}
               </p>
             </div>
           ) : (
@@ -583,7 +615,7 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<GoogleCampaignDetailSh
                 </tr>
               </thead>
               <tbody>
-                {listingGroups.map((listingGroup, index) => {
+                {displayedListingGroups.map((listingGroup, index) => {
                   const isLastRow = index === listingGroups.length - 1;
                   const listingGroupStatus = (listingGroup.status || "").toUpperCase();
                   const isRemoved = listingGroupStatus === "REMOVED";

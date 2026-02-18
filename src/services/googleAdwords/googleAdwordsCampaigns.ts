@@ -257,9 +257,10 @@ export const googleAdwordsCampaignsService = {
   createGoogleShoppingAd: async (
     accountId: number,
     channelId: number,
-    campaignId: number,
+    campaignId: number | string,
     payload: {
       adgroup_id: number; // Required: use existing adgroup
+      save_as_draft?: boolean;
     }
   ): Promise<{
     ad?: {
