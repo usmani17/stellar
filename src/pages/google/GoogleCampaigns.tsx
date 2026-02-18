@@ -54,6 +54,7 @@ import { useQuery } from "@tanstack/react-query";
 import { columnPreferencesService } from "../../services/columnPreferences";
 import { queryKeys } from "../../hooks/queries/queryKeys";
 import { Assistant } from "../../components/layout/Assistant";
+import { useDebouncedSearch } from "../../hooks/useDebouncedSearch";
 
 // IGoogleCampaign interface is now imported from GoogleCampaignsTable
 
@@ -109,13 +110,15 @@ export const GoogleCampaigns: React.FC = () => {
     // Clear the request params ref to force a reload in useEffect
     lastRequestParamsRef.current = "";
   }, []);
-  const [sortBy, setSortBy] = useState<string>("sales");
+  const [sortBy, setSortBy] = useState<string>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
-  const [showDraftsOnly, setShowDraftsOnly] = useState(false);
-  const [searchQuery, setSearchQuery] = useState<string>(""); // For input field and client-side filtering
-  const [apiSearchQuery, setApiSearchQuery] = useState<string>(""); // For backend API calls
+  const [showDraftsOnly, setShowDraftsOnly] = useState<boolean>(() => {
+    const saved = localStorage.getItem("google_campaigns_show_drafts_only");
+    return saved === "true";
+  });
+  const [searchInputValue, setSearchInputValue, debouncedSearchValue] = useDebouncedSearch("", 400);
   const isLoadingRef = useRef(false);
   const lastRequestParamsRef = useRef<string>(""); // Track last request to prevent duplicate calls
   const [isCreateCampaignPanelOpen, setIsCreateCampaignPanelOpen] =
@@ -459,8 +462,8 @@ export const GoogleCampaigns: React.FC = () => {
         end_date: endDate ? endDateStr : undefined,
         filters: filters || [], // Pass filters array directly - ensure it's always an array
         draft_only: showDraftsOnly,
-        ...(apiSearchQuery && {
-          campaign_name__icontains: apiSearchQuery,
+        ...(debouncedSearchValue.trim() && {
+          campaign_name__icontains: debouncedSearchValue.trim(),
         }),
       };
 
@@ -527,7 +530,7 @@ export const GoogleCampaigns: React.FC = () => {
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate, filters, apiSearchQuery, showDraftsOnly]);
+  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate, filters, debouncedSearchValue, showDraftsOnly]);
 
   const handlePublishDraft = useCallback(
     async (row: IGoogleCampaign) => {
@@ -597,20 +600,8 @@ export const GoogleCampaigns: React.FC = () => {
     [accountId, channelId, campaignId, loadCampaigns]
   );
 
-  // Apply client-side filtering if searchQuery is different from apiSearchQuery
-  const filteredCampaigns = useMemo(() => {
-    // Apply client-side filtering if searchQuery is different from apiSearchQuery
-    if (searchQuery && searchQuery !== apiSearchQuery) {
-      const query = searchQuery.toLowerCase().trim();
-      return campaigns.filter((campaign) => {
-        const campaignName = (campaign.campaign_name || "").toLowerCase();
-        const accountIdStr = accountId ? accountId.toString() : "";
-        return campaignName.includes(query) || accountIdStr.includes(query);
-      });
-    }
-
-    return campaigns;
-  }, [campaigns, searchQuery, apiSearchQuery, accountId]);
+  // Campaigns are already filtered by backend using debouncedSearchValue; no extra client-side filter needed
+  const filteredCampaigns = campaigns;
 
   // Wrapper function for useGoogleSyncStatus hook (it expects only accountId)
   const loadCampaignsWrapper = useCallback(async (accountId: number) => {
@@ -644,7 +635,7 @@ export const GoogleCampaigns: React.FC = () => {
           filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
           startDate: startDate ? startDateStr : null,
           endDate: endDate ? endDateStr : null,
-          apiSearchQuery,
+          debouncedSearchValue,
           showDraftsOnly,
         });
 
@@ -663,7 +654,12 @@ export const GoogleCampaigns: React.FC = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, channelId, currentPage, itemsPerPage, filters, startDate, endDate, sorting, apiSearchQuery, showDraftsOnly]);
+  }, [accountId, channelId, currentPage, itemsPerPage, filters, startDate, endDate, sorting, debouncedSearchValue, showDraftsOnly]);
+
+  // Reset to first page when search term changes (after debounce)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchValue]);
 
   const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData, options?: { saveAsDraft?: boolean }) => {
     const saveAsDraft = options?.saveAsDraft === true;
@@ -3861,7 +3857,11 @@ export const GoogleCampaigns: React.FC = () => {
                       role="switch"
                       aria-checked={showDraftsOnly}
                       onClick={() => {
-                        setShowDraftsOnly((prev) => !prev);
+                        setShowDraftsOnly((prev) => {
+                          const next = !prev;
+                          localStorage.setItem("google_campaigns_show_drafts_only", String(next));
+                          return next;
+                        });
                         setCurrentPage(1);
                       }}
                       className={`relative inline-flex items-center h-6 w-16 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-[#072929] focus:ring-offset-2 overflow-hidden ${
@@ -3915,18 +3915,8 @@ export const GoogleCampaigns: React.FC = () => {
                     </div>
                     <input
                       type="text"
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        // Don't reset page or call API while typing - only filter client-side
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          // Call backend API when Enter is pressed
-                          setApiSearchQuery(searchQuery);
-                          setCurrentPage(1); // Reset to first page when searching
-                        }
-                      }}
+                      value={searchInputValue}
+                      onChange={(e) => setSearchInputValue(e.target.value)}
                       placeholder="Search by Name or Account ID"
                       className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179] font-['GT_America_Trial'] font-normal"
                     />
