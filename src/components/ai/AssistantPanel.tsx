@@ -587,7 +587,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             {/* Top row: chat tabs (left) + New Chat & Close (right) */}
             <div className="assistant-top-row">
                 <div className="assistant-top-row-inner">
-                    <div className="assistant-tabs-scroll interactive-scrollbar" style={{ scrollbarWidth: 'thin' }}>
+                    <div className="assistant-tabs-scroll interactive-scrollbar">
                         {isLoadingSessions ? (
                             <span className="assistant-muted-text">Loading...</span>
                         ) : sessions.filter((s) => s.id !== "__pending__").length > 0 ? (
@@ -637,7 +637,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 ))
                         ) : null}
                     </div>
-                    <div className="flex items-center gap-1 shrink-0 pl-2">
+                    <div className="assistant-top-row-actions">
                         <div ref={historyDropdownRef} className="relative">
                             <button
                                 type="button"

@@ -1200,20 +1200,36 @@ body input[type="submit"]:disabled {
 
 .assistant-top-row-inner {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  gap: 0;
+  height: 54px;
   min-height: 44px;
 }
 
+/* Scrollbar is drawn inside this box (inwards), not below it */
 .assistant-tabs-scroll {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   flex: 1;
   min-width: 0;
+  min-height: 0;
   overflow-x: auto;
+  overflow-y: hidden;
+  height: 100%;
+  padding: 0.5rem 0.75rem 0.5rem 0.75rem;
+  scrollbar-width: thin;
+}
+
+.assistant-top-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  padding: 0.5rem 0.75rem 0.5rem 0.5rem;
+  height: 100%;
+  box-shadow: -4px 0 12px -2px rgba(0, 0, 0, 0.18);
 }
 
 /* Single chat tab pill */
