@@ -54,6 +54,7 @@ import { useQuery } from "@tanstack/react-query";
 import { columnPreferencesService } from "../../services/columnPreferences";
 import { queryKeys } from "../../hooks/queries/queryKeys";
 import { Assistant } from "../../components/layout/Assistant";
+import { useDebouncedSearch } from "../../hooks/useDebouncedSearch";
 
 // IGoogleCampaign interface is now imported from GoogleCampaignsTable
 
@@ -109,13 +110,15 @@ export const GoogleCampaigns: React.FC = () => {
     // Clear the request params ref to force a reload in useEffect
     lastRequestParamsRef.current = "";
   }, []);
-  const [sortBy, setSortBy] = useState<string>("sales");
+  const [sortBy, setSortBy] = useState<string>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
-  const [showDraftsOnly, setShowDraftsOnly] = useState(false);
-  const [searchQuery, setSearchQuery] = useState<string>(""); // For input field and client-side filtering
-  const [apiSearchQuery, setApiSearchQuery] = useState<string>(""); // For backend API calls
+  const [showDraftsOnly, setShowDraftsOnly] = useState<boolean>(() => {
+    const saved = localStorage.getItem("google_campaigns_show_drafts_only");
+    return saved === "true";
+  });
+  const [searchInputValue, setSearchInputValue, debouncedSearchValue] = useDebouncedSearch("", 400);
   const isLoadingRef = useRef(false);
   const lastRequestParamsRef = useRef<string>(""); // Track last request to prevent duplicate calls
   const [isCreateCampaignPanelOpen, setIsCreateCampaignPanelOpen] =
@@ -459,8 +462,8 @@ export const GoogleCampaigns: React.FC = () => {
         end_date: endDate ? endDateStr : undefined,
         filters: filters || [], // Pass filters array directly - ensure it's always an array
         draft_only: showDraftsOnly,
-        ...(apiSearchQuery && {
-          campaign_name__icontains: apiSearchQuery,
+        ...(debouncedSearchValue.trim() && {
+          campaign_name__icontains: debouncedSearchValue.trim(),
         }),
       };
 
@@ -527,7 +530,7 @@ export const GoogleCampaigns: React.FC = () => {
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate, filters, apiSearchQuery, showDraftsOnly]);
+  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate, filters, debouncedSearchValue, showDraftsOnly]);
 
   const handlePublishDraft = useCallback(
     async (row: IGoogleCampaign) => {
@@ -539,16 +542,26 @@ export const GoogleCampaigns: React.FC = () => {
       if (!draftId.startsWith("draft-")) return;
       try {
         setPublishLoadingCampaignId(row.campaign_id);
-        await googleAdwordsCampaignsService.publishGoogleCampaignDraft(
+        const response = await googleAdwordsCampaignsService.publishGoogleCampaignDraft(
           accountIdNum,
           channelIdNum,
           draftId
         );
         await loadCampaigns(accountIdNum, channelIdNum);
+        const newCampaignId = response?.campaign_id != null ? String(response.campaign_id) : null;
         setErrorModal({
           isOpen: true,
           message: "Draft published successfully. The campaign is now live in Google Ads.",
           isSuccess: true,
+          actionButton: newCampaignId
+            ? {
+                text: "View campaign details",
+                onClick: () => {
+                  setErrorModal({ isOpen: false, message: "" });
+                  navigate(`/brands/${accountId}/${channelId}/google/campaigns/${newCampaignId}`);
+                },
+              }
+            : undefined,
         });
       } catch (err: any) {
         const message =
@@ -558,7 +571,7 @@ export const GoogleCampaigns: React.FC = () => {
         setPublishLoadingCampaignId(null);
       }
     },
-    [accountId, channelId, loadCampaigns]
+    [accountId, channelId, loadCampaigns, navigate]
   );
 
   const handlePublishDraftFromPanel = useCallback(
@@ -570,7 +583,7 @@ export const GoogleCampaigns: React.FC = () => {
       const draftId = String(campaignId);
       if (!draftId.startsWith("draft-")) return;
       try {
-        await googleAdwordsCampaignsService.publishGoogleCampaignDraft(
+        const response = await googleAdwordsCampaignsService.publishGoogleCampaignDraft(
           accountIdNum,
           channelIdNum,
           draftId,
@@ -582,10 +595,20 @@ export const GoogleCampaigns: React.FC = () => {
         setCampaignId(undefined);
         setRefreshMessage(null);
         await loadCampaigns(accountIdNum, channelIdNum);
+        const newCampaignId = response?.campaign_id != null ? String(response.campaign_id) : null;
         setErrorModal({
           isOpen: true,
           message: "Draft published successfully. The campaign is now live in Google Ads.",
           isSuccess: true,
+          actionButton: newCampaignId
+            ? {
+                text: "View campaign details",
+                onClick: () => {
+                  setErrorModal({ isOpen: false, message: "" });
+                  navigate(`/brands/${accountId}/${channelId}/google/campaigns/${newCampaignId}`);
+                },
+              }
+            : undefined,
         });
       } catch (err: any) {
         const message =
@@ -594,23 +617,11 @@ export const GoogleCampaigns: React.FC = () => {
         throw err;
       }
     },
-    [accountId, channelId, campaignId, loadCampaigns]
+    [accountId, channelId, campaignId, loadCampaigns, navigate]
   );
 
-  // Apply client-side filtering if searchQuery is different from apiSearchQuery
-  const filteredCampaigns = useMemo(() => {
-    // Apply client-side filtering if searchQuery is different from apiSearchQuery
-    if (searchQuery && searchQuery !== apiSearchQuery) {
-      const query = searchQuery.toLowerCase().trim();
-      return campaigns.filter((campaign) => {
-        const campaignName = (campaign.campaign_name || "").toLowerCase();
-        const accountIdStr = accountId ? accountId.toString() : "";
-        return campaignName.includes(query) || accountIdStr.includes(query);
-      });
-    }
-
-    return campaigns;
-  }, [campaigns, searchQuery, apiSearchQuery, accountId]);
+  // Campaigns are already filtered by backend using debouncedSearchValue; no extra client-side filter needed
+  const filteredCampaigns = campaigns;
 
   // Wrapper function for useGoogleSyncStatus hook (it expects only accountId)
   const loadCampaignsWrapper = useCallback(async (accountId: number) => {
@@ -644,7 +655,7 @@ export const GoogleCampaigns: React.FC = () => {
           filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
           startDate: startDate ? startDateStr : null,
           endDate: endDate ? endDateStr : null,
-          apiSearchQuery,
+          debouncedSearchValue,
           showDraftsOnly,
         });
 
@@ -663,7 +674,12 @@ export const GoogleCampaigns: React.FC = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, channelId, currentPage, itemsPerPage, filters, startDate, endDate, sorting, apiSearchQuery, showDraftsOnly]);
+  }, [accountId, channelId, currentPage, itemsPerPage, filters, startDate, endDate, sorting, debouncedSearchValue, showDraftsOnly]);
+
+  // Reset to first page when search term changes (after debounce)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchValue]);
 
   const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData, options?: { saveAsDraft?: boolean }) => {
     const saveAsDraft = options?.saveAsDraft === true;
@@ -1864,8 +1880,10 @@ export const GoogleCampaigns: React.FC = () => {
         0;
 
       // Map campaign data to CreateGoogleCampaignData format using refreshed data, creation_payload, or draft_state (agent drafts)
+      // Campaign name: prefer campaignName column (row/API), then name/campaign_name, then creation_payload
       const initial: Partial<CreateGoogleCampaignData> = {
         name:
+          (campaignData.campaignName ?? row.campaignName) ??
           draft_campaign.name ??
           (campaignData.name ||
             campaignData.campaign_name ||
@@ -1910,78 +1928,150 @@ export const GoogleCampaigns: React.FC = () => {
         target_impression_share_location: campaignData.target_impression_share_location,
         target_impression_share_location_fraction_micros: campaignData.target_impression_share_location_fraction_micros,
         target_impression_share_cpc_bid_ceiling_micros: campaignData.target_impression_share_cpc_bid_ceiling_micros,
-        // UTM parameters
+        // UTM parameters (for drafts without draft_state, use creation_payload)
         tracking_url_template:
-          (draft_campaign.tracking_url_template as string) ?? campaignData.tracking_url_template ?? undefined,
+          (draft_campaign.tracking_url_template as string) ??
+          (creation_payload.tracking_url_template != null ? String(creation_payload.tracking_url_template) : undefined) ??
+          campaignData.tracking_url_template ??
+          undefined,
         final_url_suffix:
-          (draft_campaign.final_url_suffix as string) ?? campaignData.final_url_suffix ?? undefined,
+          (draft_campaign.final_url_suffix as string) ??
+          (creation_payload.final_url_suffix != null ? String(creation_payload.final_url_suffix) : undefined) ??
+          campaignData.final_url_suffix ??
+          undefined,
         url_custom_parameters:
-          (draft_campaign.url_custom_parameters as any) ?? campaignData.url_custom_parameters ?? undefined,
-        // Targeting fields
-        location_ids: campaignData.location_ids || [],
-        excluded_location_ids: campaignData.excluded_location_ids || [],
-        language_ids: campaignData.language_ids || [],
-        device_ids: campaignData.device_ids || [],
-        // Shopping-specific fields from extra_data or direct fields
+          (draft_campaign.url_custom_parameters as any) ??
+          (creation_payload.url_custom_parameters != null && typeof creation_payload.url_custom_parameters === "object"
+            ? Array.isArray(creation_payload.url_custom_parameters)
+              ? creation_payload.url_custom_parameters.map((p: { key?: string; value?: string }) => ({ key: String(p?.key ?? ""), value: String(p?.value ?? "") }))
+              : Object.entries(creation_payload.url_custom_parameters).map(([k, v]) => ({ key: k, value: String(v ?? "") }))
+            : undefined) ??
+          campaignData.url_custom_parameters ??
+          undefined,
+        // Targeting fields (for drafts these come from creation_payload; campaignData has them only after API sync)
+        location_ids:
+          (creation_payload.location_ids && Array.isArray(creation_payload.location_ids)
+            ? creation_payload.location_ids.map((id: number | string) => (typeof id === "string" ? parseInt(id, 10) : id)).filter((n: number) => !isNaN(n))
+            : undefined) ?? campaignData.location_ids ?? [],
+        excluded_location_ids:
+          (creation_payload.excluded_location_ids && Array.isArray(creation_payload.excluded_location_ids)
+            ? creation_payload.excluded_location_ids.map((id: number | string) => String(id))
+            : undefined) ?? campaignData.excluded_location_ids ?? [],
+        language_ids:
+          (creation_payload.language_ids && Array.isArray(creation_payload.language_ids)
+            ? creation_payload.language_ids.map((id: number | string) => String(id))
+            : undefined) ?? campaignData.language_ids ?? [],
+        device_ids:
+          (creation_payload.device_ids && Array.isArray(creation_payload.device_ids)
+            ? creation_payload.device_ids.map((id: number | string) => String(id))
+            : undefined) ?? campaignData.device_ids ?? [],
+        // Shopping-specific fields from extra_data or direct fields (drafts: creation_payload)
         merchant_id: campaignData.merchant_id || shopping_setting.merchant_id,
         sales_country:
-          campaignData.sales_country || shopping_setting.sales_country || "US",
+          (creation_payload.sales_country as string | undefined) ??
+          campaignData.sales_country ??
+          shopping_setting.sales_country ??
+          "US",
         campaign_priority:
+          (typeof creation_payload.campaign_priority === "number" ? creation_payload.campaign_priority : undefined) ??
           campaignData.campaign_priority ??
           shopping_setting.campaign_priority ??
           0,
         enable_local:
-          campaignData.enable_local ?? shopping_setting.enable_local ?? false,
+          (creation_payload.enable_local === true || creation_payload.enable_local === false
+            ? creation_payload.enable_local
+            : undefined) ?? campaignData.enable_local ?? shopping_setting.enable_local ?? false,
         // SEARCH specific fields
         network_settings: campaignData.network_settings || undefined,
       };
 
-      // For Performance Max campaigns, use data from refreshed extra_data
+      // When draft was saved from form (created_as_draft + creation_payload), ensure profile and customer are set so selectors show
+      if (isDraft && creation_payload && typeof creation_payload === "object") {
+        if (creation_payload.profile_id != null) {
+          initial.profile_id = String(creation_payload.profile_id);
+        }
+        if (creation_payload.customer_id != null) {
+          initial.customer_id = String(creation_payload.customer_id);
+        }
+      }
+
+      // For Performance Max campaigns, use data from refreshed extra_data or creation_payload (drafts store in creation_payload)
       if (campaignType === "PERFORMANCE_MAX") {
-        // Use PMax data from refreshed extra_data (already fetched from API)
+        // Use PMax data from extra_data (live/synced) or creation_payload (drafts saved from form)
+        const cp = creation_payload;
         if (extra_data.business_name) {
           initial.business_name = extra_data.business_name;
+        } else if (cp?.business_name != null) {
+          initial.business_name = String(cp.business_name);
         }
         if (extra_data.logo_url) {
           initial.logo_url = extra_data.logo_url;
+        } else if (cp?.logo_url != null) {
+          initial.logo_url = String(cp.logo_url);
         }
         if (extra_data.final_url) {
           initial.final_url = extra_data.final_url;
+        } else if (cp?.final_url != null) {
+          initial.final_url = String(cp.final_url);
         }
         if (extra_data.headlines && Array.isArray(extra_data.headlines)) {
           initial.headlines = extra_data.headlines;
+        } else if (cp?.headlines && Array.isArray(cp.headlines)) {
+          initial.headlines = cp.headlines;
         }
         if (extra_data.descriptions && Array.isArray(extra_data.descriptions)) {
           initial.descriptions = extra_data.descriptions;
+        } else if (cp?.descriptions && Array.isArray(cp.descriptions)) {
+          initial.descriptions = cp.descriptions;
         }
         // Handle long_headlines (plural array) - backward compatible with long_headline (singular)
         if (extra_data.long_headlines && Array.isArray(extra_data.long_headlines)) {
           initial.long_headlines = extra_data.long_headlines;
         } else if (extra_data.long_headline) {
-          // Backward compatibility: if singular long_headline exists, convert to array
           initial.long_headlines = [extra_data.long_headline];
+        } else if (cp?.long_headlines && Array.isArray(cp.long_headlines)) {
+          initial.long_headlines = cp.long_headlines;
+        } else if (cp?.long_headline) {
+          initial.long_headlines = [cp.long_headline];
         }
 
         // Handle video, sitelink, and callout asset resource names
         if (extra_data.video_asset_resource_names && Array.isArray(extra_data.video_asset_resource_names)) {
           initial.video_asset_resource_names = extra_data.video_asset_resource_names;
+        } else if (cp?.video_asset_resource_names && Array.isArray(cp.video_asset_resource_names)) {
+          initial.video_asset_resource_names = cp.video_asset_resource_names;
         }
         if (extra_data.sitelink_asset_resource_names && Array.isArray(extra_data.sitelink_asset_resource_names)) {
           initial.sitelink_asset_resource_names = extra_data.sitelink_asset_resource_names;
+        } else if (cp?.sitelink_asset_resource_names && Array.isArray(cp.sitelink_asset_resource_names)) {
+          initial.sitelink_asset_resource_names = cp.sitelink_asset_resource_names;
         }
         if (extra_data.callout_asset_resource_names && Array.isArray(extra_data.callout_asset_resource_names)) {
           initial.callout_asset_resource_names = extra_data.callout_asset_resource_names;
+        } else if (cp?.callout_asset_resource_names && Array.isArray(cp.callout_asset_resource_names)) {
+          initial.callout_asset_resource_names = cp.callout_asset_resource_names;
         }
         if (extra_data.marketing_image_url) {
           initial.marketing_image_url = extra_data.marketing_image_url;
+        } else if (cp?.marketing_image_url != null) {
+          initial.marketing_image_url = String(cp.marketing_image_url);
         }
         if (extra_data.square_marketing_image_url) {
           initial.square_marketing_image_url =
             extra_data.square_marketing_image_url;
+        } else if (cp?.square_marketing_image_url != null) {
+          initial.square_marketing_image_url = String(cp.square_marketing_image_url);
         }
         if (extra_data.asset_group_name) {
           initial.asset_group_name = extra_data.asset_group_name;
+        } else if (cp?.asset_group_name != null) {
+          initial.asset_group_name = String(cp.asset_group_name);
         }
+        // Asset IDs and resource names (drafts often store these in creation_payload)
+        if (cp?.logo_asset_id != null) initial.logo_asset_id = String(cp.logo_asset_id);
+        if (cp?.logo_asset_resource_name != null) initial.logo_asset_resource_name = String(cp.logo_asset_resource_name);
+        if (cp?.business_name_asset_id != null) initial.business_name_asset_id = String(cp.business_name_asset_id);
+        if (cp?.business_name_asset_resource_name != null) initial.business_name_asset_resource_name = String(cp.business_name_asset_resource_name);
 
         // Ensure headlines and descriptions are arrays (even if empty)
         if (!initial.headlines || !Array.isArray(initial.headlines)) {
@@ -1992,26 +2082,56 @@ export const GoogleCampaigns: React.FC = () => {
         }
       }
 
-      // For Demand Gen campaigns (including drafts), populate from extra_data.creation_payload
+      // For Demand Gen campaigns (including drafts), populate from extra_data.creation_payload.
+      // creation_payload can be flat (cp.name, cp.headlines) or nested (cp.campaign.name, cp.ad.headlines).
       if (campaignType === "DEMAND_GEN") {
         const cp = creation_payload;
-        if (cp.name) initial.name = cp.name;
-        if (cp.start_date) initial.start_date = parseDateToYYYYMMDD(cp.start_date) || initial.start_date;
-        if (cp.end_date) initial.end_date = parseDateToYYYYMMDD(cp.end_date) || initial.end_date;
-        if (typeof cp.budget_amount === "number") initial.budget_amount = cp.budget_amount;
-        if (cp.budget_name) initial.budget_name = cp.budget_name;
-        if (cp.bidding_strategy_type) initial.bidding_strategy_type = cp.bidding_strategy_type;
-        if (cp.headlines && Array.isArray(cp.headlines)) initial.headlines = cp.headlines;
-        if (cp.descriptions && Array.isArray(cp.descriptions)) initial.descriptions = cp.descriptions;
-        if (cp.long_headlines && Array.isArray(cp.long_headlines)) initial.long_headlines = cp.long_headlines;
-        if (cp.video_id) initial.video_id = cp.video_id;
-        if (cp.final_url) initial.final_url = cp.final_url;
-        if (cp.ad_group_name) initial.ad_group_name = cp.ad_group_name;
-        if (cp.ad_name) initial.ad_name = cp.ad_name;
-        if (cp.business_name) initial.business_name = cp.business_name;
-        if (cp.logo_url) initial.logo_url = cp.logo_url;
-        if (cp.channel_controls && typeof cp.channel_controls === "object") {
-          initial.channel_controls = cp.channel_controls;
+        const cpCampaign = cp?.campaign && typeof cp.campaign === "object" ? cp.campaign : {};
+        const cpAdGroup = cp?.ad_group && typeof cp.ad_group === "object" ? cp.ad_group : {};
+        const cpAd = cp?.ad && typeof cp.ad === "object" ? cp.ad : {};
+        // Campaign-level: from cp.campaign or flat cp (name comes from campaignName column above; do not overwrite)
+        const startDate = cpCampaign.start_date ?? cp.start_date;
+        if (startDate) initial.start_date = parseDateToYYYYMMDD(startDate) || initial.start_date;
+        const endDate = cpCampaign.end_date ?? cp.end_date;
+        if (endDate) initial.end_date = parseDateToYYYYMMDD(endDate) || initial.end_date;
+        if (typeof (cpCampaign.budget_amount ?? cp.budget_amount) === "number") {
+          initial.budget_amount = cpCampaign.budget_amount ?? cp.budget_amount;
+        }
+        const budgetName = cpCampaign.budget_name ?? cp.budget_name;
+        if (budgetName) initial.budget_name = budgetName;
+        const biddingType = cpCampaign.bidding_strategy_type ?? cp.bidding_strategy_type;
+        if (biddingType) initial.bidding_strategy_type = biddingType;
+        if (cpCampaign.status != null) initial.status = String(cpCampaign.status).toUpperCase();
+        if (cpCampaign.final_url_suffix != null) initial.final_url_suffix = String(cpCampaign.final_url_suffix);
+        if (cpCampaign.tracking_url_template != null) initial.tracking_url_template = String(cpCampaign.tracking_url_template);
+        if (cpCampaign.url_custom_parameters != null && typeof cpCampaign.url_custom_parameters === "object") {
+          initial.url_custom_parameters = cpCampaign.url_custom_parameters;
+        }
+        // Ad group: from cp.ad_group or flat cp
+        const adGroupName = cpAdGroup.ad_group_name ?? cp.ad_group_name;
+        if (adGroupName) initial.ad_group_name = adGroupName;
+        // Ad-level: from cp.ad or flat cp (headlines, descriptions, video_id, etc.)
+        const adName = cpAd.ad_name ?? cp.ad_name;
+        if (adName) initial.ad_name = adName;
+        const headlines = cpAd.headlines ?? cp.headlines;
+        if (headlines && Array.isArray(headlines)) initial.headlines = headlines;
+        const descriptions = cpAd.descriptions ?? cp.descriptions;
+        if (descriptions && Array.isArray(descriptions)) initial.descriptions = descriptions;
+        const longHeadlines = cpAd.long_headlines ?? cp.long_headlines;
+        if (longHeadlines && Array.isArray(longHeadlines)) initial.long_headlines = longHeadlines;
+        const videoId = cpAd.video_id ?? cp.video_id;
+        if (videoId != null) initial.video_id = String(videoId);
+        const videoUrl = cpAd.video_url ?? cp.video_url;
+        if (videoUrl != null) initial.video_url = String(videoUrl);
+        const finalUrl = cpAd.final_url ?? cp.final_url;
+        if (finalUrl != null) initial.final_url = String(finalUrl);
+        const businessName = cpAd.business_name ?? cp.business_name;
+        if (businessName != null) initial.business_name = String(businessName);
+        const logoUrl = cpAd.logo_url ?? cp.logo_url;
+        if (logoUrl != null) initial.logo_url = String(logoUrl);
+        const channelControls = cpAd.channel_controls ?? cp.channel_controls;
+        if (channelControls && typeof channelControls === "object") {
+          initial.channel_controls = { ...(initial.channel_controls || {}), ...channelControls };
         }
         // Ensure arrays for Demand Gen form
         if (!initial.headlines || !Array.isArray(initial.headlines)) initial.headlines = [""];
@@ -2020,7 +2140,17 @@ export const GoogleCampaigns: React.FC = () => {
 
       // When draft was created by agent, extra_data.draft_state has full payload (campaign, ad_group, ad). Populate form so all fields are visible.
       if (draft_state && (Object.keys(draft_campaign).length > 0 || Object.keys(draft_ad_group).length > 0 || Object.keys(draft_ad).length > 0)) {
-        if (draft_ad_group.ad_group_name != null) initial.ad_group_name = String(draft_ad_group.ad_group_name);
+        // Ad group: name (support both adgroup_name and ad_group_name for Search vs Demand Gen)
+        const agName = draft_ad_group.adgroup_name ?? draft_ad_group.ad_group_name;
+        if (agName != null) {
+          initial.ad_group_name = String(agName);
+          initial.adgroup_name = String(agName);
+        }
+        // Search: keywords from keyword_targets
+        if (draft_ad_group.keyword_targets && Array.isArray(draft_ad_group.keyword_targets)) {
+          initial.keywords = draft_ad_group.keyword_targets.map((k: { text?: string }) => (k?.text != null ? String(k.text) : "")).filter(Boolean);
+        }
+        // Demand Gen ad-level fields
         if (draft_ad.ad_name != null) initial.ad_name = String(draft_ad.ad_name);
         if (draft_ad.video_id != null) initial.video_id = String(draft_ad.video_id);
         if (draft_ad.video_url != null) initial.video_url = String(draft_ad.video_url);
@@ -2033,10 +2163,39 @@ export const GoogleCampaigns: React.FC = () => {
         if (draft_ad.channel_controls && typeof draft_ad.channel_controls === "object") {
           initial.channel_controls = { ...initial.channel_controls, ...draft_ad.channel_controls };
         }
+        // Campaign-level: URL options and targeting (devices, locations, languages, network settings)
         if (draft_campaign.final_url_suffix != null) initial.final_url_suffix = String(draft_campaign.final_url_suffix);
         if (draft_campaign.tracking_url_template != null) initial.tracking_url_template = String(draft_campaign.tracking_url_template);
         if (draft_campaign.url_custom_parameters != null && typeof draft_campaign.url_custom_parameters === "object") {
-          initial.url_custom_parameters = draft_campaign.url_custom_parameters;
+          const ucp = draft_campaign.url_custom_parameters;
+          initial.url_custom_parameters = Array.isArray(ucp)
+            ? ucp.map((p: { key?: string; value?: string }) => ({ key: String(p?.key ?? ""), value: String(p?.value ?? "") }))
+            : Object.entries(ucp).map(([key, value]) => ({ key, value: String(value ?? "") }));
+        }
+        // Search / shared: final_url on campaign (e.g. agent draft)
+        if (draft_campaign.final_url != null) initial.final_url = String(draft_campaign.final_url);
+        // Location and language targeting
+        if (draft_campaign.location_ids != null && Array.isArray(draft_campaign.location_ids)) {
+          initial.location_ids = draft_campaign.location_ids.map((id: number | string) => (typeof id === "string" ? parseInt(id, 10) : id)).filter((n: number) => !isNaN(n));
+        }
+        if (draft_campaign.excluded_location_ids != null && Array.isArray(draft_campaign.excluded_location_ids)) {
+          initial.excluded_location_ids = draft_campaign.excluded_location_ids.map((id: number | string) => String(id));
+        }
+        if (draft_campaign.language_ids != null && Array.isArray(draft_campaign.language_ids)) {
+          initial.language_ids = draft_campaign.language_ids.map((id: number | string) => String(id));
+        }
+        // Device targeting
+        if (draft_campaign.device_ids != null && Array.isArray(draft_campaign.device_ids)) {
+          initial.device_ids = draft_campaign.device_ids.map((id: number | string) => String(id));
+        }
+        // Network settings (Search)
+        if (draft_campaign.network_settings != null && typeof draft_campaign.network_settings === "object") {
+          initial.network_settings = { ...(initial.network_settings || {}), ...draft_campaign.network_settings };
+        }
+        // Search campaign: headlines/descriptions can live on campaign in draft_state
+        if (campaignType === "SEARCH") {
+          if (draft_campaign.headlines && Array.isArray(draft_campaign.headlines)) initial.headlines = draft_campaign.headlines;
+          if (draft_campaign.descriptions && Array.isArray(draft_campaign.descriptions)) initial.descriptions = draft_campaign.descriptions;
         }
         if (campaignType === "DEMAND_GEN") {
           if (!initial.headlines || !Array.isArray(initial.headlines)) initial.headlines = [""];
@@ -3861,7 +4020,11 @@ export const GoogleCampaigns: React.FC = () => {
                       role="switch"
                       aria-checked={showDraftsOnly}
                       onClick={() => {
-                        setShowDraftsOnly((prev) => !prev);
+                        setShowDraftsOnly((prev) => {
+                          const next = !prev;
+                          localStorage.setItem("google_campaigns_show_drafts_only", String(next));
+                          return next;
+                        });
                         setCurrentPage(1);
                       }}
                       className={`relative inline-flex items-center h-6 w-16 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-[#072929] focus:ring-offset-2 overflow-hidden ${
@@ -3915,18 +4078,8 @@ export const GoogleCampaigns: React.FC = () => {
                     </div>
                     <input
                       type="text"
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        // Don't reset page or call API while typing - only filter client-side
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          // Call backend API when Enter is pressed
-                          setApiSearchQuery(searchQuery);
-                          setCurrentPage(1); // Reset to first page when searching
-                        }
-                      }}
+                      value={searchInputValue}
+                      onChange={(e) => setSearchInputValue(e.target.value)}
                       placeholder="Search by Name or Account ID"
                       className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179] font-['GT_America_Trial'] font-normal"
                     />

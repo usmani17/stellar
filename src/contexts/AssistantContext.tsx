@@ -8,21 +8,21 @@ import React, {
   type ReactNode,
 } from "react";
 import { useAuth } from "./AuthContext";
-import { streamPixisChat, type PixisTimelineItem } from "../services/ai/pixisChat";
+import { streamPixisChat, type PixisTimelineItem, type CampaignDraftData } from "../services/ai/pixisChat";
 import {
   pixisAiSessionsService,
   type PixisSession,
-  type PixisThread,
+  type PixisThreadHistory,
 } from "../services/ai/pixisAiSessions";
 import {
   getSessionActiveDraft,
   draftToCampaignState,
 } from "../services/ai/assistantDrafts";
-import type { CampaignSetupState } from "../types/agent";
 import {
   deriveCampaignStateFromContent,
   isEventStream,
   extractDisplayContentFromEvents,
+  eventsToTimeline,
 } from "../utils/chartJsonParser";
 
 export const ASSISTANT_PANEL_WIDTH = "550px";
@@ -44,7 +44,7 @@ export interface AssistantScope {
 /** Session with runtime state (messages, etc.) */
 export interface SessionWithMessages extends PixisSession {
   messages?: ChatMessage[];
-  campaignState?: CampaignSetupState;
+  campaignState?: CampaignDraftData;
 }
 
 export type ChatMessage =
@@ -89,7 +89,7 @@ interface AssistantContextType {
   setAssistantScope: (updates: Partial<AssistantScope>) => void;
 
   /** Campaign state from last AI response (e.g. from campaign-setup block) */
-  campaignState: CampaignSetupState | undefined;
+  campaignState: CampaignDraftData | undefined;
 }
 
 const AssistantContext = createContext<AssistantContextType | undefined>(undefined);
@@ -170,21 +170,35 @@ export const AssistantProvider: React.FC<{
     (messages[messages.length - 1] as Extract<ChatMessage, { type: "ai" }>)
       .isStreaming;
 
-  const campaignState = (() => {
-    const fromSession = currentSession?.campaignState as CampaignSetupState | undefined;
-    const lastAi = [...messages].reverse().find((m) => m.type === "ai");
+  // Helper to extract campaign state from messages
+  const extractCampaignStateFromMessages = (msgs: ChatMessage[], fromSession?: CampaignDraftData): CampaignDraftData | undefined => {
+    let fromEvent: CampaignDraftData | undefined;
+    for (const msg of [...msgs].reverse()) {
+      if (msg.type === "ai" && "timeline" in msg && msg.timeline) {
+        const draftEvent = msg.timeline.find(
+          (item) => item.type === "campaign-draft"
+        );
+        if (draftEvent && draftEvent.type === "campaign-draft") {
+          fromEvent = draftEvent.data;
+          break;
+        }
+      }
+    }
+    
+    const lastAi = [...msgs].reverse().find((m) => m.type === "ai");
     const content = lastAi?.type === "ai" ? (lastAi.content || "") : "";
     const derived = content ? deriveCampaignStateFromContent(content) : null;
-    if (!fromSession && !derived) return undefined;
+
+    if (!fromSession && !fromEvent && !derived) return undefined;
     return {
       ...fromSession,
+      ...fromEvent,
       ...derived,
-      current_questions_schema:
-        fromSession?.current_questions_schema?.length
-          ? fromSession.current_questions_schema
-          : derived?.current_questions_schema,
-    } as CampaignSetupState;
-  })();
+    } as CampaignDraftData;
+  };
+
+  const initialcampaignState = extractCampaignStateFromMessages(messages, currentSession?.campaignState as CampaignDraftData | undefined);
+  const [campaignState, setCampaignState] = useState<CampaignDraftData | undefined>(initialcampaignState);
 
   const loadSessions = useCallback(async () => {
     const token = await getAccessToken();
@@ -269,7 +283,7 @@ export const AssistantProvider: React.FC<{
           getSessionActiveDraft(sessionId, token).catch(() => null),
         ]);
         const msgs: ChatMessage[] = [];
-        for (const turn of history as PixisThread[]) {
+        for (const turn of history as PixisThreadHistory[]) {
           if (turn.user_query) {
             msgs.push({
               type: "human",
@@ -279,25 +293,34 @@ export const AssistantProvider: React.FC<{
           }
           if (turn.final_message) {
             const isEvents = isEventStream(turn.final_message);
-            const displayContent = isEvents
-              ? extractDisplayContentFromEvents(JSON.parse(turn.final_message))
-              : turn.final_message;
+            let displayContent: string;
+            let timeline: PixisTimelineItem[];
+            if (isEvents) {
+              const events = JSON.parse(turn.final_message) as unknown[];
+              displayContent = extractDisplayContentFromEvents(events);
+              timeline = eventsToTimeline(events) as PixisTimelineItem[];
+            } else {
+              displayContent = turn.final_message;
+              timeline = [{ type: "text", content: displayContent }];
+            }
             msgs.push({
               type: "ai",
               id: `a-${turn.id}`,
               content: displayContent,
-              timeline: [{ type: "text", content: displayContent }],
+              timeline,
               isStreaming: false,
             });
           }
         }
-        const campaignState = activeDraft
-          ? draftToCampaignState(activeDraft)
-          : undefined;
+        
+        // Use helper to extract campaign state from messages + activeDraft
+        const initialDraft = activeDraft ? draftToCampaignState(activeDraft) : undefined;
+        const _campaignState = extractCampaignStateFromMessages(msgs, initialDraft);
+        setCampaignState(_campaignState);
         setSessions((prev) =>
           prev.map((s) =>
             s.id === sessionId
-              ? { ...s, messages: msgs, campaignState }
+              ? { ...s, messages: msgs, campaignState: _campaignState }
               : s
           )
         );
@@ -423,6 +446,13 @@ export const AssistantProvider: React.FC<{
           } else {
             timelineRef.current.push(item);
           }
+        } else if (item.type === "thinking" && item.content !== undefined) {
+          const last = timelineRef.current[timelineRef.current.length - 1];
+          if (last?.type === "thinking") {
+            timelineRef.current[timelineRef.current.length - 1] = item;
+          } else {
+            timelineRef.current.push(item);
+          }
         } else {
           timelineRef.current.push(item);
         }
@@ -464,7 +494,7 @@ export const AssistantProvider: React.FC<{
       };
 
       try {
-        const result = await streamPixisChat(
+        await streamPixisChat(
           {
             query: trimmed,
             session_id: (sessions.find((s) => s.id === currentSessionId) as
@@ -528,6 +558,9 @@ export const AssistantProvider: React.FC<{
               }
             },
             onTimelineItem: updateTimeline,
+            onCampaignDraft: (data) => {
+              setCampaignState(data);
+            },
             onResult: (ev) => {
               const finalContent = ev.full_message ?? "";
               const pending = pendingNewSessionRef.current;

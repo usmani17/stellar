@@ -59,10 +59,16 @@ export const useGoogleCampaignDetailAds = ({
       if (!channelIdNum || isNaN(channelIdNum)) {
         throw new Error("Channel ID is required");
       }
+      const isDraftCampaign = String(campaignId).toLowerCase().startsWith("draft-");
+      const campaignIdParam = isDraftCampaign ? campaignId : parseInt(campaignId, 10);
+      if (typeof campaignIdParam === "number" && isNaN(campaignIdParam)) {
+        setAdsLoading(false);
+        return;
+      }
       const data = await googleAdwordsAdsService.getGoogleAds(
         accountIdNum,
         channelIdNum,
-        parseInt(campaignId, 10),
+        campaignIdParam,
         undefined,
         {
           filters: adsFilters,
@@ -70,7 +76,7 @@ export const useGoogleCampaignDetailAds = ({
           page_size: 100,
           sort_by: adsSortBy,
           order: adsSortOrder,
-          draft_only: showDraftsOnlyAds,
+          draft_only: isDraftCampaign || showDraftsOnlyAds,
         }
       );
 

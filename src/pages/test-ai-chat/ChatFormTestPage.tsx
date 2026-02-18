@@ -214,13 +214,7 @@ export const ChatFormTestPage: React.FC = () => {
       ])
     );
 
-  const questionsSchema: CurrentQuestionSchemaItem[] = Array.from(selectedKeys).map((key) => ({
-    key,
-    type: "string",
-    required: false,
-    ui_hint: "text",
-    label: getFieldLabel(key),
-  }));
+  const questionsSchema: string[] = Array.from(selectedKeys);
 
   const campaignDraft: Record<string, unknown> = {
     campaign_type: campaignType,
@@ -378,10 +372,6 @@ export const ChatFormTestPage: React.FC = () => {
                         accountId={accountId.trim() || undefined}
                         channelId={channelId.trim() || undefined}
                         profileId={profileId.trim() || undefined}
-                        languageOptions={languageOptions}
-                        locationOptions={locationOptions}
-                        loadingLanguages={loadingLanguages}
-                        loadingLocations={loadingLocations}
                       />
                     </div>
                   </div>

@@ -793,7 +793,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                     return (
                       <tr
                         key={keyword.id}
-                        className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
+                        className={`group ${!isLastRow ? "border-b border-[#e8e8e3]" : ""
                           } ${isRemoved ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"} transition-colors`}
                       >
                         <td className="table-cell">
@@ -905,11 +905,20 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                               onUpdateKeywordStatus && !isRemoved ? (
                               <div onClick={(e) => e.stopPropagation()} className="w-full relative">
                                 <Dropdown
-                                  options={[
-                                    { value: "ENABLED", label: "Enabled" },
-                                    { value: "PAUSED", label: "Paused" },
-                                    { value: "REMOVED", label: "Remove" },
-                                  ]}
+                                  options={
+                                    isDraftKeyword(keyword)
+                                      ? [
+                                          { value: "SAVED_DRAFT", label: "Saved as draft" },
+                                          { value: "ENABLED", label: "Enabled", disabled: true },
+                                          { value: "PAUSED", label: "Paused", disabled: true },
+                                          { value: "REMOVED", label: "Remove", disabled: true },
+                                        ]
+                                      : [
+                                          { value: "ENABLED", label: "Enabled" },
+                                          { value: "PAUSED", label: "Paused" },
+                                          { value: "REMOVED", label: "Remove" },
+                                        ]
+                                  }
                                   value={editingStatus}
                                   onChange={(val) =>
                                     handleStatusChange(keyword.id, val as string)
@@ -946,6 +955,8 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                                   ? "Paused"
                                   : keyword.status === "REMOVED" || keyword.status === "Removed" || keyword.status === "REMOVE"
                                   ? "Remove"
+                                  : keyword.status === "SAVED_DRAFT" || keyword.status === "DRAFT"
+                                  ? "Saved as draft"
                                   : keyword.status || "Enabled"}
                               </span>
                               {onUpdateKeywordStatus && (

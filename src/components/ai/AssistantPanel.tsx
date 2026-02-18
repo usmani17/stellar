@@ -3,13 +3,14 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAssistant, type SessionWithMessages } from "../../contexts/AssistantContext";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
-import type { CurrentQuestionSchemaItem } from "../../types/agent";
 import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
 import { MessageContent } from "../ai/MessageContent";
 import { ContentWithCharts } from "../ai/ContentWithCharts";
 import { CampaignDraftPreview } from "../ai/CampaignDraftPreview";
+import { ThoughtsSection } from "../ai/ThoughtsSection";
+import { RanToolBadges } from "../ai/RanToolBadges";
 import { accountsService, type Account } from "../../services/accounts";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
@@ -239,17 +240,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         if (isLoading || isStreaming) return;
         if (!canChat) return;
         const textPart = inputValue.trim();
-        const schema = SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema ? (questionsSchema as CurrentQuestionSchemaItem[]) : [];
+        const schema = SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema ? questionsSchema : [];
         const formValues = SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema && schemaFormRef.current ? schemaFormRef.current.getValues() : {};
 
         const formParts =
             schema.length > 0 && Object.keys(formValues).length > 0
                 ? (schema
-                    .map((item) => {
-                        const v = formValues[item.key];
+                    .map((item: any) => {
+                        const v = formValues[item];
                         if (v === undefined || v === "") return null;
-                        const label = item.label || item.key;
-                        if (item.ui_hint === "channel_controls") {
+                        const label = item || item;
+                        if (item === "channel_controls") {
                             try {
                                 const obj = JSON.parse(v) as Record<string, boolean>;
                                 const parts = Object.entries(obj).map(([k, val]) => `${k}:${val}`);
@@ -322,19 +323,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         setSessionToDelete(null);
     };
 
-    const questionsSchema = campaignState?.current_questions_schema;
+    const questionsSchema = campaignState?.keys_for_form;
     const hasQuestionsSchema = questionsSchema && questionsSchema.length > 0;
-    const schemaFormKey = hasQuestionsSchema
-        ? (questionsSchema as CurrentQuestionSchemaItem[]).map((q) => q.key).join(",")
-        : "";
-
-    // Log the suggestion questions we show in "Fill in the details" so you can verify correct schema from AI.
-    // Use schemaFormKey (stable string) as dependency to avoid running on every stream update (questionsSchema is a new ref each time).
-    useEffect(() => {
-        if (!schemaFormKey || !questionsSchema?.length) return;
-        console.log("[Assistant] Fill-in-the-details form questions (from AI):", questionsSchema);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- questionsSchema intentionally omitted to avoid log on every stream chunk
-    }, [schemaFormKey]);
 
     const groupedSessions = groupSessionsByDate(sessions);
     const hasMessages = messages.length > 0;
@@ -897,11 +887,12 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             }
                             if (message.type === "ai") {
                                 const { content, timeline, isStreaming: aiStreaming, error } = message;
+                                const lastText = [...timeline].reverse().find((i): i is Extract<PixisTimelineItem, { type: "text" }> => i.type === "text" && !!i.content);
                                 return (
                                     <div key={message.id} className="flex justify-start ai">
-                                        <div className="min-w-0 flex flex-col items-start p-4 gap-2 w-full max-w-full bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm">
+                                        <div className="min-w-0 flex flex-col items-start p-4 gap-3 w-full max-w-full bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm">
                                             {error && <div className="text-sm text-red-600">{error}</div>}
-                                            <div className="flex flex-col gap-2 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
+                                            <div className="flex flex-col gap-3 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
                                                 {timeline.length === 0 && aiStreaming && (
                                                     <div className="flex items-center gap-2 text-[#556179]">
                                                         <span className="text-xs font-medium">Thinking</span>
@@ -912,38 +903,28 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                         </div>
                                                     </div>
                                                 )}
-                                                {timeline.map((item: PixisTimelineItem, idx: number) => (
-                                                    <div key={idx} className="flex items-start gap-2 w-full">
-                                                        {item.type === "thinking" && (
-                                                            <div className="flex items-center gap-2 text-[#556179]">
-                                                                <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full animate-pulse shrink-0" />
-                                                                <span className="text-xs">Processing...</span>
-                                                                <div className="flex gap-1">
-                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
-                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {item.type === "tool_call" && (
-                                                            <div className="flex items-center gap-2 text-[#556179] text-sm">
-                                                                <span className="w-1.5 h-1.5 bg-[#136D6D] rounded-full shrink-0" />
-                                                                <span>{item.label}</span>
-                                                            </div>
-                                                        )}
-                                                        {item.type === "text" && item.content && (
-                                                            <div className="assistant-message-content">
+                                                {timeline.map((item, idx) => {
+                                                    if (item.type === "thinking" && item.content?.trim()) {
+                                                        return <ThoughtsSection key={`t-${idx}`} content={item.content!} defaultExpanded />;
+                                                    }
+                                                    if (item.type === "tool_call") {
+                                                        return <RanToolBadges key={`tc-${idx}`} tools={[{ label: item.label }]} />;
+                                                    }
+                                                    if (item.type === "text" && item.content) {
+                                                        return (
+                                                            <div key={`txt-${idx}`} className="assistant-message-content w-full">
                                                                 <ContentWithCharts content={item.content} type="ai" />
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                                {timeline.length === 0 && !aiStreaming && content && (
-                                                    <div className="assistant-message-content">
+                                                        );
+                                                    }
+                                                    return null;
+                                                })}
+                                                {timeline.length === 0 && content && (
+                                                    <div className="assistant-message-content w-full">
                                                         <ContentWithCharts content={content} type="ai" />
                                                     </div>
                                                 )}
-                                                {aiStreaming && timeline.length > 0 && (
+                                                {aiStreaming && timeline.length > 0 && !lastText?.content && (
                                                     <div className="flex items-center gap-2 text-[#556179]">
                                                         <span className="text-xs font-medium">Thinking</span>
                                                         <div className="flex gap-1">
@@ -977,22 +958,20 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         )}
 
                         {/* Campaign: validation errors or draft ready (only when saved_draft_id exists) */}
-                        {campaignState && ((campaignState.validation_errors && campaignState.validation_errors.length > 0) || (campaignState.draft_setup_json && Object.keys(campaignState.draft_setup_json).length > 0 && campaignState.saved_draft_id)) && (
+                        {campaignState && ((campaignState.validation_error && campaignState.validation_error.length > 0) || (campaignState.draft && Object.keys(campaignState.draft).length > 0 && campaignState.draft_id)) && (
                             <div className="flex flex-col gap-2 mt-2 p-3 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[10px]">
-                                {campaignState.validation_errors && campaignState.validation_errors.length > 0 && (
+                                {campaignState.validation_error && campaignState.validation_error.length > 0 && (
                                     <div className="text-xs text-red-600">
-                                        {campaignState.validation_errors.map((err: string, i: number) => (
-                                            <div key={i}>{err}</div>
-                                        ))}
+                                          {campaignState.validation_error}
                                     </div>
                                 )}
-                                {campaignState.draft_setup_json && Object.keys(campaignState.draft_setup_json).length > 0 && campaignState.saved_draft_id && (
+                                {campaignState.draft && Object.keys(campaignState.draft).length > 0 && campaignState.draft_id && (
                                     <span className="text-xs text-[#072929]">
                                         Draft ready.
                                         {assistantScope.accountId && assistantScope.channelId ? (
                                             <>{" "}
                                                 <Link
-                                                    to={`/brands/${assistantScope.accountId}/${assistantScope.channelId}/google/campaigns/${campaignState.saved_draft_id}`}
+                                                    to={`/brands/${assistantScope.accountId}/${assistantScope.channelId}/google/campaigns/${campaignState.draft_id}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="text-[#136D6D] font-medium hover:underline"
@@ -1007,25 +986,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         )}
 
                         {/* Campaign: form fields — use CampaignFormForChat (reuses campaign form components) for full campaign support */}
-                        {SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema && schemaFormKey && !isLoading && !isStreaming && (
+                        {SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema && !isLoading && !isStreaming && (
                             <CampaignFormForChat
                                 ref={schemaFormRef}
-                                key={schemaFormKey}
-                                questionsSchema={questionsSchema as CurrentQuestionSchemaItem[]}
-                                campaignDraft={campaignState?.campaign_draft as Record<string, unknown> | undefined}
-                                campaignType={(campaignState?.campaign_draft as Record<string, unknown> | undefined)?.campaign_type as string || campaignState?.campaign_type as string || "SEARCH"}
+                                questionsSchema={questionsSchema as string[]}
+                                campaignDraft={campaignState?.draft as Record<string, unknown> | undefined}
+                                campaignType={(campaignState?.draft as Record<string, unknown> | undefined)?.campaign_type as string || campaignState?.campaign_type as string || "SEARCH"}
                                 onSend={sendMessage}
                                 disabled={isLoading || isStreaming}
                                 profileId={assistantScope.profileId ?? undefined}
                                 accountId={assistantScope.accountId ?? undefined}
                                 channelId={assistantScope.channelId ?? undefined}
-                                googleProfiles={accountProfiles.map((p) => ({
-                                    value: String(p.id),
-                                    label: profileDisplayName(p),
-                                    customer_id: p.customer_id ?? "",
-                                    customer_id_raw: (p.customer_id ?? "").replace(/-/g, ""),
-                                    profile_id: p.id,
-                                }))}
                             />
                         )}
 

@@ -14,13 +14,6 @@ function getLinkText(children: React.ReactNode): string {
         .trim();
 }
 
-// Vague heuristic for AI process/intro text – will refine later
-function looksLikeAiProcessText(text: string): boolean {
-    const t = text.trim();
-    if (t.length === 0 || t.length > 500) return false;
-    return /^(analyzing|querying|running|checking|gathering|fetching|loading|processing|here'?s?\b)/i.test(t);
-}
-
 function getFileNameFromUrl(url: string): string {
     try {
         const pathname = new URL(url).pathname;
@@ -134,19 +127,9 @@ export const StellarMarkDown: React.FC<StellarMarkDownProps> = ({ content, type 
                             {children}
                         </code>
                     ),
-                    p: ({ children }) => {
-                        // TODO: vague logic for now – will update later
-                        const text = getLinkText(children);
-                        const asQuote = type === "ai" && looksLikeAiProcessText(text);
-                        if (asQuote) {
-                            return (
-                                <blockquote className="border-l-4 border-[#E8E8E3] pl-4 my-2 text-[14px] leading-[1.6] text-[#556179] not-italic last:mb-0">
-                                    {children}
-                                </blockquote>
-                            );
-                        }
-                        return <p className="text-[14px] leading-[1.6] last:mb-0">{children}</p>;
-                    },
+                    p: ({ children }) => (
+                        <p className="text-[14px] leading-[1.6] last:mb-0">{children}</p>
+                    ),
                     ul: ({ children }) => (
                         <ul className="text-[14px] list-disc list-outside pl-5 mb-2 last:mb-0 space-y-1.5 [&_li::marker]:text-[#6b7280]">
                             {children}

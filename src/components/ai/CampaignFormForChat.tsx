@@ -3,17 +3,23 @@
  * only the fields the AI requested (from current_questions_schema).
  * Submits only the requested keys to keep messages focused.
  */
-import React, { useState, forwardRef, useImperativeHandle } from "react";
+import React, { useState, forwardRef, useImperativeHandle, useCallback, useEffect } from "react";
 import type { CreateGoogleCampaignData } from "../google/campaigns/types";
 import { AssetSelectorModal } from "../google/AssetSelectorModal";
 import type { Asset } from "../../services/googleAdwords/googleAdwordsAssets";
 import { getFieldLabel } from "./campaignFormFieldLabels";
-import type { CurrentQuestionSchemaItem } from "../../types/agent";
+import { GoogleDeviceTargetingForm } from "../google/campaigns/GoogleDeviceTargetingForm";
+import { GoogleLanguageTargetingForm } from "../google/campaigns/GoogleLanguageTargetingForm";
+import { GoogleTrackingTemplateForm } from "../google/campaigns/GoogleTrackingTemplateForm";
+import { Dropdown } from "../ui/Dropdown";
+import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
+import { GoogleLocationTargetingForm } from "../google/campaigns/GoogleLocationTargetingForm";
+import { campaignsService } from "../../services/campaigns";
 
 
 
-function getKeysForForm(schema: CurrentQuestionSchemaItem[]): string[] {
-  return schema.map((q) => q.key).filter(Boolean);
+function getKeysForForm(formKeys: string[]): string[] {
+  return formKeys.map((q) => stripEntityPrefix(q));
 }
 
 /** Strip entity prefix (e.g. "ad.logo_url" → "logo_url") for field matching */
@@ -24,20 +30,26 @@ function stripEntityPrefix(key: string): string {
 
 /** Check if field key matches any requested key (with or without entity prefix) */
 function isFieldRequested(fieldKey: string, requestedKeys: string[]): boolean {
-  // Check exact match first
-  if (requestedKeys.includes(fieldKey)) return true;
-  // Check if any requested key matches after stripping entity prefix
-  const strippedField = stripEntityPrefix(fieldKey);
-  return requestedKeys.some(k => stripEntityPrefix(k) === strippedField || k === fieldKey);
+  return requestedKeys.includes(fieldKey);
+}
+
+/** Display label for an asset (avoids ", ," when name is empty) */
+function getAssetDisplayName(asset: Asset): string {
+  const name = asset.name?.trim();
+  if (name) return name;
+  if ("text" in asset && typeof asset.text === "string" && asset.text.trim()) return asset.text.trim();
+  return asset.resource_name || "Asset";
 }
 
 export interface CampaignFormForChatProps {
-  questionsSchema: CurrentQuestionSchemaItem[];
+  questionsSchema: string[];
   campaignDraft: Record<string, unknown> | undefined;
   campaignType: string;
   onSend: (message: string) => void;
   disabled?: boolean;
   profileId?: string | number;
+  accountId?: string | number;
+  channelId?: string | number;
 }
 
 export interface CampaignFormForChatHandle {
@@ -52,7 +64,8 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   onSend,
   disabled = false,
   profileId,
-
+  accountId,
+  channelId,
 }, ref) => {
   const requestedKeys = getKeysForForm(questionsSchema);
 
@@ -95,7 +108,136 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const [isCalloutAssetsModalOpen, setIsCalloutAssetsModalOpen] = useState(false);
   const [selectedCalloutAssets, setSelectedCalloutAssets] = useState<Asset[]>([]);
 
+  // Device Targeting
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>(
+    (campaignDraft?.device_ids as string[]) || []
+  );
+
+  // Language Targeting
+  const [selectedLanguageIds, setSelectedLanguageIds] = useState<string[]>(
+    (campaignDraft?.language_ids as string[]) || []
+  );
+
+  // URL Options
+  const [trackingUrlTemplate, setTrackingUrlTemplate] = useState<string>(
+    (campaignDraft?.tracking_url_template as string) || ""
+  );
+  const [finalUrlSuffix, setFinalUrlSuffix] = useState<string>(
+    (campaignDraft?.final_url_suffix as string) || ""
+  );
+  const [urlCustomParameters, setUrlCustomParameters] = useState<Array<{ key: string; value: string }>>(
+    (campaignDraft?.url_custom_parameters as Array<{ key: string; value: string }>) || []
+  );
+
+  // Budget Name and Options
+  const [budgetName, setBudgetName] = useState<string>(
+    (campaignDraft?.budget_name as string) || ""
+  );
+  const [budgetOptions, setBudgetOptions] = useState<Array<{ value: string; label: string; name?: string }>>([]);
+  const [selectedBudgetId, setSelectedBudgetId] = useState<string>("");
+  const [useCustomBudgetName, setUseCustomBudgetName] = useState(false);
+  const [loadingBudgets, setLoadingBudgets] = useState(false);
+
+  // Location Targeting
+  const [selectedLocationIds, setSelectedLocationIds] = useState<number[]>(
+    (campaignDraft?.location_ids as number[]) || []
+  );
+  const [selectedExcludedLocationIds, setSelectedExcludedLocationIds] = useState<string[]>(
+    (campaignDraft?.excluded_location_ids as string[]) || []
+  );
+  const [locationOptions, setLocationOptions] = useState<Array<{ value: string; label: string; id: string; type: string; countryCode: string }>>([]);
+  const [loadingLocations, setLoadingLocations] = useState(false);
+
   const profileIdNum = profileId != null ? (typeof profileId === "number" ? profileId : parseInt(String(profileId), 10)) : null;
+  const accountIdNum = accountId != null ? (typeof accountId === "number" ? accountId : parseInt(String(accountId), 10)) : null;
+  const channelIdNum = channelId != null ? (typeof channelId === "number" ? channelId : parseInt(String(channelId), 10)) : null;
+
+  // Function to fetch budgets
+  const fetchBudgets = useCallback(async () => {
+    if (!accountIdNum || !channelIdNum || !profileIdNum) {
+      setBudgetOptions([]);
+      return;
+    }
+
+    setLoadingBudgets(true);
+    try {
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+        throw new Error("Invalid accountId or channelId");
+      }
+      const budgets = await googleAdwordsCampaignsService.getGoogleBudgets(accountIdNum, channelIdNum, profileIdNum);
+      
+      // Format budgets for dropdown
+      const options = budgets.map((budget: any) => ({
+        value: budget.resource_name,
+        label: `${budget.name} ($${budget.amount_dollars?.toFixed(2) || '0.00'})`,
+        name: budget.name,
+      }));
+      
+      // Add "Custom" option at the beginning
+      setBudgetOptions([
+        { value: "__CUSTOM__", label: "Custom..." },
+        ...options,
+      ]);
+    } catch (error: any) {
+      console.error("Error fetching budgets:", error);
+      // On error, still show custom option
+      setBudgetOptions([{ value: "__CUSTOM__", label: "Custom..." }]);
+    } finally {
+      setLoadingBudgets(false);
+    }
+  }, [accountIdNum, channelIdNum, profileIdNum]);
+
+  // Fetch budgets when account, channel, and profile are available
+  // Note: We fetch when these IDs are available, even though hasBudgetNameField may not be computed yet
+  useEffect(() => {
+    if (accountIdNum && channelIdNum && profileIdNum) {
+      fetchBudgets();
+    }
+  }, [accountIdNum, channelIdNum, profileIdNum, fetchBudgets]);
+
+  // Function to fetch locations
+  const fetchLocations = useCallback(async () => {
+    if (!accountIdNum || !channelIdNum || !profileIdNum) {
+      setLocationOptions([]);
+      return;
+    }
+
+    setLoadingLocations(true);
+    try {
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+        throw new Error("Invalid accountId or channelId");
+      }
+      const locations = await campaignsService.getGoogleGeoTargetConstants(
+        accountIdNum,
+        channelIdNum,
+        profileIdNum,
+        undefined,
+        undefined // No country restriction for now
+      );
+
+      const formattedLocations = locations.map((loc: any) => ({
+        value: loc.id,
+        label: `${loc.name} (${loc.type})`,
+        id: loc.id,
+        type: loc.type,
+        countryCode: loc.countryCode || "",
+      }));
+
+      setLocationOptions(formattedLocations);
+    } catch (error: any) {
+      console.error("Error fetching locations:", error);
+      setLocationOptions([]);
+    } finally {
+      setLoadingLocations(false);
+    }
+  }, [accountIdNum, channelIdNum, profileIdNum]);
+
+  // Fetch locations when account, channel, and profile are available
+  useEffect(() => {
+    if (accountIdNum && channelIdNum && profileIdNum && hasLocationIdsField) {
+      fetchLocations();
+    }
+  }, [accountIdNum, channelIdNum, profileIdNum, fetchLocations]);
 
   useImperativeHandle(ref, () => ({
     getValues: () => {
@@ -112,6 +254,31 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
           }
         }
       }
+      // Add non-formData fields
+      if (isFieldRequested("device_ids", requestedKeys) && selectedDeviceIds.length > 0) {
+        vals["device_ids"] = selectedDeviceIds.join("\n");
+      }
+      if (isFieldRequested("language_ids", requestedKeys) && selectedLanguageIds.length > 0) {
+        vals["language_ids"] = selectedLanguageIds.join("\n");
+      }
+      if (isFieldRequested("tracking_url_template", requestedKeys) && trackingUrlTemplate) {
+        vals["tracking_url_template"] = trackingUrlTemplate;
+      }
+      if (isFieldRequested("final_url_suffix", requestedKeys) && finalUrlSuffix) {
+        vals["final_url_suffix"] = finalUrlSuffix;
+      }
+      if (isFieldRequested("url_custom_parameters", requestedKeys) && urlCustomParameters.length > 0) {
+        vals["url_custom_parameters"] = JSON.stringify(urlCustomParameters);
+      }
+      if (isFieldRequested("budget_name", requestedKeys) && budgetName) {
+        vals["budget_name"] = budgetName;
+      }
+      if (isFieldRequested("location_ids", requestedKeys) && selectedLocationIds.length > 0) {
+        vals["location_ids"] = selectedLocationIds.join("\n");
+      }
+      if (isFieldRequested("excluded_location_ids", requestedKeys) && selectedExcludedLocationIds.length > 0) {
+        vals["excluded_location_ids"] = selectedExcludedLocationIds.join("\n");
+      }
       return vals;
     },
     clear: () => {
@@ -126,8 +293,18 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       setSelectedVideoAssets([]);
       setSelectedSitelinkAssets([]);
       setSelectedCalloutAssets([]);
+      setSelectedDeviceIds([]);
+      setSelectedLanguageIds([]);
+      setTrackingUrlTemplate("");
+      setFinalUrlSuffix("");
+      setUrlCustomParameters([]);
+      setBudgetName("");
+      setSelectedBudgetId("");
+      setUseCustomBudgetName(false);
+      setSelectedLocationIds([]);
+      setSelectedExcludedLocationIds([]);
     },
-  }), [formData, requestedKeys]);
+  }), [formData, requestedKeys, selectedDeviceIds, selectedLanguageIds, trackingUrlTemplate, finalUrlSuffix, urlCustomParameters, budgetName, selectedBudgetId, useCustomBudgetName, selectedLocationIds, selectedExcludedLocationIds]);
 
   const onChange = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -137,15 +314,147 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
     e.preventDefault();
     if (disabled) return;
 
-    const parts = requestedKeys
-      .map((key) => {
-        const v = formData[key as keyof typeof formData];
-        if (v === undefined || v === "" || v == null) return null;
+    const parts: string[] = [];
+
+    // Keys that are multi-asset arrays: show human-readable summary instead of JSON
+    const assetArrayKeys = ["headline_asset_ids", "description_asset_ids", "long_headline_asset_ids", "video_asset_ids", "sitelink_asset_ids", "callout_asset_ids"];
+
+    // Add formData fields (skip asset array keys; they get explicit lines below)
+    for (const key of requestedKeys) {
+      if (assetArrayKeys.includes(key)) continue;
+      const v = formData[key as keyof typeof formData];
+      if (v !== undefined && v !== "" && v != null) {
         const label = getFieldLabel(key);
         const displayValue = typeof v === "object" ? JSON.stringify(v) : String(v);
-        return `${label}: ${displayValue}`;
-      })
-      .filter(Boolean) as string[];
+        parts.push(`${label}: ${displayValue}`);
+      }
+    }
+
+    // Add device_ids
+    if (isFieldRequested("device_ids", requestedKeys) && selectedDeviceIds.length > 0) {
+      const label = getFieldLabel("device_ids");
+      parts.push(`${label}: ${selectedDeviceIds.join(", ")}`);
+    }
+
+    // Add language_ids
+    if (isFieldRequested("language_ids", requestedKeys) && selectedLanguageIds.length > 0) {
+      const label = getFieldLabel("language_ids");
+      parts.push(`${label}: ${selectedLanguageIds.join(", ")}`);
+    }
+
+    // Add URL tracking fields (include all if form is rendered, regardless of individual field requests)
+    const hasAnyTrackingFieldRequested = isFieldRequested("tracking_url_template", requestedKeys) || isFieldRequested("final_url_suffix", requestedKeys) || isFieldRequested("url_custom_parameters", requestedKeys);
+    
+    if (hasAnyTrackingFieldRequested) {
+      if (trackingUrlTemplate) {
+        const label = getFieldLabel("tracking_url_template");
+        parts.push(`${label}: ${trackingUrlTemplate}`);
+      }
+      if (finalUrlSuffix) {
+        const label = getFieldLabel("final_url_suffix");
+        parts.push(`${label}: ${finalUrlSuffix}`);
+      }
+      if (urlCustomParameters.length > 0) {
+        const label = getFieldLabel("url_custom_parameters");
+        parts.push(`${label}: ${JSON.stringify(urlCustomParameters)}`);
+      }
+    }
+
+    // Add budget_name
+    if (isFieldRequested("budget_name", requestedKeys)) {
+      let displayValue = budgetName;
+      if (selectedBudgetId && selectedBudgetId !== "__CUSTOM__") {
+        // Show selected budget name from dropdown
+        const selectedOption = budgetOptions.find(opt => opt.value === selectedBudgetId);
+        displayValue = selectedOption?.name || budgetName;
+      }
+      if (displayValue) {
+        const label = getFieldLabel("budget_name");
+        parts.push(`${label}: ${displayValue}`);
+      }
+    }
+
+    // Add location_ids
+    if (isFieldRequested("location_ids", requestedKeys) && selectedLocationIds.length > 0) {
+      const label = getFieldLabel("location_ids");
+      const locationNames = selectedLocationIds.map(locId => {
+        const location = locationOptions.find(opt => opt.value === String(locId));
+        return location?.label || locId;
+      }).join(", ");
+      parts.push(`${label}: ${locationNames}`);
+    }
+
+    // Add excluded_location_ids
+    if (isFieldRequested("excluded_location_ids", requestedKeys) && selectedExcludedLocationIds.length > 0) {
+      const label = getFieldLabel("excluded_location_ids");
+      const locationNames = selectedExcludedLocationIds.map(locId => {
+        const location = locationOptions.find(opt => opt.value === locId);
+        return location?.label || locId;
+      }).join(", ");
+      parts.push(`${label}: ${locationNames}`);
+    }
+
+    // Add multi-asset fields with readable labels (so agent view shows names, not ", ," or JSON)
+    if (isFieldRequested("headline_asset_ids", requestedKeys)) {
+      const count = selectedHeadlineAssets.length || (Array.isArray(formData.headline_asset_ids) ? formData.headline_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("headline_asset_ids");
+        const names = selectedHeadlineAssets.length > 0
+          ? selectedHeadlineAssets.map(getAssetDisplayName).join(", ")
+          : `${count} headline(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("description_asset_ids", requestedKeys)) {
+      const count = selectedDescriptionAssets.length || (Array.isArray(formData.description_asset_ids) ? formData.description_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("description_asset_ids");
+        const names = selectedDescriptionAssets.length > 0
+          ? selectedDescriptionAssets.map(getAssetDisplayName).join(", ")
+          : `${count} description(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("long_headline_asset_ids", requestedKeys)) {
+      const count = selectedLongHeadlineAssets.length || (Array.isArray(formData.long_headline_asset_ids) ? formData.long_headline_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("long_headline_asset_ids");
+        const names = selectedLongHeadlineAssets.length > 0
+          ? selectedLongHeadlineAssets.map(getAssetDisplayName).join(", ")
+          : `${count} long headline(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("video_asset_ids", requestedKeys)) {
+      const count = selectedVideoAssets.length || (Array.isArray(formData.video_asset_ids) ? formData.video_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("video_asset_ids");
+        const names = selectedVideoAssets.length > 0
+          ? selectedVideoAssets.map(getAssetDisplayName).join(", ")
+          : `${count} video(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("sitelink_asset_ids", requestedKeys)) {
+      const count = selectedSitelinkAssets.length || (Array.isArray(formData.sitelink_asset_ids) ? formData.sitelink_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("sitelink_asset_ids");
+        const names = selectedSitelinkAssets.length > 0
+          ? selectedSitelinkAssets.map(getAssetDisplayName).join(", ")
+          : `${count} sitelink(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("callout_asset_ids", requestedKeys)) {
+      const count = selectedCalloutAssets.length || (Array.isArray(formData.callout_asset_ids) ? formData.callout_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("callout_asset_ids");
+        const names = selectedCalloutAssets.length > 0
+          ? selectedCalloutAssets.map(getAssetDisplayName).join(", ")
+          : `${count} callout(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
 
     if (parts.length > 0) {
       onSend(parts.join("\n"));
@@ -163,6 +472,16 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const hasSitelinkAssetIdsField = isFieldRequested("sitelink_asset_ids", requestedKeys);
   const hasCalloutAssetIdsField = isFieldRequested("callout_asset_ids", requestedKeys);
 
+  // Targeting fields
+  const hasDeviceIdsField = isFieldRequested("device_ids", requestedKeys);
+  const hasLanguageIdsField = isFieldRequested("language_ids", requestedKeys);
+  const hasTrackingUrlTemplateField = isFieldRequested("tracking_url_template", requestedKeys);
+  const hasFinalUrlSuffixField = isFieldRequested("final_url_suffix", requestedKeys);
+  const hasUrlCustomParametersField = isFieldRequested("url_custom_parameters", requestedKeys);
+  const hasBudgetNameField = isFieldRequested("budget_name", requestedKeys);
+  const hasLocationIdsField = isFieldRequested("location_ids", requestedKeys);
+  const hasExcludedLocationIdsField = isFieldRequested("excluded_location_ids", requestedKeys);
+
   // Only render when we have at least one visible field. Asset fields need profileId to show; basic keys are not yet rendered in this component.
   const hasAnyVisibleAssetField =
     profileIdNum &&
@@ -176,7 +495,10 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       hasVideoAssetIdsField ||
       hasSitelinkAssetIdsField ||
       hasCalloutAssetIdsField);
-  const hasAnyVisibleField = !!hasAnyVisibleAssetField;
+
+  const hasAnyVisibleTargetingField = hasDeviceIdsField || hasLanguageIdsField || hasTrackingUrlTemplateField || hasFinalUrlSuffixField || hasUrlCustomParametersField || hasBudgetNameField || hasLocationIdsField || hasExcludedLocationIdsField;
+
+  const hasAnyVisibleField = !!hasAnyVisibleAssetField || hasAnyVisibleTargetingField;
 
   if (requestedKeys.length === 0 || !hasAnyVisibleField) {
     return null;
@@ -273,7 +595,9 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
           )}
 
           {/* Headline Assets */}
-          {hasHeadlineAssetIdsField && profileIdNum && (
+          {hasHeadlineAssetIdsField && profileIdNum && (() => {
+            const headlineCount = selectedHeadlineAssets.length || (Array.isArray(formData.headline_asset_ids) ? formData.headline_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Headline Assets
@@ -283,18 +607,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsHeadlineAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedHeadlineAssets.length > 0 ? `Selected ${selectedHeadlineAssets.length} headline(s)` : "Select Headline Assets"}
+                {headlineCount > 0 ? `Selected ${headlineCount} headline(s)` : "Select Headline Assets"}
               </button>
-              {selectedHeadlineAssets.length > 0 && (
+              {headlineCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedHeadlineAssets.map(a => a.name).join(", ")}
+                  {selectedHeadlineAssets.length > 0
+                    ? selectedHeadlineAssets.map(getAssetDisplayName).join(", ")
+                    : `${headlineCount} headline(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Description Assets */}
-          {hasDescriptionAssetIdsField && profileIdNum && (
+          {hasDescriptionAssetIdsField && profileIdNum && (() => {
+            const descCount = selectedDescriptionAssets.length || (Array.isArray(formData.description_asset_ids) ? formData.description_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Description Assets
@@ -304,18 +633,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsDescriptionAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedDescriptionAssets.length > 0 ? `Selected ${selectedDescriptionAssets.length} description(s)` : "Select Description Assets"}
+                {descCount > 0 ? `Selected ${descCount} description(s)` : "Select Description Assets"}
               </button>
-              {selectedDescriptionAssets.length > 0 && (
+              {descCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedDescriptionAssets.map(a => a.name).join(", ")}
+                  {selectedDescriptionAssets.length > 0
+                    ? selectedDescriptionAssets.map(getAssetDisplayName).join(", ")
+                    : `${descCount} description(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Long Headline Assets */}
-          {hasLongHeadlineAssetIdsField && profileIdNum && (
+          {hasLongHeadlineAssetIdsField && profileIdNum && (() => {
+            const longCount = selectedLongHeadlineAssets.length || (Array.isArray(formData.long_headline_asset_ids) ? formData.long_headline_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Long Headline Assets
@@ -325,18 +659,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsLongHeadlineAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedLongHeadlineAssets.length > 0 ? `Selected ${selectedLongHeadlineAssets.length} long headline(s)` : "Select Long Headline Assets"}
+                {longCount > 0 ? `Selected ${longCount} long headline(s)` : "Select Long Headline Assets"}
               </button>
-              {selectedLongHeadlineAssets.length > 0 && (
+              {longCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedLongHeadlineAssets.map(a => a.name).join(", ")}
+                  {selectedLongHeadlineAssets.length > 0
+                    ? selectedLongHeadlineAssets.map(getAssetDisplayName).join(", ")
+                    : `${longCount} long headline(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Video Assets */}
-          {hasVideoAssetIdsField && profileIdNum && (
+          {hasVideoAssetIdsField && profileIdNum && (() => {
+            const videoCount = selectedVideoAssets.length || (Array.isArray(formData.video_asset_ids) ? formData.video_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Video Assets
@@ -346,18 +685,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsVideoAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedVideoAssets.length > 0 ? `Selected ${selectedVideoAssets.length} video(s)` : "Select Video Assets"}
+                {videoCount > 0 ? `Selected ${videoCount} video(s)` : "Select Video Assets"}
               </button>
-              {selectedVideoAssets.length > 0 && (
+              {videoCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedVideoAssets.map(a => a.name).join(", ")}
+                  {selectedVideoAssets.length > 0
+                    ? selectedVideoAssets.map(getAssetDisplayName).join(", ")
+                    : `${videoCount} video(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Sitelink Assets */}
-          {hasSitelinkAssetIdsField && profileIdNum && (
+          {hasSitelinkAssetIdsField && profileIdNum && (() => {
+            const sitelinkCount = selectedSitelinkAssets.length || (Array.isArray(formData.sitelink_asset_ids) ? formData.sitelink_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Sitelink Assets
@@ -367,18 +711,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsSitelinkAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedSitelinkAssets.length > 0 ? `Selected ${selectedSitelinkAssets.length} sitelink(s)` : "Select Sitelink Assets"}
+                {sitelinkCount > 0 ? `Selected ${sitelinkCount} sitelink(s)` : "Select Sitelink Assets"}
               </button>
-              {selectedSitelinkAssets.length > 0 && (
+              {sitelinkCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedSitelinkAssets.map(a => a.name).join(", ")}
+                  {selectedSitelinkAssets.length > 0
+                    ? selectedSitelinkAssets.map(getAssetDisplayName).join(", ")
+                    : `${sitelinkCount} sitelink(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Callout Assets */}
-          {hasCalloutAssetIdsField && profileIdNum && (
+          {hasCalloutAssetIdsField && profileIdNum && (() => {
+            const calloutCount = selectedCalloutAssets.length || (Array.isArray(formData.callout_asset_ids) ? formData.callout_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Callout Assets
@@ -388,12 +737,136 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsCalloutAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedCalloutAssets.length > 0 ? `Selected ${selectedCalloutAssets.length} callout(s)` : "Select Callout Assets"}
+                {calloutCount > 0 ? `Selected ${calloutCount} callout(s)` : "Select Callout Assets"}
               </button>
-              {selectedCalloutAssets.length > 0 && (
+              {calloutCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedCalloutAssets.map(a => a.name).join(", ")}
+                  {selectedCalloutAssets.length > 0
+                    ? selectedCalloutAssets.map(getAssetDisplayName).join(", ")
+                    : `${calloutCount} callout(s) selected`}
                 </p>
+              )}
+            </div>
+            );
+          })()}
+        </div>
+
+        {/* Targeting Fields */}
+        <div className="space-y-4">
+          {/* Device Targeting */}
+          {hasDeviceIdsField && (
+            <GoogleDeviceTargetingForm
+              deviceIds={selectedDeviceIds}
+              onChange={(field, value) => {
+                if (field === "device_ids") {
+                  setSelectedDeviceIds(value as string[]);
+                }
+              }}
+              showTitle={true}
+              disabled={disabled}
+              flatLayout={true}
+            />
+          )}
+
+          {/* Language Targeting */}
+          {hasLanguageIdsField && (
+            <GoogleLanguageTargetingForm
+              languageIds={selectedLanguageIds}
+              languageOptions={[
+                { value: "1000", label: "English", id: "1000" },
+                { value: "1001", label: "Spanish", id: "1001" },
+                { value: "1002", label: "French", id: "1002" },
+                { value: "1003", label: "German", id: "1003" },
+                { value: "1004", label: "Italian", id: "1004" },
+                { value: "1005", label: "Portuguese", id: "1005" },
+                { value: "1006", label: "Chinese", id: "1006" },
+                { value: "1007", label: "Japanese", id: "1007" },
+                { value: "1008", label: "Korean", id: "1008" },
+              ]}
+              loadingLanguages={false}
+              onLanguageIdsChange={(ids) => setSelectedLanguageIds(ids || [])}
+              showTitle={true}
+            />
+          )}
+
+          {/* URL Options (Tracking Template, Final URL Suffix, Custom Parameters) */}
+          {(hasTrackingUrlTemplateField || hasFinalUrlSuffixField || hasUrlCustomParametersField) && (
+            <GoogleTrackingTemplateForm
+              trackingUrlTemplate={trackingUrlTemplate}
+              finalUrlSuffix={finalUrlSuffix}
+              urlCustomParameters={urlCustomParameters}
+              onTrackingUrlTemplateChange={setTrackingUrlTemplate}
+              onFinalUrlSuffixChange={setFinalUrlSuffix}
+              onCustomParametersChange={(params) => setUrlCustomParameters(params || [])}
+              title="Campaign URL Options"
+              showTitle={true}
+            />
+          )}
+
+          {/* Location Targeting */}
+          {(hasLocationIdsField || hasExcludedLocationIdsField) && (
+            <GoogleLocationTargetingForm
+              locationIds={selectedLocationIds}
+              excludedLocationIds={selectedExcludedLocationIds}
+              locationOptions={locationOptions}
+              loadingLocations={loadingLocations}
+              onLocationIdsChange={(ids) => setSelectedLocationIds(ids || [])}
+              onExcludedLocationIdsChange={(ids) => setSelectedExcludedLocationIds(ids || [])}
+              showTitle={true}
+            />
+          )}
+
+          {/* Budget Name */}
+          {hasBudgetNameField && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-[#072929]">
+                Budget Name
+              </label>
+              {useCustomBudgetName || selectedBudgetId === "__CUSTOM__" ? (
+                <div>
+                  <input
+                    type="text"
+                    value={budgetName}
+                    onChange={(e) => setBudgetName(e.target.value)}
+                    className="campaign-input w-full"
+                    placeholder="Enter custom budget name"
+                    disabled={disabled}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseCustomBudgetName(false);
+                      setSelectedBudgetId("");
+                      setBudgetName("");
+                    }}
+                    className="text-[10px] text-[#136D6D] mt-1 hover:underline"
+                  >
+                    ← Back to budget list
+                  </button>
+                </div>
+              ) : (
+                <Dropdown<string>
+                  options={budgetOptions}
+                  value={selectedBudgetId || ""}
+                  placeholder={loadingBudgets ? "Loading budgets..." : "Select a budget or choose Custom..."}
+                  onChange={(value) => {
+                    if (value === "__CUSTOM__") {
+                      setUseCustomBudgetName(true);
+                      setSelectedBudgetId("__CUSTOM__");
+                      setBudgetName("");
+                    } else {
+                      const opt = budgetOptions.find((o) => o.value === value);
+                      setUseCustomBudgetName(false);
+                      setSelectedBudgetId(value);
+                      setBudgetName(opt?.name ?? opt?.label ?? value);
+                    }
+                  }}
+                  disabled={loadingBudgets || disabled}
+                  searchable={true}
+                  searchPlaceholder="Search budgets..."
+                  emptyMessage="No budgets found"
+                  buttonClassName="edit-button w-full"
+                />
               )}
             </div>
           )}

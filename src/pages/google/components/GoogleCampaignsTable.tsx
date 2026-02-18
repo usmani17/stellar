@@ -52,17 +52,6 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
 }) => {
   const navigate = useNavigate();
   const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
-  const [showPublishDraftConfirmation, setShowPublishDraftConfirmation] = useState(false);
-  const [campaignToPublish, setCampaignToPublish] = useState<IGoogleCampaign | null>(null);
-  const wasPublishLoadingRef = useRef(false);
-  useEffect(() => {
-    const isLoading = !!campaignToPublish && publishLoadingCampaignId === campaignToPublish.campaign_id;
-    if (wasPublishLoadingRef.current && !isLoading) {
-      setShowPublishDraftConfirmation(false);
-      setCampaignToPublish(null);
-    }
-    wasPublishLoadingRef.current = isLoading;
-  }, [campaignToPublish, publishLoadingCampaignId]);
   const [pendingRemoveChange, setPendingRemoveChange] = useState<{
     value: string;
     campaignId: string | number;
@@ -151,16 +140,19 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  if (onPublishDraft) {
-                    setCampaignToPublish(row);
-                    setShowPublishDraftConfirmation(true);
+                  if (onEditCampaign) {
+                    onEditCampaign(row);
                   }
                 }}
                 className="table-edit-icon flex-shrink-0 relative z-10 cursor-pointer !opacity-100 pointer-events-auto"
-                title="Publish draft to Google Ads"
-                disabled={!onPublishDraft || publishLoadingCampaignId === row.campaign_id}
+                title="Edit or publish draft"
+                disabled={!onEditCampaign || editLoadingCampaignId === row.campaign_id}
               >
-                <Send className="w-4 h-4 text-[#136D6D]" aria-hidden />
+                {editLoadingCampaignId === row.campaign_id ? (
+                  <Loader size="sm" showMessage={false} />
+                ) : (
+                  <Send className="w-4 h-4 text-[#136D6D]" aria-hidden />
+                )}
               </button>
             )}
           </div>
@@ -539,29 +531,6 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
         type="danger"
         size="sm"
         icon={<TrashIcon className="w-6 h-6 text-red-600" />}
-      />
-      <ConfirmationModal
-        isOpen={showPublishDraftConfirmation}
-        onClose={() => {
-          setShowPublishDraftConfirmation(false);
-          setCampaignToPublish(null);
-        }}
-        onConfirm={() => {
-          if (campaignToPublish && onPublishDraft) {
-            onPublishDraft(campaignToPublish);
-          }
-        }}
-        isLoading={!!campaignToPublish && publishLoadingCampaignId === campaignToPublish.campaign_id}
-        loadingLabel="Publishing..."
-        title="Publish this draft to Google Ads?"
-        message={
-          campaignToPublish
-            ? `"${campaignToPublish.campaign_name || "Unnamed Campaign"}" will be created in Google Ads and will appear as a live campaign.`
-            : ""
-        }
-        type="primary"
-        size="sm"
-        icon={<Send className="w-6 h-6 text-[#136D6D]" />}
       />
     </>
   );
