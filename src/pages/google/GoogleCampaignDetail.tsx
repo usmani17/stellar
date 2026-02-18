@@ -1226,7 +1226,10 @@ export const GoogleCampaignDetail: React.FC = () => {
   // handleCreateShoppingAdGroup is now in useGoogleCampaignDetailAdGroups hook
 
   // Handler for creating Shopping entities (ad group + product group)
-  const handleCreateShoppingEntities = async (entity: ShoppingEntityInput) => {
+  const handleCreateShoppingEntities = async (
+    entity: ShoppingEntityInput,
+    options?: { saveAsDraft?: boolean }
+  ) => {
     if (!accountId || !campaignId) return;
 
     setIsCreateShoppingEntitiesPanelOpen(true);
@@ -1244,17 +1247,24 @@ export const GoogleCampaignDetail: React.FC = () => {
         throw new Error("Invalid channel ID");
       }
 
-      const campaignIdNum = parseInt(campaignId, 10);
-      if (isNaN(campaignIdNum)) {
+      const campaignIdForApi = String(campaignId).startsWith("draft-")
+        ? campaignId
+        : parseInt(campaignId, 10);
+      if (typeof campaignIdForApi === "number" && isNaN(campaignIdForApi)) {
         throw new Error("Invalid campaign ID");
       }
+
+      const payload = {
+        ...entity,
+        ...(options?.saveAsDraft && { save_as_draft: true }),
+      };
 
       const response =
         await googleAdwordsCampaignsService.createGoogleShoppingEntities(
           accountIdNum,
           channelIdNum,
-          campaignIdNum,
-          entity,
+          campaignIdForApi as number,
+          payload,
         );
 
       if (response.error) {
@@ -1270,8 +1280,11 @@ export const GoogleCampaignDetail: React.FC = () => {
         // Success - close panel and show success message
         setIsCreateShoppingEntitiesPanelOpen(false);
         const adgroupName = response.adgroup?.name || "Ad group";
+        const isDraftPg = options?.saveAsDraft || response.product_group?.id?.toString().startsWith("draft-");
         const successMessage = response.product_group
-          ? `Listing group created successfully in "${adgroupName}"!`
+          ? isDraftPg
+            ? "Listing group saved as draft."
+            : `Listing group created successfully in "${adgroupName}"!`
           : `Ad group "${adgroupName}" created successfully!`;
         setErrorModal({
           isOpen: true,
@@ -1311,7 +1324,10 @@ export const GoogleCampaignDetail: React.FC = () => {
   };
 
   // Handler for creating Shopping Ad
-  const handleCreateShoppingAd = async (entity: ShoppingAdInput) => {
+  const handleCreateShoppingAd = async (
+    entity: ShoppingAdInput,
+    options?: { saveAsDraft?: boolean }
+  ) => {
     if (!accountId || !campaignId) return;
 
     setIsCreateShoppingAdPanelOpen(true);
@@ -1329,17 +1345,24 @@ export const GoogleCampaignDetail: React.FC = () => {
         throw new Error("Invalid channel ID");
       }
 
-      const campaignIdNum = parseInt(campaignId, 10);
-      if (isNaN(campaignIdNum)) {
+      const campaignIdForApi = String(campaignId).startsWith("draft-")
+        ? campaignId
+        : parseInt(campaignId, 10);
+      if (typeof campaignIdForApi === "number" && isNaN(campaignIdForApi)) {
         throw new Error("Invalid campaign ID");
       }
+
+      const payload = {
+        ...entity,
+        ...(options?.saveAsDraft && { save_as_draft: true }),
+      };
 
       const response =
         await googleAdwordsCampaignsService.createGoogleShoppingAd(
           accountIdNum,
           channelIdNum,
-          campaignIdNum,
-          entity,
+          campaignIdForApi as number,
+          payload,
         );
 
       if (response.error) {
@@ -1355,7 +1378,10 @@ export const GoogleCampaignDetail: React.FC = () => {
         // Success - close panel and show success message
         setIsCreateShoppingAdPanelOpen(false);
         const adgroupName = response.adgroup?.name || "Ad group";
-        const successMessage = `Shopping ad created successfully in "${adgroupName}"!`;
+        const isDraft = options?.saveAsDraft || response.ad?.id?.toString().startsWith("draft-");
+        const successMessage = isDraft
+          ? "Shopping ad saved as draft."
+          : `Shopping ad created successfully in "${adgroupName}"!`;
         setErrorModal({
           isOpen: true,
           title: "Success",
