@@ -179,7 +179,7 @@ export const googleAdwordsAdGroupsService = {
   updateDraftAdgroup: async (
     accountId: number,
     channelId: number,
-    payload: { draft_id: string; adgroup: { name?: string; cpc_bid?: number; tracking_url_template?: string; final_url_suffix?: string; url_custom_parameters?: Array<{ key: string; value: string }> } }
+    payload: { draft_id: string; adgroup: { name?: string; cpc_bid?: number; status?: string; tracking_url_template?: string; final_url_suffix?: string; url_custom_parameters?: Array<{ key: string; value: string }> } }
   ): Promise<{ updated: boolean; adgroup_id: string }> => {
     const url = `/google-adwords/${accountId}/channels/${channelId}/adgroups/update-draft/`;
     const response = await api.patch(url, payload);

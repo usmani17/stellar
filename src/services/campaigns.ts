@@ -3422,6 +3422,8 @@ export const campaignsService = {
       account_name?: string;
       account_name__icontains?: string;
       account_name__not_icontains?: string;
+      /** When true, include draft ad groups (e.g. for sub-entity creation like product groups). */
+      include_drafts?: boolean;
     }
   ): Promise<{
     adgroups: any[];
@@ -3471,6 +3473,7 @@ export const campaignsService = {
       filters.account_name__icontains = params.account_name__icontains;
     if (params?.account_name__not_icontains)
       filters.account_name__not_icontains = params.account_name__not_icontains;
+    if (params?.include_drafts) filters.include_drafts = true;
 
     const response = await api.post(`/google-adwords/${accountId}/channels/${channelId}/adgroups/`, {
       filters,

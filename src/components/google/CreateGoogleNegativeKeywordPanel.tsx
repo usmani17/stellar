@@ -277,7 +277,7 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
             <div className="w-[80px]">
               <Button
                 onClick={addKeyword}
-                className="w-full px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+                className="create-entity-button w-full text-[11.2px] justify-center"
               >
                 Add
               </Button>

@@ -84,6 +84,9 @@ interface GoogleAdGroupsTableProps {
   getStatusBadge: (status: string) => React.ReactElement;
   getSortIcon: (column: string) => React.ReactElement;
   currencyCode?: string;
+  onPublishDraft?: (row: GoogleAdGroup) => void;
+  publishLoadingId?: string | number;
+  draftFilterOn?: boolean;
 }
 
 export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
@@ -119,7 +122,15 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
   getStatusBadge,
   getSortIcon,
   currencyCode,
+  onPublishDraft,
+  publishLoadingId,
+  draftFilterOn,
 }) => {
+  const isDraftAdGroup = (row: GoogleAdGroup) => {
+    const s = (row.status || "").toUpperCase();
+    return s === "SAVED_DRAFT" || s === "DRAFT" || String(row.adgroup_id ?? row.id).startsWith("draft-");
+  };
+
   // Map editingCell to shared component format
   const sharedEditingCell = editingCell ? {
     itemId: editingCell.adgroupId,
@@ -385,6 +396,11 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       getStatusBadge={getStatusBadge}
       getSortIcon={getSortIcon}
       currencyCode={currencyCode}
+      publishDraftColumnKey="adgroup_name"
+      onPublishDraft={onPublishDraft}
+      isDraftRow={isDraftAdGroup}
+      publishLoadingId={publishLoadingId}
+      draftFilterOn={draftFilterOn}
     />
   </>
   );

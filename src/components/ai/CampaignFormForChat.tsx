@@ -12,6 +12,7 @@ import { GoogleDeviceTargetingForm } from "../google/campaigns/GoogleDeviceTarge
 import { GoogleLanguageTargetingForm } from "../google/campaigns/GoogleLanguageTargetingForm";
 import { GoogleTrackingTemplateForm } from "../google/campaigns/GoogleTrackingTemplateForm";
 import { Dropdown } from "../ui/Dropdown";
+import { MerchantIdDropdown } from "../google/MerchantIdDropdown";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
 import { GoogleLocationTargetingForm } from "../google/campaigns/GoogleLocationTargetingForm";
 import { campaignsService } from "../../services/campaigns";
@@ -31,6 +32,14 @@ function stripEntityPrefix(key: string): string {
 /** Check if field key matches any requested key (with or without entity prefix) */
 function isFieldRequested(fieldKey: string, requestedKeys: string[]): boolean {
   return requestedKeys.includes(fieldKey);
+}
+
+/** Display label for an asset (avoids ", ," when name is empty) */
+function getAssetDisplayName(asset: Asset): string {
+  const name = asset.name?.trim();
+  if (name) return name;
+  if ("text" in asset && typeof asset.text === "string" && asset.text.trim()) return asset.text.trim();
+  return asset.resource_name || "Asset";
 }
 
 export interface CampaignFormForChatProps {
@@ -62,40 +71,40 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const requestedKeys = getKeysForForm(questionsSchema);
 
   const [formData, setFormData] = useState<Partial<CreateGoogleCampaignData>>(campaignDraft || {});
-  
+
   // Logo Asset
   const [isLogoAssetModalOpen, setIsLogoAssetModalOpen] = useState(false);
   const [selectedLogoAsset, setSelectedLogoAsset] = useState<Asset | null>(null);
-  
+
   // Business Name Asset
   const [isBusinessNameAssetModalOpen, setIsBusinessNameAssetModalOpen] = useState(false);
   const [selectedBusinessNameAsset, setSelectedBusinessNameAsset] = useState<Asset | null>(null);
-  
+
   // Marketing Image Assets
   const [isMarketingImageAssetModalOpen, setIsMarketingImageAssetModalOpen] = useState(false);
   const [selectedMarketingImageAsset, setSelectedMarketingImageAsset] = useState<Asset | null>(null);
-  
+
   const [isSquareMarketingImageAssetModalOpen, setIsSquareMarketingImageAssetModalOpen] = useState(false);
   const [selectedSquareMarketingImageAsset, setSelectedSquareMarketingImageAsset] = useState<Asset | null>(null);
-  
+
   // Text Assets (multiple)
   const [isHeadlineAssetsModalOpen, setIsHeadlineAssetsModalOpen] = useState(false);
   const [selectedHeadlineAssets, setSelectedHeadlineAssets] = useState<Asset[]>([]);
-  
+
   const [isDescriptionAssetsModalOpen, setIsDescriptionAssetsModalOpen] = useState(false);
   const [selectedDescriptionAssets, setSelectedDescriptionAssets] = useState<Asset[]>([]);
-  
+
   const [isLongHeadlineAssetsModalOpen, setIsLongHeadlineAssetsModalOpen] = useState(false);
   const [selectedLongHeadlineAssets, setSelectedLongHeadlineAssets] = useState<Asset[]>([]);
-  
+
   // Video Assets (multiple)
   const [isVideoAssetsModalOpen, setIsVideoAssetsModalOpen] = useState(false);
   const [selectedVideoAssets, setSelectedVideoAssets] = useState<Asset[]>([]);
-  
+
   // Sitelink Assets (multiple)
   const [isSitelinkAssetsModalOpen, setIsSitelinkAssetsModalOpen] = useState(false);
   const [selectedSitelinkAssets, setSelectedSitelinkAssets] = useState<Asset[]>([]);
-  
+
   // Callout Assets (multiple)
   const [isCalloutAssetsModalOpen, setIsCalloutAssetsModalOpen] = useState(false);
   const [selectedCalloutAssets, setSelectedCalloutAssets] = useState<Asset[]>([]);
@@ -130,6 +139,11 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const [useCustomBudgetName, setUseCustomBudgetName] = useState(false);
   const [loadingBudgets, setLoadingBudgets] = useState(false);
 
+  // Merchant ID
+  const [merchantId, setMerchantId] = useState<string>(
+    (campaignDraft?.merchant_id as string) || ""
+  );
+
   // Location Targeting
   const [selectedLocationIds, setSelectedLocationIds] = useState<number[]>(
     (campaignDraft?.location_ids as number[]) || []
@@ -144,9 +158,30 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const accountIdNum = accountId != null ? (typeof accountId === "number" ? accountId : parseInt(String(accountId), 10)) : null;
   const channelIdNum = channelId != null ? (typeof channelId === "number" ? channelId : parseInt(String(channelId), 10)) : null;
 
+  const hasLogoAssetIdField = isFieldRequested("logo_asset_id", requestedKeys);
+  const hasBusinessNameAssetIdField = isFieldRequested("business_name_asset_id", requestedKeys);
+  const hasMarketingImageAssetIdField = isFieldRequested("marketing_image_asset_id", requestedKeys);
+  const hasSquareMarketingImageAssetIdField = isFieldRequested("square_marketing_image_asset_id", requestedKeys);
+  const hasHeadlineAssetIdsField = isFieldRequested("headline_asset_ids", requestedKeys);
+  const hasDescriptionAssetIdsField = isFieldRequested("description_asset_ids", requestedKeys);
+  const hasLongHeadlineAssetIdsField = isFieldRequested("long_headline_asset_ids", requestedKeys);
+  const hasVideoAssetIdsField = isFieldRequested("video_asset_ids", requestedKeys);
+  const hasSitelinkAssetIdsField = isFieldRequested("sitelink_asset_ids", requestedKeys);
+  const hasCalloutAssetIdsField = isFieldRequested("callout_asset_ids", requestedKeys);
+
+  // Targeting fields
+  const hasDeviceIdsField = isFieldRequested("device_ids", requestedKeys);
+  const hasLanguageIdsField = isFieldRequested("language_ids", requestedKeys);
+  const hasTrackingUrlTemplateField = isFieldRequested("tracking_url_template", requestedKeys);
+  const hasFinalUrlSuffixField = isFieldRequested("final_url_suffix", requestedKeys);
+  const hasUrlCustomParametersField = isFieldRequested("url_custom_parameters", requestedKeys);
+  const hasBudgetNameField = isFieldRequested("budget_name", requestedKeys);
+  const hasLocationIdsField = isFieldRequested("location_ids", requestedKeys);
+  const hasExcludedLocationIdsField = isFieldRequested("excluded_location_ids", requestedKeys);
+  const hasMerchantIdField = isFieldRequested("merchant_id", requestedKeys);
   // Function to fetch budgets
   const fetchBudgets = useCallback(async () => {
-    if (!accountIdNum || !channelIdNum || !profileIdNum) {
+    if (!accountIdNum || !channelIdNum || !profileIdNum || !hasBudgetNameField) {
       setBudgetOptions([]);
       return;
     }
@@ -271,6 +306,9 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       if (isFieldRequested("excluded_location_ids", requestedKeys) && selectedExcludedLocationIds.length > 0) {
         vals["excluded_location_ids"] = selectedExcludedLocationIds.join("\n");
       }
+      if (isFieldRequested("merchant_id", requestedKeys) && merchantId) {
+        vals["merchant_id"] = merchantId;
+      }
       return vals;
     },
     clear: () => {
@@ -295,8 +333,9 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       setUseCustomBudgetName(false);
       setSelectedLocationIds([]);
       setSelectedExcludedLocationIds([]);
+      setMerchantId("");
     },
-  }), [formData, requestedKeys, selectedDeviceIds, selectedLanguageIds, trackingUrlTemplate, finalUrlSuffix, urlCustomParameters, budgetName, selectedBudgetId, useCustomBudgetName, selectedLocationIds, selectedExcludedLocationIds]);
+  }), [formData, requestedKeys, selectedDeviceIds, selectedLanguageIds, trackingUrlTemplate, finalUrlSuffix, urlCustomParameters, budgetName, selectedBudgetId, useCustomBudgetName, selectedLocationIds, selectedExcludedLocationIds, merchantId]);
 
   const onChange = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -308,8 +347,12 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
 
     const parts: string[] = [];
 
-    // Add formData fields
+    // Keys that are multi-asset arrays: show human-readable summary instead of JSON
+    const assetArrayKeys = ["headline_asset_ids", "description_asset_ids", "long_headline_asset_ids", "video_asset_ids", "sitelink_asset_ids", "callout_asset_ids"];
+
+    // Add formData fields (skip asset array keys; they get explicit lines below)
     for (const key of requestedKeys) {
+      if (assetArrayKeys.includes(key)) continue;
       const v = formData[key as keyof typeof formData];
       if (v !== undefined && v !== "" && v != null) {
         const label = getFieldLabel(key);
@@ -381,31 +424,79 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       }).join(", ");
       parts.push(`${label}: ${locationNames}`);
     }
+
+    // Add merchant_id
+    if (isFieldRequested("merchant_id", requestedKeys) && merchantId) {
+      const label = getFieldLabel("merchant_id");
+      parts.push(`${label}: ${merchantId}`);
+    }
+
+    // Add multi-asset fields with readable labels (so agent view shows names, not ", ," or JSON)
+    if (isFieldRequested("headline_asset_ids", requestedKeys)) {
+      const count = selectedHeadlineAssets.length || (Array.isArray(formData.headline_asset_ids) ? formData.headline_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("headline_asset_ids");
+        const names = selectedHeadlineAssets.length > 0
+          ? selectedHeadlineAssets.map(getAssetDisplayName).join(", ")
+          : `${count} headline(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("description_asset_ids", requestedKeys)) {
+      const count = selectedDescriptionAssets.length || (Array.isArray(formData.description_asset_ids) ? formData.description_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("description_asset_ids");
+        const names = selectedDescriptionAssets.length > 0
+          ? selectedDescriptionAssets.map(getAssetDisplayName).join(", ")
+          : `${count} description(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("long_headline_asset_ids", requestedKeys)) {
+      const count = selectedLongHeadlineAssets.length || (Array.isArray(formData.long_headline_asset_ids) ? formData.long_headline_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("long_headline_asset_ids");
+        const names = selectedLongHeadlineAssets.length > 0
+          ? selectedLongHeadlineAssets.map(getAssetDisplayName).join(", ")
+          : `${count} long headline(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("video_asset_ids", requestedKeys)) {
+      const count = selectedVideoAssets.length || (Array.isArray(formData.video_asset_ids) ? formData.video_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("video_asset_ids");
+        const names = selectedVideoAssets.length > 0
+          ? selectedVideoAssets.map(getAssetDisplayName).join(", ")
+          : `${count} video(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("sitelink_asset_ids", requestedKeys)) {
+      const count = selectedSitelinkAssets.length || (Array.isArray(formData.sitelink_asset_ids) ? formData.sitelink_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("sitelink_asset_ids");
+        const names = selectedSitelinkAssets.length > 0
+          ? selectedSitelinkAssets.map(getAssetDisplayName).join(", ")
+          : `${count} sitelink(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+    if (isFieldRequested("callout_asset_ids", requestedKeys)) {
+      const count = selectedCalloutAssets.length || (Array.isArray(formData.callout_asset_ids) ? formData.callout_asset_ids.length : 0);
+      if (count > 0) {
+        const label = getFieldLabel("callout_asset_ids");
+        const names = selectedCalloutAssets.length > 0
+          ? selectedCalloutAssets.map(getAssetDisplayName).join(", ")
+          : `${count} callout(s) selected`;
+        parts.push(`${label}: ${names}`);
+      }
+    }
+
     if (parts.length > 0) {
       onSend(parts.join("\n"));
     }
   };
-
-  const hasLogoAssetIdField = isFieldRequested("logo_asset_id", requestedKeys);
-  const hasBusinessNameAssetIdField = isFieldRequested("business_name_asset_id", requestedKeys);
-  const hasMarketingImageAssetIdField = isFieldRequested("marketing_image_asset_id", requestedKeys);
-  const hasSquareMarketingImageAssetIdField = isFieldRequested("square_marketing_image_asset_id", requestedKeys);
-  const hasHeadlineAssetIdsField = isFieldRequested("headline_asset_ids", requestedKeys);
-  const hasDescriptionAssetIdsField = isFieldRequested("description_asset_ids", requestedKeys);
-  const hasLongHeadlineAssetIdsField = isFieldRequested("long_headline_asset_ids", requestedKeys);
-  const hasVideoAssetIdsField = isFieldRequested("video_asset_ids", requestedKeys);
-  const hasSitelinkAssetIdsField = isFieldRequested("sitelink_asset_ids", requestedKeys);
-  const hasCalloutAssetIdsField = isFieldRequested("callout_asset_ids", requestedKeys);
-
-  // Targeting fields
-  const hasDeviceIdsField = isFieldRequested("device_ids", requestedKeys);
-  const hasLanguageIdsField = isFieldRequested("language_ids", requestedKeys);
-  const hasTrackingUrlTemplateField = isFieldRequested("tracking_url_template", requestedKeys);
-  const hasFinalUrlSuffixField = isFieldRequested("final_url_suffix", requestedKeys);
-  const hasUrlCustomParametersField = isFieldRequested("url_custom_parameters", requestedKeys);
-  const hasBudgetNameField = isFieldRequested("budget_name", requestedKeys);
-  const hasLocationIdsField = isFieldRequested("location_ids", requestedKeys);
-  const hasExcludedLocationIdsField = isFieldRequested("excluded_location_ids", requestedKeys);
 
   // Only render when we have at least one visible field. Asset fields need profileId to show; basic keys are not yet rendered in this component.
   const hasAnyVisibleAssetField =
@@ -419,6 +510,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       hasLongHeadlineAssetIdsField ||
       hasVideoAssetIdsField ||
       hasSitelinkAssetIdsField ||
+      hasMerchantIdField ||
       hasCalloutAssetIdsField);
 
   const hasAnyVisibleTargetingField = hasDeviceIdsField || hasLanguageIdsField || hasTrackingUrlTemplateField || hasFinalUrlSuffixField || hasUrlCustomParametersField || hasBudgetNameField || hasLocationIdsField || hasExcludedLocationIdsField;
@@ -520,7 +612,9 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
           )}
 
           {/* Headline Assets */}
-          {hasHeadlineAssetIdsField && profileIdNum && (
+          {hasHeadlineAssetIdsField && profileIdNum && (() => {
+            const headlineCount = selectedHeadlineAssets.length || (Array.isArray(formData.headline_asset_ids) ? formData.headline_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Headline Assets
@@ -530,18 +624,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsHeadlineAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedHeadlineAssets.length > 0 ? `Selected ${selectedHeadlineAssets.length} headline(s)` : "Select Headline Assets"}
+                {headlineCount > 0 ? `Selected ${headlineCount} headline(s)` : "Select Headline Assets"}
               </button>
-              {selectedHeadlineAssets.length > 0 && (
+              {headlineCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedHeadlineAssets.map(a => a.name).join(", ")}
+                  {selectedHeadlineAssets.length > 0
+                    ? selectedHeadlineAssets.map(getAssetDisplayName).join(", ")
+                    : `${headlineCount} headline(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Description Assets */}
-          {hasDescriptionAssetIdsField && profileIdNum && (
+          {hasDescriptionAssetIdsField && profileIdNum && (() => {
+            const descCount = selectedDescriptionAssets.length || (Array.isArray(formData.description_asset_ids) ? formData.description_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Description Assets
@@ -551,18 +650,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsDescriptionAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedDescriptionAssets.length > 0 ? `Selected ${selectedDescriptionAssets.length} description(s)` : "Select Description Assets"}
+                {descCount > 0 ? `Selected ${descCount} description(s)` : "Select Description Assets"}
               </button>
-              {selectedDescriptionAssets.length > 0 && (
+              {descCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedDescriptionAssets.map(a => a.name).join(", ")}
+                  {selectedDescriptionAssets.length > 0
+                    ? selectedDescriptionAssets.map(getAssetDisplayName).join(", ")
+                    : `${descCount} description(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Long Headline Assets */}
-          {hasLongHeadlineAssetIdsField && profileIdNum && (
+          {hasLongHeadlineAssetIdsField && profileIdNum && (() => {
+            const longCount = selectedLongHeadlineAssets.length || (Array.isArray(formData.long_headline_asset_ids) ? formData.long_headline_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Long Headline Assets
@@ -572,18 +676,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsLongHeadlineAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedLongHeadlineAssets.length > 0 ? `Selected ${selectedLongHeadlineAssets.length} long headline(s)` : "Select Long Headline Assets"}
+                {longCount > 0 ? `Selected ${longCount} long headline(s)` : "Select Long Headline Assets"}
               </button>
-              {selectedLongHeadlineAssets.length > 0 && (
+              {longCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedLongHeadlineAssets.map(a => a.name).join(", ")}
+                  {selectedLongHeadlineAssets.length > 0
+                    ? selectedLongHeadlineAssets.map(getAssetDisplayName).join(", ")
+                    : `${longCount} long headline(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Video Assets */}
-          {hasVideoAssetIdsField && profileIdNum && (
+          {hasVideoAssetIdsField && profileIdNum && (() => {
+            const videoCount = selectedVideoAssets.length || (Array.isArray(formData.video_asset_ids) ? formData.video_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Video Assets
@@ -593,18 +702,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsVideoAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedVideoAssets.length > 0 ? `Selected ${selectedVideoAssets.length} video(s)` : "Select Video Assets"}
+                {videoCount > 0 ? `Selected ${videoCount} video(s)` : "Select Video Assets"}
               </button>
-              {selectedVideoAssets.length > 0 && (
+              {videoCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedVideoAssets.map(a => a.name).join(", ")}
+                  {selectedVideoAssets.length > 0
+                    ? selectedVideoAssets.map(getAssetDisplayName).join(", ")
+                    : `${videoCount} video(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Sitelink Assets */}
-          {hasSitelinkAssetIdsField && profileIdNum && (
+          {hasSitelinkAssetIdsField && profileIdNum && (() => {
+            const sitelinkCount = selectedSitelinkAssets.length || (Array.isArray(formData.sitelink_asset_ids) ? formData.sitelink_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Sitelink Assets
@@ -614,18 +728,23 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsSitelinkAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedSitelinkAssets.length > 0 ? `Selected ${selectedSitelinkAssets.length} sitelink(s)` : "Select Sitelink Assets"}
+                {sitelinkCount > 0 ? `Selected ${sitelinkCount} sitelink(s)` : "Select Sitelink Assets"}
               </button>
-              {selectedSitelinkAssets.length > 0 && (
+              {sitelinkCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedSitelinkAssets.map(a => a.name).join(", ")}
+                  {selectedSitelinkAssets.length > 0
+                    ? selectedSitelinkAssets.map(getAssetDisplayName).join(", ")
+                    : `${sitelinkCount} sitelink(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Callout Assets */}
-          {hasCalloutAssetIdsField && profileIdNum && (
+          {hasCalloutAssetIdsField && profileIdNum && (() => {
+            const calloutCount = selectedCalloutAssets.length || (Array.isArray(formData.callout_asset_ids) ? formData.callout_asset_ids.length : 0);
+            return (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#072929]">
                 Callout Assets
@@ -635,15 +754,18 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 onClick={() => setIsCalloutAssetsModalOpen(true)}
                 className="px-4 py-2 text-sm font-medium text-[#136D6D] bg-white border border-[#136D6D] rounded-[8px] hover:bg-[#136D6D]/5"
               >
-                {selectedCalloutAssets.length > 0 ? `Selected ${selectedCalloutAssets.length} callout(s)` : "Select Callout Assets"}
+                {calloutCount > 0 ? `Selected ${calloutCount} callout(s)` : "Select Callout Assets"}
               </button>
-              {selectedCalloutAssets.length > 0 && (
+              {calloutCount > 0 && (
                 <p className="text-xs text-[#556179] mt-1">
-                  {selectedCalloutAssets.map(a => a.name).join(", ")}
+                  {selectedCalloutAssets.length > 0
+                    ? selectedCalloutAssets.map(getAssetDisplayName).join(", ")
+                    : `${calloutCount} callout(s) selected`}
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Targeting Fields */}
@@ -764,6 +886,21 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 />
               )}
             </div>
+          )}
+
+          {/* Merchant ID */}
+          {hasMerchantIdField && (
+            <MerchantIdDropdown
+              value={merchantId}
+              onChange={setMerchantId}
+              accountId={accountId != null ? String(accountId) : undefined}
+              channelId={channelId != null ? String(channelId) : undefined}
+              selectedProfileId={profileId != null ? String(profileId) : undefined}
+              campaignType={campaignType}
+              isOpen={true}
+              disabled={disabled}
+              showAccountCount={false}
+            />
           )}
         </div>
 

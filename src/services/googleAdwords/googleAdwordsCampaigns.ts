@@ -1,7 +1,7 @@
 import api from "../api";
 import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../../components/google/CreateGooglePmaxAssetGroupPanel";
 
-export const googleAdwordsCampaignsService = {
+export const googleAdwordsCampaignsService : any = {
   createGoogleCampaign: async (
     accountId: number,
     channelId: number,
@@ -257,9 +257,10 @@ export const googleAdwordsCampaignsService = {
   createGoogleShoppingAd: async (
     accountId: number,
     channelId: number,
-    campaignId: number,
+    campaignId: number | string,
     payload: {
       adgroup_id: number; // Required: use existing adgroup
+      save_as_draft?: boolean;
     }
   ): Promise<{
     ad?: {

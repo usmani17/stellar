@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, X } from "lucide-react";
+import { Check, X, Send } from "lucide-react";
 import { Checkbox } from "../../../components/ui/Checkbox";
 import { Dropdown } from "../../../components/ui/Dropdown";
 import { Loader } from "../../../components/ui/Loader";
@@ -42,6 +42,11 @@ export function GoogleAdsTable<T = any>({
   inlineEditSuccess,
   inlineEditError,
   currencyCode,
+  publishDraftColumnKey,
+  onPublishDraft,
+  isDraftRow,
+  publishLoadingId,
+  draftFilterOn,
 }: IGoogleAdsTableProps<T>) {
   const navigate = useNavigate();
   // Ref to track if a status selection was made (matches Amazon pattern)
@@ -55,22 +60,47 @@ export function GoogleAdsTable<T = any>({
     const hasPendingChange = pendingChange?.itemId === itemId;
     const isSuccess = inlineEditSuccess?.itemId === itemId && inlineEditSuccess?.field === column.key;
     const value = column.getValue(row);
-    
+
+    // Publish-draft wrap: when draftFilterOn is true, show icon only for draft rows; when false/undefined, show for all rows in that column.
+    const isDraft = !!isDraftRow?.(row);
+    const showPublishColumn = publishDraftColumnKey === column.key && onPublishDraft &&
+      (draftFilterOn === undefined ? true : (draftFilterOn && isDraft));
+    const publishLoading = showPublishColumn && isDraft && publishLoadingId !== undefined &&
+      (String(publishLoadingId) === String(itemId) || String(publishLoadingId) === String((row as any).adgroup_id) || String(publishLoadingId) === String((row as any).keyword_id) || String(publishLoadingId) === String((row as any).ad_id));
+    const wrapWithPublish = (content: React.ReactNode) => {
+      if (!showPublishColumn) return content;
+      return (
+        <div className="flex items-center gap-1 w-full min-w-0">
+          <span className="min-w-0 flex-1 truncate">{content}</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onPublishDraft(row);
+            }}
+            className="shrink-0 p-1 rounded hover:bg-gray-100 inline-flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed relative z-10"
+            style={{ pointerEvents: 'auto' }}
+            title={isDraft ? "Publish draft to Google Ads" : "Only draft rows can be published"}
+            disabled={!!publishLoading}
+          >
+            {publishLoading ? <Loader size="sm" showMessage={false} /> : <Send className="w-4 h-4 text-[#136D6D]" aria-hidden />}
+          </button>
+        </div>
+      );
+    };
+
     // Check if column is editable (can be boolean or function)
-    const isEditable = typeof column.editable === 'function' 
-      ? column.editable(row) 
+    const isEditable = typeof column.editable === 'function'
+      ? column.editable(row)
       : column.editable === true;
 
-    // For editable fields (status, budget, bid, start_date, end_date, bidding_strategy_type, match_type, adgroup_name, keyword_text), 
-    // always show as editable controls (like Amazon campaigns)
-    // Note: Loading and success states are now handled inside renderEditableCell for budget/date/status fields
+    // For editable fields (status, budget, bid, start_date, end_date, bidding_strategy_type, match_type, adgroup_name, keyword_text),
+    // always show as editable controls (like Amazon campaigns). Wrap with publish icon when this is the publish column.
     if (isEditable && (column.key === "status" || column.key === "budget" || column.key === "bid" ||
         column.key === "start_date" || column.key === "end_date" || column.key === "bidding_strategy_type" ||
         column.key === "match_type" || column.key === "adgroup_name" || column.key === "keyword_text")) {
-    // For budget, bid, date, status, bidding_strategy_type, match_type, adgroup_name, and keyword_text fields, renderEditableCell handles loading/success states internally with floating indicators
-    // Always show editable control (similar to Amazon campaigns)
-    // Status, budget, bid, date, bidding_strategy_type, match_type, adgroup_name, and keyword_text fields will show floating indicators from renderEditableCell
-    return renderEditableCell(column, value, row, itemId);
+      return wrapWithPublish(renderEditableCell(column, value, row, itemId));
     }
 
     // Handle editing state for other editable fields (before custom render) so editable cells work properly
@@ -152,7 +182,7 @@ export function GoogleAdsTable<T = any>({
     if (column.navigateTo && !column.render) {
       const navPath = column.navigateTo(row, accountId);
       if (navPath) {
-        return (
+        const link = (
           <a
             href={navPath}
             onClick={(e) => {
@@ -168,6 +198,7 @@ export function GoogleAdsTable<T = any>({
             {cellContent}
           </a>
         );
+        return wrapWithPublish(link);
       }
     }
 
@@ -175,7 +206,7 @@ export function GoogleAdsTable<T = any>({
     // This allows custom renders to match exact styling (like TikTok's hover:underline)
     if (column.render && isClickable) {
       // Wrap in a div that handles the click, but don't add hover:bg-gray-50 to preserve custom styling
-      return (
+      return wrapWithPublish(
         <div
           onClick={() => onStartInlineEdit(row, column.key)}
           className="w-full"
@@ -188,7 +219,7 @@ export function GoogleAdsTable<T = any>({
 
     if (isClickable) {
       const whitespaceClass = (column.key === "bidding_strategy_type" || column.key === "advertising_channel_type") ? "whitespace-nowrap" : "";
-      return (
+      return wrapWithPublish(
         <div
           onClick={() => onStartInlineEdit(row, column.key)}
           className={`cursor-pointer hover:bg-gray-50 rounded px-2 py-1 w-full ${whitespaceClass}`}
@@ -204,13 +235,13 @@ export function GoogleAdsTable<T = any>({
       const whitespaceClass = (column.key === "bidding_strategy_type" || column.key === "advertising_channel_type") ? "whitespace-nowrap" : "";
       return (
         <div className={`cursor-not-allowed opacity-60 rounded px-2 py-1 w-full ${whitespaceClass}`}>
-          {cellContent}
+          {wrapWithPublish(cellContent)}
         </div>
       );
     }
 
     const whitespaceClass = (column.key === "bidding_strategy_type" || column.key === "advertising_channel_type") ? "whitespace-nowrap" : "";
-    return <div className={whitespaceClass}>{cellContent}</div>;
+    return <div className={whitespaceClass}>{wrapWithPublish(cellContent)}</div>;
   };
 
   const renderValue = (column: IColumnDefinition, value: any): React.ReactNode => {

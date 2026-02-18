@@ -295,7 +295,12 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
           ) : (
             <Dropdown<string>
               options={budgetOptions}
-              value={selectedBudgetId || formData.budget_resource_name || (formData.budget_name && budgetOptions.find(opt => opt.value === formData.budget_name) ? formData.budget_name : "")}
+              value={
+                selectedBudgetId
+                || formData.budget_resource_name
+                || (formData.budget_name && budgetOptions.find(opt => opt.value === formData.budget_name) ? formData.budget_name : "")
+                || ((formData.budget_name && budgetOptions.find(opt => (opt.name || opt.label) === formData.budget_name)?.value) ?? "")
+              }
               placeholder={loadingBudgets ? "Loading budgets..." : "Select a budget or choose Custom..."}
               onChange={(value) => {
                 if (value === "__CUSTOM__") {

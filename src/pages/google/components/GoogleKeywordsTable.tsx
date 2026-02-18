@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { GoogleAdsTable } from "./GoogleAdsTable";
 import type { IColumnDefinition } from "../../../types/google";
@@ -92,6 +91,9 @@ interface GoogleKeywordsTableProps {
   getMatchTypeLabel: (type?: string) => string;
   getSortIcon: (column: string) => React.ReactElement;
   currencyCode?: string;
+  onPublishDraft?: (row: GoogleKeyword) => void;
+  publishLoadingId?: string | number;
+  draftFilterOn?: boolean;
 }
 
 export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
@@ -128,10 +130,18 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
   getStatusBadge,
   getSortIcon,
   currencyCode,
+  onPublishDraft,
+  publishLoadingId,
+  draftFilterOn,
 }) => {
-  const navigate = useNavigate();
   const params = useParams<{ accountId: string }>();
   const currentAccountId = accountId || params.accountId;
+
+  const isDraftKeyword = (row: GoogleKeyword) => {
+    const s = (row.status || "").toUpperCase();
+    return s === "SAVED_DRAFT" || s === "DRAFT" || String(row.keyword_id ?? row.id).startsWith("draft-");
+  };
+
   // Map editingCell to shared component format
   const sharedEditingCell = editingCell ? {
     itemId: editingCell.keywordId,
@@ -213,22 +223,22 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
         if (campaignName === "—" || !campaignId || !currentAccountId) {
           return <span className="table-text">{campaignName}</span>;
         }
-        
+
+        const navPath = channelId
+          ? `/brands/${currentAccountId}/${channelId}/google/campaigns/${campaignId}`
+          : `/brands/${currentAccountId}/google-campaigns/${campaignId}`;
+
         return (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              const navPath = channelId 
-                ? `/brands/${currentAccountId}/${channelId}/google/campaigns/${campaignId}`
-                : `/brands/${currentAccountId}/google-campaigns/${campaignId}`;
-              navigate(navPath);
-            }}
+          <a
+            href={navPath}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="table-edit-link text-left truncate"
-            title={`View campaign: ${campaignName}`}
+            title={`View campaign: ${campaignName} (opens in new tab)`}
           >
             {campaignName}
-          </button>
+          </a>
         );
       },
     },
@@ -464,7 +474,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       sortable: true,
       getValue: (row: GoogleKeyword) => (row as any).interaction_rate || 0,
     },
-  ], [currentAccountId, navigate, onStartFinalUrlEdit, currencyCode]);
+  ], [currentAccountId, channelId, onStartFinalUrlEdit, currencyCode]);
 
   // Handle confirm inline edit - route to appropriate handler
   const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
@@ -557,6 +567,11 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       getStatusBadge={getStatusBadge}
       getSortIcon={getSortIcon}
       currencyCode={currencyCode}
+      publishDraftColumnKey="keyword_text"
+      onPublishDraft={onPublishDraft}
+      isDraftRow={isDraftKeyword}
+      publishLoadingId={publishLoadingId}
+      draftFilterOn={draftFilterOn}
     />
   </>
   );

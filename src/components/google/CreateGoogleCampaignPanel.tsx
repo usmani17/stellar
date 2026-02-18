@@ -14,8 +14,6 @@ import {
   GooglePerformanceMaxCampaignForm,
   GoogleDemandGenCampaignForm,
   GoogleTrackingTemplateForm,
-  GoogleLocationTargetingForm,
-  GoogleLanguageTargetingForm,
   type CreateGoogleCampaignPanelProps,
   type CreateGoogleCampaignData,
 } from "./campaigns/index";
@@ -49,10 +47,6 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [marketingImagePreview, setMarketingImagePreview] = useState<string | null>(null);
   const [squareMarketingImagePreview, setSquareMarketingImagePreview] = useState<string | null>(null);
-  const [merchantAccountOptions, setMerchantAccountOptions] = useState<Array<{ value: string; label: string }>>([]);
-  const [loadingMerchantAccounts, setLoadingMerchantAccounts] = useState(false);
-  const [merchantAccountsError, setMerchantAccountsError] = useState<string | null>(null);
-  
   // Location targeting state
   const [locationOptions, setLocationOptions] = useState<Array<{ value: string; label: string; id: string; type: string; countryCode: string }>>([]);
   const [loadingLocations, setLoadingLocations] = useState(false);
@@ -288,7 +282,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       const budgets = await googleAdwordsCampaignsService.getGoogleBudgets(accountIdNum, channelIdNum, selectedProfileId);
       
       // Format budgets for dropdown: value=resource_name for linking, name for display
-      const options = budgets.map((budget) => ({
+      const options = budgets.map((budget: any) => ({
         value: budget.resource_name,
         label: `${budget.name} ($${budget.amount_dollars?.toFixed(2) || '0.00'})`,
         name: budget.name,
@@ -314,75 +308,6 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       fetchBudgets();
     }
   }, [isOpen, accountId, channelId, selectedProfileId, fetchBudgets]);
-
-  // Function to fetch merchant accounts (can be called manually or automatically)
-  const fetchMerchantAccounts = useCallback(async () => {
-    if (
-      !accountId ||
-      formData.campaign_type !== "SHOPPING" ||
-      !selectedProfileId
-    ) {
-      setMerchantAccountOptions([]);
-      setMerchantAccountsError(null);
-      return;
-    }
-
-    setLoadingMerchantAccounts(true);
-    setMerchantAccountsError(null);
-
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-      // Use selected profile's profile_id to fetch merchant accounts
-      const accounts = await campaignsService.getGoogleMerchantAccounts(accountIdNum, channelIdNum, selectedProfileId);
-      setMerchantAccountOptions(accounts);
-      
-      if (accounts.length === 0) {
-        setMerchantAccountsError("No Merchant Center accounts found. Please link a Merchant Center account to your Google Ads account.");
-      } else {
-        setMerchantAccountsError(null);
-        // Auto-select first merchant account if none selected
-        setFormData((prev) => {
-          if (!prev.merchant_id && accounts.length > 0) {
-            return {
-              ...prev,
-              merchant_id: accounts[0].value,
-            };
-          }
-          return prev;
-        });
-      }
-    } catch (error: any) {
-      console.error("Error fetching merchant accounts:", error);
-      const errorMessage = error?.response?.data?.error || error?.message || "Failed to fetch Merchant Center accounts";
-      setMerchantAccountsError(errorMessage);
-      setMerchantAccountOptions([]);
-    } finally {
-      setLoadingMerchantAccounts(false);
-    }
-  }, [accountId, channelId, formData.campaign_type, selectedProfileId]);
-
-  // Fetch merchant accounts when Shopping campaign type is selected and profile is selected
-  useEffect(() => {
-    if (
-      !isOpen ||
-      formData.campaign_type !== "SHOPPING" ||
-      !accountId ||
-      !selectedProfileId
-    ) {
-      // Reset when not needed
-      if (formData.campaign_type !== "SHOPPING") {
-        setMerchantAccountOptions([]);
-        setMerchantAccountsError(null);
-      }
-      return;
-    }
-
-    fetchMerchantAccounts();
-  }, [isOpen, formData.campaign_type, accountId, selectedProfileId, fetchMerchantAccounts]);
 
   // Set selectedProfileId from initialData in edit/create mode when profiles are loaded
   useEffect(() => {
@@ -410,16 +335,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           ...prev,
           customer_id: selectedProfile.customer_id,
         }));
-        // Reset merchant accounts when profile changes
-        setMerchantAccountOptions([]);
-        setMerchantAccountsError(null);
-        // Re-fetch merchant accounts if Shopping campaign type is selected
-        if (formData.campaign_type === "SHOPPING") {
-          fetchMerchantAccounts();
-        }
       }
     }
-  }, [selectedProfileId, googleProfiles, formData.campaign_type, fetchMerchantAccounts]);
+  }, [selectedProfileId, googleProfiles]);
 
   // Function to fetch location targets (loads initial set, Dropdown handles filtering)
   const fetchLocations = useCallback(async () => {
@@ -576,6 +494,12 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         ...prev,
         ...convertedData,
       }));
+      // Sync budget dropdown so it shows the campaign's budget when in edit mode
+      const budgetResourceName = (initialData as any).budget_resource_name;
+      if (budgetResourceName) {
+        setSelectedBudgetId(budgetResourceName);
+        setUseCustomBudgetName(false);
+      }
       // Set logo preview if logo_url exists in initial data
       if (initialData.logo_url && typeof initialData.logo_url === "string") {
         const urlValue = initialData.logo_url.trim();
@@ -651,8 +575,6 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     setMarketingImagePreview(null);
     setSquareMarketingImagePreview(null);
     setSelectedProfileId("");
-    setMerchantAccountOptions([]);
-    setMerchantAccountsError(null);
     setLocationOptions([]);
     setLanguageOptions([]);
     setFormData((prev) => ({
@@ -1677,10 +1599,10 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
               errors={errors}
               onChange={handleChange}
               mode={mode}
-              merchantAccountOptions={merchantAccountOptions}
-              loadingMerchantAccounts={loadingMerchantAccounts}
-              merchantAccountsError={merchantAccountsError}
-              onFetchMerchantAccounts={fetchMerchantAccounts}
+              accountId={accountId}
+              channelId={channelId}
+              selectedProfileId={selectedProfileId}
+              isOpen={isOpen}
               languageOptions={languageOptions}
               loadingLanguages={loadingLanguages}
               locationOptions={locationOptions}

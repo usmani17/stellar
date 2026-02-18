@@ -41,6 +41,7 @@ import ProfilesActiveIcon from "../../assets/images/profiles-active.svg";
 import UsersIcon from "../../assets/images/users.svg";
 import UsersActiveIcon from "../../assets/images/users-active.svg";
 import WorkspaceIcon from "../../assets/workspace.svg";
+import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
 
 const WORKSPACE_SECTION_STORAGE_KEY = "workspace-section-collapsed";
 const AMAZON_SECTION_STORAGE_KEY = "amazon-section-collapsed";
@@ -544,8 +545,8 @@ export const Sidebar: React.FC = () => {
         </div>
         )}
 
-        {/* Amazon Section (hidden when no workspace) */}
-        {hasWorkspace && (
+        {/* Amazon Section (hidden when no workspace; hidden when GOOGLE_ONLY_UI) */}
+        {!GOOGLE_ONLY_UI && hasWorkspace && (
         <div>
           {!isCollapsed && (
             <div className="mb-3">
@@ -1084,8 +1085,8 @@ export const Sidebar: React.FC = () => {
         </div>
         )}
 
-        {/* TikTok Section */}
-        {hasWorkspace && (
+        {/* TikTok Section (hidden when GOOGLE_ONLY_UI) */}
+        {!GOOGLE_ONLY_UI && hasWorkspace && (
         <div>
           {!isCollapsed && (
             <div className="mb-3">

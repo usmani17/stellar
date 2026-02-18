@@ -2370,7 +2370,7 @@ export const Targets: React.FC = () => {
       {/* Inline Edit Confirmation Modal - z-[200] above table sticky summary (z-[120]) */}
       {showInlineEditModal && inlineEditTarget && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000]"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
           onClick={() => {
             if (!inlineEditLoading) {
               setShowInlineEditModal(false);

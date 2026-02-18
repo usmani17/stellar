@@ -14,6 +14,7 @@ import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
 import { Button, Card, DeleteConfirmationModal, Loader } from "../components/ui";
 import { Banner } from "../components/ui/Banner";
+import { GOOGLE_ONLY_UI } from "../constants/featureFlags";
 import AmazonIcon from "../assets/images/amazon-fill.svg";
 import GoogleIcon from "../assets/images/ri_google-fill.svg";
 // import WalmartIcon from "../assets/images/cbi_walmart.svg";
@@ -640,6 +641,7 @@ export const Accounts: React.FC = () => {
                             {!isTeam && (
                               <td className="table-cell">
                                 <div className="flex items-center gap-2">
+                                  {!GOOGLE_ONLY_UI && (
                                   <button
                                     onClick={() => handleConnectAmazon(account.id)}
                                     disabled={isConnecting || isDeleting}
@@ -655,6 +657,7 @@ export const Accounts: React.FC = () => {
                                       Amazon
                                     </span>
                                   </button>
+                                  )}
                                   <button
                                     onClick={() => handleConnectGoogle(account.id)}
                                     disabled={isConnecting || isDeleting}
@@ -670,6 +673,7 @@ export const Accounts: React.FC = () => {
                                       Google
                                     </span>
                                   </button>
+                                  {!GOOGLE_ONLY_UI && (
                                   <button
                                     onClick={() => handleConnectTikTok(account.id)}
                                     disabled={isConnecting || isDeleting}
@@ -688,6 +692,8 @@ export const Accounts: React.FC = () => {
                                       TikTok
                                     </span>
                                   </button>
+                                  )}
+                                  {!GOOGLE_ONLY_UI && (
                                   <button
                                     onClick={() => handleConnectMeta(account.id)}
                                     disabled={isConnecting || isDeleting}
@@ -706,6 +712,7 @@ export const Accounts: React.FC = () => {
                                       Meta
                                     </span>
                                   </button>
+                                  )}
                                 </div>
                               </td>
                             )}

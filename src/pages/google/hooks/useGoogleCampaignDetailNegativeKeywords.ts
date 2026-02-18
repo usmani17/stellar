@@ -86,6 +86,7 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
         return;
       }
 
+      const isDraftCampaign = String(campaignId).toLowerCase().startsWith("draft-");
       const data =
         await googleAdwordsNegativeKeywordsService.getGoogleNegativeKeywords(
           accountIdNum,
@@ -97,7 +98,7 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
             page_size: 100,
             sort_by: negativeKeywordsSortBy,
             order: negativeKeywordsSortOrder,
-            draft_only: showDraftsOnlyNegativeKeywords,
+            draft_only: isDraftCampaign || showDraftsOnlyNegativeKeywords,
           }
         );
 

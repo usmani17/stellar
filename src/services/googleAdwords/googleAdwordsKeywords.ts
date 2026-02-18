@@ -201,7 +201,7 @@ export const googleAdwordsKeywordsService = {
   updateDraftKeyword: async (
     accountId: number,
     channelId: number,
-    payload: { draft_id: string; text?: string; match_type?: string; cpc_bid?: number }
+    payload: { draft_id: string; text?: string; match_type?: string; cpc_bid?: number; status?: string }
   ): Promise<{ updated: boolean; keyword_id: string }> => {
     const url = `/google-adwords/${accountId}/channels/${channelId}/keywords/update-draft/`;
     const response = await api.patch(url, payload);

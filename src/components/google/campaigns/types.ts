@@ -130,10 +130,10 @@ export interface BaseCampaignFormProps {
 
 // Props for components that need additional data
 export interface ShoppingCampaignFormProps extends BaseCampaignFormProps {
-  merchantAccountOptions: Array<{ value: string; label: string }>;
-  loadingMerchantAccounts: boolean;
-  merchantAccountsError: string | null;
-  onFetchMerchantAccounts: () => void;
+  accountId?: string;
+  channelId?: string;
+  selectedProfileId?: string;
+  isOpen?: boolean;
   // Language targeting props (optional for Shopping campaigns)
   languageOptions?: Array<{ value: string; label: string; id: string }>;
   loadingLanguages?: boolean;

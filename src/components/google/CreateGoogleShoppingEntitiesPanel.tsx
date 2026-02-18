@@ -68,6 +68,7 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
         sort_by: "name",
         order: "asc",
         campaign_id: campaignIdNum,
+        include_drafts: true, // Include draft ad groups so user can create product groups under them
       };
       
       // Add search filter if query provided

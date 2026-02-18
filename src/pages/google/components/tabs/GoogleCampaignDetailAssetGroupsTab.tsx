@@ -303,6 +303,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<
         ? "PAUSED"
         : currentStatus;
     const newStatusUpper = newStatus.toUpperCase();
+    setEditingValue(newStatusUpper);
     const hasChanged = newStatusUpper !== normalizedCurrent;
 
     if (hasChanged) {
@@ -363,6 +364,10 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<
       await onUpdateAssetGroupStatus(statusModalData.assetGroup.id, apiStatus);
       setShowStatusModal(false);
       setStatusModalData(null);
+      
+      setEditingAssetGroupId(null);
+      setEditingField(null);
+      setEditingValue("");
     } catch (error) {
       console.error("Failed to update asset group status:", error);
       alert("Failed to update asset group status. Please try again.");
@@ -374,6 +379,10 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<
   const cancelStatusChange = () => {
     setShowStatusModal(false);
     setStatusModalData(null);
+    
+    setEditingAssetGroupId(null);
+    setEditingField(null);
+    setEditingValue("");
   };
   return (
     <>
