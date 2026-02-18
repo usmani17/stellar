@@ -4,8 +4,7 @@
  * Uses VITE_AI_AGENT_BASE_URL (same as sessions API).
  */
 
-import type { CampaignSetupState } from "../../types/agent";
-import { getFieldLabel } from "../../components/ai/campaignFormFieldLabels";
+import type { CampaignDraftData } from "./pixisChat";
 
 const AI_AGENT_BASE =
   import.meta.env.VITE_AI_AGENT_BASE_URL || "http://localhost:8000";
@@ -88,30 +87,24 @@ function toFlatKeys(val: unknown): string[] {
 }
 
 /**
- * Convert the latest in-progress draft to CampaignSetupState for form display.
+ * Convert the latest in-progress draft to CampaignDraftData for form display.
  */
-export function draftToCampaignState(draft: AssistantDraft): CampaignSetupState {
+export function draftToCampaignState(draft: AssistantDraft): CampaignDraftData {
   const keys = toFlatKeys(draft.current_question_keys);
   const draftState = draft.current_draft_state ?? {};
-  const current_questions_schema = keys.map((key) => ({
-    key,
-    label: getFieldLabel(key),
-    type: "string",
-    ui_hint: "text",
-  }));
 
   const validation_errors = draft.validation_error
     ? [draft.validation_error]
     : undefined;
 
   return {
-    campaign_type: draft.campaign_type ?? undefined,
-    campaign_draft: Object.keys(draftState).length > 0 ? draftState : undefined,
-    draft_setup_json:
-      Object.keys(draftState).length > 0 ? draftState : undefined,
-    current_questions_schema:
-      current_questions_schema.length > 0 ? current_questions_schema : undefined,
-    validation_errors,
-    saved_draft_id: draft.entity_draft_id ?? undefined,
+    draft_id: draft.id,
+    platform: draft.platform ?? "",
+    campaign_type: draft.campaign_type ?? "",
+    complete: draft.status === "completed",
+    draft: draftState,
+    questions: {},
+    keys_for_form: keys,
+    validation_error: validation_errors ? validation_errors.join("; ") : null,
   };
 }

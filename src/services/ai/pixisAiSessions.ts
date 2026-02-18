@@ -20,15 +20,26 @@ export interface PixisSession {
   updated_at?: string;
 }
 
-export interface PixisThread {
+export interface PixisEvent {
+  type: "system" | "assistant" | "tool_call" | "result" | "campaign-draft" | string;
+  subtype?: string;
+  message?: unknown;
+  full_message?: string;
+  draft_id?: string;
+  [key: string]: unknown;
+}
+
+export interface PixisThreadHistory {
   id: string;
-  session_db_id: string;
-  turn_index: number;
-  user_query?: string | null;
-  final_message?: string | null;
-  tools_used?: unknown;
-  created_at?: string;
-  updated_at?: string;
+  user_query: string;
+  events: PixisEvent[];
+  final_message: string;
+  tools_used: unknown[];
+  duration_ms: number;
+}
+
+export interface PixisHistoryResponse {
+  history: PixisThreadHistory[];
 }
 
 const getBaseUrl = (): string => {
@@ -81,7 +92,7 @@ export const pixisAiSessionsService = {
   getHistory: async (
     sessionId: string,
     accessToken: string
-  ): Promise<{ history: PixisThread[] }> => {
+  ): Promise<PixisHistoryResponse> => {
     const baseUrl = getBaseUrl();
     const res = await fetch(`${baseUrl}/sessions/${sessionId}/history`, {
       headers: { Authorization: `Bearer ${accessToken}` },
