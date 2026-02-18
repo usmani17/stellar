@@ -92,6 +92,8 @@ interface GoogleKeywordsTableProps {
   getMatchTypeLabel: (type?: string) => string;
   getSortIcon: (column: string) => React.ReactElement;
   currencyCode?: string;
+  onPublishDraft?: (row: GoogleKeyword) => void;
+  publishLoadingId?: string | number;
 }
 
 export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
@@ -128,10 +130,18 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
   getStatusBadge,
   getSortIcon,
   currencyCode,
+  onPublishDraft,
+  publishLoadingId,
 }) => {
   const navigate = useNavigate();
   const params = useParams<{ accountId: string }>();
   const currentAccountId = accountId || params.accountId;
+
+  const isDraftKeyword = (row: GoogleKeyword) => {
+    const s = (row.status || "").toUpperCase();
+    return s === "SAVED_DRAFT" || s === "DRAFT" || String(row.keyword_id ?? row.id).startsWith("draft-");
+  };
+
   // Map editingCell to shared component format
   const sharedEditingCell = editingCell ? {
     itemId: editingCell.keywordId,
@@ -557,6 +567,10 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       getStatusBadge={getStatusBadge}
       getSortIcon={getSortIcon}
       currencyCode={currencyCode}
+      publishDraftColumnKey="keyword_text"
+      onPublishDraft={onPublishDraft}
+      isDraftRow={isDraftKeyword}
+      publishLoadingId={publishLoadingId}
     />
   </>
   );

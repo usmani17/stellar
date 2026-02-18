@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { Sidebar } from "../../components/layout/Sidebar";
@@ -366,6 +366,39 @@ export const GoogleCampaignDetail: React.FC = () => {
     | { type: "negative_keyword"; entity: { id: number; criterion_id?: string; keyword_text?: string } };
   const [publishDraftEntity, setPublishDraftEntity] = useState<PublishDraftEntity | null>(null);
   const [publishDraftSubmitting, setPublishDraftSubmitting] = useState(false);
+  const [publishLoadingNegativeKeywordId, setPublishLoadingNegativeKeywordId] = useState<string | number | null>(null);
+
+  const runPublishNegativeKeywordDraft = useCallback(
+    async (n: { id: number; criterion_id?: string; keyword_text?: string }) => {
+      if (!accountId || !channelId || !campaignId) return;
+      const campaignIdStr = String(campaignId);
+      if (campaignIdStr.toLowerCase().startsWith("draft-")) {
+        setErrorModal({ isOpen: true, message: "Publish the campaign first, then you can publish negative keywords." });
+        return;
+      }
+      const draftId = String(n.criterion_id ?? n.id);
+      if (!draftId.startsWith("draft-")) {
+        setErrorModal({ isOpen: true, message: "Not a draft negative keyword." });
+        return;
+      }
+      setPublishLoadingNegativeKeywordId(n.criterion_id ?? n.id);
+      try {
+        await googleAdwordsNegativeKeywordsService.publishDraftNegativeKeyword(
+          parseInt(accountId, 10),
+          parseInt(channelId, 10),
+          campaignIdStr,
+          draftId
+        );
+        setErrorModal({ isOpen: true, message: "Draft negative keyword published successfully. The draft row will be removed.", isSuccess: true });
+        if (negativeKeywordsHook.loadNegativeKeywords) await negativeKeywordsHook.loadNegativeKeywords();
+      } catch (err: any) {
+        setErrorModal({ isOpen: true, message: err?.response?.data?.error || err?.message || "Failed to publish draft." });
+      } finally {
+        setPublishLoadingNegativeKeywordId(null);
+      }
+    },
+    [accountId, channelId, campaignId, negativeKeywordsHook.loadNegativeKeywords]
+  );
 
   const handlePublishAdGroupDraft = (adgroup: { id: number; adgroup_id?: number; adgroup_name?: string; name?: string }) => {
     setPublishDraftEntity({ type: "ad_group", entity: adgroup });
@@ -532,10 +565,14 @@ export const GoogleCampaignDetail: React.FC = () => {
   const draftCampaignInitialData = useMemo((): Partial<CreateGoogleCampaignData> | null => {
     if (!campaignDetail?.campaign || !isDraftCampaign) return null;
     const c = campaignDetail.campaign as any;
+    const extra = c.extra_data && typeof c.extra_data === "object" ? c.extra_data : {};
+    const creationPayload = extra.creation_payload && typeof extra.creation_payload === "object" ? extra.creation_payload : {};
     return {
       name: c.name || "",
       status: (c.status?.toUpperCase() as "ENABLED" | "PAUSED") || "PAUSED",
       budget_amount: c.daily_budget ?? c.budget_amount,
+      budget_name: c.budget_name ?? c.campaign_budget_name ?? creationPayload.budget_name,
+      budget_resource_name: c.campaign_budget ?? c.campaign_budget_resource_name ?? creationPayload.budget_resource_name,
       start_date: c.start_date,
       end_date: c.end_date,
       campaign_type: (c.advertising_channel_type || c.campaign_type || "SEARCH") as any,
@@ -1469,9 +1506,10 @@ export const GoogleCampaignDetail: React.FC = () => {
                         : "Campaign Not Found"}
                   </h1>
                 </div>
-                {/* View Campaign Assets Button - Only for PERFORMANCE_MAX campaigns */}
+                {/* View Campaign Assets Button - Only for PERFORMANCE_MAX campaigns, not for drafts */}
                 {campaignDetail?.campaign.advertising_channel_type ===
                   "PERFORMANCE_MAX" &&
+                  !isDraftCampaign &&
                   profileId &&
                   campaignId && (
                     <button
@@ -1483,11 +1521,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                   )}
               </div>
 
-              {/* Draft campaign: show message and open edit panel (Edit or Publish) */}
+              {/* Draft campaign: show message and Edit/Publish button */}
               {isDraftCampaign && (
-                <div className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-6 max-w-2xl">
+                <div className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-6 max-w-2xl mb-4">
                   <p className="text-[#072929] text-base mb-4">
-                    This campaign is a draft. Edit or publish it to continue.
+                    This campaign is a draft. Inline edit below or open the full form to edit and publish.
                   </p>
                   <button
                     type="button"
@@ -1500,9 +1538,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                 </div>
               )}
 
-              {/* Campaign Entity Information Card - only when not draft */}
-              {!isDraftCampaign && (
-              <>
+              {/* Campaign Entity Information Card - show for all campaigns (including draft) so inline edit works */}
               <GoogleCampaignInformation
                 campaignDetail={campaignDetail}
                 editingField={editingField}
@@ -1688,6 +1724,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                 </div>
               )}
 
+              {!isDraftCampaign && (
+              <>
               {/* Tab Navigation & Chart Section */}
               <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6">
                 {/* Tabs */}
@@ -2348,10 +2386,12 @@ export const GoogleCampaignDetail: React.FC = () => {
                         setNegativeKeywordsCurrentPage(1);
                       }}
                       onPublishDraft={handlePublishNegativeKeywordDraft}
+                      onConfirmPublishDraft={runPublishNegativeKeywordDraft}
                       publishLoadingId={
-                        publishDraftEntity?.type === "negative_keyword" && publishDraftSubmitting
+                        publishLoadingNegativeKeywordId ??
+                        (publishDraftEntity?.type === "negative_keyword" && publishDraftSubmitting
                           ? (publishDraftEntity.entity.criterion_id ?? publishDraftEntity.entity.id)
-                          : undefined
+                          : undefined)
                       }
                       createButton={
                         <CreateGoogleNegativeKeywordSection
@@ -2555,7 +2595,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   />
                 )}
               </div>
-            </>
+              </>
               )}
             </div>
           </div>

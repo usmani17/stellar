@@ -67,6 +67,8 @@ interface GoogleCampaignDetailNegativeKeywordsTabProps {
   showDraftsOnly?: boolean;
   onToggleDraftsOnly?: () => void;
   onPublishDraft?: (negativeKeyword: GoogleNegativeKeyword) => void;
+  /** When provided, used for confirm flow: tab shows its own confirmation modal and calls this on confirm. */
+  onConfirmPublishDraft?: (negativeKeyword: GoogleNegativeKeyword) => Promise<void>;
   publishLoadingId?: string | number;
 }
 
@@ -105,8 +107,11 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
   showDraftsOnly = false,
   onToggleDraftsOnly,
   onPublishDraft,
+  onConfirmPublishDraft,
   publishLoadingId,
 }) => {
+    const [negativeKeywordToPublish, setNegativeKeywordToPublish] = useState<GoogleNegativeKeyword | null>(null);
+    const [publishConfirmLoading, setPublishConfirmLoading] = useState(false);
     const isDraftNegativeKeyword = (n: GoogleNegativeKeyword) => {
       const s = (n.status || "").toUpperCase();
       return s === "SAVED_DRAFT" || s === "DRAFT" || String(n.criterion_id ?? n.id).startsWith("draft-");
@@ -761,7 +766,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                     return (
                       <tr
                         key={negativeKeyword.id}
-                        className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
+                        className={`group ${!isLastRow ? "border-b border-[#e8e8e3]" : ""
                           } ${isRemoved
                             ? "opacity-50 cursor-not-allowed"
                             : "hover:bg-gray-50"
@@ -790,12 +795,16 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                           <span className="table-text leading-[1.26]">
                             {negativeKeyword.keyword_text || "—"}
                           </span>
-                          {onPublishDraft && isDraftNegativeKeyword(negativeKeyword) && (
+                          {(onPublishDraft || onConfirmPublishDraft) && isDraftNegativeKeyword(negativeKeyword) && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onPublishDraft(negativeKeyword);
+                                if (onConfirmPublishDraft) {
+                                  setNegativeKeywordToPublish(negativeKeyword);
+                                } else {
+                                  onPublishDraft?.(negativeKeyword);
+                                }
                               }}
                               className="table-edit-icon flex-shrink-0 cursor-pointer !opacity-100 pointer-events-auto"
                               title="Publish draft to Google Ads"
@@ -1187,6 +1196,35 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
             }}
           />
         )}
+
+        {/* Publish draft confirmation modal */}
+        <ConfirmationModal
+          isOpen={negativeKeywordToPublish !== null}
+          onClose={() => setNegativeKeywordToPublish(null)}
+          onConfirm={async () => {
+            if (!negativeKeywordToPublish || !onConfirmPublishDraft) return;
+            setPublishConfirmLoading(true);
+            try {
+              await onConfirmPublishDraft(negativeKeywordToPublish);
+              setNegativeKeywordToPublish(null);
+            } finally {
+              setPublishConfirmLoading(false);
+            }
+          }}
+          isLoading={publishConfirmLoading}
+          loadingLabel="Publishing..."
+          title="Publish negative keyword to Google Ads?"
+          message={
+            negativeKeywordToPublish
+              ? `Draft negative keyword "${negativeKeywordToPublish.keyword_text || "Unnamed"}" will be created in Google Ads and the draft row will be removed.`
+              : ""
+          }
+          confirmButtonLabel="Publish"
+          cancelButtonLabel="Cancel"
+          type="info"
+          size="sm"
+          icon={<Send className="w-6 h-6 text-[#136D6D]" />}
+        />
 
         {/* Remove Confirmation Modal */}
         <ConfirmationModal

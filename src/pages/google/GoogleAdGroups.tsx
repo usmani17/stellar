@@ -16,6 +16,7 @@ import {
   type FilterValues,
 } from "../../components/filters/DynamicFilterPanel";
 import { googleAdwordsAdGroupsService } from "../../services/googleAdwords/googleAdwordsAdGroups";
+import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
 import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { useChartCollapse } from "../../hooks/useChartCollapse";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
@@ -96,6 +97,8 @@ export const GoogleAdGroups: React.FC = () => {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
   const [showDraftsOnly, setShowDraftsOnly] = useState(false);
+  const [publishAdgroup, setPublishAdgroup] = useState<GoogleAdGroup | null>(null);
+  const [publishLoadingId, setPublishLoadingId] = useState<string | number | undefined>(undefined);
   const isLoadingRef = useRef(false);
   const lastRequestParamsRef = useRef<string>(""); // Track last request to prevent duplicate calls
 
@@ -571,6 +574,12 @@ export const GoogleAdGroups: React.FC = () => {
     lastRequestParamsRef.current = "";
   }, []);
 
+  // Draft detection: DB-only updates for drafts; publish only when user clicks publish
+  const isDraftAdGroup = (row: GoogleAdGroup) => {
+    const s = (row.status || "").toUpperCase();
+    return s === "SAVED_DRAFT" || s === "DRAFT" || String(row.adgroup_id ?? row.id).startsWith("draft-");
+  };
+
   // Inline edit handlers - match Amazon pattern (no modal, inline editing)
   const startInlineEdit = (adgroup: GoogleAdGroup, field: "bid" | "status" | "name" | "adgroup_name") => {
     setEditingCell({ adgroupId: adgroup.adgroup_id, field });
@@ -805,7 +814,36 @@ export const GoogleAdGroups: React.FC = () => {
     cancelInlineEdit();
   };
 
-  // Run inline edit from modal confirmation
+  // Publish draft ad group (global table): show confirmation then call create endpoint
+  const handlePublishDraftClick = (row: GoogleAdGroup) => setPublishAdgroup(row);
+  const handleCancelPublishDraft = () => setPublishAdgroup(null);
+  const handleConfirmPublishDraft = async () => {
+    const row = publishAdgroup;
+    if (!row || !accountId || !channelId) return;
+    const campaignId = row.campaign_id;
+    const draftId = String(row.adgroup_id ?? row.id);
+    if (!campaignId) return;
+    setPublishLoadingId(draftId);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
+      await googleAdwordsCampaignsService.publishGoogleSearchEntitiesDraft(
+        accountIdNum,
+        channelIdNum,
+        campaignId,
+        draftId
+      );
+      setPublishAdgroup(null);
+      setPublishLoadingId(undefined);
+      await loadAdgroups(accountIdNum, channelIdNum);
+    } catch (err) {
+      console.error("Failed to publish draft ad group:", err);
+      setPublishLoadingId(undefined);
+    }
+  };
+
+  // Run inline edit from modal confirmation (draft → DB-only update; published → bulk update to Google)
   const runInlineEdit = async () => {
     if (!inlineEditAdGroup || !inlineEditField || !accountId) return;
 
@@ -815,52 +853,59 @@ export const GoogleAdGroups: React.FC = () => {
       if (isNaN(accountIdNum)) {
         throw new Error("Invalid account ID");
       }
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const draftId = String(inlineEditAdGroup.adgroup_id ?? inlineEditAdGroup.id);
+      const isDraft = isDraftAdGroup(inlineEditAdGroup);
 
-      if (inlineEditField === "bid") {
-        // Extract numeric value from formatted string
-        const bidValue = parseFloat(
-          inlineEditNewValue.replace(/[^0-9.]/g, "")
-        );
-        if (isNaN(bidValue) || bidValue <= 0) {
-          throw new Error("Invalid bid value");
+      if (isDraft && draftId.startsWith("draft-")) {
+        // Draft: update DB only (no publish to Google)
+        const adgroupPayload: { name?: string; cpc_bid?: number; status?: string } = {};
+        if (inlineEditField === "bid") {
+          const bidValue = parseFloat(inlineEditNewValue.replace(/[^0-9.]/g, ""));
+          if (isNaN(bidValue) || bidValue <= 0) throw new Error("Invalid bid value");
+          adgroupPayload.cpc_bid = bidValue;
+        } else if (inlineEditField === "status") {
+          adgroupPayload.status = convertStatusToApi(inlineEditNewValue);
+        } else if (inlineEditField === "name") {
+          const trimmedName = inlineEditNewValue.trim();
+          if (!trimmedName) throw new Error("Ad group name cannot be empty");
+          adgroupPayload.name = trimmedName;
         }
-        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-        if (!channelIdNum || isNaN(channelIdNum)) {
-          throw new Error("Channel ID is required");
-        }
-        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
-          adgroupIds: [inlineEditAdGroup.adgroup_id],
-          action: "bid",
-          bid: bidValue,
+        await googleAdwordsAdGroupsService.updateDraftAdgroup(accountIdNum, channelIdNum, {
+          draft_id: draftId,
+          adgroup: adgroupPayload,
         });
-      } else if (inlineEditField === "status") {
-        const statusValue = convertStatusToApi(inlineEditNewValue);
-        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-        if (!channelIdNum || isNaN(channelIdNum)) {
-          throw new Error("Channel ID is required");
+      } else {
+        // Published: use bulk update (sends to Google)
+        if (inlineEditField === "bid") {
+          const bidValue = parseFloat(inlineEditNewValue.replace(/[^0-9.]/g, ""));
+          if (isNaN(bidValue) || bidValue <= 0) throw new Error("Invalid bid value");
+          await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
+            adgroupIds: [inlineEditAdGroup.adgroup_id],
+            action: "bid",
+            bid: bidValue,
+          });
+        } else if (inlineEditField === "status") {
+          const statusValue = convertStatusToApi(inlineEditNewValue);
+          await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
+            adgroupIds: [inlineEditAdGroup.adgroup_id],
+            action: "status",
+            status: statusValue,
+          });
+        } else if (inlineEditField === "name") {
+          const trimmedName = inlineEditNewValue.trim();
+          if (!trimmedName) throw new Error("Ad group name cannot be empty");
+          await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
+            adgroupIds: [inlineEditAdGroup.adgroup_id],
+            action: "name",
+            name: trimmedName,
+          });
         }
-        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
-          adgroupIds: [inlineEditAdGroup.adgroup_id],
-          action: "status",
-          status: statusValue,
-        });
-      } else if (inlineEditField === "name") {
-        const trimmedName = inlineEditNewValue.trim();
-        if (!trimmedName) {
-          throw new Error("Ad group name cannot be empty");
-        }
-        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-        if (!channelIdNum || isNaN(channelIdNum)) {
-          throw new Error("Channel ID is required");
-        }
-        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
-          adgroupIds: [inlineEditAdGroup.adgroup_id],
-          action: "name",
-          name: trimmedName,
-        });
       }
 
-      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
       if (channelIdNum && !isNaN(channelIdNum)) {
         await loadAdgroups(accountIdNum, channelIdNum);
       }
@@ -914,7 +959,7 @@ export const GoogleAdGroups: React.FC = () => {
   };
 
 
-  // Handler for confirming a pending change (clicking the checkmark)
+  // Handler for confirming a pending change (clicking the checkmark). Draft → DB-only; published → Google API.
   const handleConfirmChange = async (itemId: string | number, fieldKey: string, newValue: string) => {
     if (!accountId) return;
 
@@ -928,44 +973,50 @@ export const GoogleAdGroups: React.FC = () => {
       if (isNaN(accountIdNum)) {
         throw new Error("Invalid account ID");
       }
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const draftId = String(adgroup.adgroup_id ?? adgroup.id);
+      const isDraft = isDraftAdGroup(adgroup);
 
-      if (fieldKey === "status" || fieldKey === "adgroup_name" || fieldKey === "name") {
+      if (isDraft && draftId.startsWith("draft-")) {
+        const adgroupPayload: { name?: string; cpc_bid?: number; status?: string } = {};
         if (fieldKey === "status") {
-          const statusValue = convertStatusToApi(newValue);
-          const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-          if (!channelIdNum || isNaN(channelIdNum)) {
-            throw new Error("Channel ID is required");
-          }
+          adgroupPayload.status = convertStatusToApi(newValue);
+        } else if (fieldKey === "adgroup_name" || fieldKey === "name") {
+          adgroupPayload.name = newValue.trim();
+        } else if (fieldKey === "bid") {
+          const bidValue = parseFloat(newValue.replace(/[^0-9.]/g, ""));
+          if (isNaN(bidValue)) throw new Error("Invalid bid value");
+          adgroupPayload.cpc_bid = bidValue;
+        }
+        await googleAdwordsAdGroupsService.updateDraftAdgroup(accountIdNum, channelIdNum, {
+          draft_id: draftId,
+          adgroup: adgroupPayload,
+        });
+      } else {
+        if (fieldKey === "status") {
           await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
             adgroupIds: [itemId],
             action: "status",
-            status: statusValue,
+            status: convertStatusToApi(newValue),
           });
         } else if (fieldKey === "adgroup_name" || fieldKey === "name") {
-          const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-          if (!channelIdNum || isNaN(channelIdNum)) {
-            throw new Error("Channel ID is required");
-          }
           await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
             adgroupIds: [itemId],
             action: "name",
             name: newValue,
           });
+        } else if (fieldKey === "bid") {
+          const bidValue = parseFloat(newValue.replace(/[^0-9.]/g, ""));
+          if (isNaN(bidValue)) throw new Error("Invalid bid value");
+          await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
+            adgroupIds: [itemId],
+            action: "bid",
+            bid: bidValue,
+          });
         }
-      } else if (fieldKey === "bid") {
-        const bidValue = parseFloat(newValue.replace(/[^0-9.]/g, ""));
-        if (isNaN(bidValue)) {
-          throw new Error("Invalid bid value");
-        }
-        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-        if (!channelIdNum || isNaN(channelIdNum)) {
-          throw new Error("Channel ID is required");
-        }
-        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, channelIdNum, {
-          adgroupIds: [itemId],
-          action: "bid",
-          bid: bidValue,
-        });
       }
 
       // Remove pending change and reload
@@ -974,7 +1025,6 @@ export const GoogleAdGroups: React.FC = () => {
         delete updated[fieldKey];
         return updated;
       });
-      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
       if (channelIdNum && !isNaN(channelIdNum)) {
         await loadAdgroups(accountIdNum, channelIdNum);
       }
@@ -1460,8 +1510,9 @@ export const GoogleAdGroups: React.FC = () => {
                 )}
               </div>
 
-              {/* Draft switch and Edit/Export - Above Table */}
-              <div className="flex items-center justify-between gap-2">
+              {/* Draft switch, Bulk Actions, Export - Above Table (full width row) */}
+              <div className="flex flex-col w-full gap-4">
+              <div className="flex items-center justify-between gap-2 w-full">
                 <div className="flex items-center">
                   <button
                     type="button"
@@ -1668,9 +1719,10 @@ export const GoogleAdGroups: React.FC = () => {
                   )}
                 </div>
               </div>
+              </div>
 
               {/* Google AdGroups Table Card with overlay when panel is open */}
-              <div className="relative">
+              <div className="relative w-full">
 
                 {/* Bid editor panel */}
                 {selectedAdgroups.size > 0 && showBidPanel && (
@@ -2402,6 +2454,8 @@ export const GoogleAdGroups: React.FC = () => {
                       getStatusBadge={getStatusBadge}
                       getSortIcon={getSortIcon}
                       currencyCode={currencyCode}
+                      onPublishDraft={handlePublishDraftClick}
+                      publishLoadingId={publishLoadingId}
                     />
                   </div>
                   {loading && (
@@ -2415,7 +2469,7 @@ export const GoogleAdGroups: React.FC = () => {
 
                 {/* Pagination - Match Amazon style exactly */}
                 {!loading && adgroups.length > 0 && totalPages > 1 && (
-                  <div className="flex items-center justify-end mt-4">
+                  <div className="flex items-center justify-end mt-4 w-full">
                     <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                       <button
                         onClick={() =>
@@ -2482,8 +2536,8 @@ export const GoogleAdGroups: React.FC = () => {
                 )}
               </div>
 
+              </div>
             </div>
-          </div>
           </div>
         </Assistant>
       </div>
@@ -2497,6 +2551,17 @@ export const GoogleAdGroups: React.FC = () => {
         size="sm"
         isLoading={inlineEditLoading}
         icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+      />
+      <ConfirmationModal
+        isOpen={publishAdgroup !== null}
+        onClose={handleCancelPublishDraft}
+        onConfirm={handleConfirmPublishDraft}
+        title="Publish draft ad group"
+        message={publishAdgroup ? `Ad group "${publishAdgroup.adgroup_name || publishAdgroup.name || "Unnamed"}" will be created in Google Ads and the draft row will be removed.` : ""}
+        type="info"
+        size="sm"
+        isLoading={publishLoadingId !== undefined}
+        confirmButtonLabel="Publish"
       />
     </div>
   );

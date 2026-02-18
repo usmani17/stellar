@@ -83,4 +83,12 @@ export interface IGoogleAdsTableProps<T = any> {
   } | null;
   /** Currency code for the "currency" column (e.g. USD, AUD, EUR). Shown before Impressions. */
   currencyCode?: string;
+  /** When set, show a publish (Send) icon next to the name column for draft rows. Column key that shows the icon (e.g. "adgroup_name", "keyword_text", "ad_name"). */
+  publishDraftColumnKey?: string;
+  /** Callback when user clicks publish on a draft row. */
+  onPublishDraft?: (row: T) => void;
+  /** Whether the row is a draft (show publish icon when true). */
+  isDraftRow?: (row: T) => boolean;
+  /** When publishing, the id of the row being published (show loader on that row). */
+  publishLoadingId?: string | number;
 }

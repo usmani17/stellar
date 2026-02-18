@@ -98,6 +98,8 @@ export const GoogleKeywords: React.FC = () => {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
   const [showDraftsOnly, setShowDraftsOnly] = useState(false);
+  const [publishKeyword, setPublishKeyword] = useState<GoogleKeyword | null>(null);
+  const [publishLoadingId, setPublishLoadingId] = useState<string | number | undefined>(undefined);
   const isLoadingRef = useRef(false);
   const lastRequestParamsRef = useRef<string>(""); // Track last request to prevent duplicate calls
 
@@ -621,6 +623,12 @@ export const GoogleKeywords: React.FC = () => {
     }
     // Convert both to strings for comparison
     return keywords.find((k) => String(k.keyword_id) === String(keywordId));
+  };
+
+  // Draft detection: DB-only updates for drafts; publish only when user clicks publish
+  const isDraftKeyword = (row: GoogleKeyword) => {
+    const s = (row.status || "").toUpperCase();
+    return s === "SAVED_DRAFT" || s === "DRAFT" || String(row.keyword_id ?? row.id).startsWith("draft-");
   };
 
   // Inline edit handlers
@@ -1257,28 +1265,45 @@ export const GoogleKeywords: React.FC = () => {
         throw new Error("Channel ID is required");
       }
 
-      if (fieldKey === "bid") {
-        const bidValue = parseFloat(newValue.replace(/[^0-9.]/g, ""));
-        if (isNaN(bidValue) || bidValue <= 0) {
-          throw new Error("Invalid bid value");
+      const draftId = String(keyword.keyword_id ?? keyword.id);
+      const isDraft = isDraftKeyword(keyword);
+
+      if (isDraft && draftId.startsWith("draft-")) {
+        const payload: { draft_id: string; text?: string; match_type?: string; cpc_bid?: number; status?: string } = { draft_id: draftId };
+        if (fieldKey === "bid") {
+          const bidValue = parseFloat(newValue.replace(/[^0-9.]/g, ""));
+          if (isNaN(bidValue) || bidValue <= 0) throw new Error("Invalid bid value");
+          payload.cpc_bid = bidValue;
+        } else if (fieldKey === "keyword_text") {
+          const trimmedText = newValue.trim();
+          if (!trimmedText) throw new Error("Keyword text cannot be empty");
+          payload.text = trimmedText;
         }
-        await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
-          keywordIds: [keywordId],
-          action: "bid",
-          bid: bidValue,
-          adgroupIds: adgroupId ? [adgroupId] : undefined,
-        });
-      } else if (fieldKey === "keyword_text") {
-        const trimmedText = newValue.trim();
-        if (!trimmedText) {
-          throw new Error("Keyword text cannot be empty");
+        await googleAdwordsKeywordsService.updateDraftKeyword(accountIdNum, channelIdNum, payload);
+      } else {
+        if (fieldKey === "bid") {
+          const bidValue = parseFloat(newValue.replace(/[^0-9.]/g, ""));
+          if (isNaN(bidValue) || bidValue <= 0) {
+            throw new Error("Invalid bid value");
+          }
+          await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
+            keywordIds: [keywordId],
+            action: "bid",
+            bid: bidValue,
+            adgroupIds: adgroupId ? [adgroupId] : undefined,
+          });
+        } else if (fieldKey === "keyword_text") {
+          const trimmedText = newValue.trim();
+          if (!trimmedText) {
+            throw new Error("Keyword text cannot be empty");
+          }
+          await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
+            keywordIds: [keywordId],
+            action: "keyword_text",
+            keyword_text: trimmedText,
+            adgroupIds: adgroupId || keyword.adgroup_id ? [adgroupId || keyword.adgroup_id!] : undefined,
+          });
         }
-        await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
-          keywordIds: [keywordId],
-          action: "keyword_text",
-          keyword_text: trimmedText,
-          adgroupIds: adgroupId || keyword.adgroup_id ? [adgroupId || keyword.adgroup_id!] : undefined,
-        });
       }
 
       // Remove pending change and reload
@@ -1423,6 +1448,32 @@ export const GoogleKeywords: React.FC = () => {
     cancelInlineEdit();
   };
 
+  // Publish draft keyword (global table): show confirmation then call publish-draft endpoint
+  const handlePublishDraftClick = (row: GoogleKeyword) => setPublishKeyword(row);
+  const handleCancelPublishDraft = () => setPublishKeyword(null);
+  const handleConfirmPublishDraft = async () => {
+    const row = publishKeyword;
+    if (!row || !accountId || !channelId) return;
+    const draftId = String(row.keyword_id ?? row.id);
+    setPublishLoadingId(row.keyword_id ?? row.id);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
+      await googleAdwordsKeywordsService.publishDraftKeyword(
+        accountIdNum,
+        channelIdNum,
+        draftId
+      );
+      setPublishKeyword(null);
+      setPublishLoadingId(undefined);
+      await loadKeywords(accountIdNum, channelIdNum);
+    } catch (err) {
+      console.error("Failed to publish draft keyword:", err);
+      setPublishLoadingId(undefined);
+    }
+  };
+
   const runInlineEdit = async () => {
     if (!inlineEditKeyword || !inlineEditField || !accountId) return;
 
@@ -1432,92 +1483,69 @@ export const GoogleKeywords: React.FC = () => {
       if (isNaN(accountIdNum)) {
         throw new Error("Invalid account ID");
       }
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
+      const draftId = String(inlineEditKeyword.keyword_id ?? inlineEditKeyword.id);
+      const isDraft = isDraftKeyword(inlineEditKeyword);
 
-      if (inlineEditField === "status") {
-        // Convert display status to API format
-        const statusValue = convertStatusToApi(inlineEditNewValue);
-
-        // Ensure status is one of the valid API values (only ENABLED or PAUSED are valid for updates)
-        const validStatus: "ENABLED" | "PAUSED" =
-          statusValue === "ENABLED" || statusValue === "PAUSED"
-            ? statusValue
-            : "ENABLED";
-
-        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-        if (!channelIdNum || isNaN(channelIdNum)) {
-          throw new Error("Channel ID is required");
+      if (isDraft && draftId.startsWith("draft-")) {
+        // Draft: update DB only (no publish to Google)
+        const payload: { draft_id: string; text?: string; match_type?: string; cpc_bid?: number; status?: string } = { draft_id: draftId };
+        if (inlineEditField === "status") {
+          const statusValue = convertStatusToApi(inlineEditNewValue);
+          const validStatus = statusValue === "ENABLED" || statusValue === "PAUSED" ? statusValue : "ENABLED";
+          payload.status = validStatus;
+        } else if (inlineEditField === "bid") {
+          const bidValue = parseFloat(inlineEditNewValue);
+          if (isNaN(bidValue) || bidValue <= 0) throw new Error("Invalid bid value");
+          payload.cpc_bid = bidValue;
+        } else if (inlineEditField === "keyword_text") {
+          const newKeywordText = inlineEditNewValue.trim();
+          if (!newKeywordText) throw new Error("Keyword text cannot be empty");
+          payload.text = newKeywordText;
         }
-        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
-          keywordIds: [inlineEditKeyword.keyword_id],
-          action: "status",
-          status: validStatus,
-          adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
-        });
-
-        if (response.errors && response.errors.length > 0) {
-          throw { response: { data: response } };
-        }
-      } else if (inlineEditField === "bid") {
-        // inlineEditNewValue is stored as raw numeric string
-        const bidValue = parseFloat(inlineEditNewValue);
-        if (isNaN(bidValue) || bidValue <= 0) {
-          throw new Error("Invalid bid value");
-        }
-
-        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-        if (!channelIdNum || isNaN(channelIdNum)) {
-          throw new Error("Channel ID is required");
-        }
-        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
-          keywordIds: [inlineEditKeyword.keyword_id],
-          action: "bid",
-          bid: bidValue,
-          adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
-        });
-
-        if (response.errors && response.errors.length > 0) {
-          throw { response: { data: response } };
-        }
-        // Disabled: Google Ads API doesn't allow updating keyword match type
-        // else if (inlineEditField === "match_type") {
-        //   // Convert display match type to API format
-        //   const matchTypeValue = convertMatchTypeToApi(inlineEditNewValue);
-
-        //   const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-        // if (!channelIdNum || isNaN(channelIdNum)) {
-        //   throw new Error("Channel ID is required");
-        // }
-        // const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
-        //     keywordIds: [inlineEditKeyword.keyword_id],
-        //     action: "match_type",
-        //     match_type: matchTypeValue,
-        //     adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
-        //   });
-        //   
-        //   if (response.errors && response.errors.length > 0) {
-        //     throw { response: { data: response } };
-        //   }
-        // }
-      } else if (inlineEditField === "keyword_text") {
-        // Update keyword text
-        const newKeywordText = inlineEditNewValue.trim();
-        if (!newKeywordText) {
-          throw new Error("Keyword text cannot be empty");
-        }
-
-        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-        if (!channelIdNum || isNaN(channelIdNum)) {
-          throw new Error("Channel ID is required");
-        }
-        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
-          keywordIds: [inlineEditKeyword.keyword_id],
-          action: "keyword_text",
-          keyword_text: newKeywordText,
-          adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
-        });
-
-        if (response.errors && response.errors.length > 0) {
-          throw { response: { data: response } };
+        await googleAdwordsKeywordsService.updateDraftKeyword(accountIdNum, channelIdNum, payload);
+      } else {
+        // Published: use bulk update (sends to Google)
+        if (inlineEditField === "status") {
+          const statusValue = convertStatusToApi(inlineEditNewValue);
+          const validStatus: "ENABLED" | "PAUSED" =
+            statusValue === "ENABLED" || statusValue === "PAUSED" ? statusValue : "ENABLED";
+          const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
+            keywordIds: [inlineEditKeyword.keyword_id],
+            action: "status",
+            status: validStatus,
+            adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
+          });
+          if (response.errors && response.errors.length > 0) {
+            throw { response: { data: response } };
+          }
+        } else if (inlineEditField === "bid") {
+          const bidValue = parseFloat(inlineEditNewValue);
+          if (isNaN(bidValue) || bidValue <= 0) throw new Error("Invalid bid value");
+          const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
+            keywordIds: [inlineEditKeyword.keyword_id],
+            action: "bid",
+            bid: bidValue,
+            adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
+          });
+          if (response.errors && response.errors.length > 0) {
+            throw { response: { data: response } };
+          }
+        } else if (inlineEditField === "keyword_text") {
+          const newKeywordText = inlineEditNewValue.trim();
+          if (!newKeywordText) throw new Error("Keyword text cannot be empty");
+          const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, channelIdNum, {
+            keywordIds: [inlineEditKeyword.keyword_id],
+            action: "keyword_text",
+            keyword_text: newKeywordText,
+            adgroupIds: inlineEditKeyword.adgroup_id ? [inlineEditKeyword.adgroup_id] : undefined,
+          });
+          if (response.errors && response.errors.length > 0) {
+            throw { response: { data: response } };
+          }
         }
       }
 
@@ -3000,6 +3028,8 @@ export const GoogleKeywords: React.FC = () => {
                       getMatchTypeLabel={getMatchTypeLabel}
                       getSortIcon={getSortIcon}
                       currencyCode={currencyCode}
+                      onPublishDraft={handlePublishDraftClick}
+                      publishLoadingId={publishLoadingId}
                     />
                   </div>
                   {loading && (
@@ -3111,6 +3141,17 @@ export const GoogleKeywords: React.FC = () => {
         size="sm"
         isLoading={inlineEditLoading}
         icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+      />
+      <ConfirmationModal
+        isOpen={publishKeyword !== null}
+        onClose={handleCancelPublishDraft}
+        onConfirm={handleConfirmPublishDraft}
+        title="Publish draft keyword"
+        message={publishKeyword ? `Keyword "${publishKeyword.keyword_text || "Unnamed"}" will be published to Google Ads and the draft row will be removed.` : ""}
+        type="info"
+        size="sm"
+        isLoading={publishLoadingId !== undefined}
+        confirmButtonLabel="Publish"
       />
     </div>
   );

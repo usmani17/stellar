@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { Loader } from "./Loader";
 
 export type ConfirmationModalType = "danger" | "warning" | "info" | "success";
@@ -91,8 +92,8 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 
   const typeStyles = getTypeStyles();
 
-  // Determine modal width - use max-w-4xl for default, but allow size override
-  const modalWidthClass = size === "sm" ? "max-w-sm" : size === "lg" ? "max-w-lg" : "max-w-4xl";
+  // Determine modal width - use max-w-md for default (narrower), sm/lg for override
+  const modalWidthClass = size === "sm" ? "max-w-sm" : size === "lg" ? "max-w-lg" : "max-w-md";
 
   // Determine confirm button color based on type
   const getConfirmButtonColor = () => {
@@ -110,9 +111,9 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     return "bg-[#136D6D] hover:bg-[#0f5a5a]";
   };
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 bg-black/75 flex items-center justify-center z-[999999]"
+      className="fixed inset-0 bg-black/75 flex items-center justify-center z-[9999999]"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isLoading) {
           onClose();
@@ -191,4 +192,6 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };

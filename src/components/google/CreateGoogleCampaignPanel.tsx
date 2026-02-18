@@ -576,6 +576,12 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         ...prev,
         ...convertedData,
       }));
+      // Sync budget dropdown so it shows the campaign's budget when in edit mode
+      const budgetResourceName = (initialData as any).budget_resource_name;
+      if (budgetResourceName) {
+        setSelectedBudgetId(budgetResourceName);
+        setUseCustomBudgetName(false);
+      }
       // Set logo preview if logo_url exists in initial data
       if (initialData.logo_url && typeof initialData.logo_url === "string") {
         const urlValue = initialData.logo_url.trim();

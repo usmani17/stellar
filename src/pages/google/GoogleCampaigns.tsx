@@ -542,10 +542,13 @@ export const GoogleCampaigns: React.FC = () => {
       if (!draftId.startsWith("draft-")) return;
       try {
         setPublishLoadingCampaignId(row.campaign_id);
+        const campaignType =
+          (row.advertising_channel_type || (row as any).campaign_type || "SEARCH").toString().toUpperCase();
         const response = await googleAdwordsCampaignsService.publishGoogleCampaignDraft(
           accountIdNum,
           channelIdNum,
-          draftId
+          draftId,
+          { campaign_type: campaignType }
         );
         await loadCampaigns(accountIdNum, channelIdNum);
         const newCampaignId = response?.campaign_id != null ? String(response.campaign_id) : null;
@@ -1897,7 +1900,14 @@ export const GoogleCampaigns: React.FC = () => {
         budget_name:
           (draft_campaign.budget_name as string | undefined) ??
           campaignData.budget_name ??
+          campaignData.campaign_budget_name ??
           creation_payload.budget_name ??
+          undefined,
+        budget_resource_name:
+          (draft_campaign.budget_resource_name as string | undefined) ??
+          campaignData.campaign_budget ??
+          campaignData.campaign_budget_resource_name ??
+          creation_payload.budget_resource_name ??
           undefined,
         status:
           (draft_campaign.status?.toUpperCase() as any) ??

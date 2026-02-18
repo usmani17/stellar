@@ -68,6 +68,8 @@ export interface GoogleAdsListTableProps {
   getStatusBadge: (status: string) => React.ReactElement;
   getSortIcon: (column: string) => React.ReactElement;
   currencyCode?: string;
+  onPublishDraft?: (row: GoogleAd) => void;
+  publishLoadingId?: string | number;
 }
 
 export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
@@ -103,7 +105,14 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
   getStatusBadge,
   getSortIcon,
   currencyCode,
+  onPublishDraft,
+  publishLoadingId,
 }) => {
+  const isDraftAd = (row: GoogleAd) => {
+    const s = (row.status || "").toUpperCase();
+    return s === "SAVED_DRAFT" || s === "DRAFT" || String(row.ad_id ?? row.id).startsWith("draft-");
+  };
+
   // Map editingCell to shared component format
   const sharedEditingCell = editingCell ? {
     itemId: editingCell.adId,
@@ -379,6 +388,10 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       getStatusBadge={getStatusBadge}
       getSortIcon={getSortIcon}
       currencyCode={currencyCode}
+      publishDraftColumnKey="ad_id"
+      onPublishDraft={onPublishDraft}
+      isDraftRow={isDraftAd}
+      publishLoadingId={publishLoadingId}
     />
   </>
   );

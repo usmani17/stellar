@@ -160,6 +160,8 @@ export const GoogleAds: React.FC = () => {
   const [pendingRemoveChange, setPendingRemoveChange] = useState<{
     adId: string | number;
   } | null>(null);
+  const [publishAd, setPublishAd] = useState<GoogleAd | null>(null);
+  const [publishLoadingId, setPublishLoadingId] = useState<string | number | undefined>(undefined);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -554,6 +556,12 @@ export const GoogleAds: React.FC = () => {
     setEditedValue(value);
   };
 
+  // Draft detection: DB-only updates for drafts; publish only when user clicks publish
+  const isDraftAd = (row: GoogleAd) => {
+    const s = (row.status || "").toUpperCase();
+    return s === "SAVED_DRAFT" || s === "DRAFT" || String(row.ad_id ?? row.id).startsWith("draft-");
+  };
+
   const confirmInlineEdit = (
     newValueOverride?: string,
     field?: string,
@@ -597,7 +605,7 @@ export const GoogleAds: React.FC = () => {
   };
 
 
-  // Original runInlineEdit for modal-based updates (if needed in future)
+  // Run inline edit: draft → DB-only update; published → bulk update to Google
   const runInlineEdit = async () => {
     if (!inlineEditAd || !inlineEditField || !accountId) return;
 
@@ -607,24 +615,29 @@ export const GoogleAds: React.FC = () => {
       if (isNaN(accountIdNum)) {
         throw new Error("Invalid account ID");
       }
+      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+      if (!channelIdNum || isNaN(channelIdNum)) {
+        throw new Error("Channel ID is required");
+      }
 
       if (inlineEditField === "status") {
-        // Convert display status to API format
         const statusValue = convertStatusToApi(inlineEditNewValue);
+        const draftId = String(inlineEditAd.ad_id ?? inlineEditAd.id);
 
-        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-        if (!channelIdNum || isNaN(channelIdNum)) {
-          throw new Error("Channel ID is required");
-        }
-
-        const response = await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, channelIdNum, {
-          adIds: [inlineEditAd.ad_id || inlineEditAd.id],
-          action: "status",
-          status: statusValue,
-        });
-
-        if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0]);
+        if (isDraftAd(inlineEditAd) && draftId.startsWith("draft-")) {
+          await googleAdwordsAdsService.updateDraftAd(accountIdNum, channelIdNum, {
+            draft_id: draftId,
+            ad: { status: statusValue },
+          });
+        } else {
+          const response = await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, channelIdNum, {
+            adIds: [inlineEditAd.ad_id || inlineEditAd.id],
+            action: "status",
+            status: statusValue,
+          });
+          if (response.errors && response.errors.length > 0) {
+            throw new Error(response.errors[0]);
+          }
         }
       }
 
@@ -695,12 +708,20 @@ export const GoogleAds: React.FC = () => {
       if (!channelIdNum || isNaN(channelIdNum)) {
         throw new Error("Channel ID is required");
       }
-
-      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, channelIdNum, {
-        adIds: [pendingRemoveChange.adId],
-        action: "status",
-        status: statusValue,
-      });
+      const ad = ads.find((a) => (a.ad_id || a.id) === pendingRemoveChange.adId);
+      const draftId = ad ? String(ad.ad_id ?? ad.id) : String(pendingRemoveChange.adId);
+      if (ad && isDraftAd(ad) && draftId.startsWith("draft-")) {
+        await googleAdwordsAdsService.updateDraftAd(accountIdNum, channelIdNum, {
+          draft_id: draftId,
+          ad: { status: statusValue },
+        });
+      } else {
+        await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, channelIdNum, {
+          adIds: [pendingRemoveChange.adId],
+          action: "status",
+          status: statusValue,
+        });
+      }
 
       await loadAds(accountIdNum, channelIdNum);
 
@@ -754,6 +775,35 @@ export const GoogleAds: React.FC = () => {
     setPendingRemoveChange(null);
     // Cancel the inline edit
     cancelInlineEdit();
+  };
+
+  // Publish draft ad (global table): show confirmation then call Demand Gen publish endpoint
+  const handlePublishDraftClick = (row: GoogleAd) => setPublishAd(row);
+  const handleCancelPublishDraft = () => setPublishAd(null);
+  const handleConfirmPublishDraft = async () => {
+    const row = publishAd;
+    if (!row || !accountId || !channelId) return;
+    const campaignId = row.campaign_id;
+    const draftId = String(row.ad_id ?? row.id);
+    if (!campaignId) return;
+    setPublishLoadingId(row.ad_id ?? row.id);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = parseInt(channelId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) return;
+      await googleAdwordsAdsService.publishDemandGenDraftAd(
+        accountIdNum,
+        channelIdNum,
+        campaignId,
+        draftId
+      );
+      setPublishAd(null);
+      setPublishLoadingId(undefined);
+      await loadAds(accountIdNum, channelIdNum);
+    } catch (err) {
+      console.error("Failed to publish draft ad:", err);
+      setPublishLoadingId(undefined);
+    }
   };
 
   const runBulkStatus = async (
@@ -1590,6 +1640,8 @@ export const GoogleAds: React.FC = () => {
                       getStatusBadge={getStatusBadge}
                       getSortIcon={getSortIcon}
                       currencyCode={currencyCode}
+                      onPublishDraft={handlePublishDraftClick}
+                      publishLoadingId={publishLoadingId}
                     />
                   </div>
                   {loading && (
@@ -1683,6 +1735,17 @@ export const GoogleAds: React.FC = () => {
         size="sm"
         isLoading={inlineEditLoading}
         icon={<TrashIcon className="w-6 h-6 text-red-600" />}
+      />
+      <ConfirmationModal
+        isOpen={publishAd !== null}
+        onClose={handleCancelPublishDraft}
+        onConfirm={handleConfirmPublishDraft}
+        title="Publish draft ad"
+        message={publishAd ? `Ad (${publishAd.ad_type || "Unnamed"}) will be created in Google Ads and the draft row will be removed.` : ""}
+        type="info"
+        size="sm"
+        isLoading={publishLoadingId !== undefined}
+        confirmButtonLabel="Publish"
       />
     </div>
   );
