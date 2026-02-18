@@ -279,7 +279,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
         throw new Error("Invalid accountId or channelId");
       }
-      const budgets = await googleAdwordsCampaignsService.getGoogleBudgets(accountIdNum, channelIdNum, selectedProfileId);
+      const budgets = await googleAdwordsCampaignsService.getGoogleBudgets(accountIdNum, channelIdNum, selectedProfileId, formData.campaign_type);
       
       // Format budgets for dropdown: value=resource_name for linking, name for display
       const options = budgets.map((budget: any) => ({
@@ -300,7 +300,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     } finally {
       setLoadingBudgets(false);
     }
-  }, [accountId, channelId, selectedProfileId]);
+  }, [accountId, channelId, selectedProfileId, formData.campaign_type]);
 
   // Fetch budgets when account, channel, and profile are available
   useEffect(() => {

@@ -191,7 +191,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
         throw new Error("Invalid accountId or channelId");
       }
-      const budgets = await googleAdwordsCampaignsService.getGoogleBudgets(accountIdNum, channelIdNum, profileIdNum);
+      const budgets = await googleAdwordsCampaignsService.getGoogleBudgets(accountIdNum, channelIdNum, profileIdNum, campaignType);
       
       // Format budgets for dropdown
       const options = budgets.map((budget: any) => ({
@@ -212,7 +212,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
     } finally {
       setLoadingBudgets(false);
     }
-  }, [accountIdNum, channelIdNum, profileIdNum]);
+  }, [accountIdNum, channelIdNum, profileIdNum, campaignType]);
 
   // Fetch budgets when account, channel, and profile are available
   // Note: We fetch when these IDs are available, even though hasBudgetNameField may not be computed yet

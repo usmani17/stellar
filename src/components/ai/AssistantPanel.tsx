@@ -606,16 +606,14 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                             title={session.title || "Untitled"}
                                             disabled={isLoading}
                                         >
-                                            {isLoading && currentSessionId === session.id ? (
+                                            {isLoading && currentSessionId === session.id && (
                                                 <div className="flex gap-0.5">
                                                     <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" />
                                                     <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
                                                     <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
                                                 </div>
-                                            ) : (
-                                                <BarChart3 className="w-4 h-4 shrink-0" />
                                             )}
-                                            <span className="max-w-[120px] truncate">{session.title || "Untitled"}</span>
+                                            <span className="max-w-[140px] truncate">{session.title || "Untitled"}</span>
                                         </button>
                                         <div className="relative" onClick={(e) => e.stopPropagation()}>
                                             <button
@@ -965,7 +963,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                           {campaignState.validation_error}
                                     </div>
                                 )}
-                                {campaignState.draft && Object.keys(campaignState.draft).length > 0 && campaignState.draft_id && (
+                                {campaignState.draft && Object.keys(campaignState.draft).length > 0 && campaignState.draft_id && campaignState.complete && (
                                     <span className="text-xs text-[#072929]">
                                         Draft ready.
                                         {assistantScope.accountId && assistantScope.channelId ? (

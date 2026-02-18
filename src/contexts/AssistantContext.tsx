@@ -143,6 +143,7 @@ export const AssistantProvider: React.FC<{
   const isNewSessionFlowRef = useRef(false);
   const sessionsRef = useRef<SessionWithMessages[]>([]);
   sessionsRef.current = sessions;
+  const campaignStateRef = useRef<CampaignDraftData | undefined>(undefined);
 
   useEffect(() => {
     if (
@@ -271,7 +272,14 @@ export const AssistantProvider: React.FC<{
       const existing = sessionsRef.current.find((s) => s.id === sessionId);
       const needsHistory = !existing?.messages?.length;
 
-      if (!needsHistory) return;
+      if (!needsHistory) {
+        const synced = extractCampaignStateFromMessages(
+          existing?.messages ?? [],
+          existing?.campaignState as CampaignDraftData | undefined
+        );
+        setCampaignState(synced);
+        return;
+      }
 
       setIsLoading(true);
       try {
@@ -336,6 +344,8 @@ export const AssistantProvider: React.FC<{
   const startNewSession = useCallback(() => {
     setCurrentSessionId(null);
     setPendingConversation(null);
+    setCampaignState(undefined);
+    campaignStateRef.current = undefined;
   }, []);
 
   const deleteSession = useCallback(
@@ -559,6 +569,7 @@ export const AssistantProvider: React.FC<{
             },
             onTimelineItem: updateTimeline,
             onCampaignDraft: (data) => {
+              campaignStateRef.current = data;
               setCampaignState(data);
             },
             onResult: (ev) => {
@@ -596,6 +607,7 @@ export const AssistantProvider: React.FC<{
                     updated_at: new Date().toISOString(),
                     title: (msgs[0]?.type === "human" ? msgs[0].content : "New chat").slice(0, 50),
                     messages: finalizedMessages,
+                    campaignState: campaignStateRef.current,
                   };
                   setSessions((prev) => {
                     const withoutDup = realId ? prev.filter((s) => s.id !== realId) : prev;
@@ -634,6 +646,7 @@ export const AssistantProvider: React.FC<{
                       ...msgs.slice(0, -1),
                       { ...aiLast, content: finalContent, timeline, isStreaming: false },
                     ],
+                    campaignState: campaignStateRef.current ?? target.campaignState,
                     updated_at: new Date().toISOString(),
                     last_activity_at: new Date().toISOString(),
                   };

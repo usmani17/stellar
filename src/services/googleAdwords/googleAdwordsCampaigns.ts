@@ -548,7 +548,8 @@ export const googleAdwordsCampaignsService : any = {
   getGoogleBudgets: async (
     accountId: number,
     channelId: number,
-    profileId: string | number
+    profileId: string | number,
+    campaign_type?: string
   ): Promise<
     Array<{
       id: string | number;
@@ -564,7 +565,7 @@ export const googleAdwordsCampaignsService : any = {
     if (!channelId || isNaN(channelId)) {
       throw new Error(`Invalid channelId: ${channelId}. channelId must be a valid number.`);
     }
-    const url = `/google-adwords/${accountId}/channels/${channelId}/budgets/?profile_id=${profileId}`;
+    const url = `/google-adwords/${accountId}/channels/${channelId}/budgets/?profile_id=${profileId}${campaign_type ? `&campaign_type=${campaign_type}` : ""}`;
     const response = await api.get(url);
     return response.data;
   },
