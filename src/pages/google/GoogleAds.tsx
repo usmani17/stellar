@@ -641,10 +641,14 @@ export const GoogleAds: React.FC = () => {
         }
       }
 
-      const channelIdNumForReload = channelId ? parseInt(channelId, 10) : undefined;
-      if (channelIdNumForReload && !isNaN(channelIdNumForReload)) {
-        await loadAds(accountIdNum, channelIdNumForReload);
-      }
+      // Update list in place so order is preserved
+      const adIdToUpdate = inlineEditAd.ad_id || inlineEditAd.id;
+      const statusValue = convertStatusToApi(inlineEditNewValue);
+      setAds((prev) =>
+        prev.map((ad) =>
+          (ad.ad_id || ad.id) !== adIdToUpdate ? ad : { ...ad, status: statusValue }
+        )
+      );
 
       setShowInlineEditModal(false);
       setInlineEditAd(null);

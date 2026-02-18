@@ -46,9 +46,7 @@ import { CreateGooglePmaxAssetGroupSection } from "../../components/google/Creat
 import { CreateGoogleShoppingEntitiesSection } from "../../components/google/CreateGoogleShoppingEntitiesSection";
 import { CreateGoogleShoppingAdSection } from "../../components/google/CreateGoogleShoppingAdSection";
 import { CreateGoogleAdGroupSection } from "../../components/google/CreateGoogleAdGroupSection";
-import {
-  CreateGoogleDemandGenAdGroupPanel,
-} from "../../components/google/CreateGoogleDemandGenAdGroupPanel";
+import { CreateGoogleDemandGenAdGroupPanel } from "../../components/google/CreateGoogleDemandGenAdGroupPanel";
 import { CreateGoogleAdSection } from "../../components/google/CreateGoogleAdSection";
 import { CreateGoogleKeywordSection } from "../../components/google/CreateGoogleKeywordSection";
 import { CreateGoogleNegativeKeywordSection } from "../../components/google/CreateGoogleNegativeKeywordSection";
@@ -278,10 +276,16 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Demand Gen Ad creation state
   const [isCreateDemandGenAdSectionOpen, setIsCreateDemandGenAdSectionOpen] =
     useState(false);
-  const [createDemandGenAdLoading, setCreateDemandGenAdLoading] = useState(false);
-  const [createDemandGenAdError, setCreateDemandGenAdError] = useState<string | null>(null);
+  const [createDemandGenAdLoading, setCreateDemandGenAdLoading] =
+    useState(false);
+  const [createDemandGenAdError, setCreateDemandGenAdError] = useState<
+    string | null
+  >(null);
 
-  const handleCreateDemandGenAd = async (data: any, options?: { saveAsDraft?: boolean }) => {
+  const handleCreateDemandGenAd = async (
+    data: any,
+    options?: { saveAsDraft?: boolean },
+  ) => {
     setCreateDemandGenAdLoading(true);
     setCreateDemandGenAdError(null);
 
@@ -291,7 +295,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         parseInt(accountId || "", 10),
         parseInt(channelId, 10),
         cid,
-        { ad: data, ...(options?.saveAsDraft && { save_as_draft: true }) }
+        { ad: data, ...(options?.saveAsDraft && { save_as_draft: true }) },
       );
 
       if (response?.ad) {
@@ -307,7 +311,10 @@ export const GoogleCampaignDetail: React.FC = () => {
         setCreateDemandGenAdError(response?.error || "Failed to create ad");
       }
     } catch (err: any) {
-      const msg = err.response?.data?.error ?? err.message ?? "An error occurred while creating the ad";
+      const msg =
+        err.response?.data?.error ??
+        err.message ??
+        "An error occurred while creating the ad";
       setCreateDemandGenAdError(msg);
     } finally {
       setCreateDemandGenAdLoading(false);
@@ -318,15 +325,15 @@ export const GoogleCampaignDetail: React.FC = () => {
 
   const [syncMessage, setSyncMessage] = useState<{
     type:
-    | "adgroups"
-    | "ads"
-    | "assets"
-    | "keywords"
-    | "negative_keywords"
-    | "assetgroups"
-    | "productgroups"
-    | "shoppingads"
-    | null;
+      | "adgroups"
+      | "ads"
+      | "assets"
+      | "keywords"
+      | "negative_keywords"
+      | "assetgroups"
+      | "productgroups"
+      | "shoppingads"
+      | null;
     message: string | null;
   }>({ type: null, message: null });
 
@@ -351,34 +358,63 @@ export const GoogleCampaignDetail: React.FC = () => {
 
   const isDraftCampaign = useMemo(() => {
     const status = (campaignDetail?.campaign?.status || "").toUpperCase();
-    return !loading && !!campaignDetail && (status === CAMPAIGN_STATUS_SAVED_DRAFT || status === "DRAFT");
+    return (
+      !loading &&
+      !!campaignDetail &&
+      (status === CAMPAIGN_STATUS_SAVED_DRAFT || status === "DRAFT")
+    );
   }, [loading, campaignDetail]);
 
   const [publishDraftLoading, setPublishDraftLoading] = useState(false);
-  const [isDraftCampaignEditPanelOpen, setIsDraftCampaignEditPanelOpen] = useState(false);
-  const [draftCampaignFormLoading, setDraftCampaignFormLoading] = useState(false);
+  const [isDraftCampaignEditPanelOpen, setIsDraftCampaignEditPanelOpen] =
+    useState(false);
+  const [draftCampaignFormLoading, setDraftCampaignFormLoading] =
+    useState(false);
 
   // Publish draft sub-entity: show confirmation then call same creation endpoint (backend creates in Google and removes draft row)
   type PublishDraftEntity =
-    | { type: "ad_group"; entity: { id: number; adgroup_id?: number; adgroup_name?: string; name?: string } }
-    | { type: "keyword"; entity: { id: number; keyword_id?: number; keyword_text?: string } }
+    | {
+        type: "ad_group";
+        entity: {
+          id: number;
+          adgroup_id?: number;
+          adgroup_name?: string;
+          name?: string;
+        };
+      }
+    | {
+        type: "keyword";
+        entity: { id: number; keyword_id?: number; keyword_text?: string };
+      }
     | { type: "ad"; entity: { id: number; ad_id?: number; ad_type?: string } }
-    | { type: "negative_keyword"; entity: { id: number; criterion_id?: string; keyword_text?: string } };
-  const [publishDraftEntity, setPublishDraftEntity] = useState<PublishDraftEntity | null>(null);
+    | {
+        type: "negative_keyword";
+        entity: { id: number; criterion_id?: string; keyword_text?: string };
+      };
+  const [publishDraftEntity, setPublishDraftEntity] =
+    useState<PublishDraftEntity | null>(null);
   const [publishDraftSubmitting, setPublishDraftSubmitting] = useState(false);
-  const [publishLoadingNegativeKeywordId, setPublishLoadingNegativeKeywordId] = useState<string | number | null>(null);
+  const [publishLoadingNegativeKeywordId, setPublishLoadingNegativeKeywordId] =
+    useState<string | number | null>(null);
 
   const runPublishNegativeKeywordDraft = useCallback(
     async (n: { id: number; criterion_id?: string; keyword_text?: string }) => {
       if (!accountId || !channelId || !campaignId) return;
       const campaignIdStr = String(campaignId);
       if (campaignIdStr.toLowerCase().startsWith("draft-")) {
-        setErrorModal({ isOpen: true, message: "Publish the campaign first, then you can publish negative keywords." });
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Publish the campaign first, then you can publish negative keywords.",
+        });
         return;
       }
       const draftId = String(n.criterion_id ?? n.id);
       if (!draftId.startsWith("draft-")) {
-        setErrorModal({ isOpen: true, message: "Not a draft negative keyword." });
+        setErrorModal({
+          isOpen: true,
+          message: "Not a draft negative keyword.",
+        });
         return;
       }
       setPublishLoadingNegativeKeywordId(n.criterion_id ?? n.id);
@@ -387,29 +423,63 @@ export const GoogleCampaignDetail: React.FC = () => {
           parseInt(accountId, 10),
           parseInt(channelId, 10),
           campaignIdStr,
-          draftId
+          draftId,
         );
-        setErrorModal({ isOpen: true, message: "Draft negative keyword published successfully. The draft row will be removed.", isSuccess: true });
-        if (negativeKeywordsHook.loadNegativeKeywords) await negativeKeywordsHook.loadNegativeKeywords();
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Draft negative keyword published successfully. The draft row will be removed.",
+          isSuccess: true,
+        });
+        if (negativeKeywordsHook.loadNegativeKeywords)
+          await negativeKeywordsHook.loadNegativeKeywords();
       } catch (err: any) {
-        setErrorModal({ isOpen: true, message: err?.response?.data?.error || err?.message || "Failed to publish draft." });
+        setErrorModal({
+          isOpen: true,
+          message:
+            err?.response?.data?.error ||
+            err?.message ||
+            "Failed to publish draft.",
+        });
       } finally {
         setPublishLoadingNegativeKeywordId(null);
       }
     },
-    [accountId, channelId, campaignId, negativeKeywordsHook.loadNegativeKeywords]
+    [
+      accountId,
+      channelId,
+      campaignId,
+      negativeKeywordsHook.loadNegativeKeywords,
+    ],
   );
 
-  const handlePublishAdGroupDraft = (adgroup: { id: number; adgroup_id?: number; adgroup_name?: string; name?: string }) => {
+  const handlePublishAdGroupDraft = (adgroup: {
+    id: number;
+    adgroup_id?: number;
+    adgroup_name?: string;
+    name?: string;
+  }) => {
     setPublishDraftEntity({ type: "ad_group", entity: adgroup });
   };
-  const handlePublishKeywordDraft = (keyword: { id: number; keyword_id?: number; keyword_text?: string }) => {
+  const handlePublishKeywordDraft = (keyword: {
+    id: number;
+    keyword_id?: number;
+    keyword_text?: string;
+  }) => {
     setPublishDraftEntity({ type: "keyword", entity: keyword });
   };
-  const handlePublishAdDraft = (ad: { id: number; ad_id?: number; ad_type?: string }) => {
+  const handlePublishAdDraft = (ad: {
+    id: number;
+    ad_id?: number;
+    ad_type?: string;
+  }) => {
     setPublishDraftEntity({ type: "ad", entity: ad });
   };
-  const handlePublishNegativeKeywordDraft = (n: { id: number; criterion_id?: string; keyword_text?: string }) => {
+  const handlePublishNegativeKeywordDraft = (n: {
+    id: number;
+    criterion_id?: string;
+    keyword_text?: string;
+  }) => {
     setPublishDraftEntity({ type: "negative_keyword", entity: n });
   };
 
@@ -422,10 +492,16 @@ export const GoogleCampaignDetail: React.FC = () => {
       if (publishDraftEntity.type === "ad_group") {
         const campaignIdStr = String(campaignId ?? "");
         if (campaignIdStr.toLowerCase().startsWith("draft-")) {
-          setErrorModal({ isOpen: true, message: "Publish the campaign first, then you can publish ad groups." });
+          setErrorModal({
+            isOpen: true,
+            message:
+              "Publish the campaign first, then you can publish ad groups.",
+          });
           return;
         }
-        const draftId = String(publishDraftEntity.entity.adgroup_id ?? publishDraftEntity.entity.id);
+        const draftId = String(
+          publishDraftEntity.entity.adgroup_id ?? publishDraftEntity.entity.id,
+        );
         if (!draftId.startsWith("draft-")) {
           setErrorModal({ isOpen: true, message: "Not a draft ad group." });
           return;
@@ -434,17 +510,27 @@ export const GoogleCampaignDetail: React.FC = () => {
           accountIdNum,
           channelIdNum,
           campaignId,
-          draftId
+          draftId,
         );
-        setErrorModal({ isOpen: true, message: "Draft ad group published successfully. The draft row will be removed.", isSuccess: true });
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Draft ad group published successfully. The draft row will be removed.",
+          isSuccess: true,
+        });
         if (loadAdGroups) await loadAdGroups();
       } else if (publishDraftEntity.type === "ad") {
         const campaignIdStr = String(campaignId ?? "");
         if (campaignIdStr.toLowerCase().startsWith("draft-")) {
-          setErrorModal({ isOpen: true, message: "Publish the campaign first, then you can publish ads." });
+          setErrorModal({
+            isOpen: true,
+            message: "Publish the campaign first, then you can publish ads.",
+          });
           return;
         }
-        const draftId = String(publishDraftEntity.entity.ad_id ?? publishDraftEntity.entity.id);
+        const draftId = String(
+          publishDraftEntity.entity.ad_id ?? publishDraftEntity.entity.id,
+        );
         if (!draftId.startsWith("draft-")) {
           setErrorModal({ isOpen: true, message: "Not a draft ad." });
           return;
@@ -453,17 +539,28 @@ export const GoogleCampaignDetail: React.FC = () => {
           accountIdNum,
           channelIdNum,
           campaignId,
-          draftId
+          draftId,
         );
-        setErrorModal({ isOpen: true, message: "Draft ad published successfully. The draft row will be removed.", isSuccess: true });
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Draft ad published successfully. The draft row will be removed.",
+          isSuccess: true,
+        });
         if (loadAdsFromHook) await loadAdsFromHook();
       } else if (publishDraftEntity.type === "keyword") {
         const campaignIdStr = String(campaignId ?? "");
         if (campaignIdStr.toLowerCase().startsWith("draft-")) {
-          setErrorModal({ isOpen: true, message: "Publish the campaign first, then you can publish keywords." });
+          setErrorModal({
+            isOpen: true,
+            message:
+              "Publish the campaign first, then you can publish keywords.",
+          });
           return;
         }
-        const draftId = String(publishDraftEntity.entity.keyword_id ?? publishDraftEntity.entity.id);
+        const draftId = String(
+          publishDraftEntity.entity.keyword_id ?? publishDraftEntity.entity.id,
+        );
         if (!draftId.startsWith("draft-")) {
           setErrorModal({ isOpen: true, message: "Not a draft keyword." });
           return;
@@ -471,39 +568,68 @@ export const GoogleCampaignDetail: React.FC = () => {
         await googleAdwordsKeywordsService.publishDraftKeyword(
           accountIdNum,
           channelIdNum,
-          draftId
+          draftId,
         );
-        setErrorModal({ isOpen: true, message: "Draft keyword published successfully. The draft row will be removed.", isSuccess: true });
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Draft keyword published successfully. The draft row will be removed.",
+          isSuccess: true,
+        });
         if (loadKeywords) await loadKeywords();
       } else if (publishDraftEntity.type === "negative_keyword") {
         const campaignIdStr = String(campaignId ?? "");
         if (campaignIdStr.toLowerCase().startsWith("draft-")) {
-          setErrorModal({ isOpen: true, message: "Publish the campaign first, then you can publish negative keywords." });
+          setErrorModal({
+            isOpen: true,
+            message:
+              "Publish the campaign first, then you can publish negative keywords.",
+          });
           return;
         }
-        const draftId = String(publishDraftEntity.entity.criterion_id ?? publishDraftEntity.entity.id);
+        const draftId = String(
+          publishDraftEntity.entity.criterion_id ??
+            publishDraftEntity.entity.id,
+        );
         if (!draftId.startsWith("draft-")) {
-          setErrorModal({ isOpen: true, message: "Not a draft negative keyword." });
+          setErrorModal({
+            isOpen: true,
+            message: "Not a draft negative keyword.",
+          });
           return;
         }
         await googleAdwordsNegativeKeywordsService.publishDraftNegativeKeyword(
           accountIdNum,
           channelIdNum,
           campaignIdStr,
-          draftId
+          draftId,
         );
-        setErrorModal({ isOpen: true, message: "Draft negative keyword published successfully. The draft row will be removed.", isSuccess: true });
-        if (negativeKeywordsHook.loadNegativeKeywords) await negativeKeywordsHook.loadNegativeKeywords();
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Draft negative keyword published successfully. The draft row will be removed.",
+          isSuccess: true,
+        });
+        if (negativeKeywordsHook.loadNegativeKeywords)
+          await negativeKeywordsHook.loadNegativeKeywords();
       }
     } catch (err: any) {
-      setErrorModal({ isOpen: true, message: err?.response?.data?.error || err?.message || "Failed to publish draft." });
+      setErrorModal({
+        isOpen: true,
+        message:
+          err?.response?.data?.error ||
+          err?.message ||
+          "Failed to publish draft.",
+      });
     } finally {
       setPublishDraftSubmitting(false);
       setPublishDraftEntity(null);
     }
   };
 
-  const handlePublishDraftFromDetail = async (formData?: CreateGoogleCampaignData) => {
+  const handlePublishDraftFromDetail = async (
+    formData?: CreateGoogleCampaignData,
+  ) => {
     if (!accountId || !channelId || !campaignId) return;
     const draftId = String(campaignId);
     if (!draftId.startsWith("draft-")) return;
@@ -513,7 +639,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         parseInt(accountId, 10),
         parseInt(channelId, 10),
         draftId,
-        formData
+        formData,
       );
       setIsDraftCampaignEditPanelOpen(false);
       setErrorModal({
@@ -526,7 +652,10 @@ export const GoogleCampaignDetail: React.FC = () => {
     } catch (err: any) {
       setErrorModal({
         isOpen: true,
-        message: err?.response?.data?.error || err?.message || "Failed to publish draft.",
+        message:
+          err?.response?.data?.error ||
+          err?.message ||
+          "Failed to publish draft.",
       });
     } finally {
       setPublishDraftLoading(false);
@@ -548,37 +677,52 @@ export const GoogleCampaignDetail: React.FC = () => {
           end_date: data.end_date,
           budget: data.budget_amount,
           bidding_strategy_type: data.bidding_strategy_type,
-        }
+        },
       );
       setIsDraftCampaignEditPanelOpen(false);
       setErrorModal({ isOpen: true, message: "Draft saved.", isSuccess: true });
     } catch (err: any) {
       setErrorModal({
         isOpen: true,
-        message: err?.response?.data?.error || err?.message || "Failed to save draft.",
+        message:
+          err?.response?.data?.error || err?.message || "Failed to save draft.",
       });
     } finally {
       setDraftCampaignFormLoading(false);
     }
   };
 
-  const draftCampaignInitialData = useMemo((): Partial<CreateGoogleCampaignData> | null => {
-    if (!campaignDetail?.campaign || !isDraftCampaign) return null;
-    const c = campaignDetail.campaign as any;
-    const extra = c.extra_data && typeof c.extra_data === "object" ? c.extra_data : {};
-    const creationPayload = extra.creation_payload && typeof extra.creation_payload === "object" ? extra.creation_payload : {};
-    return {
-      name: c.name || "",
-      status: (c.status?.toUpperCase() as "ENABLED" | "PAUSED") || "PAUSED",
-      budget_amount: c.daily_budget ?? c.budget_amount,
-      budget_name: c.budget_name ?? c.campaign_budget_name ?? creationPayload.budget_name,
-      budget_resource_name: c.campaign_budget ?? c.campaign_budget_resource_name ?? creationPayload.budget_resource_name,
-      start_date: c.start_date,
-      end_date: c.end_date,
-      campaign_type: (c.advertising_channel_type || c.campaign_type || "SEARCH") as any,
-      bidding_strategy_type: c.bidding_strategy_type,
-    };
-  }, [campaignDetail?.campaign, isDraftCampaign]);
+  const draftCampaignInitialData =
+    useMemo((): Partial<CreateGoogleCampaignData> | null => {
+      if (!campaignDetail?.campaign || !isDraftCampaign) return null;
+      const c = campaignDetail.campaign as any;
+      const extra =
+        c.extra_data && typeof c.extra_data === "object" ? c.extra_data : {};
+      const creationPayload =
+        extra.creation_payload && typeof extra.creation_payload === "object"
+          ? extra.creation_payload
+          : {};
+      return {
+        name: c.name || "",
+        status: (c.status?.toUpperCase() as "ENABLED" | "PAUSED") || "PAUSED",
+        budget_amount: c.daily_budget ?? c.budget_amount,
+        budget_name:
+          c.budget_name ??
+          c.campaign_budget_name ??
+          c.campaignBudgetName ??
+          creationPayload.budget_name,
+        budget_resource_name:
+          c.campaign_budget ??
+          c.campaign_budget_resource_name ??
+          creationPayload.budget_resource_name,
+        start_date: c.start_date,
+        end_date: c.end_date,
+        campaign_type: (c.advertising_channel_type ||
+          c.campaign_type ||
+          "SEARCH") as any,
+        bidding_strategy_type: c.bidding_strategy_type,
+      };
+    }, [campaignDetail?.campaign, isDraftCampaign]);
 
   // Normalized campaign channel type (DB may return "Demand Gen" or "DEMAND_GEN")
   const campaignChannelType = useMemo(() => {
@@ -604,13 +748,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         "Logs",
       ];
     } else if (campaignChannelType === "DEMAND_GEN") {
-      return [
-        "Overview",
-        "Ad Groups",
-        "Ads",
-        "Assets",
-        "Logs",
-      ];
+      return ["Overview", "Ad Groups", "Ads", "Assets", "Logs"];
     } else {
       // SEARCH or default
       return [
@@ -1014,7 +1152,10 @@ export const GoogleCampaignDetail: React.FC = () => {
   // handleCreateAdGroup is now in useGoogleCampaignDetailAdGroups hook
 
   // Handler for creating Ad (using existing adgroup)
-  const handleCreateAd = async (entity: AdInput, options?: { saveAsDraft?: boolean }) => {
+  const handleCreateAd = async (
+    entity: AdInput,
+    options?: { saveAsDraft?: boolean },
+  ) => {
     if (!accountId || !campaignId) return;
 
     setCreateSearchEntitiesLoading(true);
@@ -1031,10 +1172,11 @@ export const GoogleCampaignDetail: React.FC = () => {
         throw new Error("Invalid channel ID");
       }
 
-      const campaignIdForApi =
-        String(campaignId).toLowerCase().startsWith("draft-")
-          ? campaignId
-          : parseInt(campaignId, 10);
+      const campaignIdForApi = String(campaignId)
+        .toLowerCase()
+        .startsWith("draft-")
+        ? campaignId
+        : parseInt(campaignId, 10);
       if (typeof campaignIdForApi === "number" && isNaN(campaignIdForApi)) {
         throw new Error("Invalid campaign ID");
       }
@@ -1074,7 +1216,8 @@ export const GoogleCampaignDetail: React.FC = () => {
         const summaryParts: string[] = [];
         if (totalCreated > 0) {
           summaryParts.push(
-            `Successfully created: ${totalCreated} ${totalCreated !== 1 ? "entities" : "entity"
+            `Successfully created: ${totalCreated} ${
+              totalCreated !== 1 ? "entities" : "entity"
             } (${createdEntities.join(", ")})`,
           );
         }
@@ -1103,8 +1246,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         setIsCreateSearchEntitiesPanelOpen(false);
         const successMessage =
           totalCreated > 0
-            ? `Successfully created ${totalCreated} ${totalCreated !== 1 ? "entities" : "entity"
-            }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`
+            ? `Successfully created ${totalCreated} ${
+                totalCreated !== 1 ? "entities" : "entity"
+              }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`
             : "Ad created successfully!";
         setErrorModal({
           isOpen: true,
@@ -1137,7 +1281,10 @@ export const GoogleCampaignDetail: React.FC = () => {
   };
 
   // Handler for creating Keywords (using existing adgroup)
-  const handleCreateKeywords = async (entity: KeywordInput, options?: { saveAsDraft?: boolean }) => {
+  const handleCreateKeywords = async (
+    entity: KeywordInput,
+    options?: { saveAsDraft?: boolean },
+  ) => {
     if (!accountId || !campaignId) return;
 
     setCreateSearchEntitiesLoading(true);
@@ -1154,10 +1301,11 @@ export const GoogleCampaignDetail: React.FC = () => {
         throw new Error("Invalid channel ID");
       }
 
-      const campaignIdForApi =
-        String(campaignId).toLowerCase().startsWith("draft-")
-          ? campaignId
-          : parseInt(campaignId, 10);
+      const campaignIdForApi = String(campaignId)
+        .toLowerCase()
+        .startsWith("draft-")
+        ? campaignId
+        : parseInt(campaignId, 10);
       if (typeof campaignIdForApi === "number" && isNaN(campaignIdForApi)) {
         throw new Error("Invalid campaign ID");
       }
@@ -1197,7 +1345,8 @@ export const GoogleCampaignDetail: React.FC = () => {
         const summaryParts: string[] = [];
         if (totalCreated > 0) {
           summaryParts.push(
-            `Successfully created: ${totalCreated} ${totalCreated !== 1 ? "entities" : "entity"
+            `Successfully created: ${totalCreated} ${
+              totalCreated !== 1 ? "entities" : "entity"
             } (${createdEntities.join(", ")})`,
           );
         }
@@ -1227,8 +1376,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         setIsCreateSearchEntitiesPanelOpen(false);
         const successMessage =
           totalCreated > 0
-            ? `Successfully created ${totalCreated} ${totalCreated !== 1 ? "entities" : "entity"
-            }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`
+            ? `Successfully created ${totalCreated} ${
+                totalCreated !== 1 ? "entities" : "entity"
+              }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`
             : "Keywords created successfully!";
         setErrorModal({
           isOpen: true,
@@ -1265,7 +1415,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Handler for creating Shopping entities (ad group + product group)
   const handleCreateShoppingEntities = async (
     entity: ShoppingEntityInput,
-    options?: { saveAsDraft?: boolean }
+    options?: { saveAsDraft?: boolean },
   ) => {
     if (!accountId || !campaignId) return;
 
@@ -1317,7 +1467,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         // Success - close panel and show success message
         setIsCreateShoppingEntitiesPanelOpen(false);
         const adgroupName = response.adgroup?.name || "Ad group";
-        const isDraftPg = options?.saveAsDraft || response.product_group?.id?.toString().startsWith("draft-");
+        const isDraftPg =
+          options?.saveAsDraft ||
+          response.product_group?.id?.toString().startsWith("draft-");
         const successMessage = response.product_group
           ? isDraftPg
             ? "Listing group saved as draft."
@@ -1363,7 +1515,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Handler for creating Shopping Ad
   const handleCreateShoppingAd = async (
     entity: ShoppingAdInput,
-    options?: { saveAsDraft?: boolean }
+    options?: { saveAsDraft?: boolean },
   ) => {
     if (!accountId || !campaignId) return;
 
@@ -1415,7 +1567,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         // Success - close panel and show success message
         setIsCreateShoppingAdPanelOpen(false);
         const adgroupName = response.adgroup?.name || "Ad group";
-        const isDraft = options?.saveAsDraft || response.ad?.id?.toString().startsWith("draft-");
+        const isDraft =
+          options?.saveAsDraft ||
+          response.ad?.id?.toString().startsWith("draft-");
         const successMessage = isDraft
           ? "Shopping ad saved as draft."
           : `Shopping ad created successfully in "${adgroupName}"!`;
@@ -1525,15 +1679,22 @@ export const GoogleCampaignDetail: React.FC = () => {
               {isDraftCampaign && (
                 <div className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-6 max-w-2xl mb-4">
                   <p className="text-[#072929] text-base mb-4">
-                    This campaign is a draft. Inline edit below or open the full form to edit and publish.
+                    Edit & Publish
                   </p>
                   <button
                     type="button"
-                    onClick={() => setIsDraftCampaignEditPanelOpen(true)}
+                    onClick={() => {
+                      const campaign = campaignDetail?.campaign as Record<string, unknown> | undefined;
+                      if (!accountId || !channelId || !campaign) return;
+                      navigate(
+                        `/brands/${accountId}/${channelId}/google/campaigns`,
+                        { state: { openCampaignForEdit: campaign } }
+                      );
+                    }}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5656] text-sm font-medium"
                   >
                     <Send className="w-4 h-4" aria-hidden />
-                    Edit or Publish
+                    Edit & Publish
                   </button>
                 </div>
               )}
@@ -1548,7 +1709,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                   setEditingField(field);
                   if (field === "status" && campaignDetail) {
                     const statusUpper =
-                      campaignDetail.campaign.status?.toUpperCase() || "ENABLED";
+                      campaignDetail.campaign.status?.toUpperCase() ||
+                      "ENABLED";
                     setEditedValue(
                       statusUpper === "ENABLED" ? "ENABLED" : "PAUSED",
                     );
@@ -1560,16 +1722,16 @@ export const GoogleCampaignDetail: React.FC = () => {
                     setEditedValue(
                       campaignDetail.campaign.start_date
                         ? new Date(campaignDetail.campaign.start_date)
-                          .toISOString()
-                          .split("T")[0]
+                            .toISOString()
+                            .split("T")[0]
                         : "",
                     );
                   } else if (field === "end_date" && campaignDetail) {
                     setEditedValue(
                       campaignDetail.campaign.end_date
                         ? new Date(campaignDetail.campaign.end_date)
-                          .toISOString()
-                          .split("T")[0]
+                            .toISOString()
+                            .split("T")[0]
                         : "",
                     );
                   }
@@ -1617,8 +1779,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                   } else if (fieldToUse === "start_date") {
                     const oldStartDate = campaignDetail.campaign.start_date
                       ? new Date(campaignDetail.campaign.start_date)
-                        .toISOString()
-                        .split("T")[0]
+                          .toISOString()
+                          .split("T")[0]
                       : "";
                     const newStartDate = String(valueToCompare ?? "").trim();
                     if (newStartDate && newStartDate !== oldStartDate) {
@@ -1637,8 +1799,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                   } else if (fieldToUse === "end_date") {
                     const oldEndDate = campaignDetail.campaign.end_date
                       ? new Date(campaignDetail.campaign.end_date)
-                        .toISOString()
-                        .split("T")[0]
+                          .toISOString()
+                          .split("T")[0]
                       : "";
                     const newEndDate = String(valueToCompare ?? "").trim();
                     if (newEndDate && newEndDate !== oldEndDate) {
@@ -1673,7 +1835,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                 <div className="flex flex-col gap-4 mb-4">
                   <div className="flex flex-wrap gap-4 md:gap-7">
                     {campaignDetail.kpi_cards &&
-                      campaignDetail.kpi_cards.length > 0 ? (
+                    campaignDetail.kpi_cards.length > 0 ? (
                       campaignDetail.kpi_cards.map((card, index) => (
                         <KPICard
                           key={index}
@@ -1725,877 +1887,941 @@ export const GoogleCampaignDetail: React.FC = () => {
               )}
 
               {!isDraftCampaign && (
-              <>
-              {/* Tab Navigation & Chart Section */}
-              <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6">
-                {/* Tabs */}
-                <div className="flex items-center gap-2 mb-8 border-b border-[#E6E6E6]">
-                  {tabs.map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${activeTab === tab
-                          ? "border-[#136D6D] text-[#136D6D]"
-                          : "border-transparent text-[#556179] hover:text-[#072929]"
-                        }`}
-                    >
-                      {tab}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Tab Content */}
-                {activeTab === "Overview" && (
-                  <GoogleOverviewTab
-                    chartData={chartData}
-                    chartToggles={chartToggles}
-                    onToggleChartMetric={toggleChartMetric}
-                  />
-                )}
-
-                {activeTab === "Asset Groups" && (
-                  <>
-                    <GoogleCampaignDetailAssetGroupsTab
-                      assetGroups={assetGroups}
-                      loading={assetGroupsLoading}
-                      selectedAssetGroupIds={selectedAssetGroupIds}
-                      onSelectAll={handleSelectAllAssetGroups}
-                      onSelectAssetGroup={handleSelectAssetGroup}
-                      sortBy={assetGroupsSortBy}
-                      sortOrder={assetGroupsSortOrder}
-                      onSort={handleAssetGroupsSort}
-                      currentPage={assetGroupsCurrentPage}
-                      totalPages={assetGroupsTotalPages}
-                      onPageChange={handleAssetGroupsPageChange}
-                      isFilterPanelOpen={isAssetGroupsFilterPanelOpen}
-                      onToggleFilterPanel={() =>
-                        setIsAssetGroupsFilterPanelOpen(
-                          !isAssetGroupsFilterPanelOpen,
-                        )
-                      }
-                      filters={assetGroupsFilters}
-                      onApplyFilters={(newFilters) => {
-                        setAssetGroupsFilters(newFilters);
-                        setAssetGroupsCurrentPage(1);
-                      }}
-                      syncMessage={
-                        syncMessage.type === "assetgroups"
-                          ? syncMessage.message
-                          : null
-                      }
-                      formatPercentage={formatPercentage}
-                      formatCurrency2Decimals={formatCurrency2Decimals}
-                      getSortIcon={getSortIcon}
-                      onEditAssetGroup={handleEditAssetGroup}
-                      editLoadingAssetGroupId={editLoadingAssetGroupId}
-                      onUpdateAssetGroupStatus={handleUpdateAssetGroupStatus}
-                      onBulkUpdateAssetGroupStatus={
-                        handleBulkUpdateAssetGroupStatus
-                      }
-                      profileId={profileId || undefined}
-                      campaignId={campaignId}
-                      onViewAssets={handleViewAssets}
-                      viewAssetsModalOpen={viewAssetsModalOpen}
-                      viewingAssetGroupName={viewingAssetGroupName}
-                      assetGroupAssets={assetGroupAssets}
-                      loadingAssets={loadingAssets}
-                      onCloseViewAssetsModal={handleCloseViewAssetsModal}
-                      onBulkUpdateComplete={assetGroupsHook.loadAssetGroups}
-                      createButton={
-                        campaignDetail?.campaign.advertising_channel_type ===
-                          "PERFORMANCE_MAX" ? (
-                          <CreateGooglePmaxAssetGroupSection
-                            isOpen={isCreatePmaxAssetGroupPanelOpen}
-                            onToggle={() => {
-                              setIsCreatePmaxAssetGroupPanelOpen(
-                                !isCreatePmaxAssetGroupPanelOpen,
-                              );
-                              setIsAssetGroupsFilterPanelOpen(false);
-                              // Close edit panel when opening create panel
-                              if (!isCreatePmaxAssetGroupPanelOpen) {
-                                handleCloseEditPanel();
-                              }
-                            }}
-                          />
-                        ) : undefined
-                      }
-                      createPanel={
-                        campaignDetail?.campaign.advertising_channel_type ===
-                          "PERFORMANCE_MAX" ? (
-                          <>
-                            {isCreatePmaxAssetGroupPanelOpen && campaignId && (
-                              <CreateGooglePmaxAssetGroupPanel
-                                isOpen={isCreatePmaxAssetGroupPanelOpen}
-                                onClose={() => {
-                                  setIsCreatePmaxAssetGroupPanelOpen(false);
-                                  setCreatePmaxAssetGroupError(null);
-                                }}
-                                onSubmit={handleCreatePmaxAssetGroup}
-                                campaignId={campaignId}
-                                loading={createPmaxAssetGroupLoading}
-                                submitError={createPmaxAssetGroupError}
-                                profileId={profileId}
-                              />
-                            )}
-                            {isEditAssetGroupPanelOpen &&
-                              editingAssetGroupId !== null &&
-                              campaignId && (
-                                <div data-edit-asset-group-panel>
-                                  <CreateGooglePmaxAssetGroupPanel
-                                    isOpen={isEditAssetGroupPanelOpen}
-                                    onClose={handleCloseEditPanel}
-                                    onSubmit={handleUpdateAssetGroup}
-                                    campaignId={campaignId}
-                                    loading={editAssetGroupLoading}
-                                    submitError={editAssetGroupError}
-                                    editMode={true}
-                                    initialData={editingAssetGroupData}
-                                    assetGroupId={editingAssetGroupId}
-                                    refreshMessage={refreshAssetGroupMessage}
-                                    profileId={profileId}
-                                  />
-                                </div>
-                              )}
-                          </>
-                        ) : undefined
-                      }
-                    />
-                  </>
-                )}
-
-                {activeTab === "Audience Signal" && (
-                  <div className="flex items-center justify-center py-16">
-                    <div className="text-center">
-                      <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
-                        Coming Soon
-                      </h3>
-                      <p className="text-[14px] text-[#556179]">
-                        Audience Signal functionality will be available soon.
-                      </p>
+                <>
+                  {/* Tab Navigation & Chart Section */}
+                  <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6">
+                    {/* Tabs */}
+                    <div className="flex items-center gap-2 mb-8 border-b border-[#E6E6E6]">
+                      {tabs.map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setActiveTab(tab)}
+                          className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${
+                            activeTab === tab
+                              ? "border-[#136D6D] text-[#136D6D]"
+                              : "border-transparent text-[#556179] hover:text-[#072929]"
+                          }`}
+                        >
+                          {tab}
+                        </button>
+                      ))}
                     </div>
-                  </div>
-                )}
 
-                {activeTab === "Ad Groups" && (
-                  <>
-                    <GoogleCampaignDetailAdGroupsTab
-                      adgroups={adgroups}
-                      loading={adgroupsLoading}
-                      selectedAdGroupIds={selectedAdGroupIds}
-                      onSelectAll={handleSelectAllAdGroups}
-                      onSelectAdGroup={handleSelectAdGroup}
-                      sortBy={adgroupsSortBy}
-                      sortOrder={adgroupsSortOrder}
-                      onSort={handleAdGroupsSort}
-                      currentPage={adgroupsCurrentPage}
-                      totalPages={adgroupsTotalPages}
-                      onPageChange={handleAdGroupsPageChange}
-                      isFilterPanelOpen={isAdGroupsFilterPanelOpen}
-                      onToggleFilterPanel={() =>
-                        setIsAdGroupsFilterPanelOpen(!isAdGroupsFilterPanelOpen)
-                      }
-                      filters={adgroupsFilters}
-                      onApplyFilters={(newFilters) => {
-                        setAdgroupsFilters(newFilters);
-                        setAdgroupsCurrentPage(1);
-                      }}
-                      syncing={syncingAdGroups}
-                      onSync={handleSyncAdGroups}
-                      syncingAnalytics={syncingAdGroupsAnalytics}
-                      onSyncAnalytics={handleSyncAdGroupsAnalytics}
-                      syncMessage={
-                        syncMessage.type === "adgroups"
-                          ? syncMessage.message
-                          : null
-                      }
-                      formatPercentage={formatPercentage}
-                      formatCurrency2Decimals={formatCurrency2Decimals}
-                      getSortIcon={getSortIcon}
-                      onUpdateAdGroupStatus={handleUpdateAdGroupStatus}
-                      onUpdateAdGroupBid={handleUpdateAdGroupBid}
-                      onUpdateAdGroupName={async (
-                        adgroupId: number,
-                        name: string,
-                      ) => {
-                        if (!accountId || !channelId) return;
-                        const accountIdNum = parseInt(accountId, 10);
-                        const channelIdNum = parseInt(channelId, 10);
-                        if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
-                          throw new Error("Invalid account ID or channel ID");
-                        }
+                    {/* Tab Content */}
+                    {activeTab === "Overview" && (
+                      <GoogleOverviewTab
+                        chartData={chartData}
+                        chartToggles={chartToggles}
+                        onToggleChartMetric={toggleChartMetric}
+                      />
+                    )}
 
-                        // Find the adgroup to get adgroup_id
-                        const adgroup = adgroups.find(
-                          (ag) => ag.id === adgroupId,
-                        );
-                        if (!adgroup || !adgroup.adgroup_id) {
-                          throw new Error("Ad group not found");
-                        }
-
-                        const trimmedName = name.trim();
-                        if (!trimmedName) {
-                          throw new Error("Name cannot be empty");
-                        }
-
-                        const response =
-                          await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(
-                            accountIdNum,
-                            channelIdNum,
-                            {
-                              adgroupIds: [adgroup.adgroup_id],
-                              action: "name",
-                              name: trimmedName,
-                            },
-                          );
-
-                        if (response.errors && response.errors.length > 0) {
-                          throw new Error(response.errors[0]);
-                        }
-
-                      // Reload ad groups
-                      if (loadAdGroups) {
-                        await loadAdGroups();
-                      }
-                    }}
-                    accountId={accountId}
-                    channelId={channelId}
-                    onBulkUpdateComplete={loadAdGroups}
-                    showDraftsOnly={showDraftsOnlyAdGroups}
-                    onToggleDraftsOnly={() => {
-                      setShowDraftsOnlyAdGroups((p) => !p);
-                      setAdgroupsCurrentPage(1);
-                    }}
-                    onPublishDraft={handlePublishAdGroupDraft}
-                    publishLoadingId={
-                      publishDraftEntity?.type === "ad_group" && publishDraftSubmitting
-                        ? (publishDraftEntity.entity.adgroup_id ?? publishDraftEntity.entity.id)
-                        : undefined
-                    }
-                    createButton={
-                      campaignDetail?.campaign.advertising_channel_type ===
-                        "SEARCH" ||
-                      campaignDetail?.campaign.advertising_channel_type ===
-                        "SHOPPING" ||
-                      campaignDetail?.campaign.advertising_channel_type ===
-                        "DEMAND_GEN" ? (
-                        <CreateGoogleAdGroupSection
-                          isOpen={
-                            campaignDetail?.campaign
-                              .advertising_channel_type === "SEARCH"
-                              ? isCreateSearchEntitiesPanelOpen
-                              : campaignDetail?.campaign
-                                  .advertising_channel_type === "SHOPPING"
-                              ? isCreateShoppingEntitiesPanelOpen
-                              : isCreateDemandGenAdGroupPanelOpen
+                    {activeTab === "Asset Groups" && (
+                      <>
+                        <GoogleCampaignDetailAssetGroupsTab
+                          assetGroups={assetGroups}
+                          loading={assetGroupsLoading}
+                          selectedAssetGroupIds={selectedAssetGroupIds}
+                          onSelectAll={handleSelectAllAssetGroups}
+                          onSelectAssetGroup={handleSelectAssetGroup}
+                          sortBy={assetGroupsSortBy}
+                          sortOrder={assetGroupsSortOrder}
+                          onSort={handleAssetGroupsSort}
+                          currentPage={assetGroupsCurrentPage}
+                          totalPages={assetGroupsTotalPages}
+                          onPageChange={handleAssetGroupsPageChange}
+                          isFilterPanelOpen={isAssetGroupsFilterPanelOpen}
+                          onToggleFilterPanel={() =>
+                            setIsAssetGroupsFilterPanelOpen(
+                              !isAssetGroupsFilterPanelOpen,
+                            )
                           }
-                          onToggle={() => {
-                            if (
-                              campaignDetail?.campaign
-                                .advertising_channel_type === "SEARCH"
-                            ) {
-                              setIsCreateSearchEntitiesPanelOpen(
-                                !isCreateSearchEntitiesPanelOpen,
-                              );
-                            } else if (
-                              campaignDetail?.campaign
-                                .advertising_channel_type === "SHOPPING"
-                            ) {
-                              setIsCreateShoppingEntitiesPanelOpen(
-                                !isCreateShoppingEntitiesPanelOpen,
-                              );
-                            } else {
-                              setIsCreateDemandGenAdGroupPanelOpen(
-                                !isCreateDemandGenAdGroupPanelOpen,
+                          filters={assetGroupsFilters}
+                          onApplyFilters={(newFilters) => {
+                            setAssetGroupsFilters(newFilters);
+                            setAssetGroupsCurrentPage(1);
+                          }}
+                          syncMessage={
+                            syncMessage.type === "assetgroups"
+                              ? syncMessage.message
+                              : null
+                          }
+                          formatPercentage={formatPercentage}
+                          formatCurrency2Decimals={formatCurrency2Decimals}
+                          getSortIcon={getSortIcon}
+                          onEditAssetGroup={handleEditAssetGroup}
+                          editLoadingAssetGroupId={editLoadingAssetGroupId}
+                          onUpdateAssetGroupStatus={
+                            handleUpdateAssetGroupStatus
+                          }
+                          onBulkUpdateAssetGroupStatus={
+                            handleBulkUpdateAssetGroupStatus
+                          }
+                          profileId={profileId || undefined}
+                          campaignId={campaignId}
+                          onViewAssets={handleViewAssets}
+                          viewAssetsModalOpen={viewAssetsModalOpen}
+                          viewingAssetGroupName={viewingAssetGroupName}
+                          assetGroupAssets={assetGroupAssets}
+                          loadingAssets={loadingAssets}
+                          onCloseViewAssetsModal={handleCloseViewAssetsModal}
+                          onBulkUpdateComplete={assetGroupsHook.loadAssetGroups}
+                          createButton={
+                            campaignDetail?.campaign
+                              .advertising_channel_type ===
+                            "PERFORMANCE_MAX" ? (
+                              <CreateGooglePmaxAssetGroupSection
+                                isOpen={isCreatePmaxAssetGroupPanelOpen}
+                                onToggle={() => {
+                                  setIsCreatePmaxAssetGroupPanelOpen(
+                                    !isCreatePmaxAssetGroupPanelOpen,
+                                  );
+                                  setIsAssetGroupsFilterPanelOpen(false);
+                                  // Close edit panel when opening create panel
+                                  if (!isCreatePmaxAssetGroupPanelOpen) {
+                                    handleCloseEditPanel();
+                                  }
+                                }}
+                              />
+                            ) : undefined
+                          }
+                          createPanel={
+                            campaignDetail?.campaign
+                              .advertising_channel_type ===
+                            "PERFORMANCE_MAX" ? (
+                              <>
+                                {isCreatePmaxAssetGroupPanelOpen &&
+                                  campaignId && (
+                                    <CreateGooglePmaxAssetGroupPanel
+                                      isOpen={isCreatePmaxAssetGroupPanelOpen}
+                                      onClose={() => {
+                                        setIsCreatePmaxAssetGroupPanelOpen(
+                                          false,
+                                        );
+                                        setCreatePmaxAssetGroupError(null);
+                                      }}
+                                      onSubmit={handleCreatePmaxAssetGroup}
+                                      campaignId={campaignId}
+                                      loading={createPmaxAssetGroupLoading}
+                                      submitError={createPmaxAssetGroupError}
+                                      profileId={profileId}
+                                    />
+                                  )}
+                                {isEditAssetGroupPanelOpen &&
+                                  editingAssetGroupId !== null &&
+                                  campaignId && (
+                                    <div data-edit-asset-group-panel>
+                                      <CreateGooglePmaxAssetGroupPanel
+                                        isOpen={isEditAssetGroupPanelOpen}
+                                        onClose={handleCloseEditPanel}
+                                        onSubmit={handleUpdateAssetGroup}
+                                        campaignId={campaignId}
+                                        loading={editAssetGroupLoading}
+                                        submitError={editAssetGroupError}
+                                        editMode={true}
+                                        initialData={editingAssetGroupData}
+                                        assetGroupId={editingAssetGroupId}
+                                        refreshMessage={
+                                          refreshAssetGroupMessage
+                                        }
+                                        profileId={profileId}
+                                      />
+                                    </div>
+                                  )}
+                              </>
+                            ) : undefined
+                          }
+                        />
+                      </>
+                    )}
+
+                    {activeTab === "Audience Signal" && (
+                      <div className="flex items-center justify-center py-16">
+                        <div className="text-center">
+                          <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                            Coming Soon
+                          </h3>
+                          <p className="text-[14px] text-[#556179]">
+                            Audience Signal functionality will be available
+                            soon.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeTab === "Ad Groups" && (
+                      <>
+                        <GoogleCampaignDetailAdGroupsTab
+                          adgroups={adgroups}
+                          loading={adgroupsLoading}
+                          selectedAdGroupIds={selectedAdGroupIds}
+                          onSelectAll={handleSelectAllAdGroups}
+                          onSelectAdGroup={handleSelectAdGroup}
+                          sortBy={adgroupsSortBy}
+                          sortOrder={adgroupsSortOrder}
+                          onSort={handleAdGroupsSort}
+                          currentPage={adgroupsCurrentPage}
+                          totalPages={adgroupsTotalPages}
+                          onPageChange={handleAdGroupsPageChange}
+                          isFilterPanelOpen={isAdGroupsFilterPanelOpen}
+                          onToggleFilterPanel={() =>
+                            setIsAdGroupsFilterPanelOpen(
+                              !isAdGroupsFilterPanelOpen,
+                            )
+                          }
+                          filters={adgroupsFilters}
+                          onApplyFilters={(newFilters) => {
+                            setAdgroupsFilters(newFilters);
+                            setAdgroupsCurrentPage(1);
+                          }}
+                          syncing={syncingAdGroups}
+                          onSync={handleSyncAdGroups}
+                          syncingAnalytics={syncingAdGroupsAnalytics}
+                          onSyncAnalytics={handleSyncAdGroupsAnalytics}
+                          syncMessage={
+                            syncMessage.type === "adgroups"
+                              ? syncMessage.message
+                              : null
+                          }
+                          formatPercentage={formatPercentage}
+                          formatCurrency2Decimals={formatCurrency2Decimals}
+                          getSortIcon={getSortIcon}
+                          onUpdateAdGroupStatus={handleUpdateAdGroupStatus}
+                          onUpdateAdGroupBid={handleUpdateAdGroupBid}
+                          onUpdateAdGroupName={async (
+                            adgroupId: number,
+                            name: string,
+                          ) => {
+                            if (!accountId || !channelId) return;
+                            const accountIdNum = parseInt(accountId, 10);
+                            const channelIdNum = parseInt(channelId, 10);
+                            if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+                              throw new Error(
+                                "Invalid account ID or channel ID",
                               );
                             }
-                            setIsAdGroupsFilterPanelOpen(false);
+
+                            // Find the adgroup to get adgroup_id
+                            const adgroup = adgroups.find(
+                              (ag) => ag.id === adgroupId,
+                            );
+                            if (!adgroup || !adgroup.adgroup_id) {
+                              throw new Error("Ad group not found");
+                            }
+
+                            const trimmedName = name.trim();
+                            if (!trimmedName) {
+                              throw new Error("Name cannot be empty");
+                            }
+
+                            const response =
+                              await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(
+                                accountIdNum,
+                                channelIdNum,
+                                {
+                                  adgroupIds: [adgroup.adgroup_id],
+                                  action: "name",
+                                  name: trimmedName,
+                                },
+                              );
+
+                            if (response.errors && response.errors.length > 0) {
+                              throw new Error(response.errors[0]);
+                            }
+
+                            // Reload ad groups
+                            if (loadAdGroups) {
+                              await loadAdGroups();
+                            }
                           }}
-                        />
-                      ) : undefined
-                    }
-                    createPanel={
-                      campaignDetail?.campaign.advertising_channel_type ===
-                        "SEARCH" ||
-                      campaignDetail?.campaign.advertising_channel_type ===
-                        "SHOPPING" ||
-                      campaignDetail?.campaign.advertising_channel_type ===
-                        "DEMAND_GEN" ? (
-                        <>
-                          {campaignDetail?.campaign.advertising_channel_type ===
-                            "SEARCH" &&
-                            isCreateSearchEntitiesPanelOpen &&
-                            campaignId && (
-                              <CreateGoogleAdGroupPanel
-                                isOpen={isCreateSearchEntitiesPanelOpen}
-                                onClose={() => {
-                                  setIsCreateSearchEntitiesPanelOpen(false);
-                                  setCreateSearchEntitiesError(null);
+                          accountId={accountId}
+                          channelId={channelId}
+                          onBulkUpdateComplete={loadAdGroups}
+                          showDraftsOnly={showDraftsOnlyAdGroups}
+                          onToggleDraftsOnly={() => {
+                            setShowDraftsOnlyAdGroups((p) => !p);
+                            setAdgroupsCurrentPage(1);
+                          }}
+                          onPublishDraft={handlePublishAdGroupDraft}
+                          publishLoadingId={
+                            publishDraftEntity?.type === "ad_group" &&
+                            publishDraftSubmitting
+                              ? (publishDraftEntity.entity.adgroup_id ??
+                                publishDraftEntity.entity.id)
+                              : undefined
+                          }
+                          createButton={
+                            campaignDetail?.campaign
+                              .advertising_channel_type === "SEARCH" ||
+                            campaignDetail?.campaign
+                              .advertising_channel_type === "SHOPPING" ||
+                            campaignDetail?.campaign
+                              .advertising_channel_type === "DEMAND_GEN" ? (
+                              <CreateGoogleAdGroupSection
+                                isOpen={
+                                  campaignDetail?.campaign
+                                    .advertising_channel_type === "SEARCH"
+                                    ? isCreateSearchEntitiesPanelOpen
+                                    : campaignDetail?.campaign
+                                          .advertising_channel_type ===
+                                        "SHOPPING"
+                                      ? isCreateShoppingEntitiesPanelOpen
+                                      : isCreateDemandGenAdGroupPanelOpen
+                                }
+                                onToggle={() => {
+                                  if (
+                                    campaignDetail?.campaign
+                                      .advertising_channel_type === "SEARCH"
+                                  ) {
+                                    setIsCreateSearchEntitiesPanelOpen(
+                                      !isCreateSearchEntitiesPanelOpen,
+                                    );
+                                  } else if (
+                                    campaignDetail?.campaign
+                                      .advertising_channel_type === "SHOPPING"
+                                  ) {
+                                    setIsCreateShoppingEntitiesPanelOpen(
+                                      !isCreateShoppingEntitiesPanelOpen,
+                                    );
+                                  } else {
+                                    setIsCreateDemandGenAdGroupPanelOpen(
+                                      !isCreateDemandGenAdGroupPanelOpen,
+                                    );
+                                  }
+                                  setIsAdGroupsFilterPanelOpen(false);
                                 }}
-                                onSubmit={handleCreateAdGroup}
-                                campaignId={campaignId}
-                                campaignName={campaignDetail?.campaign.name}
-                                loading={createSearchEntitiesLoading}
-                                submitError={null}
                               />
-                            )}
-                          {campaignDetail?.campaign.advertising_channel_type ===
-                            "SHOPPING" &&
+                            ) : undefined
+                          }
+                          createPanel={
+                            campaignDetail?.campaign
+                              .advertising_channel_type === "SEARCH" ||
+                            campaignDetail?.campaign
+                              .advertising_channel_type === "SHOPPING" ||
+                            campaignDetail?.campaign
+                              .advertising_channel_type === "DEMAND_GEN" ? (
+                              <>
+                                {campaignDetail?.campaign
+                                  .advertising_channel_type === "SEARCH" &&
+                                  isCreateSearchEntitiesPanelOpen &&
+                                  campaignId && (
+                                    <CreateGoogleAdGroupPanel
+                                      isOpen={isCreateSearchEntitiesPanelOpen}
+                                      onClose={() => {
+                                        setIsCreateSearchEntitiesPanelOpen(
+                                          false,
+                                        );
+                                        setCreateSearchEntitiesError(null);
+                                      }}
+                                      onSubmit={handleCreateAdGroup}
+                                      campaignId={campaignId}
+                                      campaignName={
+                                        campaignDetail?.campaign.name
+                                      }
+                                      loading={createSearchEntitiesLoading}
+                                      submitError={null}
+                                    />
+                                  )}
+                                {campaignDetail?.campaign
+                                  .advertising_channel_type === "SHOPPING" &&
+                                  isCreateShoppingEntitiesPanelOpen &&
+                                  campaignId && (
+                                    <CreateGoogleAdGroupPanel
+                                      isOpen={isCreateShoppingEntitiesPanelOpen}
+                                      onClose={() => {
+                                        setIsCreateShoppingEntitiesPanelOpen(
+                                          false,
+                                        );
+                                        setCreateShoppingEntitiesError(null);
+                                      }}
+                                      onSubmit={handleCreateShoppingAdGroup}
+                                      campaignId={campaignId}
+                                      campaignName={
+                                        campaignDetail?.campaign.name
+                                      }
+                                      loading={createShoppingEntitiesLoading}
+                                      submitError={createShoppingEntitiesError}
+                                    />
+                                  )}
+                                {campaignDetail?.campaign
+                                  .advertising_channel_type === "DEMAND_GEN" &&
+                                  isCreateDemandGenAdGroupPanelOpen &&
+                                  campaignId && (
+                                    <CreateGoogleDemandGenAdGroupPanel
+                                      isOpen={isCreateDemandGenAdGroupPanelOpen}
+                                      onClose={() => {
+                                        setIsCreateDemandGenAdGroupPanelOpen(
+                                          false,
+                                        );
+                                        setCreateDemandGenAdGroupError(null);
+                                      }}
+                                      onSubmit={handleCreateDemandGenAdGroup}
+                                      campaignId={campaignId}
+                                      campaignName={
+                                        campaignDetail?.campaign.name
+                                      }
+                                      loading={createDemandGenAdGroupLoading}
+                                      submitError={createDemandGenAdGroupError}
+                                    />
+                                  )}
+                              </>
+                            ) : undefined
+                          }
+                        />
+                      </>
+                    )}
+
+                    {activeTab === "Ads" &&
+                      campaignDetail?.campaign.advertising_channel_type !==
+                        "PERFORMANCE_MAX" && (
+                        <>
+                          <GoogleCampaignDetailAdsTab
+                            ads={ads}
+                            loading={adsLoading}
+                            selectedAdIds={selectedAdIds}
+                            onSelectAll={handleSelectAllAds}
+                            onSelectAd={handleSelectAd}
+                            sortBy={adsSortBy}
+                            sortOrder={adsSortOrder}
+                            onSort={handleAdsSort}
+                            currentPage={adsCurrentPage}
+                            totalPages={adsTotalPages}
+                            onPageChange={handleAdsPageChange}
+                            isFilterPanelOpen={isAdsFilterPanelOpen}
+                            onToggleFilterPanel={() =>
+                              setIsAdsFilterPanelOpen(!isAdsFilterPanelOpen)
+                            }
+                            filters={adsFilters}
+                            onApplyFilters={(newFilters) => {
+                              setAdsFilters(newFilters);
+                              setAdsCurrentPage(1);
+                            }}
+                            syncing={syncingAds}
+                            onSync={handleSyncAds}
+                            syncingAnalytics={syncingAdsAnalytics}
+                            onSyncAnalytics={handleSyncAdsAnalytics}
+                            syncMessage={
+                              syncMessage.type === "ads"
+                                ? syncMessage.message
+                                : null
+                            }
+                            getSortIcon={getSortIcon}
+                            onUpdateAdStatus={handleUpdateAdStatus}
+                            accountId={accountId}
+                            channelId={channelId}
+                            campaignId={campaignId}
+                            onBulkUpdateComplete={loadAdsFromHook}
+                            formatCurrency={formatCurrency2Decimals}
+                            formatPercentage={formatPercentage}
+                            showDraftsOnly={showDraftsOnlyAds}
+                            onToggleDraftsOnly={() => {
+                              setShowDraftsOnlyAds((p) => !p);
+                              setAdsCurrentPage(1);
+                            }}
+                            onPublishDraft={handlePublishAdDraft}
+                            publishLoadingId={
+                              publishDraftEntity?.type === "ad" &&
+                              publishDraftSubmitting
+                                ? (publishDraftEntity.entity.ad_id ??
+                                  publishDraftEntity.entity.id)
+                                : undefined
+                            }
+                            createButton={
+                              campaignDetail?.campaign
+                                .advertising_channel_type === "SEARCH" ? (
+                                <CreateGoogleAdSection
+                                  isOpen={isCreateSearchEntitiesPanelOpen}
+                                  onToggle={() => {
+                                    setIsCreateSearchEntitiesPanelOpen(
+                                      !isCreateSearchEntitiesPanelOpen,
+                                    );
+                                    setIsAdsFilterPanelOpen(false);
+                                  }}
+                                />
+                              ) : campaignDetail?.campaign
+                                  .advertising_channel_type === "SHOPPING" ? (
+                                <CreateGoogleShoppingEntitiesSection
+                                  isOpen={isCreateShoppingEntitiesPanelOpen}
+                                  onToggle={() => {
+                                    setIsCreateShoppingEntitiesPanelOpen(
+                                      !isCreateShoppingEntitiesPanelOpen,
+                                    );
+                                    setIsAdsFilterPanelOpen(false);
+                                  }}
+                                />
+                              ) : campaignChannelType === "DEMAND_GEN" ? (
+                                <CreateGoogleDemandGenAdSection
+                                  isOpen={isCreateDemandGenAdSectionOpen}
+                                  onToggle={() => {
+                                    setIsCreateDemandGenAdSectionOpen(
+                                      !isCreateDemandGenAdSectionOpen,
+                                    );
+                                    setIsAdsFilterPanelOpen(false);
+                                  }}
+                                />
+                              ) : undefined
+                            }
+                            createPanel={
+                              campaignDetail?.campaign
+                                .advertising_channel_type === "SEARCH" &&
+                              isCreateSearchEntitiesPanelOpen &&
+                              campaignId ? (
+                                <CreateGoogleAdPanel
+                                  isOpen={isCreateSearchEntitiesPanelOpen}
+                                  onClose={() => {
+                                    setIsCreateSearchEntitiesPanelOpen(false);
+                                    setCreateSearchEntitiesError(null);
+                                  }}
+                                  onSubmit={handleCreateAd}
+                                  campaignId={campaignId}
+                                  accountId={accountId || ""}
+                                  channelId={channelId}
+                                  profileId={profileId}
+                                  loading={createSearchEntitiesLoading}
+                                  submitError={null}
+                                />
+                              ) : campaignDetail?.campaign
+                                  .advertising_channel_type === "SHOPPING" &&
+                                isCreateShoppingEntitiesPanelOpen &&
+                                campaignId &&
+                                accountId ? (
+                                <CreateGoogleShoppingEntitiesPanel
+                                  isOpen={isCreateShoppingEntitiesPanelOpen}
+                                  onClose={() => {
+                                    setIsCreateShoppingEntitiesPanelOpen(false);
+                                    setCreateShoppingEntitiesError(null);
+                                  }}
+                                  onSubmit={handleCreateShoppingEntities}
+                                  campaignId={campaignId}
+                                  accountId={accountId}
+                                  channelId={channelId}
+                                  loading={createShoppingEntitiesLoading}
+                                  submitError={createShoppingEntitiesError}
+                                />
+                              ) : campaignChannelType === "DEMAND_GEN" &&
+                                isCreateDemandGenAdSectionOpen &&
+                                campaignId &&
+                                accountId ? (
+                                <CreateGoogleDemandGenAdPanel
+                                  isOpen={isCreateDemandGenAdSectionOpen}
+                                  onClose={() => {
+                                    setIsCreateDemandGenAdSectionOpen(false);
+                                    setCreateDemandGenAdError(null);
+                                  }}
+                                  onSubmit={handleCreateDemandGenAd}
+                                  loading={createDemandGenAdLoading}
+                                  submitError={createDemandGenAdError}
+                                  profileId={profileId}
+                                />
+                              ) : undefined
+                            }
+                          />
+                        </>
+                      )}
+
+                    {activeTab === "Assets" &&
+                      campaignChannelType === "DEMAND_GEN" && (
+                        <GoogleCampaignDetailAssetsTab
+                          profileId={profileId}
+                          accountId={accountId}
+                          channelId={channelId}
+                        />
+                      )}
+
+                    {activeTab === "Keywords" &&
+                      campaignChannelType !== "DEMAND_GEN" && (
+                        <>
+                          <GoogleCampaignDetailKeywordsTab
+                            keywords={keywords}
+                            loading={keywordsLoading}
+                            selectedKeywordIds={selectedKeywordIds}
+                            onSelectAll={handleSelectAllKeywords}
+                            onSelectKeyword={handleSelectKeyword}
+                            sortBy={keywordsSortBy}
+                            sortOrder={keywordsSortOrder}
+                            onSort={handleKeywordsSort}
+                            currentPage={keywordsCurrentPage}
+                            totalPages={keywordsTotalPages}
+                            onPageChange={handleKeywordsPageChange}
+                            isFilterPanelOpen={isKeywordsFilterPanelOpen}
+                            onToggleFilterPanel={() =>
+                              setIsKeywordsFilterPanelOpen(
+                                !isKeywordsFilterPanelOpen,
+                              )
+                            }
+                            accountId={accountId!}
+                            filters={keywordsFilters}
+                            onApplyFilters={(newFilters) => {
+                              // Convert DynamicFilterValues to FilterValues format
+                              const convertedFilters = newFilters.map((f) => ({
+                                id: f.id,
+                                field: f.field as FilterValues[0]["field"],
+                                operator: f.operator,
+                                value: f.value,
+                              }));
+                              setKeywordsFilters(convertedFilters);
+                              setKeywordsCurrentPage(1);
+                            }}
+                            syncing={syncingKeywords}
+                            onSync={handleSyncKeywords}
+                            syncingAnalytics={syncingKeywordsAnalytics}
+                            onSyncAnalytics={handleSyncKeywordsAnalytics}
+                            syncMessage={
+                              syncMessage.type === "keywords"
+                                ? syncMessage.message
+                                : null
+                            }
+                            getSortIcon={getSortIcon}
+                            onUpdateKeywordStatus={handleUpdateKeywordStatus}
+                            onUpdateKeywordBid={handleUpdateKeywordBid}
+                            onUpdateKeywordMatchType={
+                              handleUpdateKeywordMatchType
+                            }
+                            onStartKeywordTextEdit={handleStartKeywordTextEdit}
+                            onStartFinalUrlEdit={handleStartFinalUrlEdit}
+                            channelId={channelId}
+                            onBulkUpdateComplete={loadKeywords}
+                            formatCurrency2Decimals={formatCurrency2Decimals}
+                            showDraftsOnly={showDraftsOnlyKeywords}
+                            onToggleDraftsOnly={() => {
+                              setShowDraftsOnlyKeywords((p) => !p);
+                              setKeywordsCurrentPage(1);
+                            }}
+                            onPublishDraft={handlePublishKeywordDraft}
+                            publishLoadingId={
+                              publishDraftEntity?.type === "keyword" &&
+                              publishDraftSubmitting
+                                ? (publishDraftEntity.entity.keyword_id ??
+                                  publishDraftEntity.entity.id)
+                                : undefined
+                            }
+                            createButton={
+                              campaignDetail?.campaign
+                                .advertising_channel_type === "SEARCH" ? (
+                                <CreateGoogleKeywordSection
+                                  isOpen={isCreateSearchEntitiesPanelOpen}
+                                  onToggle={() => {
+                                    setIsCreateSearchEntitiesPanelOpen(
+                                      !isCreateSearchEntitiesPanelOpen,
+                                    );
+                                    setIsKeywordsFilterPanelOpen(false);
+                                  }}
+                                />
+                              ) : undefined
+                            }
+                            createPanel={
+                              campaignDetail?.campaign
+                                .advertising_channel_type === "SEARCH" &&
+                              isCreateSearchEntitiesPanelOpen &&
+                              campaignId &&
+                              accountId ? (
+                                <CreateGoogleKeywordPanel
+                                  isOpen={isCreateSearchEntitiesPanelOpen}
+                                  onClose={() => {
+                                    setIsCreateSearchEntitiesPanelOpen(false);
+                                    setCreateSearchEntitiesError(null);
+                                  }}
+                                  onSubmit={handleCreateKeywords}
+                                  campaignId={campaignId}
+                                  accountId={accountId}
+                                  channelId={channelId}
+                                  loading={createSearchEntitiesLoading}
+                                  submitError={null}
+                                />
+                              ) : undefined
+                            }
+                          />
+                        </>
+                      )}
+
+                    {activeTab === "Negative Keywords" &&
+                      campaignChannelType !== "DEMAND_GEN" && (
+                        <>
+                          <GoogleCampaignDetailNegativeKeywordsTab
+                            negativeKeywords={negativeKeywords}
+                            loading={negativeKeywordsLoading}
+                            selectedNegativeKeywordIds={
+                              selectedNegativeKeywordIds
+                            }
+                            onSelectAll={handleSelectAllNegativeKeywords}
+                            onSelectNegativeKeyword={
+                              handleSelectNegativeKeyword
+                            }
+                            sortBy={negativeKeywordsSortBy}
+                            sortOrder={negativeKeywordsSortOrder}
+                            onSort={handleNegativeKeywordsSort}
+                            currentPage={negativeKeywordsCurrentPage}
+                            totalPages={negativeKeywordsTotalPages}
+                            onPageChange={handleNegativeKeywordsPageChange}
+                            isFilterPanelOpen={
+                              isNegativeKeywordsFilterPanelOpen
+                            }
+                            onToggleFilterPanel={() =>
+                              setIsNegativeKeywordsFilterPanelOpen(
+                                !isNegativeKeywordsFilterPanelOpen,
+                              )
+                            }
+                            filters={negativeKeywordsFilters}
+                            onApplyFilters={(newFilters) => {
+                              setNegativeKeywordsFilters(newFilters);
+                              setNegativeKeywordsCurrentPage(1);
+                            }}
+                            syncing={syncingNegativeKeywords}
+                            onSync={handleSyncNegativeKeywords}
+                            syncMessage={
+                              syncMessage.type === "negative_keywords"
+                                ? syncMessage.message
+                                : null
+                            }
+                            getSortIcon={getSortIcon}
+                            onUpdateNegativeKeywordStatus={
+                              handleUpdateNegativeKeywordStatus
+                            }
+                            onUpdateNegativeKeywordMatchType={
+                              handleUpdateNegativeKeywordMatchType
+                            }
+                            onUpdateNegativeKeywordText={
+                              handleUpdateNegativeKeywordText
+                            }
+                            campaignType={
+                              campaignDetail?.campaign?.advertising_channel_type
+                            }
+                            accountId={accountId}
+                            channelId={channelId}
+                            onBulkUpdateComplete={
+                              negativeKeywordsHook.loadNegativeKeywords
+                            }
+                            showDraftsOnly={showDraftsOnlyNegativeKeywords}
+                            onToggleDraftsOnly={() => {
+                              setShowDraftsOnlyNegativeKeywords((p) => !p);
+                              setNegativeKeywordsCurrentPage(1);
+                            }}
+                            onPublishDraft={handlePublishNegativeKeywordDraft}
+                            onConfirmPublishDraft={
+                              runPublishNegativeKeywordDraft
+                            }
+                            publishLoadingId={
+                              publishLoadingNegativeKeywordId ??
+                              (publishDraftEntity?.type ===
+                                "negative_keyword" && publishDraftSubmitting
+                                ? (publishDraftEntity.entity.criterion_id ??
+                                  publishDraftEntity.entity.id)
+                                : undefined)
+                            }
+                            createButton={
+                              <CreateGoogleNegativeKeywordSection
+                                isOpen={isCreateNegativeKeywordPanelOpen}
+                                onToggle={() => {
+                                  setIsCreateNegativeKeywordPanelOpen(
+                                    !isCreateNegativeKeywordPanelOpen,
+                                  );
+                                  setIsNegativeKeywordsFilterPanelOpen(false);
+                                }}
+                              />
+                            }
+                            createPanel={
+                              isCreateNegativeKeywordPanelOpen &&
+                              campaignId &&
+                              accountId ? (
+                                <CreateGoogleNegativeKeywordPanel
+                                  isOpen={isCreateNegativeKeywordPanelOpen}
+                                  onClose={() => {
+                                    setIsCreateNegativeKeywordPanelOpen(false);
+                                    setCreateNegativeKeywordError(null);
+                                    setCreatedNegativeKeywords([]);
+                                    setFailedNegativeKeywords([]);
+                                  }}
+                                  onSubmit={handleCreateNegativeKeywords}
+                                  campaignId={campaignId}
+                                  accountId={accountId}
+                                  campaignType={
+                                    campaignDetail?.campaign
+                                      ?.advertising_channel_type
+                                  }
+                                  adgroups={adgroups}
+                                  loading={createNegativeKeywordLoading}
+                                  submitError={createNegativeKeywordError}
+                                  createdNegativeKeywords={
+                                    createdNegativeKeywords
+                                  }
+                                  failedNegativeKeywords={
+                                    failedNegativeKeywords
+                                  }
+                                />
+                              ) : undefined
+                            }
+                          />
+                        </>
+                      )}
+
+                    {activeTab === "Product Groups" && (
+                      <>
+                        <GoogleCampaignDetailProductGroupsTab
+                          productGroups={productGroups}
+                          loading={productGroupsLoading}
+                          selectedProductGroupIds={selectedProductGroupIds}
+                          getProductGroupSelectionKey={
+                            getProductGroupSelectionKey
+                          }
+                          onSelectAll={handleSelectAllProductGroups}
+                          onSelectProductGroup={handleSelectProductGroup}
+                          sortBy={productGroupsSortBy}
+                          sortOrder={productGroupsSortOrder}
+                          onSort={handleProductGroupsSort}
+                          currentPage={productGroupsCurrentPage}
+                          totalPages={productGroupsTotalPages}
+                          onPageChange={handleProductGroupsPageChange}
+                          isFilterPanelOpen={isProductGroupsFilterPanelOpen}
+                          onToggleFilterPanel={() =>
+                            setIsProductGroupsFilterPanelOpen(
+                              !isProductGroupsFilterPanelOpen,
+                            )
+                          }
+                          filters={productGroupsFilters}
+                          onApplyFilters={(newFilters) => {
+                            setProductGroupsFilters(newFilters);
+                            setProductGroupsCurrentPage(1);
+                          }}
+                          syncing={false}
+                          onSync={() => {}}
+                          syncingAnalytics={undefined}
+                          onSyncAnalytics={undefined}
+                          syncMessage={null}
+                          getSortIcon={getSortIcon}
+                          formatCurrency2Decimals={formatCurrency2Decimals}
+                          formatPercentage={formatPercentage}
+                          onUpdateProductGroupStatus={
+                            handleUpdateProductGroupStatus
+                          }
+                          accountId={accountId}
+                          channelId={channelId}
+                          onBulkUpdateComplete={loadProductGroups}
+                          createButton={
+                            campaignDetail?.campaign
+                              .advertising_channel_type === "SHOPPING" ? (
+                              <CreateGoogleShoppingEntitiesSection
+                                isOpen={isCreateShoppingEntitiesPanelOpen}
+                                onToggle={() => {
+                                  setIsCreateShoppingEntitiesPanelOpen(
+                                    !isCreateShoppingEntitiesPanelOpen,
+                                  );
+                                  // Close filter panel if exists
+                                }}
+                              />
+                            ) : undefined
+                          }
+                          createPanel={
+                            campaignDetail?.campaign
+                              .advertising_channel_type === "SHOPPING" &&
                             isCreateShoppingEntitiesPanelOpen &&
-                            campaignId && (
-                              <CreateGoogleAdGroupPanel
+                            campaignId &&
+                            accountId ? (
+                              <CreateGoogleShoppingEntitiesPanel
                                 isOpen={isCreateShoppingEntitiesPanelOpen}
                                 onClose={() => {
                                   setIsCreateShoppingEntitiesPanelOpen(false);
                                   setCreateShoppingEntitiesError(null);
                                 }}
-                                onSubmit={handleCreateShoppingAdGroup}
+                                onSubmit={handleCreateShoppingEntities}
                                 campaignId={campaignId}
-                                campaignName={campaignDetail?.campaign.name}
+                                accountId={accountId}
+                                channelId={channelId}
                                 loading={createShoppingEntitiesLoading}
                                 submitError={createShoppingEntitiesError}
                               />
-                            )}
-                          {campaignDetail?.campaign.advertising_channel_type ===
-                            "DEMAND_GEN" &&
-                            isCreateDemandGenAdGroupPanelOpen &&
-                            campaignId && (
-                              <CreateGoogleDemandGenAdGroupPanel
-                                isOpen={isCreateDemandGenAdGroupPanelOpen}
-                                onClose={() => {
-                                  setIsCreateDemandGenAdGroupPanelOpen(false);
-                                  setCreateDemandGenAdGroupError(null);
-                                }}
-                                onSubmit={handleCreateDemandGenAdGroup}
-                                campaignId={campaignId}
-                                campaignName={campaignDetail?.campaign.name}
-                                loading={createDemandGenAdGroupLoading}
-                                submitError={createDemandGenAdGroupError}
-                              />
-                            )}
-                        </>
-                      ) : undefined
-                    }
-                  />
-                </>
-              )}
+                            ) : undefined
+                          }
+                        />
+                      </>
+                    )}
 
-                {activeTab === "Ads" &&
-                  campaignDetail?.campaign.advertising_channel_type !==
-                  "PERFORMANCE_MAX" && (
-                    <>
-                      <GoogleCampaignDetailAdsTab
-                        ads={ads}
-                        loading={adsLoading}
-                        selectedAdIds={selectedAdIds}
-                        onSelectAll={handleSelectAllAds}
-                        onSelectAd={handleSelectAd}
-                        sortBy={adsSortBy}
-                        sortOrder={adsSortOrder}
-                        onSort={handleAdsSort}
-                        currentPage={adsCurrentPage}
-                        totalPages={adsTotalPages}
-                        onPageChange={handleAdsPageChange}
-                        isFilterPanelOpen={isAdsFilterPanelOpen}
-                        onToggleFilterPanel={() =>
-                          setIsAdsFilterPanelOpen(!isAdsFilterPanelOpen)
-                        }
-                        filters={adsFilters}
-                        onApplyFilters={(newFilters) => {
-                          setAdsFilters(newFilters);
-                          setAdsCurrentPage(1);
-                        }}
-                        syncing={syncingAds}
-                        onSync={handleSyncAds}
-                        syncingAnalytics={syncingAdsAnalytics}
-                        onSyncAnalytics={handleSyncAdsAnalytics}
-                        syncMessage={
-                          syncMessage.type === "ads" ? syncMessage.message : null
-                        }
-                        getSortIcon={getSortIcon}
-                        onUpdateAdStatus={handleUpdateAdStatus}
+                    {activeTab === "Shopping Ads" && (
+                      <>
+                        <GoogleCampaignDetailShoppingAdsTab
+                          listingGroups={shoppingAds}
+                          loading={shoppingAdsLoading}
+                          selectedListingGroupIds={selectedShoppingAdIds}
+                          onSelectAll={handleSelectAllShoppingAds}
+                          onSelectListingGroup={handleSelectShoppingAd}
+                          sortBy={shoppingAdsSortBy}
+                          sortOrder={shoppingAdsSortOrder}
+                          onSort={handleShoppingAdsSort}
+                          currentPage={shoppingAdsCurrentPage}
+                          totalPages={shoppingAdsTotalPages}
+                          onPageChange={handleShoppingAdsPageChange}
+                          isFilterPanelOpen={isShoppingAdsFilterPanelOpen}
+                          onToggleFilterPanel={() =>
+                            setIsShoppingAdsFilterPanelOpen(
+                              !isShoppingAdsFilterPanelOpen,
+                            )
+                          }
+                          filters={shoppingAdsFilters}
+                          onApplyFilters={(newFilters) => {
+                            setShoppingAdsFilters(newFilters);
+                            setShoppingAdsCurrentPage(1);
+                          }}
+                          syncing={false}
+                          onSync={() => {}}
+                          syncingAnalytics={undefined}
+                          onSyncAnalytics={undefined}
+                          syncMessage={null}
+                          getSortIcon={getSortIcon}
+                          formatCurrency2Decimals={formatCurrency2Decimals}
+                          formatPercentage={formatPercentage}
+                          onUpdateListingGroupStatus={
+                            handleUpdateShoppingAdStatus
+                          }
+                          onBulkUpdateComplete={loadShoppingAds}
+                          currencyCode={currencyCode}
+                          summary={shoppingAdsSummary}
+                          createButton={
+                            campaignDetail?.campaign
+                              .advertising_channel_type === "SHOPPING" ? (
+                              <CreateGoogleShoppingAdSection
+                                isOpen={isCreateShoppingAdPanelOpen}
+                                onToggle={() => {
+                                  setIsCreateShoppingAdPanelOpen(
+                                    !isCreateShoppingAdPanelOpen,
+                                  );
+                                  // Close filter panel if exists
+                                }}
+                              />
+                            ) : undefined
+                          }
+                          createPanel={
+                            campaignDetail?.campaign
+                              .advertising_channel_type === "SHOPPING" &&
+                            isCreateShoppingAdPanelOpen &&
+                            campaignId &&
+                            accountId ? (
+                              <CreateGoogleShoppingAdPanel
+                                isOpen={isCreateShoppingAdPanelOpen}
+                                onClose={() => {
+                                  setIsCreateShoppingAdPanelOpen(false);
+                                  setCreateShoppingAdError(null);
+                                }}
+                                onSubmit={handleCreateShoppingAd}
+                                campaignId={campaignId}
+                                accountId={accountId}
+                                channelId={channelId}
+                                loading={createShoppingAdLoading}
+                                submitError={createShoppingAdError}
+                              />
+                            ) : undefined
+                          }
+                        />
+                      </>
+                    )}
+
+                    {activeTab === "Logs" && accountId && (
+                      <GoogleCampaignDetailLogsTab
                         accountId={accountId}
                         channelId={channelId}
                         campaignId={campaignId}
-                        onBulkUpdateComplete={loadAdsFromHook}
-                        formatCurrency={formatCurrency2Decimals}
-                        formatPercentage={formatPercentage}
-                        showDraftsOnly={showDraftsOnlyAds}
-                        onToggleDraftsOnly={() => {
-                          setShowDraftsOnlyAds((p) => !p);
-                          setAdsCurrentPage(1);
-                        }}
-                        onPublishDraft={handlePublishAdDraft}
-                        publishLoadingId={
-                          publishDraftEntity?.type === "ad" && publishDraftSubmitting
-                            ? (publishDraftEntity.entity.ad_id ?? publishDraftEntity.entity.id)
-                            : undefined
-                        }
-                        createButton={
-                          campaignDetail?.campaign.advertising_channel_type ===
-                            "SEARCH" ? (
-                            <CreateGoogleAdSection
-                              isOpen={isCreateSearchEntitiesPanelOpen}
-                              onToggle={() => {
-                                setIsCreateSearchEntitiesPanelOpen(
-                                  !isCreateSearchEntitiesPanelOpen,
-                                );
-                                setIsAdsFilterPanelOpen(false);
-                              }}
-                            />
-                          ) : campaignDetail?.campaign
-                            .advertising_channel_type === "SHOPPING" ? (
-                            <CreateGoogleShoppingEntitiesSection
-                              isOpen={isCreateShoppingEntitiesPanelOpen}
-                              onToggle={() => {
-                                setIsCreateShoppingEntitiesPanelOpen(
-                                  !isCreateShoppingEntitiesPanelOpen,
-                                );
-                                setIsAdsFilterPanelOpen(false);
-                              }}
-                            />
-                          ) : campaignChannelType === "DEMAND_GEN" ? (
-                            <CreateGoogleDemandGenAdSection
-                              isOpen={isCreateDemandGenAdSectionOpen}
-                              onToggle={() => {
-                                setIsCreateDemandGenAdSectionOpen(
-                                  !isCreateDemandGenAdSectionOpen,
-                                );
-                                setIsAdsFilterPanelOpen(false);
-                              }}
-                            />
-                          ) : undefined
-                        }
-                        createPanel={
-                          campaignDetail?.campaign.advertising_channel_type ===
-                            "SEARCH" &&
-                            isCreateSearchEntitiesPanelOpen &&
-                            campaignId ? (
-                            <CreateGoogleAdPanel
-                              isOpen={isCreateSearchEntitiesPanelOpen}
-                              onClose={() => {
-                                setIsCreateSearchEntitiesPanelOpen(false);
-                                setCreateSearchEntitiesError(null);
-                              }}
-                              onSubmit={handleCreateAd}
-                              campaignId={campaignId}
-                              accountId={accountId || ""}
-                              channelId={channelId}
-                              profileId={profileId}
-                              loading={createSearchEntitiesLoading}
-                              submitError={null}
-                            />
-                          ) : campaignDetail?.campaign
-                            .advertising_channel_type === "SHOPPING" &&
-                            isCreateShoppingEntitiesPanelOpen &&
-                            campaignId &&
-                            accountId ? (
-                            <CreateGoogleShoppingEntitiesPanel
-                              isOpen={isCreateShoppingEntitiesPanelOpen}
-                              onClose={() => {
-                                setIsCreateShoppingEntitiesPanelOpen(false);
-                                setCreateShoppingEntitiesError(null);
-                              }}
-                              onSubmit={handleCreateShoppingEntities}
-                              campaignId={campaignId}
-                              accountId={accountId}
-                              channelId={channelId}
-                              loading={createShoppingEntitiesLoading}
-                              submitError={createShoppingEntitiesError}
-                            />
-                          ) : campaignChannelType === "DEMAND_GEN" &&
-                            isCreateDemandGenAdSectionOpen &&
-                            campaignId &&
-                            accountId ? (
-                            <CreateGoogleDemandGenAdPanel
-                              isOpen={isCreateDemandGenAdSectionOpen}
-                              onClose={() => {
-                                setIsCreateDemandGenAdSectionOpen(false);
-                                setCreateDemandGenAdError(null);
-                              }}
-                              onSubmit={handleCreateDemandGenAd}
-                              loading={createDemandGenAdLoading}
-                              submitError={createDemandGenAdError}
-                              profileId={profileId}
-                            />
-                          ) : undefined
-                        }
                       />
-                    </>
-                  )}
-
-                {activeTab === "Assets" && campaignChannelType === "DEMAND_GEN" && (
-                    <GoogleCampaignDetailAssetsTab
-                      profileId={profileId}
-                      accountId={accountId}
-                      channelId={channelId}
-                    />
-                  )}
-
-                {activeTab === "Keywords" && campaignChannelType !== "DEMAND_GEN" && (
-                  <>
-                    <GoogleCampaignDetailKeywordsTab
-                      keywords={keywords}
-                      loading={keywordsLoading}
-                      selectedKeywordIds={selectedKeywordIds}
-                      onSelectAll={handleSelectAllKeywords}
-                      onSelectKeyword={handleSelectKeyword}
-                      sortBy={keywordsSortBy}
-                      sortOrder={keywordsSortOrder}
-                      onSort={handleKeywordsSort}
-                      currentPage={keywordsCurrentPage}
-                      totalPages={keywordsTotalPages}
-                      onPageChange={handleKeywordsPageChange}
-                      isFilterPanelOpen={isKeywordsFilterPanelOpen}
-                      onToggleFilterPanel={() =>
-                        setIsKeywordsFilterPanelOpen(!isKeywordsFilterPanelOpen)
-                      }
-                      accountId={accountId!}
-                      filters={keywordsFilters}
-                      onApplyFilters={(newFilters) => {
-                        // Convert DynamicFilterValues to FilterValues format
-                        const convertedFilters = newFilters.map((f) => ({
-                          id: f.id,
-                          field: f.field as FilterValues[0]["field"],
-                          operator: f.operator,
-                          value: f.value,
-                        }));
-                        setKeywordsFilters(convertedFilters);
-                        setKeywordsCurrentPage(1);
-                      }}
-                      syncing={syncingKeywords}
-                      onSync={handleSyncKeywords}
-                      syncingAnalytics={syncingKeywordsAnalytics}
-                      onSyncAnalytics={handleSyncKeywordsAnalytics}
-                      syncMessage={
-                        syncMessage.type === "keywords"
-                          ? syncMessage.message
-                          : null
-                      }
-                      getSortIcon={getSortIcon}
-                      onUpdateKeywordStatus={handleUpdateKeywordStatus}
-                      onUpdateKeywordBid={handleUpdateKeywordBid}
-                      onUpdateKeywordMatchType={handleUpdateKeywordMatchType}
-                      onStartKeywordTextEdit={handleStartKeywordTextEdit}
-                      onStartFinalUrlEdit={handleStartFinalUrlEdit}
-                      channelId={channelId}
-                      onBulkUpdateComplete={loadKeywords}
-                      formatCurrency2Decimals={formatCurrency2Decimals}
-                      showDraftsOnly={showDraftsOnlyKeywords}
-                      onToggleDraftsOnly={() => {
-                        setShowDraftsOnlyKeywords((p) => !p);
-                        setKeywordsCurrentPage(1);
-                      }}
-                      onPublishDraft={handlePublishKeywordDraft}
-                      publishLoadingId={
-                        publishDraftEntity?.type === "keyword" && publishDraftSubmitting
-                          ? (publishDraftEntity.entity.keyword_id ?? publishDraftEntity.entity.id)
-                          : undefined
-                      }
-                      createButton={
-                        campaignDetail?.campaign.advertising_channel_type ===
-                          "SEARCH" ? (
-                          <CreateGoogleKeywordSection
-                            isOpen={isCreateSearchEntitiesPanelOpen}
-                            onToggle={() => {
-                              setIsCreateSearchEntitiesPanelOpen(
-                                !isCreateSearchEntitiesPanelOpen,
-                              );
-                              setIsKeywordsFilterPanelOpen(false);
-                            }}
-                          />
-                        ) : undefined
-                      }
-                      createPanel={
-                        campaignDetail?.campaign.advertising_channel_type ===
-                          "SEARCH" &&
-                          isCreateSearchEntitiesPanelOpen &&
-                          campaignId &&
-                          accountId ? (
-                          <CreateGoogleKeywordPanel
-                            isOpen={isCreateSearchEntitiesPanelOpen}
-                            onClose={() => {
-                              setIsCreateSearchEntitiesPanelOpen(false);
-                              setCreateSearchEntitiesError(null);
-                            }}
-                            onSubmit={handleCreateKeywords}
-                            campaignId={campaignId}
-                            accountId={accountId}
-                            channelId={channelId}
-                            loading={createSearchEntitiesLoading}
-                            submitError={null}
-                          />
-                        ) : undefined
-                      }
-                    />
-                  </>
-                )}
-
-                {activeTab === "Negative Keywords" && campaignChannelType !== "DEMAND_GEN" && (
-                  <>
-                    <GoogleCampaignDetailNegativeKeywordsTab
-                      negativeKeywords={negativeKeywords}
-                      loading={negativeKeywordsLoading}
-                      selectedNegativeKeywordIds={selectedNegativeKeywordIds}
-                      onSelectAll={handleSelectAllNegativeKeywords}
-                      onSelectNegativeKeyword={handleSelectNegativeKeyword}
-                      sortBy={negativeKeywordsSortBy}
-                      sortOrder={negativeKeywordsSortOrder}
-                      onSort={handleNegativeKeywordsSort}
-                      currentPage={negativeKeywordsCurrentPage}
-                      totalPages={negativeKeywordsTotalPages}
-                      onPageChange={handleNegativeKeywordsPageChange}
-                      isFilterPanelOpen={isNegativeKeywordsFilterPanelOpen}
-                      onToggleFilterPanel={() =>
-                        setIsNegativeKeywordsFilterPanelOpen(
-                          !isNegativeKeywordsFilterPanelOpen,
-                        )
-                      }
-                      filters={negativeKeywordsFilters}
-                      onApplyFilters={(newFilters) => {
-                        setNegativeKeywordsFilters(newFilters);
-                        setNegativeKeywordsCurrentPage(1);
-                      }}
-                      syncing={syncingNegativeKeywords}
-                      onSync={handleSyncNegativeKeywords}
-                      syncMessage={
-                        syncMessage.type === "negative_keywords"
-                          ? syncMessage.message
-                          : null
-                      }
-                      getSortIcon={getSortIcon}
-                      onUpdateNegativeKeywordStatus={
-                        handleUpdateNegativeKeywordStatus
-                      }
-                      onUpdateNegativeKeywordMatchType={
-                        handleUpdateNegativeKeywordMatchType
-                      }
-                      onUpdateNegativeKeywordText={
-                        handleUpdateNegativeKeywordText
-                      }
-                      campaignType={
-                        campaignDetail?.campaign?.advertising_channel_type
-                      }
-                      accountId={accountId}
-                      channelId={channelId}
-                      onBulkUpdateComplete={
-                        negativeKeywordsHook.loadNegativeKeywords
-                      }
-                      showDraftsOnly={showDraftsOnlyNegativeKeywords}
-                      onToggleDraftsOnly={() => {
-                        setShowDraftsOnlyNegativeKeywords((p) => !p);
-                        setNegativeKeywordsCurrentPage(1);
-                      }}
-                      onPublishDraft={handlePublishNegativeKeywordDraft}
-                      onConfirmPublishDraft={runPublishNegativeKeywordDraft}
-                      publishLoadingId={
-                        publishLoadingNegativeKeywordId ??
-                        (publishDraftEntity?.type === "negative_keyword" && publishDraftSubmitting
-                          ? (publishDraftEntity.entity.criterion_id ?? publishDraftEntity.entity.id)
-                          : undefined)
-                      }
-                      createButton={
-                        <CreateGoogleNegativeKeywordSection
-                          isOpen={isCreateNegativeKeywordPanelOpen}
-                          onToggle={() => {
-                            setIsCreateNegativeKeywordPanelOpen(
-                              !isCreateNegativeKeywordPanelOpen,
-                            );
-                            setIsNegativeKeywordsFilterPanelOpen(false);
-                          }}
-                        />
-                      }
-                      createPanel={
-                        isCreateNegativeKeywordPanelOpen &&
-                          campaignId &&
-                          accountId ? (
-                          <CreateGoogleNegativeKeywordPanel
-                            isOpen={isCreateNegativeKeywordPanelOpen}
-                            onClose={() => {
-                              setIsCreateNegativeKeywordPanelOpen(false);
-                              setCreateNegativeKeywordError(null);
-                              setCreatedNegativeKeywords([]);
-                              setFailedNegativeKeywords([]);
-                            }}
-                            onSubmit={handleCreateNegativeKeywords}
-                            campaignId={campaignId}
-                            accountId={accountId}
-                            campaignType={
-                              campaignDetail?.campaign?.advertising_channel_type
-                            }
-                            adgroups={adgroups}
-                            loading={createNegativeKeywordLoading}
-                            submitError={createNegativeKeywordError}
-                            createdNegativeKeywords={createdNegativeKeywords}
-                            failedNegativeKeywords={failedNegativeKeywords}
-                          />
-                        ) : undefined
-                      }
-                    />
-                  </>
-                )}
-
-                {activeTab === "Product Groups" && (
-                  <>
-                    <GoogleCampaignDetailProductGroupsTab
-                      productGroups={productGroups}
-                      loading={productGroupsLoading}
-                      selectedProductGroupIds={selectedProductGroupIds}
-                      getProductGroupSelectionKey={getProductGroupSelectionKey}
-                      onSelectAll={handleSelectAllProductGroups}
-                      onSelectProductGroup={handleSelectProductGroup}
-                      sortBy={productGroupsSortBy}
-                      sortOrder={productGroupsSortOrder}
-                      onSort={handleProductGroupsSort}
-                      currentPage={productGroupsCurrentPage}
-                      totalPages={productGroupsTotalPages}
-                      onPageChange={handleProductGroupsPageChange}
-                      isFilterPanelOpen={isProductGroupsFilterPanelOpen}
-                      onToggleFilterPanel={() =>
-                        setIsProductGroupsFilterPanelOpen(
-                          !isProductGroupsFilterPanelOpen,
-                        )
-                      }
-                      filters={productGroupsFilters}
-                      onApplyFilters={(newFilters) => {
-                        setProductGroupsFilters(newFilters);
-                        setProductGroupsCurrentPage(1);
-                      }}
-                      syncing={false}
-                      onSync={() => { }}
-                      syncingAnalytics={undefined}
-                      onSyncAnalytics={undefined}
-                      syncMessage={null}
-                      getSortIcon={getSortIcon}
-                      formatCurrency2Decimals={formatCurrency2Decimals}
-                      formatPercentage={formatPercentage}
-                      onUpdateProductGroupStatus={handleUpdateProductGroupStatus}
-                      accountId={accountId}
-                      channelId={channelId}
-                      onBulkUpdateComplete={loadProductGroups}
-                      createButton={
-                        campaignDetail?.campaign.advertising_channel_type ===
-                          "SHOPPING" ? (
-                          <CreateGoogleShoppingEntitiesSection
-                            isOpen={isCreateShoppingEntitiesPanelOpen}
-                            onToggle={() => {
-                              setIsCreateShoppingEntitiesPanelOpen(
-                                !isCreateShoppingEntitiesPanelOpen,
-                              );
-                              // Close filter panel if exists
-                            }}
-                          />
-                        ) : undefined
-                      }
-                      createPanel={
-                        campaignDetail?.campaign.advertising_channel_type ===
-                          "SHOPPING" &&
-                          isCreateShoppingEntitiesPanelOpen &&
-                          campaignId &&
-                          accountId ? (
-                          <CreateGoogleShoppingEntitiesPanel
-                            isOpen={isCreateShoppingEntitiesPanelOpen}
-                            onClose={() => {
-                              setIsCreateShoppingEntitiesPanelOpen(false);
-                              setCreateShoppingEntitiesError(null);
-                            }}
-                            onSubmit={handleCreateShoppingEntities}
-                            campaignId={campaignId}
-                            accountId={accountId}
-                            channelId={channelId}
-                            loading={createShoppingEntitiesLoading}
-                            submitError={createShoppingEntitiesError}
-                          />
-                        ) : undefined
-                      }
-                    />
-                  </>
-                )}
-
-                {activeTab === "Shopping Ads" && (
-                  <>
-                    <GoogleCampaignDetailShoppingAdsTab
-                      listingGroups={shoppingAds}
-                      loading={shoppingAdsLoading}
-                      selectedListingGroupIds={selectedShoppingAdIds}
-                      onSelectAll={handleSelectAllShoppingAds}
-                      onSelectListingGroup={handleSelectShoppingAd}
-                      sortBy={shoppingAdsSortBy}
-                      sortOrder={shoppingAdsSortOrder}
-                      onSort={handleShoppingAdsSort}
-                      currentPage={shoppingAdsCurrentPage}
-                      totalPages={shoppingAdsTotalPages}
-                      onPageChange={handleShoppingAdsPageChange}
-                      isFilterPanelOpen={isShoppingAdsFilterPanelOpen}
-                      onToggleFilterPanel={() =>
-                        setIsShoppingAdsFilterPanelOpen(
-                          !isShoppingAdsFilterPanelOpen,
-                        )
-                      }
-                      filters={shoppingAdsFilters}
-                      onApplyFilters={(newFilters) => {
-                        setShoppingAdsFilters(newFilters);
-                        setShoppingAdsCurrentPage(1);
-                      }}
-                      syncing={false}
-                      onSync={() => { }}
-                      syncingAnalytics={undefined}
-                      onSyncAnalytics={undefined}
-                      syncMessage={null}
-                      getSortIcon={getSortIcon}
-                      formatCurrency2Decimals={formatCurrency2Decimals}
-                      formatPercentage={formatPercentage}
-                      onUpdateListingGroupStatus={handleUpdateShoppingAdStatus}
-                      onBulkUpdateComplete={loadShoppingAds}
-                      currencyCode={currencyCode}
-                      summary={shoppingAdsSummary}
-                      createButton={
-                        campaignDetail?.campaign.advertising_channel_type ===
-                          "SHOPPING" ? (
-                          <CreateGoogleShoppingAdSection
-                            isOpen={isCreateShoppingAdPanelOpen}
-                            onToggle={() => {
-                              setIsCreateShoppingAdPanelOpen(
-                                !isCreateShoppingAdPanelOpen,
-                              );
-                              // Close filter panel if exists
-                            }}
-                          />
-                        ) : undefined
-                      }
-                      createPanel={
-                        campaignDetail?.campaign.advertising_channel_type ===
-                          "SHOPPING" &&
-                          isCreateShoppingAdPanelOpen &&
-                          campaignId &&
-                          accountId ? (
-                          <CreateGoogleShoppingAdPanel
-                            isOpen={isCreateShoppingAdPanelOpen}
-                            onClose={() => {
-                              setIsCreateShoppingAdPanelOpen(false);
-                              setCreateShoppingAdError(null);
-                            }}
-                            onSubmit={handleCreateShoppingAd}
-                            campaignId={campaignId}
-                            accountId={accountId}
-                            channelId={channelId}
-                            loading={createShoppingAdLoading}
-                            submitError={createShoppingAdError}
-                          />
-                        ) : undefined
-                      }
-                    />
-                  </>
-                )}
-
-                {activeTab === "Logs" && accountId && (
-                  <GoogleCampaignDetailLogsTab
-                    accountId={accountId}
-                    channelId={channelId}
-                    campaignId={campaignId}
-                  />
-                )}
-              </div>
-              </>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -2914,8 +3140,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                     <span className="text-[12.16px] text-[#556179]">
                       {typeof inlineEditOldValue === "string"
                         ? inlineEditOldValue
-                          .toLowerCase()
-                          .replace(/^\w/, (c) => c.toUpperCase())
+                            .toLowerCase()
+                            .replace(/^\w/, (c) => c.toUpperCase())
                         : inlineEditOldValue}
                     </span>
 
@@ -2924,13 +3150,13 @@ export const GoogleCampaignDetail: React.FC = () => {
                       {inlineEditField === "status"
                         ? typeof inlineEditNewValue === "string"
                           ? inlineEditNewValue
-                            .toLowerCase()
-                            .replace(/^\w/, (c) => c.toUpperCase())
+                              .toLowerCase()
+                              .replace(/^\w/, (c) => c.toUpperCase())
                           : inlineEditNewValue
                         : inlineEditField === "budget"
                           ? formatCurrency2Decimals(
-                            parseFloat(inlineEditNewValue || "0"),
-                          )
+                              parseFloat(inlineEditNewValue || "0"),
+                            )
                           : inlineEditNewValue}
                     </span>
                   </div>

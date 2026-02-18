@@ -14,7 +14,7 @@ import {
 import { useGoogleProfiles } from "../../hooks/queries/useGoogleProfiles";
 import { getStatusBadgeLabel, getChannelTypeLabel } from "../../utils/statusLabels";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
@@ -37,6 +37,7 @@ import {
   CreateGoogleCampaignPanel,
   type CreateGoogleCampaignData,
 } from "../../components/google/CreateGoogleCampaignPanel";
+import { buildInitialCampaignDataFromCampaign } from "./utils/buildInitialCampaignDataFromCampaign";
 import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../../components/google/CreateGooglePmaxAssetGroupPanel";
 import { ErrorModal } from "../../components/ui/ErrorModal";
 import { Loader } from "../../components/ui/Loader";
@@ -60,6 +61,7 @@ import { useDebouncedSearch } from "../../hooks/useDebouncedSearch";
 
 export const GoogleCampaigns: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { accountId, channelId } = useParams<{ accountId: string; channelId: string }>();
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate, startDateStr, endDateStr } = useDateRange();
@@ -383,6 +385,22 @@ export const GoogleCampaigns: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [inlineEditError]);
+
+  // When navigated from campaign detail "Edit & Publish", open this campaign in edit mode
+  useEffect(() => {
+    const campaign = (location.state as { openCampaignForEdit?: Record<string, unknown> } | null)?.openCampaignForEdit;
+    if (!campaign || typeof campaign !== "object") return;
+    const id = campaign.campaign_id ?? campaign.campaignId;
+    if (id == null) return;
+    setInitialCampaignData(buildInitialCampaignDataFromCampaign(campaign as Record<string, any>));
+    setCampaignId(id as string | number);
+    setCampaignFormMode("edit");
+    setIsCreateCampaignPanelOpen(true);
+    setCreateCampaignError(null);
+    setRefreshMessage(null);
+    setEditLoadingCampaignId(null);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state, location.pathname, navigate]);
 
   // Default column order (matches GoogleCampaignsTable allColumns order)
   const defaultColumnOrder = useMemo(() => [
@@ -1901,6 +1919,7 @@ export const GoogleCampaigns: React.FC = () => {
           (draft_campaign.budget_name as string | undefined) ??
           campaignData.budget_name ??
           campaignData.campaign_budget_name ??
+          campaignData.campaignBudgetName ??
           creation_payload.budget_name ??
           undefined,
         budget_resource_name:
@@ -2007,17 +2026,22 @@ export const GoogleCampaigns: React.FC = () => {
 
       // For Performance Max campaigns, use data from refreshed extra_data or creation_payload (drafts store in creation_payload)
       if (campaignType === "PERFORMANCE_MAX") {
-        // Use PMax data from extra_data (live/synced) or creation_payload (drafts saved from form)
+        // Use PMax data from extra_data (live/synced), creation_payload (drafts saved from form), or draft_state.asset_group (agent-created drafts)
         const cp = creation_payload;
+        const draft_asset_group = draft_state?.asset_group && typeof draft_state.asset_group === "object" ? draft_state.asset_group : {};
         if (extra_data.business_name) {
           initial.business_name = extra_data.business_name;
         } else if (cp?.business_name != null) {
           initial.business_name = String(cp.business_name);
+        } else if (draft_asset_group.business_name != null) {
+          initial.business_name = String(draft_asset_group.business_name);
         }
         if (extra_data.logo_url) {
           initial.logo_url = extra_data.logo_url;
         } else if (cp?.logo_url != null) {
           initial.logo_url = String(cp.logo_url);
+        } else if (draft_asset_group.logo_url != null) {
+          initial.logo_url = String(draft_asset_group.logo_url);
         }
         if (extra_data.final_url) {
           initial.final_url = extra_data.final_url;
@@ -2076,12 +2100,17 @@ export const GoogleCampaigns: React.FC = () => {
           initial.asset_group_name = extra_data.asset_group_name;
         } else if (cp?.asset_group_name != null) {
           initial.asset_group_name = String(cp.asset_group_name);
+        } else if (draft_asset_group.asset_group_name != null) {
+          initial.asset_group_name = String(draft_asset_group.asset_group_name);
         }
-        // Asset IDs and resource names (drafts often store these in creation_payload)
+        // Asset IDs and resource names (drafts often store these in creation_payload or draft_state.asset_group)
         if (cp?.logo_asset_id != null) initial.logo_asset_id = String(cp.logo_asset_id);
+        else if (draft_asset_group.logo_asset_id != null) initial.logo_asset_id = String(draft_asset_group.logo_asset_id);
         if (cp?.logo_asset_resource_name != null) initial.logo_asset_resource_name = String(cp.logo_asset_resource_name);
         if (cp?.business_name_asset_id != null) initial.business_name_asset_id = String(cp.business_name_asset_id);
+        else if (draft_asset_group.business_name_asset_id != null) initial.business_name_asset_id = String(draft_asset_group.business_name_asset_id);
         if (cp?.business_name_asset_resource_name != null) initial.business_name_asset_resource_name = String(cp.business_name_asset_resource_name);
+        else if (draft_asset_group.business_name_asset_resource_name != null) initial.business_name_asset_resource_name = String(draft_asset_group.business_name_asset_resource_name);
 
         // Ensure headlines and descriptions are arrays (even if empty)
         if (!initial.headlines || !Array.isArray(initial.headlines)) {

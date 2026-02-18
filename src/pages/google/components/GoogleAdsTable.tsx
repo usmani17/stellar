@@ -46,6 +46,7 @@ export function GoogleAdsTable<T = any>({
   onPublishDraft,
   isDraftRow,
   publishLoadingId,
+  draftFilterOn,
 }: IGoogleAdsTableProps<T>) {
   const navigate = useNavigate();
   // Ref to track if a status selection was made (matches Amazon pattern)
@@ -60,9 +61,10 @@ export function GoogleAdsTable<T = any>({
     const isSuccess = inlineEditSuccess?.itemId === itemId && inlineEditSuccess?.field === column.key;
     const value = column.getValue(row);
 
-    // Publish-draft wrap (computed early so we can wrap editable cell content for adgroup_name/keyword_text/ad_id)
-    const showPublishColumn = publishDraftColumnKey === column.key && onPublishDraft;
+    // Publish-draft wrap: when draftFilterOn is true, show icon only for draft rows; when false/undefined, show for all rows in that column.
     const isDraft = !!isDraftRow?.(row);
+    const showPublishColumn = publishDraftColumnKey === column.key && onPublishDraft &&
+      (draftFilterOn === undefined ? true : (draftFilterOn && isDraft));
     const publishLoading = showPublishColumn && isDraft && publishLoadingId !== undefined &&
       (String(publishLoadingId) === String(itemId) || String(publishLoadingId) === String((row as any).adgroup_id) || String(publishLoadingId) === String((row as any).keyword_id) || String(publishLoadingId) === String((row as any).ad_id));
     const wrapWithPublish = (content: React.ReactNode) => {

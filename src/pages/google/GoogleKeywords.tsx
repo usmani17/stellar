@@ -1306,14 +1306,26 @@ export const GoogleKeywords: React.FC = () => {
         }
       }
 
-      // Remove pending change and reload
+      // Remove pending change and update list in place so order is preserved
       setPendingChanges((prev) => {
         const updated = { ...prev };
         delete updated[fieldKey];
         return updated;
       });
 
-      await loadKeywords(accountIdNum, channelIdNum);
+      setKeywords((prev) =>
+        prev.map((k) => {
+          if (getKeywordCompositeId(k) !== String(itemId)) return k;
+          if (fieldKey === "status") return { ...k, status: convertStatusToApi(newValue) };
+          if (fieldKey === "keyword_text") return { ...k, keyword_text: newValue.trim() };
+          if (fieldKey === "bid") {
+            const bidNum = parseFloat(newValue.replace(/[^0-9.]/g, ""));
+            return { ...k, cpc_bid_dollars: isNaN(bidNum) ? k.cpc_bid_dollars : bidNum };
+          }
+          if (fieldKey === "match_type") return { ...k, match_type: newValue.trim() };
+          return k;
+        })
+      );
 
       // Clear any previous errors
       setInlineEditError(null);
@@ -1549,10 +1561,21 @@ export const GoogleKeywords: React.FC = () => {
         }
       }
 
-      const channelIdNumForReload = channelId ? parseInt(channelId, 10) : undefined;
-      if (channelIdNumForReload && !isNaN(channelIdNumForReload)) {
-        await loadKeywords(accountIdNum, channelIdNumForReload);
-      }
+      // Update list in place so order is preserved
+      const compositeId = getKeywordCompositeId(inlineEditKeyword);
+      setKeywords((prev) =>
+        prev.map((k) => {
+          if (getKeywordCompositeId(k) !== compositeId) return k;
+          if (inlineEditField === "status") return { ...k, status: convertStatusToApi(inlineEditNewValue) };
+          if (inlineEditField === "keyword_text") return { ...k, keyword_text: inlineEditNewValue.trim() };
+          if (inlineEditField === "bid") {
+            const bidNum = parseFloat(inlineEditNewValue.replace(/[^0-9.]/g, ""));
+            return { ...k, cpc_bid_dollars: isNaN(bidNum) ? k.cpc_bid_dollars : bidNum };
+          }
+          return k;
+        })
+      );
+
       setShowInlineEditModal(false);
       setInlineEditKeyword(null);
       setInlineEditField(null);
@@ -1563,7 +1586,6 @@ export const GoogleKeywords: React.FC = () => {
       setInlineEditError(null);
 
       // Show success feedback (use composite key)
-      const compositeId = getKeywordCompositeId(inlineEditKeyword);
       setInlineEditSuccess({
         keywordId: compositeId,
         field: inlineEditField,
@@ -3030,6 +3052,7 @@ export const GoogleKeywords: React.FC = () => {
                       currencyCode={currencyCode}
                       onPublishDraft={handlePublishDraftClick}
                       publishLoadingId={publishLoadingId}
+                      draftFilterOn={showDraftsOnly}
                     />
                   </div>
                   {loading && (

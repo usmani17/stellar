@@ -86,6 +86,7 @@ interface GoogleAdGroupsTableProps {
   currencyCode?: string;
   onPublishDraft?: (row: GoogleAdGroup) => void;
   publishLoadingId?: string | number;
+  draftFilterOn?: boolean;
 }
 
 export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
@@ -123,6 +124,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
   currencyCode,
   onPublishDraft,
   publishLoadingId,
+  draftFilterOn,
 }) => {
   const isDraftAdGroup = (row: GoogleAdGroup) => {
     const s = (row.status || "").toUpperCase();
@@ -398,6 +400,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       onPublishDraft={onPublishDraft}
       isDraftRow={isDraftAdGroup}
       publishLoadingId={publishLoadingId}
+      draftFilterOn={draftFilterOn}
     />
   </>
   );

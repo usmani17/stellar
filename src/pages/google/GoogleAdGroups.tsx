@@ -26,6 +26,7 @@ import {
 } from "./components/GoogleAdGroupsTable";
 import { Loader } from "../../components/ui/Loader";
 import { ConfirmationModal } from "../../components/ui/ConfirmationModal";
+import { ErrorModal } from "../../components/ui/ErrorModal";
 import { TrashIcon } from "lucide-react";
 import {
   getStatusWithDefault,
@@ -99,6 +100,7 @@ export const GoogleAdGroups: React.FC = () => {
   const [showDraftsOnly, setShowDraftsOnly] = useState(false);
   const [publishAdgroup, setPublishAdgroup] = useState<GoogleAdGroup | null>(null);
   const [publishLoadingId, setPublishLoadingId] = useState<string | number | undefined>(undefined);
+  const [publishError, setPublishError] = useState<{ title: string; message: string } | null>(null);
   const isLoadingRef = useRef(false);
   const lastRequestParamsRef = useRef<string>(""); // Track last request to prevent duplicate calls
 
@@ -824,6 +826,7 @@ export const GoogleAdGroups: React.FC = () => {
     const draftId = String(row.adgroup_id ?? row.id);
     if (!campaignId) return;
     setPublishLoadingId(draftId);
+    setPublishError(null);
     try {
       const accountIdNum = parseInt(accountId, 10);
       const channelIdNum = parseInt(channelId, 10);
@@ -837,9 +840,15 @@ export const GoogleAdGroups: React.FC = () => {
       setPublishAdgroup(null);
       setPublishLoadingId(undefined);
       await loadAdgroups(accountIdNum, channelIdNum);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to publish draft ad group:", err);
       setPublishLoadingId(undefined);
+      setPublishAdgroup(null);
+      const message =
+        err?.response?.data?.error ||
+        err?.message ||
+        "Failed to publish draft ad group. Please try again.";
+      setPublishError({ title: "Publish failed", message });
     }
   };
 
@@ -906,9 +915,20 @@ export const GoogleAdGroups: React.FC = () => {
         }
       }
 
-      if (channelIdNum && !isNaN(channelIdNum)) {
-        await loadAdgroups(accountIdNum, channelIdNum);
-      }
+      // Update list in place so order is preserved
+      const agId = inlineEditAdGroup.adgroup_id;
+      setAdgroups((prev) =>
+        prev.map((ag) => {
+          if (ag.adgroup_id !== agId) return ag;
+          if (inlineEditField === "status") return { ...ag, status: convertStatusToApi(inlineEditNewValue) };
+          if (inlineEditField === "name") return { ...ag, adgroup_name: inlineEditNewValue.trim(), name: inlineEditNewValue.trim() };
+          if (inlineEditField === "bid") {
+            const bidNum = parseFloat(inlineEditNewValue.replace(/[^0-9.]/g, ""));
+            return { ...ag, cpc_bid_dollars: isNaN(bidNum) ? ag.cpc_bid_dollars : bidNum };
+          }
+          return ag;
+        })
+      );
 
       setShowInlineEditModal(false);
       setInlineEditAdGroup(null);
@@ -1019,15 +1039,24 @@ export const GoogleAdGroups: React.FC = () => {
         }
       }
 
-      // Remove pending change and reload
+      // Remove pending change and update list in place so order is preserved
       setPendingChanges((prev) => {
         const updated = { ...prev };
         delete updated[fieldKey];
         return updated;
       });
-      if (channelIdNum && !isNaN(channelIdNum)) {
-        await loadAdgroups(accountIdNum, channelIdNum);
-      }
+      setAdgroups((prev) =>
+        prev.map((ag) => {
+          if (ag.adgroup_id !== itemId) return ag;
+          if (fieldKey === "status") return { ...ag, status: convertStatusToApi(newValue) };
+          if (fieldKey === "adgroup_name" || fieldKey === "name") return { ...ag, adgroup_name: newValue.trim(), name: newValue.trim() };
+          if (fieldKey === "bid") {
+            const bidNum = parseFloat(newValue.replace(/[^0-9.]/g, ""));
+            return { ...ag, cpc_bid_dollars: isNaN(bidNum) ? ag.cpc_bid_dollars : bidNum };
+          }
+          return ag;
+        })
+      );
     } catch (error) {
       console.error("Failed to update adgroup:", error);
       alert("Failed to update adgroup. Please try again.");
@@ -2456,6 +2485,7 @@ export const GoogleAdGroups: React.FC = () => {
                       currencyCode={currencyCode}
                       onPublishDraft={handlePublishDraftClick}
                       publishLoadingId={publishLoadingId}
+                      draftFilterOn={showDraftsOnly}
                     />
                   </div>
                   {loading && (
@@ -2562,6 +2592,12 @@ export const GoogleAdGroups: React.FC = () => {
         size="sm"
         isLoading={publishLoadingId !== undefined}
         confirmButtonLabel="Publish"
+      />
+      <ErrorModal
+        isOpen={publishError !== null}
+        onClose={() => setPublishError(null)}
+        title={publishError?.title ?? "Publish failed"}
+        message={publishError?.message ?? ""}
       />
     </div>
   );

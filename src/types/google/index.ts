@@ -91,4 +91,6 @@ export interface IGoogleAdsTableProps<T = any> {
   isDraftRow?: (row: T) => boolean;
   /** When publishing, the id of the row being published (show loader on that row). */
   publishLoadingId?: string | number;
+  /** When true, show the publish icon only when the draft filter switch is on AND the row is a draft. When false/undefined, show for all rows in the publish column. */
+  draftFilterOn?: boolean;
 }
