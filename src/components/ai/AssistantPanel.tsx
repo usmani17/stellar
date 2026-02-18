@@ -887,7 +887,12 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             }
                             if (message.type === "ai") {
                                 const { content, timeline, isStreaming: aiStreaming, error } = message;
-                                const lastText = [...timeline].reverse().find((i): i is Extract<PixisTimelineItem, { type: "text" }> => i.type === "text" && !!i.content);
+                                const sortedTimeline = [...timeline].sort((a, b) => {
+                                  const tsA = "timestamp_ms" in a && typeof a.timestamp_ms === "number" ? a.timestamp_ms : Number.MAX_SAFE_INTEGER;
+                                  const tsB = "timestamp_ms" in b && typeof b.timestamp_ms === "number" ? b.timestamp_ms : Number.MAX_SAFE_INTEGER;
+                                  return tsA - tsB;
+                                });
+                                const lastText = [...sortedTimeline].reverse().find((i): i is Extract<PixisTimelineItem, { type: "text" }> => i.type === "text" && !!i.content);
                                 return (
                                     <div key={message.id} className="flex justify-start ai">
                                         <div className="min-w-0 flex flex-col items-start p-4 gap-3 w-full max-w-full bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm">
@@ -903,7 +908,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                         </div>
                                                     </div>
                                                 )}
-                                                {timeline.map((item, idx) => {
+                                                {sortedTimeline.map((item, idx) => {
                                                     if (item.type === "thinking" && item.content?.trim()) {
                                                         return <ThoughtsSection key={`t-${idx}`} content={item.content!} defaultExpanded />;
                                                     }
