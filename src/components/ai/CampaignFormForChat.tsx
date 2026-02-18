@@ -3,17 +3,23 @@
  * only the fields the AI requested (from current_questions_schema).
  * Submits only the requested keys to keep messages focused.
  */
-import React, { useState, forwardRef, useImperativeHandle } from "react";
+import React, { useState, forwardRef, useImperativeHandle, useCallback, useEffect } from "react";
 import type { CreateGoogleCampaignData } from "../google/campaigns/types";
 import { AssetSelectorModal } from "../google/AssetSelectorModal";
 import type { Asset } from "../../services/googleAdwords/googleAdwordsAssets";
 import { getFieldLabel } from "./campaignFormFieldLabels";
-import type { CurrentQuestionSchemaItem } from "../../types/agent";
+import { GoogleDeviceTargetingForm } from "../google/campaigns/GoogleDeviceTargetingForm";
+import { GoogleLanguageTargetingForm } from "../google/campaigns/GoogleLanguageTargetingForm";
+import { GoogleTrackingTemplateForm } from "../google/campaigns/GoogleTrackingTemplateForm";
+import { Dropdown } from "../ui/Dropdown";
+import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
+import { GoogleLocationTargetingForm } from "../google/campaigns/GoogleLocationTargetingForm";
+import { campaignsService } from "../../services/campaigns";
 
 
 
-function getKeysForForm(schema: CurrentQuestionSchemaItem[]): string[] {
-  return schema.map((q) => q.key).filter(Boolean);
+function getKeysForForm(formKeys: string[]): string[] {
+  return formKeys.map((q) => stripEntityPrefix(q));
 }
 
 /** Strip entity prefix (e.g. "ad.logo_url" → "logo_url") for field matching */
@@ -24,20 +30,18 @@ function stripEntityPrefix(key: string): string {
 
 /** Check if field key matches any requested key (with or without entity prefix) */
 function isFieldRequested(fieldKey: string, requestedKeys: string[]): boolean {
-  // Check exact match first
-  if (requestedKeys.includes(fieldKey)) return true;
-  // Check if any requested key matches after stripping entity prefix
-  const strippedField = stripEntityPrefix(fieldKey);
-  return requestedKeys.some(k => stripEntityPrefix(k) === strippedField || k === fieldKey);
+  return requestedKeys.includes(fieldKey);
 }
 
 export interface CampaignFormForChatProps {
-  questionsSchema: CurrentQuestionSchemaItem[];
+  questionsSchema: string[];
   campaignDraft: Record<string, unknown> | undefined;
   campaignType: string;
   onSend: (message: string) => void;
   disabled?: boolean;
   profileId?: string | number;
+  accountId?: string | number;
+  channelId?: string | number;
 }
 
 export interface CampaignFormForChatHandle {
@@ -52,7 +56,8 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   onSend,
   disabled = false,
   profileId,
-
+  accountId,
+  channelId,
 }, ref) => {
   const requestedKeys = getKeysForForm(questionsSchema);
 
@@ -95,7 +100,136 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const [isCalloutAssetsModalOpen, setIsCalloutAssetsModalOpen] = useState(false);
   const [selectedCalloutAssets, setSelectedCalloutAssets] = useState<Asset[]>([]);
 
+  // Device Targeting
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>(
+    (campaignDraft?.device_ids as string[]) || []
+  );
+
+  // Language Targeting
+  const [selectedLanguageIds, setSelectedLanguageIds] = useState<string[]>(
+    (campaignDraft?.language_ids as string[]) || []
+  );
+
+  // URL Options
+  const [trackingUrlTemplate, setTrackingUrlTemplate] = useState<string>(
+    (campaignDraft?.tracking_url_template as string) || ""
+  );
+  const [finalUrlSuffix, setFinalUrlSuffix] = useState<string>(
+    (campaignDraft?.final_url_suffix as string) || ""
+  );
+  const [urlCustomParameters, setUrlCustomParameters] = useState<Array<{ key: string; value: string }>>(
+    (campaignDraft?.url_custom_parameters as Array<{ key: string; value: string }>) || []
+  );
+
+  // Budget Name and Options
+  const [budgetName, setBudgetName] = useState<string>(
+    (campaignDraft?.budget_name as string) || ""
+  );
+  const [budgetOptions, setBudgetOptions] = useState<Array<{ value: string; label: string; name?: string }>>([]);
+  const [selectedBudgetId, setSelectedBudgetId] = useState<string>("");
+  const [useCustomBudgetName, setUseCustomBudgetName] = useState(false);
+  const [loadingBudgets, setLoadingBudgets] = useState(false);
+
+  // Location Targeting
+  const [selectedLocationIds, setSelectedLocationIds] = useState<number[]>(
+    (campaignDraft?.location_ids as number[]) || []
+  );
+  const [selectedExcludedLocationIds, setSelectedExcludedLocationIds] = useState<string[]>(
+    (campaignDraft?.excluded_location_ids as string[]) || []
+  );
+  const [locationOptions, setLocationOptions] = useState<Array<{ value: string; label: string; id: string; type: string; countryCode: string }>>([]);
+  const [loadingLocations, setLoadingLocations] = useState(false);
+
   const profileIdNum = profileId != null ? (typeof profileId === "number" ? profileId : parseInt(String(profileId), 10)) : null;
+  const accountIdNum = accountId != null ? (typeof accountId === "number" ? accountId : parseInt(String(accountId), 10)) : null;
+  const channelIdNum = channelId != null ? (typeof channelId === "number" ? channelId : parseInt(String(channelId), 10)) : null;
+
+  // Function to fetch budgets
+  const fetchBudgets = useCallback(async () => {
+    if (!accountIdNum || !channelIdNum || !profileIdNum) {
+      setBudgetOptions([]);
+      return;
+    }
+
+    setLoadingBudgets(true);
+    try {
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+        throw new Error("Invalid accountId or channelId");
+      }
+      const budgets = await googleAdwordsCampaignsService.getGoogleBudgets(accountIdNum, channelIdNum, profileIdNum);
+      
+      // Format budgets for dropdown
+      const options = budgets.map((budget: any) => ({
+        value: budget.resource_name,
+        label: `${budget.name} ($${budget.amount_dollars?.toFixed(2) || '0.00'})`,
+        name: budget.name,
+      }));
+      
+      // Add "Custom" option at the beginning
+      setBudgetOptions([
+        { value: "__CUSTOM__", label: "Custom..." },
+        ...options,
+      ]);
+    } catch (error: any) {
+      console.error("Error fetching budgets:", error);
+      // On error, still show custom option
+      setBudgetOptions([{ value: "__CUSTOM__", label: "Custom..." }]);
+    } finally {
+      setLoadingBudgets(false);
+    }
+  }, [accountIdNum, channelIdNum, profileIdNum]);
+
+  // Fetch budgets when account, channel, and profile are available
+  // Note: We fetch when these IDs are available, even though hasBudgetNameField may not be computed yet
+  useEffect(() => {
+    if (accountIdNum && channelIdNum && profileIdNum) {
+      fetchBudgets();
+    }
+  }, [accountIdNum, channelIdNum, profileIdNum, fetchBudgets]);
+
+  // Function to fetch locations
+  const fetchLocations = useCallback(async () => {
+    if (!accountIdNum || !channelIdNum || !profileIdNum) {
+      setLocationOptions([]);
+      return;
+    }
+
+    setLoadingLocations(true);
+    try {
+      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
+        throw new Error("Invalid accountId or channelId");
+      }
+      const locations = await campaignsService.getGoogleGeoTargetConstants(
+        accountIdNum,
+        channelIdNum,
+        profileIdNum,
+        undefined,
+        undefined // No country restriction for now
+      );
+
+      const formattedLocations = locations.map((loc: any) => ({
+        value: loc.id,
+        label: `${loc.name} (${loc.type})`,
+        id: loc.id,
+        type: loc.type,
+        countryCode: loc.countryCode || "",
+      }));
+
+      setLocationOptions(formattedLocations);
+    } catch (error: any) {
+      console.error("Error fetching locations:", error);
+      setLocationOptions([]);
+    } finally {
+      setLoadingLocations(false);
+    }
+  }, [accountIdNum, channelIdNum, profileIdNum]);
+
+  // Fetch locations when account, channel, and profile are available
+  useEffect(() => {
+    if (accountIdNum && channelIdNum && profileIdNum && hasLocationIdsField) {
+      fetchLocations();
+    }
+  }, [accountIdNum, channelIdNum, profileIdNum, fetchLocations]);
 
   useImperativeHandle(ref, () => ({
     getValues: () => {
@@ -112,6 +246,31 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
           }
         }
       }
+      // Add non-formData fields
+      if (isFieldRequested("device_ids", requestedKeys) && selectedDeviceIds.length > 0) {
+        vals["device_ids"] = selectedDeviceIds.join("\n");
+      }
+      if (isFieldRequested("language_ids", requestedKeys) && selectedLanguageIds.length > 0) {
+        vals["language_ids"] = selectedLanguageIds.join("\n");
+      }
+      if (isFieldRequested("tracking_url_template", requestedKeys) && trackingUrlTemplate) {
+        vals["tracking_url_template"] = trackingUrlTemplate;
+      }
+      if (isFieldRequested("final_url_suffix", requestedKeys) && finalUrlSuffix) {
+        vals["final_url_suffix"] = finalUrlSuffix;
+      }
+      if (isFieldRequested("url_custom_parameters", requestedKeys) && urlCustomParameters.length > 0) {
+        vals["url_custom_parameters"] = JSON.stringify(urlCustomParameters);
+      }
+      if (isFieldRequested("budget_name", requestedKeys) && budgetName) {
+        vals["budget_name"] = budgetName;
+      }
+      if (isFieldRequested("location_ids", requestedKeys) && selectedLocationIds.length > 0) {
+        vals["location_ids"] = selectedLocationIds.join("\n");
+      }
+      if (isFieldRequested("excluded_location_ids", requestedKeys) && selectedExcludedLocationIds.length > 0) {
+        vals["excluded_location_ids"] = selectedExcludedLocationIds.join("\n");
+      }
       return vals;
     },
     clear: () => {
@@ -126,8 +285,18 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       setSelectedVideoAssets([]);
       setSelectedSitelinkAssets([]);
       setSelectedCalloutAssets([]);
+      setSelectedDeviceIds([]);
+      setSelectedLanguageIds([]);
+      setTrackingUrlTemplate("");
+      setFinalUrlSuffix("");
+      setUrlCustomParameters([]);
+      setBudgetName("");
+      setSelectedBudgetId("");
+      setUseCustomBudgetName(false);
+      setSelectedLocationIds([]);
+      setSelectedExcludedLocationIds([]);
     },
-  }), [formData, requestedKeys]);
+  }), [formData, requestedKeys, selectedDeviceIds, selectedLanguageIds, trackingUrlTemplate, finalUrlSuffix, urlCustomParameters, budgetName, selectedBudgetId, useCustomBudgetName, selectedLocationIds, selectedExcludedLocationIds]);
 
   const onChange = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -137,16 +306,81 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
     e.preventDefault();
     if (disabled) return;
 
-    const parts = requestedKeys
-      .map((key) => {
-        const v = formData[key as keyof typeof formData];
-        if (v === undefined || v === "" || v == null) return null;
+    const parts: string[] = [];
+
+    // Add formData fields
+    for (const key of requestedKeys) {
+      const v = formData[key as keyof typeof formData];
+      if (v !== undefined && v !== "" && v != null) {
         const label = getFieldLabel(key);
         const displayValue = typeof v === "object" ? JSON.stringify(v) : String(v);
-        return `${label}: ${displayValue}`;
-      })
-      .filter(Boolean) as string[];
+        parts.push(`${label}: ${displayValue}`);
+      }
+    }
 
+    // Add device_ids
+    if (isFieldRequested("device_ids", requestedKeys) && selectedDeviceIds.length > 0) {
+      const label = getFieldLabel("device_ids");
+      parts.push(`${label}: ${selectedDeviceIds.join(", ")}`);
+    }
+
+    // Add language_ids
+    if (isFieldRequested("language_ids", requestedKeys) && selectedLanguageIds.length > 0) {
+      const label = getFieldLabel("language_ids");
+      parts.push(`${label}: ${selectedLanguageIds.join(", ")}`);
+    }
+
+    // Add URL tracking fields (include all if form is rendered, regardless of individual field requests)
+    const hasAnyTrackingFieldRequested = isFieldRequested("tracking_url_template", requestedKeys) || isFieldRequested("final_url_suffix", requestedKeys) || isFieldRequested("url_custom_parameters", requestedKeys);
+    
+    if (hasAnyTrackingFieldRequested) {
+      if (trackingUrlTemplate) {
+        const label = getFieldLabel("tracking_url_template");
+        parts.push(`${label}: ${trackingUrlTemplate}`);
+      }
+      if (finalUrlSuffix) {
+        const label = getFieldLabel("final_url_suffix");
+        parts.push(`${label}: ${finalUrlSuffix}`);
+      }
+      if (urlCustomParameters.length > 0) {
+        const label = getFieldLabel("url_custom_parameters");
+        parts.push(`${label}: ${JSON.stringify(urlCustomParameters)}`);
+      }
+    }
+
+    // Add budget_name
+    if (isFieldRequested("budget_name", requestedKeys)) {
+      let displayValue = budgetName;
+      if (selectedBudgetId && selectedBudgetId !== "__CUSTOM__") {
+        // Show selected budget name from dropdown
+        const selectedOption = budgetOptions.find(opt => opt.value === selectedBudgetId);
+        displayValue = selectedOption?.name || budgetName;
+      }
+      if (displayValue) {
+        const label = getFieldLabel("budget_name");
+        parts.push(`${label}: ${displayValue}`);
+      }
+    }
+
+    // Add location_ids
+    if (isFieldRequested("location_ids", requestedKeys) && selectedLocationIds.length > 0) {
+      const label = getFieldLabel("location_ids");
+      const locationNames = selectedLocationIds.map(locId => {
+        const location = locationOptions.find(opt => opt.value === String(locId));
+        return location?.label || locId;
+      }).join(", ");
+      parts.push(`${label}: ${locationNames}`);
+    }
+
+    // Add excluded_location_ids
+    if (isFieldRequested("excluded_location_ids", requestedKeys) && selectedExcludedLocationIds.length > 0) {
+      const label = getFieldLabel("excluded_location_ids");
+      const locationNames = selectedExcludedLocationIds.map(locId => {
+        const location = locationOptions.find(opt => opt.value === locId);
+        return location?.label || locId;
+      }).join(", ");
+      parts.push(`${label}: ${locationNames}`);
+    }
     if (parts.length > 0) {
       onSend(parts.join("\n"));
     }
@@ -163,6 +397,16 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const hasSitelinkAssetIdsField = isFieldRequested("sitelink_asset_ids", requestedKeys);
   const hasCalloutAssetIdsField = isFieldRequested("callout_asset_ids", requestedKeys);
 
+  // Targeting fields
+  const hasDeviceIdsField = isFieldRequested("device_ids", requestedKeys);
+  const hasLanguageIdsField = isFieldRequested("language_ids", requestedKeys);
+  const hasTrackingUrlTemplateField = isFieldRequested("tracking_url_template", requestedKeys);
+  const hasFinalUrlSuffixField = isFieldRequested("final_url_suffix", requestedKeys);
+  const hasUrlCustomParametersField = isFieldRequested("url_custom_parameters", requestedKeys);
+  const hasBudgetNameField = isFieldRequested("budget_name", requestedKeys);
+  const hasLocationIdsField = isFieldRequested("location_ids", requestedKeys);
+  const hasExcludedLocationIdsField = isFieldRequested("excluded_location_ids", requestedKeys);
+
   // Only render when we have at least one visible field. Asset fields need profileId to show; basic keys are not yet rendered in this component.
   const hasAnyVisibleAssetField =
     profileIdNum &&
@@ -176,7 +420,10 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       hasVideoAssetIdsField ||
       hasSitelinkAssetIdsField ||
       hasCalloutAssetIdsField);
-  const hasAnyVisibleField = !!hasAnyVisibleAssetField;
+
+  const hasAnyVisibleTargetingField = hasDeviceIdsField || hasLanguageIdsField || hasTrackingUrlTemplateField || hasFinalUrlSuffixField || hasUrlCustomParametersField || hasBudgetNameField || hasLocationIdsField || hasExcludedLocationIdsField;
+
+  const hasAnyVisibleField = !!hasAnyVisibleAssetField || hasAnyVisibleTargetingField;
 
   if (requestedKeys.length === 0 || !hasAnyVisibleField) {
     return null;
@@ -394,6 +641,127 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 <p className="text-xs text-[#556179] mt-1">
                   {selectedCalloutAssets.map(a => a.name).join(", ")}
                 </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Targeting Fields */}
+        <div className="space-y-4">
+          {/* Device Targeting */}
+          {hasDeviceIdsField && (
+            <GoogleDeviceTargetingForm
+              deviceIds={selectedDeviceIds}
+              onChange={(field, value) => {
+                if (field === "device_ids") {
+                  setSelectedDeviceIds(value as string[]);
+                }
+              }}
+              showTitle={true}
+              disabled={disabled}
+              flatLayout={true}
+            />
+          )}
+
+          {/* Language Targeting */}
+          {hasLanguageIdsField && (
+            <GoogleLanguageTargetingForm
+              languageIds={selectedLanguageIds}
+              languageOptions={[
+                { value: "1000", label: "English", id: "1000" },
+                { value: "1001", label: "Spanish", id: "1001" },
+                { value: "1002", label: "French", id: "1002" },
+                { value: "1003", label: "German", id: "1003" },
+                { value: "1004", label: "Italian", id: "1004" },
+                { value: "1005", label: "Portuguese", id: "1005" },
+                { value: "1006", label: "Chinese", id: "1006" },
+                { value: "1007", label: "Japanese", id: "1007" },
+                { value: "1008", label: "Korean", id: "1008" },
+              ]}
+              loadingLanguages={false}
+              onLanguageIdsChange={(ids) => setSelectedLanguageIds(ids || [])}
+              showTitle={true}
+            />
+          )}
+
+          {/* URL Options (Tracking Template, Final URL Suffix, Custom Parameters) */}
+          {(hasTrackingUrlTemplateField || hasFinalUrlSuffixField || hasUrlCustomParametersField) && (
+            <GoogleTrackingTemplateForm
+              trackingUrlTemplate={trackingUrlTemplate}
+              finalUrlSuffix={finalUrlSuffix}
+              urlCustomParameters={urlCustomParameters}
+              onTrackingUrlTemplateChange={setTrackingUrlTemplate}
+              onFinalUrlSuffixChange={setFinalUrlSuffix}
+              onCustomParametersChange={(params) => setUrlCustomParameters(params || [])}
+              title="Campaign URL Options"
+              showTitle={true}
+            />
+          )}
+
+          {/* Location Targeting */}
+          {(hasLocationIdsField || hasExcludedLocationIdsField) && (
+            <GoogleLocationTargetingForm
+              locationIds={selectedLocationIds}
+              excludedLocationIds={selectedExcludedLocationIds}
+              locationOptions={locationOptions}
+              loadingLocations={loadingLocations}
+              onLocationIdsChange={(ids) => setSelectedLocationIds(ids || [])}
+              onExcludedLocationIdsChange={(ids) => setSelectedExcludedLocationIds(ids || [])}
+              showTitle={true}
+            />
+          )}
+
+          {/* Budget Name */}
+          {hasBudgetNameField && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-[#072929]">
+                Budget Name
+              </label>
+              {useCustomBudgetName || selectedBudgetId === "__CUSTOM__" ? (
+                <div>
+                  <input
+                    type="text"
+                    value={budgetName}
+                    onChange={(e) => setBudgetName(e.target.value)}
+                    className="campaign-input w-full"
+                    placeholder="Enter custom budget name"
+                    disabled={disabled}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseCustomBudgetName(false);
+                      setSelectedBudgetId("");
+                      setBudgetName("");
+                    }}
+                    className="text-[10px] text-[#136D6D] mt-1 hover:underline"
+                  >
+                    ← Back to budget list
+                  </button>
+                </div>
+              ) : (
+                <Dropdown<string>
+                  options={budgetOptions}
+                  value={selectedBudgetId || ""}
+                  placeholder={loadingBudgets ? "Loading budgets..." : "Select a budget or choose Custom..."}
+                  onChange={(value) => {
+                    if (value === "__CUSTOM__") {
+                      setUseCustomBudgetName(true);
+                      setSelectedBudgetId("__CUSTOM__");
+                      setBudgetName("");
+                    } else {
+                      const opt = budgetOptions.find((o) => o.value === value);
+                      setUseCustomBudgetName(false);
+                      setSelectedBudgetId(value);
+                      setBudgetName(opt?.name ?? opt?.label ?? value);
+                    }
+                  }}
+                  disabled={loadingBudgets || disabled}
+                  searchable={true}
+                  searchPlaceholder="Search budgets..."
+                  emptyMessage="No budgets found"
+                  buttonClassName="edit-button w-full"
+                />
               )}
             </div>
           )}

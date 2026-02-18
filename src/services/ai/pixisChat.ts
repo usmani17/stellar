@@ -12,7 +12,17 @@ export interface PixisChatStreamEvent {
   session_db_id?: string;
   message?: { content?: Array<{ text?: string }> };
   tool_call?: unknown;
+  text?: string;
   full_message?: string;
+  // Campaign draft fields
+  draft_id?: string;
+  platform?: string;
+  campaign_type?: string;
+  complete?: boolean;
+  draft?: Record<string, unknown>;
+  questions?: Record<string, unknown>;
+  keys_for_form?: string[];
+  validation_error?: string | null;
   [key: string]: unknown;
 }
 
@@ -28,11 +38,24 @@ export interface PixisChatParams {
   platform?: string;
 }
 
-/** Timeline item for ordered display: thinking | tool_call | text */
+/** Timeline item for ordered display: thinking | tool_call | text | campaign-draft */
 export type PixisTimelineItem =
-  | { type: "thinking" }
-  | { type: "tool_call"; label: string }
-  | { type: "text"; content: string };
+  | { type: "thinking"; content?: string }
+  | { type: "tool_call"; label: string; status?: "running" | "completed" }
+  | { type: "text"; content: string }
+  | { type: "campaign-draft"; data: CampaignDraftData };
+
+/** Campaign draft data from AI agent */
+export interface CampaignDraftData {
+  draft_id: string;
+  platform: string;
+  campaign_type: string;
+  complete: boolean;
+  draft: Record<string, unknown>;
+  questions: Record<string, unknown>;
+  keys_for_form: string[];
+  validation_error: string | null;
+}
 
 const getBaseUrl = (): string => {
   const baseUrl = import.meta.env.VITE_AI_AGENT_BASE_URL;
@@ -49,6 +72,7 @@ export async function streamPixisChat(
     onToolCall?: (label: string) => void;
     /** Called for each timeline item in order: tool_call or text (consumer updates last text item when same type) */
     onTimelineItem?: (item: PixisTimelineItem) => void;
+    onCampaignDraft?: (data: CampaignDraftData) => void;
     onResult?: (data: PixisChatStreamEvent) => void;
     onError?: (err: Error) => void;
   },
@@ -78,6 +102,7 @@ export async function streamPixisChat(
   let sessionId: string | undefined;
   let sessionDbId: string | undefined;
   let accumulated = "";
+  let thinkingAccumulated = "";
 
   while (true) {
     const { done, value } = await reader.read();
@@ -104,6 +129,19 @@ export async function streamPixisChat(
           callbacks.onInit?.({ session_id: sessionId, session_db_id: sessionDbId });
         }
 
+        if (etype === "thinking") {
+          const text = typeof ev.text === "string" ? ev.text : "";
+          if (text || subtype === "completed") {
+            thinkingAccumulated = thinkingAccumulated + text;
+            if (thinkingAccumulated.trim()) {
+              callbacks.onTimelineItem?.({ type: "thinking", content: thinkingAccumulated });
+            }
+            if (subtype === "completed") {
+              thinkingAccumulated = "";
+            }
+          }
+        }
+
         if (etype === "assistant") {
           const text = ev.message?.content?.[0]?.text ?? "";
           if (text) {
@@ -114,18 +152,36 @@ export async function streamPixisChat(
         }
 
         if (etype === "tool_call" && subtype === "started") {
-          const tc = ev.tool_call as { shellToolCall?: unknown; readToolCall?: { args?: { path?: string } }; writeToolCall?: { args?: { path?: string } } } | undefined;
-          let label = "Processing...";
-          if (tc?.shellToolCall) label = "Querying datasource...";
-          else if (tc?.readToolCall) {
+          const tc = ev.tool_call as { name?: string; shellToolCall?: unknown; readToolCall?: { args?: { path?: string } }; writeToolCall?: { args?: { path?: string } } } | undefined;
+          let label: string;
+          if (typeof tc?.name === "string") {
+            label = tc.name;
+          } else if (tc?.shellToolCall) {
+            label = "Querying datasource...";
+          } else if (tc?.readToolCall) {
             const p = tc.readToolCall?.args?.path ?? "";
             label = `Reading: ${p.split("/").pop() ?? "file"}`;
           } else if (tc?.writeToolCall) {
             const p = tc.writeToolCall?.args?.path ?? "";
             label = `Writing: ${p.split("/").pop() ?? "file"}`;
+          } else {
+            label = "Processing...";
           }
           callbacks.onToolCall?.(label);
           callbacks.onTimelineItem?.({ type: "tool_call", label });
+        }
+
+        if (etype === "campaign-draft") {
+          callbacks.onCampaignDraft?.({
+            draft_id: ev.draft_id ?? "",
+            platform: ev.platform ?? "",
+            campaign_type: ev.campaign_type ?? "",
+            complete: ev.complete ?? false,
+            draft: ev.draft ?? {},
+            questions: ev.questions ?? {},
+            keys_for_form: ev.keys_for_form ?? [],
+            validation_error: ev.validation_error ?? null,
+          });
         }
 
         if (etype === "result") {
