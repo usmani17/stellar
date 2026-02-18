@@ -12,6 +12,7 @@ import { GoogleDeviceTargetingForm } from "../google/campaigns/GoogleDeviceTarge
 import { GoogleLanguageTargetingForm } from "../google/campaigns/GoogleLanguageTargetingForm";
 import { GoogleTrackingTemplateForm } from "../google/campaigns/GoogleTrackingTemplateForm";
 import { Dropdown } from "../ui/Dropdown";
+import { MerchantIdDropdown } from "../google/MerchantIdDropdown";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
 import { GoogleLocationTargetingForm } from "../google/campaigns/GoogleLocationTargetingForm";
 import { campaignsService } from "../../services/campaigns";
@@ -138,6 +139,11 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const [useCustomBudgetName, setUseCustomBudgetName] = useState(false);
   const [loadingBudgets, setLoadingBudgets] = useState(false);
 
+  // Merchant ID
+  const [merchantId, setMerchantId] = useState<string>(
+    (campaignDraft?.merchant_id as string) || ""
+  );
+
   // Location Targeting
   const [selectedLocationIds, setSelectedLocationIds] = useState<number[]>(
     (campaignDraft?.location_ids as number[]) || []
@@ -152,9 +158,30 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const accountIdNum = accountId != null ? (typeof accountId === "number" ? accountId : parseInt(String(accountId), 10)) : null;
   const channelIdNum = channelId != null ? (typeof channelId === "number" ? channelId : parseInt(String(channelId), 10)) : null;
 
+  const hasLogoAssetIdField = isFieldRequested("logo_asset_id", requestedKeys);
+  const hasBusinessNameAssetIdField = isFieldRequested("business_name_asset_id", requestedKeys);
+  const hasMarketingImageAssetIdField = isFieldRequested("marketing_image_asset_id", requestedKeys);
+  const hasSquareMarketingImageAssetIdField = isFieldRequested("square_marketing_image_asset_id", requestedKeys);
+  const hasHeadlineAssetIdsField = isFieldRequested("headline_asset_ids", requestedKeys);
+  const hasDescriptionAssetIdsField = isFieldRequested("description_asset_ids", requestedKeys);
+  const hasLongHeadlineAssetIdsField = isFieldRequested("long_headline_asset_ids", requestedKeys);
+  const hasVideoAssetIdsField = isFieldRequested("video_asset_ids", requestedKeys);
+  const hasSitelinkAssetIdsField = isFieldRequested("sitelink_asset_ids", requestedKeys);
+  const hasCalloutAssetIdsField = isFieldRequested("callout_asset_ids", requestedKeys);
+
+  // Targeting fields
+  const hasDeviceIdsField = isFieldRequested("device_ids", requestedKeys);
+  const hasLanguageIdsField = isFieldRequested("language_ids", requestedKeys);
+  const hasTrackingUrlTemplateField = isFieldRequested("tracking_url_template", requestedKeys);
+  const hasFinalUrlSuffixField = isFieldRequested("final_url_suffix", requestedKeys);
+  const hasUrlCustomParametersField = isFieldRequested("url_custom_parameters", requestedKeys);
+  const hasBudgetNameField = isFieldRequested("budget_name", requestedKeys);
+  const hasLocationIdsField = isFieldRequested("location_ids", requestedKeys);
+  const hasExcludedLocationIdsField = isFieldRequested("excluded_location_ids", requestedKeys);
+  const hasMerchantIdField = isFieldRequested("merchant_id", requestedKeys);
   // Function to fetch budgets
   const fetchBudgets = useCallback(async () => {
-    if (!accountIdNum || !channelIdNum || !profileIdNum) {
+    if (!accountIdNum || !channelIdNum || !profileIdNum || !hasBudgetNameField) {
       setBudgetOptions([]);
       return;
     }
@@ -279,6 +306,9 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       if (isFieldRequested("excluded_location_ids", requestedKeys) && selectedExcludedLocationIds.length > 0) {
         vals["excluded_location_ids"] = selectedExcludedLocationIds.join("\n");
       }
+      if (isFieldRequested("merchant_id", requestedKeys) && merchantId) {
+        vals["merchant_id"] = merchantId;
+      }
       return vals;
     },
     clear: () => {
@@ -303,8 +333,9 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       setUseCustomBudgetName(false);
       setSelectedLocationIds([]);
       setSelectedExcludedLocationIds([]);
+      setMerchantId("");
     },
-  }), [formData, requestedKeys, selectedDeviceIds, selectedLanguageIds, trackingUrlTemplate, finalUrlSuffix, urlCustomParameters, budgetName, selectedBudgetId, useCustomBudgetName, selectedLocationIds, selectedExcludedLocationIds]);
+  }), [formData, requestedKeys, selectedDeviceIds, selectedLanguageIds, trackingUrlTemplate, finalUrlSuffix, urlCustomParameters, budgetName, selectedBudgetId, useCustomBudgetName, selectedLocationIds, selectedExcludedLocationIds, merchantId]);
 
   const onChange = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -394,6 +425,12 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       parts.push(`${label}: ${locationNames}`);
     }
 
+    // Add merchant_id
+    if (isFieldRequested("merchant_id", requestedKeys) && merchantId) {
+      const label = getFieldLabel("merchant_id");
+      parts.push(`${label}: ${merchantId}`);
+    }
+
     // Add multi-asset fields with readable labels (so agent view shows names, not ", ," or JSON)
     if (isFieldRequested("headline_asset_ids", requestedKeys)) {
       const count = selectedHeadlineAssets.length || (Array.isArray(formData.headline_asset_ids) ? formData.headline_asset_ids.length : 0);
@@ -461,27 +498,6 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
     }
   };
 
-  const hasLogoAssetIdField = isFieldRequested("logo_asset_id", requestedKeys);
-  const hasBusinessNameAssetIdField = isFieldRequested("business_name_asset_id", requestedKeys);
-  const hasMarketingImageAssetIdField = isFieldRequested("marketing_image_asset_id", requestedKeys);
-  const hasSquareMarketingImageAssetIdField = isFieldRequested("square_marketing_image_asset_id", requestedKeys);
-  const hasHeadlineAssetIdsField = isFieldRequested("headline_asset_ids", requestedKeys);
-  const hasDescriptionAssetIdsField = isFieldRequested("description_asset_ids", requestedKeys);
-  const hasLongHeadlineAssetIdsField = isFieldRequested("long_headline_asset_ids", requestedKeys);
-  const hasVideoAssetIdsField = isFieldRequested("video_asset_ids", requestedKeys);
-  const hasSitelinkAssetIdsField = isFieldRequested("sitelink_asset_ids", requestedKeys);
-  const hasCalloutAssetIdsField = isFieldRequested("callout_asset_ids", requestedKeys);
-
-  // Targeting fields
-  const hasDeviceIdsField = isFieldRequested("device_ids", requestedKeys);
-  const hasLanguageIdsField = isFieldRequested("language_ids", requestedKeys);
-  const hasTrackingUrlTemplateField = isFieldRequested("tracking_url_template", requestedKeys);
-  const hasFinalUrlSuffixField = isFieldRequested("final_url_suffix", requestedKeys);
-  const hasUrlCustomParametersField = isFieldRequested("url_custom_parameters", requestedKeys);
-  const hasBudgetNameField = isFieldRequested("budget_name", requestedKeys);
-  const hasLocationIdsField = isFieldRequested("location_ids", requestedKeys);
-  const hasExcludedLocationIdsField = isFieldRequested("excluded_location_ids", requestedKeys);
-
   // Only render when we have at least one visible field. Asset fields need profileId to show; basic keys are not yet rendered in this component.
   const hasAnyVisibleAssetField =
     profileIdNum &&
@@ -494,6 +510,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       hasLongHeadlineAssetIdsField ||
       hasVideoAssetIdsField ||
       hasSitelinkAssetIdsField ||
+      hasMerchantIdField ||
       hasCalloutAssetIdsField);
 
   const hasAnyVisibleTargetingField = hasDeviceIdsField || hasLanguageIdsField || hasTrackingUrlTemplateField || hasFinalUrlSuffixField || hasUrlCustomParametersField || hasBudgetNameField || hasLocationIdsField || hasExcludedLocationIdsField;
@@ -869,6 +886,21 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
                 />
               )}
             </div>
+          )}
+
+          {/* Merchant ID */}
+          {hasMerchantIdField && (
+            <MerchantIdDropdown
+              value={merchantId}
+              onChange={setMerchantId}
+              accountId={accountId != null ? String(accountId) : undefined}
+              channelId={channelId != null ? String(channelId) : undefined}
+              selectedProfileId={profileId != null ? String(profileId) : undefined}
+              campaignType={campaignType}
+              isOpen={true}
+              disabled={disabled}
+              showAccountCount={false}
+            />
           )}
         </div>
 

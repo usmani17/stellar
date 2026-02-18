@@ -12,6 +12,7 @@ import { CampaignFormForChat } from "../../components/ai/CampaignFormForChat";
 
 const ALL_FIELD_GROUPS: { label: string; keys: string[] }[] = [
   { label: "URL Customization", keys: ["budget_name", "tracking_url_template", "final_url_suffix", "url_custom_parameters"] },
+  { label: "Shopping Settings", keys: ["merchant_id"] },
   { label: "Targeting (Location & Language)", keys: ["location_ids", "excluded_location_ids", "language_ids"] },
   { label: "Asset IDs (Demand Gen & Perf Max)", keys: ["business_name_asset_id", "logo_asset_id", "marketing_image_asset_id", "square_marketing_image_asset_id"] },
   { label: "Headline/Description Asset IDs", keys: ["headline_asset_ids", "description_asset_ids", "long_headline_asset_ids"] },
@@ -60,13 +61,6 @@ export const CampaignFormTestPage: React.FC = () => {
   const searchWithTargeting = () =>
     setSelectedKeys(
       new Set([
-        "budget_name",
-        "tracking_url_template",
-        "final_url_suffix",
-        "url_custom_parameters",
-        "location_ids",
-        "excluded_location_ids",
-        "language_ids",
       ])
     );
 
@@ -80,15 +74,6 @@ export const CampaignFormTestPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         <h1 className="text-2xl font-bold text-[#072929]">Campaign Form visibleKeys Test</h1>
-        <p className="text-sm text-gray-600">
-          Select which fields to show in the form. Only selected fields will appear below – simulates AI sending keys via current_questions_schema.
-        </p>
-        <p className="text-sm text-amber-700 bg-amber-50 rounded px-3 py-2 border border-amber-200">
-          <strong>Fields shown:</strong> Only fields with <code className="bg-amber-100 px-1 rounded">need_form: true</code> are included – these handle asset selection, URL customization, and targeting specs (locations, languages).
-        </p>
-        <p className="text-sm text-blue-700 bg-blue-50 rounded px-3 py-2 border border-blue-200">
-          <strong>Merchant dropdown:</strong> For Shopping + merchant_id, fill Account ID, Channel ID, and Profile ID below to load the merchant dropdown (falls back to text input when empty).
-        </p>
 
         {/* Campaign type selector */}
         <div className="flex flex-wrap gap-2 items-center">
