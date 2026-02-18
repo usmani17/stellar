@@ -793,7 +793,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                     return (
                       <tr
                         key={keyword.id}
-                        className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
+                        className={`group ${!isLastRow ? "border-b border-[#e8e8e3]" : ""
                           } ${isRemoved ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"} transition-colors`}
                       >
                         <td className="table-cell">

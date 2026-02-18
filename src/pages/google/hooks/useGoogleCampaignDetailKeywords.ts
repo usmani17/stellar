@@ -81,10 +81,11 @@ export const useGoogleCampaignDetailKeywords = ({
       if (!channelIdNum || isNaN(channelIdNum)) {
         throw new Error("Channel ID is required");
       }
+      const isDraftCampaign = String(campaignId).toLowerCase().startsWith("draft-");
       const data = await googleAdwordsKeywordsService.getGoogleKeywords(
         accountIdNum,
         channelIdNum,
-        parseInt(campaignId, 10),
+        campaignId,
         undefined,
         {
           filters: keywordsFilters,
@@ -92,7 +93,7 @@ export const useGoogleCampaignDetailKeywords = ({
           page_size: 100,
           sort_by: keywordsSortBy,
           order: keywordsSortOrder,
-          draft_only: showDraftsOnlyKeywords,
+          ...((isDraftCampaign || showDraftsOnlyKeywords) && { draft_only: true }),
         }
       );
 

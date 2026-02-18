@@ -36,6 +36,11 @@ export const CreateGoogleAdGroupPanel: React.FC<
   campaignName,
   loading = false,
   submitError = null,
+  mode = "create",
+  draftId,
+  initialData,
+  onUpdateDraft,
+  onPublishDraft,
 }) => {
     const generateDefaultAdGroupName = React.useCallback((): string => {
       const now = new Date();
