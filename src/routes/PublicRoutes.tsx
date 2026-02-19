@@ -35,6 +35,14 @@ function PublicRoutes() {
                 }
             />
             <Route
+                path="/reset-password/:uid/:token"
+                element={
+                    <PublicRoute>
+                        <ResetPassword />
+                    </PublicRoute>
+                }
+            />
+            <Route
                 path="/reset-password/:token"
                 element={
                     <PublicRoute>

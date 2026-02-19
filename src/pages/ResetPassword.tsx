@@ -10,7 +10,7 @@ import {
 } from '../components/ui';
 
 export const ResetPassword: React.FC = () => {
-  const { token } = useParams<{ token: string }>();
+  const { uid: uidParam, token } = useParams<{ uid?: string; token: string }>();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     new_password: '',
@@ -22,21 +22,20 @@ export const ResetPassword: React.FC = () => {
   const [uid, setUid] = useState('');
 
   useEffect(() => {
-    if (token) {
-      // Token format: uid/token
+    if (uidParam) {
+      setUid(uidParam);
+    } else if (token) {
+      // Legacy: token format uid/token in single param
       const parts = token.split('/');
       if (parts.length >= 2) {
         setUid(parts[0]);
       } else {
-        // If only token provided, try to extract from URL
         const urlParams = new URLSearchParams(window.location.search);
-        const uidParam = urlParams.get('uid');
-        if (uidParam) {
-          setUid(uidParam);
-        }
+        const q = urlParams.get('uid');
+        if (q) setUid(q);
       }
     }
-  }, [token]);
+  }, [uidParam, token]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -60,8 +59,8 @@ export const ResetPassword: React.FC = () => {
     setLoading(true);
 
     try {
-      const tokenPart = token.includes('/') ? token.split('/')[1] : token;
-      const uidPart = uid || (token.includes('/') ? token.split('/')[0] : '');
+      const tokenPart = uidParam != null ? token : (token.includes('/') ? token.split('/')[1] : token);
+      const uidPart = uidParam ?? (uid || (token.includes('/') ? token.split('/')[0] : ''));
       
       await authService.confirmPasswordReset(
         tokenPart,
