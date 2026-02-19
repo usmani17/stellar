@@ -1606,11 +1606,14 @@ export const GoogleAdGroups: React.FC = () => {
                   {showBulkActions && (
                     <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                       <div className="overflow-y-auto">
-                        {[
-                          { value: "ENABLED", label: "Enable" },
-                          { value: "PAUSED", label: "Pause" },
-                          { value: "edit_bid", label: "Default max. CPC" },
-                        ].map((opt) => (
+                        {(showDraftsOnly
+                          ? [{ value: "edit_bid", label: "Default max. CPC" }]
+                          : [
+                              { value: "ENABLED", label: "Enable" },
+                              { value: "PAUSED", label: "Pause" },
+                              { value: "edit_bid", label: "Default max. CPC" },
+                            ]
+                        ).map((opt) => (
                           <button
                             key={opt.value}
                             type="button"

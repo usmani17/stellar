@@ -510,34 +510,39 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<
       <div className="flex items-center justify-end mb-4">
         <div className="flex items-center gap-2">
           {createButton}
-          {onUpdateListingGroupStatus && onBulkUpdateComplete && (
-            <BulkActionsDropdown
-              options={[
-                { value: "ENABLED", label: "Enable" },
-                { value: "PAUSED", label: "Pause" },
-              ]}
-              selectedCount={selectedListingGroupIds.size}
-              onSelect={(value) => {
-                const selectedData = getSelectedListingGroupsData();
-                console.log(
-                  "[ShoppingAds bulk] selectedListingGroupIds (Set):",
-                  selectedListingGroupIds.size,
-                  Array.from(selectedListingGroupIds),
-                );
-                console.log(
-                  "[ShoppingAds bulk] selected rows count:",
-                  selectedData.length,
-                );
-                selectedData.forEach((lg, i) => {
+          {onUpdateListingGroupStatus && onBulkUpdateComplete && (() => {
+            const bulkOptions = showDraftsOnly
+              ? []
+              : [
+                  { value: "ENABLED", label: "Enable" },
+                  { value: "PAUSED", label: "Pause" },
+                ];
+            return bulkOptions.length > 0 ? (
+              <BulkActionsDropdown
+                options={bulkOptions}
+                selectedCount={selectedListingGroupIds.size}
+                onSelect={(value) => {
+                  const selectedData = getSelectedListingGroupsData();
                   console.log(
-                    `[ShoppingAds bulk] row ${i}: id=${lg.id}, listing_group_id=${lg.listing_group_id}, ad_id=${lg.ad_id}`,
+                    "[ShoppingAds bulk] selectedListingGroupIds (Set):",
+                    selectedListingGroupIds.size,
+                    Array.from(selectedListingGroupIds),
                   );
-                });
-                setPendingStatusAction(value as "ENABLED" | "PAUSED");
-                setShowBulkConfirmationModal(true);
-              }}
-            />
-          )}
+                  console.log(
+                    "[ShoppingAds bulk] selected rows count:",
+                    selectedData.length,
+                  );
+                  selectedData.forEach((lg, i) => {
+                    console.log(
+                      `[ShoppingAds bulk] row ${i}: id=${lg.id}, listing_group_id=${lg.listing_group_id}, ad_id=${lg.ad_id}`,
+                    );
+                  });
+                  setPendingStatusAction(value as "ENABLED" | "PAUSED");
+                  setShowBulkConfirmationModal(true);
+                }}
+              />
+            ) : null;
+          })()}
           <button onClick={onToggleFilterPanel} className="edit-button">
             <svg
               className="w-5 h-5 text-[#072929]"

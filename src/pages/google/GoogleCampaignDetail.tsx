@@ -291,11 +291,17 @@ export const GoogleCampaignDetail: React.FC = () => {
 
     try {
       const cid = campaignId ?? "";
+      const { adgroup_id, ...adData } = data;
+      const payload: any = {
+        ad: adData,
+        ...(adgroup_id != null && adgroup_id !== "" && { adgroup_id: Number(adgroup_id) || adgroup_id }),
+        ...(options?.saveAsDraft && { save_as_draft: true }),
+      };
       const response = await googleAdwordsAdsService.createDemandGenAd(
         parseInt(accountId || "", 10),
         parseInt(channelId, 10),
         cid,
-        { ad: data, ...(options?.saveAsDraft && { save_as_draft: true }) },
+        payload,
       );
 
       if (response?.ad) {
@@ -2483,6 +2489,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                                   loading={createDemandGenAdLoading}
                                   submitError={createDemandGenAdError}
                                   profileId={profileId}
+                                  adgroups={adgroups}
                                 />
                               ) : undefined
                             }

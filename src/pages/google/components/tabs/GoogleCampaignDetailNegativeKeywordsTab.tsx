@@ -587,19 +587,24 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
           </div>
           <div className="flex items-center gap-2">
             {createButton}
-            {accountId && channelId && onBulkUpdateComplete && (
-              <BulkActionsDropdown
-                options={[
-                  { value: "ENABLED", label: "Enable" },
-                  { value: "PAUSED", label: "Pause" },
-                ]}
-                selectedCount={selectedNegativeKeywordIds.size}
-                onSelect={(value) => {
-                  setPendingStatusAction(value as "ENABLED" | "PAUSED");
-                  setShowBulkConfirmationModal(true);
-                }}
-              />
-            )}
+            {accountId && channelId && onBulkUpdateComplete && (() => {
+              const bulkOptions = showDraftsOnly
+                ? []
+                : [
+                    { value: "ENABLED", label: "Enable" },
+                    { value: "PAUSED", label: "Pause" },
+                  ];
+              return bulkOptions.length > 0 ? (
+                <BulkActionsDropdown
+                  options={bulkOptions}
+                  selectedCount={selectedNegativeKeywordIds.size}
+                  onSelect={(value) => {
+                    setPendingStatusAction(value as "ENABLED" | "PAUSED");
+                    setShowBulkConfirmationModal(true);
+                  }}
+                />
+              ) : null;
+            })()}
             <button onClick={onToggleFilterPanel} className="edit-button">
               <svg
                 className="w-5 h-5 text-[#072929]"
