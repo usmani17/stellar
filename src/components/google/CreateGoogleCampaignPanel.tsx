@@ -1104,12 +1104,15 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       device_ids: (formData.campaign_type === "SEARCH" || formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "SHOPPING")
         ? (formData.device_ids && formData.device_ids.length > 0 ? formData.device_ids : undefined)
         : undefined,
-      // Include network_settings for SHOPPING campaigns
-      network_settings: formData.campaign_type === "SHOPPING" && formData.network_settings
-        ? formData.network_settings
-        : (formData.campaign_type === "SEARCH" || formData.campaign_type === "DISPLAY") && formData.network_settings
-        ? formData.network_settings
-        : undefined,
+      // Include network_settings for SHOPPING, SEARCH, DISPLAY, and PERFORMANCE_MAX campaigns
+      network_settings:
+        formData.campaign_type === "SHOPPING" && formData.network_settings
+          ? formData.network_settings
+          : (formData.campaign_type === "SEARCH" ||
+              formData.campaign_type === "DISPLAY" ||
+              formData.campaign_type === "PERFORMANCE_MAX") && formData.network_settings
+          ? formData.network_settings
+          : undefined,
       // Brand Guidelines required fields for Performance Max campaigns - always include if campaign type is PERFORMANCE_MAX
       ...(formData.campaign_type === "PERFORMANCE_MAX" ? {
         business_name: formData.business_name?.trim() || formData.business_name,

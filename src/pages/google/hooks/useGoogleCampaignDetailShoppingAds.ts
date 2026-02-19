@@ -52,6 +52,9 @@ export const useGoogleCampaignDetailShoppingAds = ({
   const [isListingGroupsFilterPanelOpen, setIsListingGroupsFilterPanelOpen] = useState(false);
   const [listingGroupsFilters, setListingGroupsFilters] = useState<FilterValues>([]);
 
+  // Draft-only switch (refetch with draft_only when toggled, like Product Groups)
+  const [showDraftsOnlyShoppingAds, setShowDraftsOnlyShoppingAds] = useState(false);
+
   // Load listing groups. Optional options override page/sort for one request (e.g. after create to show newest first).
   const loadListingGroups = useCallback(
     async (options?: { page?: number; sortBy?: string; sortOrder?: "asc" | "desc" }) => {
@@ -101,6 +104,7 @@ export const useGoogleCampaignDetailShoppingAds = ({
               ? startDate.toISOString().split("T")[0]
               : undefined,
             end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+            draft_only: showDraftsOnlyShoppingAds,
           }
         );
 
@@ -133,6 +137,7 @@ export const useGoogleCampaignDetailShoppingAds = ({
     startDate,
     endDate,
     listingGroupsFilters,
+    showDraftsOnlyShoppingAds,
   ]);
 
   // Load shopping ads when dependencies change
@@ -267,19 +272,24 @@ export const useGoogleCampaignDetailShoppingAds = ({
       // Reload after a short delay to ensure API has processed, but preserve status update
       setTimeout(async () => {
         try {
+          const shoppingAdsFiltersWithTypeReload = [
+            ...listingGroupsFilters,
+            { field: "ad_type", value: "SHOPPING_PRODUCT_AD" },
+          ];
           const data = await googleAdwordsAdsService.getGoogleAds(
             accountIdNum,
             channelIdNum,
             parseInt(campaignId!, 10),
             undefined,
             {
-              filters: listingGroupsFilters,
+              filters: shoppingAdsFiltersWithTypeReload,
               page: listingGroupsCurrentPage,
               page_size: 10,
               sort_by: listingGroupsSortBy,
               order: listingGroupsSortOrder,
               start_date: startDate ? toLocalDateString(startDate) : undefined,
               end_date: endDate ? toLocalDateString(endDate) : undefined,
+              draft_only: showDraftsOnlyShoppingAds,
             }
           );
           
@@ -326,7 +336,7 @@ export const useGoogleCampaignDetailShoppingAds = ({
       }
       throw error;
     }
-  }, [accountId, channelId, campaignId, listingGroups, listingGroupsFilters, listingGroupsCurrentPage, listingGroupsSortBy, listingGroupsSortOrder, startDate, endDate, onError]);
+  }, [accountId, channelId, campaignId, listingGroups, listingGroupsFilters, listingGroupsCurrentPage, listingGroupsSortBy, listingGroupsSortOrder, startDate, endDate, showDraftsOnlyShoppingAds, onError]);
 
   return {
     // Data
@@ -355,5 +365,8 @@ export const useGoogleCampaignDetailShoppingAds = ({
     handleListingGroupsSort,
     handleListingGroupsPageChange,
     handleUpdateListingGroupStatus,
+    // Draft switch (refetch with draft_only when toggled)
+    showDraftsOnlyShoppingAds,
+    setShowDraftsOnlyShoppingAds,
   };
 };

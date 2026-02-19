@@ -67,6 +67,8 @@ interface ShoppingAdsSummary {
 interface GoogleCampaignDetailShoppingAdsTabProps {
   listingGroups: GoogleListingGroup[];
   loading: boolean;
+  showDraftsOnly?: boolean;
+  onToggleDraftsOnly?: () => void;
   selectedListingGroupIds: Set<number>;
   onSelectAll: (checked: boolean) => void;
   onSelectListingGroup: (id: number, checked: boolean) => void;
@@ -108,6 +110,8 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<
 > = ({
   listingGroups,
   loading,
+  showDraftsOnly = false,
+  onToggleDraftsOnly,
   selectedListingGroupIds,
   onSelectAll,
   onSelectListingGroup,
@@ -148,16 +152,14 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<
     return interactions > 0 ? spends / interactions : (lg.avg_cost ?? 0);
   };
 
-  const [showDraftsOnly, setShowDraftsOnly] = useState(false);
   const isDraftListingGroup = (lg: GoogleListingGroup) => {
     const status = (lg.status || "").toUpperCase();
     if (status === "SAVED_DRAFT" || status === "DRAFT") return true;
     const id = lg.ad_id ?? lg.id ?? lg.listing_group_id;
     return String(id).startsWith("draft-");
   };
-  const displayedListingGroups = showDraftsOnly
-    ? listingGroups.filter(isDraftListingGroup)
-    : listingGroups;
+  // Server returns only drafts when showDraftsOnly/draft_only is true, else non-drafts only
+  const displayedListingGroups = listingGroups;
 
   const [showBulkConfirmationModal, setShowBulkConfirmationModal] =
     useState(false);
@@ -584,7 +586,7 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<
           type="button"
           role="switch"
           aria-checked={showDraftsOnly}
-          onClick={() => setShowDraftsOnly((prev) => !prev)}
+          onClick={() => onToggleDraftsOnly?.()}
           className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:ring-offset-2 ${
             showDraftsOnly ? "bg-[#136D6D]" : "bg-gray-200"
           }`}

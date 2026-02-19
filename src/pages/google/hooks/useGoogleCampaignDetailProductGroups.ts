@@ -50,6 +50,9 @@ export const useGoogleCampaignDetailProductGroups = ({
   const [isProductGroupsFilterPanelOpen, setIsProductGroupsFilterPanelOpen] = useState(false);
   const [productGroupsFilters, setProductGroupsFilters] = useState<FilterValues>([]);
 
+  // Draft-only switch (refetch with draft_only when toggled, like other tabs)
+  const [showDraftsOnlyProductGroups, setShowDraftsOnlyProductGroups] = useState(false);
+
   // Load product groups
   const loadProductGroups = useCallback(async () => {
     try {
@@ -75,6 +78,7 @@ export const useGoogleCampaignDetailProductGroups = ({
           order: productGroupsSortOrder,
           start_date: startDate ? toLocalDateString(startDate) : undefined,
           end_date: endDate ? toLocalDateString(endDate) : undefined,
+          draft_only: showDraftsOnlyProductGroups,
         }
       );
 
@@ -98,6 +102,7 @@ export const useGoogleCampaignDetailProductGroups = ({
     startDate,
     endDate,
     productGroupsFilters,
+    showDraftsOnlyProductGroups,
   ]);
 
   // Load product groups when dependencies change
@@ -319,5 +324,8 @@ export const useGoogleCampaignDetailProductGroups = ({
     handleProductGroupsSort,
     handleProductGroupsPageChange,
     handleUpdateProductGroupStatus,
+    // Draft switch (refetch with draft_only when toggled)
+    showDraftsOnlyProductGroups,
+    setShowDraftsOnlyProductGroups,
   };
 };

@@ -7,7 +7,7 @@ export const googleAdwordsProductGroupsService = {
     campaignId?: string | number,
     adgroupId?: string | number,
     params?: {
-      filters?: Array<{ field: string; operator?: string; value: any }>; // Dynamic filters from DynamicFilterPanel
+      filters?: Array<{ field: string; operator?: string; value: any }>;
       sort_by?: string;
       order?: "asc" | "desc";
       page?: number;
@@ -16,6 +16,7 @@ export const googleAdwordsProductGroupsService = {
       end_date?: string;
       campaign_id?: string | number;
       adgroup_id?: string | number;
+      draft_only?: boolean;
     }
   ): Promise<{
     ads: any[];
@@ -53,11 +54,11 @@ export const googleAdwordsProductGroupsService = {
       end_date: params?.end_date,
     };
     
-    // Add campaign_id and adgroup_id if provided
     if (campaignId) payload.campaign_id = campaignId;
     if (adgroupId) payload.adgroup_id = adgroupId;
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
     if (params?.adgroup_id) payload.adgroup_id = params.adgroup_id;
+    if (params?.draft_only !== undefined) payload.draft_only = params.draft_only;
 
     const response = await api.post(`/google-adwords/${accountId}/channels/${channelId}/product-groups/`, payload);
     return response.data;

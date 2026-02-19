@@ -1113,6 +1113,8 @@ export const GoogleCampaignDetail: React.FC = () => {
     handleProductGroupsPageChange,
     handleUpdateProductGroupStatus,
     loadProductGroups,
+    showDraftsOnlyProductGroups,
+    setShowDraftsOnlyProductGroups,
   } = productGroupsHook;
 
   // Use Shopping Ads hook
@@ -1154,6 +1156,8 @@ export const GoogleCampaignDetail: React.FC = () => {
     handleListingGroupsPageChange: handleShoppingAdsPageChange,
     handleUpdateListingGroupStatus: handleUpdateShoppingAdStatus,
     loadListingGroups: loadShoppingAds,
+    showDraftsOnlyShoppingAds,
+    setShowDraftsOnlyShoppingAds,
   } = shoppingAdsHook;
 
   // Switch away from hidden tabs when campaign type changes
@@ -2671,6 +2675,12 @@ export const GoogleCampaignDetail: React.FC = () => {
                         <GoogleCampaignDetailProductGroupsTab
                           productGroups={productGroups}
                           loading={productGroupsLoading}
+                          showDraftsOnly={showDraftsOnlyProductGroups}
+                          onToggleDraftsOnly={() =>
+                            setShowDraftsOnlyProductGroups(
+                              (prev) => !prev,
+                            )
+                          }
                           selectedProductGroupIds={selectedProductGroupIds}
                           getProductGroupSelectionKey={
                             getProductGroupSelectionKey
@@ -2752,6 +2762,10 @@ export const GoogleCampaignDetail: React.FC = () => {
                         <GoogleCampaignDetailShoppingAdsTab
                           listingGroups={shoppingAds}
                           loading={shoppingAdsLoading}
+                          showDraftsOnly={showDraftsOnlyShoppingAds}
+                          onToggleDraftsOnly={() =>
+                            setShowDraftsOnlyShoppingAds((prev) => !prev)
+                          }
                           selectedListingGroupIds={selectedShoppingAdIds}
                           onSelectAll={handleSelectAllShoppingAds}
                           onSelectListingGroup={handleSelectShoppingAd}

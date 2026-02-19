@@ -40,6 +40,8 @@ type ProductGroupSelectionKey = string;
 interface GoogleCampaignDetailProductGroupsTabProps {
   productGroups: GoogleProductGroup[];
   loading: boolean;
+  showDraftsOnly?: boolean;
+  onToggleDraftsOnly?: () => void;
   selectedProductGroupIds: Set<ProductGroupSelectionKey>;
   getProductGroupSelectionKey: (
     pg: GoogleProductGroup,
@@ -87,6 +89,8 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<
 > = ({
   productGroups,
   loading,
+  showDraftsOnly = false,
+  onToggleDraftsOnly,
   selectedProductGroupIds,
   getProductGroupSelectionKey,
   onSelectAll,
@@ -116,7 +120,6 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<
   channelId,
   onBulkUpdateComplete,
 }) => {
-  const [showDraftsOnly, setShowDraftsOnly] = useState(false);
   const [editingProductGroupKey, setEditingProductGroupKey] =
     useState<ProductGroupSelectionKey | null>(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
@@ -135,9 +138,8 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<
     const id = pg.ad_id ?? pg.id ?? pg.product_group_id;
     return String(id).startsWith("draft-");
   };
-  const displayedProductGroups = showDraftsOnly
-    ? productGroups.filter(isDraftProductGroup)
-    : productGroups;
+  // Server returns only drafts when showDraftsOnly/draft_only is true, else all + drafts merged
+  const displayedProductGroups = productGroups;
 
   // Bulk edit state
   const [showBulkConfirmationModal, setShowBulkConfirmationModal] =
@@ -392,24 +394,32 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<
       {/* Create Panel - below create button */}
       {createPanel}
 
-      {/* Show drafts switch - above table */}
-      <div className="flex items-center gap-2 mb-3">
+      {/* Show drafts switch - above table (label inside switch like other tabs) */}
+      <div className="flex items-center mb-3">
         <button
           type="button"
           role="switch"
           aria-checked={showDraftsOnly}
-          onClick={() => setShowDraftsOnly((prev) => !prev)}
-          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:ring-offset-2 ${
-            showDraftsOnly ? "bg-[#136D6D]" : "bg-gray-200"
+          onClick={() => onToggleDraftsOnly?.()}
+          className={`relative inline-flex items-center h-6 w-16 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-[#072929] focus:ring-offset-2 overflow-hidden ${
+            showDraftsOnly ? "bg-forest-f40" : "bg-gray-200"
           }`}
         >
           <span
-            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-              showDraftsOnly ? "translate-x-5" : "translate-x-1"
+            className={`absolute top-1/2 -translate-y-1/2 pointer-events-none text-[10.64px] font-medium whitespace-nowrap transition-all duration-200 ${
+              showDraftsOnly
+                ? "left-2 right-auto text-white"
+                : "left-auto right-2 text-[#556179]"
+            }`}
+          >
+            Draft
+          </span>
+          <span
+            className={`absolute top-1/2 -translate-y-1/2 left-0.5 w-5 h-5 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
+              showDraftsOnly ? "translate-x-10" : "translate-x-0"
             }`}
           />
         </button>
-        <span className="text-[13px] text-[#072929]">Show drafts only</span>
       </div>
 
       {/* Filter Panel */}
