@@ -265,9 +265,19 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
           data
         );
 
-      setCreatedNegativeKeywords(result.negative_keywords || []);
+      const created = result.negative_keywords || [];
+      setCreatedNegativeKeywords(created);
       setIsCreateNegativeKeywordPanelOpen(false);
       await loadNegativeKeywords();
+
+      const count = created.length;
+      const message =
+        count === 1
+          ? "Negative keyword created successfully!"
+          : `${count} negative keywords created successfully!`;
+      if (onError) {
+        onError({ title: "Success", message, isSuccess: true });
+      }
     } catch (error: any) {
       console.error("Failed to create negative keywords:", error);
       const errorMessage =
@@ -281,7 +291,7 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
     } finally {
       setCreateNegativeKeywordLoading(false);
     }
-  }, [accountId, channelId, campaignId, loadNegativeKeywords]);
+  }, [accountId, channelId, campaignId, loadNegativeKeywords, onError]);
 
   // Update negative keyword text handler
   const handleUpdateNegativeKeywordText = useCallback(async (criterionId: string, keywordText: string) => {

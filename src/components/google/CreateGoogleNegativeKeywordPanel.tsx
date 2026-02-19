@@ -15,6 +15,8 @@ interface CreateGoogleNegativeKeywordPanelProps {
   campaignId: string;
   accountId: string;
   campaignType?: string;
+  /** True when the current campaign is draft. Used to enforce: published negative keywords only with published campaign; draft only with draft campaign. */
+  isDraftCampaign?: boolean;
   adgroups?: GoogleAdGroup[];
   loading?: boolean;
   submitError?: string | null;
@@ -42,6 +44,7 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
   campaignId: _campaignId,
   accountId: _accountId,
   campaignType,
+  isDraftCampaign = false,
   adgroups = [],
   loading = false,
   submitError = null,
@@ -71,17 +74,26 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
     }
   }, [isPerformanceMax, isOpen]);
 
-  // Create ad group options for dropdown
+  // Create ad group options for dropdown (include drafts; prefix DRAFT for draft ad groups)
   const adGroupOptions = useMemo(() => {
     if (!adgroups || adgroups.length === 0) {
       return [];
     }
+    const isDraft = (ag: GoogleAdGroup) => {
+      const s = (ag.status || "").toUpperCase();
+      const id = ag.adgroup_id ?? (ag as any).id;
+      return s === "SAVED_DRAFT" || s === "DRAFT" || String(id ?? "").startsWith("draft-");
+    };
     return adgroups
       .filter((adgroup) => adgroup.status !== "REMOVED" && adgroup.status !== "Removed")
-      .map((adgroup) => ({
-        value: adgroup.adgroup_id.toString(),
-        label: adgroup.adgroup_name || adgroup.name || `Ad Group ${adgroup.adgroup_id}`,
-      }));
+      .map((adgroup) => {
+        const baseLabel = adgroup.adgroup_name || adgroup.name || `Ad Group ${adgroup.adgroup_id}`;
+        const label = isDraft(adgroup) ? `DRAFT-${baseLabel}` : baseLabel;
+        return {
+          value: String(adgroup.adgroup_id ?? (adgroup as any).id ?? ""),
+          label,
+        };
+      });
   }, [adgroups]);
 
   const addKeyword = () => {
@@ -101,13 +113,27 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
 
   const handleDummyFill = () => {
     setNegativeKeywords([
-      { text: "best products online", match_type: "BROAD" },
-      { text: "shop now and save", match_type: "PHRASE" },
-      { text: "quality products", match_type: "EXACT" },
-      { text: "free shipping", match_type: "BROAD" },
-      { text: "limited time offer", match_type: "PHRASE" },
+      { text: "alpha", match_type: "BROAD" },
+      { text: "beta", match_type: "PHRASE" },
+      { text: "gamma", match_type: "EXACT" },
+      { text: "yamaha", match_type: "BROAD" },
+      { text: "bravo", match_type: "PHRASE" },
+      { text: "charile", match_type: "EXACT" },
     ]);
     setErrors({}); // Clear any existing errors
+  };
+
+  const isDraftAdGroupValue = (value: string) =>
+    value.trim().toLowerCase().startsWith("draft-");
+
+  const getIsDraftAdGroup = (): boolean => {
+    if (!selectedAdGroupId) return false;
+    if (isDraftAdGroupValue(selectedAdGroupId)) return true;
+    const ag = adgroups?.find(
+      (a) => String(a.adgroup_id ?? (a as any).id) === selectedAdGroupId
+    );
+    const s = (ag?.status || "").toUpperCase();
+    return s === "SAVED_DRAFT" || s === "DRAFT";
   };
 
   const handleSubmit = (asDraft?: boolean) => {
@@ -115,12 +141,38 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
       setErrors({ keywords: "At least one negative keyword is required" });
       return;
     }
-
-    if (level === "adgroup" && !selectedAdGroupId) {
-      setErrors({ adGroupId: "Ad Group ID is required for ad group-level negative keywords" });
-      return;
+    // Campaign level: published negative keywords only with published campaign; draft only with draft campaign
+    if (level === "campaign") {
+      if (!asDraft && isDraftCampaign) {
+        setErrors({
+          level:
+            "Cannot create a published negative keyword under a draft campaign. Please save as draft or use a published campaign.",
+        });
+        return;
+      }
+      if (asDraft && !isDraftCampaign) {
+        setErrors({
+          level:
+            "Draft negative keyword can be created only under a draft campaign. Please select a draft campaign or create as published.",
+        });
+        return;
+      }
     }
-
+    // Ad group level: published negative keywords only with published ad group; draft only with draft ad group
+    if (level === "adgroup") {
+      if (!selectedAdGroupId) {
+        setErrors({ adGroupId: "Ad Group ID is required for ad group-level negative keywords" });
+        return;
+      }
+      const isDraft = getIsDraftAdGroup();
+      if (!asDraft && isDraft) {
+        setErrors({
+          adGroupId:
+            "Cannot create a published negative keyword under a draft ad group. Please select a published ad group or save as draft.",
+        });
+        return;
+      }
+    }
     setErrors({});
 
     const keywordInputs: NegativeKeywordInput[] = negativeKeywords.map((kw) => ({
@@ -179,9 +231,15 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
             <Dropdown
               options={LEVEL_OPTIONS}
               value={level}
-              onChange={(val) => setLevel(val as "campaign" | "adgroup")}
+              onChange={(val) => {
+                setLevel(val as "campaign" | "adgroup");
+                if (errors.level) setErrors((prev) => ({ ...prev, level: undefined }));
+              }}
               buttonClassName="w-full"
             />
+            {errors.level && (
+              <p className="text-[10px] text-red-500 mt-1">{errors.level}</p>
+            )}
           </div>
         )}
 

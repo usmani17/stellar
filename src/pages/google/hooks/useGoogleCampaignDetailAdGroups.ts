@@ -114,6 +114,9 @@ export const useGoogleCampaignDetailAdGroups = ({
         setAdgroupsLoading(false);
         return;
       }
+      // On Negative Keywords tab, include both draft and normal ad groups for the create-panel dropdown.
+      // On Ad Groups tab, respect the draft switch: draft_only true = only drafts, false = only non-drafts.
+      const includeDraftsForDropdown = activeTab === "Negative Keywords";
       const data = await googleAdwordsAdGroupsService.getGoogleAdGroups(
         accountIdNum,
         channelIdNum,
@@ -124,7 +127,8 @@ export const useGoogleCampaignDetailAdGroups = ({
           page_size: 100,
           sort_by: adgroupsSortBy,
           order: adgroupsSortOrder,
-          draft_only: isDraftCampaign || showDraftsOnlyAdGroups,
+          include_drafts: includeDraftsForDropdown,
+          draft_only: includeDraftsForDropdown ? undefined : (isDraftCampaign || showDraftsOnlyAdGroups),
         }
       );
 
@@ -137,7 +141,7 @@ export const useGoogleCampaignDetailAdGroups = ({
     } finally {
       setAdgroupsLoading(false);
     }
-  }, [accountId, campaignId, adgroupsFilters, adgroupsCurrentPage, adgroupsSortBy, adgroupsSortOrder, showDraftsOnlyAdGroups]);
+  }, [accountId, campaignId, activeTab, adgroupsFilters, adgroupsCurrentPage, adgroupsSortBy, adgroupsSortOrder, showDraftsOnlyAdGroups]);
 
   // Load ad groups when dependencies change
   useEffect(() => {
@@ -380,7 +384,7 @@ export const useGoogleCampaignDetailAdGroups = ({
 
         const summaryMessage = summaryParts.join("\n\n");
 
-        setIsCreateSearchEntitiesPanelOpen(false);
+        // Keep panel open on error
         setCreateSearchEntitiesError(null);
         
         if (onError) {
@@ -424,8 +428,8 @@ export const useGoogleCampaignDetailAdGroups = ({
         error.message ||
         "Failed to create ad group. Please try again.";
       
-      setIsCreateSearchEntitiesPanelOpen(false);
-      setCreateSearchEntitiesError(null);
+      // Keep panel open on error; show error in panel and modal
+      setCreateSearchEntitiesError(errorMessage);
       
       if (onError) {
         onError({
@@ -481,8 +485,8 @@ export const useGoogleCampaignDetailAdGroups = ({
       );
 
       if (response.error) {
-        setIsCreateShoppingEntitiesPanelOpen(false);
-        setCreateShoppingEntitiesError(null);
+        // Keep panel open on error
+        setCreateShoppingEntitiesError(response.error);
         
         if (onError) {
           onError({
@@ -515,8 +519,8 @@ export const useGoogleCampaignDetailAdGroups = ({
         error.message ||
         "Failed to create ad group. Please try again.";
       
-      setIsCreateShoppingEntitiesPanelOpen(false);
-      setCreateShoppingEntitiesError(null);
+      // Keep panel open on error; show error in panel and modal
+      setCreateShoppingEntitiesError(errorMessage);
       
       if (onError) {
         onError({

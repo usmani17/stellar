@@ -52,49 +52,57 @@ export const useGoogleCampaignDetailShoppingAds = ({
   const [isListingGroupsFilterPanelOpen, setIsListingGroupsFilterPanelOpen] = useState(false);
   const [listingGroupsFilters, setListingGroupsFilters] = useState<FilterValues>([]);
 
-  // Load listing groups
-  const loadListingGroups = useCallback(async () => {
-    try {
-      setListingGroupsLoading(true);
-      const accountIdNum = parseInt(accountId!, 10);
+  // Load listing groups. Optional options override page/sort for one request (e.g. after create to show newest first).
+  const loadListingGroups = useCallback(
+    async (options?: { page?: number; sortBy?: string; sortOrder?: "asc" | "desc" }) => {
+      try {
+        setListingGroupsLoading(true);
+        const accountIdNum = parseInt(accountId!, 10);
 
-      if (isNaN(accountIdNum) || !campaignId) {
-        setListingGroupsLoading(false);
-        return;
-      }
-
-      // Shopping ads are stored in the ads table with ad_type = 'SHOPPING_PRODUCT_AD'
-      // But we need to filter out product groups (is_product_group: true) to show only actual shopping ads
-      // Add filters to get shopping ads (not product groups)
-      const shoppingAdsFiltersWithType = [
-        ...listingGroupsFilters,
-        { field: "ad_type", value: "SHOPPING_PRODUCT_AD" },
-        // Filter to exclude product groups - we want ads where is_product_group is false or not set
-        // Note: This assumes the backend can filter by extra_data->>'is_product_group'
-        // If not supported, we may need to filter on the frontend after fetching
-      ];
-
-      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-      const data = await googleAdwordsAdsService.getGoogleAds(
-        accountIdNum,
-        channelIdNum,
-        parseInt(campaignId, 10),
-        undefined,
-        {
-          filters: shoppingAdsFiltersWithType,
-          page: listingGroupsCurrentPage,
-          page_size: 10,
-          sort_by: listingGroupsSortBy,
-          order: listingGroupsSortOrder,
-          start_date: startDate
-            ? startDate.toISOString().split("T")[0]
-            : undefined,
-          end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        if (isNaN(accountIdNum) || !campaignId) {
+          setListingGroupsLoading(false);
+          return;
         }
-      );
+
+        const page = options?.page ?? listingGroupsCurrentPage;
+        const sortBy = options?.sortBy ?? listingGroupsSortBy;
+        const sortOrder = options?.sortOrder ?? listingGroupsSortOrder;
+        if (options?.page !== undefined) setListingGroupsCurrentPage(options.page);
+        if (options?.sortBy !== undefined) setListingGroupsSortBy(options.sortBy);
+        if (options?.sortOrder !== undefined) setListingGroupsSortOrder(options.sortOrder);
+
+        // Shopping ads are stored in the ads table with ad_type = 'SHOPPING_PRODUCT_AD'
+        // But we need to filter out product groups (is_product_group: true) to show only actual shopping ads
+        // Add filters to get shopping ads (not product groups)
+        const shoppingAdsFiltersWithType = [
+          ...listingGroupsFilters,
+          { field: "ad_type", value: "SHOPPING_PRODUCT_AD" },
+          // Filter to exclude product groups - we want ads where is_product_group is false or not set
+          // Note: This assumes the backend can filter by extra_data->>'is_product_group'
+          // If not supported, we may need to filter on the frontend after fetching
+        ];
+
+        const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
+        if (!channelIdNum || isNaN(channelIdNum)) {
+          throw new Error("Channel ID is required");
+        }
+        const data = await googleAdwordsAdsService.getGoogleAds(
+          accountIdNum,
+          channelIdNum,
+          parseInt(campaignId, 10),
+          undefined,
+          {
+            filters: shoppingAdsFiltersWithType,
+            page,
+            page_size: 10,
+            sort_by: sortBy,
+            order: sortOrder,
+            start_date: startDate
+              ? startDate.toISOString().split("T")[0]
+              : undefined,
+            end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+          }
+        );
 
       // Filter out product groups on the frontend if backend filtering doesn't support extra_data
       // Shopping ads should have is_product_group: false or not have the field

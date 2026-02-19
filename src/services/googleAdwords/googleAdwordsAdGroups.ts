@@ -16,6 +16,8 @@ export const googleAdwordsAdGroupsService = {
       end_date?: string;
       campaign_id?: string | number;
       draft_only?: boolean;
+      /** When true, return all ad groups (draft + normal). Backend sets draft_only to None. */
+      include_drafts?: boolean;
     }
   ): Promise<{
     adgroups: any[];
@@ -48,10 +50,11 @@ export const googleAdwordsAdGroupsService = {
       end_date: params?.end_date,
     };
     
-    // Add campaign_id and draft_only if provided
+    // Add campaign_id, draft_only, and include_drafts if provided
     if (campaignId) payload.campaign_id = campaignId;
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
     if (params?.draft_only !== undefined) payload.draft_only = params.draft_only;
+    if (params?.include_drafts !== undefined) payload.include_drafts = params.include_drafts;
 
     const response = await api.post(`/google-adwords/${accountId}/channels/${channelId}/adgroups/`, payload);
     return response.data;

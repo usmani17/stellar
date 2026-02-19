@@ -75,7 +75,7 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
 
   // Adgroup search state
   const [adgroupSearchQuery, setAdgroupSearchQuery] = useState("");
-  const [adgroupOptions, setAdgroupOptions] = useState<Array<{ value: string; label: string; adgroup_id: number }>>([]);
+  const [adgroupOptions, setAdgroupOptions] = useState<Array<{ value: string; label: string; adgroup_id: number | string; status?: string }>>([]);
   const [loadingAdgroups, setLoadingAdgroups] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasFetchedAdgroupsRef = useRef(false);
@@ -96,34 +96,32 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
       
       const params: any = {
         page: 1,
-        page_size: 100, // Fetch up to 100 adgroups
+        page_size: 100,
         sort_by: "name",
         order: "asc",
         campaign_id: campaignIdNum,
+        include_drafts: true,
       };
-      
-      // Add search filter if query provided
       if (searchQuery.trim()) {
         params.adgroup_name__icontains = searchQuery.trim();
       }
-      
-      // Pass channelId as second parameter, campaignId as third
-      const response = await campaignsService.getGoogleAdGroups(accountIdNum, channelIdNum, campaignIdNum, {
-        ...params,
-        campaign_id: campaignIdNum, // Explicitly set in params as well
-      });
-      
-      // Map adgroups to options format
-      // Use adgroup_id from the response (this is the Google Ads adgroup ID)
+      const response = await campaignsService.getGoogleAdGroups(accountIdNum, channelIdNum, campaignIdNum, { ...params, campaign_id: campaignIdNum });
+      const isDraftAg = (ag: any) => {
+        const s = (ag.status || "").toUpperCase();
+        const id = ag.adgroup_id ?? ag.id;
+        return s === "SAVED_DRAFT" || s === "DRAFT" || String(id ?? "").startsWith("draft-");
+      };
       const options = response.adgroups.map((ag: any) => {
         const adgroupId = ag.adgroup_id || ag.id;
+        const baseLabel = ag.name || ag.adgroup_name || `Ad Group ${adgroupId}`;
+        const label = isDraftAg(ag) ? `DRAFT-${baseLabel}` : baseLabel;
         return {
           value: adgroupId?.toString() || "",
-          label: ag.name || ag.adgroup_name || `Ad Group ${adgroupId}`,
+          label,
           adgroup_id: adgroupId,
           status: ag.status,
         };
-      }).filter((opt: any) => opt.value && opt.adgroup_id && opt.status !== "REMOVED" && opt.status !== "Removed"); // Filter out invalid options and removed adgroups
+      }).filter((opt: any) => opt.value && opt.adgroup_id && opt.status !== "REMOVED" && opt.status !== "Removed");
       
       setAdgroupOptions(options);
       
@@ -219,13 +217,23 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
     prevLoadingRef.current = loading;
   }, [loading, isOpen]);
 
-  const validate = (): boolean => {
-    const newErrors: Record<string, string> = {};
+  const isDraftAdGroupId = (id: string) => id.trim().toLowerCase().startsWith("draft-");
 
+  const validate = (forDraft: boolean): boolean => {
+    const newErrors: Record<string, string> = {};
     if (!selectedAdGroupId) {
       newErrors.adGroup = "Please select an ad group";
+    } else {
+      const selectedOpt = adgroupOptions.find((o) => o.value === selectedAdGroupId);
+      const isDraft =
+        isDraftAdGroupId(selectedAdGroupId) ||
+        selectedOpt?.status === "SAVED_DRAFT" ||
+        selectedOpt?.status === "DRAFT";
+      if (!forDraft && isDraft) {
+        newErrors.adGroup =
+          "Cannot create a published ad under a draft ad group. Please select a published ad group or save as draft.";
+      }
     }
-
     if (formData.ad_type === "RESPONSIVE_SEARCH_AD") {
       const validHeadlines = formData.headlines?.filter((h) => h.trim()).length || 0;
       if (validHeadlines < 3) {
@@ -480,21 +488,13 @@ export const CreateGoogleAdPanel: React.FC<CreateGoogleAdPanelProps> = ({
   };
 
   const handleSubmit = (asDraft?: boolean) => {
-    if (!validate()) return;
+    if (!validate(!!asDraft)) return;
     const rawAdGroupId = selectedAdGroupId?.trim() || "";
     if (!rawAdGroupId) {
       setErrors((e) => ({ ...e, adgroup: "Please select an ad group" }));
       return;
     }
-    const isDraftAdGroup = rawAdGroupId.toLowerCase().startsWith("draft-");
-    if (!asDraft && isDraftAdGroup) {
-      setErrors((e) => ({
-        ...e,
-        adgroup:
-          "You selected a draft ad group. To create a live ad, select a published ad group. To create a draft ad, use Save as Draft.",
-      }));
-      return;
-    }
+    const isDraftAdGroup = isDraftAdGroupId(rawAdGroupId);
     const adgroupId: number | string = isDraftAdGroup
       ? rawAdGroupId
       : parseInt(rawAdGroupId, 10);

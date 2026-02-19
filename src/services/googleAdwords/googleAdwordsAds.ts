@@ -189,15 +189,19 @@ export const googleAdwordsAdsService = {
     return response.data;
   },
 
-  /** Publish a draft Demand Gen ad: creates in Google Ads and removes draft row. */
+  /** Publish a draft ad: creates in Google Ads and removes draft row. Campaign type is resolved on backend (Shopping / Demand Gen / Search). */
   publishDemandGenDraftAd: async (
     accountId: number,
     channelId: number,
     campaignId: string | number,
-    draftAdId: string
+    draftAdId: string,
+    options?: { adGroupId?: string | number }
   ): Promise<{ ad?: { id?: string; resource_name?: string }; errors?: string[] }> => {
     const url = `/google-adwords/${accountId}/channels/${channelId}/campaigns/${String(campaignId)}/demand-gen-entities/create/`;
-    const response = await api.post(url, { ad_id: draftAdId });
+    const body: { ad_id: string; campaign_id?: string; ad_group_id?: string } = { ad_id: draftAdId };
+    body.campaign_id = String(campaignId);
+    if (options?.adGroupId != null) body.ad_group_id = String(options.adGroupId);
+    const response = await api.post(url, body);
     return response.data;
   },
 

@@ -28,6 +28,7 @@ import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { GoogleAdsListTable } from "./components/GoogleAdsListTable";
 import { Loader } from "../../components/ui/Loader";
 import { ConfirmationModal } from "../../components/ui/ConfirmationModal";
+import { ErrorModal } from "../../components/ui/ErrorModal";
 import { TrashIcon } from "lucide-react";
 import type { GoogleAd } from "./components/tabs/GoogleTypes";
 
@@ -162,6 +163,7 @@ export const GoogleAds: React.FC = () => {
   } | null>(null);
   const [publishAd, setPublishAd] = useState<GoogleAd | null>(null);
   const [publishLoadingId, setPublishLoadingId] = useState<string | number | undefined>(undefined);
+  const [publishErrorModal, setPublishErrorModal] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: "" });
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -790,6 +792,14 @@ export const GoogleAds: React.FC = () => {
     const campaignId = row.campaign_id;
     const draftId = String(row.ad_id ?? row.id);
     if (!campaignId) return;
+    if (campaignId != null && String(campaignId).toLowerCase().startsWith("draft-")) {
+      setPublishErrorModal({ isOpen: true, message: "Publish the campaign first before publishing this ad." });
+      return;
+    }
+    if (row.adgroup_id != null && String(row.adgroup_id).toLowerCase().startsWith("draft-")) {
+      setPublishErrorModal({ isOpen: true, message: "Publish the ad group first before publishing this ad." });
+      return;
+    }
     setPublishLoadingId(row.ad_id ?? row.id);
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -799,14 +809,21 @@ export const GoogleAds: React.FC = () => {
         accountIdNum,
         channelIdNum,
         campaignId,
-        draftId
+        draftId,
+        { adGroupId: row.adgroup_id }
       );
       setPublishAd(null);
       setPublishLoadingId(undefined);
       await loadAds(accountIdNum, channelIdNum);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to publish draft ad:", err);
       setPublishLoadingId(undefined);
+      setPublishAd(null);
+      const errorMessage =
+        err?.response?.data?.error ||
+        err?.message ||
+        "Failed to publish draft ad. Please try again.";
+      setPublishErrorModal({ isOpen: true, message: errorMessage });
     }
   };
 
@@ -1750,6 +1767,13 @@ export const GoogleAds: React.FC = () => {
         size="sm"
         isLoading={publishLoadingId !== undefined}
         confirmButtonLabel="Publish"
+      />
+      <ErrorModal
+        isOpen={publishErrorModal.isOpen}
+        onClose={() => setPublishErrorModal({ isOpen: false, message: "" })}
+        title="Error"
+        message={publishErrorModal.message}
+        isSuccess={false}
       />
     </div>
   );

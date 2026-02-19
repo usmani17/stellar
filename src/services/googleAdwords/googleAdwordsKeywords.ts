@@ -187,14 +187,18 @@ export const googleAdwordsKeywordsService = {
     return response.data;
   },
 
-  /** Publish a draft keyword: creates in Google Ads and removes draft row. */
+  /** Publish a draft keyword: creates in Google Ads and removes draft row. Sends campaign_id and adgroup_id when provided. */
   publishDraftKeyword: async (
     accountId: number,
     channelId: number,
-    draftKeywordId: string
+    draftKeywordId: string,
+    options?: { campaignId?: string | number; adGroupId?: string | number }
   ): Promise<{ keyword_id?: string; resource_name?: string }> => {
     const url = `/google-adwords/${accountId}/channels/${channelId}/keywords/publish-draft/`;
-    const response = await api.post(url, { keyword_id: draftKeywordId });
+    const body: { keyword_id: string; campaign_id?: string; adgroup_id?: string } = { keyword_id: draftKeywordId };
+    if (options?.campaignId != null) body.campaign_id = String(options.campaignId);
+    if (options?.adGroupId != null) body.adgroup_id = String(options.adGroupId);
+    const response = await api.post(url, body);
     return response.data;
   },
 

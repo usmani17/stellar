@@ -2010,8 +2010,16 @@ export const GoogleCampaigns: React.FC = () => {
           (creation_payload.enable_local === true || creation_payload.enable_local === false
             ? creation_payload.enable_local
             : undefined) ?? campaignData.enable_local ?? shopping_setting.enable_local ?? false,
-        // SEARCH specific fields
-        network_settings: campaignData.network_settings || undefined,
+        // SEARCH specific fields (draft stores network_settings in creation_payload)
+        network_settings:
+          campaignData.network_settings ??
+          (creation_payload?.network_settings && typeof creation_payload.network_settings === "object"
+            ? creation_payload.network_settings
+            : undefined) ??
+          (extra_data?.network_settings && typeof extra_data.network_settings === "object"
+            ? extra_data.network_settings
+            : undefined) ??
+          undefined,
       };
 
       // When draft was saved from form (created_as_draft + creation_payload), ensure profile and customer are set so selectors show

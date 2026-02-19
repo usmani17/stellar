@@ -100,6 +100,7 @@ export const GoogleKeywords: React.FC = () => {
   const [showDraftsOnly, setShowDraftsOnly] = useState(false);
   const [publishKeyword, setPublishKeyword] = useState<GoogleKeyword | null>(null);
   const [publishLoadingId, setPublishLoadingId] = useState<string | number | undefined>(undefined);
+  const [publishErrorModal, setPublishErrorModal] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: "" });
   const isLoadingRef = useRef(false);
   const lastRequestParamsRef = useRef<string>(""); // Track last request to prevent duplicate calls
 
@@ -1467,6 +1468,21 @@ export const GoogleKeywords: React.FC = () => {
     const row = publishKeyword;
     if (!row || !accountId || !channelId) return;
     const draftId = String(row.keyword_id ?? row.id);
+    if (!draftId.toLowerCase().startsWith("draft-")) {
+      setPublishKeyword(null);
+      setPublishErrorModal({ isOpen: true, message: "Not a draft keyword." });
+      return;
+    }
+    if (row.campaign_id != null && String(row.campaign_id).toLowerCase().startsWith("draft-")) {
+      setPublishKeyword(null);
+      setPublishErrorModal({ isOpen: true, message: "Publish the campaign first before publishing this keyword." });
+      return;
+    }
+    if (row.adgroup_id != null && String(row.adgroup_id).toLowerCase().startsWith("draft-")) {
+      setPublishKeyword(null);
+      setPublishErrorModal({ isOpen: true, message: "Publish the ad group first before publishing this keyword." });
+      return;
+    }
     setPublishLoadingId(row.keyword_id ?? row.id);
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -1475,14 +1491,25 @@ export const GoogleKeywords: React.FC = () => {
       await googleAdwordsKeywordsService.publishDraftKeyword(
         accountIdNum,
         channelIdNum,
-        draftId
+        draftId,
+        {
+          campaignId: row.campaign_id,
+          adGroupId: row.adgroup_id,
+        }
       );
       setPublishKeyword(null);
       setPublishLoadingId(undefined);
+      setPublishErrorModal({ isOpen: false, message: "" });
       await loadKeywords(accountIdNum, channelIdNum);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to publish draft keyword:", err);
+      setPublishKeyword(null);
       setPublishLoadingId(undefined);
+      const errorMessage =
+        err?.response?.data?.error ||
+        err?.message ||
+        "Failed to publish draft keyword. Please try again.";
+      setPublishErrorModal({ isOpen: true, message: errorMessage });
     }
   };
 
@@ -3175,6 +3202,13 @@ export const GoogleKeywords: React.FC = () => {
         size="sm"
         isLoading={publishLoadingId !== undefined}
         confirmButtonLabel="Publish"
+      />
+      <ErrorModal
+        isOpen={publishErrorModal.isOpen}
+        onClose={() => setPublishErrorModal({ isOpen: false, message: "" })}
+        title="Error"
+        message={publishErrorModal.message}
+        isSuccess={false}
       />
     </div>
   );

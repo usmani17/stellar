@@ -3,7 +3,8 @@ import { Dropdown } from "../ui/Dropdown";
 import { campaignsService } from "../../services/campaigns";
 
 export interface ShoppingAdInput {
-  adgroup_id: number; // Required: use existing adgroup
+  /** Existing ad group: numeric id or "draft-xxx" for draft ad groups */
+  adgroup_id: number | string;
 }
 
 interface CreateGoogleShoppingAdPanelProps {
@@ -35,7 +36,7 @@ export const CreateGoogleShoppingAdPanel: React.FC<
 
   // Adgroup search state
   const [adgroupSearchQuery, setAdgroupSearchQuery] = useState("");
-  const [adgroupOptions, setAdgroupOptions] = useState<Array<{ value: string; label: string; adgroup_id: number }>>([]);
+  const [adgroupOptions, setAdgroupOptions] = useState<Array<{ value: string; label: string; adgroup_id: number | string; status?: string }>>([]);
   const [loadingAdgroups, setLoadingAdgroups] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
@@ -55,25 +56,28 @@ export const CreateGoogleShoppingAdPanel: React.FC<
       
       const params: any = {
         page: 1,
-        page_size: 100, // Fetch up to 100 adgroups
+        page_size: 100,
         sort_by: "name",
         order: "asc",
         campaign_id: campaignIdNum,
+        include_drafts: true,
       };
-      
-      // Add search filter if query provided
       if (searchQuery.trim()) {
         params.adgroup_name__icontains = searchQuery.trim();
       }
-      
       const response = await campaignsService.getGoogleAdGroups(accountIdNum, channelIdNum, campaignIdNum, params);
-      
-      // Map adgroups to options format
+      const isDraftAg = (ag: any) => {
+        const s = (ag.status || "").toUpperCase();
+        const id = ag.adgroup_id ?? ag.id;
+        return s === "SAVED_DRAFT" || s === "DRAFT" || String(id ?? "").startsWith("draft-");
+      };
       const options = response.adgroups.map((ag: any) => {
         const adgroupId = ag.adgroup_id || ag.id;
+        const baseLabel = ag.name || ag.adgroup_name || `Ad Group ${adgroupId}`;
+        const label = isDraftAg(ag) ? `DRAFT-${baseLabel}` : baseLabel;
         return {
           value: adgroupId?.toString() || "",
-          label: ag.name || ag.adgroup_name || `Ad Group ${adgroupId}`,
+          label,
           adgroup_id: adgroupId,
           status: ag.status,
         };
@@ -127,36 +131,41 @@ export const CreateGoogleShoppingAdPanel: React.FC<
     }
   }, [isOpen, fetchAdgroups]);
 
-  const validate = (): boolean => {
-    const newErrors: Record<string, string> = {};
+  const isDraftAdGroupId = (id: string) => id.trim().toLowerCase().startsWith("draft-");
 
-    // Ad group is required
+  const validate = (forDraft: boolean): boolean => {
+    const newErrors: Record<string, string> = {};
     if (!selectedAdGroupId) {
       newErrors.adGroup = "Please select an ad group";
+    } else {
+      const selectedOpt = adgroupOptions.find((o) => o.value === selectedAdGroupId);
+      const isDraft =
+        isDraftAdGroupId(selectedAdGroupId) ||
+        selectedOpt?.status === "SAVED_DRAFT" ||
+        selectedOpt?.status === "DRAFT";
+      if (!forDraft && isDraft) {
+        newErrors.adGroup =
+          "Cannot create a published shopping ad under a draft ad group. Please select a published ad group or save as draft.";
+      }
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  const buildAdGroupIdPayload = (): number | string => {
+    return isDraftAdGroupId(selectedAdGroupId)
+      ? selectedAdGroupId
+      : parseInt(selectedAdGroupId, 10);
+  };
+
   const handleSubmit = () => {
-    if (!validate()) {
-      return;
-    }
-
-    const entity: ShoppingAdInput = {
-      adgroup_id: parseInt(selectedAdGroupId, 10),
-    };
-
-    onSubmit(entity);
+    if (!validate(false)) return;
+    onSubmit({ adgroup_id: buildAdGroupIdPayload() });
   };
 
   const handleSaveAsDraft = () => {
-    if (!validate()) return;
-    const entity: ShoppingAdInput = {
-      adgroup_id: parseInt(selectedAdGroupId, 10),
-    };
-    onSubmit(entity, { saveAsDraft: true });
+    if (!validate(true)) return;
+    onSubmit({ adgroup_id: buildAdGroupIdPayload() }, { saveAsDraft: true });
   };
 
   const handleCancel = () => {

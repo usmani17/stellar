@@ -79,12 +79,19 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
       
       const response = await campaignsService.getGoogleAdGroups(accountIdNum, channelIdNum, campaignIdNum, params);
       
-      // Map adgroups to options format
+      // Map adgroups to options format (include drafts; prefix DRAFT for draft ad groups)
+      const isDraftAg = (ag: any) => {
+        const s = (ag.status || "").toUpperCase();
+        const id = ag.adgroup_id ?? ag.id;
+        return s === "SAVED_DRAFT" || s === "DRAFT" || String(id ?? "").startsWith("draft-");
+      };
       const options = response.adgroups.map((ag: any) => {
         const adgroupId = ag.adgroup_id || ag.id;
+        const baseLabel = ag.name || ag.adgroup_name || `Ad Group ${adgroupId}`;
+        const label = isDraftAg(ag) ? `DRAFT-${baseLabel}` : baseLabel;
         return {
           value: adgroupId?.toString() || "",
-          label: ag.name || ag.adgroup_name || `Ad Group ${adgroupId}`,
+          label,
           adgroup_id: adgroupId,
           status: ag.status,
         };
@@ -147,7 +154,6 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
     if (!selectedAdGroupId) {
       newErrors.adGroup = "Please select an ad group";
     } else if (!forDraft) {
-      // When creating published listing group, selected ad group must not be draft
       const selectedOpt = adgroupOptions.find((o) => o.value === selectedAdGroupId);
       const isDraft =
         isDraftAdGroupId(selectedAdGroupId) ||

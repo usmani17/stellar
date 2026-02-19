@@ -528,6 +528,14 @@ export const GoogleCampaignDetail: React.FC = () => {
           });
           return;
         }
+        const adEntity = publishDraftEntity.entity as { adgroup_id?: string | number };
+        if (adEntity.adgroup_id != null && String(adEntity.adgroup_id).toLowerCase().startsWith("draft-")) {
+          setErrorModal({
+            isOpen: true,
+            message: "Publish the ad group first before publishing this ad.",
+          });
+          return;
+        }
         const draftId = String(
           publishDraftEntity.entity.ad_id ?? publishDraftEntity.entity.id,
         );
@@ -540,6 +548,7 @@ export const GoogleCampaignDetail: React.FC = () => {
           channelIdNum,
           campaignId,
           draftId,
+          { adGroupId: adEntity.adgroup_id },
         );
         setErrorModal({
           isOpen: true,
@@ -558,6 +567,14 @@ export const GoogleCampaignDetail: React.FC = () => {
           });
           return;
         }
+        const kwEntity = publishDraftEntity.entity as { adgroup_id?: string | number };
+        if (kwEntity.adgroup_id != null && String(kwEntity.adgroup_id).toLowerCase().startsWith("draft-")) {
+          setErrorModal({
+            isOpen: true,
+            message: "Publish the ad group first before publishing this keyword.",
+          });
+          return;
+        }
         const draftId = String(
           publishDraftEntity.entity.keyword_id ?? publishDraftEntity.entity.id,
         );
@@ -569,6 +586,7 @@ export const GoogleCampaignDetail: React.FC = () => {
           accountIdNum,
           channelIdNum,
           draftId,
+          { campaignId: campaignIdStr, adGroupId: kwEntity.adgroup_id },
         );
         setErrorModal({
           isOpen: true,
@@ -1267,8 +1285,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.response?.data?.error ||
         error.message ||
         "Failed to create ad. Please try again.";
-      // Close panel and show error modal
-      setIsCreateSearchEntitiesPanelOpen(false);
+      // Keep panel open on error; show error modal
       setErrorModal({
         isOpen: true,
         title: "Error",
@@ -1358,8 +1375,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
         const summaryMessage = summaryParts.join("\n\n");
 
-        // Close panel and show error modal
-        setIsCreateSearchEntitiesPanelOpen(false);
+        // Keep panel open on error; show error modal
         setErrorModal({
           isOpen: true,
           title: "Creation Summary",
@@ -1397,8 +1413,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.response?.data?.error ||
         error.message ||
         "Failed to create keywords. Please try again.";
-      // Close panel and show error modal
-      setIsCreateSearchEntitiesPanelOpen(false);
+      // Keep panel open on error; show error modal
       setErrorModal({
         isOpen: true,
         title: "Error",
@@ -1455,8 +1470,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         );
 
       if (response.error) {
-        // Close panel and show error modal
-        setIsCreateShoppingEntitiesPanelOpen(false);
+        // Keep panel open on error; show error modal
         setErrorModal({
           isOpen: true,
           title: "Error",
@@ -1499,8 +1513,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.response?.data?.error ||
         error.message ||
         "Failed to create entities. Please try again.";
-      // Close panel and show error modal
-      setIsCreateShoppingEntitiesPanelOpen(false);
+      // Keep panel open on error; show error modal
       setErrorModal({
         isOpen: true,
         title: "Error",
@@ -1555,8 +1568,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         );
 
       if (response.error) {
-        // Close panel and show error modal
-        setIsCreateShoppingAdPanelOpen(false);
+        // Keep panel open on error; show error modal
         setErrorModal({
           isOpen: true,
           title: "Error",
@@ -1582,9 +1594,9 @@ export const GoogleCampaignDetail: React.FC = () => {
 
         // Reload data to show new entities
         if (loadAdGroups) await loadAdGroups();
-        // Reload shopping ads if we're on the Shopping Ads tab
+        // Reload shopping ads if we're on the Shopping Ads tab; use page 1 and newest-first so the new ad appears
         if (activeTab === "Shopping Ads") {
-          await loadShoppingAds();
+          await loadShoppingAds({ page: 1, sortBy: "id", sortOrder: "desc" });
         }
       }
     } catch (error: any) {
@@ -1593,8 +1605,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.response?.data?.error ||
         error.message ||
         "Failed to create shopping ad. Please try again.";
-      // Close panel and show error modal
-      setIsCreateShoppingAdPanelOpen(false);
+      // Keep panel open on error; show error modal
       setErrorModal({
         isOpen: true,
         title: "Error",
@@ -1886,9 +1897,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                 </div>
               )}
 
-              {!isDraftCampaign && (
+              {!loading && campaignDetail && !isDraftCampaign && (
                 <>
-                  {/* Tab Navigation & Chart Section */}
+                  {/* Tab Navigation & Chart Section - only visible once campaign is loaded */}
                   <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6">
                     {/* Tabs */}
                     <div className="flex items-center gap-2 mb-8 border-b border-[#E6E6E6]">
@@ -2638,6 +2649,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                                     campaignDetail?.campaign
                                       ?.advertising_channel_type
                                   }
+                                  isDraftCampaign={isDraftCampaign}
                                   adgroups={adgroups}
                                   loading={createNegativeKeywordLoading}
                                   submitError={createNegativeKeywordError}

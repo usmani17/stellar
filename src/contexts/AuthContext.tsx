@@ -54,18 +54,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           const userData = JSON.parse(storedUser);
           setUser(userData);
 
-          // Verify token is still valid by fetching profile
+          // Verify token is still valid by fetching profile (only when server is reachable)
           try {
             const backendUser = await authService.getProfile();
             setUser(backendUser);
             localStorage.setItem("user", JSON.stringify(backendUser));
-          } catch (error) {
-            // Token might be expired, clear storage
-            console.warn("Token validation failed, clearing auth state");
-            localStorage.removeItem("user");
-            localStorage.removeItem("accessToken");
-            localStorage.removeItem("refreshToken");
-            setUser(null);
+          } catch (error: unknown) {
+            const status = (error as { response?: { status?: number } })?.response?.status;
+            // Only clear auth on 401 (expired/invalid token). Keep session on network errors or server restart.
+            if (status === 401) {
+              console.warn("Token invalid or expired, clearing auth state");
+              localStorage.removeItem("user");
+              localStorage.removeItem("accessToken");
+              localStorage.removeItem("refreshToken");
+              setUser(null);
+            } else {
+              // Server unreachable, network error, etc. – keep user from localStorage so session persists
+              console.warn("Could not reach server to verify token, keeping existing session");
+              setUser(userData);
+            }
           }
         } catch (error) {
           console.error("Error initializing auth:", error);
