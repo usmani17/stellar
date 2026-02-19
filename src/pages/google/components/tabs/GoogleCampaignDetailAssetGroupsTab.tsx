@@ -197,6 +197,11 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<
   const isAssetGroupRemoved = (ag: { status?: string }) =>
     (ag.status || "").toUpperCase() === "REMOVED";
 
+  const isDraftAssetGroup = (ag: { status?: string; id?: number; asset_group_id?: number | string }) => {
+    const s = (ag.status || "").toUpperCase();
+    return s === "SAVED_DRAFT" || s === "DRAFT" || String(ag.asset_group_id ?? ag.id ?? "").startsWith("draft-");
+  };
+
   const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
     if (
       (!onUpdateAssetGroupStatus && !onBulkUpdateAssetGroupStatus) ||
@@ -622,7 +627,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<
                           ) : editingAssetGroupId === assetGroup.id &&
                             editingField === "status" &&
                             onUpdateAssetGroupStatus &&
-                            !isRemoved ? (
+                            !isRemoved &&
+                            !isDraftAssetGroup(assetGroup) ? (
                             <div
                               onClick={(e) => e.stopPropagation()}
                               className="w-full relative"
@@ -649,6 +655,12 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<
                                 disabled={isRemoved}
                               />
                             </div>
+                          ) : isDraftAssetGroup(assetGroup) ? (
+                            <span className="table-text leading-[1.26] cursor-default">
+                              {assetGroup.status === "SAVED_DRAFT" || assetGroup.status === "DRAFT"
+                                ? "Saved as draft"
+                                : assetGroup.status || "Enabled"}
+                            </span>
                           ) : (
                             <button
                               type="button"

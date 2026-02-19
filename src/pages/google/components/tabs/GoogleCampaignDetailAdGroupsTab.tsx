@@ -1181,6 +1181,16 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                               );
                             }
 
+                            if (isDraftAdGroup(adgroup)) {
+                              return (
+                                <span className="table-text leading-[1.26] cursor-default">
+                                  {adgroup.status === "SAVED_DRAFT" || adgroup.status === "DRAFT"
+                                    ? "Saved as draft"
+                                    : adgroup.status || "ENABLED"}
+                                </span>
+                              );
+                            }
+
                             const statusLower = (adgroup.status || "ENABLED").toUpperCase();
                             const statusValue =
                               statusLower === "ENABLE" || statusLower === "ENABLED"

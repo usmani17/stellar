@@ -3,7 +3,8 @@ import { Dropdown } from "../ui/Dropdown";
 import { campaignsService } from "../../services/campaigns";
 
 export interface ShoppingEntityInput {
-  adgroup_id?: number; // Optional: use existing adgroup
+  /** Existing ad group: numeric id or "draft-xxx" for draft ad groups */
+  adgroup_id?: number | string;
   adgroup?: {
     name: string;
   };
@@ -44,7 +45,7 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
 
   // Adgroup search state
   const [adgroupSearchQuery, setAdgroupSearchQuery] = useState("");
-  const [adgroupOptions, setAdgroupOptions] = useState<Array<{ value: string; label: string; adgroup_id: number }>>([]);
+  const [adgroupOptions, setAdgroupOptions] = useState<Array<{ value: string; label: string; adgroup_id: number | string; status?: string }>>([]);
   const [loadingAdgroups, setLoadingAdgroups] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
@@ -137,12 +138,25 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
     }
   }, [isOpen, fetchAdgroups]);
 
-  const validate = (): boolean => {
+  const isDraftAdGroupId = (id: string) => id.trim().toLowerCase().startsWith("draft-");
+
+  const validate = (forDraft: boolean): boolean => {
     const newErrors: Record<string, string> = {};
 
     // For listing groups, we always require an existing ad group
     if (!selectedAdGroupId) {
       newErrors.adGroup = "Please select an ad group";
+    } else if (!forDraft) {
+      // When creating published listing group, selected ad group must not be draft
+      const selectedOpt = adgroupOptions.find((o) => o.value === selectedAdGroupId);
+      const isDraft =
+        isDraftAdGroupId(selectedAdGroupId) ||
+        selectedOpt?.status === "SAVED_DRAFT" ||
+        selectedOpt?.status === "DRAFT";
+      if (isDraft) {
+        newErrors.adGroup =
+          "Cannot create a published listing group under a draft ad group. Please select a published ad group or save as draft.";
+      }
     }
 
     // Listing Group is now required
@@ -154,8 +168,15 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
     return Object.keys(newErrors).length === 0;
   };
 
+  const buildAdGroupIdPayload = (): number | string | undefined => {
+    if (!selectedAdGroupId) return undefined;
+    return isDraftAdGroupId(selectedAdGroupId)
+      ? selectedAdGroupId
+      : parseInt(selectedAdGroupId, 10);
+  };
+
   const handleSubmit = () => {
-    if (!validate()) {
+    if (!validate(false)) {
       return;
     }
 
@@ -165,21 +186,22 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
       },
     };
 
-    // For listing groups, always use existing adgroup
-    if (selectedAdGroupId) {
-      entity.adgroup_id = parseInt(selectedAdGroupId, 10);
+    const adGroupId = buildAdGroupIdPayload();
+    if (adGroupId !== undefined) {
+      entity.adgroup_id = adGroupId;
     }
 
     onSubmit(entity);
   };
 
   const handleSaveAsDraft = () => {
-    if (!validate()) return;
+    if (!validate(true)) return;
     const entity: ShoppingEntityInput = {
       product_group: { cpc_bid: productGroupBid ?? 0.01 },
     };
-    if (selectedAdGroupId) {
-      entity.adgroup_id = parseInt(selectedAdGroupId, 10);
+    const adGroupId = buildAdGroupIdPayload();
+    if (adGroupId !== undefined) {
+      entity.adgroup_id = adGroupId;
     }
     onSubmit(entity, { saveAsDraft: true });
   };

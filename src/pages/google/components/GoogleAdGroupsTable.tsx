@@ -208,7 +208,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       sortable: true,
       // Amazon State column: min-w-[115px]
       minWidth: "min-w-[115px]",
-      editable: true,
+      editable: (row: GoogleAdGroup) => !isDraftAdGroup(row),
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
         { value: "PAUSED", label: "Paused" },

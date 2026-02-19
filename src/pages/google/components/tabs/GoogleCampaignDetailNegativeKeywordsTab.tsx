@@ -848,27 +848,19 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                             ) : editingNegativeKeywordId === negativeKeyword.id &&
                               editingField === "status" &&
                               onUpdateNegativeKeywordStatus &&
-                              !isRemoved ? (
+                              !isRemoved &&
+                              !isDraftNegativeKeyword(negativeKeyword) ? (
                               <div
                                 onClick={(e) => e.stopPropagation()}
                                 className="w-full relative"
                               >
                                 <Dropdown
                                   key={`status-${negativeKeyword.id}-${editingNegativeKeywordId}`}
-                                  options={
-                                    isDraftNegativeKeyword(negativeKeyword)
-                                      ? [
-                                          { value: "SAVED_DRAFT", label: "Saved as draft" },
-                                          { value: "ENABLED", label: "Enabled", disabled: true },
-                                          { value: "PAUSED", label: "Paused", disabled: true },
-                                          { value: "REMOVED", label: "Remove", disabled: true },
-                                        ]
-                                      : [
-                                          { value: "ENABLED", label: "Enabled" },
-                                          { value: "PAUSED", label: "Paused" },
-                                          { value: "REMOVED", label: "Remove" },
-                                        ]
-                                  }
+                                  options={[
+                                    { value: "ENABLED", label: "Enabled" },
+                                    { value: "PAUSED", label: "Paused" },
+                                    { value: "REMOVED", label: "Remove" },
+                                  ]}
                                   value={editingStatus}
                                   onChange={(val) =>
                                     handleStatusChange(
@@ -892,6 +884,12 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                                   disabled={isRemoved}
                                 />
                               </div>
+                            ) : isDraftNegativeKeyword(negativeKeyword) ? (
+                              <span className="table-text leading-[1.26] cursor-default">
+                                {negativeKeyword.status === "SAVED_DRAFT" || negativeKeyword.status === "DRAFT"
+                                  ? "Saved as draft"
+                                  : negativeKeyword.status || "Enabled"}
+                              </span>
                             ) : (
                               <button
                                 type="button"
@@ -926,10 +924,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                                         negativeKeyword.status === "Removed" ||
                                         negativeKeyword.status === "REMOVE"
                                       ? "Remove"
-                                      : negativeKeyword.status === "SAVED_DRAFT" ||
-                                          negativeKeyword.status === "DRAFT"
-                                        ? "Saved as draft"
-                                        : negativeKeyword.status || "Enabled"}
+                                      : negativeKeyword.status || "Enabled"}
                                 </span>
                                 {onUpdateNegativeKeywordStatus && (
                                   <svg

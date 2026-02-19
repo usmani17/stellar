@@ -235,7 +235,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
         sortable: true,
         width: "w-[140px]",
         maxWidth: "max-w-[140px]",
-        editable: true,
+        editable: (row: GoogleAd) => !isDraftAd(row),
         statusOptions: [
           { value: "ENABLED", label: "Enabled" },
           { value: "PAUSED", label: "Paused" },
@@ -438,6 +438,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
         onPublishDraft={onPublishDraft}
         isDraftRow={isDraftAd}
         publishLoadingId={publishLoadingId}
+        draftFilterOn={true}
       />
     </>
   );

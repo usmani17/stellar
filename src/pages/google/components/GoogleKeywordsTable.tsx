@@ -248,7 +248,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       type: "status",
       sortable: true,
       minWidth: "min-w-[115px]",
-      editable: true,
+      editable: (row: GoogleKeyword) => !isDraftKeyword(row),
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
         { value: "PAUSED", label: "Paused" },

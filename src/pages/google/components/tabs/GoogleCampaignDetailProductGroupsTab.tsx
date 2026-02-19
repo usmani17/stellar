@@ -473,7 +473,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                               <StatusBadge status={productGroup.status || "ENABLED"} />
                               <Loader size="sm" showMessage={false} />
                             </div>
-                          ) : editingProductGroupKey === getProductGroupSelectionKey(productGroup) && onUpdateProductGroupStatus && !isRemoved ? (
+                          ) : editingProductGroupKey === getProductGroupSelectionKey(productGroup) && onUpdateProductGroupStatus && !isRemoved && !isDraftProductGroup(productGroup) ? (
                             <div className="relative z-[100000] w-full" onClick={(e) => e.stopPropagation()}>
                               <Dropdown
                                 options={[
@@ -494,6 +494,12 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                                 disabled={isRemoved}
                               />
                             </div>
+                          ) : isDraftProductGroup(productGroup) ? (
+                            <span className="table-text leading-[1.26] cursor-default">
+                              {productGroup.status === "SAVED_DRAFT" || productGroup.status === "DRAFT"
+                                ? "Saved as draft"
+                                : productGroup.status || "Enabled"}
+                            </span>
                           ) : productGroup.status ? (
                             <button
                               type="button"
