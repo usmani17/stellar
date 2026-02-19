@@ -141,7 +141,7 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
       setErrors({ keywords: "At least one negative keyword is required" });
       return;
     }
-    // Campaign level: published negative keywords only with published campaign; draft only with draft campaign
+    // Campaign level: published negative keywords only with published campaign; draft only with draft campaign (except PMAX: allow draft on published campaign)
     if (level === "campaign") {
       if (!asDraft && isDraftCampaign) {
         setErrors({
@@ -150,7 +150,8 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
         });
         return;
       }
-      if (asDraft && !isDraftCampaign) {
+      // For Performance Max, allow save as draft even when campaign is published (draft stored in DB, publish later)
+      if (asDraft && !isDraftCampaign && !isPerformanceMax) {
         setErrors({
           level:
             "Draft negative keyword can be created only under a draft campaign. Please select a draft campaign or create as published.",

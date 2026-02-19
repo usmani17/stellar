@@ -19,7 +19,7 @@ import {
   type BulkUpdateStatusDetails,
 } from "../BulkUpdateConfirmationModal";
 import { BulkActionsDropdown } from "../BulkActionsDropdown";
-import { formatStatusForDisplay } from "../../utils/googleAdsUtils";
+import { formatStatusForDisplay, getStatusWithDefault } from "../../utils/googleAdsUtils";
 
 interface GoogleCampaignDetailNegativeKeywordsTabProps {
   negativeKeywords: GoogleNegativeKeyword[];
@@ -845,11 +845,47 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                                 />
                                 <Loader size="sm" showMessage={false} />
                               </div>
+                            ) : isDraftNegativeKeyword(negativeKeyword) ? (
+                              <span className="table-text leading-[1.26] cursor-default">
+                                {negativeKeyword.status === "SAVED_DRAFT" || negativeKeyword.status === "DRAFT"
+                                  ? "Saved as draft"
+                                  : negativeKeyword.status || "Enabled"}
+                              </span>
+                            ) : isPerformanceMax &&
+                              onUpdateNegativeKeywordStatus &&
+                              !isRemoved ? (
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className="relative"
+                              >
+                                <Dropdown
+                                  options={[
+                                    { value: "ENABLED", label: "Enabled" },
+                                    { value: "PAUSED", label: "Paused" },
+                                    { value: "REMOVED", label: "Remove" },
+                                  ]}
+                                  value={getStatusWithDefault(negativeKeyword.status).toUpperCase()}
+                                  onChange={(val) =>
+                                    handleStatusChange(
+                                      negativeKeyword.id,
+                                      negativeKeyword.criterion_id,
+                                      val as string
+                                    )
+                                  }
+                                  closeOnSelect={true}
+                                  showCheckmark={false}
+                                  buttonClassName="edit-button min-w-0"
+                                  width="w-[120px]"
+                                  align="left"
+                                  className="w-full"
+                                  menuClassName="z-[100000]"
+                                  disabled={isRemoved}
+                                />
+                              </div>
                             ) : editingNegativeKeywordId === negativeKeyword.id &&
                               editingField === "status" &&
                               onUpdateNegativeKeywordStatus &&
-                              !isRemoved &&
-                              !isDraftNegativeKeyword(negativeKeyword) ? (
+                              !isRemoved ? (
                               <div
                                 onClick={(e) => e.stopPropagation()}
                                 className="w-full relative"
@@ -884,12 +920,6 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                                   disabled={isRemoved}
                                 />
                               </div>
-                            ) : isDraftNegativeKeyword(negativeKeyword) ? (
-                              <span className="table-text leading-[1.26] cursor-default">
-                                {negativeKeyword.status === "SAVED_DRAFT" || negativeKeyword.status === "DRAFT"
-                                  ? "Saved as draft"
-                                  : negativeKeyword.status || "Enabled"}
-                              </span>
                             ) : (
                               <button
                                 type="button"

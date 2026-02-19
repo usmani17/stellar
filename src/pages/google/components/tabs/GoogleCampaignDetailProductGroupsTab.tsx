@@ -336,10 +336,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<
       )}
 
       {/* Header with Filter Button */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
-          Product Groups
-        </h2>
+      <div className="flex items-center justify-end mb-4">
         <div className="flex items-center gap-2">
           {createButton}
           {accountId && channelId && onBulkUpdateComplete && (

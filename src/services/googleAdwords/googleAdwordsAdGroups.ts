@@ -214,6 +214,20 @@ export const googleAdwordsAdGroupsService = {
     return response.data;
   },
 
+  /** Publish a draft Demand Gen ad group: POST with adgroup_id (draft-xxx); backend creates in Google and removes draft row. */
+  publishDemandGenDraftAdGroup: async (
+    accountId: number,
+    channelId: number,
+    campaignId: string | number,
+    draftAdgroupId: string
+  ): Promise<{ success: boolean; ad_group_id?: string; ad_group_resource_name?: string; error?: string }> => {
+    const response = await api.post(
+      `/google-adwords/${accountId}/channels/${channelId}/campaigns/${campaignId}/demand-gen-ad-groups/create/`,
+      { adgroup_id: draftAdgroupId }
+    );
+    return response.data;
+  },
+
   /**
    * Add targeting criteria to an ad group (audiences, exclusions, locations).
    * Used for Demand Gen and other campaign types.
