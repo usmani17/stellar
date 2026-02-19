@@ -7,7 +7,7 @@ export const googleAdwordsAssetGroupsService = {
     profileId: number,
     campaignId?: string | number,
     params?: {
-      filters?: Array<{ field: string; operator?: string; value: any }>; // Dynamic filters from DynamicFilterPanel
+      filters?: Array<{ field: string; operator?: string; value: any }>;
       page?: number;
       page_size?: number;
       sort_by?: string;
@@ -15,6 +15,7 @@ export const googleAdwordsAssetGroupsService = {
       start_date?: string;
       end_date?: string;
       campaign_id?: string | number;
+      draft_only?: boolean;
     }
   ): Promise<{
     asset_groups: any[];
@@ -35,9 +36,9 @@ export const googleAdwordsAssetGroupsService = {
       profile_id: profileId,
     };
     
-    // Add campaign_id if provided
     if (campaignId) payload.campaign_id = campaignId;
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
+    if (params?.draft_only !== undefined) payload.draft_only = params.draft_only;
 
     const response = await api.post(
       `/google-adwords/${accountId}/channels/${channelId}/asset-groups/`,

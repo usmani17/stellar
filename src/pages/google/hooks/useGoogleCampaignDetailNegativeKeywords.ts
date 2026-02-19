@@ -246,6 +246,7 @@ export const useGoogleCampaignDetailNegativeKeywords = ({
     negativeKeywords: NegativeKeywordInput[];
     level: "campaign" | "adgroup";
     adGroupId?: string;
+    save_as_draft?: boolean;
   }) => {
     if (!accountId || !channelId || !campaignId) return;
 

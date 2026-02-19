@@ -434,13 +434,20 @@ export const GoogleCampaignDetail: React.FC = () => {
         if (negativeKeywordsHook.loadNegativeKeywords)
           await negativeKeywordsHook.loadNegativeKeywords();
       } catch (err: any) {
-        setErrorModal({
-          isOpen: true,
-          message:
-            err?.response?.data?.error ||
-            err?.message ||
-            "Failed to publish draft.",
-        });
+        const raw =
+          err?.response?.data?.error ??
+          err?.response?.data?.message ??
+          err?.message ??
+          "Failed to publish draft.";
+        const message =
+          typeof raw === "string"
+            ? raw
+            : typeof (raw as any)?.user_message === "string"
+              ? (raw as any).user_message
+              : typeof (raw as any)?.message === "string"
+                ? (raw as any).message
+                : JSON.stringify(raw);
+        setErrorModal({ isOpen: true, message });
       } finally {
         setPublishLoadingNegativeKeywordId(null);
       }
@@ -506,12 +513,27 @@ export const GoogleCampaignDetail: React.FC = () => {
           setErrorModal({ isOpen: true, message: "Not a draft ad group." });
           return;
         }
-        await googleAdwordsCampaignsService.publishGoogleSearchEntitiesDraft(
-          accountIdNum,
-          channelIdNum,
-          campaignId,
-          draftId,
-        );
+        const campaignChannelType = (campaignDetail?.campaign?.advertising_channel_type ?? "").toString().toUpperCase().replace(/\s+/g, "_");
+        const isDemandGen = campaignChannelType === "DEMAND_GEN";
+        if (isDemandGen) {
+          const result = await googleAdwordsAdGroupsService.publishDemandGenDraftAdGroup(
+            accountIdNum,
+            channelIdNum,
+            campaignId,
+            draftId,
+          );
+          if (result.error) {
+            setErrorModal({ isOpen: true, message: typeof result.error === "string" ? result.error : String(result.error) });
+            return;
+          }
+        } else {
+          await googleAdwordsCampaignsService.publishGoogleSearchEntitiesDraft(
+            accountIdNum,
+            channelIdNum,
+            campaignId,
+            draftId,
+          );
+        }
         setErrorModal({
           isOpen: true,
           message:
@@ -632,12 +654,22 @@ export const GoogleCampaignDetail: React.FC = () => {
           await negativeKeywordsHook.loadNegativeKeywords();
       }
     } catch (err: any) {
+      const raw =
+        err?.response?.data?.error ??
+        err?.response?.data?.message ??
+        err?.message ??
+        "Failed to publish draft.";
+      const message =
+        typeof raw === "string"
+          ? raw
+          : typeof (raw as any)?.user_message === "string"
+            ? (raw as any).user_message
+            : typeof (raw as any)?.message === "string"
+              ? (raw as any).message
+              : JSON.stringify(raw);
       setErrorModal({
         isOpen: true,
-        message:
-          err?.response?.data?.error ||
-          err?.message ||
-          "Failed to publish draft.",
+        message,
       });
     } finally {
       setPublishDraftSubmitting(false);
@@ -668,13 +700,20 @@ export const GoogleCampaignDetail: React.FC = () => {
       const channelIdNum = parseInt(channelId, 10);
       navigate(`/brands/${accountId}/${channelIdNum}/google/campaigns`);
     } catch (err: any) {
-      setErrorModal({
-        isOpen: true,
-        message:
-          err?.response?.data?.error ||
-          err?.message ||
-          "Failed to publish draft.",
-      });
+      const raw =
+        err?.response?.data?.error ??
+        err?.response?.data?.message ??
+        err?.message ??
+        "Failed to publish draft.";
+      const message =
+        typeof raw === "string"
+          ? raw
+          : typeof (raw as any)?.user_message === "string"
+            ? (raw as any).user_message
+            : typeof (raw as any)?.message === "string"
+              ? (raw as any).message
+              : JSON.stringify(raw);
+      setErrorModal({ isOpen: true, message });
     } finally {
       setPublishDraftLoading(false);
     }
@@ -700,11 +739,20 @@ export const GoogleCampaignDetail: React.FC = () => {
       setIsDraftCampaignEditPanelOpen(false);
       setErrorModal({ isOpen: true, message: "Draft saved.", isSuccess: true });
     } catch (err: any) {
-      setErrorModal({
-        isOpen: true,
-        message:
-          err?.response?.data?.error || err?.message || "Failed to save draft.",
-      });
+      const raw =
+        err?.response?.data?.error ??
+        err?.response?.data?.message ??
+        err?.message ??
+        "Failed to save draft.";
+      const message =
+        typeof raw === "string"
+          ? raw
+          : typeof (raw as any)?.user_message === "string"
+            ? (raw as any).user_message
+            : typeof (raw as any)?.message === "string"
+              ? (raw as any).message
+              : JSON.stringify(raw);
+      setErrorModal({ isOpen: true, message });
     } finally {
       setDraftCampaignFormLoading(false);
     }
@@ -1066,10 +1114,13 @@ export const GoogleCampaignDetail: React.FC = () => {
     handleCloseEditPanel,
     handleViewAssets,
     handleCloseViewAssetsModal,
+    handlePublishDraftAssetGroup,
     viewAssetsModalOpen,
     viewingAssetGroupName,
     assetGroupAssets,
     loadingAssets,
+    showDraftsOnlyAssetGroups,
+    setShowDraftsOnlyAssetGroups,
   } = assetGroupsHook;
 
   // Use Product Groups hook
@@ -1980,6 +2031,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                           assetGroupAssets={assetGroupAssets}
                           loadingAssets={loadingAssets}
                           onCloseViewAssetsModal={handleCloseViewAssetsModal}
+                          showDraftsOnly={showDraftsOnlyAssetGroups}
+                          onToggleDraftsOnly={() =>
+                            setShowDraftsOnlyAssetGroups((v) => !v)
+                          }
+                          onPublishDraftAssetGroup={handlePublishDraftAssetGroup}
                           onBulkUpdateComplete={assetGroupsHook.loadAssetGroups}
                           createButton={
                             campaignDetail?.campaign

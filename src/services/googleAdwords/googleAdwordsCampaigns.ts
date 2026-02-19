@@ -187,16 +187,17 @@ export const googleAdwordsCampaignsService : any = {
     channelId: number,
     campaignId: number,
     payload: {
-      profile_id?: number; // Optional; use this profile (must belong to channel). If omitted, backend uses selected profile.
+      profile_id?: number;
       save_as_draft?: boolean;
+      publish_draft_id?: string; // Draft asset group id to delete after successful create (e.g. "draft-xxx")
       asset_group: {
         name: string;
-        final_url?: string; // Optional
+        final_url?: string;
       };
       assets: {
-        headlines: string[]; // Min 3, max 15
-        descriptions: string[]; // Min 2, max 4
-        long_headline: string; // Required
+        headlines: string[];
+        descriptions: string[];
+        long_headline: string;
         marketing_image_url?: string;
         square_marketing_image_url?: string;
         business_name?: string;

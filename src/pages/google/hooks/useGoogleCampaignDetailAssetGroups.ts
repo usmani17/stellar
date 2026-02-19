@@ -43,6 +43,9 @@ export const useGoogleCampaignDetailAssetGroups = ({
   const [isAssetGroupsFilterPanelOpen, setIsAssetGroupsFilterPanelOpen] = useState(false);
   const [assetGroupsFilters, setAssetGroupsFilters] = useState<FilterValues>([]);
 
+  // Draft-only switch (refetch with draft_only when toggled)
+  const [showDraftsOnlyAssetGroups, setShowDraftsOnlyAssetGroups] = useState(false);
+
   // Sync state
   const [syncingAssetGroups, setSyncingAssetGroups] = useState(false);
 
@@ -87,6 +90,7 @@ export const useGoogleCampaignDetailAssetGroups = ({
           page_size: 10,
           sort_by: assetGroupsSortBy,
           order: assetGroupsSortOrder,
+          draft_only: showDraftsOnlyAssetGroups,
         }
       );
 
@@ -108,6 +112,7 @@ export const useGoogleCampaignDetailAssetGroups = ({
     assetGroupsSortBy,
     assetGroupsSortOrder,
     assetGroupsFilters,
+    showDraftsOnlyAssetGroups,
   ]);
 
   // Load asset groups when dependencies change
@@ -719,6 +724,74 @@ export const useGoogleCampaignDetailAssetGroups = ({
     setLoadingAssets(false);
   }, []);
 
+  // Publish draft asset group: fetch draft data, call create with publish_draft_id, then reload
+  const handlePublishDraftAssetGroup = useCallback(
+    async (assetGroup: any) => {
+      if (!accountId || !channelId || !profileId || !campaignId) return;
+      const draftId =
+        typeof assetGroup.asset_group_id !== "undefined"
+          ? String(assetGroup.asset_group_id)
+          : String(assetGroup.id ?? "");
+      if (!draftId || !draftId.toLowerCase().startsWith("draft-")) return;
+
+      const accountIdNum = parseInt(accountId, 10);
+      const channelIdNum = parseInt(channelId, 10);
+      const campaignIdNum = parseInt(campaignId, 10);
+      const profileIdNum = parseInt(profileId, 10);
+      if (isNaN(accountIdNum) || isNaN(channelIdNum) || isNaN(campaignIdNum) || isNaN(profileIdNum)) return;
+
+      try {
+        const data = await googleAdwordsAssetGroupsService.getGoogleAssetGroupAssets(
+          accountIdNum,
+          channelIdNum,
+          profileIdNum,
+          draftId,
+          campaignIdNum
+        );
+        const finalUrl = Array.isArray(data.final_urls) && data.final_urls.length > 0 ? data.final_urls[0] : undefined;
+        const payload = {
+          profile_id: profileIdNum,
+          publish_draft_id: draftId,
+          asset_group: {
+            name: data.asset_group_name ?? assetGroup.name ?? "Asset group",
+            final_url: finalUrl,
+          },
+          assets: {
+            headlines: Array.isArray(data.headlines) ? data.headlines : [],
+            descriptions: Array.isArray(data.descriptions) ? data.descriptions : [],
+            long_headline: data.long_headline ?? "",
+            marketing_image_url: data.marketing_image_url,
+            square_marketing_image_url: data.square_marketing_image_url,
+            business_name: data.business_name,
+            logo_url: data.logo_url,
+          },
+        };
+        const response = await googleAdwordsCampaignsService.createGooglePmaxAssetGroup(
+          accountIdNum,
+          channelIdNum,
+          campaignIdNum,
+          payload
+        );
+        if (response.error) {
+          if (onError) {
+            onError({ title: "Error", message: response.error, isSuccess: false });
+          }
+          return;
+        }
+        if (onError) {
+          onError({ title: "Success", message: "Asset group published successfully.", isSuccess: true });
+        }
+        await loadAssetGroups();
+      } catch (error: any) {
+        const msg = error.response?.data?.error ?? error.message ?? "Failed to publish draft.";
+        if (onError) {
+          onError({ title: "Error", message: msg, isSuccess: false });
+        }
+      }
+    },
+    [accountId, channelId, profileId, campaignId, loadAssetGroups, onError]
+  );
+
   return {
     // Data
     assetGroups,
@@ -738,7 +811,11 @@ export const useGoogleCampaignDetailAssetGroups = ({
     setIsAssetGroupsFilterPanelOpen,
     assetGroupsFilters,
     setAssetGroupsFilters,
-    
+
+    // Draft switch
+    showDraftsOnlyAssetGroups,
+    setShowDraftsOnlyAssetGroups,
+
     // Sync
     syncingAssetGroups,
     
@@ -773,6 +850,7 @@ export const useGoogleCampaignDetailAssetGroups = ({
     handleCloseEditPanel,
     handleViewAssets,
     handleCloseViewAssetsModal,
+    handlePublishDraftAssetGroup,
     viewAssetsModalOpen,
     viewingAssetGroupId,
     viewingAssetGroupName,

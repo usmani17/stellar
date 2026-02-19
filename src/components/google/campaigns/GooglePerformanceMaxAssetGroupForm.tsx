@@ -506,36 +506,36 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="form-label mb-0">
-                Business Name * <span className="text-[10px] text-[#556179] font-normal">(max 25 characters)</span>
-              </label>
-            </div>
+            <label className="form-label mb-1">
+              Business Name * <span className="text-[10px] text-[#556179] font-normal">(max 25 characters)</span>
+            </label>
             {formData.business_name_asset_id ? (
-              <div className="flex items-center gap-2">
+              <div className="relative">
                 <input
                   type="text"
                   value={formData.business_name || ""}
                   disabled
                   readOnly
                   maxLength={25}
-                  className="campaign-input w-full bg-gray-50 border-gray-200 cursor-not-allowed"
+                  className="campaign-input w-full pr-28 bg-gray-50 border-gray-200 cursor-not-allowed"
                 />
-                <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
-                  From Asset
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange("business_name", "");
-                    onChange("business_name_asset_id", undefined);
-                    onChange("business_name_asset_resource_name", undefined);
-                  }}
-                  className="text-red-500 hover:text-red-700 text-sm font-medium"
-                  title="Remove selected asset"
-                >
-                  ×
-                </button>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
+                    From Asset
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange("business_name", "");
+                      onChange("business_name_asset_id", undefined);
+                      onChange("business_name_asset_resource_name", undefined);
+                    }}
+                    className="text-red-500 hover:text-red-700 text-sm font-medium"
+                    title="Remove selected asset"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
             ) : (
               <div
