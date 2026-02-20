@@ -162,7 +162,7 @@ export const GoogleCampaignInformation: React.FC<
                 // Pass the value and field directly to avoid state timing issues
                 onEditEnd(newValue, "status");
               }}
-              buttonClassName="edit-button w-full"
+              buttonClassName="edit-button google-table-dropdown w-full"
               width="w-full"
               disabled={isRemoved}
             />

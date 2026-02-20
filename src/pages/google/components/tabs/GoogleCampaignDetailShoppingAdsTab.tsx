@@ -788,7 +788,7 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<
                                 }}
                                 defaultOpen={true}
                                 closeOnSelect={true}
-                                buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                buttonClassName="edit-button google-table-dropdown w-full"
                                 width="w-full"
                                 className="w-full"
                                 menuClassName="z-[100000]"

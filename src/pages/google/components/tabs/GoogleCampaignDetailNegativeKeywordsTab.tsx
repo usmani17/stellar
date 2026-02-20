@@ -874,7 +874,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                                   }
                                   closeOnSelect={true}
                                   showCheckmark={false}
-                                  buttonClassName="edit-button min-w-0"
+                                  buttonClassName="edit-button google-table-dropdown min-w-0"
                                   width="w-[120px]"
                                   align="left"
                                   className="w-full"

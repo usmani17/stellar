@@ -593,6 +593,12 @@ body input[type="submit"]:disabled {
   cursor: not-allowed !important;
 }
 
+/* Google table inline dropdowns - compact height and white background */
+.google-table-dropdown {
+  height: 31px !important;
+  background: white !important;
+}
+
 /* Larger edit button variant - for buttons with px-4 py-2 and text-[16px] */
 /* Overrides Button component's default styles */
 .edit-button-large {

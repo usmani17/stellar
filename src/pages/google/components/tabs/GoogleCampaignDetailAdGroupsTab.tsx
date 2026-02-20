@@ -756,7 +756,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                       setBidAction(action);
                       if (action === "set") setBidUnit("amount");
                     }}
-                    buttonClassName="w-full bg-[#FEFEFB] edit-button"
+                    buttonClassName="edit-button google-table-dropdown w-full"
                     width="w-full"
                   />
                 </div>
@@ -1250,7 +1250,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                     cancelInlineEdit();
                                   }
                                 }}
-                                buttonClassName="edit-button"
+                                buttonClassName="edit-button google-table-dropdown"
                                 width="w-full"
                                 align="center"
                                 closeOnSelect={true}

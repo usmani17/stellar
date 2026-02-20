@@ -654,7 +654,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                                 defaultOpen={true}
                                 closeOnSelect={true}
                                 showCheckmark={false}
-                                buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                buttonClassName="edit-button google-table-dropdown w-full"
                                 width="w-full"
                                 className="w-full"
                                 menuClassName="z-[100000]"

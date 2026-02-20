@@ -4372,7 +4372,7 @@ export const GoogleCampaigns: React.FC = () => {
                                 setBudgetUnit("amount");
                               }
                             }}
-                            buttonClassName="w-full bg-[#FEFEFB] edit-button"
+                            buttonClassName="edit-button google-table-dropdown w-full"
                             width="w-full"
                           />
                         </div>

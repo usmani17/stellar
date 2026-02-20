@@ -1776,7 +1776,7 @@ export const GoogleAdGroups: React.FC = () => {
                                 setBidUnit("amount");
                               }
                             }}
-                            buttonClassName="w-full bg-[#FEFEFB] edit-button"
+                            buttonClassName="edit-button google-table-dropdown w-full"
                             width="w-full"
                           />
                         </div>

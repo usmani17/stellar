@@ -207,7 +207,7 @@ export const BulkBiddingStrategyPanel: React.FC<BulkBiddingStrategyPanelProps> =
               options={availableStrategies}
               value={biddingStrategyType}
               onChange={(val) => setBiddingStrategyType(val as string)}
-              buttonClassName="w-full bg-[#FEFEFB] edit-button"
+              buttonClassName="edit-button google-table-dropdown w-full"
               width="w-full"
               placeholder="Select strategy"
             />
@@ -262,7 +262,7 @@ export const BulkBiddingStrategyPanel: React.FC<BulkBiddingStrategyPanelProps> =
                   options={IMPRESSION_SHARE_LOCATIONS}
                   value={targetImpressionShareLocation}
                   onChange={(val) => setTargetImpressionShareLocation(val as string)}
-                  buttonClassName="w-full bg-[#FEFEFB] edit-button"
+                  buttonClassName="edit-button google-table-dropdown w-full"
                   width="w-full"
                   placeholder="Select location"
                 />

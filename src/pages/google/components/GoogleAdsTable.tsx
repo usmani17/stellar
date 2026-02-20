@@ -497,7 +497,7 @@ export function GoogleAdsTable<T = any>({
             }}
             defaultOpen={isEditing}
             closeOnSelect={true}
-            buttonClassName="edit-button min-w-0"
+            buttonClassName="edit-button google-table-dropdown min-w-0"
             width={dropdownWidth}
             align="left"
             className="w-full"
@@ -579,7 +579,7 @@ export function GoogleAdsTable<T = any>({
               }}
               defaultOpen={isEditing}
               closeOnSelect={true}
-              buttonClassName="edit-button min-w-0"
+              buttonClassName="edit-button google-table-dropdown min-w-0"
               width="w-[120px]"
               align="left"
               className="w-full"

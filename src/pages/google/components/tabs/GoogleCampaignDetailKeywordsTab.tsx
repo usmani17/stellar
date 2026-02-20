@@ -917,7 +917,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                                   defaultOpen={true}
                                   closeOnSelect={true}
                                   showCheckmark={false}
-                                  buttonClassName="edit-button w-full text-[13.3px]"
+                                  buttonClassName="edit-button google-table-dropdown w-full text-[13.3px]"
                                   width="w-full"
                                   className="w-full"
                                   menuClassName="z-[100000]"
