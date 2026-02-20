@@ -474,6 +474,48 @@ export const GoogleCampaignDetail: React.FC = () => {
   }) => {
     setPublishDraftEntity({ type: "ad_group", entity: adgroup });
   };
+
+  /** Publish multiple draft ad groups to Google Ads (same logic as single publish, one by one). */
+  const handleBulkPublishAdGroupDrafts = async (
+    adgroups: Array<{ id: number; adgroup_id?: number }>
+  ) => {
+    if (!accountId || !channelId || !campaignId) return;
+    const campaignIdStr = String(campaignId ?? "");
+    if (campaignIdStr.toLowerCase().startsWith("draft-")) {
+      throw new Error("Publish the campaign first, then you can publish ad groups.");
+    }
+    const accountIdNum = parseInt(accountId, 10);
+    const channelIdNum = parseInt(channelId, 10);
+    const campaignChannelType = (campaignDetail?.campaign?.advertising_channel_type ?? "")
+      .toString()
+      .toUpperCase()
+      .replace(/\s+/g, "_");
+    const isDemandGen = campaignChannelType === "DEMAND_GEN";
+    for (const ag of adgroups) {
+      const draftId = String(ag.adgroup_id ?? ag.id);
+      if (!draftId.startsWith("draft-")) continue;
+      if (isDemandGen) {
+        const result = await googleAdwordsAdGroupsService.publishDemandGenDraftAdGroup(
+          accountIdNum,
+          channelIdNum,
+          campaignId,
+          draftId
+        );
+        if (result.error) {
+          throw new Error(typeof result.error === "string" ? result.error : String(result.error));
+        }
+      } else {
+        await googleAdwordsCampaignsService.publishGoogleSearchEntitiesDraft(
+          accountIdNum,
+          channelIdNum,
+          campaignId,
+          draftId
+        );
+      }
+    }
+    if (loadAdGroups) await loadAdGroups();
+  };
+
   const handlePublishKeywordDraft = (keyword: {
     id: number;
     keyword_id?: number;
@@ -2227,6 +2269,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                                 publishDraftEntity.entity.id)
                               : undefined
                           }
+                          onBulkPublishDrafts={handleBulkPublishAdGroupDrafts}
                           createButton={
                             campaignDetail?.campaign
                               .advertising_channel_type === "SEARCH" ||
