@@ -150,6 +150,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     chartToggles,
     toggleChartMetric,
     handleUpdateCampaign,
+    loadCampaignDetail,
   } = useGoogleCampaignDetail({
     accountId,
     channelId,
@@ -291,11 +292,17 @@ export const GoogleCampaignDetail: React.FC = () => {
 
     try {
       const cid = campaignId ?? "";
+      const { adgroup_id, ...adData } = data;
+      const payload: any = {
+        ad: adData,
+        ...(adgroup_id != null && adgroup_id !== "" && { adgroup_id: Number(adgroup_id) || adgroup_id }),
+        ...(options?.saveAsDraft && { save_as_draft: true }),
+      };
       const response = await googleAdwordsAdsService.createDemandGenAd(
         parseInt(accountId || "", 10),
         parseInt(channelId, 10),
         cid,
-        { ad: data, ...(options?.saveAsDraft && { save_as_draft: true }) },
+        payload,
       );
 
       if (response?.ad) {
@@ -468,6 +475,48 @@ export const GoogleCampaignDetail: React.FC = () => {
   }) => {
     setPublishDraftEntity({ type: "ad_group", entity: adgroup });
   };
+
+  /** Publish multiple draft ad groups to Google Ads (same logic as single publish, one by one). */
+  const handleBulkPublishAdGroupDrafts = async (
+    adgroups: Array<{ id: number; adgroup_id?: number }>
+  ) => {
+    if (!accountId || !channelId || !campaignId) return;
+    const campaignIdStr = String(campaignId ?? "");
+    if (campaignIdStr.toLowerCase().startsWith("draft-")) {
+      throw new Error("Publish the campaign first, then you can publish ad groups.");
+    }
+    const accountIdNum = parseInt(accountId, 10);
+    const channelIdNum = parseInt(channelId, 10);
+    const campaignChannelType = (campaignDetail?.campaign?.advertising_channel_type ?? "")
+      .toString()
+      .toUpperCase()
+      .replace(/\s+/g, "_");
+    const isDemandGen = campaignChannelType === "DEMAND_GEN";
+    for (const ag of adgroups) {
+      const draftId = String(ag.adgroup_id ?? ag.id);
+      if (!draftId.startsWith("draft-")) continue;
+      if (isDemandGen) {
+        const result = await googleAdwordsAdGroupsService.publishDemandGenDraftAdGroup(
+          accountIdNum,
+          channelIdNum,
+          campaignId,
+          draftId
+        );
+        if (result.error) {
+          throw new Error(typeof result.error === "string" ? result.error : String(result.error));
+        }
+      } else {
+        await googleAdwordsCampaignsService.publishGoogleSearchEntitiesDraft(
+          accountIdNum,
+          channelIdNum,
+          campaignId,
+          draftId
+        );
+      }
+    }
+    if (loadAdGroups) await loadAdGroups();
+  };
+
   const handlePublishKeywordDraft = (keyword: {
     id: number;
     keyword_id?: number;
@@ -479,8 +528,18 @@ export const GoogleCampaignDetail: React.FC = () => {
     id: number;
     ad_id?: number;
     ad_type?: string;
+    adgroup_id?: string | number;
   }) => {
     setPublishDraftEntity({ type: "ad", entity: ad });
+  };
+  /** Product groups: no dedicated publish API; prompt user to publish the ad group first. */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature matches onPublishDraft prop
+  const handlePublishProductGroupDraft = (_productGroup: unknown) => {
+    setErrorModal({
+      isOpen: true,
+      message:
+        "Publish the ad group that contains this product group first. Then the product group will be published with it.",
+    });
   };
   const handlePublishNegativeKeywordDraft = (n: {
     id: number;
@@ -579,6 +638,7 @@ export const GoogleCampaignDetail: React.FC = () => {
           isSuccess: true,
         });
         if (loadAdsFromHook) await loadAdsFromHook();
+        if (loadShoppingAds) await loadShoppingAds();
       } else if (publishDraftEntity.type === "keyword") {
         const campaignIdStr = String(campaignId ?? "");
         if (campaignIdStr.toLowerCase().startsWith("draft-")) {
@@ -732,12 +792,15 @@ export const GoogleCampaignDetail: React.FC = () => {
           status: data.status as "ENABLED" | "PAUSED",
           start_date: data.start_date,
           end_date: data.end_date,
-          budget: data.budget_amount,
+          value: data.budget_amount,
+          budget_name: data.budget_name,
+          budget_resource_name: data.budget_resource_name,
           bidding_strategy_type: data.bidding_strategy_type,
         },
       );
       setIsDraftCampaignEditPanelOpen(false);
       setErrorModal({ isOpen: true, message: "Draft saved.", isSuccess: true });
+      await loadCampaignDetail?.();
     } catch (err: any) {
       const raw =
         err?.response?.data?.error ??
@@ -2221,6 +2284,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                                 publishDraftEntity.entity.id)
                               : undefined
                           }
+                          onBulkPublishDrafts={handleBulkPublishAdGroupDrafts}
                           createButton={
                             campaignDetail?.campaign
                               .advertising_channel_type === "SEARCH" ||
@@ -2483,6 +2547,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                                   loading={createDemandGenAdLoading}
                                   submitError={createDemandGenAdError}
                                   profileId={profileId}
+                                  adgroups={adgroups}
                                 />
                               ) : undefined
                             }
@@ -2771,6 +2836,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                           onUpdateProductGroupStatus={
                             handleUpdateProductGroupStatus
                           }
+                          onPublishDraft={handlePublishProductGroupDraft}
                           accountId={accountId}
                           channelId={channelId}
                           onBulkUpdateComplete={loadProductGroups}
@@ -2852,6 +2918,20 @@ export const GoogleCampaignDetail: React.FC = () => {
                           formatPercentage={formatPercentage}
                           onUpdateListingGroupStatus={
                             handleUpdateShoppingAdStatus
+                          }
+                          onPublishDraft={(lg) =>
+                            handlePublishAdDraft({
+                              id: lg.id,
+                              ad_id: lg.ad_id ?? lg.listing_group_id,
+                              adgroup_id: lg.adgroup_id,
+                            })
+                          }
+                          publishLoadingId={
+                            publishDraftEntity?.type === "ad" &&
+                            publishDraftSubmitting
+                              ? (publishDraftEntity.entity.ad_id ??
+                                publishDraftEntity.entity.id)
+                              : undefined
                           }
                           onBulkUpdateComplete={loadShoppingAds}
                           currencyCode={currencyCode}

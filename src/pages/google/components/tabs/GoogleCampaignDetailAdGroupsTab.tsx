@@ -66,6 +66,8 @@ interface GoogleCampaignDetailAdGroupsTabProps {
   onToggleDraftsOnly?: () => void;
   onPublishDraft?: (adgroup: GoogleAdGroup) => void;
   publishLoadingId?: string | number;
+  /** When provided and draft switch is on, bulk Publish is available. Publish all selected draft ad groups to Google Ads. */
+  onBulkPublishDrafts?: (adgroups: GoogleAdGroup[]) => Promise<void>;
 }
 
 export const GoogleCampaignDetailAdGroupsTab: React.FC<
@@ -105,6 +107,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
   onToggleDraftsOnly,
   onPublishDraft,
   publishLoadingId,
+  onBulkPublishDrafts,
 }) => {
     const isDraftAdGroup = (ag: GoogleAdGroup) => {
       const s = (ag.status || "").toUpperCase();
@@ -151,6 +154,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
     const [showBulkActions, setShowBulkActions] = useState(false);
     const [showBidPanel, setShowBidPanel] = useState(false);
     const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLED" | "PAUSED" | null>(null);
+    const [pendingBulkPublish, setPendingBulkPublish] = useState(false);
     const [showBulkConfirmationModal, setShowBulkConfirmationModal] = useState(false);
     const [isBidChange, setIsBidChange] = useState(false);
     const [bulkLoading, setBulkLoading] = useState(false);
@@ -639,11 +643,17 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                 {showBulkActions && (
                   <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                     <div className="overflow-y-auto">
-                      {[
-                        { value: "ENABLED", label: "Enable" },
-                        { value: "PAUSED", label: "Pause" },
-                        { value: "edit_bid", label: "Default max. CPC" },
-                      ].map((opt) => (
+                      {(showDraftsOnly
+                        ? [
+                            ...(onBulkPublishDrafts ? [{ value: "PUBLISH", label: "Publish" }] : []),
+                            { value: "edit_bid", label: "Default max. CPC" },
+                          ]
+                        : [
+                            { value: "ENABLED", label: "Enable" },
+                            { value: "PAUSED", label: "Pause" },
+                            { value: "edit_bid", label: "Default max. CPC" },
+                          ]
+                      ).map((opt) => (
                         <button
                           key={opt.value}
                           type="button"
@@ -655,9 +665,22 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                             if (opt.value === "edit_bid") {
                               setShowBidPanel(true);
                               setShowBulkConfirmationModal(false);
+                              setPendingBulkPublish(false);
+                            } else if (opt.value === "PUBLISH") {
+                              const selectedDrafts = getSelectedAdgroupsData().filter(isDraftAdGroup);
+                              if (selectedDrafts.length === 0) {
+                                setShowBulkActions(false);
+                                return;
+                              }
+                              setShowBidPanel(false);
+                              setPendingStatusAction(null);
+                              setPendingBulkPublish(true);
+                              setIsBidChange(false);
+                              setShowBulkConfirmationModal(true);
                             } else {
                               setShowBidPanel(false);
                               setPendingStatusAction(opt.value as "ENABLED" | "PAUSED");
+                              setPendingBulkPublish(false);
                               setIsBidChange(false);
                               setShowBulkConfirmationModal(true);
                             }
@@ -1278,7 +1301,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
 
                             const bidValue = editingAdGroupId === adgroup.id &&
                               editingField === "bid"
-                              ? (editingValue?.replace(/[^0-9.]/g, "") || currentBid)
+                              ? (editingValue != null ? editingValue.replace(/[^0-9.]/g, "") : "")
                               : currentBid;
 
                             return (
@@ -1742,15 +1765,28 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
             onClose={() => {
               setShowBulkConfirmationModal(false);
               setPendingStatusAction(null);
+              setPendingBulkPublish(false);
               setBulkUpdateResults(null);
             }}
             entityLabel="ad group"
             entityNameColumn="Ad Group Name"
-            selectedCount={selectedAdGroupIds.size}
+            selectedCount={
+              pendingBulkPublish
+                ? getSelectedAdgroupsData().filter(isDraftAdGroup).length
+                : selectedAdGroupIds.size
+            }
             bulkUpdateResults={bulkUpdateResults}
-            isValueChange={isBidChange}
+            isValueChange={!pendingBulkPublish && isBidChange}
             valueChangeLabel="Bid"
             previewRows={(() => {
+              if (pendingBulkPublish) {
+                const selectedDrafts = getSelectedAdgroupsData().filter(isDraftAdGroup);
+                return selectedDrafts.map((ag) => ({
+                  name: ag.adgroup_name || ag.name || "Unnamed Ad Group",
+                  oldValue: "Draft",
+                  newValue: "Published",
+                })) as BulkUpdatePreviewRow[];
+              }
               const selectedData = getSelectedAdgroupsData();
               return selectedData.map((ag) => {
                 const oldBid = ag.cpc_bid_dollars || 0;
@@ -1768,31 +1804,61 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
             })()}
             actionDetails={
               !bulkUpdateResults
-                ? isBidChange
-                  ? ({
-                    type: "value",
-                    action: bidAction,
-                    unit: bidUnit,
-                    value: bidValue,
-                    upperLimit,
-                    lowerLimit,
-                  } as BulkUpdateActionDetails)
-                  : pendingStatusAction
+                ? pendingBulkPublish
+                  ? ({ type: "status", newStatus: "Published" } as BulkUpdateStatusDetails)
+                  : isBidChange
                     ? ({
-                      type: "status",
-                      newStatus:
-                        pendingStatusAction.charAt(0) +
-                        pendingStatusAction.slice(1).toLowerCase(),
-                    } as BulkUpdateStatusDetails)
-                    : null
+                      type: "value",
+                      action: bidAction,
+                      unit: bidUnit,
+                      value: bidValue,
+                      upperLimit,
+                      lowerLimit,
+                    } as BulkUpdateActionDetails)
+                    : pendingStatusAction
+                      ? ({
+                        type: "status",
+                        newStatus:
+                          pendingStatusAction.charAt(0) +
+                          pendingStatusAction.slice(1).toLowerCase(),
+                      } as BulkUpdateStatusDetails)
+                      : null
                 : null
             }
             loading={bulkLoading}
-            loadingMessage="Updating ad groups..."
-            successMessage="All ad groups updated successfully!"
+            loadingMessage={pendingBulkPublish ? "Publishing ad groups..." : "Updating ad groups..."}
+            successMessage={
+              pendingBulkPublish ? "Ad groups published successfully!" : "All ad groups updated successfully!"
+            }
             onConfirm={async () => {
-              if (isBidChange) await runBulkBid();
-              else if (pendingStatusAction) await runBulkStatus(pendingStatusAction);
+              if (pendingBulkPublish && onBulkPublishDrafts) {
+                const selectedDrafts = getSelectedAdgroupsData().filter(isDraftAdGroup);
+                if (selectedDrafts.length === 0) return;
+                setBulkLoading(true);
+                setBulkUpdateResults(null);
+                try {
+                  await onBulkPublishDrafts(selectedDrafts);
+                  setBulkUpdateResults({
+                    updated: selectedDrafts.length,
+                    failed: 0,
+                    errors: [],
+                  });
+                  onBulkUpdateComplete();
+                } catch (error: any) {
+                  setBulkUpdateResults({
+                    updated: 0,
+                    failed: selectedDrafts.length,
+                    errors: [error?.response?.data?.error || error?.message || "Failed to publish ad groups."],
+                  });
+                } finally {
+                  setBulkLoading(false);
+                  setPendingBulkPublish(false);
+                }
+              } else if (isBidChange) {
+                await runBulkBid();
+              } else if (pendingStatusAction) {
+                await runBulkStatus(pendingStatusAction);
+              }
             }}
           />
         )}

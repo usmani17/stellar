@@ -15,7 +15,7 @@ interface CreateGoogleNegativeKeywordPanelProps {
   campaignId: string;
   accountId: string;
   campaignType?: string;
-  /** True when the current campaign is draft. Used to enforce: published negative keywords only with published campaign; draft only with draft campaign. */
+  /** True when the current campaign is draft. Used to enforce: published negative keywords only with published campaign (draft negative keywords allowed under any campaign). */
   isDraftCampaign?: boolean;
   adgroups?: GoogleAdGroup[];
   loading?: boolean;
@@ -141,7 +141,7 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
       setErrors({ keywords: "At least one negative keyword is required" });
       return;
     }
-    // Campaign level: published negative keywords only with published campaign; draft only with draft campaign (except PMAX: allow draft on published campaign)
+    // Campaign level: published negative keywords only with published campaign. Draft negative keywords allowed under any campaign (draft or normal).
     if (level === "campaign") {
       if (!asDraft && isDraftCampaign) {
         setErrors({
@@ -150,16 +150,8 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
         });
         return;
       }
-      // For Performance Max, allow save as draft even when campaign is published (draft stored in DB, publish later)
-      if (asDraft && !isDraftCampaign && !isPerformanceMax) {
-        setErrors({
-          level:
-            "Draft negative keyword can be created only under a draft campaign. Please select a draft campaign or create as published.",
-        });
-        return;
-      }
     }
-    // Ad group level: published negative keywords only with published ad group; draft only with draft ad group
+    // Ad group level: published negative keywords only with published ad group. Draft negative keywords allowed under any ad group (draft or normal).
     if (level === "adgroup") {
       if (!selectedAdGroupId) {
         setErrors({ adGroupId: "Ad Group ID is required for ad group-level negative keywords" });

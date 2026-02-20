@@ -21,7 +21,7 @@ import {
   getAvailableBiddingStrategies,
   getDefaultBiddingStrategy,
   formatDate,
-  formatDateForName,
+  formatTimestampForName,
 } from "./campaigns/utils";
 import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "./CreateGooglePmaxAssetGroupPanel";
 import { GoogleConversionActionSelectorModal } from "./GoogleConversionActionSelectorModal";
@@ -1197,7 +1197,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   // Quick fill functions for testing
   const quickFillPerformanceMax = () => {
     const today = new Date();
-    const dateStr = formatDateForName(today);
+    const timestampStr = formatTimestampForName(today);
     const startDate = new Date(today);
     startDate.setDate(today.getDate() + 14); // 14 days from now
     const endDate = new Date(startDate);
@@ -1209,7 +1209,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     
     setFormData({
       campaign_type: "PERFORMANCE_MAX",
-      name: `PMAX Campaign Stellar FE - ${dateStr} - 1`,
+      name: `PMAX Campaign Stellar FE - ${timestampStr} - 1`,
       budget_amount: 10,
       budget_name: "Test PMax Budget",
       status: "PAUSED",
@@ -1233,7 +1233,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       marketing_image_url: marketingImageUrl,
       square_marketing_image_url: squareMarketingImageUrl,
       long_headlines: ["Transform Your Business with Our Expert Software Solutions"],
-      asset_group_name: `PMAX Asset Group - ${dateStr}`,
+      asset_group_name: `PMAX Asset Group - ${timestampStr}`,
       sales_country: "US",
       campaign_priority: 0,
       enable_local: false,
@@ -1263,7 +1263,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
   const quickFillShopping = () => {
     const today = new Date();
-    const dateStr = formatDateForName(today);
+    const timestampStr = formatTimestampForName(today);
     const startDate = new Date(today);
     startDate.setDate(today.getDate() + 14); // 14 days from now
     const endDate = new Date(startDate);
@@ -1271,7 +1271,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     
     setFormData({
       campaign_type: "SHOPPING",
-      name: `Shopping Campaign Stellar FE - ${dateStr} - 1`,
+      name: `Shopping Campaign Stellar FE - ${timestampStr} - 1`,
       budget_amount: 10,
       budget_name: "Test Shopping Budget",
       status: "PAUSED",
@@ -1314,7 +1314,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
   const quickFillSearch = () => {
     const today = new Date();
-    const dateStr = formatDateForName(today);
+    const timestampStr = formatTimestampForName(today);
     const startDate = new Date(today);
     startDate.setDate(today.getDate() + 14); // 14 days from now
     const endDate = new Date(startDate);
@@ -1322,7 +1322,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     
     setFormData({
       campaign_type: "SEARCH",
-      name: `Search Campaign Stellar FE - ${dateStr} - 1`,
+      name: `Search Campaign Stellar FE - ${timestampStr} - 1`,
       budget_amount: 10,
       budget_name: "Test Search Budget",
       status: "PAUSED",
@@ -1366,7 +1366,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
   const quickFillDemandGen = () => {
     const today = new Date();
-    const dateStr = formatDateForName(today);
+    const timestampStr = formatTimestampForName(today);
     const startDate = new Date(today);
     startDate.setDate(today.getDate() + 1);
     const endDate = new Date(today);
@@ -1374,7 +1374,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
     setFormData({
       campaign_type: "DEMAND_GEN",
-      name: `Demand Gen YouTube - ${dateStr}`,
+      name: `Demand Gen YouTube - ${timestampStr}`,
       budget_amount: 20,
       budget_name: "Demand Gen Budget",
       status: "PAUSED",

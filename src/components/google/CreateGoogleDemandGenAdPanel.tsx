@@ -1,12 +1,21 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { X, Plus, Trash2, FlaskConical } from "lucide-react";
 import type { Asset } from "../../services/googleAdwords/googleAdwordsAssets";
 import { AssetSelectorModal } from "./AssetSelectorModal";
+import { Dropdown } from "../ui/Dropdown";
 
 /** Selected asset stored for display; we send only resource_name to the API. */
 export interface SelectedAssetEntry {
   resource_name: string;
   name: string;
+}
+
+export interface DemandGenAdGroupOption {
+  adgroup_id?: number | string;
+  id?: number;
+  adgroup_name?: string;
+  name?: string;
+  status?: string;
 }
 
 interface CreateGoogleDemandGenAdPanelProps {
@@ -17,6 +26,8 @@ interface CreateGoogleDemandGenAdPanelProps {
   submitError?: string | null;
   /** Required for asset selector (videos, logos, images). */
   profileId?: number | null;
+  /** Ad groups for the campaign; when provided, user must select one. */
+  adgroups?: DemandGenAdGroupOption[];
 }
 
 type DemandGenAdType = "DemandGenVideoResponsiveAdInfo" | "DemandGenMultiAssetAdInfo" | "DemandGenCarouselAdInfo";
@@ -31,6 +42,9 @@ interface FormData {
   logo_images: SelectedAssetEntry[];
   headlines: string[];
   descriptions: string[];
+  /** When set, backend uses asset at this index instead of text (same as Search Ads). */
+  headline_asset_resource_names?: (string | undefined)[];
+  description_asset_resource_names?: (string | undefined)[];
   long_headlines: string[];
   /** Image assets for Multi Asset ad, selected via AssetSelectorModal. */
   images: SelectedAssetEntry[];
@@ -48,7 +62,9 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
   loading = false,
   submitError = null,
   profileId = null,
+  adgroups = [],
 }) => {
+  const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>("");
   const [formData, setFormData] = useState<FormData>({
     ad_type: "DemandGenMultiAssetAdInfo",
     final_urls: [""],
@@ -64,10 +80,69 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [assetSelectorOpen, setAssetSelectorOpen] = useState(false);
-  const [assetSelectorType, setAssetSelectorType] = useState<"VIDEO" | "LOGO" | "IMAGE" | "CAROUSEL_IMAGE">("VIDEO");
+  const [assetSelectorType, setAssetSelectorType] = useState<"VIDEO" | "LOGO" | "IMAGE" | "CAROUSEL_IMAGE" | "HEADLINE" | "DESCRIPTION">("VIDEO");
+  const [assetSelectorTextIndex, setAssetSelectorTextIndex] = useState<number | null>(null);
   const [carouselAssetSelectorIndex, setCarouselAssetSelectorIndex] = useState<number | null>(null);
 
+  const adGroupOptions = useMemo(() => {
+    if (!adgroups || adgroups.length === 0) return [];
+    const isDraft = (ag: DemandGenAdGroupOption) => {
+      const s = (ag.status || "").toUpperCase();
+      const id = ag.adgroup_id ?? ag.id;
+      return s === "SAVED_DRAFT" || s === "DRAFT" || String(id ?? "").startsWith("draft-");
+    };
+    return adgroups
+      .filter((ag) => ag.status !== "REMOVED" && ag.status !== "Removed")
+      .map((ag) => {
+        const baseLabel = ag.adgroup_name || ag.name || `Ad Group ${ag.adgroup_id ?? ag.id}`;
+        const label = isDraft(ag) ? `DRAFT-${baseLabel}` : baseLabel;
+        return {
+          value: String(ag.adgroup_id ?? ag.id ?? ""),
+          label,
+        };
+      });
+  }, [adgroups]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedAdGroupId("");
+      return;
+    }
+    if (adgroups?.length === 1) {
+      const id = adgroups[0].adgroup_id ?? adgroups[0].id;
+      setSelectedAdGroupId(id != null ? String(id) : "");
+    } else {
+      setSelectedAdGroupId("");
+    }
+  }, [isOpen, adgroups]);
+
   const handleSelectAsset = (asset: Asset) => {
+    if (assetSelectorType === "HEADLINE" && asset.type === "TEXT" && "text" in asset && assetSelectorTextIndex !== null) {
+      const newHeadlines = [...formData.headlines];
+      while (newHeadlines.length <= assetSelectorTextIndex) newHeadlines.push("");
+      newHeadlines[assetSelectorTextIndex] = asset.text;
+      const names = [...(formData.headline_asset_resource_names || [])];
+      while (names.length <= assetSelectorTextIndex) names.push(undefined);
+      names[assetSelectorTextIndex] = asset.resource_name;
+      updateField("headlines", newHeadlines);
+      updateField("headline_asset_resource_names", names);
+      setAssetSelectorTextIndex(null);
+      setAssetSelectorOpen(false);
+      return;
+    }
+    if (assetSelectorType === "DESCRIPTION" && asset.type === "TEXT" && "text" in asset && assetSelectorTextIndex !== null) {
+      const newDescriptions = [...formData.descriptions];
+      while (newDescriptions.length <= assetSelectorTextIndex) newDescriptions.push("");
+      newDescriptions[assetSelectorTextIndex] = asset.text;
+      const names = [...(formData.description_asset_resource_names || [])];
+      while (names.length <= assetSelectorTextIndex) names.push(undefined);
+      names[assetSelectorTextIndex] = asset.resource_name;
+      updateField("descriptions", newDescriptions);
+      updateField("description_asset_resource_names", names);
+      setAssetSelectorTextIndex(null);
+      setAssetSelectorOpen(false);
+      return;
+    }
     if (assetSelectorType === "CAROUSEL_IMAGE" && carouselAssetSelectorIndex !== null) {
       updateArrayItem("carousel_cards", carouselAssetSelectorIndex, {
         ...formData.carousel_cards[carouselAssetSelectorIndex],
@@ -91,6 +166,10 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
+    if (adgroups && adgroups.length > 0 && !selectedAdGroupId.trim()) {
+      newErrors.adgroup_id = "Ad group is required";
+    }
+
     // Common validations
     if (!formData.business_name.trim()) {
       newErrors.business_name = "Business name is required";
@@ -104,8 +183,9 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
       newErrors.headlines = "At least 3 headlines are required";
     } else {
       formData.headlines.forEach((headline, index) => {
-        if (!headline.trim()) {
-          newErrors[`headline_${index}`] = `Headline ${index + 1} is required`;
+        const fromAsset = formData.headline_asset_resource_names?.[index];
+        if (!headline.trim() && !fromAsset) {
+          newErrors[`headline_${index}`] = `Headline ${index + 1} is required (or select an asset)`;
         }
       });
     }
@@ -114,8 +194,9 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
       newErrors.descriptions = "At least 2 descriptions are required";
     } else {
       formData.descriptions.forEach((description, index) => {
-        if (!description.trim()) {
-          newErrors[`description_${index}`] = `Description ${index + 1} is required`;
+        const fromAsset = formData.description_asset_resource_names?.[index];
+        if (!description.trim() && !fromAsset) {
+          newErrors[`description_${index}`] = `Description ${index + 1} is required (or select an asset)`;
         }
       });
     }
@@ -174,20 +255,24 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
       return;
     }
 
-    // Clean the data before submission (videos/logo_images/images are asset resource names only)
-    const cleanedData = {
+    // Clean the data before submission (videos/logo_images/images are asset resource names only).
+    // Send full headlines/descriptions arrays so indices align with headline_asset_resource_names/description_asset_resource_names.
+    const cleanedData: any = {
       ...formData,
       final_urls: formData.final_urls.filter(url => url.trim()),
       videos: formData.videos.map(v => v.resource_name),
       logo_images: formData.logo_images.map(l => l.resource_name),
-      headlines: formData.headlines.filter(h => h.trim()),
-      descriptions: formData.descriptions.filter(d => d.trim()),
+      headlines: formData.headlines,
+      descriptions: formData.descriptions,
       long_headlines: formData.long_headlines.filter(lh => lh.trim()),
       images: formData.images.map(i => i.resource_name),
       carousel_cards: formData.carousel_cards
         .filter(card => card.asset.trim())
         .map(card => ({ asset: card.asset })),
     };
+    if (formData.headline_asset_resource_names?.length) cleanedData.headline_asset_resource_names = formData.headline_asset_resource_names;
+    if (formData.description_asset_resource_names?.length) cleanedData.description_asset_resource_names = formData.description_asset_resource_names;
+    if (selectedAdGroupId) cleanedData.adgroup_id = selectedAdGroupId;
 
     onSubmit(cleanedData);
   };
@@ -195,19 +280,22 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
   const handleSaveAsDraft = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-    const cleanedData = {
+    const cleanedData: any = {
       ...formData,
       final_urls: formData.final_urls.filter(url => url.trim()),
       videos: formData.videos.map(v => v.resource_name),
       logo_images: formData.logo_images.map(l => l.resource_name),
-      headlines: formData.headlines.filter(h => h.trim()),
-      descriptions: formData.descriptions.filter(d => d.trim()),
+      headlines: formData.headlines,
+      descriptions: formData.descriptions,
       long_headlines: formData.long_headlines.filter(lh => lh.trim()),
       images: formData.images.map(i => i.resource_name),
       carousel_cards: formData.carousel_cards
         .filter(card => card.asset.trim())
         .map(card => ({ asset: card.asset })),
     };
+    if (formData.headline_asset_resource_names?.length) cleanedData.headline_asset_resource_names = formData.headline_asset_resource_names;
+    if (formData.description_asset_resource_names?.length) cleanedData.description_asset_resource_names = formData.description_asset_resource_names;
+    if (selectedAdGroupId) cleanedData.adgroup_id = selectedAdGroupId;
     onSubmit(cleanedData, { saveAsDraft: true });
   };
 
@@ -292,6 +380,33 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
           </button>
         </div>
 
+        {adgroups && adgroups.length === 0 && (
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-[11.2px]">
+            Create an ad group first.
+          </div>
+        )}
+
+        {adgroups && adgroups.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
+              Ad group *
+            </h3>
+            <Dropdown
+              options={adGroupOptions}
+              value={selectedAdGroupId}
+              onChange={(val) => {
+                setSelectedAdGroupId(val as string);
+                if (errors.adgroup_id) setErrors((prev) => ({ ...prev, adgroup_id: "" }));
+              }}
+              placeholder="Select an ad group"
+              buttonClassName="w-full"
+            />
+            {errors.adgroup_id && (
+              <p className="text-[10px] text-red-500 mt-1">{errors.adgroup_id}</p>
+            )}
+          </div>
+        )}
+
         {/* Ad Type Selection */}
         <div className="mb-6">
           <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
@@ -374,35 +489,87 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
             <label className="form-label-small mb-0">
               Headlines * (3-15 required)
               <span className="text-[10px] text-[#556179] font-normal ml-2">
-                ({formData.headlines.filter((h) => h.trim()).length}/15)
+                ({formData.headlines.filter((h, i) => h.trim() || formData.headline_asset_resource_names?.[i]).length}/15)
               </span>
             </label>
           </div>
           <div className="space-y-2">
-            {formData.headlines.map((headline, index) => (
-              <div key={index} className="flex gap-2 items-center">
-                <input
-                  type="text"
-                  value={headline}
-                  onChange={(e) => updateArrayItem("headlines", index, e.target.value)}
-                  className={`campaign-input flex-1 ${
-                    errors[`headline_${index}`] ? "border-red-500" : ""
-                  }`}
-                  placeholder={`Headline ${index + 1}`}
-                  maxLength={30}
-                />
-                {formData.headlines.length > 3 && (
-                  <button
-                    type="button"
-                    onClick={() => removeArrayItem("headlines", index)}
-                    className="p-2 hover:bg-red-50 rounded transition-colors"
-                    title="Remove headline"
-                  >
-                    <Trash2 className="w-4 h-4 text-red-600" />
-                  </button>
-                )}
-              </div>
-            ))}
+            {formData.headlines.map((headline, index) => {
+              const headlineAssetRn = formData.headline_asset_resource_names?.[index];
+              return (
+                <div key={index} className="flex gap-2 items-center">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={headline}
+                      onChange={(e) => {
+                        if (headlineAssetRn) {
+                          const names = [...(formData.headline_asset_resource_names || [])];
+                          names[index] = undefined;
+                          updateField("headline_asset_resource_names", names);
+                        }
+                        updateArrayItem("headlines", index, e.target.value);
+                      }}
+                      readOnly={!!headlineAssetRn}
+                      className={`campaign-input w-full pr-28 ${
+                        errors[`headline_${index}`] ? "border-red-500" : ""
+                      } ${headlineAssetRn ? "bg-gray-50 border-gray-200 cursor-not-allowed" : ""}`}
+                      placeholder={`Headline ${index + 1} (max 30 characters)`}
+                      maxLength={30}
+                    />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                      {headlineAssetRn && (
+                        <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
+                          From Asset
+                        </span>
+                      )}
+                      {profileId && !headlineAssetRn && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAssetSelectorType("HEADLINE");
+                            setAssetSelectorTextIndex(index);
+                            setAssetSelectorOpen(true);
+                          }}
+                          className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
+                        >
+                          Select Asset
+                        </button>
+                      )}
+                      {headlineAssetRn && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const names = [...(formData.headline_asset_resource_names || [])];
+                            names[index] = undefined;
+                            updateField("headline_asset_resource_names", names);
+                            updateArrayItem("headlines", index, "");
+                          }}
+                          className="text-red-500 hover:text-red-700 text-sm font-medium"
+                          title="Remove selected asset"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {formData.headlines.length > 3 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        removeArrayItem("headlines", index);
+                        const names = (formData.headline_asset_resource_names || []).filter((_, i) => i !== index);
+                        updateField("headline_asset_resource_names", names.length ? names : undefined);
+                      }}
+                      className="p-2 hover:bg-red-50 rounded transition-colors"
+                      title="Remove headline"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
           {formData.headlines.length < 15 && (
             <button
@@ -424,35 +591,87 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
             <label className="form-label-small mb-0">
               Descriptions * (2-4 required)
               <span className="text-[10px] text-[#556179] font-normal ml-2">
-                ({formData.descriptions.filter((d) => d.trim()).length}/4)
+                ({formData.descriptions.filter((d, i) => d.trim() || formData.description_asset_resource_names?.[i]).length}/4)
               </span>
             </label>
           </div>
           <div className="space-y-2">
-            {formData.descriptions.map((description, index) => (
-              <div key={index} className="flex gap-2 items-start">
-                <textarea
-                  value={description}
-                  onChange={(e) => updateArrayItem("descriptions", index, e.target.value)}
-                  className={`campaign-input flex-1 resize-none ${
-                    errors[`description_${index}`] ? "border-red-500" : ""
-                  }`}
-                  placeholder={`Description ${index + 1}`}
-                  maxLength={90}
-                  rows={2}
-                />
-                {formData.descriptions.length > 2 && (
-                  <button
-                    type="button"
-                    onClick={() => removeArrayItem("descriptions", index)}
-                    className="p-2 hover:bg-red-50 rounded transition-colors mt-1"
-                    title="Remove description"
-                  >
-                    <Trash2 className="w-4 h-4 text-red-600" />
-                  </button>
-                )}
-              </div>
-            ))}
+            {formData.descriptions.map((description, index) => {
+              const descAssetRn = formData.description_asset_resource_names?.[index];
+              return (
+                <div key={index} className="flex gap-2 items-start">
+                  <div className="flex-1 relative">
+                    <textarea
+                      value={description}
+                      onChange={(e) => {
+                        if (descAssetRn) {
+                          const names = [...(formData.description_asset_resource_names || [])];
+                          names[index] = undefined;
+                          updateField("description_asset_resource_names", names);
+                        }
+                        updateArrayItem("descriptions", index, e.target.value);
+                      }}
+                      readOnly={!!descAssetRn}
+                      className={`campaign-input w-full resize-none pr-28 ${
+                        errors[`description_${index}`] ? "border-red-500" : ""
+                      } ${descAssetRn ? "bg-gray-50 border-gray-200 cursor-not-allowed" : ""}`}
+                      placeholder={`Description ${index + 1} (max 90 characters)`}
+                      maxLength={90}
+                      rows={2}
+                    />
+                    <div className="absolute right-2 top-2 flex items-center gap-2">
+                      {descAssetRn && (
+                        <span className="text-[10px] px-2 py-1 bg-[#136D6D]/10 text-[#136D6D] rounded font-medium whitespace-nowrap">
+                          From Asset
+                        </span>
+                      )}
+                      {profileId && !descAssetRn && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAssetSelectorType("DESCRIPTION");
+                            setAssetSelectorTextIndex(index);
+                            setAssetSelectorOpen(true);
+                          }}
+                          className="text-xs text-[#136D6D] hover:text-[#0f5a5a] font-medium whitespace-nowrap"
+                        >
+                          Select Asset
+                        </button>
+                      )}
+                      {descAssetRn && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const names = [...(formData.description_asset_resource_names || [])];
+                            names[index] = undefined;
+                            updateField("description_asset_resource_names", names);
+                            updateArrayItem("descriptions", index, "");
+                          }}
+                          className="text-red-500 hover:text-red-700 text-sm font-medium"
+                          title="Remove selected asset"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {formData.descriptions.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        removeArrayItem("descriptions", index);
+                        const names = (formData.description_asset_resource_names || []).filter((_, i) => i !== index);
+                        updateField("description_asset_resource_names", names.length ? names : undefined);
+                      }}
+                      className="p-2 hover:bg-red-50 rounded transition-colors mt-1"
+                      title="Remove description"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
           {formData.descriptions.length < 4 && (
             <button
@@ -799,31 +1018,38 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
       </div>
 
       {/* Footer Actions */}
-      <div className="p-4 flex items-center justify-end gap-3">
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleSaveAsDraft}
-          disabled={loading}
-          className="cancel-button font-semibold text-[11.2px] flex items-center gap-2 px-4 py-2"
-        >
-          Save as Draft
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={loading}
-          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? "Creating..." : "Create Ad"}
-        </button>
-      </div>
+      {(() => {
+        const noAdGroups = adgroups && adgroups.length === 0;
+        const adGroupRequiredButMissing = adgroups && adgroups.length > 0 && !selectedAdGroupId.trim();
+        const submitDisabled = loading || noAdGroups || adGroupRequiredButMissing;
+        return (
+          <div className="p-4 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveAsDraft}
+              disabled={submitDisabled}
+              className="cancel-button font-semibold text-[11.2px] flex items-center gap-2 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Save as Draft
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitDisabled}
+              className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? "Creating..." : "Create Ad"}
+            </button>
+          </div>
+        );
+      })()}
 
       {profileId != null && (
         <AssetSelectorModal
@@ -831,27 +1057,43 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
           onClose={() => {
             setAssetSelectorOpen(false);
             setCarouselAssetSelectorIndex(null);
+            setAssetSelectorTextIndex(null);
           }}
           onSelect={handleSelectAsset}
           profileId={profileId}
           assetType={
-            assetSelectorType === "VIDEO"
-              ? "YOUTUBE_VIDEO"
-              : "IMAGE"
+            assetSelectorType === "HEADLINE" || assetSelectorType === "DESCRIPTION"
+              ? "TEXT"
+              : assetSelectorType === "VIDEO"
+                ? "YOUTUBE_VIDEO"
+                : "IMAGE"
           }
           title={
             assetSelectorType === "VIDEO"
               ? "Select video asset"
               : assetSelectorType === "LOGO"
                 ? "Select Logo"
-                : "Select image asset"
+                : assetSelectorType === "HEADLINE"
+                  ? "Select headline asset"
+                  : assetSelectorType === "DESCRIPTION"
+                    ? "Select description asset"
+                    : "Select image asset"
           }
           initialTab={
-            assetSelectorType === "VIDEO"
-              ? "YouTube Video"
-              : assetSelectorType === "LOGO"
-                ? "Logo"
-                : "Image"
+            assetSelectorType === "HEADLINE" || assetSelectorType === "DESCRIPTION"
+              ? "Text"
+              : assetSelectorType === "VIDEO"
+                ? "YouTube Video"
+                : assetSelectorType === "LOGO"
+                  ? "Logo"
+                  : "Image"
+          }
+          initialTextSubTab={
+            assetSelectorType === "HEADLINE"
+              ? "Headline"
+              : assetSelectorType === "DESCRIPTION"
+                ? "Description"
+                : undefined
           }
         />
       )}

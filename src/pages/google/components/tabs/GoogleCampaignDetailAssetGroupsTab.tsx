@@ -421,19 +421,24 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<
         <div className="flex items-center gap-2">
           {createButton}
           {(onUpdateAssetGroupStatus || onBulkUpdateAssetGroupStatus) &&
-            onBulkUpdateComplete && (
-              <BulkActionsDropdown
-                options={[
-                  { value: "ENABLED", label: "Enable" },
-                  { value: "PAUSED", label: "Pause" },
-                ]}
-                selectedCount={selectedAssetGroupIds.size}
-                onSelect={(value) => {
-                  setPendingStatusAction(value as "ENABLED" | "PAUSED");
-                  setShowBulkConfirmationModal(true);
-                }}
-              />
-            )}
+            onBulkUpdateComplete && (() => {
+              const bulkOptions = showDraftsOnly
+                ? []
+                : [
+                    { value: "ENABLED", label: "Enable" },
+                    { value: "PAUSED", label: "Pause" },
+                  ];
+              return bulkOptions.length > 0 ? (
+                <BulkActionsDropdown
+                  options={bulkOptions}
+                  selectedCount={selectedAssetGroupIds.size}
+                  onSelect={(value) => {
+                    setPendingStatusAction(value as "ENABLED" | "PAUSED");
+                    setShowBulkConfirmationModal(true);
+                  }}
+                />
+              ) : null;
+            })()}
           <button onClick={onToggleFilterPanel} className="edit-button">
             <svg
               className="w-5 h-5 text-[#072929]"

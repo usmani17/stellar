@@ -507,19 +507,24 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
         </div>
         <div className="flex items-center gap-2">
           {createButton}
-          {_accountId && channelId && onBulkUpdateComplete && (
-            <BulkActionsDropdown
-              options={[
-                { value: "ENABLED", label: "Enable" },
-                { value: "PAUSED", label: "Pause" },
-              ]}
-              selectedCount={selectedKeywordIds.size}
-              onSelect={(value) => {
-                setPendingStatusAction(value as "ENABLED" | "PAUSED");
-                setShowBulkConfirmationModal(true);
-              }}
-            />
-          )}
+          {_accountId && channelId && onBulkUpdateComplete && (() => {
+            const bulkOptions = showDraftsOnly
+              ? []
+              : [
+                  { value: "ENABLED", label: "Enable" },
+                  { value: "PAUSED", label: "Pause" },
+                ];
+            return bulkOptions.length > 0 ? (
+              <BulkActionsDropdown
+                options={bulkOptions}
+                selectedCount={selectedKeywordIds.size}
+                onSelect={(value) => {
+                  setPendingStatusAction(value as "ENABLED" | "PAUSED");
+                  setShowBulkConfirmationModal(true);
+                }}
+              />
+            ) : null;
+          })()}
           <button
             onClick={onToggleFilterPanel}
             className="edit-button"
@@ -991,7 +996,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
 
                             const bidValue = editingKeywordId === keyword.id &&
                               editingField === "bid"
-                              ? (editingBid?.replace(/[^0-9.]/g, "") || currentBid)
+                              ? (editingBid != null ? editingBid.replace(/[^0-9.]/g, "") : "")
                               : currentBid;
 
                             return (

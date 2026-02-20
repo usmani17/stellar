@@ -1158,6 +1158,7 @@ export const GoogleAds: React.FC = () => {
                   </button>
                 </div>
                 <div className="flex items-center gap-2">
+                {!showDraftsOnly && (
                 <div
                   className="relative inline-flex justify-end"
                   ref={dropdownRef}
@@ -1219,6 +1220,7 @@ export const GoogleAds: React.FC = () => {
                     </div>
                   )}
                 </div>
+                )}
                 <div
                   className="relative inline-flex justify-end"
                   ref={exportDropdownRef}

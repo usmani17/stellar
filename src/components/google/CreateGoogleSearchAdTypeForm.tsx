@@ -1,6 +1,20 @@
 import React, { useState } from "react";
+import { Dropdown } from "../ui/Dropdown";
 import { AssetSelectorModal } from "./AssetSelectorModal";
 import type { Asset } from "../../services/googleAdwords/googleAdwordsAssets";
+
+const HEADLINE_PIN_OPTIONS = [
+  { value: "", label: "No Pin" },
+  { value: "HEADLINE_1", label: "Pin to Headline 1" },
+  { value: "HEADLINE_2", label: "Pin to Headline 2" },
+  { value: "HEADLINE_3", label: "Pin to Headline 3" },
+];
+
+const DESCRIPTION_PIN_OPTIONS = [
+  { value: "", label: "No Pin" },
+  { value: "DESCRIPTION_1", label: "Pin to Description 1" },
+  { value: "DESCRIPTION_2", label: "Pin to Description 2" },
+];
 
 export type AdType = "RESPONSIVE_SEARCH_AD" | "RESPONSIVE_DISPLAY_AD";
 
@@ -440,34 +454,32 @@ export const CreateGoogleSearchAdTypeForm: React.FC<CreateGoogleSearchAdTypeForm
                     )}
                     {/* Pinning Control for RSA */}
                     {formData.ad_type === "RESPONSIVE_SEARCH_AD" && (
-                      <select
-                        value={formData.headline_pins?.[index] || ""}
-                        onChange={(e) => {
-                          const selectedPin = e.target.value;
-                          const newPins = [...(formData.headline_pins || [])];
-                          while (newPins.length <= index) {
-                            newPins.push("");
-                          }
-                          
-                          // If selecting a pin, clear it from any other headline
-                          if (selectedPin) {
-                            for (let i = 0; i < newPins.length; i++) {
-                              if (i !== index && newPins[i] === selectedPin) {
-                                newPins[i] = "";
+                      <div className="min-w-[140px]" onClick={(e) => e.stopPropagation()}>
+                        <Dropdown<string>
+                          options={HEADLINE_PIN_OPTIONS}
+                          value={formData.headline_pins?.[index] ?? ""}
+                          onChange={(selectedPin) => {
+                            const newPins = [...(formData.headline_pins || [])];
+                            while (newPins.length <= index) {
+                              newPins.push("");
+                            }
+                            if (selectedPin) {
+                              for (let i = 0; i < newPins.length; i++) {
+                                if (i !== index && newPins[i] === selectedPin) {
+                                  newPins[i] = "";
+                                }
                               }
                             }
-                          }
-                          
-                          newPins[index] = selectedPin;
-                          onChange("headline_pins", newPins);
-                        }}
-                        className="text-xs px-2 py-1 border border-gray-200 rounded bg-white"
-                      >
-                        <option value="">No Pin</option>
-                        <option value="HEADLINE_1">Pin to Headline 1</option>
-                        <option value="HEADLINE_2">Pin to Headline 2</option>
-                        <option value="HEADLINE_3">Pin to Headline 3</option>
-                      </select>
+                            newPins[index] = selectedPin;
+                            onChange("headline_pins", newPins);
+                          }}
+                          placeholder="Pin"
+                          buttonClassName="edit-button w-full text-[11.2px] px-2 py-1.5"
+                          width="w-full"
+                          showCheckmark={false}
+                          closeOnSelect={true}
+                        />
+                      </div>
                     )}
                   </div>
                 );
@@ -594,33 +606,32 @@ export const CreateGoogleSearchAdTypeForm: React.FC<CreateGoogleSearchAdTypeForm
                     )}
                     {/* Pinning Control for RSA */}
                     {formData.ad_type === "RESPONSIVE_SEARCH_AD" && (
-                      <select
-                        value={formData.description_pins?.[index] || ""}
-                        onChange={(e) => {
-                          const selectedPin = e.target.value;
-                          const newPins = [...(formData.description_pins || [])];
-                          while (newPins.length <= index) {
-                            newPins.push("");
-                          }
-                          
-                          // If selecting a pin, clear it from any other description
-                          if (selectedPin) {
-                            for (let i = 0; i < newPins.length; i++) {
-                              if (i !== index && newPins[i] === selectedPin) {
-                                newPins[i] = "";
+                      <div className="min-w-[160px]" onClick={(e) => e.stopPropagation()}>
+                        <Dropdown<string>
+                          options={DESCRIPTION_PIN_OPTIONS}
+                          value={formData.description_pins?.[index] ?? ""}
+                          onChange={(selectedPin) => {
+                            const newPins = [...(formData.description_pins || [])];
+                            while (newPins.length <= index) {
+                              newPins.push("");
+                            }
+                            if (selectedPin) {
+                              for (let i = 0; i < newPins.length; i++) {
+                                if (i !== index && newPins[i] === selectedPin) {
+                                  newPins[i] = "";
+                                }
                               }
                             }
-                          }
-                          
-                          newPins[index] = selectedPin;
-                          onChange("description_pins", newPins);
-                        }}
-                        className="text-xs px-2 py-1 border border-gray-200 rounded bg-white"
-                      >
-                        <option value="">No Pin</option>
-                        <option value="DESCRIPTION_1">Pin to Description 1</option>
-                        <option value="DESCRIPTION_2">Pin to Description 2</option>
-                      </select>
+                            newPins[index] = selectedPin;
+                            onChange("description_pins", newPins);
+                          }}
+                          placeholder="Pin"
+                          buttonClassName="edit-button w-full text-[11.2px] px-2 py-1.5"
+                          width="w-full"
+                          showCheckmark={false}
+                          closeOnSelect={true}
+                        />
+                      </div>
                     )}
                   </div>
                 );
