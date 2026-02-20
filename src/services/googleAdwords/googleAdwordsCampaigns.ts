@@ -402,6 +402,8 @@ export const googleAdwordsCampaignsService : any = {
       name?: string;
       status?: "ENABLED" | "PAUSED" | "REMOVED";
       budget?: number;
+      budget_name?: string;
+      budget_resource_name?: string;
       start_date?: string;
       end_date?: string;
       bidding_strategy_type?: string;

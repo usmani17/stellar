@@ -219,7 +219,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
             {hasErrorDetails && (
               <div className="mb-4">
                 <h4 className="text-[14px] font-semibold text-[#072929] mb-2">
-                  Error Details
+                  {isSuccess ? "Updated fields" : "Error Details"}
                 </h4>
                 <div className="max-h-[400px] overflow-y-auto border border-[#e8e8e3] rounded-lg">
                 <table className="w-full text-left">

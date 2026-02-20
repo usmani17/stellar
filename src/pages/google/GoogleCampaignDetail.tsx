@@ -150,6 +150,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     chartToggles,
     toggleChartMetric,
     handleUpdateCampaign,
+    loadCampaignDetail,
   } = useGoogleCampaignDetail({
     accountId,
     channelId,
@@ -791,12 +792,15 @@ export const GoogleCampaignDetail: React.FC = () => {
           status: data.status as "ENABLED" | "PAUSED",
           start_date: data.start_date,
           end_date: data.end_date,
-          budget: data.budget_amount,
+          value: data.budget_amount,
+          budget_name: data.budget_name,
+          budget_resource_name: data.budget_resource_name,
           bidding_strategy_type: data.bidding_strategy_type,
         },
       );
       setIsDraftCampaignEditPanelOpen(false);
       setErrorModal({ isOpen: true, message: "Draft saved.", isSuccess: true });
+      await loadCampaignDetail?.();
     } catch (err: any) {
       const raw =
         err?.response?.data?.error ??
