@@ -158,6 +158,21 @@ export const formatDateForName = (date: Date): string => {
 };
 
 /**
+ * Helper function to format date and time as "DD MMM YYYY HH:MM:SS" (e.g., "20 Feb 2026 14:30:45")
+ * for use in campaign/asset group names when auto-filling.
+ */
+export const formatTimestampForName = (date: Date): string => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const day = date.getDate();
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  const h = String(date.getHours()).padStart(2, '0');
+  const m = String(date.getMinutes()).padStart(2, '0');
+  const s = String(date.getSeconds()).padStart(2, '0');
+  return `${day} ${month} ${year} ${h}:${m}:${s}`;
+};
+
+/**
  * Get minimum headlines required for campaign type
  */
 export const getMinHeadlines = (campaignType: string): number => {
