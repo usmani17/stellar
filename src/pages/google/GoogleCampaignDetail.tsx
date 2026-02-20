@@ -527,8 +527,18 @@ export const GoogleCampaignDetail: React.FC = () => {
     id: number;
     ad_id?: number;
     ad_type?: string;
+    adgroup_id?: string | number;
   }) => {
     setPublishDraftEntity({ type: "ad", entity: ad });
+  };
+  /** Product groups: no dedicated publish API; prompt user to publish the ad group first. */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature matches onPublishDraft prop
+  const handlePublishProductGroupDraft = (_productGroup: unknown) => {
+    setErrorModal({
+      isOpen: true,
+      message:
+        "Publish the ad group that contains this product group first. Then the product group will be published with it.",
+    });
   };
   const handlePublishNegativeKeywordDraft = (n: {
     id: number;
@@ -627,6 +637,7 @@ export const GoogleCampaignDetail: React.FC = () => {
           isSuccess: true,
         });
         if (loadAdsFromHook) await loadAdsFromHook();
+        if (loadShoppingAds) await loadShoppingAds();
       } else if (publishDraftEntity.type === "keyword") {
         const campaignIdStr = String(campaignId ?? "");
         if (campaignIdStr.toLowerCase().startsWith("draft-")) {
@@ -2821,6 +2832,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                           onUpdateProductGroupStatus={
                             handleUpdateProductGroupStatus
                           }
+                          onPublishDraft={handlePublishProductGroupDraft}
                           accountId={accountId}
                           channelId={channelId}
                           onBulkUpdateComplete={loadProductGroups}
@@ -2902,6 +2914,20 @@ export const GoogleCampaignDetail: React.FC = () => {
                           formatPercentage={formatPercentage}
                           onUpdateListingGroupStatus={
                             handleUpdateShoppingAdStatus
+                          }
+                          onPublishDraft={(lg) =>
+                            handlePublishAdDraft({
+                              id: lg.id,
+                              ad_id: lg.ad_id ?? lg.listing_group_id,
+                              adgroup_id: lg.adgroup_id,
+                            })
+                          }
+                          publishLoadingId={
+                            publishDraftEntity?.type === "ad" &&
+                            publishDraftSubmitting
+                              ? (publishDraftEntity.entity.ad_id ??
+                                publishDraftEntity.entity.id)
+                              : undefined
                           }
                           onBulkUpdateComplete={loadShoppingAds}
                           currencyCode={currencyCode}

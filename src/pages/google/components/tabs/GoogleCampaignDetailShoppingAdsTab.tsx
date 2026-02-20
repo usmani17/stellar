@@ -19,6 +19,7 @@ import {
   convertStatusToApi,
 } from "../../utils/googleAdsUtils";
 import { useParams } from "react-router-dom";
+import { Send } from "lucide-react";
 import { googleAdwordsAdsService } from "../../../../services/googleAdwords/googleAdwordsAds";
 
 interface GoogleListingGroup {
@@ -98,6 +99,9 @@ interface GoogleCampaignDetailShoppingAdsTabProps {
     listingGroupId: number,
     status: string,
   ) => Promise<void>;
+  /** When provided and draft switch is on, show publish icon for draft rows. */
+  onPublishDraft?: (listingGroup: GoogleListingGroup) => void;
+  publishLoadingId?: string | number;
   createButton?: React.ReactNode;
   createPanel?: React.ReactNode;
   onBulkUpdateComplete?: () => void;
@@ -130,6 +134,8 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<
   formatCurrency2Decimals,
   formatPercentage,
   onUpdateListingGroupStatus,
+  onPublishDraft,
+  publishLoadingId,
   createButton,
   createPanel,
   onBulkUpdateComplete,
@@ -754,9 +760,46 @@ export const GoogleCampaignDetailShoppingAdsTab: React.FC<
                         </div>
                       </td>
                       <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {listingGroup.ad_id || listingGroup.id || "—"}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="table-text leading-[1.26]">
+                            {listingGroup.ad_id || listingGroup.id || "—"}
+                          </span>
+                          {onPublishDraft &&
+                            showDraftsOnly &&
+                            isDraftListingGroup(listingGroup) && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  onPublishDraft(listingGroup);
+                                }}
+                                className="shrink-0 p-1 rounded cursor-pointer opacity-100 hover:bg-gray-100 border-0 bg-transparent inline-flex items-center justify-center"
+                                style={{ pointerEvents: "auto" }}
+                                title="Publish draft to Google Ads"
+                                disabled={
+                                  publishLoadingId != null &&
+                                  (publishLoadingId === listingGroup.id ||
+                                    publishLoadingId === listingGroup.ad_id ||
+                                    publishLoadingId ===
+                                      listingGroup.listing_group_id)
+                                }
+                              >
+                                {publishLoadingId != null &&
+                                (publishLoadingId === listingGroup.id ||
+                                  publishLoadingId === listingGroup.ad_id ||
+                                  publishLoadingId ===
+                                    listingGroup.listing_group_id) ? (
+                                  <Loader size="sm" showMessage={false} />
+                                ) : (
+                                  <Send
+                                    className="w-4 h-4 text-[#136D6D]"
+                                    aria-hidden
+                                  />
+                                )}
+                              </button>
+                            )}
+                        </div>
                       </td>
                       <td className="table-cell hidden lg:table-cell">
                         <span className="table-text leading-[1.26]">

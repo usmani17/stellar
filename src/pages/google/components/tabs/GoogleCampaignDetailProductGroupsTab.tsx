@@ -16,6 +16,7 @@ import {
 } from "../BulkUpdateConfirmationModal";
 import { BulkActionsDropdown } from "../BulkActionsDropdown";
 import { formatStatusForDisplay } from "../../utils/googleAdsUtils";
+import { Send } from "lucide-react";
 
 interface GoogleProductGroup {
   id: number;
@@ -77,6 +78,9 @@ interface GoogleCampaignDetailProductGroupsTabProps {
     key: ProductGroupSelectionKey,
     status: string,
   ) => Promise<void>;
+  /** When provided and draft switch is on, show publish icon for draft rows. */
+  onPublishDraft?: (productGroup: GoogleProductGroup) => void;
+  publishLoadingId?: string | number;
   createButton?: React.ReactNode;
   createPanel?: React.ReactNode;
   accountId?: string;
@@ -114,6 +118,8 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<
   formatCurrency2Decimals,
   formatPercentage,
   onUpdateProductGroupStatus,
+  onPublishDraft,
+  publishLoadingId,
   createButton,
   createPanel,
   accountId,
@@ -546,9 +552,42 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<
                         </div>
                       </td>
                       <td className="table-cell">
-                        <span className="table-text leading-[1.26] underline cursor-pointer">
-                          All products
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="table-text leading-[1.26] underline cursor-pointer">
+                            All products
+                          </span>
+                          {onPublishDraft &&
+                            showDraftsOnly &&
+                            isDraftProductGroup(productGroup) && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  onPublishDraft(productGroup);
+                                }}
+                                className="shrink-0 p-1 rounded cursor-pointer opacity-100 hover:bg-gray-100 border-0 bg-transparent inline-flex items-center justify-center"
+                                style={{ pointerEvents: "auto" }}
+                                title="Publish draft to Google Ads"
+                                disabled={
+                                  publishLoadingId === productGroup.id ||
+                                  publishLoadingId === productGroup.product_group_id ||
+                                  publishLoadingId === productGroup.ad_id
+                                }
+                              >
+                                {publishLoadingId === productGroup.id ||
+                                publishLoadingId === productGroup.product_group_id ||
+                                publishLoadingId === productGroup.ad_id ? (
+                                  <Loader size="sm" showMessage={false} />
+                                ) : (
+                                  <Send
+                                    className="w-4 h-4 text-[#136D6D]"
+                                    aria-hidden
+                                  />
+                                )}
+                              </button>
+                            )}
+                        </div>
                       </td>
                       <td className="table-cell hidden lg:table-cell">
                         <span className="table-text leading-[1.26]">
