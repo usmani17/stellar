@@ -78,11 +78,11 @@ export function parseChartJson(jsonStr: string): ChartConfig | null {
   }
 }
 
-export interface PdfReportData {
+export type PdfReportData = {
   url: string;
   title: string;
   generated_at: string;
-}
+};
 
 export type ContentSegment =
   | { type: "markdown"; content: string }
