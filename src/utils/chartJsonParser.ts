@@ -78,10 +78,17 @@ export function parseChartJson(jsonStr: string): ChartConfig | null {
   }
 }
 
+export interface PdfReportData {
+  url: string;
+  title: string;
+  generated_at: string;
+}
+
 export type ContentSegment =
   | { type: "markdown"; content: string }
   | { type: "chart"; config: ChartConfig }
-  | { type: "campaign-setup"; data: CampaignSetupData };
+  | { type: "campaign-setup"; data: CampaignSetupData }
+  | { type: "pdf-report"; data: PdfReportData };
 
 export interface CampaignSetupData {
   draft_id: string;
@@ -94,6 +101,20 @@ export interface CampaignSetupData {
   validation_error: Record<string, string> | null;
 }
 
+
+export function parsePdfReportJson(jsonStr: string): PdfReportData | null {
+  try {
+    const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
+    if (typeof parsed.url !== "string" || !parsed.url) return null;
+    return {
+      url: String(parsed.url),
+      title: String(parsed.title ?? "Report"),
+      generated_at: String(parsed.generated_at ?? ""),
+    };
+  } catch {
+    return null;
+  }
+}
 
 export function parseCampaignSetupJson(jsonStr: string): CampaignSetupData | null {
   try {
@@ -217,7 +238,7 @@ export function extractDisplayContentFromEvents(events: unknown[]): string {
 export function parseContentWithBlocks(raw: string): ContentSegment[] {
   const segments: ContentSegment[] = [];
   let lastIndex = 0;
-  const blockRe = /```(chart-json|campaign-setup)\s*\n([\s\S]*?)\n```/g;
+  const blockRe = /```(chart-json|campaign-setup|pdf-report)\s*\n([\s\S]*?)\n```/g;
   let match;
   while ((match = blockRe.exec(raw)) !== null) {
     const mdPart = raw.slice(lastIndex, match.index);
@@ -232,6 +253,9 @@ export function parseContentWithBlocks(raw: string): ContentSegment[] {
     } else if (blockType === "campaign-setup") {
       const data = parseCampaignSetupJson(inner);
       if (data) segments.push({ type: "campaign-setup", data });
+    } else if (blockType === "pdf-report") {
+      const data = parsePdfReportJson(inner);
+      if (data) segments.push({ type: "pdf-report", data });
     }
     lastIndex = match.index + match[0].length;
   }
