@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Dropdown } from "../../../components/ui/Dropdown";
+import { getAvailableBiddingStrategies } from "../../../components/google/campaigns/utils";
 
 interface BulkBiddingStrategyPanelProps {
   selectedCampaigns: Set<string | number>;
@@ -22,50 +23,6 @@ interface BulkBiddingStrategyPanelProps {
   }) => void;
   onCancel: () => void;
 }
-
-// Bidding strategy types by campaign type
-const BIDDING_STRATEGIES = {
-  SEARCH: [
-    { value: "MANUAL_CPC", label: "Manual CPC" },
-    { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
-    { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
-    { value: "TARGET_IMPRESSION_SHARE", label: "Target Impression Share" },
-    { value: "TARGET_SPEND", label: "Target Spend" },
-  ],
-  SHOPPING: [
-    { value: "MANUAL_CPC", label: "Manual CPC" },
-    { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
-    { value: "TARGET_ROAS", label: "Target ROAS" },
-  ],
-  PERFORMANCE_MAX: [
-    { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
-    { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
-  ],
-  DEMAND_GEN: [
-    { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
-    { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
-    { value: "TARGET_CPA", label: "Target CPA" },
-    { value: "TARGET_ROAS", label: "Target ROAS" },
-  ],
-  DISPLAY: [
-    { value: "MANUAL_CPC", label: "Manual CPC" },
-    { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
-    { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
-    { value: "TARGET_CPA", label: "Target CPA" },
-    { value: "TARGET_ROAS", label: "Target ROAS" },
-    { value: "TARGET_IMPRESSION_SHARE", label: "Target Impression Share" },
-    { value: "TARGET_SPEND", label: "Target Spend" },
-  ],
-  DEFAULT: [
-    { value: "MANUAL_CPC", label: "Manual CPC" },
-    { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
-    { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
-    { value: "TARGET_CPA", label: "Target CPA" },
-    { value: "TARGET_ROAS", label: "Target ROAS" },
-    { value: "TARGET_IMPRESSION_SHARE", label: "Target Impression Share" },
-    { value: "TARGET_SPEND", label: "Target Spend" },
-  ],
-};
 
 const IMPRESSION_SHARE_LOCATIONS = [
   { value: "ANYWHERE_ON_PAGE", label: "Anywhere on page" },
@@ -104,25 +61,23 @@ export const BulkBiddingStrategyPanel: React.FC<BulkBiddingStrategyPanelProps> =
 
   // Get available bidding strategies based on campaign types
   const availableStrategies = React.useMemo(() => {
-    if (campaignTypes.length === 0) return BIDDING_STRATEGIES.DEFAULT;
+    if (campaignTypes.length === 0) return getAvailableBiddingStrategies("DEFAULT");
     
     // If all campaigns are the same type, use that type's strategies
     if (campaignTypes.length === 1) {
-      const type = campaignTypes[0] as keyof typeof BIDDING_STRATEGIES;
-      return BIDDING_STRATEGIES[type] || BIDDING_STRATEGIES.DEFAULT;
+      return getAvailableBiddingStrategies(campaignTypes[0]);
     }
     
     // If multiple types, find intersection of allowed strategies
     const strategySets = campaignTypes.map((type) => {
-      const typeKey = type as keyof typeof BIDDING_STRATEGIES;
-      return new Set((BIDDING_STRATEGIES[typeKey] || BIDDING_STRATEGIES.DEFAULT).map(s => s.value));
+      return new Set(getAvailableBiddingStrategies(type).map(s => s.value));
     });
     
     const intersection = strategySets.reduce((acc, set) => {
       return new Set([...acc].filter(x => set.has(x)));
     }, strategySets[0]);
     
-    return BIDDING_STRATEGIES.DEFAULT.filter(s => intersection.has(s.value));
+    return getAvailableBiddingStrategies("DEFAULT").filter(s => intersection.has(s.value));
   }, [campaignTypes]);
 
   // Reset dependent fields when strategy changes

@@ -16,6 +16,7 @@ import { MerchantIdDropdown } from "../google/MerchantIdDropdown";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
 import { GoogleLocationTargetingForm } from "../google/campaigns/GoogleLocationTargetingForm";
 import { campaignsService } from "../../services/campaigns";
+import { SALES_COUNTRY_OPTIONS } from "../google/campaigns/utils";
 
 
 
@@ -51,6 +52,7 @@ export interface CampaignFormForChatProps {
   profileId?: string | number;
   accountId?: string | number;
   channelId?: string | number;
+  plateform?: string;
 }
 
 export interface CampaignFormForChatHandle {
@@ -67,6 +69,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   profileId,
   accountId,
   channelId,
+  plateform
 }, ref) => {
   const requestedKeys = getKeysForForm(questionsSchema);
 
@@ -179,6 +182,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const hasLocationIdsField = isFieldRequested("location_ids", requestedKeys);
   const hasExcludedLocationIdsField = isFieldRequested("excluded_location_ids", requestedKeys);
   const hasMerchantIdField = isFieldRequested("merchant_id", requestedKeys);
+  const hasSalesCountryField = isFieldRequested("sales_country", requestedKeys);
   // Function to fetch budgets
   const fetchBudgets = useCallback(async () => {
     if (!accountIdNum || !channelIdNum || !profileIdNum || !hasBudgetNameField) {
@@ -309,6 +313,9 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       if (isFieldRequested("merchant_id", requestedKeys) && merchantId) {
         vals["merchant_id"] = merchantId;
       }
+      if (isFieldRequested("sales_country", requestedKeys) && formData.sales_country) {
+        vals["sales_country"] = String(formData.sales_country);
+      }
       return vals;
     },
     clear: () => {
@@ -431,6 +438,14 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       parts.push(`${label}: ${merchantId}`);
     }
 
+    // Add sales_country
+    if (isFieldRequested("sales_country", requestedKeys) && formData.sales_country) {
+      const label = getFieldLabel("sales_country");
+      const countryOption = SALES_COUNTRY_OPTIONS.find(opt => opt.value === formData.sales_country);
+      const displayValue = countryOption?.label || formData.sales_country;
+      parts.push(`${label}: ${displayValue}`);
+    }
+
     // Add multi-asset fields with readable labels (so agent view shows names, not ", ," or JSON)
     if (isFieldRequested("headline_asset_ids", requestedKeys)) {
       const count = selectedHeadlineAssets.length || (Array.isArray(formData.headline_asset_ids) ? formData.headline_asset_ids.length : 0);
@@ -513,7 +528,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       hasMerchantIdField ||
       hasCalloutAssetIdsField);
 
-  const hasAnyVisibleTargetingField = hasDeviceIdsField || hasLanguageIdsField || hasTrackingUrlTemplateField || hasFinalUrlSuffixField || hasUrlCustomParametersField || hasBudgetNameField || hasLocationIdsField || hasExcludedLocationIdsField;
+  const hasAnyVisibleTargetingField = hasDeviceIdsField || hasLanguageIdsField || hasTrackingUrlTemplateField || hasFinalUrlSuffixField || hasUrlCustomParametersField || hasBudgetNameField || hasLocationIdsField || hasExcludedLocationIdsField || hasSalesCountryField;
 
   const hasAnyVisibleField = !!hasAnyVisibleAssetField || hasAnyVisibleTargetingField;
 
@@ -901,6 +916,22 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
               disabled={disabled}
               showAccountCount={false}
             />
+          )}
+
+          {/* Sales Country */}
+          {hasSalesCountryField && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-[#072929]">
+                Sales Country
+              </label>
+              <Dropdown<string>
+                options={SALES_COUNTRY_OPTIONS}
+                value={formData.sales_country || "US"}
+                onChange={(v) => onChange("sales_country", v)}
+                buttonClassName="edit-button w-full"
+                disabled={disabled}
+              />
+            </div>
           )}
         </div>
 

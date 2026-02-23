@@ -48,15 +48,48 @@ export const SALES_COUNTRY_OPTIONS = [
   { value: "CN", label: "China" },
 ];
 
-export const BIDDING_STRATEGY_OPTIONS = [
-  { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
-  { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
-  { value: "TARGET_CPA", label: "Target CPA" },
-  { value: "TARGET_ROAS", label: "Target ROAS" },
-  { value: "TARGET_IMPRESSION_SHARE", label: "Target Impression Share" },
-  { value: "TARGET_SPEND", label: "Target Spend" },
-  { value: "MANUAL_CPC", label: "Manual CPC" },
-];
+export const BIDDING_STRATEGIES = {
+  SEARCH: [
+    { value: "MANUAL_CPC", label: "Manual CPC" },
+    { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
+    { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
+    { value: "TARGET_IMPRESSION_SHARE", label: "Target Impression Share" },
+    { value: "TARGET_SPEND", label: "Target Spend" },
+  ],
+  SHOPPING: [
+    { value: "MANUAL_CPC", label: "Manual CPC" },
+    { value: "MAXIMIZE_CLICKS", label: "Maximize Clicks" },
+    { value: "TARGET_ROAS", label: "Target ROAS" },
+  ],
+  PERFORMANCE_MAX: [
+    { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
+    { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
+  ],
+  DEMAND_GEN: [
+    { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
+    { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
+    { value: "TARGET_CPA", label: "Target CPA" },
+    { value: "TARGET_ROAS", label: "Target ROAS" },
+  ],
+  DISPLAY: [
+    { value: "MANUAL_CPC", label: "Manual CPC" },
+    { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
+    { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
+    { value: "TARGET_CPA", label: "Target CPA" },
+    { value: "TARGET_ROAS", label: "Target ROAS" },
+    { value: "TARGET_IMPRESSION_SHARE", label: "Target Impression Share" },
+    { value: "TARGET_SPEND", label: "Target Spend" },
+  ],
+  DEFAULT: [
+    { value: "MANUAL_CPC", label: "Manual CPC" },
+    { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
+    { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
+    { value: "TARGET_CPA", label: "Target CPA" },
+    { value: "TARGET_ROAS", label: "Target ROAS" },
+    { value: "TARGET_IMPRESSION_SHARE", label: "Target Impression Share" },
+    { value: "TARGET_SPEND", label: "Target Spend" },
+  ],
+};
 
 export const DEVICE_OPTIONS = [
   { value: "MOBILE", label: "Mobile", icon: "📱" },
@@ -75,47 +108,10 @@ export const MATCH_TYPE_OPTIONS = [
 
 /**
  * Get available bidding strategies based on campaign type
- * Note: TARGET_CPA and TARGET_ROAS are not allowed during creation for SEARCH campaigns
- * per Google Ads API restrictions. They can only be set after campaign creation.
  */
 export const getAvailableBiddingStrategies = (campaignType: string) => {
-  if (campaignType === "PERFORMANCE_MAX") {
-    // Performance Max campaigns only support: MAXIMIZE_CONVERSIONS, MAXIMIZE_CONVERSION_VALUE
-    return BIDDING_STRATEGY_OPTIONS.filter(
-      (opt) =>
-        opt.value === "MAXIMIZE_CONVERSIONS" ||
-        opt.value === "MAXIMIZE_CONVERSION_VALUE"
-    );
-  } else if (campaignType === "SHOPPING") {
-    // Shopping campaigns: keep creation UI conservative to avoid API rejections.
-    // We only allow MANUAL_CPC here (matches our inline edit restrictions and avoids conversion-value strategy errors).
-    return BIDDING_STRATEGY_OPTIONS.filter(
-      (opt) => opt.value === "MANUAL_CPC"
-    );
-  } else if (campaignType === "DEMAND_GEN") {
-    // Demand Gen campaigns support: MAXIMIZE_CONVERSIONS, MAXIMIZE_CONVERSION_VALUE, TARGET_CPA, TARGET_ROAS
-    return BIDDING_STRATEGY_OPTIONS.filter(
-      (opt) =>
-        opt.value === "MAXIMIZE_CONVERSIONS" ||
-        opt.value === "MAXIMIZE_CONVERSION_VALUE" ||
-        opt.value === "TARGET_CPA" ||
-        opt.value === "TARGET_ROAS"
-    );
-  } else if (campaignType === "DISPLAY") {
-    // Display campaigns support all bidding strategies
-    return BIDDING_STRATEGY_OPTIONS;
-  } else {
-    // SEARCH - TARGET_CPA and TARGET_ROAS are not supported
-    // They require conversion tracking setup and historical conversion data
-    return BIDDING_STRATEGY_OPTIONS.filter(
-      (opt) =>
-        opt.value === "MANUAL_CPC" ||
-        opt.value === "MAXIMIZE_CONVERSIONS" ||
-        opt.value === "MAXIMIZE_CONVERSION_VALUE" ||
-        opt.value === "TARGET_IMPRESSION_SHARE" ||
-        opt.value === "TARGET_SPEND"
-    );
-  }
+  const typeKey = campaignType as keyof typeof BIDDING_STRATEGIES;
+  return BIDDING_STRATEGIES[typeKey] || BIDDING_STRATEGIES.DEFAULT;
 };
 
 /**

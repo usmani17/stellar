@@ -64,6 +64,11 @@ const getBaseUrl = (): string => {
   return String(baseUrl).replace(/\/$/, "");
 };
 
+const is_env_local = (): boolean => {
+  const env = import.meta.env.VITE_ENVIRONMENT;
+  return env === "local";
+}
+
 export async function streamPixisChat(
   params: PixisChatParams,
   accessToken: string,
@@ -155,18 +160,22 @@ export async function streamPixisChat(
         if (etype === "tool_call" && subtype === "started") {
           const tc = ev.tool_call as { name?: string; shellToolCall?: unknown; readToolCall?: { args?: { path?: string } }; writeToolCall?: { args?: { path?: string } } } | undefined;
           let label: string;
-          if (typeof tc?.name === "string") {
-            label = tc.name;
-          } else if (tc?.shellToolCall) {
-            label = "Querying datasource...";
-          } else if (tc?.readToolCall) {
-            const p = tc.readToolCall?.args?.path ?? "";
-            label = `Reading: ${p.split("/").pop() ?? "file"}`;
-          } else if (tc?.writeToolCall) {
-            const p = tc.writeToolCall?.args?.path ?? "";
-            label = `Writing: ${p.split("/").pop() ?? "file"}`;
+          if (is_env_local()) {
+            label = `Tool call: ${JSON.stringify(ev.tool_call)}`;
           } else {
-            label = "Processing...";
+            if (typeof tc?.name === "string") {
+              label = tc.name;
+            } else if (tc?.shellToolCall) {
+              label = "Querying datasource...";
+            } else if (tc?.readToolCall) {
+              const p = tc.readToolCall?.args?.path ?? "";
+              label = `Reading: ${p.split("/").pop() ?? "file"}`;
+            } else if (tc?.writeToolCall) {
+              const p = tc.writeToolCall?.args?.path ?? "";
+              label = `Writing: ${p.split("/").pop() ?? "file"}`;
+            } else {
+              label = "Processing...";
+            }
           }
           callbacks.onToolCall?.(label);
           callbacks.onTimelineItem?.({ type: "tool_call", label, timestamp_ms: ev.timestamp_ms });

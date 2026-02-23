@@ -961,7 +961,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         )}
 
                         {/* Campaign: validation errors or draft ready (only when saved_draft_id exists) */}
-                        {campaignState && ((campaignState.validation_error && campaignState.validation_error.length > 0) || (campaignState.draft && Object.keys(campaignState.draft).length > 0 && campaignState.draft_id)) && (
+                        {campaignState && ((campaignState.validation_error && campaignState.validation_error.length > 0) || (campaignState.complete)) && (
                             <div className="flex flex-col gap-2 mt-2 p-3 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[10px]">
                                 {campaignState.validation_error && campaignState.validation_error.length > 0 && (
                                     <div className="text-xs text-red-600">
@@ -974,7 +974,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                         {assistantScope.accountId && assistantScope.channelId ? (
                                             <>{" "}
                                                 <Link
-                                                    to={`/brands/${assistantScope.accountId}/${assistantScope.channelId}/google/campaigns/${campaignState.draft_id}`}
+                                                    to={`/brands/${assistantScope.accountId}/${assistantScope.channelId}/google/campaigns/draft-${campaignState.draft_id}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="text-[#136D6D] font-medium hover:underline"
@@ -1000,6 +1000,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 profileId={assistantScope.profileId ?? undefined}
                                 accountId={assistantScope.accountId ?? undefined}
                                 channelId={assistantScope.channelId ?? undefined}
+                                plateform={assistantScope.marketplace ?? undefined}
                             />
                         )}
 
