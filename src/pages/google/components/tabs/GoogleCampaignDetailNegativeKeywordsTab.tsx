@@ -879,7 +879,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                                   }
                                   closeOnSelect={true}
                                   showCheckmark={false}
-                                  buttonClassName="edit-button google-table-dropdown min-w-0"
+                                  buttonClassName="edit-button google-table-dropdown w-full text-[13.3px]"
                                   width="w-[120px]"
                                   align="left"
                                   className="w-full"
@@ -918,7 +918,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                                     setEditingField(null);
                                     setEditingStatus("");
                                   }}
-                                  buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                  buttonClassName="edit-button google-table-dropdown w-full text-[13.3px]"
                                   width="w-full"
                                   className="w-full"
                                   menuClassName="z-[100000]"
@@ -930,8 +930,8 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                                 type="button"
                                 className={
                                   onUpdateNegativeKeywordStatus && !isRemoved
-                                    ? "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between"
-                                    : "inline-edit-dropdown w-full text-[13.3px] flex items-center justify-between cursor-default"
+                                    ? "edit-button w-full text-[13.3px] flex items-center justify-between"
+                                    : "edit-button w-full text-[13.3px] flex items-center justify-between cursor-default"
                                 }
                                 onClick={(e) => {
                                   e.stopPropagation();

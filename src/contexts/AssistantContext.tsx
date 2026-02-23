@@ -516,8 +516,8 @@ export const AssistantProvider: React.FC<{
               | undefined)?.cursor_session_id ?? currentSessionId ?? undefined,
             account_id: accountIdNum,
             channel_id: channelIdNum,
-        profile_id: effectiveProfileId != null ? String(effectiveProfileId) : undefined,
-        workspace_id: user?.workspace?.id ?? undefined,
+            profile_id: effectiveProfileId != null ? String(effectiveProfileId) : undefined,
+            workspace_id: user?.workspace?.id ?? undefined,
             user_id: user?.id != null ? String(user.id) : undefined,
             platform: effectiveMarketplace ?? undefined,
           },
@@ -577,6 +577,51 @@ export const AssistantProvider: React.FC<{
               setCampaignState(data);
             },
             onResult: (ev) => {
+              console.log("onResult called with:", ev);
+              // Handle aborted case (when user clicks stop)
+              if (ev.aborted) {
+                console.log("Handling aborted result event");
+                if (isNewSessionFlowRef.current) {
+                  setPendingConversation((p) => {
+                    if (!p) return p;
+                    const msgs = p.messages;
+                    const last = msgs[msgs.length - 1];
+                    if (last?.type !== "ai" || !last.isStreaming) return p;
+                    return {
+                      messages: [
+                        ...msgs.slice(0, -1),
+                        { ...last, isStreaming: false },
+                      ],
+                    };
+                  });
+                  isNewSessionFlowRef.current = false;
+                  sendingNewSessionRef.current = false;
+                  pendingNewSessionRef.current = null;
+                } else {
+                  setSessions((prev) =>
+                    prev.map((s) => {
+                      const msgs = s.messages ?? [];
+                      const last = msgs[msgs.length - 1];
+                      if (
+                        last?.type === "ai" &&
+                        last.isStreaming &&
+                        s.id === streamingSessionIdRef.current
+                      ) {
+                        return {
+                          ...s,
+                          messages: [
+                            ...msgs.slice(0, -1),
+                            { ...last, isStreaming: false },
+                          ],
+                        };
+                      }
+                      return s;
+                    })
+                  );
+                }
+                return;
+              }
+
               const finalContent = ev.full_message ?? "";
               const pending = pendingNewSessionRef.current;
               const realId = pending?.id ?? ev.session_db_id ?? ev.session_id ?? ev.sessionId;
@@ -712,43 +757,44 @@ export const AssistantProvider: React.FC<{
         );
 
       } catch (e) {
-        if ((e as Error).name !== "AbortError") {
-          if (isNewSessionFlowRef.current) {
-            setPendingConversation((p) => {
-              if (!p) return p;
-              const msgs = p.messages;
+        const isAbort = (e as Error).name === "AbortError";
+        const errorMsg = isAbort ? undefined : (e as Error).message;
+
+        if (isNewSessionFlowRef.current) {
+          setPendingConversation((p) => {
+            if (!p) return p;
+            const msgs = p.messages;
+            const last = msgs[msgs.length - 1];
+            if (last?.type !== "ai" || !last.isStreaming) return p;
+            return {
+              messages: [
+                ...msgs.slice(0, -1),
+                { ...last, isStreaming: false, ...(errorMsg ? { error: errorMsg } : {}) },
+              ],
+            };
+          });
+          isNewSessionFlowRef.current = false;
+        } else {
+          setSessions((prev) =>
+            prev.map((s) => {
+              const msgs = s.messages ?? [];
               const last = msgs[msgs.length - 1];
-              if (last?.type !== "ai" || !last.isStreaming) return p;
-              return {
-                messages: [
-                  ...msgs.slice(0, -1),
-                  { ...last, isStreaming: false, error: (e as Error).message },
-                ],
-              };
-            });
-            isNewSessionFlowRef.current = false;
-          } else {
-            setSessions((prev) =>
-              prev.map((s) => {
-                const msgs = s.messages ?? [];
-                const last = msgs[msgs.length - 1];
-                if (
-                  last?.type === "ai" &&
-                  last.isStreaming &&
-                  s.id === streamingSessionIdRef.current
-                ) {
-                  return {
-                    ...s,
-                    messages: [
-                      ...msgs.slice(0, -1),
-                      { ...last, isStreaming: false, error: (e as Error).message },
-                    ],
-                  };
-                }
-                return s;
-              })
-            );
-          }
+              if (
+                last?.type === "ai" &&
+                last.isStreaming &&
+                s.id === streamingSessionIdRef.current
+              ) {
+                return {
+                  ...s,
+                  messages: [
+                    ...msgs.slice(0, -1),
+                    { ...last, isStreaming: false, ...(errorMsg ? { error: errorMsg } : {}) },
+                  ],
+                };
+              }
+              return s;
+            })
+          );
         }
       } finally {
         setIsLoading(false);
@@ -771,7 +817,75 @@ export const AssistantProvider: React.FC<{
   );
 
   const cancelRun = useCallback(async () => {
+    console.log("cancelRun called, aborting current request");
+    // Capture refs BEFORE abort — the finally block in sendMessage will clear them
+    const streamId = streamingSessionIdRef.current;
+    const wasNewSession = isNewSessionFlowRef.current;
+    const pendingSession = pendingNewSessionRef.current;
+
     abortControllerRef.current?.abort();
+
+    // Eagerly reset streaming state. We can't rely on onResult/catch because:
+    // 1. pixisChat.ts catches AbortError internally and calls onResult (doesn't rethrow)
+    // 2. streamPixisChat resolves normally → sendMessage's finally block clears streamingSessionIdRef
+    // 3. React processes onResult's setSessions callback AFTER the ref is already null
+    // 4. setSessions callback reads streamingSessionIdRef.current (now null) → no target found
+    if (wasNewSession) {
+      // Promote pending conversation to a real session so context is preserved
+      setPendingConversation((p) => {
+        if (!p) return p;
+        const msgs = p.messages;
+        const last = msgs[msgs.length - 1];
+        const finalizedMessages: ChatMessage[] = last?.type === "ai" && last.isStreaming
+          ? [...msgs.slice(0, -1), { ...last, isStreaming: false }]
+          : msgs;
+
+        // If onInit already provided IDs, create a real session
+        if (pendingSession?.id) {
+          const newSession: SessionWithMessages = {
+            id: pendingSession.id,
+            cursor_session_id: pendingSession.cursor_session_id ?? null,
+            user_id: null,
+            workspace_id: null,
+            account_id: null,
+            channel_id: null,
+            profile_id: null,
+            created_at: new Date().toISOString(),
+            last_activity_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            title: (msgs[0]?.type === "human" ? msgs[0].content : "New chat").slice(0, 50),
+            messages: finalizedMessages,
+            campaignState: campaignStateRef.current,
+          };
+          setSessions((prev) => {
+            const withoutDup = prev.filter((s) => s.id !== pendingSession.id);
+            return [...withoutDup, newSession];
+          });
+          setCurrentSessionId(pendingSession.id);
+        }
+        return null; // clear pending
+      });
+      isNewSessionFlowRef.current = false;
+      sendingNewSessionRef.current = false;
+      pendingNewSessionRef.current = null;
+    } else if (streamId) {
+      setSessions((prev) =>
+        prev.map((s) => {
+          if (s.id !== streamId) return s;
+          const msgs = s.messages ?? [];
+          const last = msgs[msgs.length - 1];
+          if (last?.type !== "ai" || !last.isStreaming) return s;
+          return {
+            ...s,
+            messages: [
+              ...msgs.slice(0, -1),
+              { ...last, isStreaming: false },
+            ],
+          };
+        })
+      );
+    }
+    setIsLoading(false);
   }, []);
 
   const toggleAssistant = useCallback(() => setIsOpen((prev) => !prev), []);
