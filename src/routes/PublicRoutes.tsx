@@ -1,5 +1,5 @@
 import { Login } from "../pages/Login";
-import { CampaignFormTestPage, ChatFormTestPage, TestAIChatToolsPage } from "../pages/test-ai-chat";
+import { CampaignFormTestPage, TestAIChatToolsPage } from "../pages/test-ai-chat";
 import { Signup } from "../pages/Signup";
 import { ForgotPassword } from "../pages/ForgotPassword";
 import { ResetPassword } from "../pages/ResetPassword";
@@ -57,10 +57,6 @@ function PublicRoutes() {
             <Route
                 path="/test-campaign-form"
                 element={<CampaignFormTestPage />}
-            />
-            <Route
-                path="/test-chat-form"
-                element={<ChatFormTestPage />}
             />
             <Route
                 path="/test-ai-chat-tools"

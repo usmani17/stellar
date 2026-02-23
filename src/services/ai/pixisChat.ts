@@ -110,52 +110,67 @@ export async function streamPixisChat(
   let accumulated = "";
   let thinkingAccumulated = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (options?.signal?.aborted) break;
-    buf += decoder.decode(value, { stream: true });
-    const parts = buf.split(/\n\n|\r\n\r\n/);
-    buf = parts.pop() ?? "";
+  // Add abort signal listener
+  if (options?.signal) {
+    const handleAbort = () => {
+      console.log("Stream aborted by client signal (event listener)");
+      callbacks.onResult?.({ type: "result", aborted: true });
+    };
+    options.signal.addEventListener("abort", handleAbort, { once: true });
+  }
 
-    for (const block of parts) {
-      let data = "";
-      for (const line of block.split("\n")) {
-        if (line.startsWith("data: ")) data = line.slice(6);
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (options?.signal?.aborted) {
+        console.log("Stream aborted by client signal (loop check)");
+        // When aborted, trigger cleanup by calling onResult
+        callbacks.onResult?.({ type: "result", aborted: true });
+        break;
       }
-      if (!data) continue;
-      try {
-        const ev: PixisChatStreamEvent = JSON.parse(data);
-        const etype = ev.type ?? "";
-        const subtype = ev.subtype ?? "";
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split(/\n\n|\r\n\r\n/);
+      buf = parts.pop() ?? "";
 
-        if (etype === "system" && subtype === "init") {
-          sessionId = ev.session_id ?? ev.sessionId;
-          sessionDbId = ev.session_db_id;
-          callbacks.onInit?.({ session_id: sessionId, session_db_id: sessionDbId });
+      for (const block of parts) {
+        let data = "";
+        for (const line of block.split("\n")) {
+          if (line.startsWith("data: ")) data = line.slice(6);
         }
+        if (!data) continue;
+        try {
+          const ev: PixisChatStreamEvent = JSON.parse(data);
+          const etype = ev.type ?? "";
+          const subtype = ev.subtype ?? "";
 
-        if (etype === "thinking") {
-          const text = typeof ev.text === "string" ? ev.text : "";
-          if (text || subtype === "completed") {
-            thinkingAccumulated = thinkingAccumulated + text;
-            if (thinkingAccumulated.trim()) {
-              callbacks.onTimelineItem?.({ type: "thinking", content: thinkingAccumulated, timestamp_ms: ev.timestamp_ms });
-            }
-            if (subtype === "completed") {
-              thinkingAccumulated = "";
+          if (etype === "system" && subtype === "init") {
+            sessionId = ev.session_id ?? ev.sessionId;
+            sessionDbId = ev.session_db_id;
+            callbacks.onInit?.({ session_id: sessionId, session_db_id: sessionDbId });
+          }
+
+          if (etype === "thinking") {
+            const text = typeof ev.text === "string" ? ev.text : "";
+            if (text || subtype === "completed") {
+              thinkingAccumulated = thinkingAccumulated + text;
+              if (thinkingAccumulated.trim()) {
+                callbacks.onTimelineItem?.({ type: "thinking", content: thinkingAccumulated, timestamp_ms: ev.timestamp_ms });
+              }
+              if (subtype === "completed") {
+                thinkingAccumulated = "";
+              }
             }
           }
-        }
 
-        if (etype === "assistant") {
-          const text = ev.message?.content?.[0]?.text ?? "";
-          if (text) {
-            accumulated = text.startsWith(accumulated) ? text : accumulated + text;
-            callbacks.onMessage?.(accumulated);
-            callbacks.onTimelineItem?.({ type: "text", content: accumulated, timestamp_ms: ev.timestamp_ms });
+          if (etype === "assistant") {
+            const text = ev.message?.content?.[0]?.text ?? "";
+            if (text) {
+              accumulated = text.startsWith(accumulated) ? text : accumulated + text;
+              callbacks.onMessage?.(accumulated);
+              callbacks.onTimelineItem?.({ type: "text", content: accumulated, timestamp_ms: ev.timestamp_ms });
+            }
           }
-        }
 
         if (etype === "tool_call" && subtype === "started") {
           const tc = ev.tool_call as { name?: string; shellToolCall?: unknown; readToolCall?: { args?: { path?: string } }; writeToolCall?: { args?: { path?: string } } } | undefined;
@@ -181,25 +196,35 @@ export async function streamPixisChat(
           callbacks.onTimelineItem?.({ type: "tool_call", label, timestamp_ms: ev.timestamp_ms });
         }
 
-        if (etype === "campaign-draft") {
-          callbacks.onCampaignDraft?.({
-            draft_id: ev.draft_id ?? "",
-            platform: ev.platform ?? "",
-            campaign_type: ev.campaign_type ?? "",
-            complete: ev.complete ?? false,
-            draft: ev.draft ?? {},
-            questions: ev.questions ?? {},
-            keys_for_form: ev.keys_for_form ?? [],
-            validation_error: ev.validation_error ?? null,
-          });
-        }
+          if (etype === "campaign-draft") {
+            callbacks.onCampaignDraft?.({
+              draft_id: ev.draft_id ?? "",
+              platform: ev.platform ?? "",
+              campaign_type: ev.campaign_type ?? "",
+              complete: ev.complete ?? false,
+              draft: ev.draft ?? {},
+              questions: ev.questions ?? {},
+              keys_for_form: ev.keys_for_form ?? [],
+              validation_error: ev.validation_error ?? null,
+            });
+          }
 
-        if (etype === "result") {
-          callbacks.onResult?.(ev);
+          if (etype === "result") {
+            callbacks.onResult?.(ev);
+          }
+        } catch (e) {
+          console.error("Error parsing stream event:", e);
+          callbacks.onError?.(e instanceof Error ? e : new Error(String(e)));
         }
-      } catch (e) {
-        callbacks.onError?.(e instanceof Error ? e : new Error(String(e)));
       }
+    }
+  } catch (e) {
+    console.error("Stream reading error:", e);
+    if ((e as Error).name === "AbortError") {
+      console.log("Stream aborted due to AbortError");
+      callbacks.onResult?.({ type: "result", aborted: true });
+    } else {
+      callbacks.onError?.(e instanceof Error ? e : new Error(String(e)));
     }
   }
 
