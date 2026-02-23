@@ -1,26 +1,40 @@
 /**
  * Test page for CampaignFormForChat in chat context.
  * Preview how the form looks inside the Assistant chat layout.
+ * Uses same component and props as AssistantPanel—test exact production experience.
  * Visit /test-chat-form to use.
  */
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState } from "react";
 import { CampaignFormForChat } from "../../components/ai/CampaignFormForChat";
-import { getFieldLabel } from "../../components/ai/campaignFormFieldLabels";
-import type { CurrentQuestionSchemaItem } from "../../types/agent";
+import { CampaignDraftPreview } from "../../components/ai/CampaignDraftPreview";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
-import { campaignsService } from "../../services/campaigns";
+import {
+  parseCampaignSetupJson,
+  deriveCampaignStateFromContent,
+  type CampaignSetupData,
+} from "../../utils/chartJsonParser";
+import type { CampaignDraftData } from "../../services/ai/pixisChat";
 
-const ALL_FIELD_GROUPS: { label: string; keys: string[] }[] = [
-  { label: "Base", keys: ["name", "campaign_type", "budget_amount", "budget_name", "start_date", "end_date", "status"] },
-  { label: "Bidding", keys: ["bidding_strategy_type", "target_cpa_micros", "target_roas", "target_spend_micros", "target_impression_share_location", "target_impression_share_location_fraction_micros", "target_impression_share_cpc_bid_ceiling_micros"] },
-  { label: "Demand Gen", keys: ["final_url", "video_id", "video_url", "logo_url", "business_name", "headlines", "descriptions", "long_headlines", "ad_group_name", "ad_name", "channel_controls"] },
-  { label: "Performance Max", keys: ["asset_group_name", "marketing_image_url", "square_marketing_image_url"] },
-  { label: "Search", keys: ["adgroup_name", "keywords", "match_type"] },
-  { label: "Shopping", keys: ["merchant_id", "sales_country", "campaign_priority", "enable_local"] },
+/** Keys CampaignFormForChat renders (asset IDs, targeting, URL options) */
+const RENDERED_FIELD_GROUPS: { label: string; keys: string[] }[] = [
   {
-    label: "Targeting (Network, Device, Language, Location, URL)",
+    label: "Asset IDs (Demand Gen & PMax)",
     keys: [
-      "network_settings",
+      "business_name_asset_id",
+      "logo_asset_id",
+      "marketing_image_asset_id",
+      "square_marketing_image_asset_id",
+      "headline_asset_ids",
+      "description_asset_ids",
+      "long_headline_asset_ids",
+      "video_asset_ids",
+      "sitelink_asset_ids",
+      "callout_asset_ids",
+    ],
+  },
+  {
+    label: "Targeting & URL",
+    keys: [
       "device_ids",
       "language_ids",
       "location_ids",
@@ -28,118 +42,115 @@ const ALL_FIELD_GROUPS: { label: string; keys: string[] }[] = [
       "tracking_url_template",
       "final_url_suffix",
       "url_custom_parameters",
+      "budget_name",
+      "merchant_id",
+      "sales_country",
     ],
   },
 ];
+
+/** Keys server sends but form may not render (parity testing) */
+const SERVER_ONLY_FIELD_GROUPS: { label: string; keys: string[] }[] = [
+  {
+    label: "Server-only (form may not render)",
+    keys: [
+      "name",
+      "campaign_type",
+      "budget_amount",
+      "bidding_strategy_type",
+      "start_date",
+      "end_date",
+      "status",
+      "target_cpa_micros",
+      "target_roas",
+      "network_settings",
+      "final_url",
+      "asset_group_name",
+      "keywords",
+      "match_type",
+      "adgroup_name",
+    ],
+  },
+];
+
+const ALL_FIELD_GROUPS = [...RENDERED_FIELD_GROUPS, ...SERVER_ONLY_FIELD_GROUPS];
 
 const CAMPAIGN_TYPES = ["SEARCH", "SHOPPING", "DEMAND_GEN", "PERFORMANCE_MAX"] as const;
 
 const MOCK_AI_MESSAGE = "To create your campaign, I need a few details. Please fill in the form below.";
 
+/** Flatten nested draft (campaign-setup format) to flat for CampaignFormForChat.
+ * Uses bare key when entity is "campaign" so form finds formData[key].
+ */
+function flattenDraft(draft: Record<string, Record<string, unknown>>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [entity, fields] of Object.entries(draft)) {
+    if (fields && typeof fields === "object") {
+      for (const [k, v] of Object.entries(fields)) {
+        const outKey = entity === "campaign" || entity === "" ? k : `${entity}.${k}`;
+        out[outKey] = v;
+      }
+    }
+  }
+  return out;
+}
+
+/** Parse input: markdown block, campaign-setup JSON, or campaign-draft event JSON */
+function parseServerInput(input: string): CampaignSetupData | CampaignDraftData | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  // Markdown with ```campaign-setup block
+  if (trimmed.includes("```campaign-setup") || trimmed.includes("```\ncampaign-setup")) {
+    const derived = deriveCampaignStateFromContent(trimmed);
+    return derived;
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+    // campaign-draft event format (SSE event body)
+    if (parsed.type === "campaign-draft") {
+      return {
+        draft_id: String(parsed.draft_id ?? ""),
+        platform: String(parsed.platform ?? ""),
+        campaign_type: String(parsed.campaign_type ?? ""),
+        complete: Boolean(parsed.complete),
+        draft: (parsed.draft as Record<string, unknown>) ?? {},
+        questions: (parsed.questions as Record<string, unknown>) ?? {},
+        keys_for_form: Array.isArray(parsed.keys_for_form) ? parsed.keys_for_form.map(String) : [],
+        validation_error: parsed.validation_error as string | null ?? null,
+      };
+    }
+    // campaign-setup JSON format
+    const setup = parseCampaignSetupJson(trimmed);
+    return setup;
+  } catch {
+    return null;
+  }
+}
+
+type InputMode = "manual" | "parse";
+
 export const ChatFormTestPage: React.FC = () => {
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set(["name", "budget_amount", "bidding_strategy_type"]));
+  const [inputMode, setInputMode] = useState<InputMode>("manual");
+  const [parseInput, setParseInput] = useState("");
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [parsedCampaignState, setParsedCampaignState] = useState<CampaignDraftData | null>(null);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(
+    new Set(["budget_name", "location_ids", "language_ids", "tracking_url_template"])
+  );
   const [campaignType, setCampaignType] = useState<string>("SEARCH");
+  const [campaignDraft, setCampaignDraft] = useState<Record<string, unknown>>({
+    campaign_type: "SEARCH",
+    name: "Test Campaign",
+    budget_amount: 50,
+    status: "PAUSED",
+  });
   const [lastSubmit, setLastSubmit] = useState<string | null>(null);
   const [accountId, setAccountId] = useState("20");
   const [channelId, setChannelId] = useState("31");
   const [profileId, setProfileId] = useState("21");
   const [showControls, setShowControls] = useState(true);
-  const [languageOptions, setLanguageOptions] = useState<Array<{ value: string; label: string; id: string }>>([]);
-  const [locationOptions, setLocationOptions] = useState<Array<{ value: string; label: string; id: string; type: string; countryCode: string }>>([]);
-  const [loadingLanguages, setLoadingLanguages] = useState(false);
-  const [loadingLocations, setLoadingLocations] = useState(false);
-
-  const needsTargeting =
-    campaignType === "SEARCH" || campaignType === "SHOPPING" || campaignType === "PERFORMANCE_MAX";
-
-  const fetchLanguages = useCallback(async () => {
-    const aid = accountId.trim();
-    const cid = channelId.trim();
-    const pid = profileId.trim();
-    if (!aid || !cid || !pid || !needsTargeting) {
-      setLanguageOptions([]);
-      return;
-    }
-    const accountIdNum = parseInt(aid, 10);
-    const channelIdNum = parseInt(cid, 10);
-    if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
-      setLanguageOptions([]);
-      return;
-    }
-    setLoadingLanguages(true);
-    try {
-      const languages = await campaignsService.getGoogleLanguageConstants(
-        accountIdNum,
-        channelIdNum,
-        pid
-      );
-      setLanguageOptions(
-        languages.map((lang) => ({ value: lang.id, label: lang.name, id: lang.id }))
-      );
-    } catch (err) {
-      console.error("Error fetching languages:", err);
-      setLanguageOptions([]);
-    } finally {
-      setLoadingLanguages(false);
-    }
-  }, [accountId, channelId, profileId, needsTargeting]);
-
-  const fetchLocations = useCallback(async () => {
-    const aid = accountId.trim();
-    const cid = channelId.trim();
-    const pid = profileId.trim();
-    if (!aid || !cid || !pid || !needsTargeting) {
-      setLocationOptions([]);
-      return;
-    }
-    const accountIdNum = parseInt(aid, 10);
-    const channelIdNum = parseInt(cid, 10);
-    if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
-      setLocationOptions([]);
-      return;
-    }
-    const countryCode = campaignType === "SHOPPING" ? "US" : undefined;
-    setLoadingLocations(true);
-    try {
-      const locations = await campaignsService.getGoogleGeoTargetConstants(
-        accountIdNum,
-        channelIdNum,
-        pid,
-        undefined,
-        countryCode
-      );
-      setLocationOptions(
-        locations.map((loc) => ({
-          value: loc.id,
-          label: `${loc.name} (${loc.type})`,
-          id: loc.id,
-          type: loc.type,
-          countryCode: loc.countryCode || "",
-        }))
-      );
-    } catch (err) {
-      console.error("Error fetching locations:", err);
-      setLocationOptions([]);
-    } finally {
-      setLoadingLocations(false);
-    }
-  }, [accountId, channelId, profileId, needsTargeting, campaignType]);
-
-  useEffect(() => {
-    if (needsTargeting && accountId.trim() && channelId.trim() && profileId.trim()) {
-      fetchLanguages();
-    } else {
-      setLanguageOptions([]);
-    }
-  }, [needsTargeting, accountId, channelId, profileId, fetchLanguages]);
-
-  useEffect(() => {
-    if (needsTargeting && accountId.trim() && channelId.trim() && profileId.trim()) {
-      fetchLocations();
-    } else {
-      setLocationOptions([]);
-    }
-  }, [needsTargeting, accountId, channelId, profileId, fetchLocations]);
 
   const toggleKey = (key: string) => {
     setSelectedKeys((prev) => {
@@ -168,42 +179,33 @@ export const ChatFormTestPage: React.FC = () => {
 
   const selectAll = () => setSelectedKeys(new Set(ALL_FIELD_GROUPS.flatMap((g) => g.keys)));
   const clearAll = () => setSelectedKeys(new Set());
-  const biddingStrategyOnly = () =>
-    setSelectedKeys(new Set(["name", "campaign_type", "budget_amount", "bidding_strategy_type"]));
+  const biddingStrategyOnly = () => {
+    setInputMode("manual");
+    setSelectedKeys(new Set(["budget_name", "tracking_url_template", "final_url_suffix", "url_custom_parameters"]));
+    setCampaignType("SEARCH");
+  };
   const performanceMaxPreset = () => {
+    setInputMode("manual");
     setCampaignType("PERFORMANCE_MAX");
     setSelectedKeys(
       new Set([
-        "name",
-        "campaign_type",
-        "budget_amount",
         "budget_name",
-        "start_date",
-        "end_date",
-        "status",
-        "final_url",
-        "asset_group_name",
-        "business_name",
-        "logo_url",
-        "headlines",
-        "descriptions",
-        "marketing_image_url",
-        "square_marketing_image_url",
-        "long_headlines",
+        "marketing_image_asset_id",
+        "square_marketing_image_asset_id",
+        "business_name_asset_id",
+        "logo_asset_id",
+        "headline_asset_ids",
+        "description_asset_ids",
+        "long_headline_asset_ids",
       ])
     );
+    setCampaignDraft({ campaign_type: "PERFORMANCE_MAX", name: "PMax Test", budget_amount: 50, status: "PAUSED" });
   };
-  const searchWithTargeting = () =>
+  const searchWithTargeting = () => {
+    setInputMode("manual");
     setSelectedKeys(
       new Set([
-        "name",
-        "campaign_type",
-        "budget_amount",
-        "bidding_strategy_type",
-        "adgroup_name",
-        "keywords",
-        "match_type",
-        "network_settings",
+        "budget_name",
         "device_ids",
         "language_ids",
         "location_ids",
@@ -213,14 +215,115 @@ export const ChatFormTestPage: React.FC = () => {
         "url_custom_parameters",
       ])
     );
+    setCampaignType("SEARCH");
+  };
+
+  /** Server-style presets (simulate campaign-draft event payloads) */
+  const serverDemandGenTargeting = () => {
+    setInputMode("manual");
+    setCampaignType("DEMAND_GEN");
+    setSelectedKeys(
+      new Set([
+        "budget_name",
+        "location_ids",
+        "language_ids",
+        "device_ids",
+        "tracking_url_template",
+        "headline_asset_ids",
+        "description_asset_ids",
+      ])
+    );
+    setCampaignDraft({
+      campaign_type: "DEMAND_GEN",
+      name: "Demand Gen Test",
+      budget_amount: 100,
+      status: "PAUSED",
+    });
+    setParsedCampaignState(null);
+  };
+  const serverPmaxAssets = () => {
+    setInputMode("manual");
+    setCampaignType("PERFORMANCE_MAX");
+    setSelectedKeys(
+      new Set([
+        "marketing_image_asset_id",
+        "square_marketing_image_asset_id",
+        "business_name_asset_id",
+        "logo_asset_id",
+        "headline_asset_ids",
+        "description_asset_ids",
+        "long_headline_asset_ids",
+      ])
+    );
+    setCampaignDraft({
+      campaign_type: "PERFORMANCE_MAX",
+      name: "PMax Assets Test",
+      budget_amount: 50,
+      status: "PAUSED",
+    });
+    setParsedCampaignState(null);
+  };
+  const serverShopping = () => {
+    setInputMode("manual");
+    setCampaignType("SHOPPING");
+    setSelectedKeys(new Set(["merchant_id", "sales_country", "budget_name", "location_ids"]));
+    setCampaignDraft({
+      campaign_type: "SHOPPING",
+      name: "Shopping Test",
+      budget_amount: 75,
+      status: "PAUSED",
+    });
+    setParsedCampaignState(null);
+  };
+
+  const handleParse = () => {
+    setParseError(null);
+    setParsedCampaignState(null);
+    const result = parseServerInput(parseInput);
+    if (!result) {
+      setParseError("Could not parse. Paste campaign-setup JSON, markdown with ```campaign-setup block, or campaign-draft event JSON.");
+      return;
+    }
+    const keys = result.keys_for_form ?? [];
+    if (keys.length === 0) {
+      setParseError("Parsed but keys_for_form is empty.");
+      return;
+    }
+    setSelectedKeys(new Set(keys));
+    setInputMode("manual");
+    const ct = result.campaign_type || campaignType;
+    setCampaignType(ct);
+
+    const draft = result.draft;
+    if (draft) {
+      const dr = draft as Record<string, unknown>;
+      const isNested = Object.values(dr).every(
+        (v) => v != null && typeof v === "object" && !Array.isArray(v)
+      ) && Object.keys(dr).length > 0;
+      const flat = isNested
+        ? flattenDraft(draft as unknown as Record<string, Record<string, unknown>>)
+        : dr;
+      setCampaignDraft({ ...flat, campaign_type: flat.campaign_type ?? ct });
+      setParsedCampaignState({
+        draft_id: result.draft_id ?? "",
+        platform: result.platform ?? "google",
+        campaign_type: ct,
+        complete: result.complete ?? false,
+        draft: flat,
+        questions: result.questions ?? {},
+        keys_for_form: keys,
+        validation_error: result.validation_error ?? null,
+      });
+    } else {
+      setCampaignDraft((prev) => ({ ...prev, campaign_type: ct }));
+    }
+  };
 
   const questionsSchema: string[] = Array.from(selectedKeys);
 
-  const campaignDraft: Record<string, unknown> = {
-    campaign_type: campaignType,
-    name: "Test Campaign",
-    budget_amount: 50,
-    status: "PAUSED",
+  const effectiveCampaignDraft: Record<string, unknown> = {
+    ...campaignDraft,
+    campaign_type: campaignDraft.campaign_type ?? campaignType,
   };
 
   return (
@@ -285,15 +388,68 @@ export const ChatFormTestPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Input mode: Manual vs Parse from server */}
+          <div>
+            <span className="text-xs font-medium text-[#072929] block mb-2">Input mode</span>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => setInputMode("manual")}
+                className={`px-2 py-1 rounded text-xs font-medium ${
+                  inputMode === "manual" ? "bg-[#136D6D] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Manual
+              </button>
+              <button
+                type="button"
+                onClick={() => setInputMode("parse")}
+                className={`px-2 py-1 rounded text-xs font-medium ${
+                  inputMode === "parse" ? "bg-[#136D6D] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Parse
+              </button>
+            </div>
+          </div>
+
+          {inputMode === "parse" && (
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-[#072929] block">
+                Paste campaign-setup JSON, markdown with &#96;&#96;&#96;campaign-setup block, or campaign-draft event JSON
+              </span>
+              <textarea
+                value={parseInput}
+                onChange={(e) => {
+                  setParseInput(e.target.value);
+                  setParseError(null);
+                }}
+                placeholder='{"keys_for_form":["budget_name","location_ids"],"platform":"google","campaign_type":"DEMAND_GEN",...}'
+                className="w-full min-h-[120px] px-2 py-1.5 text-xs font-mono border border-gray-300 rounded"
+              />
+              <button
+                type="button"
+                onClick={handleParse}
+                className="px-3 py-1.5 text-xs font-medium bg-[#136D6D] text-white rounded hover:opacity-90"
+              >
+                Parse
+              </button>
+              {parseError && <p className="text-xs text-red-600">{parseError}</p>}
+            </div>
+          )}
+
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-[#072929]">Fields to show</span>
-                <div className="flex gap-1 flex-wrap">
+              <div className="flex gap-1 flex-wrap">
                 <button type="button" onClick={selectAll} className="text-[10px] text-[#136D6D] hover:underline">All</button>
                 <button type="button" onClick={clearAll} className="text-[10px] text-gray-500 hover:underline">Clear</button>
-                <button type="button" onClick={biddingStrategyOnly} className="text-[10px] text-amber-600 hover:underline">Bidding only</button>
+                <button type="button" onClick={biddingStrategyOnly} className="text-[10px] text-amber-600 hover:underline">URL</button>
                 <button type="button" onClick={performanceMaxPreset} className="text-[10px] text-emerald-600 hover:underline">PMax</button>
-                <button type="button" onClick={searchWithTargeting} className="text-[10px] text-purple-600 hover:underline">Search + Targeting</button>
+                <button type="button" onClick={searchWithTargeting} className="text-[10px] text-purple-600 hover:underline">Targeting</button>
+                <button type="button" onClick={serverDemandGenTargeting} className="text-[10px] text-blue-600 hover:underline">Server: Demand Gen</button>
+                <button type="button" onClick={serverPmaxAssets} className="text-[10px] text-teal-600 hover:underline">Server: PMax</button>
+                <button type="button" onClick={serverShopping} className="text-[10px] text-indigo-600 hover:underline">Server: Shopping</button>
               </div>
             </div>
             {ALL_FIELD_GROUPS.map((group) => (
@@ -356,13 +512,33 @@ export const ChatFormTestPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Campaign form – same as in AssistantPanel */}
+                {/* CampaignDraftPreview – when parsed from server */}
+                {parsedCampaignState && parsedCampaignState.draft && Object.keys(parsedCampaignState.draft).length > 0 && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] w-full">
+                      <CampaignDraftPreview
+                        campaignState={parsedCampaignState}
+                        visible={true}
+                        layout="expandable"
+                        title={
+                          <div className="flex items-center gap-2 mb-2">
+                            <strong className="text-sm text-[#072929]">
+                              Parsed draft · {parsedCampaignState.platform} · {parsedCampaignState.campaign_type}
+                            </strong>
+                          </div>
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Campaign form – same component and props as AssistantPanel */}
                 {selectedKeys.size > 0 && (
                   <div className="flex justify-start">
                     <div className="max-w-[85%] w-full">
                       <CampaignFormForChat
                         questionsSchema={questionsSchema}
-                        campaignDraft={campaignDraft}
+                        campaignDraft={effectiveCampaignDraft}
                         campaignType={campaignType}
                         onSend={(msg) => {
                           setLastSubmit(msg);

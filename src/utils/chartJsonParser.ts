@@ -238,7 +238,7 @@ export function extractDisplayContentFromEvents(events: unknown[]): string {
 export function parseContentWithBlocks(raw: string): ContentSegment[] {
   const segments: ContentSegment[] = [];
   let lastIndex = 0;
-  const blockRe = /```(chart-json|campaign-setup|pdf-report)\s*\n([\s\S]*?)\n```/g;
+  const blockRe = /```(chart-json|campaign-setup|pdf-report|docx-report)\s*\n([\s\S]*?)\n```/g;
   let match;
   while ((match = blockRe.exec(raw)) !== null) {
     const mdPart = raw.slice(lastIndex, match.index);
@@ -253,7 +253,7 @@ export function parseContentWithBlocks(raw: string): ContentSegment[] {
     } else if (blockType === "campaign-setup") {
       const data = parseCampaignSetupJson(inner);
       if (data) segments.push({ type: "campaign-setup", data });
-    } else if (blockType === "pdf-report") {
+    } else if (blockType === "pdf-report" || blockType === "docx-report") {
       const data = parsePdfReportJson(inner);
       if (data) segments.push({ type: "pdf-report", data });
     }

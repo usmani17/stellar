@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAssistant, type SessionWithMessages } from "../../contexts/AssistantContext";
@@ -68,6 +68,12 @@ const getInitialColor = (initial: string): string => {
 const ASSISTANT_TEXTAREA_MIN_HEIGHT = 24;
 const ASSISTANT_TEXTAREA_MAX_HEIGHT = 200;
 
+/** Slash commands — sent as-is to backend (no expansion) */
+const SLASH_COMMANDS = [
+  { cmd: "/pdf", label: "Generate PDF report" },
+  { cmd: "/docx", label: "Generate Word report" },
+] as const;
+
 /** Profile item from GET /accounts/:accountId/profiles/ (channel_id, channel_name, profile name) */
 interface AccountProfileOption {
     channel_id: number;
@@ -101,7 +107,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         isOpen,
         messages,
         isLoading,
-        inputValue,
         setInputValue,
         sendMessage,
         suggestedPrompts,
@@ -126,7 +131,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     const lastAutoScrollTimeRef = useRef(0);
     const scrollThrottleMs = 80;
     const nearBottomThreshold = 120;
-    const inputRef = useRef<HTMLTextAreaElement>(null);
+    const editableRef = useRef<HTMLDivElement>(null);
     const historyDropdownRef = useRef<HTMLDivElement>(null);
     const schemaFormRef = useRef<CampaignFormForChatHandle | null>(null);
     const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);
@@ -140,8 +145,13 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     const [accountSearchQuery, setAccountSearchQuery] = useState("");
     const [isIntegrationProfileDropdownOpen, setIsIntegrationProfileDropdownOpen] = useState(false);
     const [profileSearchQuery, setProfileSearchQuery] = useState("");
+    const [isSlashDropdownOpen, setIsSlashDropdownOpen] = useState(false);
+    const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
+    const [editableContent, setEditableContent] = useState(""); // for slash trigger; actual DOM is source of truth
+    const editableSyncRafRef = useRef<number | null>(null);
     const accountDropdownRef = useRef<HTMLDivElement>(null);
     const integrationProfileDropdownRef = useRef<HTMLDivElement>(null);
+    const slashDropdownRef = useRef<HTMLDivElement>(null);
 
     // Load accounts when panel is open
     useEffect(() => {
@@ -199,11 +209,18 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 setIsIntegrationProfileDropdownOpen(false);
                 setProfileSearchQuery("");
             }
+            if (slashDropdownRef.current && !slashDropdownRef.current.contains(target)) {
+                setIsSlashDropdownOpen(false);
+            }
         };
 
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [sessionToDelete]);
+
+    useEffect(() => () => {
+        if (editableSyncRafRef.current) cancelAnimationFrame(editableSyncRafRef.current);
+    }, []);
 
     // Reset scroll-follow when switching sessions so we scroll to bottom for new conversation
     useEffect(() => {
@@ -225,21 +242,157 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         });
     }, [messages]);
 
-    // Auto-grow textarea so user can see what they type; cap at ASSISTANT_TEXTAREA_MAX_HEIGHT
+    // Show slash dropdown when user types "/" (hide when input exactly matches a full command)
+    const filteredSlashCommands = SLASH_COMMANDS.filter((c) => {
+        const v = editableContent.trimStart();
+        if (!v.startsWith("/")) return false;
+        const q = v.slice(1).toLowerCase();
+        return !q || c.cmd.slice(1).startsWith(q);
+    });
+    const isExactCommand = filteredSlashCommands.some((c) => editableContent.trim() === c.cmd);
+
     useEffect(() => {
-        const ta = inputRef.current;
-        if (!ta) return;
-        ta.style.height = "auto";
-        const h = Math.min(ASSISTANT_TEXTAREA_MAX_HEIGHT, Math.max(ASSISTANT_TEXTAREA_MIN_HEIGHT, ta.scrollHeight));
-        ta.style.height = `${h}px`;
-        ta.style.overflowY = ta.scrollHeight > ASSISTANT_TEXTAREA_MAX_HEIGHT ? "auto" : "hidden";
-    }, [inputValue]);
+        const v = editableContent.trimStart();
+        if (v.startsWith("/") && !isExactCommand) {
+            const afterSlash = v.slice(1).toLowerCase();
+            if (afterSlash === "" || SLASH_COMMANDS.some((c) => c.cmd.slice(1).startsWith(afterSlash))) {
+                setIsSlashDropdownOpen(true);
+                setSlashSelectedIndex(0);
+                return;
+            }
+        }
+        setIsSlashDropdownOpen(false);
+    }, [editableContent, isExactCommand]);
+
+    // Keep selected index in range when filter narrows
+    useEffect(() => {
+        if (isSlashDropdownOpen && filteredSlashCommands.length > 0 && slashSelectedIndex >= filteredSlashCommands.length) {
+            setSlashSelectedIndex(filteredSlashCommands.length - 1);
+        }
+    }, [isSlashDropdownOpen, filteredSlashCommands.length, slashSelectedIndex]);
+
+    const getEditableTextBeforeCursor = (): string => {
+        const el = editableRef.current;
+        if (!el) return "";
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || !sel.anchorNode) return "";
+        if (!el.contains(sel.anchorNode)) return "";
+        try {
+            const range = document.createRange();
+            range.setStart(el, 0);
+            range.setEnd(sel.anchorNode, sel.anchorOffset);
+            return range.toString();
+        } catch {
+            return "";
+        }
+    };
+
+    const getEditableValue = (): string => {
+        const el = editableRef.current;
+        if (!el) return "";
+        const BLOCK_TAGS = new Set(["DIV", "P"]);
+        const walk = (node: Node): string => {
+            if (node.nodeType === Node.TEXT_NODE) return node.textContent || "";
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const e = node as HTMLElement;
+                if (e.dataset.cmd) return e.dataset.cmd;
+                if (e.tagName?.toUpperCase() === "BR") return "\n";
+                const parts: string[] = [];
+                Array.from(node.childNodes).forEach((child, i) => {
+                    if (child.nodeType === Node.ELEMENT_NODE) {
+                        const tag = (child as HTMLElement).tagName?.toUpperCase();
+                        if (tag === "BR") {
+                            parts.push("\n");
+                            return;
+                        }
+                        if (BLOCK_TAGS.has(tag) && i > 0) parts.push("\n");
+                    }
+                    parts.push(walk(child));
+                });
+                return parts.join("");
+            }
+            return "";
+        };
+        const parts: string[] = [];
+        Array.from(el.childNodes).forEach((child, i) => {
+            if (child.nodeType === Node.ELEMENT_NODE) {
+                const tag = (child as HTMLElement).tagName?.toUpperCase();
+                if (tag === "BR") {
+                    parts.push("\n");
+                    return;
+                }
+                if (BLOCK_TAGS.has(tag) && i > 0) parts.push("\n");
+            }
+            parts.push(walk(child));
+        });
+        return parts.join("");
+    };
+
+    const syncEditableContentToState = useCallback((immediate?: boolean) => {
+        const value = getEditableValue();
+        if (immediate || value.trimStart().startsWith("/")) {
+            if (editableSyncRafRef.current) {
+                cancelAnimationFrame(editableSyncRafRef.current);
+                editableSyncRafRef.current = null;
+            }
+            setEditableContent(value);
+            return;
+        }
+        if (editableSyncRafRef.current) return;
+        editableSyncRafRef.current = requestAnimationFrame(() => {
+            editableSyncRafRef.current = null;
+            setEditableContent(getEditableValue());
+        });
+    }, []);
+
+    const insertChipAtCursor = (cmd: string) => {
+        const el = editableRef.current;
+        if (!el) return;
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        const range = sel.getRangeAt(0);
+        const textBefore = getEditableTextBeforeCursor();
+        const match = textBefore.match(/\/[\w]*$/);
+        if (match) {
+            range.setStart(sel.anchorNode!, sel.anchorOffset - match[0].length);
+            range.deleteContents();
+        }
+        const span = document.createElement("span");
+        span.contentEditable = "false";
+        span.dataset.cmd = cmd;
+        span.className = "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[13px] font-medium bg-[#E6F2F2] text-[#136D6D] border border-[#B8E0E0] align-middle mx-0.5";
+        span.innerHTML = `${cmd} <button type="button" class="inline-flex items-center justify-center ml-0.5 w-4 h-4 hover:bg-[#136D6D]/20 rounded cursor-pointer text-[#136D6D]" data-remove-chip aria-label="Remove"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>`;
+        span.addEventListener("click", (e) => {
+            const btn = (e.target as HTMLElement).closest("[data-remove-chip]");
+            if (btn) {
+                span.remove();
+                setEditableContent(getEditableValue());
+                el.focus();
+            }
+        });
+        range.insertNode(span);
+        range.setStartAfter(span);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        setEditableContent(getEditableValue());
+        el.focus();
+    };
+
+    // Auto-grow editable so user can see what they type
+    useEffect(() => {
+        const el = editableRef.current;
+        if (!el) return;
+        el.style.height = "auto";
+        const h = Math.min(ASSISTANT_TEXTAREA_MAX_HEIGHT, Math.max(ASSISTANT_TEXTAREA_MIN_HEIGHT, el.scrollHeight));
+        el.style.height = `${h}px`;
+        el.style.overflowY = el.scrollHeight > ASSISTANT_TEXTAREA_MAX_HEIGHT ? "auto" : "hidden";
+    }, [editableContent]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (isLoading || isStreaming) return;
         if (!canChat) return;
-        const textPart = inputValue.trim();
         const schema = SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema ? questionsSchema : [];
         const formValues = SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema && schemaFormRef.current ? schemaFormRef.current.getValues() : {};
 
@@ -265,10 +418,16 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     .filter(Boolean) as string[])
                 : [];
         const formBlock = formParts.length > 0 ? formParts.join("\n") : "";
-        const combined = [formBlock, textPart].filter(Boolean).join("\n\n");
+        const messagePart = getEditableValue().trim();
+        const combined = [formBlock, messagePart].filter(Boolean).join("\n\n");
         if (combined) {
             userScrolledUpRef.current = false;
             sendMessage(combined);
+            if (editableRef.current) {
+                editableRef.current.innerHTML = "";
+                editableRef.current.focus();
+            }
+            setEditableContent("");
             setInputValue("");
             if (formParts.length > 0) schemaFormRef.current?.clear();
         }
@@ -285,7 +444,117 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         sendMessage(promptText);
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === "Backspace") {
+            const el = editableRef.current;
+            const sel = window.getSelection();
+            const textBefore = getEditableTextBeforeCursor();
+            const isCursorInTextWithContentBefore = sel?.anchorNode?.nodeType === Node.TEXT_NODE && (sel.anchorOffset ?? 0) > 0;
+            for (const { cmd } of SLASH_COMMANDS) {
+                if (textBefore.endsWith(cmd) || textBefore.endsWith(` ${cmd}`)) {
+                    if (isCursorInTextWithContentBefore) continue;
+                    e.preventDefault();
+                    const toRemove = textBefore.endsWith(` ${cmd}`) ? ` ${cmd}` : cmd;
+                    const range = sel?.getRangeAt(0);
+                    if (range && el) {
+                        const start = textBefore.length - toRemove.length;
+                        let count = 0;
+                        let startNode: Node | null = null;
+                        let startOffset = 0;
+                        const walk = (node: Node): boolean => {
+                            if (node.nodeType === Node.TEXT_NODE) {
+                                const len = (node.textContent || "").length;
+                                if (count + len >= start) {
+                                    startNode = node;
+                                    startOffset = start - count;
+                                    return true;
+                                }
+                                count += len;
+                            } else if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).dataset?.cmd) {
+                                const len = (node as HTMLElement).dataset.cmd!.length;
+                                if (count + len >= start) {
+                                    startNode = node;
+                                    startOffset = start === count ? 0 : 1;
+                                    return true;
+                                }
+                                count += len;
+                            } else {
+                                for (let i = 0; i < node.childNodes.length; i++) {
+                                    if (walk(node.childNodes[i])) return true;
+                                }
+                            }
+                            return false;
+                        };
+                        walk(el);
+                        if (startNode && sel) {
+                            range.setStart(startNode, startOffset);
+                            range.setEnd(sel.anchorNode!, sel.anchorOffset);
+                            range.deleteContents();
+                        }
+                        setEditableContent(getEditableValue());
+                    }
+                    setIsSlashDropdownOpen(false);
+                    el?.focus();
+                    return;
+                }
+            }
+            if (sel && sel.rangeCount > 0 && !isCursorInTextWithContentBefore) {
+                const range = sel.getRangeAt(0);
+                if (range.collapsed) {
+                    let prev: Node | null = sel.anchorNode;
+                    if (prev?.nodeType === Node.TEXT_NODE && sel.anchorOffset === 0) {
+                        prev = prev.previousSibling;
+                    } else if (prev?.nodeType === Node.ELEMENT_NODE) {
+                        prev = prev.childNodes[sel.anchorOffset - 1] ?? prev.previousSibling;
+                    } else {
+                        prev = prev?.previousSibling ?? null;
+                    }
+                    while (prev && prev.nodeType === Node.TEXT_NODE && (prev as Text).length === 0) {
+                        prev = prev.previousSibling;
+                    }
+                    if (prev && (prev as HTMLElement).dataset?.cmd) {
+                        e.preventDefault();
+                        (prev as HTMLElement).remove();
+                        setEditableContent(getEditableValue());
+                        el?.focus();
+                        return;
+                    }
+                }
+            }
+            if (isSlashDropdownOpen) {
+                const v = editableContent.trimStart();
+                if (v === "/" || (v.startsWith("/") && v.length <= 1)) {
+                    setIsSlashDropdownOpen(false);
+                }
+            }
+        }
+        if (isSlashDropdownOpen && filteredSlashCommands.length > 0) {
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setSlashSelectedIndex((i) => (i + 1) % filteredSlashCommands.length);
+                return;
+            }
+            if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setSlashSelectedIndex((i) => (i - 1 + filteredSlashCommands.length) % filteredSlashCommands.length);
+                return;
+            }
+            if (e.key === "Enter") {
+                e.preventDefault();
+                const idx = Math.min(slashSelectedIndex, filteredSlashCommands.length - 1);
+                const selected = filteredSlashCommands[idx];
+                if (selected) {
+                    insertChipAtCursor(selected.cmd);
+                    setIsSlashDropdownOpen(false);
+                }
+                return;
+            }
+            if (e.key === "Escape") {
+                e.preventDefault();
+                setIsSlashDropdownOpen(false);
+                return;
+            }
+        }
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             handleSubmit(e);
@@ -1010,27 +1279,39 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             </div>
 
             {/* Input Area - Cursor-style: upper row = description/input, lower row = agent + send; no plus icon */}
-            <div className="px-4 py-3 border-t border-gray-100">
+            <div className="px-4 py-3 border-t border-gray-100 relative" ref={slashDropdownRef}>
                 <form onSubmit={handleSubmit} className="relative">
                     <div className="assistant-input-container rounded-[12px] p-3 flex flex-col gap-3">
-                        {/* Upper row: description / message input */}
-                        <textarea
-                            ref={inputRef}
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder={
-                                isStreaming
-                                    ? "Generating response..."
-                                    : !canChat
-                                        ? "Select account and profile above to enable chat"
-                                        : "Ask me anything about your campaigns... (Shift+Enter for new line)"
-                            }
-                            className="w-full min-h-[24px] max-h-[200px] resize-none overflow-y-auto bg-transparent text-[14px] font-normal text-[#072929] placeholder:text-[#9ca3af] focus:outline-none py-0"
-                            style={{ fontFamily: "'GT America Trial', sans-serif", minHeight: ASSISTANT_TEXTAREA_MIN_HEIGHT, maxHeight: ASSISTANT_TEXTAREA_MAX_HEIGHT }}
-                            disabled={isLoading || isStreaming || !canChat}
-                            rows={1}
-                        />
+                        {/* Upper row: contenteditable with inline chips (tags) */}
+                        <div className="relative min-h-[24px] w-full">
+                            {!editableContent && (
+                                <span
+                                    className="absolute left-0 top-0 text-[14px] text-[#9ca3af] pointer-events-none"
+                                    style={{ fontFamily: "'GT America Trial', sans-serif" }}
+                                >
+                                    {isStreaming
+                                        ? "Generating response..."
+                                        : !canChat
+                                            ? "Select account and profile above to enable chat"
+                                            : "Ask me anything... Type / for commands (Shift+Enter for new line)"}
+                                </span>
+                            )}
+                            <div
+                                ref={editableRef}
+                                contentEditable={!isLoading && !isStreaming && !!canChat}
+                                suppressContentEditableWarning
+                                onInput={() => syncEditableContentToState()}
+                                onKeyDown={handleKeyDown}
+                                onPaste={(e) => {
+                                    e.preventDefault();
+                                    const text = e.clipboardData.getData("text/plain");
+                                    document.execCommand("insertText", false, text);
+                                    syncEditableContentToState(true);
+                                }}
+                                className="min-w-[80px] min-h-[24px] max-h-[200px] overflow-y-auto bg-transparent text-[14px] font-normal text-[#072929] focus:outline-none py-0"
+                                style={{ fontFamily: "'GT America Trial', sans-serif", minHeight: ASSISTANT_TEXTAREA_MIN_HEIGHT, maxHeight: ASSISTANT_TEXTAREA_MAX_HEIGHT }}
+                            />
+                        </div>
                         {/* Lower row: send/stop only (agent selection is in setup card Step 3) */}
                         <div className="flex items-center justify-end gap-2">
                             {isStreaming ? (
@@ -1045,7 +1326,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             ) : (
                                 <button
                                     type="submit"
-                                    disabled={!inputValue.trim() || isLoading || !canChat}
+                                    disabled={!editableContent.trim() || isLoading || !canChat}
                                     className="flex items-center justify-center w-9 h-9 rounded-full bg-[#374151] hover:bg-[#1f2937] text-white transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
                                     title="Send"
                                 >
@@ -1054,6 +1335,30 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             )}
                         </div>
                     </div>
+                    {/* Slash command dropdown */}
+                    {isSlashDropdownOpen && canChat && !isStreaming && (
+                        <div className="absolute bottom-full left-4 right-4 mb-1 py-1 bg-white border border-[#E8E8E3] rounded-lg shadow-lg z-50 max-h-[140px] overflow-y-auto">
+                            {filteredSlashCommands.map(({ cmd, label }, idx) => (
+                                <button
+                                    key={cmd}
+                                    type="button"
+                                    onClick={() => {
+                                        insertChipAtCursor(cmd);
+                                        setIsSlashDropdownOpen(false);
+                                        editableRef.current?.focus();
+                                    }}
+                                    className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${
+                                        idx === Math.min(slashSelectedIndex, filteredSlashCommands.length - 1)
+                                            ? "bg-[#E6F2F2] text-[#072929]"
+                                            : "text-[#072929] hover:bg-[#F9F9F6]"
+                                    }`}
+                                >
+                                    <span className="font-mono text-[#136D6D]">{cmd}</span>
+                                    <span className="text-[#556179]">{label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </form>
             </div>
 
