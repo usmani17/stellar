@@ -1,4 +1,5 @@
-import type { CampaignSetupState } from "../../types/agent";
+
+import type { CampaignDraftData } from "../../services/ai/pixisChat";
 import type { ThreadMessage } from "./threads";
 
 function extractMessageContent(raw: unknown): string {
@@ -28,9 +29,9 @@ function toRole(typeOrRole: string | undefined): "human" | "ai" | null {
 /**
  * Normalize campaign_setup state to ThreadMessage[] for use in the shared Assistant UI.
  */
-export function campaignStateToThreadMessages(state: CampaignSetupState): ThreadMessage[] {
-  const raw = state.messages;
-  const replyText = state.reply_text;
+export function campaignStateToThreadMessages(state: CampaignDraftData): ThreadMessage[] {
+  const raw = state.draft.messages;
+  const replyText = state.draft.reply_text as string | undefined;
   const out: ThreadMessage[] = [];
 
   if (raw && Array.isArray(raw)) {

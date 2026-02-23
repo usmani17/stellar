@@ -178,7 +178,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const hasTrackingUrlTemplateField = isFieldRequested("tracking_url_template", requestedKeys);
   const hasFinalUrlSuffixField = isFieldRequested("final_url_suffix", requestedKeys);
   const hasUrlCustomParametersField = isFieldRequested("url_custom_parameters", requestedKeys);
-  const hasBudgetNameField = isFieldRequested("budget_name", requestedKeys);
+  const hasBudgetNameField = isFieldRequested("budget_name", requestedKeys) || isFieldRequested("budget_id", requestedKeys);
   const hasLocationIdsField = isFieldRequested("location_ids", requestedKeys);
   const hasExcludedLocationIdsField = isFieldRequested("excluded_location_ids", requestedKeys);
   const hasMerchantIdField = isFieldRequested("merchant_id", requestedKeys);
@@ -399,14 +399,12 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
     }
 
     // Add budget_name
-    if (isFieldRequested("budget_name", requestedKeys)) {
+    if (isFieldRequested("budget_name", requestedKeys) || isFieldRequested("budget_id", requestedKeys)) {
       let displayValue = budgetName;
       if (selectedBudgetId && selectedBudgetId !== "__CUSTOM__") {
-        // Show selected budget name from dropdown
-        const selectedOption = budgetOptions.find(opt => opt.value === selectedBudgetId);
-        displayValue = selectedOption?.name || budgetName;
-      }
-      if (displayValue) {
+        const label = getFieldLabel("budget_id");
+        parts.push(`${label}: ${selectedBudgetId}`);
+      } else if (displayValue) {
         const label = getFieldLabel("budget_name");
         parts.push(`${label}: ${displayValue}`);
       }
