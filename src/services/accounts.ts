@@ -483,6 +483,120 @@ export const accountsService = {
     return response.data;
   },
 
+  getMetaAdSets: async (
+    channelId: number,
+    params: {
+      filters?: Array<{ field: string; value: unknown }>;
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+    }
+  ): Promise<{
+    adsets: Array<{
+      id: number;
+      adset_id: number | string;
+      adset_name: string;
+      campaign_id?: number | string;
+      campaign_name?: string;
+      status?: string;
+      start_time?: string;
+      end_time?: string;
+      daily_budget?: string;
+      impressions?: number;
+      clicks?: number;
+      spends?: number;
+      sales?: number;
+      acos?: number;
+      roas?: number;
+    }>;
+    summary: {
+      total_adsets: number;
+      total_spends: number;
+      total_sales: number;
+      total_impressions: number;
+      total_clicks: number;
+      avg_acos: number;
+      avg_roas: number;
+    };
+    chart_data?: Array<{
+      date: string;
+      spend: number;
+      sales: number;
+      impressions?: number;
+      clicks?: number;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/adsets/`,
+      params
+    );
+    return response.data;
+  },
+
+  getMetaAds: async (
+    channelId: number,
+    params: {
+      filters?: Array<{ field: string; value: unknown }>;
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+    }
+  ): Promise<{
+    ads: Array<{
+      id: number;
+      ad_id: number | string;
+      ad_name: string;
+      campaign_id?: number | string;
+      campaign_name?: string;
+      adset_id?: number | string;
+      adset_name?: string;
+      status?: string;
+      created_time?: string;
+      impressions?: number;
+      clicks?: number;
+      spends?: number;
+      sales?: number;
+      acos?: number;
+      roas?: number;
+    }>;
+    summary: {
+      total_ads: number;
+      total_spends: number;
+      total_sales: number;
+      total_impressions: number;
+      total_clicks: number;
+      avg_acos: number;
+      avg_roas: number;
+    };
+    chart_data?: Array<{
+      date: string;
+      spend: number;
+      sales: number;
+      impressions?: number;
+      clicks?: number;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/ads/`,
+      params
+    );
+    return response.data;
+  },
+
   // Amazon Portfolios (per account, optionally filtered by profileId)
   getPortfolios: async (
     accountId: number,
