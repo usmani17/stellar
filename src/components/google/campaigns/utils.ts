@@ -58,7 +58,7 @@ export const BIDDING_STRATEGIES = {
   ],
   SHOPPING: [
     { value: "MANUAL_CPC", label: "Manual CPC" },
-    { value: "MAXIMIZE_CLICKS", label: "Maximize Clicks" },
+    { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
     { value: "TARGET_ROAS", label: "Target ROAS" },
   ],
   PERFORMANCE_MAX: [
