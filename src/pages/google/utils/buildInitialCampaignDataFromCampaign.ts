@@ -202,6 +202,7 @@ export function buildInitialCampaignDataFromCampaign(
       [],
     merchant_id: campaignData.merchant_id || shopping_setting.merchant_id,
     sales_country:
+      (draft_campaign.sales_country as string | undefined) ??
       (creation_payload.sales_country as string | undefined) ??
       campaignData.sales_country ??
       shopping_setting.sales_country ??

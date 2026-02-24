@@ -835,6 +835,7 @@ export const GoogleCampaignDetail: React.FC = () => {
       const draftCampaign = draftState.campaign && typeof draftState.campaign === "object" ? draftState.campaign : {};
       const resolvedStatus = (draftCampaign.status ?? creationPayload.status ?? c.status ?? "").toString().toUpperCase();
       const statusForForm: "ENABLED" | "PAUSED" = resolvedStatus === "ENABLED" || resolvedStatus === "PAUSED" ? resolvedStatus : "PAUSED";
+      const shoppingSetting = extra.shopping_setting && typeof extra.shopping_setting === "object" ? extra.shopping_setting : {};
       return {
         name: c.name || "",
         status: statusForForm,
@@ -854,6 +855,22 @@ export const GoogleCampaignDetail: React.FC = () => {
           c.campaign_type ||
           "SEARCH") as any,
         bidding_strategy_type: c.bidding_strategy_type,
+        // Shopping-specific: prefer draft_state.campaign (agent drafts), then creation_payload, then extra_data
+        sales_country:
+          (draftCampaign.sales_country as string | undefined) ??
+          (creationPayload.sales_country as string | undefined) ??
+          (c.sales_country as string | undefined) ??
+          shoppingSetting.sales_country ??
+          "US",
+        merchant_id: c.merchant_id ?? shoppingSetting.merchant_id,
+        campaign_priority:
+          typeof draftCampaign.campaign_priority === "number" ? draftCampaign.campaign_priority
+            : typeof creationPayload.campaign_priority === "number" ? creationPayload.campaign_priority
+            : c.campaign_priority ?? shoppingSetting.campaign_priority ?? 0,
+        enable_local:
+          draftCampaign.enable_local === true || draftCampaign.enable_local === false ? draftCampaign.enable_local
+            : creationPayload.enable_local === true || creationPayload.enable_local === false ? creationPayload.enable_local
+            : c.enable_local ?? shoppingSetting.enable_local ?? false,
       };
     }, [campaignDetail?.campaign, isDraftCampaign]);
 

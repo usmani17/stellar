@@ -2002,9 +2002,10 @@ export const GoogleCampaigns: React.FC = () => {
           (creation_payload.device_ids && Array.isArray(creation_payload.device_ids)
             ? creation_payload.device_ids.map((id: number | string) => String(id))
             : undefined) ?? campaignData.device_ids ?? [],
-        // Shopping-specific fields from extra_data or direct fields (drafts: creation_payload)
+        // Shopping-specific fields from extra_data or direct fields (drafts: draft_state.campaign or creation_payload)
         merchant_id: campaignData.merchant_id || shopping_setting.merchant_id,
         sales_country:
+          (draft_campaign.sales_country as string | undefined) ??
           (creation_payload.sales_country as string | undefined) ??
           campaignData.sales_country ??
           shopping_setting.sales_country ??

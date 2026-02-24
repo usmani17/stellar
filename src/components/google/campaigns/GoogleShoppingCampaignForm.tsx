@@ -53,6 +53,7 @@ export const GoogleShoppingCampaignForm: React.FC<GoogleShoppingCampaignFormProp
   formData,
   errors,
   onChange,
+  isDraftCampaign = false,
   mode = "create",
   accountId,
   channelId,
@@ -172,7 +173,7 @@ export const GoogleShoppingCampaignForm: React.FC<GoogleShoppingCampaignFormProp
             value={formData.sales_country || "US"}
             onChange={(value) => onChange("sales_country", value)}
             buttonClassName="edit-button w-full"
-            disabled={mode === "edit" && formData.campaign_type === "SHOPPING"}
+            disabled={mode === "edit" && formData.campaign_type === "SHOPPING" && !isDraftCampaign}
           />
         </div>
         )}
