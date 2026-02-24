@@ -135,6 +135,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     const editableRef = useRef<HTMLDivElement>(null);
     const historyDropdownRef = useRef<HTMLDivElement>(null);
     const schemaFormRef = useRef<CampaignFormForChatHandle | null>(null);
+    const campaignFormAreaRef = useRef<HTMLDivElement>(null);
     const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);
     const [sessionToDelete, setSessionToDelete] = useState<{ id: string; title: string; anchorRect: DOMRect; source: "tab" | "history" } | null>(null);
 
@@ -615,6 +616,13 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         !!campaignFormExpected &&
         !hasQuestionsSchema &&
         !isStreaming;
+
+    useEffect(() => {
+        if (!hasQuestionsSchema || isStreaming) return;
+        requestAnimationFrame(() => {
+            campaignFormAreaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+    }, [hasQuestionsSchema, isStreaming]);
 
     const groupedSessions = groupSessionsByDate(sessions);
     const hasMessages = messages.length > 0;
@@ -1278,7 +1286,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             </div>
                         )}
 
-                        {/* Campaign: small loading when form is expected but schema not yet available */}
+                        {/* Campaign: loading + form area */}
+                        <div ref={campaignFormAreaRef}>
                         {campaignFormLoading && (
                             <div className="mt-2 p-3 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[10px] flex items-center gap-2 text-[#556179]">
                                 <div className="flex gap-1">
@@ -1290,7 +1299,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             </div>
                         )}
 
-                        {/* Campaign: form fields — use CampaignFormForChat (reuses campaign form components) for full campaign support */}
                         {SHOW_CAMPAIGN_SCHEMA_FORM && hasQuestionsSchema && !isLoading && !isStreaming && (
                             <CampaignFormForChat
                                 ref={schemaFormRef}
@@ -1305,6 +1313,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 plateform={assistantScope.marketplace ?? undefined}
                             />
                         )}
+                        </div>
 
                         <div ref={messagesEndRef} />
                     </div>

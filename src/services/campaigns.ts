@@ -3361,7 +3361,8 @@ export const campaignsService = {
     channelId: number,
     profileId: string | number,
     searchQuery?: string,
-    countryCode?: string
+    countryCode?: string,
+    locationIds?: (number | string)[]
   ): Promise<Array<{ id: string; name: string; type: string; countryCode: string; resource_name: string }>> => {
     // Validate channelId before constructing URL
     if (!channelId || isNaN(channelId)) {
@@ -3375,6 +3376,9 @@ export const campaignsService = {
     }
     if (countryCode) {
       params.append('country_code', countryCode);
+    }
+    if (locationIds && locationIds.length > 0) {
+      params.append('ids', locationIds.map((id) => String(id).trim()).filter(Boolean).join(','));
     }
     if (params.toString()) {
       url += `?${params.toString()}`;

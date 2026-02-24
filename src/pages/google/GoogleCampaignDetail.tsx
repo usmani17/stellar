@@ -831,9 +831,13 @@ export const GoogleCampaignDetail: React.FC = () => {
         extra.creation_payload && typeof extra.creation_payload === "object"
           ? extra.creation_payload
           : {};
+      const draftState = extra.draft_state && typeof extra.draft_state === "object" ? extra.draft_state : {};
+      const draftCampaign = draftState.campaign && typeof draftState.campaign === "object" ? draftState.campaign : {};
+      const resolvedStatus = (draftCampaign.status ?? creationPayload.status ?? c.status ?? "").toString().toUpperCase();
+      const statusForForm: "ENABLED" | "PAUSED" = resolvedStatus === "ENABLED" || resolvedStatus === "PAUSED" ? resolvedStatus : "PAUSED";
       return {
         name: c.name || "",
-        status: (c.status?.toUpperCase() as "ENABLED" | "PAUSED") || "PAUSED",
+        status: statusForForm,
         budget_amount: c.daily_budget ?? c.budget_amount,
         budget_name:
           c.budget_name ??
@@ -1831,18 +1835,16 @@ export const GoogleCampaignDetail: React.FC = () => {
               {/* Campaign Entity Information Card - show for all campaigns (including draft) so inline edit works */}
               <GoogleCampaignInformation
                 campaignDetail={campaignDetail}
+                draftPublishStatus={isDraftCampaign ? draftCampaignInitialData?.status : undefined}
                 editingField={editingField}
                 editedValue={editedValue}
                 loading={loading}
                 onEditField={(field) => {
                   setEditingField(field);
                   if (field === "status" && campaignDetail) {
-                    const statusUpper =
-                      campaignDetail.campaign.status?.toUpperCase() ||
-                      "ENABLED";
-                    setEditedValue(
-                      statusUpper === "ENABLED" ? "ENABLED" : "PAUSED",
-                    );
+                    const resolved = isDraftCampaign ? draftCampaignInitialData?.status : (campaignDetail.campaign.status ?? "ENABLED").toString().toUpperCase();
+                    const statusUpper = (resolved === "ENABLED" || resolved === "PAUSED" ? resolved : "ENABLED");
+                    setEditedValue(statusUpper);
                   } else if (field === "budget" && campaignDetail) {
                     setEditedValue(
                       (campaignDetail.campaign.daily_budget || 0).toString(),
@@ -1874,7 +1876,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   const fieldToUse = field !== undefined ? field : editingField;
 
                   if (fieldToUse === "status") {
-                    const rawCurrent = campaignDetail.campaign.status ?? "";
+                    const rawCurrent = (isDraftCampaign ? draftCampaignInitialData?.status : campaignDetail.campaign.status) ?? "";
                     const rawNew = String(valueToCompare ?? "").trim();
                     const norm = (s: string) => {
                       const v = s.trim().toUpperCase();
@@ -1885,7 +1887,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     if (norm(rawCurrent) !== norm(rawNew)) {
                       setInlineEditField("status");
                       setInlineEditOldValue(
-                        campaignDetail.campaign.status || "Enabled",
+                        (isDraftCampaign ? draftCampaignInitialData?.status : campaignDetail.campaign.status) || "Enabled",
                       );
                       setInlineEditNewValue(valueToCompare);
                       setShowInlineEditModal(true);

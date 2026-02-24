@@ -37,7 +37,7 @@ import {
   CreateGoogleCampaignPanel,
   type CreateGoogleCampaignData,
 } from "../../components/google/CreateGoogleCampaignPanel";
-import { buildInitialCampaignDataFromCampaign } from "./utils/buildInitialCampaignDataFromCampaign";
+import { buildInitialCampaignDataFromCampaign, parseAssetValue } from "./utils/buildInitialCampaignDataFromCampaign";
 import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../../components/google/CreateGooglePmaxAssetGroupPanel";
 import { ErrorModal } from "../../components/ui/ErrorModal";
 import { Loader } from "../../components/ui/Loader";
@@ -1929,9 +1929,9 @@ export const GoogleCampaigns: React.FC = () => {
           creation_payload.budget_resource_name ??
           undefined,
         status:
-          (draft_campaign.status?.toUpperCase() as any) ??
-          ((campaignData.status?.toUpperCase() as any) ||
-            (row.status?.toUpperCase() as any) ||
+          (draft_campaign.status && draft_campaign.status.toUpperCase() !== "SAVED_DRAFT" ? draft_campaign.status.toUpperCase() as any : undefined) ??
+          ((campaignData.status && campaignData.status.toUpperCase() !== "SAVED_DRAFT" ? campaignData.status.toUpperCase() as any : undefined) ||
+            (row.status && row.status.toUpperCase() !== "SAVED_DRAFT" ? row.status.toUpperCase() as any : undefined) ||
             (creation_payload.status?.toUpperCase() as any) ||
             "PAUSED"),
         start_date:
@@ -1952,7 +1952,15 @@ export const GoogleCampaigns: React.FC = () => {
           (campaignData.bidding_strategy_type ||
             creation_payload.bidding_strategy_type ||
             undefined),
-        target_cpa_micros: campaignData.target_cpa_micros,
+        target_cpa_micros: (() => {
+          const raw =
+            (draft_campaign.target_cpa_micros != null ? Number(draft_campaign.target_cpa_micros) : undefined) ??
+            campaignData.target_cpa_micros;
+          if (raw == null || raw <= 0) return undefined;
+          // If value < 1e6, treat as dollars and convert to micros for API
+          if (raw < 1_000_000) return Math.round(raw * 1_000_000);
+          return raw;
+        })(),
         target_roas: campaignData.target_roas,
         target_impression_share_location: campaignData.target_impression_share_location,
         target_impression_share_location_fraction_micros: campaignData.target_impression_share_location_fraction_micros,
@@ -2148,7 +2156,8 @@ export const GoogleCampaigns: React.FC = () => {
         if (budgetName) initial.budget_name = budgetName;
         const biddingType = cpCampaign.bidding_strategy_type ?? cp.bidding_strategy_type;
         if (biddingType) initial.bidding_strategy_type = biddingType;
-        if (cpCampaign.status != null) initial.status = String(cpCampaign.status).toUpperCase();
+        const cpStatus = cpCampaign.status != null ? String(cpCampaign.status).toUpperCase() : null;
+        if (cpStatus === "ENABLED" || cpStatus === "PAUSED") initial.status = cpStatus;
         if (cpCampaign.final_url_suffix != null) initial.final_url_suffix = String(cpCampaign.final_url_suffix);
         if (cpCampaign.tracking_url_template != null) initial.tracking_url_template = String(cpCampaign.tracking_url_template);
         if (cpCampaign.url_custom_parameters != null && typeof cpCampaign.url_custom_parameters === "object") {
@@ -2209,6 +2218,24 @@ export const GoogleCampaigns: React.FC = () => {
         if (draft_ad.long_headlines && Array.isArray(draft_ad.long_headlines)) initial.long_headlines = draft_ad.long_headlines;
         if (draft_ad.channel_controls && typeof draft_ad.channel_controls === "object") {
           initial.channel_controls = { ...initial.channel_controls, ...draft_ad.channel_controls };
+        }
+        if (draft_ad.logo_asset_id != null) {
+          const parsed = parseAssetValue(draft_ad.logo_asset_id);
+          initial.logo_asset_id = parsed.id;
+          initial.logo_asset_resource_name = parsed.resourceName;
+        }
+        if (draft_ad.business_name_asset_id != null) {
+          const parsed = parseAssetValue(draft_ad.business_name_asset_id);
+          initial.business_name_asset_id = parsed.id;
+          initial.business_name_asset_resource_name = parsed.resourceName;
+        }
+        if (draft_campaign.budget_id != null && !initial.budget_resource_name) {
+          const cid = String(
+            campaignData.customer_id ?? row.customer_id ?? extra_data?.account_id ?? draft_state?.account_id ?? ""
+          ).replace(/-/g, "");
+          if (cid) {
+            initial.budget_resource_name = `customers/${cid}/campaignBudgets/${draft_campaign.budget_id}`;
+          }
         }
         // Campaign-level: URL options and targeting (devices, locations, languages, network settings)
         if (draft_campaign.final_url_suffix != null) initial.final_url_suffix = String(draft_campaign.final_url_suffix);

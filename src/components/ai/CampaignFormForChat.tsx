@@ -15,7 +15,10 @@ import { Dropdown } from "../ui/Dropdown";
 import { MerchantIdDropdown } from "../google/MerchantIdDropdown";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
 import { GoogleLocationTargetingForm } from "../google/campaigns/GoogleLocationTargetingForm";
-import { campaignsService } from "../../services/campaigns";
+import {
+  getGoogleLocationOptions,
+  getGoogleLanguageOptions,
+} from "../../constants/googleTargetingOptions";
 import { SALES_COUNTRY_OPTIONS } from "../google/campaigns/utils";
 
 /** Set to true to skip the backend API call for fetching text assets in the assistant campaign form */
@@ -166,8 +169,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const [selectedExcludedLocationIds, setSelectedExcludedLocationIds] = useState<string[]>(
     (campaignDraft?.excluded_location_ids as string[]) || []
   );
-  const [locationOptions, setLocationOptions] = useState<Array<{ value: string; label: string; id: string; type: string; countryCode: string }>>([]);
-  const [loadingLocations, setLoadingLocations] = useState(false);
+  const loadingLocations = false;
 
   const profileIdNum = profileId != null ? (typeof profileId === "number" ? profileId : parseInt(String(profileId), 10)) : null;
   const accountIdNum = accountId != null ? (typeof accountId === "number" ? accountId : parseInt(String(accountId), 10)) : null;
@@ -195,6 +197,8 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const hasExcludedLocationIdsField = isFieldRequested("excluded_location_ids", requestedKeys);
   const hasMerchantIdField = isFieldRequested("merchant_id", requestedKeys);
   const hasSalesCountryField = isFieldRequested("sales_country", requestedKeys);
+  const locationOptions =
+    hasLocationIdsField || hasExcludedLocationIdsField ? getGoogleLocationOptions() : [];
   // Function to fetch budgets
   const fetchBudgets = useCallback(async () => {
     if (!accountIdNum || !channelIdNum || !profileIdNum || !hasBudgetNameField) {
@@ -238,49 +242,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
     }
   }, [accountIdNum, channelIdNum, profileIdNum, fetchBudgets]);
 
-  // Function to fetch locations
-  const fetchLocations = useCallback(async () => {
-    if (!accountIdNum || !channelIdNum || !profileIdNum) {
-      setLocationOptions([]);
-      return;
-    }
-
-    setLoadingLocations(true);
-    try {
-      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
-        throw new Error("Invalid accountId or channelId");
-      }
-      const locations = await campaignsService.getGoogleGeoTargetConstants(
-        accountIdNum,
-        channelIdNum,
-        profileIdNum,
-        undefined,
-        undefined // No country restriction for now
-      );
-
-      const formattedLocations = locations.map((loc: any) => ({
-        value: loc.id,
-        label: `${loc.name} (${loc.type})`,
-        id: loc.id,
-        type: loc.type,
-        countryCode: loc.countryCode || "",
-      }));
-
-      setLocationOptions(formattedLocations);
-    } catch (error: any) {
-      console.error("Error fetching locations:", error);
-      setLocationOptions([]);
-    } finally {
-      setLoadingLocations(false);
-    }
-  }, [accountIdNum, channelIdNum, profileIdNum]);
-
-  // Fetch locations when account, channel, and profile are available
-  useEffect(() => {
-    if (accountIdNum && channelIdNum && profileIdNum && hasLocationIdsField) {
-      fetchLocations();
-    }
-  }, [accountIdNum, channelIdNum, profileIdNum, fetchLocations]);
+  // Locations use hardcoded constants (no fetch) - same as CreateGoogleCampaignPanel
 
   useImperativeHandle(ref, () => ({
     getValues: () => {
@@ -422,24 +384,16 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       }
     }
 
-    // Add location_ids
+    // Add location_ids - pass IDs to agent (not names)
     if (isFieldRequested("location_ids", requestedKeys) && selectedLocationIds.length > 0) {
       const label = getFieldLabel("location_ids");
-      const locationNames = selectedLocationIds.map(locId => {
-        const location = locationOptions.find(opt => opt.value === String(locId));
-        return location?.label || locId;
-      }).join(", ");
-      parts.push(`${label}: ${locationNames}`);
+      parts.push(`${label}: ${selectedLocationIds.map(id => String(id)).join(", ")}`);
     }
 
-    // Add excluded_location_ids
+    // Add excluded_location_ids - pass IDs to agent (not names)
     if (isFieldRequested("excluded_location_ids", requestedKeys) && selectedExcludedLocationIds.length > 0) {
       const label = getFieldLabel("excluded_location_ids");
-      const locationNames = selectedExcludedLocationIds.map(locId => {
-        const location = locationOptions.find(opt => opt.value === locId);
-        return location?.label || locId;
-      }).join(", ");
-      parts.push(`${label}: ${locationNames}`);
+      parts.push(`${label}: ${selectedExcludedLocationIds.join(", ")}`);
     }
 
     // Add merchant_id
@@ -814,17 +768,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
           {hasLanguageIdsField && (
             <GoogleLanguageTargetingForm
               languageIds={selectedLanguageIds}
-              languageOptions={[
-                { value: "1000", label: "English", id: "1000" },
-                { value: "1001", label: "Spanish", id: "1001" },
-                { value: "1002", label: "French", id: "1002" },
-                { value: "1003", label: "German", id: "1003" },
-                { value: "1004", label: "Italian", id: "1004" },
-                { value: "1005", label: "Portuguese", id: "1005" },
-                { value: "1006", label: "Chinese", id: "1006" },
-                { value: "1007", label: "Japanese", id: "1007" },
-                { value: "1008", label: "Korean", id: "1008" },
-              ]}
+              languageOptions={getGoogleLanguageOptions()}
               loadingLanguages={false}
               onLanguageIdsChange={(ids) => setSelectedLanguageIds(ids || [])}
               showTitle={true}

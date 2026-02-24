@@ -35,6 +35,8 @@ interface GoogleCampaignInformationProps {
   ) => void;
   onEditCancel: () => void;
   loading?: boolean;
+  /** For draft campaigns: the intended publish status (ENABLED/PAUSED) from draft_state/creation_payload. Overrides campaign.status which is SAVED_DRAFT. */
+  draftPublishStatus?: "ENABLED" | "PAUSED";
 }
 
 export const GoogleCampaignInformation: React.FC<
@@ -48,6 +50,7 @@ export const GoogleCampaignInformation: React.FC<
   onEditEnd,
   onEditCancel,
   loading = false,
+  draftPublishStatus,
 }) => {
   if (loading) {
     return (
@@ -145,9 +148,9 @@ export const GoogleCampaignInformation: React.FC<
               value={
                 editingField === "status"
                   ? editedValue
-                  : campaignDetail.campaign.status === "ENABLED"
+                  : (draftPublishStatus ?? campaignDetail.campaign.status) === "ENABLED"
                     ? "ENABLED"
-                    : campaignDetail.campaign.status === "PAUSED"
+                    : (draftPublishStatus ?? campaignDetail.campaign.status) === "PAUSED"
                       ? "PAUSED"
                       : "ENABLED"
               }
