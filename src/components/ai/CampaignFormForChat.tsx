@@ -402,73 +402,65 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       parts.push(`${label}: ${merchantId}`);
     }
 
-    // Add sales_country
-    if (isFieldRequested("sales_country", requestedKeys) && formData.sales_country) {
-      const label = getFieldLabel("sales_country");
-      const countryOption = SALES_COUNTRY_OPTIONS.find(opt => opt.value === formData.sales_country);
-      const displayValue = countryOption?.label || formData.sales_country;
-      parts.push(`${label}: ${displayValue}`);
-    }
-
-    // Add multi-asset fields with readable labels (so agent view shows names, not ", ," or JSON)
+    // Add multi-asset fields with IDs (resource_name)
     if (isFieldRequested("headline_asset_ids", requestedKeys)) {
       const count = selectedHeadlineAssets.length || (Array.isArray(formData.headline_asset_ids) ? formData.headline_asset_ids.length : 0);
       if (count > 0) {
         const label = getFieldLabel("headline_asset_ids");
-        const names = selectedHeadlineAssets.length > 0
-          ? selectedHeadlineAssets.map(getAssetDisplayName).join(", ")
+        const ids = selectedHeadlineAssets.length > 0
+          ? selectedHeadlineAssets.map(a => a.resource_name).join(", ")
           : `${count} headline(s) selected`;
-        parts.push(`${label}: ${names}`);
+        parts.push(`${label}: ${ids}`);
       }
     }
     if (isFieldRequested("description_asset_ids", requestedKeys)) {
       const count = selectedDescriptionAssets.length || (Array.isArray(formData.description_asset_ids) ? formData.description_asset_ids.length : 0);
       if (count > 0) {
         const label = getFieldLabel("description_asset_ids");
-        const names = selectedDescriptionAssets.length > 0
-          ? selectedDescriptionAssets.map(getAssetDisplayName).join(", ")
+        const ids = selectedDescriptionAssets.length > 0
+          ? selectedDescriptionAssets.map(a => a.resource_name).join(", ")
           : `${count} description(s) selected`;
-        parts.push(`${label}: ${names}`);
+        parts.push(`${label}: ${ids}`);
       }
     }
     if (isFieldRequested("long_headline_asset_ids", requestedKeys)) {
       const count = selectedLongHeadlineAssets.length || (Array.isArray(formData.long_headline_asset_ids) ? formData.long_headline_asset_ids.length : 0);
       if (count > 0) {
         const label = getFieldLabel("long_headline_asset_ids");
-        const names = selectedLongHeadlineAssets.length > 0
-          ? selectedLongHeadlineAssets.map(getAssetDisplayName).join(", ")
+        const ids = selectedLongHeadlineAssets.length > 0
+          ? selectedLongHeadlineAssets.map(a => a.resource_name).join(", ")
           : `${count} long headline(s) selected`;
-        parts.push(`${label}: ${names}`);
+        parts.push(`${label}: ${ids}`);
       }
     }
     if (isFieldRequested("video_asset_ids", requestedKeys)) {
       const count = selectedVideoAssets.length || (Array.isArray(formData.video_asset_ids) ? formData.video_asset_ids.length : 0);
       if (count > 0) {
         const label = getFieldLabel("video_asset_ids");
-        const names = selectedVideoAssets.length > 0
-          ? selectedVideoAssets.map(getAssetDisplayName).join(", ")
+        const ids = selectedVideoAssets.length > 0
+          ? selectedVideoAssets.map(a => a.resource_name).join(", ")
           : `${count} video(s) selected`;
-        parts.push(`${label}: ${names}`);
+        parts.push(`${label}: ${ids}`);
       }
     }
     if (isFieldRequested("sitelink_asset_ids", requestedKeys)) {
       const count = selectedSitelinkAssets.length || (Array.isArray(formData.sitelink_asset_ids) ? formData.sitelink_asset_ids.length : 0);
       if (count > 0) {
         const label = getFieldLabel("sitelink_asset_ids");
-        const names = selectedSitelinkAssets.length > 0
-          ? selectedSitelinkAssets.map(getAssetDisplayName).join(", ")
+        const ids = selectedSitelinkAssets.length > 0
+          ? selectedSitelinkAssets.map(a => a.resource_name).join(", ")
           : `${count} sitelink(s) selected`;
-        parts.push(`${label}: ${names}`);
+        parts.push(`${label}: ${ids}`);
       }
     }
     if (isFieldRequested("callout_asset_ids", requestedKeys)) {
       const count = selectedCalloutAssets.length || (Array.isArray(formData.callout_asset_ids) ? formData.callout_asset_ids.length : 0);
       if (count > 0) {
         const label = getFieldLabel("callout_asset_ids");
-        const names = selectedCalloutAssets.length > 0
-          ? selectedCalloutAssets.map(getAssetDisplayName).join(", ")
+        const ids = selectedCalloutAssets.length > 0
+          ? selectedCalloutAssets.map(a => a.resource_name).join(", ")
           : `${count} callout(s) selected`;
-        parts.push(`${label}: ${names}`);
+        parts.push(`${label}: ${ids}`);
       }
     }
 

@@ -12,7 +12,7 @@ import { CampaignFormForChat } from "../../components/ai/CampaignFormForChat";
 
 const ALL_FIELD_GROUPS: { label: string; keys: string[] }[] = [
   { label: "URL Customization", keys: ["budget_name","budget_id", "tracking_url_template", "final_url_suffix", "url_custom_parameters"] },
-  { label: "Shopping Settings", keys: ["merchant_id"] },
+  { label: "Shopping Settings", keys: ["merchant_id", "sales_country"] },
   { label: "Targeting (Location & Language)", keys: ["location_ids", "excluded_location_ids", "language_ids"] },
   { label: "Asset IDs (Demand Gen & Perf Max)", keys: ["business_name_asset_id", "logo_asset_id", "marketing_image_asset_id", "square_marketing_image_asset_id"] },
   { label: "Headline/Description Asset IDs", keys: ["headline_asset_ids", "description_asset_ids", "long_headline_asset_ids"] },
