@@ -693,7 +693,6 @@ export const Accounts: React.FC = () => {
                                     </span>
                                   </button>
                                   )}
-                                  {!GOOGLE_ONLY_UI && (
                                   <button
                                     onClick={() => handleConnectMeta(account.id)}
                                     disabled={isConnecting || isDeleting}
@@ -712,7 +711,6 @@ export const Accounts: React.FC = () => {
                                       Meta
                                     </span>
                                   </button>
-                                  )}
                                 </div>
                               </td>
                             )}

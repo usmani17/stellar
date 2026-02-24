@@ -375,6 +375,18 @@ export const Channels: React.FC = () => {
                               onClick: handleConnectGoogle,
                               disabled: isConnecting,
                             },
+                            {
+                              label: "Meta",
+                              icon: (
+                                <img
+                                  src={MetaIcon}
+                                  alt="Meta"
+                                  className="w-5 h-5"
+                                />
+                              ),
+                              onClick: handleConnectMeta,
+                              disabled: isConnecting,
+                            },
                           ]
                         : [
                             {
@@ -547,9 +559,11 @@ export const Channels: React.FC = () => {
                                         ? `/brands/${accountId}/${channel.id}/amazon/campaigns`
                                         : channel.channel_type === "google"
                                           ? `/brands/${accountId}/${channel.id}/google/campaigns`
-                                          : channel.channel_type === "tiktok"
-                                            ? `/brands/${accountId}/tiktok/campaigns`
-                                            : "#"
+                                          : channel.channel_type === "meta"
+                                            ? `/brands/${accountId}/${channel.id}/meta/campaigns`
+                                            : channel.channel_type === "tiktok"
+                                              ? `/brands/${accountId}/tiktok/campaigns`
+                                              : "#"
                                     }
                                     className="table-edit-link"
                                   >

@@ -24,7 +24,7 @@ export const getAccountIdFromUrl = (pathname: string): number | null => {
  * @returns channel_id as number or null if not found
  */
 export const getChannelIdFromUrl = (pathname: string): number | null => {
-  const match = pathname.match(/^\/brands\/\d+\/(\d+)\/(?:amazon|google|tiktok)\//);
+  const match = pathname.match(/^\/brands\/\d+\/(\d+)\/(?:amazon|google|tiktok|meta)\//);
   if (match && match[1]) {
     const channelId = parseInt(match[1], 10);
     return isNaN(channelId) ? null : channelId;
@@ -123,7 +123,7 @@ export const buildMarketplaceRoute = (
   profileId?: string | number
 ): string => {
   const includeChannelInPath =
-    marketplace === 'amazon' || marketplace === 'tiktok' || marketplace === 'google';
+    marketplace === 'amazon' || marketplace === 'tiktok' || marketplace === 'google' || marketplace === 'meta';
   const basePath = includeChannelInPath
     ? `/brands/${accountId}/${channelId}/${marketplace}/${entity}`
     : `/brands/${accountId}/${marketplace}/${entity}`;
@@ -170,10 +170,10 @@ export const getMarketplaceFromUrl = (pathname: string): string | null => {
   // /brands/26/amazon/campaigns -> ['brands','26','amazon','campaigns']
   if (segments[0] !== 'brands' || !segments[1]) return null;
   const second = segments[2];
-  if (second && ['amazon', 'google', 'tiktok'].includes(second)) {
+  if (second && ['amazon', 'google', 'tiktok', 'meta'].includes(second)) {
     return second;
   }
-  if (segments[3] && ['amazon', 'google', 'tiktok'].includes(segments[3])) {
+  if (segments[3] && ['amazon', 'google', 'tiktok', 'meta'].includes(segments[3])) {
     return segments[3];
   }
   return null;
@@ -187,10 +187,10 @@ export const getEntityFromUrl = (pathname: string): string | null => {
   const segments = pathname.split('/').filter(Boolean);
   if (segments[0] !== 'brands' || !segments[1]) return null;
   const second = segments[2];
-  if (second && ['amazon', 'google', 'tiktok'].includes(second)) {
+  if (second && ['amazon', 'google', 'tiktok', 'meta'].includes(second)) {
     return segments[3] ?? null;
   }
-  if (segments[3] && ['amazon', 'google', 'tiktok'].includes(segments[3])) {
+  if (segments[3] && ['amazon', 'google', 'tiktok', 'meta'].includes(segments[3])) {
     return segments[4] ?? null;
   }
   return null;

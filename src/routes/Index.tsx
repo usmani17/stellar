@@ -6,6 +6,7 @@ import ChannelRoutes from "./ChannelRoutes";
 import AccountRoutes from "./AccountRoutes";
 import AmazonRoutes from "./AmazonRoutes";
 import GoogleRoutes from "./GoogleRoutes";
+import MetaRoutes from "./MetaRoutes";
 import TikTokRoutes from "./TikTokRoutes";
 import NotFoundRoutes from "./NotFoundRoutes";
 import { AssistantProvider } from "./../contexts/AssistantContext";
@@ -30,6 +31,7 @@ function AppRoutes() {
                 {AccountRoutes()}
                 {AmazonRoutes()}
                 {GoogleRoutes()}
+                {MetaRoutes()}
                 {TikTokRoutes()}
                 {NotFoundRoutes()}
             </Route>

@@ -46,6 +46,7 @@ import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
 const WORKSPACE_SECTION_STORAGE_KEY = "workspace-section-collapsed";
 const AMAZON_SECTION_STORAGE_KEY = "amazon-section-collapsed";
 const GOOGLE_SECTION_STORAGE_KEY = "google-section-collapsed";
+const META_SECTION_STORAGE_KEY = "meta-section-collapsed";
 const TIKTOK_SECTION_STORAGE_KEY = "tiktok-section-collapsed";
 
 export const Sidebar: React.FC = () => {
@@ -65,6 +66,7 @@ export const Sidebar: React.FC = () => {
     : channelsFromApi;
   const hasAmazonChannel = channels.some((c) => c.channel_type === "amazon");
   const hasGoogleChannel = channels.some((c) => c.channel_type === "google");
+  const hasMetaChannel = channels.some((c) => c.channel_type === "meta");
   const hasTikTokChannel = channels.some((c) => c.channel_type === "tiktok");
   const amazonChannelId =
     (location.pathname.includes("/amazon/") ? getChannelIdFromUrl(location.pathname) : null) ??
@@ -74,13 +76,17 @@ export const Sidebar: React.FC = () => {
     (location.pathname.includes("/google/") ? getChannelIdFromUrl(location.pathname) : null) ??
     channels.find((c) => c.channel_type === "google")?.id ??
     0;
+  const metaChannelId =
+    (location.pathname.includes("/meta/") ? getChannelIdFromUrl(location.pathname) : null) ??
+    channels.find((c) => c.channel_type === "meta")?.id ??
+    0;
   const tiktokChannelId =
     (location.pathname.includes("/tiktok/") ? getChannelIdFromUrl(location.pathname) : null) ??
     channels.find((c) => c.channel_type === "tiktok")?.id ??
     0;
 
   const [channelRequiredModal, setChannelRequiredModal] = useState<
-    "amazon" | "google" | "tiktok" | null
+    "amazon" | "google" | "tiktok" | "meta" | null
   >(null);
   const [showBrandRequiredModal, setShowBrandRequiredModal] = useState(false);
   const [brandRequiredReturnUrl, setBrandRequiredReturnUrl] = useState<string | undefined>(undefined);
@@ -93,6 +99,11 @@ export const Sidebar: React.FC = () => {
   const [isGoogleSectionCollapsed, setIsGoogleSectionCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(GOOGLE_SECTION_STORAGE_KEY);
+      return saved === "true" || saved === null; // Default to collapsed
+    });
+  const [isMetaSectionCollapsed, setIsMetaSectionCollapsed] =
+    useState<boolean>(() => {
+      const saved = localStorage.getItem(META_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
   const [isTikTokSectionCollapsed, setIsTikTokSectionCollapsed] =
@@ -123,12 +134,15 @@ export const Sidebar: React.FC = () => {
     if (location.pathname === "/brands") {
       setIsAmazonSectionCollapsed(true);
       setIsGoogleSectionCollapsed(true);
+      setIsMetaSectionCollapsed(true);
     } else {
       // Auto-expand the relevant marketplace section when on that page
       if (marketplace === "amazon") {
         setIsAmazonSectionCollapsed(false);
       } else if (marketplace === "google") {
         setIsGoogleSectionCollapsed(false);
+      } else if (marketplace === "meta") {
+        setIsMetaSectionCollapsed(false);
       } else if (marketplace === "tiktok") {
         setIsTikTokSectionCollapsed(false);
       }
@@ -156,12 +170,23 @@ export const Sidebar: React.FC = () => {
     );
   }, [isGoogleSectionCollapsed]);
 
+  useEffect(() => {
+    localStorage.setItem(
+      META_SECTION_STORAGE_KEY,
+      String(isMetaSectionCollapsed),
+    );
+  }, [isMetaSectionCollapsed]);
+
   const toggleAmazonSection = () => {
     setIsAmazonSectionCollapsed((prev) => !prev);
   };
 
   const toggleGoogleSection = () => {
     setIsGoogleSectionCollapsed((prev) => !prev);
+  };
+
+  const toggleMetaSection = () => {
+    setIsMetaSectionCollapsed((prev) => !prev);
   };
 
   const toggleTikTokSection = () => {
@@ -214,6 +239,15 @@ export const Sidebar: React.FC = () => {
     }
     if (path === "/google/targets") {
       return location.pathname.includes("/google/targets");
+    }
+    if (path === "/meta/campaigns") {
+      return location.pathname.includes("/meta/campaigns");
+    }
+    if (path === "/meta/adsets") {
+      return location.pathname.includes("/meta/adsets");
+    }
+    if (path === "/meta/ads") {
+      return location.pathname.includes("/meta/ads");
     }
 
     // Generic paths for Amazon (exclude google and tiktok paths)
@@ -301,7 +335,7 @@ export const Sidebar: React.FC = () => {
   };
 
   const handleMarketplaceClick = (
-    marketplace: "google" | "tiktok",
+    marketplace: "google" | "tiktok" | "meta",
     e: React.MouseEvent<HTMLAnchorElement>,
     buildRoute: () => string | null,
   ) => {
@@ -310,7 +344,11 @@ export const Sidebar: React.FC = () => {
       return;
     }
     const hasChannel =
-      marketplace === "google" ? hasGoogleChannel : hasTikTokChannel;
+      marketplace === "google"
+        ? hasGoogleChannel
+        : marketplace === "meta"
+          ? hasMetaChannel
+          : hasTikTokChannel;
     if (!hasChannel) {
       e.preventDefault();
       setChannelRequiredModal(marketplace);
@@ -1085,6 +1123,184 @@ export const Sidebar: React.FC = () => {
         </div>
         )}
 
+        {/* Meta Section - Campaign, Adset, Ad */}
+        {hasWorkspace && (
+        <div>
+          {!isCollapsed && (
+            <div className="mb-3">
+              <Link
+                to={
+                  accountId
+                    ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "campaigns")
+                    : "/brands"
+                }
+                onClick={(e) => {
+                  handleMarketplaceClick("meta", e, () =>
+                    accountId
+                      ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "campaigns")
+                      : "/brands/1/meta/campaigns",
+                  );
+                }}
+                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <img src={MetaIcon} alt="Meta" className="w-4 h-4" />
+                  <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
+                    Meta
+                  </h2>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleMetaSection();
+                  }}
+                  className="p-1 rounded hover:bg-gray-100 transition-colors"
+                  aria-label={
+                    isMetaSectionCollapsed
+                      ? "Expand Meta section"
+                      : "Collapse Meta section"
+                  }
+                >
+                  <svg
+                    className={`w-4 h-4 text-gray-600 transition-transform ${
+                      isMetaSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
+                    }`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </Link>
+            </div>
+          )}
+          {(isCollapsed || !isMetaSectionCollapsed) && (
+            <div className={`space-y-1 ${!isCollapsed ? "ml-[15px]" : ""}`}>
+              <Link
+                to={
+                  accountId
+                    ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "campaigns")
+                    : "/brands"
+                }
+                onClick={(e) =>
+                  handleMarketplaceClick("meta", e, () =>
+                    accountId
+                      ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "campaigns")
+                      : "/brands/1/meta/campaigns",
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/meta/campaigns") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/meta/campaigns")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "Campaign" : undefined}
+              >
+                <img
+                  src={
+                    isActive("/meta/campaigns")
+                      ? CampaignWhiteIcon
+                      : CampaignIconRegular
+                  }
+                  alt=""
+                  className="w-5 h-5"
+                />
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/meta/campaigns") ? "!text-white" : ""
+                    }`}
+                  >
+                    Campaign
+                  </span>
+                )}
+              </Link>
+              <Link
+                to={
+                  accountId
+                    ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "adsets")
+                    : "/brands"
+                }
+                onClick={(e) =>
+                  handleMarketplaceClick("meta", e, () =>
+                    accountId
+                      ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "adsets")
+                      : "/brands/1/meta/adsets",
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/meta/adsets") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/meta/adsets")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "Adset" : undefined}
+              >
+                <img
+                  src={AdGroupIcon}
+                  alt=""
+                  className={`w-5 h-5 ${
+                    isActive("/meta/adsets") ? "brightness-0 invert" : ""
+                  }`}
+                />
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/meta/adsets") ? "!text-white" : ""
+                    }`}
+                  >
+                    Adset
+                  </span>
+                )}
+              </Link>
+              <Link
+                to={
+                  accountId
+                    ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "ads")
+                    : "/brands"
+                }
+                onClick={(e) =>
+                  handleMarketplaceClick("meta", e, () =>
+                    accountId
+                      ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "ads")
+                      : "/brands/1/meta/ads",
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/meta/ads") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/meta/ads")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "Ad" : undefined}
+              >
+                <img src={ProductTargetIcon} alt="" className="w-5 h-5" />
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/meta/ads") ? "!text-white" : ""
+                    }`}
+                  >
+                    Ad
+                  </span>
+                )}
+              </Link>
+            </div>
+          )}
+        </div>
+        )}
+
         {/* TikTok Section (hidden when GOOGLE_ONLY_UI) */}
         {!GOOGLE_ONLY_UI && hasWorkspace && (
         <div>
@@ -1323,12 +1539,16 @@ export const Sidebar: React.FC = () => {
             title={
               channelRequiredModal === "amazon"
                 ? "No Amazon Integration"
-                : `Connect ${channelRequiredModal === "google" ? "Google" : "TikTok"}`
+                : channelRequiredModal === "meta"
+                  ? "Connect Meta"
+                  : `Connect ${channelRequiredModal === "google" ? "Google" : "TikTok"}`
             }
             message={
               channelRequiredModal === "amazon"
                 ? "This account does not have Amazon Integration."
-                : `This brand does not have ${channelRequiredModal === "google" ? "Google" : "TikTok"} integration. Want to connect?`
+                : channelRequiredModal === "meta"
+                  ? "This brand does not have Meta integration. Want to connect?"
+                  : `This brand does not have ${channelRequiredModal === "google" ? "Google" : "TikTok"} integration. Want to connect?`
             }
             confirmButtonLabel="Go to Integrations"
             cancelButtonLabel="Cancel"
