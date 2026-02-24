@@ -252,7 +252,7 @@ export const Sidebar: React.FC = () => {
       return location.pathname.includes("/meta/adsets");
     }
     if (path === "/meta/ads") {
-      return location.pathname.includes("/meta/ads");
+      return location.pathname.includes("/meta/ads") && !location.pathname.includes("/meta/adsets");
     }
 
     // Generic paths for Amazon (exclude google and tiktok paths)
