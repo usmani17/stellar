@@ -79,8 +79,7 @@ export const ForgotPassword: React.FC = () => {
           <div className="text-center">
             <Link
               to="/login"
-              className="text-base text-forest-f60 hover:text-forest-f50"
-              className="font-poppins font-normal"
+              className="font-poppins font-normal text-base text-forest-f60 hover:text-forest-f50"
             >
               Back To Login
             </Link>

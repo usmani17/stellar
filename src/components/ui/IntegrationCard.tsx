@@ -111,8 +111,7 @@ export const IntegrationCard: React.FC<IntegrationCardProps> = ({
             className="bg-sandstorm-s0 border border-gray-200 flex gap-1 h-7 items-center justify-center min-w-[80px] px-3 py-0 relative rounded-lg shrink-0 hover:bg-gray-50 transition-colors"
           >
             <div
-              className="flex flex-col justify-center leading-[0] not-italic relative shrink-0 text-sm text-center text-forest-f60 whitespace-nowrap"
-              className="font-gtAmerica font-medium"
+              className="font-gtAmerica font-medium flex flex-col justify-center leading-[0] not-italic relative shrink-0 text-sm text-center text-forest-f60 whitespace-nowrap"
             >
               <p className="leading-[20px]">Manage</p>
             </div>
@@ -123,8 +122,7 @@ export const IntegrationCard: React.FC<IntegrationCardProps> = ({
             className="flex gap-1 h-7 items-center justify-center min-w-[80px] px-3 py-0 relative border border-gray-200 rounded-lg shrink-0 hover:bg-gray-50 transition-colors"
           >
             <div
-              className="flex flex-col justify-center leading-[0] not-italic relative shrink-0 text-sm text-center text-blue-b10Alt whitespace-nowrap"
-              className="font-gtAmerica font-medium"
+              className="font-gtAmerica font-medium flex flex-col justify-center leading-[0] not-italic relative shrink-0 text-sm text-center text-blue-b10Alt whitespace-nowrap"
             >
               <p className="leading-[20px]">Connect</p>
             </div>
@@ -136,14 +134,12 @@ export const IntegrationCard: React.FC<IntegrationCardProps> = ({
       <div className="flex flex-col items-start relative shrink-0 w-full">
         <div className="flex flex-col gap-1 items-start not-italic relative shrink-0 w-full">
           <p
-            className="font-bold leading-[28px] relative shrink-0 text-forest-f60 text-lg tracking-tighter w-full"
-            className="font-gtAmerica"
+            className="font-gtAmerica font-bold leading-[28px] relative shrink-0 text-forest-f60 text-lg tracking-tighter w-full"
           >
             {title}
           </p>
           <p
-            className="font-medium leading-[20px] relative shrink-0 text-neutral-n300 text-sm w-full"
-            className="font-gtAmerica"
+            className="font-gtAmerica font-medium leading-[20px] relative shrink-0 text-neutral-n300 text-sm w-full"
           >
             {description}
           </p>
