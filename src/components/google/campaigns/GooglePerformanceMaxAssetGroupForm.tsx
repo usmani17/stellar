@@ -488,6 +488,7 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
             onSelect={handleSelectAsset}
             profileId={profileId}
             assetType={assetSelectorType === "IMAGE" || assetSelectorType === "SQUARE_IMAGE" ? "IMAGE" : undefined}
+            hideTextTab
             title={assetSelectorType === "IMAGE" ? "Select Marketing Image (1.91:1)" : assetSelectorType === "SQUARE_IMAGE" ? "Select Square Image (1:1)" : "Select Asset"}
             initialTab="Image"
           />
@@ -1423,23 +1424,27 @@ export const GooglePerformanceMaxAssetGroupForm: React.FC<GooglePerformanceMaxAs
         </div>
       )}
       {profileId && (
-        <AssetSelectorModal
-          isOpen={assetSelectorOpen}
-          onClose={() => {
-            setAssetSelectorOpen(false);
-            setAssetSelectorType(null);
-            setAssetSelectorError(null);
-          }}
-          onSelect={handleSelectAsset}
-          profileId={profileId}
-          assetType={
-            assetSelectorType === "IMAGE" || assetSelectorType === "SQUARE_IMAGE" || assetSelectorType === "LOGO" ? "IMAGE" :
-            assetSelectorType === "VIDEO" ? "YOUTUBE_VIDEO" :
-            assetSelectorType === "SITELINK" ? "SITELINK" :
-            assetSelectorType === "BUSINESS_NAME" || assetSelectorType === "HEADLINE" || assetSelectorType === "DESCRIPTION" || assetSelectorType === "LONG_HEADLINE" || assetSelectorType === "CALLOUT" ? "TEXT" :
-            undefined
-          }
-          title={
+          <AssetSelectorModal
+            isOpen={assetSelectorOpen}
+            onClose={() => {
+              setAssetSelectorOpen(false);
+              setAssetSelectorType(null);
+              setAssetSelectorError(null);
+            }}
+            onSelect={handleSelectAsset}
+            profileId={profileId}
+            assetType={
+              assetSelectorType === "IMAGE" || assetSelectorType === "SQUARE_IMAGE" || assetSelectorType === "LOGO" ? "IMAGE" :
+              assetSelectorType === "VIDEO" ? "YOUTUBE_VIDEO" :
+              assetSelectorType === "SITELINK" ? "SITELINK" :
+              assetSelectorType === "BUSINESS_NAME" || assetSelectorType === "HEADLINE" || assetSelectorType === "DESCRIPTION" || assetSelectorType === "LONG_HEADLINE" || assetSelectorType === "CALLOUT" ? "TEXT" :
+              undefined
+            }
+            hideTextTab={
+              assetSelectorType === "LOGO" || assetSelectorType === "IMAGE" || assetSelectorType === "SQUARE_IMAGE" ||
+              assetSelectorType === "VIDEO" || assetSelectorType === "SITELINK" || assetSelectorType === "BUSINESS_NAME"
+            }
+            title={
             assetSelectorType === "BUSINESS_NAME" ? "Select Business Name Asset" :
             assetSelectorType === "LOGO" ? "Select Logo Asset" :
             assetSelectorType === "HEADLINE" ? `Select Headline ${assetSelectorIndex !== null ? assetSelectorIndex + 1 : ""} Asset` :

@@ -16,6 +16,7 @@ import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
 import { CampaignFormForChat, type CampaignFormForChatHandle } from "../ai/CampaignFormForChat";
+import { deriveCampaignStateFromContent } from "../../utils/chartJsonParser";
 
 // Helper function to group sessions by date, ordered by latest first
 const groupSessionsByDate = (sessions: SessionWithMessages[]): Record<string, SessionWithMessages[]> => {
@@ -594,6 +595,26 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
     const questionsSchema = campaignState?.keys_for_form;
     const hasQuestionsSchema = questionsSchema && questionsSchema.length > 0;
+
+    // Show loading only when content has keys_for_form (form UI will be shown) but event hasn't arrived yet
+    const lastAiContent = (() => {
+        const last = [...messages].reverse().find((m) => m.type === "ai");
+        return last?.type === "ai" ? (last.content ?? "") : "";
+    })();
+    const derivedFromContent = lastAiContent
+        ? deriveCampaignStateFromContent(lastAiContent)
+        : null;
+    const contentHasFormKeys =
+        derivedFromContent?.keys_for_form && derivedFromContent.keys_for_form.length > 0;
+    const campaignFormExpected =
+        derivedFromContent &&
+        !derivedFromContent.complete &&
+        contentHasFormKeys &&
+        SHOW_CAMPAIGN_SCHEMA_FORM;
+    const campaignFormLoading =
+        !!campaignFormExpected &&
+        !hasQuestionsSchema &&
+        !isStreaming;
 
     const groupedSessions = groupSessionsByDate(sessions);
     const hasMessages = messages.length > 0;
@@ -1254,6 +1275,18 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                         ) : null}
                                     </span>
                                 )}
+                            </div>
+                        )}
+
+                        {/* Campaign: small loading when form is expected but schema not yet available */}
+                        {campaignFormLoading && (
+                            <div className="mt-2 p-3 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[10px] flex items-center gap-2 text-[#556179]">
+                                <div className="flex gap-1">
+                                    <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
+                                    <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                                    <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                                </div>
+                                <span className="text-xs font-medium">Loading form...</span>
                             </div>
                         )}
 

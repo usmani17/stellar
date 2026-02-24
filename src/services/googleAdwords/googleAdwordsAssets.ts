@@ -187,9 +187,12 @@ export const googleAdwordsAssetsService = {
   // Asset Query
   listAssets: async (
     profileId: number,
-    assetType?: AssetType
+    assetType?: AssetType,
+    excludeAssetTypes?: string[]
   ): Promise<{ success: boolean; assets: Asset[]; count: number }> => {
-    const params = assetType ? { asset_type: assetType } : {};
+    const params: Record<string, string> = {};
+    if (assetType) params.asset_type = assetType;
+    if (excludeAssetTypes?.length) params.exclude_asset_types = excludeAssetTypes.join(",");
     const response = await api.get(
       `/google-adwords/profiles/${profileId}/assets/`,
       { params }

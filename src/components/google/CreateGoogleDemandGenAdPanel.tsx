@@ -1071,6 +1071,9 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
                 ? "YOUTUBE_VIDEO"
                 : "IMAGE"
           }
+          hideTextTab={
+            assetSelectorType === "LOGO" || assetSelectorType === "VIDEO" || assetSelectorType === "IMAGE"
+          }
           title={
             assetSelectorType === "VIDEO"
               ? "Select video asset"

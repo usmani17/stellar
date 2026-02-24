@@ -410,6 +410,8 @@ export const AssistantProvider: React.FC<{
 
       setInputValue("");
       abortControllerRef.current = new AbortController();
+      setCampaignState(undefined);
+      campaignStateRef.current = undefined;
 
       const humanMsg: ChatMessage = {
         type: "human",

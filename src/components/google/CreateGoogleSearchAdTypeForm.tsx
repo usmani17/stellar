@@ -1323,6 +1323,7 @@ export const CreateGoogleSearchAdTypeForm: React.FC<CreateGoogleSearchAdTypeForm
             assetSelectorType === "HEADLINE" || assetSelectorType === "DESCRIPTION" || assetSelectorType === "LONG_HEADLINE" ? "TEXT" :
             undefined
           }
+          hideTextTab={assetSelectorType === "IMAGE" || assetSelectorType === "SQUARE_IMAGE"}
           title={
             assetSelectorType === "HEADLINE" ? `Select Headline ${assetSelectorIndex !== null ? assetSelectorIndex + 1 : ""} Asset` :
             assetSelectorType === "DESCRIPTION" ? `Select Description ${assetSelectorIndex !== null ? assetSelectorIndex + 1 : ""} Asset` :

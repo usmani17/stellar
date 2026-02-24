@@ -18,7 +18,19 @@ import { GoogleLocationTargetingForm } from "../google/campaigns/GoogleLocationT
 import { campaignsService } from "../../services/campaigns";
 import { SALES_COUNTRY_OPTIONS } from "../google/campaigns/utils";
 
+/** Set to true to skip the backend API call for fetching text assets in the assistant campaign form */
+const SKIP_TEXT_ASSET_FETCH_IN_ASSISTANT = true;
 
+/** Asset types to exclude - only fetch Logo, Image, Video, Sitelink for assistant. Excludes TEXT, CALLOUT, STRUCTURED_SNIPPET, PRICE, etc. */
+const EXCLUDE_ASSET_TYPES_IN_ASSISTANT: string[] = [
+  "TEXT",
+  "CALLOUT",
+  "STRUCTURED_SNIPPET",
+  "PRICE",
+  "PROMOTION",
+  "LEAD_FORM",
+  "CALL",
+];
 
 function getKeysForForm(formKeys: string[]): string[] {
   return formKeys.map((q) => stripEntityPrefix(q));
@@ -958,6 +970,8 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             assetType="IMAGE"
             title="Select Logo Asset"
             initialTab="Logo"
+            hideTextTab
+            excludeAssetTypes={EXCLUDE_ASSET_TYPES_IN_ASSISTANT}
           />
 
           {/* Business Name Asset Modal */}
@@ -973,6 +987,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             assetType="TEXT"
             title="Select Business Name Asset"
             initialTab="Business Name"
+            hideTextTab={SKIP_TEXT_ASSET_FETCH_IN_ASSISTANT}
           />
 
           {/* Marketing Image Asset Modal */}
@@ -988,6 +1003,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             assetType="IMAGE"
             title="Select Marketing Image"
             initialTab="Marketing Image"
+            excludeAssetTypes={EXCLUDE_ASSET_TYPES_IN_ASSISTANT}
           />
 
           {/* Square Marketing Image Asset Modal */}
@@ -1003,12 +1019,14 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             assetType="IMAGE"
             title="Select Square Marketing Image"
             initialTab="Square Marketing Image"
+            excludeAssetTypes={EXCLUDE_ASSET_TYPES_IN_ASSISTANT}
           />
 
           {/* Headline Assets Modal */}
           <AssetSelectorModal
             isOpen={isHeadlineAssetsModalOpen}
             onClose={() => setIsHeadlineAssetsModalOpen(false)}
+            hideTextTab={false}
             onSelect={(asset) => {
               const newAssets = [...selectedHeadlineAssets, asset];
               setSelectedHeadlineAssets(newAssets);
@@ -1019,12 +1037,14 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             title="Select Headline Assets"
             initialTab="Headline"
             allowMultiple
+            skipAssetFetch={SKIP_TEXT_ASSET_FETCH_IN_ASSISTANT}
           />
 
           {/* Description Assets Modal */}
           <AssetSelectorModal
             isOpen={isDescriptionAssetsModalOpen}
             onClose={() => setIsDescriptionAssetsModalOpen(false)}
+            hideTextTab={false}
             onSelect={(asset) => {
               const newAssets = [...selectedDescriptionAssets, asset];
               setSelectedDescriptionAssets(newAssets);
@@ -1035,12 +1055,14 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             title="Select Description Assets"
             initialTab="Description"
             allowMultiple
+            skipAssetFetch={SKIP_TEXT_ASSET_FETCH_IN_ASSISTANT}
           />
 
           {/* Long Headline Assets Modal */}
           <AssetSelectorModal
             isOpen={isLongHeadlineAssetsModalOpen}
             onClose={() => setIsLongHeadlineAssetsModalOpen(false)}
+            hideTextTab={false}
             onSelect={(asset) => {
               const newAssets = [...selectedLongHeadlineAssets, asset];
               setSelectedLongHeadlineAssets(newAssets);
@@ -1051,6 +1073,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             title="Select Long Headline Assets"
             initialTab="Long Headline"
             allowMultiple
+            skipAssetFetch={SKIP_TEXT_ASSET_FETCH_IN_ASSISTANT}
           />
 
           {/* Video Assets Modal */}
@@ -1067,6 +1090,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             title="Select Video Assets"
             initialTab="Video"
             allowMultiple
+            excludeAssetTypes={EXCLUDE_ASSET_TYPES_IN_ASSISTANT}
           />
 
           {/* Sitelink Assets Modal */}
@@ -1083,6 +1107,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             title="Select Sitelink Assets"
             initialTab="Sitelink"
             allowMultiple
+            excludeAssetTypes={EXCLUDE_ASSET_TYPES_IN_ASSISTANT}
           />
 
           {/* Callout Assets Modal */}
@@ -1099,6 +1124,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             title="Select Callout Assets"
             initialTab="Text"
             allowMultiple
+            skipAssetFetch={SKIP_TEXT_ASSET_FETCH_IN_ASSISTANT}
           />
         </>
       )}

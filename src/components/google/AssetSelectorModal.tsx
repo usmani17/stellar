@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   type Asset,
   type AssetType,
@@ -21,6 +21,12 @@ interface AssetSelectorModalProps {
   allowMultiple?: boolean; // For future multi-select support
   initialTab?: string; // Pre-select a specific tab when modal opens
   initialTextSubTab?: string; // Pre-select a specific text sub-tab when Text tab is active
+  /** When true, skips the backend API call to fetch assets (e.g. for assistant campaign form) */
+  skipAssetFetch?: boolean;
+  /** When true, hides the Text tab. Default true for campaign creation (Logo/Image/Video/Sitelink). Pass false when selecting Headline/Description. */
+  hideTextTab?: boolean;
+  /** Asset types to exclude from backend query - Google Ads API types (TEXT, CALLOUT, STRUCTURED_SNIPPET, PRICE, etc.) */
+  excludeAssetTypes?: string[];
 }
 
 export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
@@ -33,10 +39,14 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
   allowMultiple = false,
   initialTab,
   initialTextSubTab,
+  skipAssetFetch = false,
+  hideTextTab = true,
+  excludeAssetTypes: excludeAssetTypesProp,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<string>("All");
+  const [activeTab, setActiveTab] = useState<string>("Business Name"); // "All" tab commented off
   const [activeTextSubTab, setActiveTextSubTab] = useState<string>("All"); // Sub-tab for Text assets
+  const prevIsOpen = useRef(false);
   const [createTextAssetOpen, setCreateTextAssetOpen] = useState(false);
   const [createImageAssetOpen, setCreateImageAssetOpen] = useState(false);
   const [createYoutubeVideoAssetOpen, setCreateYoutubeVideoAssetOpen] =
@@ -44,15 +54,30 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
   const [createSitelinkAssetOpen, setCreateSitelinkAssetOpen] = useState(false);
   // const [createCalloutAssetOpen, setCreateCalloutAssetOpen] = useState(false);
 
-  const tabs = [
-    "All",
+  const baseTabs = [
+    // "All", // Commented off for now
     "Business Name",
     "Logo",
     "Text",
     "Image",
     "YouTube Video",
     "Sitelink",
-  ]; // "Callout" - commented out temporarily
+  ];
+  // Whatever types we exclude from backend query - hide those tabs in the modal
+  const excludeTypeToTabs: Record<string, string[]> = {
+    TEXT: ["Text", "Business Name"],
+    IMAGE: ["Logo", "Image"],
+    YOUTUBE_VIDEO: ["YouTube Video"],
+    SITELINK: ["Sitelink"],
+  };
+  const tabsToHide = new Set(
+    (excludeAssetTypesProp ?? []).flatMap((t) => excludeTypeToTabs[t] ?? [])
+  );
+  const tabs = baseTabs.filter((t) => {
+    if (tabsToHide.has(t)) return false; // exclude types → hide their tabs
+    if ((skipAssetFetch || hideTextTab) && t === "Text") return false; // legacy: hide Text tab only (keep Business Name)
+    return true;
+  });
   const textSubTabs = [
     "All",
     "Text",
@@ -62,35 +87,51 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
   ];
 
   // Use React Query to fetch assets with caching
+  // When excludeAssetTypes is set, skip assetType filter so all modals (Logo, Image, Video, Sitelink) share same cache
+  const fetchAssetType = excludeAssetTypesProp?.length ? undefined : assetType;
   const {
-    data: allAssets = [],
+    data: fetchedAssets = [],
     isLoading: loading,
+    isFetching: isRefreshing,
     error: queryError,
     refetch,
   } = useAssets(
     isOpen ? profileId : undefined, // Only fetch when modal is open
+    fetchAssetType, // Only filter by type when not excluding (else fetch "all except" for shared cache)
+    {
+      enabled: !skipAssetFetch,
+      excludeAssetTypes: excludeAssetTypesProp,
+    },
   );
+
+  // When skipAssetFetch is true: skip API call AND don't use cached data; else use cached/fetched
+  const allAssets = skipAssetFetch ? [] : fetchedAssets;
 
   const error = queryError
     ? queryError.message || "Failed to load assets"
     : null;
 
-  // Set initial tab when modal opens
+  // Set initial tab only when modal first opens (not on every re-render)
   useEffect(() => {
-    if (isOpen) {
-      if (initialTab) {
-        setActiveTab(initialTab);
-        if (initialTab === "Text" && initialTextSubTab) {
-          setActiveTextSubTab(initialTextSubTab);
-        } else if (initialTab !== "Text") {
-          setActiveTextSubTab("All");
-        }
+    const justOpened = isOpen && !prevIsOpen.current;
+    prevIsOpen.current = isOpen;
+    if (justOpened && isOpen) {
+      const textOnlyTabs = ["Text", "Headline", "Description", "Long Headline"];
+      const tabUnavailable =
+        skipAssetFetch && textOnlyTabs.includes(initialTab ?? "") ||
+        tabsToHide.has(initialTab ?? "") ||
+        (textOnlyTabs.includes(initialTab ?? "") && tabsToHide.has("Text"));
+      const fallbackTab = tabs[0] ?? "Business Name"; // First tab when All is commented off
+      const effectiveTab =
+        initialTab && !tabUnavailable && tabs.includes(initialTab) ? initialTab : fallbackTab;
+      setActiveTab(effectiveTab);
+      if (effectiveTab === "Text" && initialTextSubTab) {
+        setActiveTextSubTab(initialTextSubTab);
       } else {
-        setActiveTab("All");
         setActiveTextSubTab("All");
       }
     }
-  }, [isOpen, initialTab, initialTextSubTab]);
+  }, [isOpen, initialTab, initialTextSubTab, skipAssetFetch, hideTextTab, excludeAssetTypesProp, tabs]);
 
   // No need for handleCreateAssetSuccess - React Query mutations handle cache invalidation
   // The cache will be automatically updated when assets are created via mutation hooks
@@ -149,16 +190,18 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
           }
         });
       } else if (activeTab === "Image") {
-        // Image: IMAGE assets with field_type MARKETING_IMAGE or SQUARE_MARKETING_IMAGE from API (asset group level)
+        // Image: IMAGE assets with field_type MARKETING_IMAGE, etc., OR field_type null (newly created, not yet linked)
+        // Backend only returns field_type when asset is linked; newly created assets have field_type null
         filtered = filtered.filter((asset) => {
           if (asset.type !== "IMAGE") return false;
-          // Use field_type directly from API - exact match only, no fallback
+          if (asset.field_type === "LOGO") return false; // Logo has its own tab
           return (
             asset.field_type === "MARKETING_IMAGE" ||
             asset.field_type === "SQUARE_MARKETING_IMAGE" ||
             asset.field_type === "AD_IMAGE" ||
             asset.field_type === "PORTRAIT_MARKETING_IMAGE" ||
-            asset.field_type === "TALL_PORTRAIT_MARKETING_IMAGE"
+            asset.field_type === "TALL_PORTRAIT_MARKETING_IMAGE" ||
+            asset.field_type == null
           );
         });
       } else {
@@ -321,29 +364,46 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
           <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
             {title}
           </h2>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onClose();
-            }}
-            className="text-[#556179] hover:text-[#072929] transition-colors"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="flex items-center gap-2">
+            {!skipAssetFetch && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  refetch();
+                }}
+                disabled={isRefreshing}
+                className="px-3 py-1.5 text-sm font-medium text-[#136D6D] hover:bg-[#136D6D]/10 rounded-lg transition-colors disabled:opacity-50"
+                title="Refresh asset list"
+              >
+                {isRefreshing ? "Refreshing..." : "Refresh"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
+              className="text-[#556179] hover:text-[#072929] transition-colors"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Search Bar */}
@@ -385,13 +445,14 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
                       }
                       if (tab === "Image") {
                         if (a.type !== "IMAGE") return false;
-                        // Use field_type directly from API - exact match only, no fallback
+                        if (a.field_type === "LOGO") return false;
                         return (
                           a.field_type === "MARKETING_IMAGE" ||
                           a.field_type === "SQUARE_MARKETING_IMAGE" ||
                           a.field_type === "AD_IMAGE" ||
                           a.field_type === "PORTRAIT_MARKETING_IMAGE" ||
-                          a.field_type === "TALL_PORTRAIT_MARKETING_IMAGE"
+                          a.field_type === "TALL_PORTRAIT_MARKETING_IMAGE" ||
+                          a.field_type == null
                         );
                       }
                       if (tab === "YouTube Video")
@@ -428,8 +489,8 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
             })}
           </div>
 
-          {/* Text Sub-Tabs - Only show when Text tab is active */}
-          {activeTab === "Text" && (
+          {/* Text Sub-Tabs - Only show when Text tab is active (hidden when excluded or skipAssetFetch or hideTextTab) */}
+          {!skipAssetFetch && !hideTextTab && !tabsToHide.has("Text") && activeTab === "Text" && (
             <div className="flex space-x-1 overflow-x-auto mt-3 border-t border-[#e8e8e3] pt-3">
               {textSubTabs.map((subTab) => {
                 const subTabAssets = allAssets.filter((a) => {
@@ -483,28 +544,30 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
 
         {/* Action Buttons */}
         <div className="p-4 border-b border-[#e8e8e3] flex items-center justify-end gap-2">
-          {/* Text Asset Creation - for Business Name, Text tabs */}
-          {(activeTab === "All" ||
-            activeTab === "Business Name" ||
-            activeTab === "Text") && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setCreateTextAssetOpen(true);
-              }}
-              className="create-entity-button"
-            >
-              <span className="text-[10.64px] text-white font-normal">
-                {activeTab === "Business Name"
-                  ? "Create New Business Name"
-                  : "Create New Text Asset"}
-              </span>
-            </button>
-          )}
-          {/* Image Asset Creation - for Logo, Image tabs */}
-          {(activeTab === "Logo" || activeTab === "Image") && (
+          {/* Text Asset Creation - hide when TEXT excluded or hideTextTab or skipAssetFetch */}
+          {!tabsToHide.has("Text") &&
+            (activeTab === "Business Name" ||
+              ((activeTab === "All" || activeTab === "Text") &&
+                !hideTextTab &&
+                !skipAssetFetch)) && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setCreateTextAssetOpen(true);
+                }}
+                className="create-entity-button"
+              >
+                <span className="text-[10.64px] text-white font-normal">
+                  {activeTab === "Business Name"
+                    ? "Create New Business Name"
+                    : "Create New Text Asset"}
+                </span>
+              </button>
+            )}
+          {/* Image Asset Creation - for Logo, Image tabs (hide when IMAGE excluded) */}
+          {!tabsToHide.has("Logo") && (activeTab === "Logo" || activeTab === "Image") && (
             <button
               type="button"
               onClick={(e) => {
@@ -519,8 +582,8 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
               </span>
             </button>
           )}
-          {/* YouTube Video Asset Creation */}
-          {activeTab === "YouTube Video" && (
+          {/* YouTube Video Asset Creation (hide when YOUTUBE_VIDEO excluded) */}
+          {!tabsToHide.has("YouTube Video") && activeTab === "YouTube Video" && (
             <button
               type="button"
               onClick={(e) => {
@@ -535,8 +598,8 @@ export const AssetSelectorModal: React.FC<AssetSelectorModalProps> = ({
               </span>
             </button>
           )}
-          {/* Sitelink Asset Creation */}
-          {activeTab === "Sitelink" && (
+          {/* Sitelink Asset Creation (hide when SITELINK excluded) */}
+          {!tabsToHide.has("Sitelink") && activeTab === "Sitelink" && (
             <button
               type="button"
               onClick={(e) => {
