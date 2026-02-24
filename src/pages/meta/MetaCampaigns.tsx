@@ -82,7 +82,7 @@ export const MetaCampaigns: React.FC = () => {
         order: sortOrder,
         start_date: startDateStr,
         end_date: endDateStr,
-        filters: filters.map((f) => ({ field: f.field, value: f.value })),
+        filters: filters.map((f) => ({ field: f.field, operator: f.operator, value: f.value })),
       });
       setCampaigns(data.campaigns || []);
       setChartDataFromApi(data.chart_data || []);
@@ -299,7 +299,7 @@ export const MetaCampaigns: React.FC = () => {
                     setCurrentPage(1);
                   }}
                   initialFilters={filters}
-                  accountId={accountId}
+                  accountId={accountId ?? ""}
                   marketplace="meta"
                   entityType="campaigns"
                 />

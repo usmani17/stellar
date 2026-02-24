@@ -84,7 +84,7 @@ export const MetaAds: React.FC = () => {
         order: sortOrder,
         start_date: startDateStr,
         end_date: endDateStr,
-        filters: filters.map((f) => ({ field: f.field, value: f.value })),
+        filters: filters.map((f) => ({ field: f.field, operator: f.operator, value: f.value })),
       });
       setAds(data.ads || []);
       setChartDataFromApi(data.chart_data || []);
