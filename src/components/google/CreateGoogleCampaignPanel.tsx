@@ -1471,6 +1471,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             errors={errors}
             onChange={handleChange}
             mode={mode}
+            isDraftCampaign={campaignId?.toString().toLowerCase().startsWith("draft-") ?? false}
             googleProfiles={googleProfiles}
             selectedProfileId={selectedProfileId}
             setSelectedProfileId={setSelectedProfileId}

@@ -52,6 +52,8 @@ interface BaseGoogleCampaignFormProps {
   visibleKeys?: string[];
   /** When true, render fields one per line (single column). Used by Assistant chat. */
   flatLayout?: boolean;
+  /** When true, campaign is a draft (not published). Start date stays editable since draft hasn't gone live. */
+  isDraftCampaign?: boolean;
 }
 
 export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
@@ -79,6 +81,7 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
   simpleBudgetMode = false,
   visibleKeys,
   flatLayout = false,
+  isDraftCampaign = false,
 }) => {
   const showField = (k: string) => shouldShowBaseField(k, visibleKeys);
   const gridClass = flatLayout
@@ -363,9 +366,12 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
           <div>
             <label className="form-label">Start Date*</label>
             {(() => {
-              // Check if start date is today or in the past (only in edit mode)
+              // Check if start date is today or in the past (only in edit mode).
+              // Draft campaigns stay editable—they haven't gone live yet.
               const isReadonly =
-                mode === "edit" && formData.start_date
+                !isDraftCampaign &&
+                mode === "edit" &&
+                formData.start_date
                   ? (() => {
                       const today = new Date();
                       today.setHours(0, 0, 0, 0);
