@@ -121,8 +121,8 @@ export function buildInitialCampaignDataFromCampaign(
         undefined),
     bidding_strategy_type:
       (draft_campaign.bidding_strategy_type as string) ??
-      (campaignData.bidding_strategy_type ||
-        creation_payload.bidding_strategy_type ||
+      (creation_payload.bidding_strategy_type ||
+        campaignData.bidding_strategy_type ||
         undefined),
     target_cpa_micros: (() => {
       const raw =
@@ -133,7 +133,34 @@ export function buildInitialCampaignDataFromCampaign(
       if (raw < 1_000_000) return Math.round(raw * 1_000_000);
       return raw;
     })(),
-    target_roas: campaignData.target_roas,
+    target_roas: creation_payload.target_roas ?? campaignData.target_roas,
+    target_impression_share_location: (() => {
+      const raw = 
+        (draft_campaign.target_impression_share_location as string) ??
+        campaignData.target_impression_share_location ??
+        creation_payload.target_impression_share_location;
+      return raw || undefined;
+    })(),
+    target_impression_share_location_fraction_micros: (() => {
+      // creation_payload values are already in display units (what user originally entered)
+      const raw = creation_payload.target_impression_share_location_fraction_micros != null 
+        ? Number(creation_payload.target_impression_share_location_fraction_micros) 
+        : campaignData.target_impression_share_location_fraction_micros;
+      if (raw == null || raw <= 0) return undefined;
+      // Only convert from campaignData (which might be in micros from database)
+      // creation_payload values are already in display units
+      return raw;
+    })(),
+    target_impression_share_cpc_bid_ceiling_micros: (() => {
+      // creation_payload values are already in display units (what user originally entered)
+      const raw = creation_payload.target_impression_share_cpc_bid_ceiling_micros != null 
+        ? Number(creation_payload.target_impression_share_cpc_bid_ceiling_micros) 
+        : campaignData.target_impression_share_cpc_bid_ceiling_micros;
+      if (raw == null || raw <= 0) return undefined;
+      // Only convert from campaignData (which might be in micros from database)
+      // creation_payload values are already in display units
+      return raw;
+    })(),
     tracking_url_template:
       (draft_campaign.tracking_url_template as string) ??
       (creation_payload.tracking_url_template != null

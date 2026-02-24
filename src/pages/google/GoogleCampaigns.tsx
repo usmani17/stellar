@@ -478,11 +478,22 @@ export const GoogleCampaigns: React.FC = () => {
           ? startDateStr
           : undefined,
         end_date: endDate ? endDateStr : undefined,
-        filters: filters || [], // Pass filters array directly - ensure it's always an array
+        filters: [
+          ...(filters || []),
+          ...(debouncedSearchValue.trim() ? [
+            {
+              field: 'campaign_name',
+              operator: 'icontains',
+              value: debouncedSearchValue.trim()
+            },
+            {
+              field: 'account_id', 
+              operator: 'icontains',
+              value: debouncedSearchValue.trim()
+            }
+          ] : [])
+        ],
         draft_only: showDraftsOnly,
-        ...(debouncedSearchValue.trim() && {
-          campaign_name__icontains: debouncedSearchValue.trim(),
-        }),
       };
 
       console.log("🔍 [FILTERS DEBUG] Sending filters to service:", {
@@ -4151,11 +4162,19 @@ export const GoogleCampaigns: React.FC = () => {
                       </svg>
                     </div>
                     <input
+                      key="search-input"
                       type="text"
                       value={searchInputValue}
                       onChange={(e) => setSearchInputValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }
+                      }}
                       placeholder="Search by Name or Account ID"
                       className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179] font-['GT_America_Trial'] font-normal"
+                      autoComplete="off"
                     />
                   </div>
                   <div

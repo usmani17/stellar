@@ -19,6 +19,7 @@ import { GoogleCampaignDetailKeywordsTab } from "./components/tabs/GoogleCampaig
 import { GoogleCampaignDetailNegativeKeywordsTab } from "./components/tabs/GoogleCampaignDetailNegativeKeywordsTab";
 import { GoogleCampaignDetailAssetGroupsTab } from "./components/tabs/GoogleCampaignDetailAssetGroupsTab";
 import { GoogleCampaignDetailProductGroupsTab } from "./components/tabs/GoogleCampaignDetailProductGroupsTab";
+import type { GoogleProductGroup } from "./components/tabs/GoogleCampaignDetailProductGroupsTab";
 import { GoogleCampaignDetailShoppingAdsTab } from "./components/tabs/GoogleCampaignDetailShoppingAdsTab";
 import { GoogleCampaignDetailLogsTab } from "./components/tabs/GoogleCampaignDetailLogsTab";
 import { GoogleCampaignInformation } from "./components/GoogleCampaignInformation";
@@ -384,16 +385,31 @@ export const GoogleCampaignDetail: React.FC = () => {
         type: "ad_group";
         entity: {
           id: number;
-          adgroup_id?: number;
-          adgroup_name?: string;
+          adgroup_id?: string | number;
           name?: string;
         };
       }
     | {
-        type: "keyword";
-        entity: { id: number; keyword_id?: number; keyword_text?: string };
+        type: "ad";
+        entity: {
+          id: number;
+          ad_id?: number;
+          ad_type?: string;
+          adgroup_id?: string | number;
+        };
       }
-    | { type: "ad"; entity: { id: number; ad_id?: number; ad_type?: string } }
+    | {
+        type: "keyword";
+        entity: {
+          id: number;
+          keyword_id?: number;
+          keyword_text?: string;
+        };
+      }
+    | {
+        type: "product_group";
+        entity: GoogleProductGroup;
+      }
     | {
         type: "negative_keyword";
         entity: { id: number; criterion_id?: string; keyword_text?: string };
@@ -532,14 +548,20 @@ export const GoogleCampaignDetail: React.FC = () => {
   }) => {
     setPublishDraftEntity({ type: "ad", entity: ad });
   };
-  /** Product groups: no dedicated publish API; prompt user to publish the ad group first. */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature matches onPublishDraft prop
-  const handlePublishProductGroupDraft = (_productGroup: unknown) => {
-    setErrorModal({
-      isOpen: true,
-      message:
-        "Publish the ad group that contains this product group first. Then the product group will be published with it.",
-    });
+  const handlePublishProductGroupDraft = (productGroup: GoogleProductGroup) => {
+    // Check if the ad group is a draft
+    const adGroupId = productGroup.adgroup_id;
+    const isAdGroupDraft = adGroupId && String(adGroupId).startsWith("draft-");
+    
+    if (isAdGroupDraft) {
+      setErrorModal({
+        isOpen: true,
+        message: "Publish the ad group that contains this product group first. Then the product group will be published with it.",
+      });
+    } else {
+      // Ad group is published, so we can publish the product group
+      setPublishDraftEntity({ type: "product_group", entity: productGroup });
+    }
   };
   const handlePublishNegativeKeywordDraft = (n: {
     id: number;
@@ -712,6 +734,52 @@ export const GoogleCampaignDetail: React.FC = () => {
         });
         if (negativeKeywordsHook.loadNegativeKeywords)
           await negativeKeywordsHook.loadNegativeKeywords();
+      } else if (publishDraftEntity.type === "product_group") {
+        const campaignIdStr = String(campaignId ?? "");
+        if (campaignIdStr.toLowerCase().startsWith("draft-")) {
+          setErrorModal({
+            isOpen: true,
+            message: "Publish the campaign first, then you can publish product groups.",
+          });
+          return;
+        }
+        const pgEntity = publishDraftEntity.entity as GoogleProductGroup;
+        if (pgEntity.adgroup_id != null && String(pgEntity.adgroup_id).toLowerCase().startsWith("draft-")) {
+          setErrorModal({
+            isOpen: true,
+            message: "Publish the ad group first before publishing this product group.",
+          });
+          return;
+        }
+        const draftId = String(
+          pgEntity.ad_id ?? pgEntity.id ?? pgEntity.product_group_id,
+        );
+        if (!draftId.startsWith("draft-")) {
+          setErrorModal({ isOpen: true, message: "Not a draft product group." });
+          return;
+        }
+        
+        // Since there's no dedicated product group publish endpoint, we need to use the shopping entities creation endpoint
+        // This will create the product group in Google Ads and remove the draft
+        await googleAdwordsCampaignsService.createGoogleShoppingEntities(
+          accountIdNum,
+          channelIdNum,
+          campaignId,
+          {
+            adgroup_id: pgEntity.adgroup_id,
+            product_group: {
+              cpc_bid: pgEntity.cpc_bid_dollars || 0.01
+            },
+            save_as_draft: false // We're publishing, not saving as draft
+          }
+        );
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Draft product group published successfully. The draft row will be removed.",
+          isSuccess: true,
+        });
+        if (loadProductGroups) await loadProductGroups();
       }
     } catch (err: any) {
       const raw =
@@ -2839,6 +2907,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                             handleUpdateProductGroupStatus
                           }
                           onPublishDraft={handlePublishProductGroupDraft}
+                          publishLoadingId={
+                            publishDraftEntity?.type === "product_group" && publishDraftSubmitting
+                              ? (publishDraftEntity.entity.ad_id ?? publishDraftEntity.entity.id)
+                              : undefined
+                          }
                           accountId={accountId}
                           channelId={channelId}
                           onBulkUpdateComplete={loadProductGroups}
@@ -2851,7 +2924,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                                   setIsCreateShoppingEntitiesPanelOpen(
                                     !isCreateShoppingEntitiesPanelOpen,
                                   );
-                                  // Close filter panel if exists
+                                  setIsProductGroupsFilterPanelOpen(false);
                                 }}
                               />
                             ) : undefined
