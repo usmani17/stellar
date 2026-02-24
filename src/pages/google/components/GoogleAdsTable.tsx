@@ -5,6 +5,7 @@ import { Checkbox } from "../../../components/ui/Checkbox";
 import { Dropdown } from "../../../components/ui/Dropdown";
 import { Loader } from "../../../components/ui/Loader";
 import { formatDateString, parseDateToYYYYMMDD } from "../../../utils/dateHelpers";
+import { getAvailableBiddingStrategies } from "../../../components/google/campaigns/utils";
 import type { IColumnDefinition, IGoogleAdsTableProps } from "../../../types/google";
 
 
@@ -393,30 +394,7 @@ export function GoogleAdsTable<T = any>({
         if (campaignType.includes("ADVERTISING_CHANNEL_TYPE_")) {
           campaignType = campaignType.replace("ADVERTISING_CHANNEL_TYPE_", "");
         }
-        
-        if (campaignType === "PERFORMANCE_MAX") {
-          // Performance Max campaigns only support: MAXIMIZE_CONVERSIONS, MAXIMIZE_CONVERSION_VALUE
-          options = column.statusOptions.filter(
-            (opt) => opt.value === "MAXIMIZE_CONVERSIONS" || opt.value === "MAXIMIZE_CONVERSION_VALUE"
-          );
-        } else if (campaignType === "SHOPPING") {
-          // Shopping campaigns only support: MANUAL_CPC
-          options = column.statusOptions.filter(
-            (opt) => opt.value === "MANUAL_CPC"
-          );
-        } else if (campaignType === "SEARCH") {
-          // SEARCH campaigns support: MANUAL_CPC, MAXIMIZE_CONVERSIONS, MAXIMIZE_CONVERSION_VALUE,
-          // TARGET_IMPRESSION_SHARE, TARGET_SPEND
-          // Note: TARGET_CPA and TARGET_ROAS are not supported (require conversion tracking)
-          options = column.statusOptions.filter(
-            (opt) =>
-              opt.value === "MANUAL_CPC" ||
-              opt.value === "MAXIMIZE_CONVERSIONS" ||
-              opt.value === "MAXIMIZE_CONVERSION_VALUE" ||
-              opt.value === "TARGET_IMPRESSION_SHARE" ||
-              opt.value === "TARGET_SPEND"
-          );
-        }
+        options = getAvailableBiddingStrategies(campaignType);
       }
       
       // For bidding_strategy_type, convert formatted value back to enum value

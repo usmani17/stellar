@@ -364,6 +364,7 @@ export const GoogleAssetGroupAssetsTab: React.FC<GoogleAssetGroupAssetsTabProps>
         onSelect={handleSelectAsset}
         profileId={profileId}
         assetType={getAssetTypeForSubTab()}
+        hideTextTab={!["Headlines", "Descriptions", "Callouts"].includes(activeSubTab)}
         title={`Select ${activeSubTab} Asset`}
       />
 

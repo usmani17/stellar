@@ -1604,10 +1604,6 @@ body input[type="submit"]:disabled {
   flex-shrink: 0;
 }
 
-.assistant-ran-tool-label {
-  white-space: nowrap;
-}
-
 /* Chat title row (thread name + delete + history) */
 .assistant-title-row {
   display: flex;

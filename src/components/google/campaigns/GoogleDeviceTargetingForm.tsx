@@ -10,7 +10,7 @@ interface GoogleDeviceTargetingFormProps {
   onChange: (field: keyof CreateGoogleCampaignData, value: unknown) => void;
   showTitle?: boolean;
   disabled?: boolean;
-  /** When true, render device options one per line. Used by Assistant chat. */
+  /** When true, use compact responsive grid (2 cols on mobile, 4 in one row on sm+). Used by Assistant chat. */
   flatLayout?: boolean;
 }
 
@@ -21,7 +21,10 @@ export const GoogleDeviceTargetingForm: React.FC<GoogleDeviceTargetingFormProps>
   disabled = false,
   flatLayout = false,
 }) => {
-  const gridClass = flatLayout ? "flex flex-col gap-2" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4";
+  const gridClass = flatLayout
+    ? "grid grid-cols-2 sm:grid-cols-4 gap-2"
+    : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4";
+  const cardClass = flatLayout ? "border border-gray-200 rounded-lg p-3 bg-white min-w-0" : "border border-gray-200 rounded-lg p-4 bg-white";
   return (
     <div className="space-y-3">
       {showTitle && (
@@ -29,9 +32,9 @@ export const GoogleDeviceTargetingForm: React.FC<GoogleDeviceTargetingFormProps>
       )}
       <div className={gridClass}>
         {DEVICE_OPTIONS.map((device) => (
-          <div key={device.value} className="border border-gray-200 rounded-lg p-4 bg-white">
-            <label className="flex flex-col items-center gap-2 cursor-pointer">
-              <div className="text-3xl mb-1">{device.icon}</div>
+          <div key={device.value} className={cardClass}>
+            <label className="flex flex-col items-center gap-1 cursor-pointer">
+              <div className={flatLayout ? "text-2xl" : "text-3xl mb-1"}>{device.icon}</div>
               <input
                 type="checkbox"
                 checked={deviceIds?.includes(device.value) ?? false}

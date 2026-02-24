@@ -1,10 +1,10 @@
 // CreateGoogleCampaignPanel - Refactored version using modular components
 // Original file backed up as CreateGoogleCampaignPanel.old.tsx
 
-import React, { useState, useEffect, useCallback } from "react";
-import { campaignsService } from "../../services/campaigns";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { accountsService } from "../../services/accounts";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
+import { googleAdwordsAssetsService, type ImageAsset, type TextAsset } from "../../services/googleAdwords/googleAdwordsAssets";
 import {
   BaseGoogleCampaignForm,
   GoogleVideoCampaignForm,
@@ -26,6 +26,10 @@ import {
 import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "./CreateGooglePmaxAssetGroupPanel";
 import { GoogleConversionActionSelectorModal } from "./GoogleConversionActionSelectorModal";
 import { type GoogleConversionAction } from "../../services/googleAdwords/googleAdwordsConversionActions";
+import {
+  getGoogleLocationOptions,
+  getGoogleLanguageOptions,
+} from "../../constants/googleTargetingOptions";
 
 export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps> = ({
   isOpen,
@@ -47,29 +51,6 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [marketingImagePreview, setMarketingImagePreview] = useState<string | null>(null);
   const [squareMarketingImagePreview, setSquareMarketingImagePreview] = useState<string | null>(null);
-  // Location targeting state
-  const [locationOptions, setLocationOptions] = useState<Array<{ value: string; label: string; id: string; type: string; countryCode: string }>>([]);
-  const [loadingLocations, setLoadingLocations] = useState(false);
-  
-  // Language targeting state
-  const [languageOptions, setLanguageOptions] = useState<Array<{ value: string; label: string; id: string }>>([]);
-  const [loadingLanguages, setLoadingLanguages] = useState(false);
-  
-  // Conversion action state
-  const [selectedConversionActions, setSelectedConversionActions] = useState<Array<{ id: string; name: string }>>([]);
-  const [conversionActionModalOpen, setConversionActionModalOpen] = useState(false);
-  
-  // Profile selection state
-  const [googleProfiles, setGoogleProfiles] = useState<Array<{ value: string; label: string; customer_id: string; customer_id_raw: string; currency_code?: string }>>([]);
-  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
-  const [loadingProfiles, setLoadingProfiles] = useState(false);
-  const [profilesError, setProfilesError] = useState<string | null>(null);
-  
-  // Budget selection state
-  const [budgetOptions, setBudgetOptions] = useState<Array<{ value: string; label: string }>>([]);
-  const [loadingBudgets, setLoadingBudgets] = useState(false);
-  const [selectedBudgetId, setSelectedBudgetId] = useState<string>("");
-  const [useCustomBudgetName, setUseCustomBudgetName] = useState(false);
   const [formData, setFormData] = useState<CreateGoogleCampaignData>({
     campaign_type: "SEARCH",
     name: "",
@@ -90,6 +71,46 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     campaign_priority: 0,
     enable_local: false,
   });
+  // Location and language options - hardcoded (no API fetch), must be after formData
+  const locationOptions = useMemo(() => {
+    if (
+      formData.campaign_type !== "SHOPPING" &&
+      formData.campaign_type !== "SEARCH" &&
+      formData.campaign_type !== "PERFORMANCE_MAX"
+    ) {
+      return [];
+    }
+    return getGoogleLocationOptions();
+  }, [formData.campaign_type]);
+  const languageOptions = useMemo(() => {
+    if (
+      formData.campaign_type !== "SEARCH" &&
+      formData.campaign_type !== "PERFORMANCE_MAX" &&
+      formData.campaign_type !== "SHOPPING"
+    ) {
+      return [];
+    }
+    return getGoogleLanguageOptions();
+  }, [formData.campaign_type]);
+  const loadingLocations = false;
+  const loadingLanguages = false;
+  
+  // Conversion action state
+  const [selectedConversionActions, setSelectedConversionActions] = useState<Array<{ id: string; name: string }>>([]);
+  const [conversionActionModalOpen, setConversionActionModalOpen] = useState(false);
+  
+  // Profile selection state
+  const [googleProfiles, setGoogleProfiles] = useState<Array<{ value: string; label: string; customer_id: string; customer_id_raw: string; currency_code?: string }>>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
+  const [loadingProfiles, setLoadingProfiles] = useState(false);
+  const [profilesError, setProfilesError] = useState<string | null>(null);
+  
+  // Budget selection state
+  const [budgetOptions, setBudgetOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [loadingBudgets, setLoadingBudgets] = useState(false);
+  const [selectedBudgetId, setSelectedBudgetId] = useState<string>("");
+  const [useCustomBudgetName, setUseCustomBudgetName] = useState(false);
+  
   const [errors, setErrors] = useState<
     Partial<Record<keyof CreateGoogleCampaignData, string>>
   >({});
@@ -339,136 +360,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     }
   }, [selectedProfileId, googleProfiles]);
 
-  // Function to fetch location targets (loads initial set, Dropdown handles filtering)
-  const fetchLocations = useCallback(async () => {
-    if (
-      !accountId ||
-      (formData.campaign_type !== "SHOPPING" &&
-        formData.campaign_type !== "SEARCH" &&
-        formData.campaign_type !== "PERFORMANCE_MAX") ||
-      !selectedProfileId
-    ) {
-      // Only clear location options, not language options (they're managed separately)
-      if (formData.campaign_type !== "SHOPPING" &&
-          formData.campaign_type !== "SEARCH" &&
-          formData.campaign_type !== "PERFORMANCE_MAX") {
-        setLocationOptions([]);
-      }
-      return;
-    }
-
-    setLoadingLocations(true);
-
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-      // For SEARCH campaigns, use undefined country code (or could use a default like "US")
-      // For SHOPPING campaigns, use sales_country
-      const countryCode = formData.campaign_type === "SHOPPING" ? (formData.sales_country || undefined) : undefined;
-      // Load up to 200 locations initially - Dropdown will filter them client-side
-      const locations = await campaignsService.getGoogleGeoTargetConstants(
-        accountIdNum,
-        channelIdNum,
-        selectedProfileId,
-        undefined, // No search query - load common locations
-        countryCode
-      );
-      
-      const formattedLocations = locations.map((loc) => ({
-        value: loc.id,
-        label: `${loc.name} (${loc.type})`,
-        id: loc.id,
-        type: loc.type,
-        countryCode: loc.countryCode || "",
-      }));
-      
-      setLocationOptions(formattedLocations);
-    } catch (error: any) {
-      console.error("Error fetching location targets:", error);
-      setLocationOptions([]);
-    } finally {
-      setLoadingLocations(false);
-    }
-  }, [accountId, channelId, formData.campaign_type, formData.sales_country, selectedProfileId]);
-
-  // Fetch locations when Shopping / Search / Performance Max campaign is selected
-  useEffect(() => {
-    if (
-      isOpen &&
-      (formData.campaign_type === "SHOPPING" ||
-        formData.campaign_type === "SEARCH" ||
-        formData.campaign_type === "PERFORMANCE_MAX") &&
-      accountId &&
-      selectedProfileId
-    ) {
-      fetchLocations();
-    } else {
-      setLocationOptions([]);
-      setLanguageOptions([]);
-    }
-  }, [isOpen, formData.campaign_type, accountId, selectedProfileId, fetchLocations]);
-
-  // Function to fetch language constants
-  const fetchLanguages = useCallback(async () => {
-    // Languages are selectable for SEARCH, PERFORMANCE_MAX, and SHOPPING campaigns
-    if (
-      !accountId ||
-      (formData.campaign_type !== "SEARCH" && 
-       formData.campaign_type !== "PERFORMANCE_MAX" && 
-       formData.campaign_type !== "SHOPPING") ||
-      !selectedProfileId
-    ) {
-      setLanguageOptions([]);
-      return;
-    }
-
-    setLoadingLanguages(true);
-
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-      const languages = await campaignsService.getGoogleLanguageConstants(
-        accountIdNum,
-        channelIdNum,
-        selectedProfileId
-      );
-      
-      const formattedLanguages = languages.map((lang) => ({
-        value: lang.id,
-        label: lang.name,
-        id: lang.id,
-      }));
-      
-      setLanguageOptions(formattedLanguages);
-    } catch (error: any) {
-      console.error("Error fetching language constants:", error);
-      setLanguageOptions([]);
-    } finally {
-      setLoadingLanguages(false);
-    }
-  }, [accountId, channelId, formData.campaign_type, selectedProfileId]);
-
-  // Fetch languages when SEARCH / PERFORMANCE_MAX / SHOPPING campaign is selected
-  useEffect(() => {
-    if (
-      isOpen &&
-      (formData.campaign_type === "SEARCH" || 
-       formData.campaign_type === "PERFORMANCE_MAX" || 
-       formData.campaign_type === "SHOPPING") &&
-      accountId &&
-      selectedProfileId
-    ) {
-      fetchLanguages();
-    } else {
-      setLanguageOptions([]);
-    }
-  }, [isOpen, formData.campaign_type, accountId, selectedProfileId, fetchLanguages]);
+  // Locations and languages use hardcoded constants (no fetch) - see googleTargetingOptions
 
   // Reset form when panel closes or load initial data when in edit/create mode
   useEffect(() => {
@@ -536,6 +428,47 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     }
   }, [isOpen, mode, initialData]);
 
+  // Fetch asset details when we have asset IDs but missing display content (logo_url, business_name)
+  useEffect(() => {
+    if (!isOpen || !initialData) return;
+    const profileId = initialData.profile_id
+      ? parseInt(String(initialData.profile_id), 10)
+      : selectedProfileId
+        ? parseInt(selectedProfileId, 10)
+        : NaN;
+    if (isNaN(profileId)) return;
+
+    const fetchMissingAssetDetails = async () => {
+      // Logo: have asset id but no logo_url
+      if (initialData.logo_asset_id && !initialData.logo_url) {
+        try {
+          const res = await googleAdwordsAssetsService.getAsset(profileId, String(initialData.logo_asset_id));
+          if (res.success && res.asset && res.asset.type === "IMAGE") {
+            const img = res.asset as ImageAsset;
+            if (img.image_url) {
+              setFormData(prev => ({ ...prev, logo_url: img.image_url }));
+              setLogoPreview(img.image_url);
+            }
+          }
+        } catch { /* asset fetch failed, user can re-select */ }
+      }
+      // Business name: have asset id but no business_name text
+      if (initialData.business_name_asset_id && !initialData.business_name) {
+        try {
+          const res = await googleAdwordsAssetsService.getAsset(profileId, String(initialData.business_name_asset_id));
+          if (res.success && res.asset && res.asset.type === "TEXT") {
+            const txt = res.asset as TextAsset;
+            if (txt.text) {
+              setFormData(prev => ({ ...prev, business_name: txt.text }));
+            }
+          }
+        } catch { /* asset fetch failed, user can re-select */ }
+      }
+    };
+
+    fetchMissingAssetDetails();
+  }, [isOpen, initialData, selectedProfileId]);
+
   const resetForm = () => {
     setFormData({
       campaign_type: "SEARCH",
@@ -575,8 +508,6 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     setMarketingImagePreview(null);
     setSquareMarketingImagePreview(null);
     setSelectedProfileId("");
-    setLocationOptions([]);
-    setLanguageOptions([]);
     setFormData((prev) => ({
       ...prev,
       location_ids: undefined,

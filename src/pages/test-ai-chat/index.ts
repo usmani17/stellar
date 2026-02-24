@@ -4,5 +4,4 @@
  * Can be deleted when no longer needed.
  */
 export { TestAIChatToolsPage } from "./TestAIChatToolsPage";
-export { ChatFormTestPage } from "./ChatFormTestPage";
 export { CampaignFormTestPage } from "./CampaignFormTestPage";

@@ -250,7 +250,7 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -412,15 +412,18 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
           <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
             Ad Type
           </h3>
-          <select
-            value={formData.ad_type}
-            onChange={(e) => updateField("ad_type", e.target.value as DemandGenAdType)}
-            className="campaign-input w-full max-w-xs text-[13.3px] text-[#072929]"
-          >
-            <option value="DemandGenMultiAssetAdInfo">Multi Asset Ad</option>
-            <option value="DemandGenVideoResponsiveAdInfo">Video Responsive Ad</option>
-            <option value="DemandGenCarouselAdInfo">Carousel Ad</option>
-          </select>
+          <div className="max-w-xs">
+            <Dropdown
+              options={[
+                { value: "DemandGenMultiAssetAdInfo", label: "Multi Asset Ad" },
+                { value: "DemandGenVideoResponsiveAdInfo", label: "Video Responsive Ad" },
+                { value: "DemandGenCarouselAdInfo", label: "Carousel Ad" }
+              ]}
+              value={formData.ad_type}
+              onChange={(val) => updateField("ad_type", val as DemandGenAdType)}
+              buttonClassName="w-full"
+            />
+          </div>
         </div>
 
         {/* Common Fields */}
@@ -435,7 +438,7 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
               onChange={(e) => updateField("business_name", e.target.value)}
               className={`campaign-input w-full ${
                 errors.business_name ? "border-red-500" : ""
-              }`}
+                }`}
               placeholder="Enter business name"
             />
             {errors.business_name && (
@@ -455,7 +458,7 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
                   onChange={(e) => updateArrayItem("final_urls", index, e.target.value)}
                   className={`campaign-input flex-1 ${
                     errors.final_urls && index === 0 ? "border-red-500" : ""
-                  }`}
+                    }`}
                   placeholder="https://example.com"
                 />
                 {formData.final_urls.length > 1 && (
@@ -513,7 +516,7 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
                       readOnly={!!headlineAssetRn}
                       className={`campaign-input w-full pr-28 ${
                         errors[`headline_${index}`] ? "border-red-500" : ""
-                      } ${headlineAssetRn ? "bg-gray-50 border-gray-200 cursor-not-allowed" : ""}`}
+                        } ${headlineAssetRn ? "bg-gray-50 border-gray-200 cursor-not-allowed" : ""}`}
                       placeholder={`Headline ${index + 1} (max 30 characters)`}
                       maxLength={30}
                     />
@@ -614,7 +617,7 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
                       readOnly={!!descAssetRn}
                       className={`campaign-input w-full resize-none pr-28 ${
                         errors[`description_${index}`] ? "border-red-500" : ""
-                      } ${descAssetRn ? "bg-gray-50 border-gray-200 cursor-not-allowed" : ""}`}
+                        } ${descAssetRn ? "bg-gray-50 border-gray-200 cursor-not-allowed" : ""}`}
                       placeholder={`Description ${index + 1} (max 90 characters)`}
                       maxLength={90}
                       rows={2}
@@ -932,7 +935,7 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
               )}
               {errors.logo_images && <p className="text-[10px] text-red-500 mt-1">{errors.logo_images}</p>}
             </div>
-            
+
             {/* Carousel Cards: only asset (image) per card; no per-card headline/description in API */}
             <div className="mb-3">
               <label className="form-label-small">
@@ -1067,6 +1070,9 @@ export const CreateGoogleDemandGenAdPanel: React.FC<CreateGoogleDemandGenAdPanel
               : assetSelectorType === "VIDEO"
                 ? "YOUTUBE_VIDEO"
                 : "IMAGE"
+          }
+          hideTextTab={
+            assetSelectorType === "LOGO" || assetSelectorType === "VIDEO" || assetSelectorType === "IMAGE"
           }
           title={
             assetSelectorType === "VIDEO"

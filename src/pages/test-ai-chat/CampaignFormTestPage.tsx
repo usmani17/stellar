@@ -11,7 +11,7 @@ import React, { useState } from "react";
 import { CampaignFormForChat } from "../../components/ai/CampaignFormForChat";
 
 const ALL_FIELD_GROUPS: { label: string; keys: string[] }[] = [
-  { label: "URL Customization", keys: ["budget_name", "tracking_url_template", "final_url_suffix", "url_custom_parameters"] },
+  { label: "URL Customization", keys: ["budget_name","budget_id", "tracking_url_template", "final_url_suffix", "url_custom_parameters"] },
   { label: "Shopping Settings", keys: ["merchant_id"] },
   { label: "Targeting (Location & Language)", keys: ["location_ids", "excluded_location_ids", "language_ids"] },
   { label: "Asset IDs (Demand Gen & Perf Max)", keys: ["business_name_asset_id", "logo_asset_id", "marketing_image_asset_id", "square_marketing_image_asset_id"] },
@@ -22,7 +22,7 @@ const ALL_FIELD_GROUPS: { label: string; keys: string[] }[] = [
 const CAMPAIGN_TYPES = ["SEARCH", "SHOPPING", "DEMAND_GEN", "PERFORMANCE_MAX"] as const;
 
 export const CampaignFormTestPage: React.FC = () => {
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set(["budget_name", "tracking_url_template", "final_url_suffix", "url_custom_parameters"]));
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set(["budget_name", "budget_id", "tracking_url_template", "final_url_suffix", "url_custom_parameters"]));
   const [campaignType, setCampaignType] = useState<string>("SEARCH");
   const [lastSubmit, setLastSubmit] = useState<string | null>(null);
   const [accountId, setAccountId] = useState('20');

@@ -15,9 +15,25 @@ import { Dropdown } from "../ui/Dropdown";
 import { MerchantIdDropdown } from "../google/MerchantIdDropdown";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
 import { GoogleLocationTargetingForm } from "../google/campaigns/GoogleLocationTargetingForm";
-import { campaignsService } from "../../services/campaigns";
+import {
+  getGoogleLocationOptions,
+  getGoogleLanguageOptions,
+} from "../../constants/googleTargetingOptions";
+import { SALES_COUNTRY_OPTIONS } from "../google/campaigns/utils";
 
+/** Set to true to skip the backend API call for fetching text assets in the assistant campaign form */
+const SKIP_TEXT_ASSET_FETCH_IN_ASSISTANT = true;
 
+/** Asset types to exclude - only fetch Logo, Image, Video, Sitelink for assistant. Excludes TEXT, CALLOUT, STRUCTURED_SNIPPET, PRICE, etc. */
+const EXCLUDE_ASSET_TYPES_IN_ASSISTANT: string[] = [
+  "TEXT",
+  "CALLOUT",
+  "STRUCTURED_SNIPPET",
+  "PRICE",
+  "PROMOTION",
+  "LEAD_FORM",
+  "CALL",
+];
 
 function getKeysForForm(formKeys: string[]): string[] {
   return formKeys.map((q) => stripEntityPrefix(q));
@@ -51,6 +67,7 @@ export interface CampaignFormForChatProps {
   profileId?: string | number;
   accountId?: string | number;
   channelId?: string | number;
+  plateform?: string;
 }
 
 export interface CampaignFormForChatHandle {
@@ -67,6 +84,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   profileId,
   accountId,
   channelId,
+  plateform
 }, ref) => {
   const requestedKeys = getKeysForForm(questionsSchema);
 
@@ -151,8 +169,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const [selectedExcludedLocationIds, setSelectedExcludedLocationIds] = useState<string[]>(
     (campaignDraft?.excluded_location_ids as string[]) || []
   );
-  const [locationOptions, setLocationOptions] = useState<Array<{ value: string; label: string; id: string; type: string; countryCode: string }>>([]);
-  const [loadingLocations, setLoadingLocations] = useState(false);
+  const loadingLocations = false;
 
   const profileIdNum = profileId != null ? (typeof profileId === "number" ? profileId : parseInt(String(profileId), 10)) : null;
   const accountIdNum = accountId != null ? (typeof accountId === "number" ? accountId : parseInt(String(accountId), 10)) : null;
@@ -175,10 +192,13 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
   const hasTrackingUrlTemplateField = isFieldRequested("tracking_url_template", requestedKeys);
   const hasFinalUrlSuffixField = isFieldRequested("final_url_suffix", requestedKeys);
   const hasUrlCustomParametersField = isFieldRequested("url_custom_parameters", requestedKeys);
-  const hasBudgetNameField = isFieldRequested("budget_name", requestedKeys);
+  const hasBudgetNameField = isFieldRequested("budget_name", requestedKeys) || isFieldRequested("budget_id", requestedKeys);
   const hasLocationIdsField = isFieldRequested("location_ids", requestedKeys);
   const hasExcludedLocationIdsField = isFieldRequested("excluded_location_ids", requestedKeys);
   const hasMerchantIdField = isFieldRequested("merchant_id", requestedKeys);
+  const hasSalesCountryField = isFieldRequested("sales_country", requestedKeys);
+  const locationOptions =
+    hasLocationIdsField || hasExcludedLocationIdsField ? getGoogleLocationOptions() : [];
   // Function to fetch budgets
   const fetchBudgets = useCallback(async () => {
     if (!accountIdNum || !channelIdNum || !profileIdNum || !hasBudgetNameField) {
@@ -222,49 +242,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
     }
   }, [accountIdNum, channelIdNum, profileIdNum, fetchBudgets]);
 
-  // Function to fetch locations
-  const fetchLocations = useCallback(async () => {
-    if (!accountIdNum || !channelIdNum || !profileIdNum) {
-      setLocationOptions([]);
-      return;
-    }
-
-    setLoadingLocations(true);
-    try {
-      if (isNaN(accountIdNum) || isNaN(channelIdNum)) {
-        throw new Error("Invalid accountId or channelId");
-      }
-      const locations = await campaignsService.getGoogleGeoTargetConstants(
-        accountIdNum,
-        channelIdNum,
-        profileIdNum,
-        undefined,
-        undefined // No country restriction for now
-      );
-
-      const formattedLocations = locations.map((loc: any) => ({
-        value: loc.id,
-        label: `${loc.name} (${loc.type})`,
-        id: loc.id,
-        type: loc.type,
-        countryCode: loc.countryCode || "",
-      }));
-
-      setLocationOptions(formattedLocations);
-    } catch (error: any) {
-      console.error("Error fetching locations:", error);
-      setLocationOptions([]);
-    } finally {
-      setLoadingLocations(false);
-    }
-  }, [accountIdNum, channelIdNum, profileIdNum]);
-
-  // Fetch locations when account, channel, and profile are available
-  useEffect(() => {
-    if (accountIdNum && channelIdNum && profileIdNum && hasLocationIdsField) {
-      fetchLocations();
-    }
-  }, [accountIdNum, channelIdNum, profileIdNum, fetchLocations]);
+  // Locations use hardcoded constants (no fetch) - same as CreateGoogleCampaignPanel
 
   useImperativeHandle(ref, () => ({
     getValues: () => {
@@ -308,6 +286,9 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       }
       if (isFieldRequested("merchant_id", requestedKeys) && merchantId) {
         vals["merchant_id"] = merchantId;
+      }
+      if (isFieldRequested("sales_country", requestedKeys) && formData.sales_country) {
+        vals["sales_country"] = String(formData.sales_country);
       }
       return vals;
     },
@@ -392,43 +373,41 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
     }
 
     // Add budget_name
-    if (isFieldRequested("budget_name", requestedKeys)) {
+    if (isFieldRequested("budget_name", requestedKeys) || isFieldRequested("budget_id", requestedKeys)) {
       let displayValue = budgetName;
       if (selectedBudgetId && selectedBudgetId !== "__CUSTOM__") {
-        // Show selected budget name from dropdown
-        const selectedOption = budgetOptions.find(opt => opt.value === selectedBudgetId);
-        displayValue = selectedOption?.name || budgetName;
-      }
-      if (displayValue) {
+        const label = getFieldLabel("budget_id");
+        parts.push(`${label}: ${selectedBudgetId}`);
+      } else if (displayValue) {
         const label = getFieldLabel("budget_name");
         parts.push(`${label}: ${displayValue}`);
       }
     }
 
-    // Add location_ids
+    // Add location_ids - pass IDs to agent (not names)
     if (isFieldRequested("location_ids", requestedKeys) && selectedLocationIds.length > 0) {
       const label = getFieldLabel("location_ids");
-      const locationNames = selectedLocationIds.map(locId => {
-        const location = locationOptions.find(opt => opt.value === String(locId));
-        return location?.label || locId;
-      }).join(", ");
-      parts.push(`${label}: ${locationNames}`);
+      parts.push(`${label}: ${selectedLocationIds.map(id => String(id)).join(", ")}`);
     }
 
-    // Add excluded_location_ids
+    // Add excluded_location_ids - pass IDs to agent (not names)
     if (isFieldRequested("excluded_location_ids", requestedKeys) && selectedExcludedLocationIds.length > 0) {
       const label = getFieldLabel("excluded_location_ids");
-      const locationNames = selectedExcludedLocationIds.map(locId => {
-        const location = locationOptions.find(opt => opt.value === locId);
-        return location?.label || locId;
-      }).join(", ");
-      parts.push(`${label}: ${locationNames}`);
+      parts.push(`${label}: ${selectedExcludedLocationIds.join(", ")}`);
     }
 
     // Add merchant_id
     if (isFieldRequested("merchant_id", requestedKeys) && merchantId) {
       const label = getFieldLabel("merchant_id");
       parts.push(`${label}: ${merchantId}`);
+    }
+
+    // Add sales_country
+    if (isFieldRequested("sales_country", requestedKeys) && formData.sales_country) {
+      const label = getFieldLabel("sales_country");
+      const countryOption = SALES_COUNTRY_OPTIONS.find(opt => opt.value === formData.sales_country);
+      const displayValue = countryOption?.label || formData.sales_country;
+      parts.push(`${label}: ${displayValue}`);
     }
 
     // Add multi-asset fields with readable labels (so agent view shows names, not ", ," or JSON)
@@ -513,7 +492,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
       hasMerchantIdField ||
       hasCalloutAssetIdsField);
 
-  const hasAnyVisibleTargetingField = hasDeviceIdsField || hasLanguageIdsField || hasTrackingUrlTemplateField || hasFinalUrlSuffixField || hasUrlCustomParametersField || hasBudgetNameField || hasLocationIdsField || hasExcludedLocationIdsField;
+  const hasAnyVisibleTargetingField = hasDeviceIdsField || hasLanguageIdsField || hasTrackingUrlTemplateField || hasFinalUrlSuffixField || hasUrlCustomParametersField || hasBudgetNameField || hasLocationIdsField || hasExcludedLocationIdsField || hasSalesCountryField;
 
   const hasAnyVisibleField = !!hasAnyVisibleAssetField || hasAnyVisibleTargetingField;
 
@@ -789,17 +768,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
           {hasLanguageIdsField && (
             <GoogleLanguageTargetingForm
               languageIds={selectedLanguageIds}
-              languageOptions={[
-                { value: "1000", label: "English", id: "1000" },
-                { value: "1001", label: "Spanish", id: "1001" },
-                { value: "1002", label: "French", id: "1002" },
-                { value: "1003", label: "German", id: "1003" },
-                { value: "1004", label: "Italian", id: "1004" },
-                { value: "1005", label: "Portuguese", id: "1005" },
-                { value: "1006", label: "Chinese", id: "1006" },
-                { value: "1007", label: "Japanese", id: "1007" },
-                { value: "1008", label: "Korean", id: "1008" },
-              ]}
+              languageOptions={getGoogleLanguageOptions()}
               loadingLanguages={false}
               onLanguageIdsChange={(ids) => setSelectedLanguageIds(ids || [])}
               showTitle={true}
@@ -902,6 +871,22 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
               showAccountCount={false}
             />
           )}
+
+          {/* Sales Country */}
+          {hasSalesCountryField && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-[#072929]">
+                Sales Country
+              </label>
+              <Dropdown<string>
+                options={SALES_COUNTRY_OPTIONS}
+                value={formData.sales_country || "US"}
+                onChange={(v) => onChange("sales_country", v)}
+                buttonClassName="edit-button w-full"
+                disabled={disabled}
+              />
+            </div>
+          )}
         </div>
 
         <button
@@ -929,6 +914,8 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             assetType="IMAGE"
             title="Select Logo Asset"
             initialTab="Logo"
+            hideTextTab
+            excludeAssetTypes={EXCLUDE_ASSET_TYPES_IN_ASSISTANT}
           />
 
           {/* Business Name Asset Modal */}
@@ -944,6 +931,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             assetType="TEXT"
             title="Select Business Name Asset"
             initialTab="Business Name"
+            hideTextTab={SKIP_TEXT_ASSET_FETCH_IN_ASSISTANT}
           />
 
           {/* Marketing Image Asset Modal */}
@@ -959,6 +947,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             assetType="IMAGE"
             title="Select Marketing Image"
             initialTab="Marketing Image"
+            excludeAssetTypes={EXCLUDE_ASSET_TYPES_IN_ASSISTANT}
           />
 
           {/* Square Marketing Image Asset Modal */}
@@ -974,12 +963,14 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             assetType="IMAGE"
             title="Select Square Marketing Image"
             initialTab="Square Marketing Image"
+            excludeAssetTypes={EXCLUDE_ASSET_TYPES_IN_ASSISTANT}
           />
 
           {/* Headline Assets Modal */}
           <AssetSelectorModal
             isOpen={isHeadlineAssetsModalOpen}
             onClose={() => setIsHeadlineAssetsModalOpen(false)}
+            hideTextTab={false}
             onSelect={(asset) => {
               const newAssets = [...selectedHeadlineAssets, asset];
               setSelectedHeadlineAssets(newAssets);
@@ -990,12 +981,14 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             title="Select Headline Assets"
             initialTab="Headline"
             allowMultiple
+            skipAssetFetch={SKIP_TEXT_ASSET_FETCH_IN_ASSISTANT}
           />
 
           {/* Description Assets Modal */}
           <AssetSelectorModal
             isOpen={isDescriptionAssetsModalOpen}
             onClose={() => setIsDescriptionAssetsModalOpen(false)}
+            hideTextTab={false}
             onSelect={(asset) => {
               const newAssets = [...selectedDescriptionAssets, asset];
               setSelectedDescriptionAssets(newAssets);
@@ -1006,12 +999,14 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             title="Select Description Assets"
             initialTab="Description"
             allowMultiple
+            skipAssetFetch={SKIP_TEXT_ASSET_FETCH_IN_ASSISTANT}
           />
 
           {/* Long Headline Assets Modal */}
           <AssetSelectorModal
             isOpen={isLongHeadlineAssetsModalOpen}
             onClose={() => setIsLongHeadlineAssetsModalOpen(false)}
+            hideTextTab={false}
             onSelect={(asset) => {
               const newAssets = [...selectedLongHeadlineAssets, asset];
               setSelectedLongHeadlineAssets(newAssets);
@@ -1022,6 +1017,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             title="Select Long Headline Assets"
             initialTab="Long Headline"
             allowMultiple
+            skipAssetFetch={SKIP_TEXT_ASSET_FETCH_IN_ASSISTANT}
           />
 
           {/* Video Assets Modal */}
@@ -1038,6 +1034,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             title="Select Video Assets"
             initialTab="Video"
             allowMultiple
+            excludeAssetTypes={EXCLUDE_ASSET_TYPES_IN_ASSISTANT}
           />
 
           {/* Sitelink Assets Modal */}
@@ -1054,6 +1051,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             title="Select Sitelink Assets"
             initialTab="Sitelink"
             allowMultiple
+            excludeAssetTypes={EXCLUDE_ASSET_TYPES_IN_ASSISTANT}
           />
 
           {/* Callout Assets Modal */}
@@ -1070,6 +1068,7 @@ export const CampaignFormForChat = forwardRef<CampaignFormForChatHandle, Campaig
             title="Select Callout Assets"
             initialTab="Text"
             allowMultiple
+            skipAssetFetch={SKIP_TEXT_ASSET_FETCH_IN_ASSISTANT}
           />
         </>
       )}

@@ -3,6 +3,8 @@
  * Same schema as Pixis-Ai-Agent chat-ui.
  */
 
+import type { CampaignDraftData } from "../services/ai/pixisChat";
+
 export type ChartType = "bar" | "line" | "pie" | "area";
 
 export interface ChartConfig {
@@ -87,19 +89,9 @@ export type PdfReportData = {
 export type ContentSegment =
   | { type: "markdown"; content: string }
   | { type: "chart"; config: ChartConfig }
-  | { type: "campaign-setup"; data: CampaignSetupData }
+  | { type: "campaign-setup"; data: CampaignDraftData }
   | { type: "pdf-report"; data: PdfReportData };
 
-export interface CampaignSetupData {
-  draft_id: string;
-  platform: string;
-  campaign_type: string;
-  complete: boolean;
-  draft: Record<string, Record<string, unknown>>;
-  questions: Record<string, Record<string, string>>;
-  keys_for_form: string[];
-  validation_error: Record<string, string> | null;
-}
 
 
 export function parsePdfReportJson(jsonStr: string): PdfReportData | null {
@@ -116,7 +108,7 @@ export function parsePdfReportJson(jsonStr: string): PdfReportData | null {
   }
 }
 
-export function parseCampaignSetupJson(jsonStr: string): CampaignSetupData | null {
+export function parseCampaignSetupJson(jsonStr: string): CampaignDraftData | null {
   try {
     const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
     if (
@@ -135,8 +127,7 @@ export function parseCampaignSetupJson(jsonStr: string): CampaignSetupData | nul
       keys_for_form: Array.isArray(parsed.keys_for_form)
         ? parsed.keys_for_form.map(String)
         : [],
-      validation_error:
-        (parsed.validation_error as Record<string, string> | null) ?? null,
+      validation_error:parsed.validation_error as string | null,
     };
   } catch {
     return null;
@@ -238,7 +229,7 @@ export function extractDisplayContentFromEvents(events: unknown[]): string {
 export function parseContentWithBlocks(raw: string): ContentSegment[] {
   const segments: ContentSegment[] = [];
   let lastIndex = 0;
-  const blockRe = /```(chart-json|campaign-setup|pdf-report)\s*\n([\s\S]*?)\n```/g;
+  const blockRe = /```(chart-json|campaign-setup|pdf-report|docx-report)\s*\n([\s\S]*?)\n```/g;
   let match;
   while ((match = blockRe.exec(raw)) !== null) {
     const mdPart = raw.slice(lastIndex, match.index);
@@ -253,7 +244,7 @@ export function parseContentWithBlocks(raw: string): ContentSegment[] {
     } else if (blockType === "campaign-setup") {
       const data = parseCampaignSetupJson(inner);
       if (data) segments.push({ type: "campaign-setup", data });
-    } else if (blockType === "pdf-report") {
+    } else if (blockType === "pdf-report" || blockType === "docx-report") {
       const data = parsePdfReportJson(inner);
       if (data) segments.push({ type: "pdf-report", data });
     }
@@ -272,7 +263,7 @@ export function parseContentWithBlocks(raw: string): ContentSegment[] {
  */
 export function deriveCampaignStateFromContent(
   content: string
-): CampaignSetupData | null {
+): CampaignDraftData | null {
   const segments = parseContentWithBlocks(content);
   const setupSeg = [...segments].reverse().find((s) => s.type === "campaign-setup");
   if (!setupSeg || setupSeg.type !== "campaign-setup") return null;

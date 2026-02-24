@@ -9,7 +9,7 @@ interface CreateImageAssetModalProps {
   onSuccess: (asset: any) => void;
   profileId: number;
   title?: string;
-  /** When "LOGO", backend links the asset as a logo (1:1 square for Demand Gen). */
+  /** When provided (e.g. LOGO), backend links asset as that type. Used when creating from Logo tab. */
   fieldType?: string;
 }
 

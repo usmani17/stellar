@@ -120,7 +120,8 @@ export const StellarMarkDown: React.FC<StellarMarkDownProps> = ({ content, type 
                 components={{
                     code:({ className, children, ...props }) => (
                         <code
-                            className={`${className} ${type === "human" ? "text-white" : "text-gray500"
+                            style={{ whiteSpace: "pre-wrap" , wordBreak: "break-word"}}
+                            className={`${className} ${type === "human" ? "text-white" : "text-gray-500"
                                 }`}
                             {...props}
                         >
