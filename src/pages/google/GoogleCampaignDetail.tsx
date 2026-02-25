@@ -922,18 +922,15 @@ export const GoogleCampaignDetail: React.FC = () => {
         // Shopping-specific: prefer draft_state.campaign (agent drafts), then creation_payload, then extra_data
         sales_country:
           (draftCampaign.sales_country as string | undefined) ??
-          (creationPayload.sales_country as string | undefined) ??
           (c.sales_country as string | undefined) ??
           shoppingSetting.sales_country ??
           "US",
         merchant_id: c.merchant_id ?? shoppingSetting.merchant_id,
         campaign_priority:
           typeof draftCampaign.campaign_priority === "number" ? draftCampaign.campaign_priority
-            : typeof creationPayload.campaign_priority === "number" ? creationPayload.campaign_priority
             : c.campaign_priority ?? shoppingSetting.campaign_priority ?? 0,
         enable_local:
           draftCampaign.enable_local === true || draftCampaign.enable_local === false ? draftCampaign.enable_local
-            : creationPayload.enable_local === true || creationPayload.enable_local === false ? creationPayload.enable_local
             : c.enable_local ?? shoppingSetting.enable_local ?? false,
       };
     }, [campaignDetail?.campaign, isDraftCampaign]);
