@@ -102,6 +102,9 @@ const CHAT_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   { id: "5", text: "Create campaign" },
 ];
 
+/** Set to "stream-json" | "stream-json-partial" | "json" to override; undefined = use backend default (stream-json-partial). */
+const OUTPUT_FORMAT_FOR_TESTING: string | undefined = undefined;
+
 function msgId(): string {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -456,11 +459,10 @@ export const AssistantProvider: React.FC<{
           const lastIdx = arr.length - 1;
           const last = arr[lastIdx];
           if (last?.type === "text") {
-            arr[lastIdx] = item; // preserves timestamp_ms from item
+            arr[lastIdx] = item; // same message growing — update in place
           } else {
-            // Last is tool_call/thinking: remove previous text block(s) to avoid duplicates, then append at end for correct order (tool calls before final answer)
-            const kept = arr.filter((t) => t?.type !== "text");
-            timelineRef.current = [...kept, item] as typeof timelineRef.current;
+            // Last is tool_call/thinking: append new text block to preserve server order (text → tool → text → tool)
+            timelineRef.current = [...arr, item] as typeof timelineRef.current;
           }
         } else if (item.type === "thinking" && item.content !== undefined) {
           const last = timelineRef.current[timelineRef.current.length - 1];
@@ -522,6 +524,7 @@ export const AssistantProvider: React.FC<{
             workspace_id: user?.workspace?.id ?? undefined,
             user_id: user?.id != null ? String(user.id) : undefined,
             platform: effectiveMarketplace ?? undefined,
+            ...(OUTPUT_FORMAT_FOR_TESTING && { output_format: OUTPUT_FORMAT_FOR_TESTING }),
           },
           token,
           {

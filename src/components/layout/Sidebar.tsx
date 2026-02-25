@@ -12,21 +12,13 @@ import { useSidebar } from "../../contexts/SidebarContext";
 import { useAccounts } from "../../contexts/AccountsContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useChannels } from "../../hooks/queries/useChannels";
-import { ConfirmationModal } from "../ui/ConfirmationModal";
-import { SelectBrandRequiredModal } from "../ui/SelectBrandRequiredModal";
+import { ConfirmationModal, SelectBrandRequiredModal } from "../ui";
 import StellarLogo from "../../assets/images/stellar-logo-v2 1.svg";
-import InstacartIcon from "../../assets/images/cib_instacart.svg";
-import CampaignIcon from "../../assets/images/campaign-svgrepo-com 1.svg";
 import CampaignIconRegular from "../../assets/images/campaign.svg";
 import CampaignWhiteIcon from "../../assets/campaign-white.svg";
 import AdGroupIcon from "../../assets/images/adgroups.svg";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
-import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
 import AmazonIcon from "../../assets/images/ri_amazon-fill-1.svg";
-import WalmartIcon from "../../assets/images/cbi_walmart.svg";
-import TopKeywordsIcon from "../../assets/images/cbi_walmart.svg";
-import TopProductsIcon from "../../assets/images/cib_instacart.svg";
-import PixelsLikeBoxIcon from "../../assets/images/cib_instacart.svg";
 import ProductTargetIcon from "../../assets/images/producttarget.svg";
 import KeywordsIcon from "../../assets/images/keywords.svg";
 import KeywordsWhiteIcon from "../../assets/images/keywords-white.svg";
@@ -41,6 +33,7 @@ import ProfilesActiveIcon from "../../assets/images/profiles-active.svg";
 import UsersIcon from "../../assets/images/users.svg";
 import UsersActiveIcon from "../../assets/images/users-active.svg";
 import WorkspaceIcon from "../../assets/workspace.svg";
+import { CalendarClock } from "lucide-react";
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
 
 const WORKSPACE_SECTION_STORAGE_KEY = "workspace-section-collapsed";
@@ -74,10 +67,6 @@ export const Sidebar: React.FC = () => {
     (location.pathname.includes("/google/") ? getChannelIdFromUrl(location.pathname) : null) ??
     channels.find((c) => c.channel_type === "google")?.id ??
     0;
-  const tiktokChannelId =
-    (location.pathname.includes("/tiktok/") ? getChannelIdFromUrl(location.pathname) : null) ??
-    channels.find((c) => c.channel_type === "tiktok")?.id ??
-    0;
 
   const [channelRequiredModal, setChannelRequiredModal] = useState<
     "amazon" | "google" | "tiktok" | null
@@ -85,91 +74,101 @@ export const Sidebar: React.FC = () => {
   const [showBrandRequiredModal, setShowBrandRequiredModal] = useState(false);
   const [brandRequiredReturnUrl, setBrandRequiredReturnUrl] = useState<string | undefined>(undefined);
 
-  const [isAmazonSectionCollapsed, setIsAmazonSectionCollapsed] =
+  const [persistedAmazonCollapsed, setPersistedAmazonCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(AMAZON_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
-  const [isGoogleSectionCollapsed, setIsGoogleSectionCollapsed] =
+  const [persistedGoogleCollapsed, setPersistedGoogleCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(GOOGLE_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
-  const [isTikTokSectionCollapsed, setIsTikTokSectionCollapsed] =
+  const [persistedTikTokCollapsed, setPersistedTikTokCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(TIKTOK_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
-  const [isWorkspaceSectionCollapsed, setIsWorkspaceSectionCollapsed] =
+  const [persistedWorkspaceCollapsed, setPersistedWorkspaceCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(WORKSPACE_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
 
-  // Auto-expand/collapse sections based on current page
-  useEffect(() => {
-    const marketplace = getMarketplaceFromUrl(location.pathname);
-    const isBrandsArea =
-      location.pathname === "/brands" ||
-      /^\/brands\/\d+\/integrations$/.test(location.pathname) ||
-      /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
-      /^\/brands\/\d+\/users$/.test(location.pathname) ||
-      location.pathname === "/workspace/team";
+  const marketplace = getMarketplaceFromUrl(location.pathname);
+  const isBrandsArea =
+    location.pathname === "/brands" ||
+    /^\/brands\/\d+\/integrations$/.test(location.pathname) ||
+    /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
+    /^\/brands\/\d+\/users$/.test(location.pathname) ||
+    /^\/brands\/\d+\/workflows$/.test(location.pathname) ||
+    location.pathname === "/workspace/team";
 
-    if (isBrandsArea) {
-      setIsWorkspaceSectionCollapsed(false);
-    }
-    // If on brands page, collapse all marketplace sections
-    if (location.pathname === "/brands") {
-      setIsAmazonSectionCollapsed(true);
-      setIsGoogleSectionCollapsed(true);
-    } else {
-      // Auto-expand the relevant marketplace section when on that page
-      if (marketplace === "amazon") {
-        setIsAmazonSectionCollapsed(false);
-      } else if (marketplace === "google") {
-        setIsGoogleSectionCollapsed(false);
-      } else if (marketplace === "tiktok") {
-        setIsTikTokSectionCollapsed(false);
-      }
-    }
-  }, [location.pathname]);
+  // Derive effective collapsed state from pathname (no setState in effect)
+  const isWorkspaceSectionCollapsed = isBrandsArea
+    ? false
+    : persistedWorkspaceCollapsed;
+  const isAmazonSectionCollapsed =
+    location.pathname === "/brands"
+      ? true
+      : marketplace === "amazon"
+        ? false
+        : persistedAmazonCollapsed;
+  const isGoogleSectionCollapsed =
+    location.pathname === "/brands"
+      ? true
+      : marketplace === "google"
+        ? false
+        : persistedGoogleCollapsed;
+  const isTikTokSectionCollapsed =
+    location.pathname === "/brands"
+      ? true
+      : marketplace === "tiktok"
+        ? false
+        : persistedTikTokCollapsed;
 
   useEffect(() => {
     localStorage.setItem(
       WORKSPACE_SECTION_STORAGE_KEY,
-      String(isWorkspaceSectionCollapsed),
+      String(persistedWorkspaceCollapsed),
     );
-  }, [isWorkspaceSectionCollapsed]);
+  }, [persistedWorkspaceCollapsed]);
 
   useEffect(() => {
     localStorage.setItem(
       AMAZON_SECTION_STORAGE_KEY,
-      String(isAmazonSectionCollapsed),
+      String(persistedAmazonCollapsed),
     );
-  }, [isAmazonSectionCollapsed]);
+  }, [persistedAmazonCollapsed]);
 
   useEffect(() => {
     localStorage.setItem(
       GOOGLE_SECTION_STORAGE_KEY,
-      String(isGoogleSectionCollapsed),
+      String(persistedGoogleCollapsed),
     );
-  }, [isGoogleSectionCollapsed]);
+  }, [persistedGoogleCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      TIKTOK_SECTION_STORAGE_KEY,
+      String(persistedTikTokCollapsed),
+    );
+  }, [persistedTikTokCollapsed]);
 
   const toggleAmazonSection = () => {
-    setIsAmazonSectionCollapsed((prev) => !prev);
+    setPersistedAmazonCollapsed((prev) => !prev);
   };
 
   const toggleGoogleSection = () => {
-    setIsGoogleSectionCollapsed((prev) => !prev);
+    setPersistedGoogleCollapsed((prev) => !prev);
   };
 
   const toggleTikTokSection = () => {
-    setIsTikTokSectionCollapsed((prev) => !prev);
+    setPersistedTikTokCollapsed((prev) => !prev);
   };
 
   const toggleWorkspaceSection = () => {
-    setIsWorkspaceSectionCollapsed((prev) => !prev);
+    setPersistedWorkspaceCollapsed((prev) => !prev);
   };
 
   const isActive = (path: string) => {
@@ -180,6 +179,8 @@ export const Sidebar: React.FC = () => {
       return /^\/brands\/\d+\/profiles$/.test(location.pathname);
     if (path === "/brands/users" || path === "/workspace/team")
       return location.pathname === "/workspace/team" || /^\/brands\/\d+\/users$/.test(location.pathname);
+    if (path === "/brands/workflows")
+      return /^\/brands\/\d+\/workflows$/.test(location.pathname);
     if (path === "/campaigns") {
       return (
         location.pathname.includes("/campaigns") &&
@@ -522,6 +523,35 @@ export const Sidebar: React.FC = () => {
                       </span>
                     </Link>
                   )}
+                  <Link
+                    to={
+                      accountId
+                        ? buildAccountRoute(accountId, "workflows")
+                        : "/brands"
+                    }
+                    onClick={(e) =>
+                      handleAccountRequiredClick(e, () =>
+                        accountId
+                          ? buildAccountRoute(accountId, "workflows")
+                          : "/brands",
+                      )
+                    }
+                    className={`flex items-center p-2 rounded-xl gap-2 ${
+                      isActive("/brands/workflows")
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                    }`}
+                    title="Workflows"
+                  >
+                    <CalendarClock
+                      className={`w-5 h-5 shrink-0 ${
+                        isActive("/brands/workflows") ? "text-white" : "text-forest-f30"
+                      }`}
+                    />
+                    <span className="text-[12.32px] font-normal leading-[16px]">
+                      Workflows
+                    </span>
+                  </Link>
                 </div>
               )}
             </>

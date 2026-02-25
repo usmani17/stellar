@@ -40,6 +40,8 @@ export interface PixisChatParams {
   workspace_id?: number;
   user_id?: string;
   platform?: Platform;
+  /** "stream-json" | "stream-json-partial" | "json" — for testing output formats */
+  output_format?: string;
 }
 
 /** Timeline item for ordered display: thinking | tool_call | text | campaign-draft */
@@ -61,7 +63,7 @@ export interface CampaignDraftData {
   validation_error: string | null;
 }
 
-const getBaseUrl = (): string => {
+export const getBaseUrl = (): string => {
   const baseUrl = import.meta.env.VITE_AI_AGENT_BASE_URL;
   if (!baseUrl) throw new Error("VITE_AI_AGENT_BASE_URL is not set");
   return String(baseUrl).replace(/\/$/, "");
