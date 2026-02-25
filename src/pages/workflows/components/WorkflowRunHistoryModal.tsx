@@ -106,7 +106,7 @@ const RunDetailContent: React.FC<RunDetailContentProps> = ({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-forest-f60">
-                  {workflow.channelName} — {workflow.profileName} Report
+                  {workflow.channelName || "All Channels"} — {workflow.profileName || "All Profiles"} Report
                 </p>
                 <p className="text-xs text-forest-f30 mt-1">
                   {run.status === "success" && run.outputUrl
@@ -137,7 +137,10 @@ export const WorkflowRunHistoryModal: React.FC<WorkflowRunHistoryModalProps> = (
   onClose,
   workflow,
 }) => {
-  const { data: runs = [], isLoading } = useWorkflowRuns(workflow?.id);
+  const { data: runs = [], isLoading } = useWorkflowRuns(
+    workflow?.accountId,
+    workflow?.id
+  );
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 

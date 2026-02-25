@@ -99,8 +99,8 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
     }
     if (editingWorkflow) {
       setName(editingWorkflow.name || "");
-      setChannelId(editingWorkflow.channelId);
-      setProfileId(editingWorkflow.profileId);
+      setChannelId(editingWorkflow.channelId ?? undefined);
+      setProfileId(editingWorkflow.profileId ?? undefined);
       setProfileName(editingWorkflow.profileName);
       setPrompt(editingWorkflow.prompt);
       setFormat(editingWorkflow.format);
@@ -181,7 +181,7 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
       return googleProfiles
         .filter((p) => p.is_selected)
         .map((p) => ({
-          value: parseInt(p.customer_id_raw, 10) || 0,
+          value: p.id,
           label: `${p.name} (${p.customer_id})`,
         }));
     }
@@ -209,8 +209,6 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
   const validate = (): boolean => {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = "Name is required";
-    if (!channelId) e.channel = "Select an integration";
-    if (!profileId) e.profile = "Select a profile";
     if (!prompt.trim()) e.prompt = "Prompt is required";
     if (
       !useDefaultDelivery &&
@@ -243,7 +241,7 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
       contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
-    if (!accountId || !channelId || !profileId) return;
+    if (!accountId) return;
     try {
       const payload = {
         name: name.trim(),

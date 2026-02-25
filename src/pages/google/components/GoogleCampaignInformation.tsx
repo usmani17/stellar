@@ -35,7 +35,7 @@ interface GoogleCampaignInformationProps {
   ) => void;
   onEditCancel: () => void;
   loading?: boolean;
-  /** For draft campaigns: the intended publish status (ENABLED/PAUSED) from draft_state/creation_payload. Overrides campaign.status which is SAVED_DRAFT. */
+  /** For draft campaigns: the intended publish status (ENABLED/PAUSED) from draft_state. Overrides campaign.status which is SAVED_DRAFT. */
   draftPublishStatus?: "ENABLED" | "PAUSED";
 }
 
