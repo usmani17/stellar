@@ -63,7 +63,7 @@ export interface CampaignDraftData {
   validation_error: string | null;
 }
 
-const getBaseUrl = (): string => {
+export const getBaseUrl = (): string => {
   const baseUrl = import.meta.env.VITE_AI_AGENT_BASE_URL;
   if (!baseUrl) throw new Error("VITE_AI_AGENT_BASE_URL is not set");
   return String(baseUrl).replace(/\/$/, "");

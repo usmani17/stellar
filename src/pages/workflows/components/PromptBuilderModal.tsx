@@ -3,6 +3,8 @@ import { BaseModal } from "../../../components/ui";
 import { X, Sparkles, FileText } from "lucide-react";
 import { Loader } from "../../../components/ui";
 import { cn } from "../../../lib/cn";
+import { useAuth } from "../../../contexts/AuthContext";
+import { enhancePrompt } from "../../../services/ai/workflow";
 
 const PROMPT_TEMPLATES: { id: string; label: string; prompt: string }[] = [
   {
@@ -58,7 +60,8 @@ export const PromptBuilderModal: React.FC<PromptBuilderModalProps> = ({
   const [prompt, setPrompt] = useState(initialPrompt);
   const [useCase, setUseCase] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isEnhancingPrompt, setIsEnhancingPrompt] = useState(false);
+  const { getAccessToken } = useAuth();
 
   React.useEffect(() => {
     if (isOpen) {
@@ -76,16 +79,24 @@ export const PromptBuilderModal: React.FC<PromptBuilderModalProps> = ({
 
   const handleGenerateFromUseCase = async () => {
     if (!useCase.trim()) return;
-    setIsGenerating(true);
+    setIsEnhancingPrompt(true);
     try {
-      await new Promise((r) => setTimeout(r, 800));
-      setPrompt(
-        `Generate a report based on the following use case: "${useCase.trim()}". ` +
-          "Include relevant metrics, trends, insights, and actionable recommendations tailored to this request."
+      const token = await getAccessToken();
+      if (!token) throw new Error("No access token found");
+      
+      const result = await enhancePrompt(
+        {
+          prompt: useCase.trim() + " " + prompt.trim(),
+          style: "analytical",
+        },
+        token
       );
+      setPrompt(result.enhanced_prompt);
       setSelectedTemplateId("");
+    } catch (err) {
+      console.error("Failed to enhance prompt:", err);
     } finally {
-      setIsGenerating(false);
+      setIsEnhancingPrompt(false);
     }
   };
 
@@ -164,10 +175,10 @@ export const PromptBuilderModal: React.FC<PromptBuilderModalProps> = ({
               <button
                 type="button"
                 onClick={handleGenerateFromUseCase}
-                disabled={!useCase.trim() || isGenerating}
+                disabled={!useCase.trim() || isEnhancingPrompt}
                 className="create-entity-button px-4 py-2 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
               >
-                {isGenerating ? (
+                {isEnhancingPrompt ? (
                   <>
                     <Loader size="sm" showMessage={false} />
                     <span className="text-[10.64px] text-white font-normal">
