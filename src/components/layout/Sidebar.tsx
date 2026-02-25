@@ -41,6 +41,7 @@ import ProfilesActiveIcon from "../../assets/images/profiles-active.svg";
 import UsersIcon from "../../assets/images/users.svg";
 import UsersActiveIcon from "../../assets/images/users-active.svg";
 import WorkspaceIcon from "../../assets/workspace.svg";
+import { CalendarClock } from "lucide-react";
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
 
 const WORKSPACE_SECTION_STORAGE_KEY = "workspace-section-collapsed";
@@ -114,6 +115,7 @@ export const Sidebar: React.FC = () => {
       /^\/brands\/\d+\/integrations$/.test(location.pathname) ||
       /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
       /^\/brands\/\d+\/users$/.test(location.pathname) ||
+      /^\/brands\/\d+\/workflows$/.test(location.pathname) ||
       location.pathname === "/workspace/team";
 
     if (isBrandsArea) {
@@ -180,6 +182,8 @@ export const Sidebar: React.FC = () => {
       return /^\/brands\/\d+\/profiles$/.test(location.pathname);
     if (path === "/brands/users" || path === "/workspace/team")
       return location.pathname === "/workspace/team" || /^\/brands\/\d+\/users$/.test(location.pathname);
+    if (path === "/brands/workflows")
+      return /^\/brands\/\d+\/workflows$/.test(location.pathname);
     if (path === "/campaigns") {
       return (
         location.pathname.includes("/campaigns") &&
@@ -522,6 +526,35 @@ export const Sidebar: React.FC = () => {
                       </span>
                     </Link>
                   )}
+                  <Link
+                    to={
+                      accountId
+                        ? buildAccountRoute(accountId, "workflows")
+                        : "/brands"
+                    }
+                    onClick={(e) =>
+                      handleAccountRequiredClick(e, () =>
+                        accountId
+                          ? buildAccountRoute(accountId, "workflows")
+                          : "/brands",
+                      )
+                    }
+                    className={`flex items-center p-2 rounded-xl gap-2 ${
+                      isActive("/brands/workflows")
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                    }`}
+                    title="Workflows"
+                  >
+                    <CalendarClock
+                      className={`w-5 h-5 shrink-0 ${
+                        isActive("/brands/workflows") ? "text-white" : "text-forest-f30"
+                      }`}
+                    />
+                    <span className="text-[12.32px] font-normal leading-[16px]">
+                      Workflows
+                    </span>
+                  </Link>
                 </div>
               )}
             </>
