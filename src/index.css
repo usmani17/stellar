@@ -847,13 +847,11 @@ body input[type="submit"]:disabled {
   cursor: not-allowed;
 }
 
-/* Button size modifier - small variant */
-.btn-sm {
+/* Button size modifier - small override for create-entity-button */
+.create-entity-button.btn-sm {
   padding: 0.5rem 1rem !important;
-  /* px-4 py-2 */
   font-size: 10.64px !important;
   height: auto !important;
-  /* Override fixed height from create-entity-button */
 }
 
 /* Section title styling - used for section headers in forms */
