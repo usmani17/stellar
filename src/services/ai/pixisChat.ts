@@ -40,6 +40,8 @@ export interface PixisChatParams {
   workspace_id?: number;
   user_id?: string;
   platform?: Platform;
+  /** "stream-json" | "stream-json-partial" | "json" — for testing output formats */
+  output_format?: string;
 }
 
 /** Timeline item for ordered display: thinking | tool_call | text | campaign-draft */
