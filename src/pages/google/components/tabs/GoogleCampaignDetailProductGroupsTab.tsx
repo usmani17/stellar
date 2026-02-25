@@ -18,7 +18,7 @@ import { BulkActionsDropdown } from "../BulkActionsDropdown";
 import { formatStatusForDisplay } from "../../utils/googleAdsUtils";
 import { Send } from "lucide-react";
 
-interface GoogleProductGroup {
+export interface GoogleProductGroup {
   id: number;
   product_group_id: number;
   ad_id?: number; // ad_id from ads table (used for API calls)

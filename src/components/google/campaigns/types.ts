@@ -134,6 +134,8 @@ export interface ShoppingCampaignFormProps extends BaseCampaignFormProps {
   channelId?: string;
   selectedProfileId?: string;
   isOpen?: boolean;
+  /** When true, campaign is a draft (not published). Sales Country stays editable. */
+  isDraftCampaign?: boolean;
   // Language targeting props (optional for Shopping campaigns)
   languageOptions?: Array<{ value: string; label: string; id: string }>;
   loadingLanguages?: boolean;

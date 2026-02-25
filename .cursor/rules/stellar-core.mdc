@@ -1,0 +1,67 @@
+---
+alwaysApply: true
+---
+# Stellar Frontend — Core Rules
+
+These rules apply to every file. For detailed references, see the scoped rules.
+
+## Fonts
+- **Default (font-sans)**: GT America Trial — do NOT use `Inter` as default
+- **Headings (font-agrandir)**: PP Agrandir
+- **Auth pages (font-poppins)**: Poppins
+- **Body alt (font-inter)**: Inter (specific UI elements only)
+
+## Colors — Quick Reference
+- **Primary action**: `forest-f40` (#136D6D) / hover: `forest-f50` (#0E4E4E)
+- **Primary text**: `forest-f60` (#072929) / secondary: `forest-f30` (#506766)
+- **Background**: `sandstorm-s0` (#F9F9F6) / field: `sandstorm-s5` (#FEFEFB)
+- **Border**: `sandstorm-s40` (#E8E8E3) or `#e5e7eb`
+- **Error**: `red-r30` (#CE1313) text, `red-r0` (#FFEBE6) bg
+- **Warning**: `yellow-y10` (#FF991F)
+- Never use generic Tailwind colors (`bg-green-600`, `text-gray-500`)
+
+## Icons — Use `lucide-react`
+```tsx
+import { ChevronDown, Plus, Search } from "lucide-react";
+<Plus className="w-5 h-5" />
+```
+Do NOT create custom SVGs for standard icons. Check lucide library first.
+
+## Class Merging — Use `cn()`
+```tsx
+import { cn } from "../lib/cn";
+className={cn("base-classes", isActive && "active-class", className)}
+```
+Always use `cn()` when a component accepts a `className` prop.
+
+## Component Imports — Use Barrel Export
+```tsx
+import { Button, Card, Loader, Banner } from '../components/ui';
+```
+Import from `'../components/ui'`, not individual files.
+
+## Import Order
+1. React → 2. Third-party (react-router-dom, lucide-react) → 3. Contexts/hooks → 4. Components → 5. Services → 6. Utils/lib → 7. Types
+
+## Auth
+Custom JWT tokens (not Auth0). Token in `localStorage("accessToken")`, auto-added by axios interceptor. Never pass tokens manually.
+
+## Key Libraries
+- **Data fetching**: `@tanstack/react-query` (useQuery, useMutation)
+- **Routing**: `react-router-dom`
+- **HTTP**: `axios` (via `src/services/api.ts`)
+- **UI**: `@headlessui/react`, `recharts`, `react-datepicker`
+
+## Critical Don'ts
+1. Don't hardcode hex colors — use design tokens
+2. Don't use inline `style={}` — use Tailwind classes or CSS classes from `index.css`
+3. Don't create duplicate UI components — check `src/components/ui/` first
+4. Don't use `any` type — define proper TypeScript interfaces
+5. Don't skip accessibility — add `aria-label` on icon-only buttons, visible focus states
+6. Don't import `@auth0/auth0-react` — it's deprecated in this project
+
+## Scoped Rule References
+- **Visual design details**: `design_system_rules.mdc` (colors, typography, spacing, components)
+- **Page creation**: `create-page-guide.mdc` (layout, routes, checklist)
+- **Service/hook patterns**: `data-layer-guide.mdc` (React Query, API patterns)
+- **CSS class reference**: `css-component-classes.mdc` (tables, buttons, forms, tabs)

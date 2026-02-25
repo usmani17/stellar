@@ -19,6 +19,7 @@ import { GoogleCampaignDetailKeywordsTab } from "./components/tabs/GoogleCampaig
 import { GoogleCampaignDetailNegativeKeywordsTab } from "./components/tabs/GoogleCampaignDetailNegativeKeywordsTab";
 import { GoogleCampaignDetailAssetGroupsTab } from "./components/tabs/GoogleCampaignDetailAssetGroupsTab";
 import { GoogleCampaignDetailProductGroupsTab } from "./components/tabs/GoogleCampaignDetailProductGroupsTab";
+import type { GoogleProductGroup } from "./components/tabs/GoogleCampaignDetailProductGroupsTab";
 import { GoogleCampaignDetailShoppingAdsTab } from "./components/tabs/GoogleCampaignDetailShoppingAdsTab";
 import { GoogleCampaignDetailLogsTab } from "./components/tabs/GoogleCampaignDetailLogsTab";
 import { GoogleCampaignInformation } from "./components/GoogleCampaignInformation";
@@ -300,7 +301,7 @@ export const GoogleCampaignDetail: React.FC = () => {
       };
       const response = await googleAdwordsAdsService.createDemandGenAd(
         parseInt(accountId || "", 10),
-        parseInt(channelId, 10),
+        parseInt(channelId || "", 10),
         cid,
         payload,
       );
@@ -384,16 +385,31 @@ export const GoogleCampaignDetail: React.FC = () => {
         type: "ad_group";
         entity: {
           id: number;
-          adgroup_id?: number;
-          adgroup_name?: string;
+          adgroup_id?: string | number;
           name?: string;
         };
       }
     | {
-        type: "keyword";
-        entity: { id: number; keyword_id?: number; keyword_text?: string };
+        type: "ad";
+        entity: {
+          id: number;
+          ad_id?: number;
+          ad_type?: string;
+          adgroup_id?: string | number;
+        };
       }
-    | { type: "ad"; entity: { id: number; ad_id?: number; ad_type?: string } }
+    | {
+        type: "keyword";
+        entity: {
+          id: number;
+          keyword_id?: number;
+          keyword_text?: string;
+        };
+      }
+    | {
+        type: "product_group";
+        entity: GoogleProductGroup;
+      }
     | {
         type: "negative_keyword";
         entity: { id: number; criterion_id?: string; keyword_text?: string };
@@ -532,14 +548,20 @@ export const GoogleCampaignDetail: React.FC = () => {
   }) => {
     setPublishDraftEntity({ type: "ad", entity: ad });
   };
-  /** Product groups: no dedicated publish API; prompt user to publish the ad group first. */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature matches onPublishDraft prop
-  const handlePublishProductGroupDraft = (_productGroup: unknown) => {
-    setErrorModal({
-      isOpen: true,
-      message:
-        "Publish the ad group that contains this product group first. Then the product group will be published with it.",
-    });
+  const handlePublishProductGroupDraft = (productGroup: GoogleProductGroup) => {
+    // Check if the ad group is a draft
+    const adGroupId = productGroup.adgroup_id;
+    const isAdGroupDraft = adGroupId && String(adGroupId).startsWith("draft-");
+    
+    if (isAdGroupDraft) {
+      setErrorModal({
+        isOpen: true,
+        message: "Publish the ad group that contains this product group first. Then the product group will be published with it.",
+      });
+    } else {
+      // Ad group is published, so we can publish the product group
+      setPublishDraftEntity({ type: "product_group", entity: productGroup });
+    }
   };
   const handlePublishNegativeKeywordDraft = (n: {
     id: number;
@@ -712,6 +734,52 @@ export const GoogleCampaignDetail: React.FC = () => {
         });
         if (negativeKeywordsHook.loadNegativeKeywords)
           await negativeKeywordsHook.loadNegativeKeywords();
+      } else if (publishDraftEntity.type === "product_group") {
+        const campaignIdStr = String(campaignId ?? "");
+        if (campaignIdStr.toLowerCase().startsWith("draft-")) {
+          setErrorModal({
+            isOpen: true,
+            message: "Publish the campaign first, then you can publish product groups.",
+          });
+          return;
+        }
+        const pgEntity = publishDraftEntity.entity as GoogleProductGroup;
+        if (pgEntity.adgroup_id != null && String(pgEntity.adgroup_id).toLowerCase().startsWith("draft-")) {
+          setErrorModal({
+            isOpen: true,
+            message: "Publish the ad group first before publishing this product group.",
+          });
+          return;
+        }
+        const draftId = String(
+          pgEntity.ad_id ?? pgEntity.id ?? pgEntity.product_group_id,
+        );
+        if (!draftId.startsWith("draft-")) {
+          setErrorModal({ isOpen: true, message: "Not a draft product group." });
+          return;
+        }
+        
+        // Since there's no dedicated product group publish endpoint, we need to use the shopping entities creation endpoint
+        // This will create the product group in Google Ads and remove the draft
+        await googleAdwordsCampaignsService.createGoogleShoppingEntities(
+          accountIdNum,
+          channelIdNum,
+          campaignId,
+          {
+            adgroup_id: pgEntity.adgroup_id,
+            product_group: {
+              cpc_bid: pgEntity.cpc_bid_dollars || 0.01
+            },
+            save_as_draft: false // We're publishing, not saving as draft
+          }
+        );
+        setErrorModal({
+          isOpen: true,
+          message:
+            "Draft product group published successfully. The draft row will be removed.",
+          isSuccess: true,
+        });
+        if (loadProductGroups) await loadProductGroups();
       }
     } catch (err: any) {
       const raw =
@@ -827,14 +895,11 @@ export const GoogleCampaignDetail: React.FC = () => {
       const c = campaignDetail.campaign as any;
       const extra =
         c.extra_data && typeof c.extra_data === "object" ? c.extra_data : {};
-      const creationPayload =
-        extra.creation_payload && typeof extra.creation_payload === "object"
-          ? extra.creation_payload
-          : {};
       const draftState = extra.draft_state && typeof extra.draft_state === "object" ? extra.draft_state : {};
       const draftCampaign = draftState.campaign && typeof draftState.campaign === "object" ? draftState.campaign : {};
-      const resolvedStatus = (draftCampaign.status ?? creationPayload.status ?? c.status ?? "").toString().toUpperCase();
+      const resolvedStatus = (draftCampaign.status ?? c.status ?? "").toString().toUpperCase();
       const statusForForm: "ENABLED" | "PAUSED" = resolvedStatus === "ENABLED" || resolvedStatus === "PAUSED" ? resolvedStatus : "PAUSED";
+      const shoppingSetting = extra.shopping_setting && typeof extra.shopping_setting === "object" ? extra.shopping_setting : {};
       return {
         name: c.name || "",
         status: statusForForm,
@@ -843,17 +908,33 @@ export const GoogleCampaignDetail: React.FC = () => {
           c.budget_name ??
           c.campaign_budget_name ??
           c.campaignBudgetName ??
-          creationPayload.budget_name,
+          draftCampaign.budget_name,
         budget_resource_name:
           c.campaign_budget ??
           c.campaign_budget_resource_name ??
-          creationPayload.budget_resource_name,
+          draftCampaign.budget_resource_name,
         start_date: c.start_date,
         end_date: c.end_date,
         campaign_type: (c.advertising_channel_type ||
           c.campaign_type ||
           "SEARCH") as any,
         bidding_strategy_type: c.bidding_strategy_type,
+        // Shopping-specific: prefer draft_state.campaign (agent drafts), then creation_payload, then extra_data
+        sales_country:
+          (draftCampaign.sales_country as string | undefined) ??
+          (creationPayload.sales_country as string | undefined) ??
+          (c.sales_country as string | undefined) ??
+          shoppingSetting.sales_country ??
+          "US",
+        merchant_id: c.merchant_id ?? shoppingSetting.merchant_id,
+        campaign_priority:
+          typeof draftCampaign.campaign_priority === "number" ? draftCampaign.campaign_priority
+            : typeof creationPayload.campaign_priority === "number" ? creationPayload.campaign_priority
+            : c.campaign_priority ?? shoppingSetting.campaign_priority ?? 0,
+        enable_local:
+          draftCampaign.enable_local === true || draftCampaign.enable_local === false ? draftCampaign.enable_local
+            : creationPayload.enable_local === true || creationPayload.enable_local === false ? creationPayload.enable_local
+            : c.enable_local ?? shoppingSetting.enable_local ?? false,
       };
     }, [campaignDetail?.campaign, isDraftCampaign]);
 
@@ -2839,6 +2920,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                             handleUpdateProductGroupStatus
                           }
                           onPublishDraft={handlePublishProductGroupDraft}
+                          publishLoadingId={
+                            publishDraftEntity?.type === "product_group" && publishDraftSubmitting
+                              ? (publishDraftEntity.entity.ad_id ?? publishDraftEntity.entity.id)
+                              : undefined
+                          }
                           accountId={accountId}
                           channelId={channelId}
                           onBulkUpdateComplete={loadProductGroups}
@@ -2851,7 +2937,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                                   setIsCreateShoppingEntitiesPanelOpen(
                                     !isCreateShoppingEntitiesPanelOpen,
                                   );
-                                  // Close filter panel if exists
+                                  setIsProductGroupsFilterPanelOpen(false);
                                 }}
                               />
                             ) : undefined
@@ -3389,7 +3475,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         message={
           publishDraftEntity
             ? publishDraftEntity.type === "ad_group"
-              ? `Ad group "${publishDraftEntity.entity.adgroup_name || publishDraftEntity.entity.name || "Unnamed"}" will be created in Google Ads and the draft row will be removed.`
+              ? `Ad group "${publishDraftEntity.entity.name || publishDraftEntity.entity.name || "Unnamed"}" will be created in Google Ads and the draft row will be removed.`
               : publishDraftEntity.type === "keyword"
                 ? `Keyword "${publishDraftEntity.entity.keyword_text || "Unnamed"}" will be published. The draft row will be removed.`
                 : publishDraftEntity.type === "ad"

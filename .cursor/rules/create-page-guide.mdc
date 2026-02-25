@@ -1,0 +1,258 @@
+---
+description: Full guide to create a new page using existing patterns, API, and shared libraries
+globs: "src/pages/**/*.tsx"
+alwaysApply: false
+---
+
+# Create Page Guide – Stellar Frontend
+
+Use this guide to create a new page using the existing system. Follow the patterns below.
+
+---
+
+## 1. Project Structure
+
+```
+src/
+├── pages/              # Page components (one file per page, or folder for complex pages)
+│   ├── Accounts.tsx
+│   ├── Channels.tsx
+│   ├── google/         # Google Ads pages (components/, hooks/, utils/)
+│   ├── tiktok/         # TikTok Ads pages (components/tabs/)
+│   └── campaigns/      # Campaign detail pages (components/tabs/)
+├── services/           # API layer (api.ts base + domain services)
+│   ├── googleAdwords/  # Google Ads services (11 files)
+│   ├── ai/             # AI assistant services (7 files)
+│   └── tiktok/         # TikTok services
+├── hooks/              # React Query hooks
+│   ├── queries/        # useQuery hooks + queryKeys.ts
+│   └── mutations/      # useMutation hooks
+├── components/         # Reusable components
+│   ├── ui/             # Base UI (Button, Card, Input, Loader, Banner, etc.)
+│   ├── layout/         # Sidebar, DashboardHeader, AccountsHeader, Layout, Assistant
+│   ├── google/         # Google Ads feature components
+│   ├── tiktok/         # TikTok feature components
+│   ├── ai/             # AI assistant components
+│   ├── filters/        # Filter panel components
+│   └── charts/         # Chart/graph components
+├── contexts/           # AuthContext, AccountsContext, SidebarContext, DateRangeContext,
+│                       # GoogleSyncStatusContext, AssistantContext, GlobalStateContext
+├── constants/          # featureFlags.ts, google.ts, googleGeoTargets.ts, etc.
+├── types/              # TypeScript type definitions (google/ subdirectory)
+├── routes/             # Route definitions (9 files — see §5)
+├── utils/              # pageTitle, urlHelpers, formatters, dateHelpers, etc.
+└── lib/                # cn.ts (className merger), queryClient.ts
+```
+
+---
+
+## 2. Naming Conventions
+
+| Type | Convention | Examples |
+|------|-------------|----------|
+| **Page file** | PascalCase, descriptive | `Accounts.tsx`, `GoogleCampaigns.tsx` |
+| **Page component** | Same as file, exported | `export const Accounts: React.FC = () => {...}` |
+| **Service** | camelCase + `Service` or `service` | `accountsService`, `googleAdwordsCampaignsService` |
+| **Query hook** | `use` + Entity + Purpose | `useAccountsPaginated`, `useChannels` |
+| **Mutation hook** | `use` + Action + Entity | `useCreateAccount`, `useUpdateAccount` |
+| **Route path** | kebab-case, nested by domain | `/brands`, `/brands/:accountId/integrations` |
+
+---
+
+## 3. API & Data Fetching
+
+For full API patterns, service modules, React Query hooks, query keys, and mutation patterns, see **`data-layer-guide.mdc`**.
+
+Key points for page development:
+- Services live in `src/services/` — import and use with React Query hooks
+- Query hooks: `src/hooks/queries/` — wrap service calls in `useQuery`
+- Mutation hooks: `src/hooks/mutations/` — wrap create/update/delete in `useMutation`
+- Query keys: `src/hooks/queries/queryKeys.ts` — centralized key registry
+- Error handling: `err.response?.data?.error ?? err.response?.data?.detail ?? "Request failed"`
+
+---
+
+## 4. Page Layout (Standard Structure)
+
+**Use for dashboard pages (with sidebar):**
+
+```tsx
+import React, { useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Plus, ChevronDown } from "lucide-react";
+import { Sidebar } from "../components/layout/Sidebar";
+import { DashboardHeader } from "../components/layout/DashboardHeader";
+import { useSidebar } from "../contexts/SidebarContext";
+import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
+import { Button, Card, Loader, Banner } from "../components/ui";
+import { cn } from "../lib/cn";
+
+export const MyNewPage: React.FC = () => {
+  const { accountId } = useParams<{ accountId: string }>();
+  const navigate = useNavigate();
+  const { sidebarWidth } = useSidebar();
+
+  useEffect(() => {
+    setPageTitle("My Page Title");
+    return () => resetPageTitle();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-white flex">
+      <Sidebar />
+      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
+        <DashboardHeader />
+        <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-white">
+          <h1 className="text-h1100 font-agrandir text-forest-f60">My Page Title</h1>
+          {/* Page content */}
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+**Notes:**
+- **Accounts page** uses `AccountsHeader` instead of `DashboardHeader`.
+- **Brand-scoped pages** may need `AccountRequiredRoute`, `BrandAccessRoute`.
+- **Date range** – use `useDateRange()` from `DateRangeContext` when needed.
+- **Assistant** – wrap the content div with `<Assistant>` for AI assistant (e.g. Google pages).
+- **Google Ads pages** – wrap with `GoogleSyncStatusWrapper` in the route (see GoogleRoutes).
+
+---
+
+## 5. Route Registration
+
+Add route in the appropriate file under `src/routes/`:
+
+### Route files
+
+| File | Scope |
+|------|-------|
+| `Index.tsx` | Root route definitions, ties all sub-route files together |
+| `PublicRoutes.tsx` | Login, Signup, ForgotPassword, ResetPassword, VerifyEmail |
+| `AccountRoutes.tsx` | Brand/account-scoped pages (integrations, settings, profiles, users) |
+| `ChannelRoutes.tsx` | Channel management pages |
+| `GoogleRoutes.tsx` | Google Ads pages (campaigns, keywords, ad groups, ads, etc.) |
+| `TikTokRoutes.tsx` | TikTok Ads pages (campaigns, ad groups, ads, logs) |
+| `AmazonRoutes.tsx` | Amazon pages and OAuth callbacks |
+| `OAuthRoutes.tsx` | OAuth callback handlers (Google, TikTok, Meta, Amazon) |
+| `NotFoundRoutes.tsx` | 404 page |
+
+### Account-scoped (no channel):
+```tsx
+<Route path="/brands/:accountId/my-page" element={
+  <ProtectedRoute>
+    <WorkspaceRequiredRoute>
+      <AccountRequiredRoute>
+        <BrandAccessRoute>
+          <Layout><MyNewPage /></Layout>
+        </BrandAccessRoute>
+      </AccountRequiredRoute>
+    </WorkspaceRequiredRoute>
+  </ProtectedRoute>
+} />
+```
+
+### Channel-scoped (Google – needs channelId):
+```tsx
+<Route path="/brands/:accountId/:channelId/google/campaigns" element={
+  <ProtectedRoute>
+    <WorkspaceRequiredRoute>
+      <AccountRequiredRoute>
+        <BrandAccessRoute>
+          <GoogleSyncStatusWrapper>
+            <Layout><GoogleCampaigns /></Layout>
+          </GoogleSyncStatusWrapper>
+        </BrandAccessRoute>
+      </AccountRequiredRoute>
+    </WorkspaceRequiredRoute>
+  </ProtectedRoute>
+} />
+```
+
+### Channel-scoped (TikTok – same pattern, no sync wrapper):
+```tsx
+<Route path="/brands/:accountId/:channelId/tiktok/campaigns" element={
+  <ProtectedRoute>
+    <WorkspaceRequiredRoute>
+      <AccountRequiredRoute>
+        <BrandAccessRoute>
+          <Layout><TikTokCampaigns /></Layout>
+        </BrandAccessRoute>
+      </AccountRequiredRoute>
+    </WorkspaceRequiredRoute>
+  </ProtectedRoute>
+} />
+```
+
+### Route wrappers
+- `ProtectedRoute` – requires auth
+- `WorkspaceRequiredRoute` – requires workspace selection
+- `AccountRequiredRoute` – requires account in URL
+- `BrandAccessRoute` – requires brand access
+- `GoogleSyncStatusWrapper` – for Google Ads pages only (sync status context)
+- `Layout` – provides PasswordUpdateBanner, VerifyEmailBanner, main wrapper
+
+---
+
+## 6. URL Helpers
+
+Use `src/utils/urlHelpers.ts`:
+
+```ts
+import { buildAccountRoute, buildMarketplaceRoute } from "../utils/urlHelpers";
+
+buildAccountRoute(accountId, "integrations");      // /brands/1/integrations
+buildMarketplaceRoute(accountId, channelId, "google", "campaigns");  // /brands/1/58/google/campaigns
+```
+
+---
+
+## 7. Shared Components & Design System
+
+- **UI components:** `src/components/ui` – Button, Card, Input, Loader, Banner, Dropdown, Menu, BaseModal, Chip, Checkbox, DeleteConfirmationModal, ErrorModal, etc. (see `design_system_rules.mdc` §4 for full list of 41 components)
+- **Banner:** `import { Banner } from "../components/ui"` – success, error, warning, info.
+- **Icons:** `import { Plus, ChevronDown, Search } from "lucide-react"` — primary icon library.
+- **Class merging:** `import { cn } from "../lib/cn"` — use for conditional/merged className props.
+- **Design tokens:** See `design_system_rules.mdc` – use `text-forest-f60`, `bg-forest-f40`, `text-h1100`, etc.
+- **CSS classes:** Check `src/index.css` for reusable CSS classes (`.btn-primary`, `.table-container`, `.form-label`, `.create-entity-button`, etc.) before writing Tailwind-only variants.
+- **Feature components:** `src/components/google/`, `src/components/tiktok/`, `src/components/ai/`, `src/components/filters/`, `src/components/charts/` — check existing feature components before creating new ones.
+
+---
+
+## 8. Create Page Checklist
+
+1. [ ] Create service in `src/services/` if new API (see `data-layer-guide.mdc`)
+2. [ ] Add query keys in `src/hooks/queries/queryKeys.ts`
+3. [ ] Create query/mutation hooks in `src/hooks/queries/` and `src/hooks/mutations/`
+4. [ ] Create page in `src/pages/` (or `src/pages/<feature>/`) – use `../../` for imports from subfolders
+5. [ ] Use `Sidebar` + `DashboardHeader` (or `AccountsHeader`) + `marginLeft: sidebarWidth`
+6. [ ] Call `setPageTitle` / `resetPageTitle` in `useEffect`
+7. [ ] Register route in the correct file: `AccountRoutes.tsx`, `GoogleRoutes.tsx`, `TikTokRoutes.tsx`, etc.
+8. [ ] Wrap with appropriate route guards (`ProtectedRoute`, `WorkspaceRequiredRoute`, `AccountRequiredRoute`, `BrandAccessRoute`)
+9. [ ] Use `GoogleSyncStatusWrapper` if it's a Google Ads page
+10. [ ] Use design tokens (forest-f40, sandstorm-s0, etc.) and reusable CSS classes from `index.css`
+11. [ ] Use `lucide-react` for icons, `cn()` for className merging
+12. [ ] Add link in Sidebar if needed (edit `src/components/layout/Sidebar.tsx`)
+
+---
+
+## 9. Quick Reference
+
+| Need | Use |
+|------|-----|
+| Auth user | `useAuth()` from `AuthContext` |
+| Accounts list | `useAccounts()` from `AccountsContext` |
+| Date range | `useDateRange()` from `DateRangeContext` |
+| Sidebar width | `useSidebar().sidebarWidth` from `SidebarContext` |
+| Google sync status | `useGoogleSyncStatus()` from `GoogleSyncStatusContext` |
+| AI assistant state | `useAssistant()` from `AssistantContext` |
+| Global state / query client | `GlobalStateContext` (wraps React Query provider) |
+| API fetch | Service + `useQuery` from `@tanstack/react-query` |
+| Create/Update/Delete | Service + `useMutation` from `@tanstack/react-query` |
+| Navigation | `useNavigate()`, `useParams()` from `react-router-dom` |
+| Icons | `import { Icon } from 'lucide-react'` (primary icon system) |
+| Class merging | `cn()` from `../lib/cn` |
+| Design colors | `forest-f40`, `forest-f60`, `sandstorm-s0` |
+| Reusable CSS classes | See `index.css` (`.btn-*`, `.table-*`, `.form-label`, etc.) |

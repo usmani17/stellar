@@ -1,0 +1,227 @@
+---
+description: Visual design system — colors, typography, spacing, components, icons, patterns
+globs: "src/components/**/*.tsx,src/pages/**/*.tsx"
+alwaysApply: false
+---
+# Stellar Frontend Design System
+
+## 1. Typography
+
+### Font Families
+
+| Font | Tailwind Class | Source | Usage |
+|------|---------------|--------|-------|
+| **GT America Trial** | `font-sans` (default) | Local `@font-face` in `typography.css` | Default body, UI elements |
+| **PP Agrandir** | `font-agrandir` | Local `@font-face` in `typography.css` (`"PP Agrandir"`) | Brand headings |
+| **Inter** | `font-inter` | Google Fonts CDN (`index.html`) | Specific UI elements |
+| **Poppins** | `font-poppins` | Google Fonts CDN (`index.html`) | Auth pages only |
+
+### Font Size Scale (h1300 → h100)
+
+```
+h1300: 32px  — PP Agrandir, -1px ls     h700: 16px — GT America Bold
+h1250: 28px  — PP Agrandir              h600: 16px — GT America Medium
+h1100: 24px  — PP Agrandir, -1px ls     h550: 16px — GT America Regular
+h1050: 24px  — GT America Medium        h500: 14px — GT America Bold
+h1000: 20px  — GT America Medium        h450: 14px — GT America/Inter Medium
+h900:  18px  — GT America Medium        h400: 14px — GT America Regular
+h800:  18px  — GT America, -0.2px ls    h300: 12px — GT America Medium
+h750:  18px  — GT America Regular       h200: 12px — GT America Regular
+                                        h100: 10px — GT America Medium
+```
+
+```tsx
+<h1 className="text-h1300 font-agrandir">Title</h1>
+<p className="text-h400">Body text</p>
+```
+
+---
+
+## 2. Color System
+
+### Sandstorm (Backgrounds & Borders)
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `s0` | #F9F9F6 | Primary background |
+| `s5` | #FEFEFB | Text field bg |
+| `s10` | #FCFCF9 | Background 1 |
+| `s20` | #F5F4EF | Background 2 |
+| `s30` | #F0F0ED | Hover |
+| `s40` | #E8E8E3 | Border / Press |
+| `s50` | #E4E4D7 | Border 1 |
+| `s60` | #D1D1C7 | Border 2 |
+| `s70` | #73726C | Dark border |
+
+### Forest Green (Primary Brand)
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `f0` | #DCF1E8 | Lightest |
+| `f10` | #D6E5E5 | Disabled text |
+| `f20` | #9BB1B0 | Light accent |
+| `f30` | #506766 | Secondary text |
+| `f40` | #136D6D | **Primary action** |
+| `f50` | #0E4E4E | Primary hover |
+| `f60` | #072929 | Primary text |
+
+### Other Palettes (key values)
+- **Blue**: b10 `#3370FF`, b100 `#74AAFD` (links), b400 `#0350C3`
+- **Red**: r0 `#FFEBE6` (error bg), r30 `#CE1313` (error), r40 `#B51111`
+- **Yellow**: y10 `#FF991F` (warning), y50 `#FFFAE6`
+- **Purple**: p500 `#403294` (status)
+- **Neutral**: n0 (#FFF) → n1000 (#000205), plus alpha variants (n10A–n900A)
+
+### Semantic Tokens
+```tsx
+text-text-primary / text-text-secondary / text-text-disabled / text-text-inverse
+bg-background-primary / bg-background-secondary / bg-background-field
+border-border-default / border-border-light / border-border-medium
+text-status-primary / text-status-danger / text-status-warning
+```
+
+### CSS Custom Properties
+Colors also available as `var(--color-forest-f40)`, `var(--color-semantic-text-primary)`, etc. in `@theme` block of `index.css`. Use for CSS classes only — prefer Tailwind utilities in components.
+
+---
+
+## 3. Icon System
+
+**Primary: `lucide-react`** (26+ files). Always use over custom SVGs.
+
+| Size | Class | Usage |
+|------|-------|-------|
+| 16px | `w-4 h-4` | Inline, table cells, badges |
+| 20px | `w-5 h-5` | Buttons, menu items |
+| 24px | `w-6 h-6` | Headers |
+| 32px | `w-8 h-8` | Feature icons, empty states |
+
+**Secondary**: SVG assets in `src/assets/icons/` for brand/custom icons.
+
+---
+
+## 4. Component Library (`src/components/ui/`)
+
+### Barrel-exported (import from `'../components/ui'`)
+Button, Input, Card, AuthCard, AuthHeader, AuthFormField, AuthButton, AuthPageLayout, AuthSidebar, Alert, Divider, Logo, GoogleButton, Checkbox, Dropdown, DeleteConfirmationModal, ErrorModal, EditSummaryModal, BaseModal, Chip, Menu, Loader, CustomizeColumns, Banner, Avatar, Badge, ConfirmationModal, ImageCropModal, IntegrationCard, KPICard, Radio, RuleCard, SelectBrandRequiredModal, SingleDatePicker, SocialCard, StatusBadge, StatusTag, Tooltip, AutopilotCard, AssetPickerPopup
+
+### Feature Component Directories
+`layout/` (Sidebar, DashboardHeader, AccountsHeader, Layout, Assistant), `auth/`, `google/`, `tiktok/`, `ai/`, `charts/`, `filters/`, `accounts/`, `channels/`, `campaigns/`, `keywords/`, `targets/`, `adgroups/`, `creatives/`, `assets/`, `sbads/`, `productads/`, `examples/`
+
+### Layout Components
+| Component | Purpose |
+|-----------|---------|
+| `Sidebar` | Main nav sidebar |
+| `DashboardHeader` | Dashboard pages header |
+| `AccountsHeader` | Accounts page header |
+| `Layout` | Root wrapper (banners) |
+| `Assistant` | AI assistant panel |
+
+---
+
+## 5. Component Patterns
+
+### Input Fields
+- **Auth**: 48px height, 12px radius, `#e6e6e6` border, Poppins 14px
+- **Dashboard**: 40px height, 8px radius, `#e5e7eb` border, GT America 12px
+- **Focus**: ring `forest-f40` (#136D6D)
+
+### Buttons
+- **Primary**: `bg-forest-f40 hover:bg-forest-f50 text-white rounded-xl` or `.btn-primary`
+- **Secondary**: `.btn-secondary` — light bg, border
+- **Create entity**: `.create-entity-button` — green, 40px, 8px radius
+- **Edit/Cancel/Apply**: `.edit-button`, `.cancel-button`, `.apply-button`
+- **Auth**: `AuthButton` component (Poppins, 12px radius)
+
+### Cards
+- **Auth**: 16px radius, 40px padding, `#f5f7fa` bg, `#e6e6e6` border, 576px fixed width
+- **Dashboard**: 12px radius, 24px padding, `sandstorm-s0` bg, `sandstorm-s40` border
+
+### State Patterns
+| State | Pattern |
+|-------|---------|
+| Hover (primary) | `forest-f50` (#0E4E4E) |
+| Hover (secondary) | `#f5f5f0` or `sandstorm-s30` |
+| Focus | `box-shadow: 0 0 0 2px #fff, 0 0 0 4px #136d6d` |
+| Disabled | `opacity-50 cursor-not-allowed` |
+| Error border | `red-r30` (#CE1313) or `#FCA5A5` |
+| Error bg | `red-r0` (#FFEBE6) or `#FEF2F2` |
+
+### Z-Index Scale
+`20` (assistant row) → `50` (dropdowns) → `100` (header buttons) → `120` (sticky columns) → `9999` (loading overlay)
+
+### Shadows
+- **Cards**: borders only, no shadow
+- **Dropdowns**: `0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)`
+- **Focus rings**: `0 0 0 2px #fff, 0 0 0 4px #136d6d`
+
+---
+
+## 6. Styling
+
+### Dual System
+1. **Tailwind utilities** — for component-level styling (preferred for new components)
+2. **CSS classes in `index.css`** — for shared patterns (see `css-component-classes.mdc`)
+
+| Situation | Use |
+|-----------|-----|
+| New component | Tailwind utilities |
+| Tables | `.table-*` CSS classes |
+| Campaign forms | `.campaign-input`, `.form-label` |
+| Data view buttons | `.edit-button`, `.create-entity-button` |
+| Tabs | `.tab-button`, `.tabs-container` |
+| Loading | `.loading-overlay` |
+
+### Token Studio Pipeline
+Colors sourced from Token Studio → `tailwind-colors-generated` → `tailwind.config.ts`. Also duplicated as CSS vars in `@theme` block of `index.css`.
+
+---
+
+## 7. Auth Pages
+
+Distinct visual language. See `src/styles/auth-styles.json`.
+
+1. **Font**: Poppins (`font-poppins`)
+2. **Card**: 576px, 16px radius, 40px padding, `#f5f7fa` bg
+3. **Page bg**: White
+4. **Components**: `AuthPageLayout`, `AuthCard`, `AuthHeader`, `AuthButton`, `AuthFormField`, `GoogleButton`
+5. **Spacing**: Section 64px, Form 32px, Input 20px, Field 4px
+
+---
+
+## 8. Dashboard Layout
+
+```tsx
+import { Sidebar } from "../components/layout/Sidebar";
+import { DashboardHeader } from "../components/layout/DashboardHeader";
+import { useSidebar } from "../contexts/SidebarContext";
+
+export const MyPage: React.FC = () => {
+  const { sidebarWidth } = useSidebar();
+  return (
+    <div className="min-h-screen bg-white flex">
+      <Sidebar />
+      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
+        <DashboardHeader />
+        <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-white">
+          <h1 className="text-h1100 font-agrandir text-forest-f60">Title</h1>
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+---
+
+## 9. Responsive & Accessibility
+
+- **Breakpoints**: sm 640, md 768, lg 1024, xl 1280, 2xl 1536
+- **Mobile-first**, min 44px touch targets
+- **Semantic HTML**: `<button>`, `<nav>`, `<main>`, proper heading hierarchy
+- **ARIA labels**: required on icon-only buttons
+- **Focus states**: `focus:ring-2 focus:ring-forest-f40`
+- **Color contrast**: WCAG AA minimum
+- **Alt text**: required on all `<img>`
+
+---
+
+**Last Updated**: February 2026 | **Version**: 3.0.0

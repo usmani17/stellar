@@ -1,0 +1,258 @@
+---
+description: Reusable CSS classes defined in src/index.css for tables, buttons, forms, tabs, loading states, and the AI assistant panel
+globs: "src/**/*.{tsx,jsx,css}"
+alwaysApply: false
+---
+# Reusable CSS Classes Reference
+
+All classes below are defined in `src/index.css`. **Check these first** before writing Tailwind-only equivalents to keep the UI consistent.
+
+---
+
+## 1. Button Classes
+
+### Base
+
+| Class | Description |
+|-------|-------------|
+| `.btn` | Base button — flex, font-weight 500, transition, rounded-lg (8px), focus ring |
+| `.btn-primary` | Green bg `#136D6D`, white text, no border. Hover: `#0E5A5A` |
+| `.btn-secondary` | `#FEFEFB` bg, `#072929` text, 1px `#e5e7eb` border. Hover: `#f5f5f0` |
+| `.btn-outline` | Transparent bg, `#136D6D` text, 1px `#e5e7eb` border. Hover: `#f9fafb` |
+| `.btn-ghost` | Transparent bg, `#072929` text, 1px `#e5e7eb` border. Hover: `#f9fafb` |
+
+### Sizes
+
+| Class | Padding | Font |
+|-------|---------|------|
+| `.btn-sm` | 6px 12px (overridden to `0.5rem 1rem !important` + `10.64px !important`) | 14px |
+| `.btn-md` | 8px 16px | 16px |
+| `.btn-lg` | 12px 24px | 18px |
+
+### Specialized Buttons
+
+| Class | Usage | Key Styles |
+|-------|-------|------------|
+| `.create-entity-button` | "Create Campaign", "Create Target", etc. | Green bg, white text, 40px height, 8px radius |
+| `.edit-button` | Edit actions in data views | `#FEFEFB` bg, 40px height, 12px font, 8px radius |
+| `.edit-button-large` | Larger edit buttons | White bg, 16px font, 500 weight |
+| `.cancel-button` | Cancel/Clear actions | `#FEFEFB` bg, 40px height, `11.2px` font |
+| `.apply-button` | Apply/Add Filter primary action | Green bg, white text, `11.2px` font |
+| `.apply-button-add` | Add Filter variant | Green bg, 40px height, 10px/16px padding |
+| `.add-button` | Small add buttons | Green bg, 8px/16px padding, `11.2px` font |
+| `.assistant-prompt-button` | Suggested prompts in AI chat | White bg, border, full-width, left-aligned |
+
+### Button Usage
+
+```tsx
+// Use CSS class for data-view buttons
+<button className="create-entity-button">
+  <Plus className="w-4 h-4" /> Create Campaign
+</button>
+
+// Use CSS class for edit/cancel in tables
+<button className="edit-button">Edit</button>
+<button className="cancel-button">Cancel</button>
+<button className="apply-button">Apply</button>
+
+// Use Tailwind or btn classes for custom buttons
+<button className="btn btn-primary btn-md">Submit</button>
+```
+
+---
+
+## 2. Table Classes
+
+Used across all data tables (campaigns, keywords, ad groups, targets, etc.).
+
+| Class | Purpose | Key Styles |
+|-------|---------|------------|
+| `.table-container` | Outer wrapper | `sandstorm-s0` bg, 1px border, 12px radius, overflow hidden |
+| `.table-header` | `<th>` elements | Left-aligned, 10px padding, 13.3px font, 500 weight, `#FEFEFB` bg, sortable cursor |
+| `.table-cell` | `<td>` elements | 10px padding |
+| `.table-header-cell` | Alternative header cell | 10px padding |
+| `.table-row` | `<tr>` data rows | Bottom border, hover `#f3f4f6` |
+| `.table-summary-row` | Total/summary rows | `#f5f5f0` bg, 600 weight |
+| `.table-sticky-first-column` | First sticky column after checkbox | sticky left:35px, z:120, 13.3px font |
+| `.table-text` | Standard cell text | 13.3px, `#0b0f16` color |
+| `.table-edit-link` | Clickable text in table cells | 13.3px, truncated, hover: teal + underline |
+| `.table-edit-icon` | Edit icon (appears on row hover) | Hidden by default, shows on `.group:hover` |
+
+### Table Usage
+
+```tsx
+<div className="table-container">
+  <table>
+    <thead>
+      <tr>
+        <th className="table-header">Name</th>
+        <th className="table-header">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr className="table-row group">
+        <td className="table-cell">
+          <span className="table-edit-link">Campaign Name</span>
+        </td>
+        <td className="table-cell">
+          <span className="table-text">Active</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+```
+
+---
+
+## 3. Status Badge Classes
+
+| Class | Color | Usage |
+|-------|-------|-------|
+| `.status-badge` | Base | Inline-block, pill shape, 12px font |
+| `.status-badge-enabled` | Green `#1ec77a` on green/10% | Active/Enabled status |
+| `.status-badge-paused` | Orange `#ffb65c` on orange/10% | Paused status |
+| `.status-badge-archived` | Gray `#a3a8b3` on gray/10% | Archived/Removed status |
+
+```tsx
+<span className="status-badge status-badge-enabled">Enabled</span>
+<span className="status-badge status-badge-paused">Paused</span>
+```
+
+---
+
+## 4. Form Classes
+
+| Class | Purpose | Key Styles |
+|-------|---------|------------|
+| `.form-label` | Form labels | 13px, 600 weight, `#072929`, 8px margin-bottom |
+| `.form-label-small` | Small uppercase labels | 11.2px, 600 weight, `#556179`, uppercase |
+| `.campaign-input` | Campaign form inputs | `#FEFEFB` bg, 40px height, 8px radius, 12px font, focus: green ring |
+| `.search-input-container` | Search boxes | `#FEFEFB` bg, 8px radius, hover/focus: green border |
+| `.section-title` | Section headers in forms | 13px, 600 weight, `#072929` |
+
+### Form Usage
+
+```tsx
+<label className="form-label">Campaign Name</label>
+<input className="campaign-input w-full" placeholder="Enter name..." />
+
+<div className="search-input-container flex items-center px-3 py-2">
+  <Search className="w-4 h-4 text-gray-400" />
+  <input className="ml-2 flex-1" placeholder="Search..." />
+</div>
+```
+
+---
+
+## 5. Tab Classes
+
+| Class | Purpose |
+|-------|---------|
+| `.tabs-container` | Outer wrapper — 1px border, 8px radius |
+| `.tabs-nav` | Tab button row — flex, `sandstorm-s0` bg, bottom border |
+| `.tab-button` | Individual tab — 14px, 8px/16px padding, transparent bottom border |
+| `.tab-button-active` | Active tab — `#072929` text, `#FEFEFB` bg, green bottom border |
+| `.tab-button-inactive` | Inactive tab — `#556179` text, hover: dark text + light bg |
+
+```tsx
+<div className="tabs-container">
+  <div className="tabs-nav">
+    <button className="tab-button tab-button-active">Overview</button>
+    <button className="tab-button tab-button-inactive">Keywords</button>
+    <button className="tab-button tab-button-inactive">Ad Groups</button>
+  </div>
+  <div className="tab-content">
+    {/* Tab panel */}
+  </div>
+</div>
+```
+
+---
+
+## 6. Loading Overlay
+
+```tsx
+<div className="loading-overlay">
+  <div className="loading-overlay-content">
+    <svg className="loading-spinner" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+      <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+    <span className="loading-message">Loading...</span>
+  </div>
+</div>
+```
+
+| Class | Purpose |
+|-------|---------|
+| `.loading-overlay` | Full overlay — absolute, white/70%, blur backdrop, z-9999 |
+| `.loading-overlay-content` | Centered flex column |
+| `.loading-spinner` | 32px animated spinner, teal color |
+| `.loading-message` | 14px, `#556179` text |
+
+---
+
+## 7. Checkbox & Input Helpers
+
+| Class | Purpose |
+|-------|---------|
+| `.checkbox-button` | Checkbox base — inline-flex, centered, 1px border `#A3A8B3`, focus ring |
+| `.inline-edit-input` | Inline editing in tables — full-width, 8px radius, focus: green ring |
+| `.google-table-dropdown` | Compact dropdown for tables — 31px height, white bg |
+
+---
+
+## 8. Layout Helpers
+
+| Class | Purpose |
+|-------|---------|
+| `.create-panel` | Create entity panel — border, 12px radius, shadow, `sandstorm-s0` bg |
+| `.profile-avatar-button` | Circular avatar button — 40px, border, hover: green border |
+| `.account-dropdown-button` | Account picker — flex, 40px height, 12px radius, hover: green border |
+| `.graph-container` | Chart wrapper — 20px radius, border, 1rem padding |
+
+---
+
+## 9. Scrollbar Utilities
+
+| Class | Behavior |
+|-------|----------|
+| `.hide-scrollbar` | Completely hides scrollbar (all browsers) |
+| `.interactive-scrollbar` | Shows scrollbar only on hover/scroll — thin, rounded thumb |
+
+---
+
+## 10. AI Assistant Classes
+
+The assistant panel uses 50+ CSS classes prefixed with `.assistant-*`. Key groups:
+
+| Prefix | Purpose |
+|--------|---------|
+| `.assistant-top-row*` | Top tab bar (tabs, new chat, close) |
+| `.assistant-tab-pill*` | Individual chat tab pills |
+| `.assistant-account-row*` | Account/channel selector row |
+| `.assistant-title-*` | Chat title row |
+| `.assistant-message-content` | Message text styling (lists, paragraphs, tables) |
+| `.assistant-table*` | Tables inside AI messages |
+| `.assistant-thoughts-*` | Collapsible reasoning section |
+| `.assistant-ran-tool-*` | Tool execution badges |
+| `.assistant-history-*` | Chat history dropdown |
+| `.assistant-setup-*` | Onboarding setup card (account/channel selection) |
+| `.assistant-intent-badge` | Intent badge (analyze/create) |
+| `.assistant-input-container` | Chat input bar |
+| `.assistant-prompt-button` | Suggested prompt buttons |
+| `.assistant-header-icon-btn` | Header action buttons |
+| `.assistant-muted-text` | Loading/empty state text |
+
+These classes use CSS custom properties (`var(--color-*)`, `var(--font-size-*)`) from the `@theme` block.
+
+---
+
+## Key Principles
+
+1. **Check `index.css` first** — before writing inline Tailwind for tables, buttons, forms, or tabs
+2. **Don't duplicate** — if a CSS class exists for the pattern, use it
+3. **CSS classes for shared patterns** — tables, status badges, form inputs in data views
+4. **Tailwind utilities for unique styling** — component-specific layout, spacing, responsive
+5. **Combine both** — CSS class for base + Tailwind for overrides: `<button className="create-entity-button ml-auto">`
