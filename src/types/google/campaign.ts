@@ -1,4 +1,5 @@
 import { CAMPAIGN_STATUS_SAVED_DRAFT } from "../../constants/google";
+import type { ICampaignDraft } from "./campaignDraft";
 
 export type GoogleCampaignStatus = "ENABLED" | "PAUSED" | "REMOVED" | typeof CAMPAIGN_STATUS_SAVED_DRAFT;
 
@@ -32,7 +33,7 @@ export interface IGoogleCampaign {
     cost_per_conversion?: number;
     acos?: number;
     roas?: number;
-    // Extra data (JSONB) - contains shopping_setting, network_settings, etc.
+    // Extra data (JSONB) - contains shopping_setting, network_settings, draft_state, etc.
     extra_data?: {
         shopping_setting?: {
             merchant_id?: string;
@@ -46,6 +47,8 @@ export interface IGoogleCampaign {
             target_content_network?: boolean;
             target_partner_search_network?: boolean;
         };
+        /** Draft payload when campaign is a draft (agent-created or saved draft). */
+        draft_state?: ICampaignDraft | null;
         [key: string]: any;
     };
 }
@@ -118,7 +121,7 @@ export interface IGoogleCampaignsTableProps {
     onEditCampaign?: (campaign: IGoogleCampaign) => void;
     editLoadingCampaignId?: string | number | null;
     onPublishDraft?: (campaign: IGoogleCampaign) => void;
-    publishLoadingCampaignId?: string | null;
+    publishLoadingCampaignId?: string | number | null;
     isPanelOpen?: boolean; // When true, editable fields become read-only
     /** Currency code for the currency column (e.g. USD, AUD, EUR). Shown before Impressions. */
     currencyCode?: string;

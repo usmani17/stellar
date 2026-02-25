@@ -279,10 +279,10 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
         { value: "MANUAL_CPC", label: "Manual CPC" },
       ],
       getValue: (row: IGoogleCampaign) => {
-        const strategy = (row as any).bidding_strategy_type;
+        const strategy = row.bidding_strategy_type;
         if (!strategy) return "—";
         // Format bidding strategy type (e.g., MAXIMIZE_CONVERSIONS -> Maximize conversions)
-        return strategy.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+        return strategy.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
       },
     },
     {
@@ -297,63 +297,63 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       label: "Impressions",
       type: "number",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).impressions || 0,
+      getValue: (row: IGoogleCampaign) => row.impressions ?? 0,
     },
     {
       key: "clicks",
       label: "Clicks",
       type: "number",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).clicks || 0,
+      getValue: (row: IGoogleCampaign) => row.clicks ?? 0,
     },
     {
       key: "spends",
       label: "Cost",
       type: "currency",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).spends || 0,
+      getValue: (row: IGoogleCampaign) => row.spends ?? 0,
     },
     {
       key: "sales",
       label: "Conv. value",
       type: "currency",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).sales || 0,
+      getValue: (row: IGoogleCampaign) => row.sales ?? 0,
     },
     {
       key: "roas",
       label: "Conv. value / cost",
       type: "roas",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).roas || 0,
+      getValue: (row: IGoogleCampaign) => row.roas ?? 0,
     },
     {
       key: "conversions",
       label: "Conversions",
       type: "number",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).conversions || 0,
+      getValue: (row: IGoogleCampaign) => row.conversions ?? 0,
     },
     {
       key: "conversion_rate",
       label: "Conv. rate",
       type: "percentage",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).conversion_rate || 0,
+      getValue: (row: IGoogleCampaign) => row.conversion_rate ?? 0,
     },
     {
       key: "cost_per_conversion",
       label: "Cost / conv.",
       type: "currency",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).cost_per_conversion || 0,
+      getValue: (row: IGoogleCampaign) => row.cost_per_conversion ?? 0,
     },
     {
       key: "avg_cpc",
       label: "Avg. CPC",
       type: "currency",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).avg_cpc || 0,
+      getValue: (row: IGoogleCampaign) => row.avg_cpc ?? 0,
     },
     {
       key: "avg_cost",
@@ -362,8 +362,8 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       sortable: true,
       getValue: (row: IGoogleCampaign) => {
         // Avg. cost = cost / interactions (for text ads, interactions = clicks)
-        const interactions = (row as any).interactions || (row as any).clicks || 0;
-        const spends = (row as any).spends || 0;
+        const interactions = row.interactions ?? row.clicks ?? 0;
+        const spends = row.spends ?? 0;
         return interactions > 0 ? spends / interactions : 0;
       },
     },
@@ -372,7 +372,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       label: "Interaction rate",
       type: "percentage",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).interaction_rate || 0,
+      getValue: (row: IGoogleCampaign) => row.interaction_rate ?? 0,
     },
   ], [getChannelTypeLabel, accountId, navigate, onEditCampaign, editLoadingCampaignId, onPublishDraft, publishLoadingCampaignId, currencyCode]);
 

@@ -25,4 +25,3 @@ export interface FilterDefinitionsResponse {
   filters: FilterDefinition[];
   page_type: string;
 }
-

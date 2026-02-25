@@ -301,7 +301,7 @@ export const GoogleCampaignDetail: React.FC = () => {
       };
       const response = await googleAdwordsAdsService.createDemandGenAd(
         parseInt(accountId || "", 10),
-        parseInt(channelId, 10),
+        parseInt(channelId || "", 10),
         cid,
         payload,
       );
@@ -895,13 +895,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       const c = campaignDetail.campaign as any;
       const extra =
         c.extra_data && typeof c.extra_data === "object" ? c.extra_data : {};
-      const creationPayload =
-        extra.creation_payload && typeof extra.creation_payload === "object"
-          ? extra.creation_payload
-          : {};
       const draftState = extra.draft_state && typeof extra.draft_state === "object" ? extra.draft_state : {};
       const draftCampaign = draftState.campaign && typeof draftState.campaign === "object" ? draftState.campaign : {};
-      const resolvedStatus = (draftCampaign.status ?? creationPayload.status ?? c.status ?? "").toString().toUpperCase();
+      const resolvedStatus = (draftCampaign.status ?? c.status ?? "").toString().toUpperCase();
       const statusForForm: "ENABLED" | "PAUSED" = resolvedStatus === "ENABLED" || resolvedStatus === "PAUSED" ? resolvedStatus : "PAUSED";
       return {
         name: c.name || "",
@@ -911,11 +907,11 @@ export const GoogleCampaignDetail: React.FC = () => {
           c.budget_name ??
           c.campaign_budget_name ??
           c.campaignBudgetName ??
-          creationPayload.budget_name,
+          draftCampaign.budget_name,
         budget_resource_name:
           c.campaign_budget ??
           c.campaign_budget_resource_name ??
-          creationPayload.budget_resource_name,
+          draftCampaign.budget_resource_name,
         start_date: c.start_date,
         end_date: c.end_date,
         campaign_type: (c.advertising_channel_type ||
@@ -3462,7 +3458,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         message={
           publishDraftEntity
             ? publishDraftEntity.type === "ad_group"
-              ? `Ad group "${publishDraftEntity.entity.adgroup_name || publishDraftEntity.entity.name || "Unnamed"}" will be created in Google Ads and the draft row will be removed.`
+              ? `Ad group "${publishDraftEntity.entity.name || publishDraftEntity.entity.name || "Unnamed"}" will be created in Google Ads and the draft row will be removed.`
               : publishDraftEntity.type === "keyword"
                 ? `Keyword "${publishDraftEntity.entity.keyword_text || "Unnamed"}" will be published. The draft row will be removed.`
                 : publishDraftEntity.type === "ad"
