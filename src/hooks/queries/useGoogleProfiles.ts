@@ -3,6 +3,7 @@ import { accountsService } from "../../services/accounts";
 import { queryKeys } from "./queryKeys";
 
 interface GoogleProfile {
+  id: number;
   customer_id: string;
   customer_id_raw: string;
   resource_name: string;

@@ -43,8 +43,8 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
   onClose,
   prompt,
   format,
-  integrationName = "Google Ads",
-  profileName = "Main Account",
+  integrationName = "All Channels",
+  profileName = "All Profiles",
 }) => {
   return (
     <BaseModal

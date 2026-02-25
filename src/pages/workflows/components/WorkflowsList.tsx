@@ -178,8 +178,8 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                     <p className="text-[10px] font-medium uppercase tracking-wider text-forest-f30">
                       Integration
                     </p>
-                    <p className="truncate text-sm text-forest-f60" title={wf.channelName}>
-                      {wf.channelName}
+                    <p className="truncate text-sm text-forest-f60" title={wf.channelName || "All Channels"}>
+                      {wf.channelName || "All Channels"}
                     </p>
                   </div>
                 </div>
@@ -191,8 +191,8 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                     <p className="text-[10px] font-medium uppercase tracking-wider text-forest-f30">
                       Profile
                     </p>
-                    <p className="truncate text-sm text-forest-f60" title={wf.profileName}>
-                      {wf.profileName}
+                    <p className="truncate text-sm text-forest-f60" title={wf.profileName || "All Profiles"}>
+                      {wf.profileName || "All Profiles"}
                     </p>
                   </div>
                 </div>
@@ -369,8 +369,8 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
         onClose={() => setPreviewWorkflow(null)}
         prompt={previewWorkflow?.prompt ?? ""}
         format={previewWorkflow?.format ?? "pdf"}
-        integrationName={previewWorkflow?.channelName}
-        profileName={previewWorkflow?.profileName}
+        integrationName={previewWorkflow?.channelName || "All Channels"}
+        profileName={previewWorkflow?.profileName || "All Profiles"}
       />
     </>
   );

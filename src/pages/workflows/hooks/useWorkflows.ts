@@ -34,8 +34,16 @@ export const useWorkflows = (accountId: number | undefined) => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: UpdateWorkflowPayload }) =>
-      workflowsService.updateWorkflow(id, payload),
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: number;
+      payload: UpdateWorkflowPayload;
+    }) =>
+      accountId != null
+        ? workflowsService.updateWorkflow(accountId, id, payload)
+        : Promise.reject(new Error("accountId required")),
     onSuccess: () => {
       if (accountId) {
         queryClient.invalidateQueries({
@@ -46,7 +54,10 @@ export const useWorkflows = (accountId: number | undefined) => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => workflowsService.deleteWorkflow(id),
+    mutationFn: (id: number) =>
+      accountId != null
+        ? workflowsService.deleteWorkflow(accountId, id)
+        : Promise.reject(new Error("accountId required")),
     onSuccess: () => {
       if (accountId) {
         queryClient.invalidateQueries({

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { ImageIcon, Upload, Mail } from "lucide-react";
 import { BaseModal, Input, Alert } from "../../../components/ui";
 import { useAuth } from "../../../contexts/AuthContext";
+import type { DeliveryAction } from "../../../services/workflows";
 import { useBrandSettings } from "../hooks/useBrandSettings";
 
 const HEX_REGEX = /^#[0-9A-Fa-f]{6}$/;
@@ -24,6 +25,9 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
   const [logoUrl, setLogoUrl] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#136D6D");
   const [defaultDeliveryEmail, setDefaultDeliveryEmail] = useState("");
+  const [deliveryAction, setDeliveryAction] = useState<DeliveryAction | null>(
+    null
+  );
   const [logoError, setLogoError] = useState(false);
   const [colorError, setColorError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -33,7 +37,18 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
     if (settings) {
       setLogoUrl(settings.logoUrl);
       setPrimaryColor(settings.primaryColor);
-      setDefaultDeliveryEmail(settings.defaultDeliveryEmail || user?.email || "");
+      const email =
+        settings.defaultDeliveryEmail ||
+        (settings.deliveryAction?.type === "email"
+          ? settings.deliveryAction.email
+          : undefined) ||
+        user?.email ||
+        "";
+      setDefaultDeliveryEmail(email);
+      setDeliveryAction(
+        settings.deliveryAction ??
+          (email ? { type: "email", email } : null)
+      );
       setLogoError(false);
       setColorError("");
       setSuccessMsg("");
@@ -74,8 +89,17 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
 
   const handleSave = async () => {
     if (!validateColor(primaryColor)) return;
+    const payloadDeliveryAction: DeliveryAction | null =
+      defaultDeliveryEmail.trim()
+        ? { type: "email", email: defaultDeliveryEmail.trim() }
+        : null;
     try {
-      await updateSettings({ logoUrl, primaryColor, defaultDeliveryEmail });
+      await updateSettings({
+        logoUrl,
+        primaryColor,
+        defaultDeliveryEmail: defaultDeliveryEmail.trim() || undefined,
+        deliveryAction: payloadDeliveryAction,
+      });
       setSuccessMsg("Settings saved successfully");
       setTimeout(() => {
         setSuccessMsg("");
