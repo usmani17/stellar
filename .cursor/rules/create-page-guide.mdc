@@ -1,0 +1,354 @@
+---
+description: Full guide to create a new page using existing patterns, API, and shared libraries
+globs: "src/pages/**/*.tsx"
+alwaysApply: false
+---
+
+# Create Page Guide – Stellar Frontend
+
+Use this guide to create a new page using the existing system. Follow the patterns below.
+
+---
+
+## 1. Project Structure
+
+```
+src/
+├── pages/              # Page components (one file per page, or folder for complex pages)
+│   ├── Accounts.tsx
+│   ├── Channels.tsx
+│   ├── google/         # Feature-scoped pages
+│   └── tiktok/
+├── services/           # API layer (api.ts base + domain services)
+├── hooks/              # React Query hooks
+│   ├── queries/        # useQuery hooks
+│   └── mutations/      # useMutation hooks
+├── components/         # Reusable components
+│   ├── ui/             # Base UI (Button, Card, Input, etc.)
+│   └── layout/         # Sidebar, DashboardHeader, Layout
+├── contexts/          # AuthContext, DateRangeContext, SidebarContext, etc.
+├── routes/             # Route definitions
+├── utils/              # pageTitle, urlHelpers, formatters, etc.
+└── lib/                # queryClient
+```
+
+---
+
+## 2. Naming Conventions
+
+| Type | Convention | Examples |
+|------|-------------|----------|
+| **Page file** | PascalCase, descriptive | `Accounts.tsx`, `GoogleCampaigns.tsx` |
+| **Page component** | Same as file, exported | `export const Accounts: React.FC = () => {...}` |
+| **Service** | camelCase + `Service` or `service` | `accountsService`, `googleAdwordsCampaignsService` |
+| **Query hook** | `use` + Entity + Purpose | `useAccountsPaginated`, `useChannels` |
+| **Mutation hook** | `use` + Action + Entity | `useCreateAccount`, `useUpdateAccount` |
+| **Route path** | kebab-case, nested by domain | `/brands`, `/brands/:accountId/integrations` |
+
+---
+
+## 3. API Pattern
+
+**Base:** `src/services/api.ts` – axios instance with `API_BASE_URL`, auth interceptors, token refresh.
+
+**Service module pattern:**
+```ts
+// src/services/myEntity.ts
+import api from "./api";
+
+export interface MyEntity {
+  id: number;
+  name: string;
+  // ...
+}
+
+export const myEntityService = {
+  getList: async (params?: Record<string, string>): Promise<MyEntity[]> => {
+    const { data } = await api.get<MyEntity[]>("/my-entity/", { params });
+    return data;
+  },
+  getById: async (id: number): Promise<MyEntity> => {
+    const { data } = await api.get<MyEntity>(`/my-entity/${id}/`);
+    return data;
+  },
+  create: async (payload: Partial<MyEntity>): Promise<MyEntity> => {
+    const { data } = await api.post<MyEntity>("/my-entity/", payload);
+    return data;
+  },
+  update: async (id: number, payload: Partial<MyEntity>): Promise<MyEntity> => {
+    const { data } = await api.patch<MyEntity>(`/my-entity/${id}/`, payload);
+    return data;
+  },
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/my-entity/${id}/`);
+  },
+};
+```
+
+**Backend URL mapping:**
+- Accounts: `/api/accounts/`
+- Channels: `/api/accounts/<accountId>/channels/`
+- Google Ads: `/api/google-adwords/<accountId>/channels/<channelId>/...`
+- Auth: `/api/auth/`, `/api/users/`
+
+---
+
+## 3b. How to Integrate with the API
+
+### Auth
+
+The `api` instance automatically adds the auth token to every request:
+- Token is stored in `localStorage.getItem("accessToken")`
+- Sent as `Authorization: Bearer <token>`
+- On 401: backend `/auth/refresh/` is called; if refresh fails, user is redirected to `/login`
+- Never pass the token manually – the interceptor handles it
+
+### GET vs POST for List Endpoints
+
+| Endpoint type | Method | Use when |
+|---------------|--------|----------|
+| Simple list (no filters) | `GET` | Accounts, channels – use `params` for pagination |
+| Filtered list | `POST` | Campaigns, keywords, targets – send `{ filters }` in body |
+| Detail | `GET` | Single entity by ID |
+| Create/Update/Delete | `POST` / `PUT` / `PATCH` / `DELETE` | As expected |
+
+```ts
+// Simple list – GET with params
+const { data } = await api.get("/accounts/", { params: { page: 1, page_size: 10 } });
+
+// Filtered list – POST with body (backend expects filters in body)
+const { data } = await api.post(url, { filters: { campaign_name__icontains: "test", state__in: ["Enable"] } });
+```
+
+### Response Formats
+
+| Type | Shape | Example |
+|------|-------|---------|
+| Paginated (DRF) | `{ count, next, previous, results }` | Accounts list |
+| Custom list | `{ campaigns: [...] }` or `{ keywords: [...] }` | Campaigns, keywords |
+| Create/update | Entity object or `{ id, name, ... }` | Single object |
+| Error | `{ error: string }` or `{ detail: string }` | 4xx/5xx |
+
+Handle both shapes when backend varies:
+```ts
+const data = response.data;
+const list = Array.isArray(data) ? data : (data?.results ?? data?.campaigns ?? []);
+```
+
+### Error Handling
+
+```ts
+try {
+  const result = await myEntityService.create(payload);
+  setSuccessMessage("Created!");
+} catch (err: any) {
+  const msg = err.response?.data?.error ?? err.response?.data?.detail ?? "Request failed";
+  setError(msg);
+}
+```
+
+- `err.response.status` – 400, 401, 403, 404, 500
+- `err.response.data` – backend error payload
+- 401 triggers auto token refresh, then redirect to login on failure
+
+### Environment
+
+- `VITE_API_BASE_URL` – defaults to `http://localhost:8000/api`
+- Set in `.env`: `VITE_API_BASE_URL=https://your-api.example.com/api`
+
+---
+
+## 4. React Query Hooks
+
+**Query keys:** `src/hooks/queries/queryKeys.ts` – add keys for new entities:
+
+```ts
+// Add to queryKeys object
+myEntity: {
+  all: ["myEntity"] as const,
+  lists: () => [...queryKeys.myEntity.all, "list"] as const,
+  detail: (id: number) => [...queryKeys.myEntity.all, "detail", id] as const,
+},
+```
+
+**Query hook pattern:**
+```ts
+// src/hooks/queries/useMyEntity.ts
+import { useQuery } from "@tanstack/react-query";
+import { myEntityService } from "../../services/myEntity";
+import { queryKeys } from "./queryKeys";
+
+export const useMyEntity = (id: number | undefined, options?: { enabled?: boolean }) => {
+  return useQuery({
+    queryKey: queryKeys.myEntity.detail(id!),
+    queryFn: () => myEntityService.getById(id!),
+    enabled: (options?.enabled ?? true) && !!id,
+    retry: (failureCount, error: any) => {
+      if (error?.response?.status === 401 || error?.response?.status === 403) return false;
+      return failureCount < 3;
+    },
+  });
+};
+```
+
+**Mutation hook pattern:**
+```ts
+// src/hooks/mutations/useMyEntityMutations.ts
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { myEntityService } from "../../services/myEntity";
+import { queryKeys } from "../queries/queryKeys";
+
+export const useCreateMyEntity = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: myEntityService.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.myEntity.all });
+    },
+  });
+};
+```
+
+---
+
+## 5. Page Layout (Standard Structure)
+
+**Use for dashboard pages (with sidebar):**
+
+```tsx
+import React, { useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Sidebar } from "../components/layout/Sidebar";
+import { DashboardHeader } from "../components/layout/DashboardHeader";
+import { useSidebar } from "../contexts/SidebarContext";
+import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
+import { Button, Card, Loader } from "../components/ui";
+
+export const MyNewPage: React.FC = () => {
+  const { accountId } = useParams<{ accountId: string }>();
+  const navigate = useNavigate();
+  const { sidebarWidth } = useSidebar();
+
+  useEffect(() => {
+    setPageTitle("My Page Title");
+    return () => resetPageTitle();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-white flex">
+      <Sidebar />
+      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
+        <DashboardHeader />
+        <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-white">
+          <h1 className="text-h1100 font-agrandir text-forest-f60">My Page Title</h1>
+          {/* Page content */}
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+**Notes:**
+- **Accounts page** uses `AccountsHeader` instead of `DashboardHeader`.
+- **Brand-scoped pages** may need `AccountRequiredRoute`, `BrandAccessRoute`.
+- **Date range** – use `useDateRange()` from `DateRangeContext` when needed.
+- **Assistant** – wrap the content div with `<Assistant>` for AI assistant (e.g. Google pages).
+- **Google Ads pages** – wrap with `GoogleSyncStatusWrapper` in the route (see GoogleRoutes).
+
+---
+
+## 6. Route Registration
+
+Add route in `src/routes/`:
+
+**Account-scoped (no channel):**
+```tsx
+<Route path="/brands/:accountId/my-page" element={
+  <ProtectedRoute>
+    <WorkspaceRequiredRoute>
+      <AccountRequiredRoute>
+        <BrandAccessRoute>
+          <Layout><MyNewPage /></Layout>
+        </BrandAccessRoute>
+      </AccountRequiredRoute>
+    </WorkspaceRequiredRoute>
+  </ProtectedRoute>
+} />
+```
+
+**Channel-scoped (Google/TikTok – needs channelId):**
+```tsx
+<Route path="/brands/:accountId/:channelId/google/campaigns" element={
+  <ProtectedRoute>
+    <WorkspaceRequiredRoute>
+      <AccountRequiredRoute>
+        <BrandAccessRoute>
+          <GoogleSyncStatusWrapper>
+            <Layout><GoogleCampaigns /></Layout>
+          </GoogleSyncStatusWrapper>
+        </BrandAccessRoute>
+      </AccountRequiredRoute>
+    </WorkspaceRequiredRoute>
+  </ProtectedRoute>
+} />
+```
+
+**Route wrappers:**
+- `ProtectedRoute` – requires auth
+- `WorkspaceRequiredRoute` – requires workspace selection
+- `AccountRequiredRoute` – requires account in URL
+- `BrandAccessRoute` – requires brand access
+- `GoogleSyncStatusWrapper` – for Google Ads pages (sync status context)
+- `Layout` – provides PasswordUpdateBanner, VerifyEmailBanner, main wrapper
+
+---
+
+## 7. URL Helpers
+
+Use `src/utils/urlHelpers.ts`:
+
+```ts
+import { buildAccountRoute, buildMarketplaceRoute } from "../utils/urlHelpers";
+
+buildAccountRoute(accountId, "integrations");      // /brands/1/integrations
+buildMarketplaceRoute(accountId, channelId, "google", "campaigns");  // /brands/1/58/google/campaigns
+```
+
+---
+
+## 8. Shared Components & Design System
+
+- **UI components:** `src/components/ui` – Button, Card, Input, Loader, Menu, DeleteConfirmationModal, etc.
+- **Banner:** `import { Banner } from "../components/ui/Banner"` – success, error, warning, info.
+- **Design tokens:** See `design_system_rules.mdc` – use `text-forest-f60`, `bg-forest-f40`, `text-h1100`, etc.
+
+---
+
+## 9. Create Page Checklist
+
+1. [ ] Create service in `src/services/` if new API
+2. [ ] Add query keys in `src/hooks/queries/queryKeys.ts`
+3. [ ] Create query/mutation hooks in `src/hooks/queries/` and `src/hooks/mutations/`
+4. [ ] Create page in `src/pages/` (or `src/pages/<feature>/`) – use `../../` for imports from subfolders
+5. [ ] Use `Sidebar` + `DashboardHeader` (or `AccountsHeader`) + `marginLeft: sidebarWidth`
+6. [ ] Call `setPageTitle` / `resetPageTitle` in `useEffect`
+7. [ ] Register route in `routes/AccountRoutes.tsx` (or GoogleRoutes, etc.)
+8. [ ] Wrap with appropriate route guards
+9. [ ] Use design tokens (forest-f40, sandstorm-s0, etc.)
+10. [ ] Add link in Sidebar if needed (edit `src/components/layout/Sidebar.tsx`)
+
+---
+
+## 10. Quick Reference
+
+| Need | Use |
+|------|-----|
+| Auth user | `useAuth()` from AuthContext |
+| Accounts list | `useAccounts()` from AccountsContext |
+| Date range | `useDateRange()` from DateRangeContext |
+| Sidebar width | `useSidebar().sidebarWidth` |
+| API fetch | Service + `useQuery` |
+| Create/Update/Delete | Service + `useMutation` |
+| Navigation | `useNavigate()`, `useParams()` |
+| Design colors | `forest-f40`, `forest-f60`, `sandstorm-s0` |

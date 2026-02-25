@@ -1859,6 +1859,7 @@ export const GoogleCampaigns: React.FC = () => {
       // Step 2: Use refreshed data or fallback to row data
       const campaignData = refreshedCampaignData || row;
       const initial = buildInitialCampaignDataFromCampaign(campaignData as Record<string, any>);
+
       setInitialCampaignData(initial);
       setCampaignId(row.campaign_id);
       // After data is loaded and form state is set, smoothly scroll to top

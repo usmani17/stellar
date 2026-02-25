@@ -61,6 +61,7 @@ export function buildInitialCampaignDataFromCampaign(
       extra_data = {};
     }
   }
+  const creation_payload: Record<string, any> = extra_data?.creation_payload ?? {};
   const draft_state: ICampaignDraft | null = extra_data?.draft_state ?? null;
   const draft_campaign: Partial<ICampaign> = draft_state?.campaign ?? {};
   const draft_ad_group: Partial<IAdGroup> =
@@ -230,6 +231,8 @@ export function buildInitialCampaignDataFromCampaign(
     sales_country:
       (draft_campaign.sales_country as string | undefined) ??
       row.sales_country ??
+      (creation_payload.sales_country as string | undefined) ??
+      (campaignData?.sales_country as string | undefined) ??
       shopping_setting.sales_country ??
       "US",
     campaign_priority:

@@ -328,6 +328,7 @@ export const googleAdwordsCampaignsService : any = {
       start_date?: string;
       end_date?: string;
       draft_only?: boolean;
+      campaign_name__icontains?: string; // Search by campaign name or account ID
     }
   ): Promise<{
     campaigns: any[];
@@ -377,6 +378,9 @@ export const googleAdwordsCampaignsService : any = {
       start_date: params?.start_date,
       end_date: params?.end_date,
       draft_only: params?.draft_only ?? false,
+      ...(params?.campaign_name__icontains?.trim() && {
+        campaign_name__icontains: params.campaign_name__icontains.trim(),
+      }),
     };
 
     console.log("🔍 [SERVICE DEBUG] Payload being sent to backend:", payload);
