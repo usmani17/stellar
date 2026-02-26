@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Pencil,
   Trash2,
@@ -14,6 +14,7 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  Zap,
 } from "lucide-react";
 import { Loader, ConfirmationModal, Tooltip } from "../../../components/ui";
 import { WorkflowRunHistoryModal } from "./WorkflowRunHistoryModal";
@@ -21,6 +22,7 @@ import { WorkflowPreviewModal } from "./WorkflowPreviewModal";
 import { cn } from "../../../lib/cn";
 import type { Workflow } from "../../../services/workflows";
 import { formatSchedule, computeNextRuns } from "../utils/scheduleUtils";
+import { useBrandSettings } from "../hooks/useBrandSettings";
 
 interface WorkflowsListProps {
   accountId: number | undefined;
@@ -31,6 +33,8 @@ interface WorkflowsListProps {
   isDeleting: boolean;
   onTogglePause: (workflow: Workflow) => void;
   isUpdating: boolean;
+  onRunNow: (workflowId: number) => Promise<unknown>;
+  isRunning: boolean;
   onCreateNew: () => void;
 }
 
@@ -43,12 +47,17 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   isDeleting,
   onTogglePause,
   isUpdating,
+  onRunNow,
+  isRunning,
   onCreateNew,
 }) => {
+  const { settings: brandSettings } = useBrandSettings(accountId);
   const [deleteTarget, setDeleteTarget] = useState<Workflow | null>(null);
   const [pauseTarget, setPauseTarget] = useState<Workflow | null>(null);
   const [historyWorkflow, setHistoryWorkflow] = useState<Workflow | null>(null);
   const [previewWorkflow, setPreviewWorkflow] = useState<Workflow | null>(null);
+  const [runningWorkflowId, setRunningWorkflowId] = useState<number | null>(null);
+  const runInProgressRef = useRef(false);
   const [page, setPage] = useState(1);
 
   const WORKFLOWS_PER_PAGE = 10;
@@ -121,7 +130,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
 
   return (
     <>
-      <div className="flex flex-col gap-4 min-w-0 overflow-x-hidden">
+      <div className="flex flex-col gap-5 min-w-0 overflow-x-hidden">
         {paginatedWorkflows.map((wf) => {
           const nextRuns = computeNextRuns(wf.schedule, 5);
           const nextRun = nextRuns[0];
@@ -133,15 +142,18 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
             <div
               key={wf.id}
               className={cn(
-                "rounded-xl border p-3 sm:p-4 shadow-sm transition-shadow min-w-0 w-full",
+                "rounded-xl border-2 p-4 sm:p-5 min-w-0 w-full overflow-hidden",
+                "bg-white transition-all duration-200",
+                "shadow-[0_1px_3px_rgba(7,41,41,0.06)]",
+                "hover:shadow-[0_4px_12px_rgba(7,41,41,0.08)] hover:border-sandstorm-s50",
                 wf.status === "paused"
-                  ? "border border-sandstorm-s40 border-l-4 border-l-yellow-y10 bg-yellow-y50"
-                  : "border-sandstorm-s40 bg-white hover:shadow-md"
+                  ? "border-sandstorm-s40 border-l-4 border-l-yellow-y10 bg-yellow-y50/50"
+                  : "border-sandstorm-s40 border-l-4 border-l-forest-f40"
               )}
             >
               {/* Header: Name + badges */}
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3 mb-3">
-                <h3 className="text-base font-agrandir font-medium text-forest-f60 truncate min-w-0">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3 mb-4">
+                <h3 className="text-base font-agrandir font-semibold text-forest-f60 truncate min-w-0">
                   {wf.name || "Untitled workflow"}
                 </h3>
                 <div className="flex items-center gap-2 shrink-0 flex-wrap">
@@ -169,8 +181,8 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
               </div>
 
               {/* Meta: 1 col on mobile, 2 cols on sm+ */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-4">
-                <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-sandstorm-s5 border border-sandstorm-s40 px-2.5 py-2 sm:px-3 sm:py-2.5 min-w-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 mb-4">
+                <div className="flex items-center gap-2.5 sm:gap-3 rounded-lg bg-sandstorm-s5 border border-sandstorm-s40 px-3 py-2.5 sm:px-3.5 sm:py-3 min-w-0 shadow-sm">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-forest-f40/10">
                     <Link2 className="w-4 h-4 text-forest-f40" />
                   </div>
@@ -183,7 +195,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-sandstorm-s5 border border-sandstorm-s40 px-2.5 py-2 sm:px-3 sm:py-2.5 min-w-0">
+                <div className="flex items-center gap-2.5 sm:gap-3 rounded-lg bg-sandstorm-s5 border border-sandstorm-s40 px-3 py-2.5 sm:px-3.5 sm:py-3 min-w-0 shadow-sm">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-forest-f40/10">
                     <User className="w-4 h-4 text-forest-f40" />
                   </div>
@@ -196,7 +208,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-sandstorm-s5 border border-sandstorm-s40 px-2.5 py-2 sm:px-3 sm:py-2.5 min-w-0">
+                <div className="flex items-center gap-2.5 sm:gap-3 rounded-lg bg-sandstorm-s5 border border-sandstorm-s40 px-3 py-2.5 sm:px-3.5 sm:py-3 min-w-0 shadow-sm">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-forest-f40/10">
                     <Calendar className="w-4 h-4 text-forest-f40" />
                   </div>
@@ -209,7 +221,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-sandstorm-s5 border border-sandstorm-s40 px-2.5 py-2 sm:px-3 sm:py-2.5 min-w-0">
+                <div className="flex items-center gap-2.5 sm:gap-3 rounded-lg bg-sandstorm-s5 border border-sandstorm-s40 px-3 py-2.5 sm:px-3.5 sm:py-3 min-w-0 shadow-sm">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-forest-f40/10">
                     <Clock className="w-4 h-4 text-forest-f40" />
                   </div>
@@ -241,7 +253,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
               </div>
 
               {/* Actions - wrap with adequate touch targets on mobile */}
-              <div className="flex flex-wrap items-center gap-2 sm:gap-1 pt-3 border-t border-sandstorm-s40">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-1.5 pt-4 mt-1 -mx-4 -mb-4 sm:-mx-5 sm:-mb-5 px-4 py-3 sm:px-5 sm:py-3 rounded-b-xl border-t-2 border-sandstorm-s30 bg-sandstorm-s5/60">
                 <button
                   onClick={() => setPreviewWorkflow(wf)}
                   className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-[10.64px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors min-h-[36px] sm:min-h-0"
@@ -265,6 +277,25 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                 >
                   <History className="w-3.5 h-3.5" />
                   History
+                </button>
+                <button
+                  onClick={async () => {
+                    if (runInProgressRef.current) return;
+                    runInProgressRef.current = true;
+                    setRunningWorkflowId(wf.id);
+                    try {
+                      await onRunNow(wf.id);
+                    } finally {
+                      runInProgressRef.current = false;
+                      setRunningWorkflowId(null);
+                    }
+                  }}
+                  disabled={!!runningWorkflowId}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-[10.64px] text-forest-f40 hover:bg-forest-f0 transition-colors min-h-[36px] sm:min-h-0 disabled:opacity-50"
+                  title="Run workflow now"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  {isRunning && runningWorkflowId === wf.id ? "Running..." : "Run Now"}
                 </button>
                 <button
                   onClick={() =>
@@ -371,6 +402,25 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
         format={previewWorkflow?.format ?? "pdf"}
         integrationName={previewWorkflow?.channelName || "All Channels"}
         profileName={previewWorkflow?.profileName || "All Profiles"}
+        accountId={previewWorkflow ? accountId : undefined}
+        executePayload={
+          previewWorkflow
+            ? {
+                accountId: previewWorkflow.accountId,
+                channelId: previewWorkflow.channelId ?? undefined,
+                profileId: previewWorkflow.profileId ?? undefined,
+                accountName: previewWorkflow.accountName,
+                channelName: previewWorkflow.channelName,
+                profileName: previewWorkflow.profileName,
+                prompt: previewWorkflow.prompt,
+                format: previewWorkflow.format,
+                workflowId: previewWorkflow.id,
+                logoUrl: brandSettings?.logoUrl || undefined,
+                primaryColor: brandSettings?.primaryColor || undefined,
+              }
+            : undefined
+        }
+        workflowId={previewWorkflow?.id ?? undefined}
       />
     </>
   );

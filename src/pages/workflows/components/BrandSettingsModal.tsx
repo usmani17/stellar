@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ImageIcon, Upload, Mail } from "lucide-react";
+import { ImageIcon, Loader2, Upload, Mail } from "lucide-react";
 import { BaseModal, Input, Alert } from "../../../components/ui";
 import { useAuth } from "../../../contexts/AuthContext";
-import type { DeliveryAction } from "../../../services/workflows";
+import {
+  assetUploadService,
+  type DeliveryAction,
+} from "../../../services/workflows";
 import { useBrandSettings } from "../hooks/useBrandSettings";
 
 const HEX_REGEX = /^#[0-9A-Fa-f]{6}$/;
@@ -31,6 +34,7 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
   const [logoError, setLogoError] = useState(false);
   const [colorError, setColorError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [logoUploading, setLogoUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -55,23 +59,24 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
     }
   }, [settings, user?.email, isOpen]);
 
-  const isLogoDataUrl = logoUrl.startsWith("data:");
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       setLogoError(true);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setLogoUrl(dataUrl);
-      setLogoError(false);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+    setLogoUploading(true);
+    setLogoError(false);
+    try {
+      const { url } = await assetUploadService.uploadImage(file, accountId);
+      setLogoUrl(url);
+    } catch {
+      setLogoError(true);
+    } finally {
+      setLogoUploading(false);
+      e.target.value = "";
+    }
   };
 
   const validateColor = (val: string) => {
@@ -144,30 +149,31 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-sandstorm-s40 bg-white text-forest-f60 text-sm hover:bg-sandstorm-s5 transition-colors"
+                disabled={logoUploading}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-sandstorm-s40 bg-white text-forest-f60 text-sm hover:bg-sandstorm-s5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                aria-label="Upload logo image"
               >
-                <Upload className="w-4 h-4" />
-                Upload image
+                {logoUploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                ) : (
+                  <Upload className="w-4 h-4" aria-hidden />
+                )}
+                {logoUploading ? "Uploading…" : "Upload image"}
               </button>
               <span className="flex items-center text-sm text-forest-f30 self-center">
                 or
               </span>
               <div className="flex-1 min-w-[200px]">
                 <Input
-                  value={isLogoDataUrl ? "" : logoUrl}
+                  value={logoUrl}
                   onChange={(e) => {
                     setLogoUrl(e.target.value);
                     setLogoError(false);
                   }}
-                  placeholder="Paste image URL"
+                  placeholder="Or paste image URL (e.g. from S3)"
                 />
               </div>
             </div>
-            {isLogoDataUrl && (
-              <p className="text-xs text-forest-f30 mb-2">
-                Image uploaded. Paste a URL above to replace, or upload a new image.
-              </p>
-            )}
             <div className="w-full h-[120px] rounded-lg border border-sandstorm-s40 bg-sandstorm-s5 flex items-center justify-center overflow-hidden">
               {logoUrl ? (
                 logoError ? (

@@ -5,6 +5,7 @@ import { Loader } from "../../../components/ui";
 import { cn } from "../../../lib/cn";
 import { useAuth } from "../../../contexts/AuthContext";
 import { enhancePrompt } from "../../../services/ai/workflow";
+import { MarkdownPromptEditor } from "./MarkdownPromptEditor";
 
 const PROMPT_TEMPLATES: { id: string; label: string; prompt: string }[] = [
   {
@@ -86,7 +87,7 @@ export const PromptBuilderModal: React.FC<PromptBuilderModalProps> = ({
       
       const result = await enhancePrompt(
         {
-          prompt: useCase.trim() + " " + prompt.trim(),
+          prompt: useCase.trim(),
           style: "analytical",
         },
         token
@@ -164,36 +165,43 @@ export const PromptBuilderModal: React.FC<PromptBuilderModalProps> = ({
                 Describe your use case to get a tailored prompt
               </span>
             </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={useCase}
-                onChange={(e) => setUseCase(e.target.value)}
-                placeholder="e.g. I want weekly insights on my best campaigns"
-                className="campaign-input flex-1"
-              />
-              <button
-                type="button"
-                onClick={handleGenerateFromUseCase}
-                disabled={!useCase.trim() || isEnhancingPrompt}
-                className="create-entity-button px-4 py-2 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
-              >
-                {isEnhancingPrompt ? (
-                  <>
-                    <Loader size="sm" showMessage={false} />
-                    <span className="text-[10.64px] text-white font-normal">
-                      Generating...
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 text-white" />
-                    <span className="text-[10.64px] text-white font-normal">
-                      Generate
-                    </span>
-                  </>
-                )}
-              </button>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={useCase}
+                  onChange={(e) => setUseCase(e.target.value)}
+                  placeholder="e.g. I want weekly insights on my best campaigns"
+                  className="campaign-input flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={handleGenerateFromUseCase}
+                  disabled={!useCase.trim() || isEnhancingPrompt}
+                  className="create-entity-button px-4 py-2 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                >
+                  {isEnhancingPrompt ? (
+                    <>
+                      <Loader size="sm" showMessage={false} />
+                      <span className="text-[10.64px] text-white font-normal">
+                        Generating...
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 text-white" />
+                      <span className="text-[10.64px] text-white font-normal">
+                        Generate
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
+              {isEnhancingPrompt && (
+                <p className="text-[11px] text-forest-f30">
+                  It can take some time to generate the enhanced prompt. Please wait...
+                </p>
+              )}
             </div>
           </div>
 
@@ -205,14 +213,14 @@ export const PromptBuilderModal: React.FC<PromptBuilderModalProps> = ({
                 Prompt
               </span>
             </label>
-            <textarea
-              className="campaign-input w-full min-h-[100px] resize-y text-[13px]"
+            <MarkdownPromptEditor
               value={prompt}
-              onChange={(e) => {
-                setPrompt(e.target.value);
+              onChange={(val) => {
+                setPrompt(val);
                 if (selectedTemplateId) setSelectedTemplateId("");
               }}
-              placeholder="Select a template, generate from your use case, or type your own..."
+              placeholder="Select a template, generate from your use case, or type your own (markdown supported)..."
+              minHeight="100px"
             />
           </div>
         </div>

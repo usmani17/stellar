@@ -23,6 +23,11 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   async (config) => {
+    // For FormData (file uploads), remove Content-Type so browser sets multipart/form-data with boundary
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    }
+
     // Try to get token from Auth0 first, fallback to localStorage
     const token = localStorage.getItem("accessToken");
 

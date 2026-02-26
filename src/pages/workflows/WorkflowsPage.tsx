@@ -27,6 +27,8 @@ export const WorkflowsPage: React.FC = () => {
     isDeleting,
     updateWorkflow,
     isUpdating,
+    runWorkflowNow,
+    isRunning,
   } = useWorkflows(accountIdNum);
 
   useEffect(() => {
@@ -98,6 +100,8 @@ export const WorkflowsPage: React.FC = () => {
             isDeleting={isDeleting}
             onTogglePause={handleTogglePause}
             isUpdating={isUpdating}
+            onRunNow={runWorkflowNow}
+            isRunning={isRunning}
             onCreateNew={() => setPanelOpen(true)}
           />
 

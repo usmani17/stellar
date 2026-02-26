@@ -1,6 +1,10 @@
 import React from "react";
 import { SingleDatePicker } from "../../../components/ui";
 import { cn } from "../../../lib/cn";
+import {
+  toWeekdaysArray,
+  toMonthDaysArray,
+} from "../utils/scheduleUtils";
 import type { ScheduleConfig } from "../../../services/workflows";
 
 interface ScheduleBuilderProps {
@@ -22,18 +26,18 @@ export const ScheduleBuilder: React.FC<ScheduleBuilderProps> = ({
   onChange,
 }) => {
   const toggleWeekday = (day: number) => {
-    const current = value.weekdays ?? [];
+    const current = toWeekdaysArray(value.weekdays);
     const updated = current.includes(day)
       ? current.filter((d) => d !== day)
-      : [...current, day];
+      : [...current, day].sort((a, b) => a - b);
     onChange({ ...value, weekdays: updated });
   };
 
   const toggleMonthDay = (day: number) => {
-    const current = value.monthDays ?? [];
+    const current = toMonthDaysArray(value.monthDays);
     const updated = current.includes(day)
       ? current.filter((d) => d !== day)
-      : [...current, day];
+      : [...current, day].sort((a, b) => a - b);
     onChange({ ...value, monthDays: updated });
   };
 
@@ -112,7 +116,7 @@ export const ScheduleBuilder: React.FC<ScheduleBuilderProps> = ({
                 onClick={() => toggleWeekday(idx)}
                 className={cn(
                   "w-11 h-11 rounded-full text-xs font-medium transition-colors border",
-                  value.weekdays?.includes(idx)
+                  toWeekdaysArray(value.weekdays).includes(idx)
                     ? "bg-forest-f60 text-white border-forest-f60 hover:bg-forest-f50"
                     : "bg-white text-forest-f60 border-sandstorm-s40 hover:bg-sandstorm-s30 hover:border-forest-f40"
                 )}
@@ -137,7 +141,7 @@ export const ScheduleBuilder: React.FC<ScheduleBuilderProps> = ({
                 onClick={() => toggleMonthDay(day)}
                 className={cn(
                   "h-9 rounded-lg text-xs font-medium transition-colors border",
-                  value.monthDays?.includes(day)
+                  toMonthDaysArray(value.monthDays).includes(day)
                     ? "bg-forest-f60 text-white border-forest-f60 hover:bg-forest-f50"
                     : "bg-white text-forest-f60 border-sandstorm-s40 hover:bg-sandstorm-s30 hover:border-forest-f40"
                 )}

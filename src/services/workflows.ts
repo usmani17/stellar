@@ -69,6 +69,35 @@ export interface UpdateWorkflowPayload extends Partial<CreateWorkflowPayload> {
   status?: "active" | "paused";
 }
 
+/** Payload for workflow execute (preview/run) */
+export interface WorkflowExecutePayload {
+  accountId: number;
+  channelId?: number | null;
+  profileId?: number | null;
+  accountName?: string;
+  channelName?: string;
+  profileName?: string;
+  prompt: string;
+  format: "pdf" | "docx";
+  workflowId?: number | null;
+  customerId?: string | null;
+  loginCustomerId?: string | null;
+  /** Brand logo URL for reports (from global Report Settings) */
+  logoUrl?: string;
+  /** Primary brand color hex (e.g. #136D6D) for reports */
+  primaryColor?: string;
+}
+
+/** Response from workflow execute */
+export interface WorkflowExecuteResponse {
+  url: string;
+  title: string;
+  generated_at: string;
+  format: string;
+  session_id: string;
+  full_message: string;
+}
+
 export interface BrandReportSettings {
   accountId: number;
   logoUrl: string;
@@ -121,6 +150,133 @@ export const workflowsService = {
   ): Promise<WorkflowRun[]> => {
     const { data } = await api.get<WorkflowRun[]>(
       `${workflowsPath(accountId)}/${workflowId}/runs/`
+    );
+    return data;
+  },
+
+  runWorkflowNow: async (
+    accountId: number,
+    workflowId: number
+  ): Promise<{ runId: number | null; status: string; outputUrl: string | null; error: string | null }> => {
+    const { data } = await api.post(
+      `${workflowsPath(accountId)}/${workflowId}/run/`
+    );
+    return data;
+  },
+
+  /**
+   * Execute workflow (preview or run). Calls Pixis API (VITE_AI_AGENT_BASE_URL).
+   * Preview: streams SSE events, ends with workflow_result. Run: returns final JSON only.
+   */
+  executeWorkflow: async (
+    accountId: number,
+    payload: WorkflowExecutePayload,
+    mode: "preview" | "run",
+    options?: { onEvent?: (ev: Record<string, unknown>) => void }
+  ): Promise<WorkflowExecuteResponse> => {
+    if (payload.accountId !== accountId) {
+      throw new Error("Payload accountId must match accountId");
+    }
+    const pixisBase =
+      (import.meta.env.VITE_AI_AGENT_BASE_URL || "").replace(/\/$/, "") ||
+      "http://localhost:8001";
+    const url = `${pixisBase}/workflow/execute?mode=${mode}`;
+    const token = localStorage.getItem("accessToken");
+
+    if (mode === "run") {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error((err as { error?: string }).error || `Request failed: ${res.status}`);
+      }
+      return res.json();
+    }
+
+    // Preview: stream SSE, resolve with workflow_result
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error((err as { error?: string }).error || `Request failed: ${res.status}`);
+    }
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("No response body");
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let finalResult: WorkflowExecuteResponse | null = null;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const chunks = buffer.split("\n\n");
+      buffer = chunks.pop() || "";
+      for (const chunk of chunks) {
+        const line = chunk.trim();
+        if (line.startsWith("data: ")) {
+          try {
+            const ev = JSON.parse(line.slice(6)) as Record<string, unknown>;
+            options?.onEvent?.(ev);
+            if (ev.type === "workflow_result") {
+              finalResult = {
+                url: (ev.url as string) ?? "",
+                title: (ev.title as string) ?? "",
+                generated_at: (ev.generated_at as string) ?? "",
+                format: (ev.format as string) ?? "pdf",
+                session_id: (ev.session_id as string) ?? "",
+                full_message: (ev.full_message as string) ?? "",
+              };
+            }
+          } catch {
+            // skip invalid JSON
+          }
+        }
+      }
+    }
+    if (!finalResult) throw new Error("No workflow result received");
+    return finalResult;
+  },
+};
+
+// ── Asset upload (S3 public bucket) ───────────────────────────────────────
+
+export interface AssetUploadResponse {
+  url: string;
+  s3_key: string;
+  bucket: string;
+}
+
+export const assetUploadService = {
+  /**
+   * Upload an image file to S3 public bucket (pixis-assets).
+   * Returns the permanent public URL to use for logo, etc.
+   */
+  uploadImage: async (
+    file: File,
+    accountId?: number
+  ): Promise<AssetUploadResponse> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (accountId != null) {
+      formData.append("account_id", String(accountId));
+    }
+    const { data } = await api.post<AssetUploadResponse>(
+      "/s3/upload-asset/",
+      formData
     );
     return data;
   },

@@ -67,6 +67,20 @@ export const useWorkflows = (accountId: number | undefined) => {
     },
   });
 
+  const runNowMutation = useMutation({
+    mutationFn: (workflowId: number) =>
+      accountId != null
+        ? workflowsService.runWorkflowNow(accountId, workflowId)
+        : Promise.reject(new Error("accountId required")),
+    onSuccess: () => {
+      if (accountId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.workflows.lists(accountId),
+        });
+      }
+    },
+  });
+
   return {
     workflows: query.data ?? [],
     isLoading: query.isLoading,
@@ -77,5 +91,7 @@ export const useWorkflows = (accountId: number | undefined) => {
     isUpdating: updateMutation.isPending,
     deleteWorkflow: deleteMutation.mutateAsync,
     isDeleting: deleteMutation.isPending,
+    runWorkflowNow: runNowMutation.mutateAsync,
+    isRunning: runNowMutation.isPending,
   };
 };
