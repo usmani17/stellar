@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { formatCurrency, formatPercentage, formatNumber } from "../../utils/formatters";
 import { useDateRange } from "../../contexts/DateRangeContext";
@@ -468,12 +468,9 @@ export const MetaAdSets: React.FC = () => {
                                 />
                               </td>
                               <td className="table-cell table-sticky-first-column min-w-[300px] max-w-[400px] group-hover:bg-[#f9f9f6] py-3 px-4 text-left">
-                                <Link
-                                  to={`/brands/${accountId}/${channelId}/meta/adsets/${row.adset_id}`}
-                                  className="table-edit-link table-text leading-[1.26] text-[#072929]"
-                                >
+                                <span className="table-text leading-[1.26] text-[#072929]">
                                   {row.adset_name || "—"}
-                                </Link>
+                                </span>
                               </td>
                               <td className="table-cell py-3 px-4 text-left">
                                 <span className="table-text leading-[1.26] text-[#556179]">

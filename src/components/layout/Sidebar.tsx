@@ -252,7 +252,10 @@ export const Sidebar: React.FC = () => {
       return location.pathname.includes("/meta/adsets");
     }
     if (path === "/meta/ads") {
-      return location.pathname.includes("/meta/ads") && !location.pathname.includes("/meta/adsets");
+      return location.pathname.includes("/meta/ads") && !location.pathname.includes("/meta/adsets") && !location.pathname.includes("/meta/creatives");
+    }
+    if (path === "/meta/creatives") {
+      return location.pathname.includes("/meta/creatives");
     }
 
     // Generic paths for Amazon (exclude google and tiktok paths)
@@ -1327,6 +1330,39 @@ export const Sidebar: React.FC = () => {
                     }`}
                   >
                     Ad
+                  </span>
+                )}
+              </Link>
+              <Link
+                to={
+                  accountId
+                    ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "creatives")
+                    : "/brands"
+                }
+                onClick={(e) =>
+                  handleMarketplaceClick("meta", e, () =>
+                    accountId
+                      ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "creatives")
+                      : "/brands/1/meta/creatives",
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/meta/creatives") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/meta/creatives")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "Creative" : undefined}
+              >
+                <img src={ProductTargetIcon} alt="" className="w-5 h-5" />
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/meta/creatives") ? "!text-white" : ""
+                    }`}
+                  >
+                    Creative
                   </span>
                 )}
               </Link>
