@@ -9,7 +9,9 @@ The commit message should be structured as follows:
 [optional body]
 
 [optional footer(s)]
-``` 
+```
+
+Do NOT include Co-authored-by or other co-author footers. 
 --------------------------------
 
 The commit contains the following structural elements, to communicate intent to the consumers of your library:

@@ -1,6 +1,6 @@
 /* Agrandir Font Faces */
 @font-face {
-    font-family: "Agrandir";
+    font-family: "PP Agrandir";
     src: url("../assets/fonts/PPAgrandir-Regular.woff2") format("woff2"),
          url("../assets/fonts/PPAgrandir-Regular.woff") format("woff");
     font-weight: 400;
@@ -9,7 +9,7 @@
   }
   
   @font-face {
-    font-family: "Agrandir";
+    font-family: "PP Agrandir";
     src: url("../assets/fonts/PPAgrandir-Italic.woff2") format("woff2"),
          url("../assets/fonts/PPAgrandir-Italic.woff") format("woff");
     font-weight: 400;

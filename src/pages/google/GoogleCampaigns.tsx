@@ -37,7 +37,7 @@ import {
   CreateGoogleCampaignPanel,
   type CreateGoogleCampaignData,
 } from "../../components/google/CreateGoogleCampaignPanel";
-import { buildInitialCampaignDataFromCampaign, parseAssetValue } from "./utils/buildInitialCampaignDataFromCampaign";
+import { buildInitialCampaignDataFromCampaign } from "./utils/buildInitialCampaignDataFromCampaign";
 import { SHOULD_CREATE_ASSET_GROUP_ON_PMAX_CREATION } from "../../components/google/CreateGooglePmaxAssetGroupPanel";
 import { ErrorModal } from "../../components/ui/ErrorModal";
 import { Loader } from "../../components/ui/Loader";
@@ -192,8 +192,6 @@ export const GoogleCampaigns: React.FC = () => {
   >(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showBudgetPanel, setShowBudgetPanel] = useState(false);
-  const [showBiddingStrategyPanel, setShowBiddingStrategyPanel] = useState(false);
-  const [showConversionActionsPanel, setShowConversionActionsPanel] = useState(false);
   const [budgetAction, setBudgetAction] = useState<
     "increase" | "decrease" | "set"
   >("increase");
@@ -207,16 +205,7 @@ export const GoogleCampaigns: React.FC = () => {
     "ENABLED" | "PAUSED" | null
   >(null);
   const [isBudgetChange, setIsBudgetChange] = useState(false);
-  const [isBiddingStrategyChange, setIsBiddingStrategyChange] = useState(false);
-  const [pendingBiddingStrategy, setPendingBiddingStrategy] = useState<{
-    bidding_strategy_type: string;
-    target_cpa_micros?: number;
-    target_roas?: number;
-    target_impression_share_location?: string;
-    target_impression_share_location_fraction_micros?: number;
-    target_impression_share_cpc_bid_ceiling_micros?: number;
-  } | null>(null);
-  const [pendingConversionActionIds, setPendingConversionActionIds] = useState<string[] | null>(null);
+
   const [bulkUpdateResults, setBulkUpdateResults] = useState<{
     updated: number;
     failed: number;
@@ -478,11 +467,22 @@ export const GoogleCampaigns: React.FC = () => {
           ? startDateStr
           : undefined,
         end_date: endDate ? endDateStr : undefined,
-        filters: filters || [], // Pass filters array directly - ensure it's always an array
+        filters: [
+          ...(filters || []),
+          ...(debouncedSearchValue.trim() ? [
+            {
+              field: 'campaign_name',
+              operator: 'icontains',
+              value: debouncedSearchValue.trim()
+            },
+            {
+              field: 'account_id', 
+              operator: 'icontains',
+              value: debouncedSearchValue.trim()
+            }
+          ] : [])
+        ],
         draft_only: showDraftsOnly,
-        ...(debouncedSearchValue.trim() && {
-          campaign_name__icontains: debouncedSearchValue.trim(),
-        }),
       };
 
       console.log("🔍 [FILTERS DEBUG] Sending filters to service:", {
@@ -652,13 +652,6 @@ export const GoogleCampaigns: React.FC = () => {
     }
   }, [channelId, loadCampaigns]);
 
-  // Sync status hook (after loadCampaigns is defined)
-  const { SyncStatusBanner } = useGoogleSyncStatus({
-    accountId,
-    entityType: "campaigns",
-    currentData: campaigns,
-    loadFunction: loadCampaignsWrapper,
-  });
 
   useEffect(() => {
     // Don't reload if we're currently sorting (handleSort will handle the reload)
@@ -1436,7 +1429,7 @@ export const GoogleCampaigns: React.FC = () => {
           "tracking_url_template", "final_url_suffix", "url_custom_parameters",
         ];
         for (const key of draftPayloadKeys) {
-          const value = (data as Record<string, unknown>)[key];
+          const value = (data as any)[key];
           if (value !== undefined) {
             (updatePayload as Record<string, unknown>)[key] = value;
           }
@@ -1865,418 +1858,7 @@ export const GoogleCampaigns: React.FC = () => {
 
       // Step 2: Use refreshed data or fallback to row data
       const campaignData = refreshedCampaignData || row;
-      let extra_data: Record<string, any> = campaignData.extra_data ?? row.extra_data ?? {};
-      if (typeof extra_data === "string") {
-        try {
-          extra_data = JSON.parse(extra_data);
-        } catch {
-          extra_data = {};
-        }
-      }
-      const creation_payload = extra_data?.creation_payload || {};
-      const draft_state = extra_data?.draft_state ?? null;
-      const draft_campaign = draft_state?.campaign && typeof draft_state.campaign === "object" ? draft_state.campaign : {};
-      const draft_ad_group = draft_state?.ad_group && typeof draft_state.ad_group === "object" ? draft_state.ad_group : {};
-      const draft_ad = draft_state?.ad && typeof draft_state.ad === "object" ? draft_state.ad : {};
-      const shopping_setting = extra_data.shopping_setting || {};
-      const campaignType =
-        ((campaignData.campaign_type ||
-          campaignData.advertising_channel_type ||
-          row.advertising_channel_type?.toUpperCase() ||
-          extra_data.campaign_type ||
-          creation_payload.campaign_type) as any) ||
-        "PERFORMANCE_MAX";
-
-      // Budget: support daily_budget (dollars) or campaign_budget_amount_micros (micros) or creation_payload.budget_amount
-      const budgetFromMicros =
-        (campaignData.campaign_budget_amount_micros != null
-          ? Number(campaignData.campaign_budget_amount_micros) / 1_000_000
-          : undefined) as number | undefined;
-      const budgetAmount =
-        campaignData.budget_amount ??
-        campaignData.daily_budget ??
-        row.daily_budget ??
-        budgetFromMicros ??
-        (typeof creation_payload.budget_amount === "number" ? creation_payload.budget_amount : undefined) ??
-        0;
-
-      // Map campaign data to CreateGoogleCampaignData format using refreshed data, creation_payload, or draft_state (agent drafts)
-      // Campaign name: prefer campaignName column (row/API), then name/campaign_name, then creation_payload
-      const initial: Partial<CreateGoogleCampaignData> = {
-        name:
-          (campaignData.campaignName ?? row.campaignName) ??
-          draft_campaign.name ??
-          (campaignData.name ||
-            campaignData.campaign_name ||
-            row.campaign_name ||
-            creation_payload.name ||
-            ""),
-        campaign_type: (draft_state?.campaign_type as any) || campaignType,
-        budget_amount:
-          (typeof draft_campaign.budget_amount === "number" ? draft_campaign.budget_amount : undefined) ??
-          budgetAmount,
-        budget_name:
-          (draft_campaign.budget_name as string | undefined) ??
-          campaignData.budget_name ??
-          campaignData.campaign_budget_name ??
-          campaignData.campaignBudgetName ??
-          creation_payload.budget_name ??
-          undefined,
-        budget_resource_name:
-          (draft_campaign.budget_resource_name as string | undefined) ??
-          campaignData.campaign_budget ??
-          campaignData.campaign_budget_resource_name ??
-          creation_payload.budget_resource_name ??
-          undefined,
-        status:
-          (draft_campaign.status && draft_campaign.status.toUpperCase() !== "SAVED_DRAFT" ? draft_campaign.status.toUpperCase() as any : undefined) ??
-          ((campaignData.status && campaignData.status.toUpperCase() !== "SAVED_DRAFT" ? campaignData.status.toUpperCase() as any : undefined) ||
-            (row.status && row.status.toUpperCase() !== "SAVED_DRAFT" ? row.status.toUpperCase() as any : undefined) ||
-            (creation_payload.status?.toUpperCase() as any) ||
-            "PAUSED"),
-        start_date:
-          (draft_campaign.start_date ? parseDateToYYYYMMDD(draft_campaign.start_date) : undefined) ??
-          ((parseDateToYYYYMMDD(campaignData.start_date) ||
-            parseDateToYYYYMMDD(row.start_date) ||
-            (creation_payload.start_date ? parseDateToYYYYMMDD(creation_payload.start_date) : undefined)) ??
-            undefined),
-        end_date:
-          (draft_campaign.end_date ? parseDateToYYYYMMDD(draft_campaign.end_date) : undefined) ??
-          ((parseDateToYYYYMMDD(campaignData.end_date) ||
-            parseDateToYYYYMMDD(row.end_date) ||
-            (creation_payload.end_date ? parseDateToYYYYMMDD(creation_payload.end_date) : undefined)) ??
-            undefined),
-        // Bidding strategy fields
-        bidding_strategy_type:
-          (draft_campaign.bidding_strategy_type as string) ??
-          (campaignData.bidding_strategy_type ||
-            creation_payload.bidding_strategy_type ||
-            undefined),
-        target_cpa_micros: (() => {
-          const raw =
-            (draft_campaign.target_cpa_micros != null ? Number(draft_campaign.target_cpa_micros) : undefined) ??
-            campaignData.target_cpa_micros;
-          if (raw == null || raw <= 0) return undefined;
-          // If value < 1e6, treat as dollars and convert to micros for API
-          if (raw < 1_000_000) return Math.round(raw * 1_000_000);
-          return raw;
-        })(),
-        target_roas: campaignData.target_roas,
-        target_impression_share_location: campaignData.target_impression_share_location,
-        target_impression_share_location_fraction_micros: campaignData.target_impression_share_location_fraction_micros,
-        target_impression_share_cpc_bid_ceiling_micros: campaignData.target_impression_share_cpc_bid_ceiling_micros,
-        // UTM parameters (for drafts without draft_state, use creation_payload)
-        tracking_url_template:
-          (draft_campaign.tracking_url_template as string) ??
-          (creation_payload.tracking_url_template != null ? String(creation_payload.tracking_url_template) : undefined) ??
-          campaignData.tracking_url_template ??
-          undefined,
-        final_url_suffix:
-          (draft_campaign.final_url_suffix as string) ??
-          (creation_payload.final_url_suffix != null ? String(creation_payload.final_url_suffix) : undefined) ??
-          campaignData.final_url_suffix ??
-          undefined,
-        url_custom_parameters:
-          (draft_campaign.url_custom_parameters as any) ??
-          (creation_payload.url_custom_parameters != null && typeof creation_payload.url_custom_parameters === "object"
-            ? Array.isArray(creation_payload.url_custom_parameters)
-              ? creation_payload.url_custom_parameters.map((p: { key?: string; value?: string }) => ({ key: String(p?.key ?? ""), value: String(p?.value ?? "") }))
-              : Object.entries(creation_payload.url_custom_parameters).map(([k, v]) => ({ key: k, value: String(v ?? "") }))
-            : undefined) ??
-          campaignData.url_custom_parameters ??
-          undefined,
-        // Targeting fields (for drafts these come from creation_payload; campaignData has them only after API sync)
-        location_ids:
-          (creation_payload.location_ids && Array.isArray(creation_payload.location_ids)
-            ? creation_payload.location_ids.map((id: number | string) => (typeof id === "string" ? parseInt(id, 10) : id)).filter((n: number) => !isNaN(n))
-            : undefined) ?? campaignData.location_ids ?? [],
-        excluded_location_ids:
-          (creation_payload.excluded_location_ids && Array.isArray(creation_payload.excluded_location_ids)
-            ? creation_payload.excluded_location_ids.map((id: number | string) => String(id))
-            : undefined) ?? campaignData.excluded_location_ids ?? [],
-        language_ids:
-          (creation_payload.language_ids && Array.isArray(creation_payload.language_ids)
-            ? creation_payload.language_ids.map((id: number | string) => String(id))
-            : undefined) ?? campaignData.language_ids ?? [],
-        device_ids:
-          (creation_payload.device_ids && Array.isArray(creation_payload.device_ids)
-            ? creation_payload.device_ids.map((id: number | string) => String(id))
-            : undefined) ?? campaignData.device_ids ?? [],
-        // Shopping-specific fields from extra_data or direct fields (drafts: draft_state.campaign or creation_payload)
-        merchant_id: campaignData.merchant_id || shopping_setting.merchant_id,
-        sales_country:
-          (draft_campaign.sales_country as string | undefined) ??
-          (creation_payload.sales_country as string | undefined) ??
-          campaignData.sales_country ??
-          shopping_setting.sales_country ??
-          "US",
-        campaign_priority:
-          (typeof creation_payload.campaign_priority === "number" ? creation_payload.campaign_priority : undefined) ??
-          campaignData.campaign_priority ??
-          shopping_setting.campaign_priority ??
-          0,
-        enable_local:
-          (creation_payload.enable_local === true || creation_payload.enable_local === false
-            ? creation_payload.enable_local
-            : undefined) ?? campaignData.enable_local ?? shopping_setting.enable_local ?? false,
-        // SEARCH specific fields (draft stores network_settings in creation_payload)
-        network_settings:
-          campaignData.network_settings ??
-          (creation_payload?.network_settings && typeof creation_payload.network_settings === "object"
-            ? creation_payload.network_settings
-            : undefined) ??
-          (extra_data?.network_settings && typeof extra_data.network_settings === "object"
-            ? extra_data.network_settings
-            : undefined) ??
-          undefined,
-      };
-
-      // When draft was saved from form (created_as_draft + creation_payload), ensure profile and customer are set so selectors show
-      if (isDraft && creation_payload && typeof creation_payload === "object") {
-        if (creation_payload.profile_id != null) {
-          initial.profile_id = String(creation_payload.profile_id);
-        }
-        if (creation_payload.customer_id != null) {
-          initial.customer_id = String(creation_payload.customer_id);
-        }
-      }
-
-      // For Performance Max campaigns, use data from refreshed extra_data or creation_payload (drafts store in creation_payload)
-      if (campaignType === "PERFORMANCE_MAX") {
-        // Use PMax data from extra_data (live/synced), creation_payload (drafts saved from form), or draft_state.asset_group (agent-created drafts)
-        const cp = creation_payload;
-        const draft_asset_group = draft_state?.asset_group && typeof draft_state.asset_group === "object" ? draft_state.asset_group : {};
-        if (extra_data.business_name) {
-          initial.business_name = extra_data.business_name;
-        } else if (cp?.business_name != null) {
-          initial.business_name = String(cp.business_name);
-        } else if (draft_asset_group.business_name != null) {
-          initial.business_name = String(draft_asset_group.business_name);
-        }
-        if (extra_data.logo_url) {
-          initial.logo_url = extra_data.logo_url;
-        } else if (cp?.logo_url != null) {
-          initial.logo_url = String(cp.logo_url);
-        } else if (draft_asset_group.logo_url != null) {
-          initial.logo_url = String(draft_asset_group.logo_url);
-        }
-        if (extra_data.final_url) {
-          initial.final_url = extra_data.final_url;
-        } else if (cp?.final_url != null) {
-          initial.final_url = String(cp.final_url);
-        }
-        if (extra_data.headlines && Array.isArray(extra_data.headlines)) {
-          initial.headlines = extra_data.headlines;
-        } else if (cp?.headlines && Array.isArray(cp.headlines)) {
-          initial.headlines = cp.headlines;
-        }
-        if (extra_data.descriptions && Array.isArray(extra_data.descriptions)) {
-          initial.descriptions = extra_data.descriptions;
-        } else if (cp?.descriptions && Array.isArray(cp.descriptions)) {
-          initial.descriptions = cp.descriptions;
-        }
-        // Handle long_headlines (plural array) - backward compatible with long_headline (singular)
-        if (extra_data.long_headlines && Array.isArray(extra_data.long_headlines)) {
-          initial.long_headlines = extra_data.long_headlines;
-        } else if (extra_data.long_headline) {
-          initial.long_headlines = [extra_data.long_headline];
-        } else if (cp?.long_headlines && Array.isArray(cp.long_headlines)) {
-          initial.long_headlines = cp.long_headlines;
-        } else if (cp?.long_headline) {
-          initial.long_headlines = [cp.long_headline];
-        }
-
-        // Handle video, sitelink, and callout asset resource names
-        if (extra_data.video_asset_resource_names && Array.isArray(extra_data.video_asset_resource_names)) {
-          initial.video_asset_resource_names = extra_data.video_asset_resource_names;
-        } else if (cp?.video_asset_resource_names && Array.isArray(cp.video_asset_resource_names)) {
-          initial.video_asset_resource_names = cp.video_asset_resource_names;
-        }
-        if (extra_data.sitelink_asset_resource_names && Array.isArray(extra_data.sitelink_asset_resource_names)) {
-          initial.sitelink_asset_resource_names = extra_data.sitelink_asset_resource_names;
-        } else if (cp?.sitelink_asset_resource_names && Array.isArray(cp.sitelink_asset_resource_names)) {
-          initial.sitelink_asset_resource_names = cp.sitelink_asset_resource_names;
-        }
-        if (extra_data.callout_asset_resource_names && Array.isArray(extra_data.callout_asset_resource_names)) {
-          initial.callout_asset_resource_names = extra_data.callout_asset_resource_names;
-        } else if (cp?.callout_asset_resource_names && Array.isArray(cp.callout_asset_resource_names)) {
-          initial.callout_asset_resource_names = cp.callout_asset_resource_names;
-        }
-        if (extra_data.marketing_image_url) {
-          initial.marketing_image_url = extra_data.marketing_image_url;
-        } else if (cp?.marketing_image_url != null) {
-          initial.marketing_image_url = String(cp.marketing_image_url);
-        }
-        if (extra_data.square_marketing_image_url) {
-          initial.square_marketing_image_url =
-            extra_data.square_marketing_image_url;
-        } else if (cp?.square_marketing_image_url != null) {
-          initial.square_marketing_image_url = String(cp.square_marketing_image_url);
-        }
-        if (extra_data.asset_group_name) {
-          initial.asset_group_name = extra_data.asset_group_name;
-        } else if (cp?.asset_group_name != null) {
-          initial.asset_group_name = String(cp.asset_group_name);
-        } else if (draft_asset_group.asset_group_name != null) {
-          initial.asset_group_name = String(draft_asset_group.asset_group_name);
-        }
-        // Asset IDs and resource names (drafts often store these in creation_payload or draft_state.asset_group)
-        if (cp?.logo_asset_id != null) initial.logo_asset_id = String(cp.logo_asset_id);
-        else if (draft_asset_group.logo_asset_id != null) initial.logo_asset_id = String(draft_asset_group.logo_asset_id);
-        if (cp?.logo_asset_resource_name != null) initial.logo_asset_resource_name = String(cp.logo_asset_resource_name);
-        if (cp?.business_name_asset_id != null) initial.business_name_asset_id = String(cp.business_name_asset_id);
-        else if (draft_asset_group.business_name_asset_id != null) initial.business_name_asset_id = String(draft_asset_group.business_name_asset_id);
-        if (cp?.business_name_asset_resource_name != null) initial.business_name_asset_resource_name = String(cp.business_name_asset_resource_name);
-        else if (draft_asset_group.business_name_asset_resource_name != null) initial.business_name_asset_resource_name = String(draft_asset_group.business_name_asset_resource_name);
-
-        // Ensure headlines and descriptions are arrays (even if empty)
-        if (!initial.headlines || !Array.isArray(initial.headlines)) {
-          initial.headlines = [""];
-        }
-        if (!initial.descriptions || !Array.isArray(initial.descriptions)) {
-          initial.descriptions = [""];
-        }
-      }
-
-      // For Demand Gen campaigns (including drafts), populate from extra_data.creation_payload.
-      // creation_payload can be flat (cp.name, cp.headlines) or nested (cp.campaign.name, cp.ad.headlines).
-      if (campaignType === "DEMAND_GEN") {
-        const cp = creation_payload;
-        const cpCampaign = cp?.campaign && typeof cp.campaign === "object" ? cp.campaign : {};
-        const cpAdGroup = cp?.ad_group && typeof cp.ad_group === "object" ? cp.ad_group : {};
-        const cpAd = cp?.ad && typeof cp.ad === "object" ? cp.ad : {};
-        // Campaign-level: from cp.campaign or flat cp (name comes from campaignName column above; do not overwrite)
-        const startDate = cpCampaign.start_date ?? cp.start_date;
-        if (startDate) initial.start_date = parseDateToYYYYMMDD(startDate) || initial.start_date;
-        const endDate = cpCampaign.end_date ?? cp.end_date;
-        if (endDate) initial.end_date = parseDateToYYYYMMDD(endDate) || initial.end_date;
-        if (typeof (cpCampaign.budget_amount ?? cp.budget_amount) === "number") {
-          initial.budget_amount = cpCampaign.budget_amount ?? cp.budget_amount;
-        }
-        const budgetName = cpCampaign.budget_name ?? cp.budget_name;
-        if (budgetName) initial.budget_name = budgetName;
-        const biddingType = cpCampaign.bidding_strategy_type ?? cp.bidding_strategy_type;
-        if (biddingType) initial.bidding_strategy_type = biddingType;
-        const cpStatus = cpCampaign.status != null ? String(cpCampaign.status).toUpperCase() : null;
-        if (cpStatus === "ENABLED" || cpStatus === "PAUSED") initial.status = cpStatus;
-        if (cpCampaign.final_url_suffix != null) initial.final_url_suffix = String(cpCampaign.final_url_suffix);
-        if (cpCampaign.tracking_url_template != null) initial.tracking_url_template = String(cpCampaign.tracking_url_template);
-        if (cpCampaign.url_custom_parameters != null && typeof cpCampaign.url_custom_parameters === "object") {
-          initial.url_custom_parameters = cpCampaign.url_custom_parameters;
-        }
-        // Ad group: from cp.ad_group or flat cp
-        const adGroupName = cpAdGroup.ad_group_name ?? cp.ad_group_name;
-        if (adGroupName) initial.ad_group_name = adGroupName;
-        // Ad-level: from cp.ad or flat cp (headlines, descriptions, video_id, etc.)
-        const adName = cpAd.ad_name ?? cp.ad_name;
-        if (adName) initial.ad_name = adName;
-        const headlines = cpAd.headlines ?? cp.headlines;
-        if (headlines && Array.isArray(headlines)) initial.headlines = headlines;
-        const descriptions = cpAd.descriptions ?? cp.descriptions;
-        if (descriptions && Array.isArray(descriptions)) initial.descriptions = descriptions;
-        const longHeadlines = cpAd.long_headlines ?? cp.long_headlines;
-        if (longHeadlines && Array.isArray(longHeadlines)) initial.long_headlines = longHeadlines;
-        const videoId = cpAd.video_id ?? cp.video_id;
-        if (videoId != null) initial.video_id = String(videoId);
-        const videoUrl = cpAd.video_url ?? cp.video_url;
-        if (videoUrl != null) initial.video_url = String(videoUrl);
-        const finalUrl = cpAd.final_url ?? cp.final_url;
-        if (finalUrl != null) initial.final_url = String(finalUrl);
-        const businessName = cpAd.business_name ?? cp.business_name;
-        if (businessName != null) initial.business_name = String(businessName);
-        const logoUrl = cpAd.logo_url ?? cp.logo_url;
-        if (logoUrl != null) initial.logo_url = String(logoUrl);
-        const channelControls = cpAd.channel_controls ?? cp.channel_controls;
-        if (channelControls && typeof channelControls === "object") {
-          initial.channel_controls = { ...(initial.channel_controls || {}), ...channelControls };
-        }
-        // Ensure arrays for Demand Gen form
-        if (!initial.headlines || !Array.isArray(initial.headlines)) initial.headlines = [""];
-        if (!initial.descriptions || !Array.isArray(initial.descriptions)) initial.descriptions = [""];
-      }
-
-      // When draft was created by agent, extra_data.draft_state has full payload (campaign, ad_group, ad). Populate form so all fields are visible.
-      if (draft_state && (Object.keys(draft_campaign).length > 0 || Object.keys(draft_ad_group).length > 0 || Object.keys(draft_ad).length > 0)) {
-        // Ad group: name (support both adgroup_name and ad_group_name for Search vs Demand Gen)
-        const agName = draft_ad_group.adgroup_name ?? draft_ad_group.ad_group_name;
-        if (agName != null) {
-          initial.ad_group_name = String(agName);
-          initial.adgroup_name = String(agName);
-        }
-        // Search: keywords from keyword_targets
-        if (draft_ad_group.keyword_targets && Array.isArray(draft_ad_group.keyword_targets)) {
-          initial.keywords = draft_ad_group.keyword_targets.map((k: { text?: string }) => (k?.text != null ? String(k.text) : "")).filter(Boolean);
-        }
-        // Demand Gen ad-level fields
-        if (draft_ad.ad_name != null) initial.ad_name = String(draft_ad.ad_name);
-        if (draft_ad.video_id != null) initial.video_id = String(draft_ad.video_id);
-        if (draft_ad.video_url != null) initial.video_url = String(draft_ad.video_url);
-        if (draft_ad.final_url != null) initial.final_url = String(draft_ad.final_url);
-        if (draft_ad.business_name != null) initial.business_name = String(draft_ad.business_name);
-        if (draft_ad.logo_url != null) initial.logo_url = String(draft_ad.logo_url);
-        if (draft_ad.headlines && Array.isArray(draft_ad.headlines)) initial.headlines = draft_ad.headlines;
-        if (draft_ad.descriptions && Array.isArray(draft_ad.descriptions)) initial.descriptions = draft_ad.descriptions;
-        if (draft_ad.long_headlines && Array.isArray(draft_ad.long_headlines)) initial.long_headlines = draft_ad.long_headlines;
-        if (draft_ad.channel_controls && typeof draft_ad.channel_controls === "object") {
-          initial.channel_controls = { ...initial.channel_controls, ...draft_ad.channel_controls };
-        }
-        if (draft_ad.logo_asset_id != null) {
-          const parsed = parseAssetValue(draft_ad.logo_asset_id);
-          initial.logo_asset_id = parsed.id;
-          initial.logo_asset_resource_name = parsed.resourceName;
-        }
-        if (draft_ad.business_name_asset_id != null) {
-          const parsed = parseAssetValue(draft_ad.business_name_asset_id);
-          initial.business_name_asset_id = parsed.id;
-          initial.business_name_asset_resource_name = parsed.resourceName;
-        }
-        if (draft_campaign.budget_id != null && !initial.budget_resource_name) {
-          const cid = String(
-            campaignData.customer_id ?? row.customer_id ?? extra_data?.account_id ?? draft_state?.account_id ?? ""
-          ).replace(/-/g, "");
-          if (cid) {
-            initial.budget_resource_name = `customers/${cid}/campaignBudgets/${draft_campaign.budget_id}`;
-          }
-        }
-        // Campaign-level: URL options and targeting (devices, locations, languages, network settings)
-        if (draft_campaign.final_url_suffix != null) initial.final_url_suffix = String(draft_campaign.final_url_suffix);
-        if (draft_campaign.tracking_url_template != null) initial.tracking_url_template = String(draft_campaign.tracking_url_template);
-        if (draft_campaign.url_custom_parameters != null && typeof draft_campaign.url_custom_parameters === "object") {
-          const ucp = draft_campaign.url_custom_parameters;
-          initial.url_custom_parameters = Array.isArray(ucp)
-            ? ucp.map((p: { key?: string; value?: string }) => ({ key: String(p?.key ?? ""), value: String(p?.value ?? "") }))
-            : Object.entries(ucp).map(([key, value]) => ({ key, value: String(value ?? "") }));
-        }
-        // Search / shared: final_url on campaign (e.g. agent draft)
-        if (draft_campaign.final_url != null) initial.final_url = String(draft_campaign.final_url);
-        // Location and language targeting
-        if (draft_campaign.location_ids != null && Array.isArray(draft_campaign.location_ids)) {
-          initial.location_ids = draft_campaign.location_ids.map((id: number | string) => (typeof id === "string" ? parseInt(id, 10) : id)).filter((n: number) => !isNaN(n));
-        }
-        if (draft_campaign.excluded_location_ids != null && Array.isArray(draft_campaign.excluded_location_ids)) {
-          initial.excluded_location_ids = draft_campaign.excluded_location_ids.map((id: number | string) => String(id));
-        }
-        if (draft_campaign.language_ids != null && Array.isArray(draft_campaign.language_ids)) {
-          initial.language_ids = draft_campaign.language_ids.map((id: number | string) => String(id));
-        }
-        // Device targeting
-        if (draft_campaign.device_ids != null && Array.isArray(draft_campaign.device_ids)) {
-          initial.device_ids = draft_campaign.device_ids.map((id: number | string) => String(id));
-        }
-        // Network settings (Search)
-        if (draft_campaign.network_settings != null && typeof draft_campaign.network_settings === "object") {
-          initial.network_settings = { ...(initial.network_settings || {}), ...draft_campaign.network_settings };
-        }
-        // Search campaign: headlines/descriptions can live on campaign in draft_state
-        if (campaignType === "SEARCH") {
-          if (draft_campaign.headlines && Array.isArray(draft_campaign.headlines)) initial.headlines = draft_campaign.headlines;
-          if (draft_campaign.descriptions && Array.isArray(draft_campaign.descriptions)) initial.descriptions = draft_campaign.descriptions;
-        }
-        if (campaignType === "DEMAND_GEN") {
-          if (!initial.headlines || !Array.isArray(initial.headlines)) initial.headlines = [""];
-          if (!initial.descriptions || !Array.isArray(initial.descriptions)) initial.descriptions = [""];
-        }
-      }
+      const initial = buildInitialCampaignDataFromCampaign(campaignData as Record<string, any>);
 
       setInitialCampaignData(initial);
       setCampaignId(row.campaign_id);
@@ -3504,159 +3086,6 @@ export const GoogleCampaigns: React.FC = () => {
     }
   };
 
-  const handleBulkBiddingStrategy = async (strategy: {
-    bidding_strategy_type: string;
-    target_cpa_micros?: number;
-    target_roas?: number;
-    target_impression_share_location?: string;
-    target_impression_share_location_fraction_micros?: number;
-    target_impression_share_cpc_bid_ceiling_micros?: number;
-  }) => {
-    if (!accountId || selectedCampaigns.size === 0) return;
-    
-    // Store strategy and show confirmation modal
-    setPendingBiddingStrategy(strategy);
-    setIsBiddingStrategyChange(true);
-    setIsBudgetChange(false);
-    setPendingStatusAction(null);
-    setShowBiddingStrategyPanel(false);
-    setShowConfirmationModal(true);
-  };
-
-  const runBulkBiddingStrategy = async () => {
-    if (!accountId || selectedCampaigns.size === 0 || !pendingBiddingStrategy) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setBulkLoading(true);
-      setBulkUpdateResults(null);
-
-      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-
-      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
-        accountIdNum,
-        channelIdNum,
-        {
-          campaignIds: Array.from(selectedCampaigns),
-          action: "bidding_strategy",
-          ...pendingBiddingStrategy,
-        }
-      );
-
-      setBulkUpdateResults({
-        updated: response.updated || 0,
-        failed: response.failed || 0,
-        errors: response.errors || [],
-      });
-
-      // Reload campaigns
-      setSorting(true);
-      if (channelIdNum && !isNaN(channelIdNum)) {
-        await loadCampaigns(accountIdNum, channelIdNum);
-      }
-      setTimeout(() => {
-        setSorting(false);
-      }, 300);
-    } catch (error: any) {
-      console.error("Failed to update bidding strategy", error);
-      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update bidding strategy. Please try again.";
-      setBulkUpdateResults({
-        updated: 0,
-        failed: selectedCampaigns.size,
-        errors: [errorMessage],
-      });
-    } finally {
-      setBulkLoading(false);
-    }
-  };
-
-  const handleBulkConversionActions = async (conversionActionIds: string[]) => {
-    if (!accountId || selectedCampaigns.size === 0 || conversionActionIds.length === 0) return;
-    
-    // Store conversion action IDs and show confirmation modal
-    setPendingConversionActionIds(conversionActionIds);
-    setIsBiddingStrategyChange(false);
-    setIsBudgetChange(false);
-    setPendingStatusAction(null);
-    setShowConversionActionsPanel(false);
-    setShowConfirmationModal(true);
-  };
-
-  const runBulkConversionActions = async () => {
-    if (!accountId || selectedCampaigns.size === 0 || !pendingConversionActionIds || pendingConversionActionIds.length === 0) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setBulkLoading(true);
-      setBulkUpdateResults(null);
-
-      const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
-      if (!channelIdNum || isNaN(channelIdNum)) {
-        throw new Error("Channel ID is required");
-      }
-
-      const selectedCampaignsData = getSelectedCampaignsData();
-      const results = {
-        updated: 0,
-        failed: 0,
-        errors: [] as string[],
-      };
-
-      // Process campaigns in batches to avoid overwhelming the API
-      const BATCH_SIZE = 10;
-      for (let i = 0; i < selectedCampaignsData.length; i += BATCH_SIZE) {
-        const batch = selectedCampaignsData.slice(i, i + BATCH_SIZE);
-        
-        await Promise.all(
-          batch.map(async (campaign) => {
-            try {
-              await googleAdwordsCampaignsService.linkConversionActionsToCampaign(
-                accountIdNum,
-                channelIdNum,
-                campaign.campaign_id,
-                {
-                  conversion_action_ids: pendingConversionActionIds,
-                  customer_id: campaign.customer_id,
-                }
-              );
-              results.updated++;
-            } catch (error: any) {
-              results.failed++;
-              const errorMessage = error?.response?.data?.error || error?.message || "Failed to link conversion actions";
-              results.errors.push(`Campaign ${campaign.campaign_id}: ${errorMessage}`);
-            }
-          })
-        );
-      }
-
-      setBulkUpdateResults(results);
-
-      // Reload campaigns
-      setSorting(true);
-      if (channelIdNum && !isNaN(channelIdNum)) {
-        await loadCampaigns(accountIdNum, channelIdNum);
-      }
-      setTimeout(() => {
-        setSorting(false);
-      }, 300);
-    } catch (error: any) {
-      console.error("Failed to update conversion actions", error);
-      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update conversion actions. Please try again.";
-      setBulkUpdateResults({
-        updated: 0,
-        failed: selectedCampaigns.size,
-        errors: [errorMessage],
-      });
-      setShowConfirmationModal(true);
-    } finally {
-      setBulkLoading(false);
-    }
-  };
 
   const getSelectedCampaignsData = () => {
     return campaigns.filter((campaign) =>
@@ -4152,11 +3581,19 @@ export const GoogleCampaigns: React.FC = () => {
                       </svg>
                     </div>
                     <input
+                      key="search-input"
                       type="text"
                       value={searchInputValue}
                       onChange={(e) => setSearchInputValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }
+                      }}
                       placeholder="Search by Name or Account ID"
                       className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179] font-['GT_America_Trial'] font-normal"
+                      autoComplete="off"
                     />
                   </div>
                   <div

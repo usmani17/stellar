@@ -102,4 +102,18 @@ export const queryKeys = {
         profileId,
       ] as const,
   },
+  workflows: {
+    all: ["workflows"] as const,
+    lists: (accountId: number) =>
+      [...queryKeys.workflows.all, "list", accountId] as const,
+    detail: (id: number) =>
+      [...queryKeys.workflows.all, "detail", id] as const,
+    runs: (workflowId: number) =>
+      [...queryKeys.workflows.all, "runs", workflowId] as const,
+  },
+  brandSettings: {
+    all: ["brandSettings"] as const,
+    detail: (accountId: number) =>
+      [...queryKeys.brandSettings.all, accountId] as const,
+  },
 } as const;

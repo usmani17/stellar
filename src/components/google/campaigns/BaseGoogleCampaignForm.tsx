@@ -275,7 +275,7 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
           </div>
         )}
 
-        {/* Budget Name — list existing budgets in dropdown to minimize campaign creation errors */}
+        {/* Budget Name — list existing budgets in dropdown, or custom text when budget_name has a value */}
         {showField("budget_name") && (
           <div>
             <label className="form-label">Budget</label>
@@ -286,7 +286,8 @@ export const BaseGoogleCampaignForm: React.FC<BaseGoogleCampaignFormProps> = ({
           )} */}
             {simpleBudgetMode ||
             useCustomBudgetName ||
-            selectedBudgetId === "__CUSTOM__" ? (
+            selectedBudgetId === "__CUSTOM__" ||
+            (formData.budget_name != null && String(formData.budget_name).trim() !== "") ? (
               <div>
                 <input
                   type="text"

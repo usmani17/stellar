@@ -90,7 +90,7 @@
         "default": "#e6e6e6",
         "error": "#FCA5A5",
         "success": "#86EFAC",
-        "focus": "#13606D"
+        "focus": "#136D6D"
       },
       "error": {
         "background": "#FEF2F2",
@@ -138,8 +138,8 @@
         "focus": {
           "outline": "none",
           "ringWidth": "2px",
-          "ringColor": "#13606D",
-          "borderColor": "#13606D"
+          "ringColor": "#136D6D",
+          "borderColor": "#136D6D"
         },
         "description": "Text input fields"
       },
@@ -250,8 +250,8 @@
       },
       "focus": {
         "input": {
-          "ringColor": "#13606D",
-          "borderColor": "#13606D"
+          "ringColor": "#136D6D",
+          "borderColor": "#136D6D"
         }
       },
       "disabled": {

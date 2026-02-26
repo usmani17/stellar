@@ -1,0 +1,235 @@
+---
+description: API services, React Query hooks, query keys, and data fetching patterns
+globs: "src/services/**/*.ts,src/hooks/**/*.ts,src/contexts/**/*.tsx"
+alwaysApply: false
+---
+# Data Layer Guide — Services, Hooks & Contexts
+
+## 1. API Base
+
+**`src/services/api.ts`** — Axios instance with base URL, auth interceptor, token refresh.
+
+- Token: `localStorage.getItem("accessToken")`
+- Header: `Authorization: Bearer <token>` (automatic)
+- On 401: calls `/auth/refresh/`, redirects to `/login` on failure
+- **Never pass tokens manually**
+
+### Environment
+- `VITE_API_BASE_URL` — defaults to `http://localhost:8000/api`
+
+---
+
+## 2. Service Module Pattern
+
+```ts
+// src/services/myEntity.ts
+import api from "./api";
+
+export interface MyEntity {
+  id: number;
+  name: string;
+}
+
+export const myEntityService = {
+  getList: async (params?: Record<string, string>): Promise<MyEntity[]> => {
+    const { data } = await api.get<MyEntity[]>("/my-entity/", { params });
+    return data;
+  },
+  getById: async (id: number): Promise<MyEntity> => {
+    const { data } = await api.get<MyEntity>(`/my-entity/${id}/`);
+    return data;
+  },
+  create: async (payload: Partial<MyEntity>): Promise<MyEntity> => {
+    const { data } = await api.post<MyEntity>("/my-entity/", payload);
+    return data;
+  },
+  update: async (id: number, payload: Partial<MyEntity>): Promise<MyEntity> => {
+    const { data } = await api.patch<MyEntity>(`/my-entity/${id}/`, payload);
+    return data;
+  },
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/my-entity/${id}/`);
+  },
+};
+```
+
+### Backend URL Mapping
+- Accounts: `/api/accounts/`
+- Channels: `/api/accounts/<accountId>/channels/`
+- Google Ads: `/api/google-adwords/<accountId>/channels/<channelId>/...`
+- TikTok: `/api/tiktok/...`
+- AI: `/api/ai/...`
+- Auth: `/api/auth/`, `/api/users/`
+
+### Service Directories
+```
+src/services/
+├── api.ts                 # Base axios instance
+├── accounts.ts            # Account CRUD
+├── channels.ts            # Channel management
+├── campaigns.ts           # Campaign operations
+├── filters.ts             # Filter service
+├── workspace.ts           # Workspace management
+├── auth.ts                # Auth endpoints
+├── logs.ts                # Log history
+├── columnPreferences.ts   # Column preferences
+├── dynamicFiltersService.ts
+├── accountsSyncStatus.ts  # Sync status polling
+├── googleCampaignAgent.ts
+├── googleAdwords/         # Google Ads services (11 files)
+├── ai/                    # AI assistant services (7 files)
+└── tiktok/                # TikTok services
+```
+
+---
+
+## 3. GET vs POST for List Endpoints
+
+| Endpoint type | Method | When |
+|---------------|--------|------|
+| Simple list (no filters) | `GET` | Accounts, channels — use `params` for pagination |
+| Filtered list | `POST` | Campaigns, keywords, targets — send `{ filters }` in body |
+| Detail | `GET` | Single entity by ID |
+| Create/Update/Delete | `POST`/`PATCH`/`DELETE` | Standard |
+
+```ts
+// Simple list — GET
+const { data } = await api.get("/accounts/", { params: { page: 1, page_size: 10 } });
+
+// Filtered list — POST (backend expects filters in body)
+const { data } = await api.post(url, { filters: { campaign_name__icontains: "test" } });
+```
+
+---
+
+## 4. Response Formats
+
+| Type | Shape |
+|------|-------|
+| Paginated (DRF) | `{ count, next, previous, results }` |
+| Custom list | `{ campaigns: [...] }` or `{ keywords: [...] }` |
+| Create/update | Entity object `{ id, name, ... }` |
+| Error | `{ error: string }` or `{ detail: string }` |
+
+Handle both shapes:
+```ts
+const list = Array.isArray(data) ? data : (data?.results ?? data?.campaigns ?? []);
+```
+
+### Error Handling
+```ts
+try {
+  const result = await myEntityService.create(payload);
+} catch (err: any) {
+  const msg = err.response?.data?.error ?? err.response?.data?.detail ?? "Request failed";
+  setError(msg);
+}
+```
+
+---
+
+## 5. React Query — Query Keys
+
+**`src/hooks/queries/queryKeys.ts`** — Central key registry.
+
+```ts
+myEntity: {
+  all: ["myEntity"] as const,
+  lists: () => [...queryKeys.myEntity.all, "list"] as const,
+  detail: (id: number) => [...queryKeys.myEntity.all, "detail", id] as const,
+},
+```
+
+Existing keys: `accounts`, `accountsPaginated`, `channels`, `campaigns`, `assets`, `googleConversionActions`, `googleProfiles`
+
+---
+
+## 6. React Query — Query Hook Pattern
+
+```ts
+// src/hooks/queries/useMyEntity.ts
+import { useQuery } from "@tanstack/react-query";
+import { myEntityService } from "../../services/myEntity";
+import { queryKeys } from "./queryKeys";
+
+export const useMyEntity = (id: number | undefined, options?: { enabled?: boolean }) => {
+  return useQuery({
+    queryKey: queryKeys.myEntity.detail(id!),
+    queryFn: () => myEntityService.getById(id!),
+    enabled: (options?.enabled ?? true) && !!id,
+    retry: (failureCount, error: any) => {
+      if (error?.response?.status === 401 || error?.response?.status === 403) return false;
+      return failureCount < 3;
+    },
+  });
+};
+```
+
+---
+
+## 7. React Query — Mutation Hook Pattern
+
+```ts
+// src/hooks/mutations/useMyEntityMutations.ts
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { myEntityService } from "../../services/myEntity";
+import { queryKeys } from "../queries/queryKeys";
+
+export const useCreateMyEntity = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: myEntityService.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.myEntity.all });
+    },
+  });
+};
+```
+
+---
+
+## 8. Contexts
+
+| Context | File | Purpose |
+|---------|------|---------|
+| `AuthContext` | AuthContext.tsx | Auth state, user, tokens, login/logout |
+| `AccountsContext` | AccountsContext.tsx | Selected account, accounts list |
+| `SidebarContext` | SidebarContext.tsx | Sidebar width, collapse state |
+| `DateRangeContext` | DateRangeContext.tsx | Global date range filter |
+| `GoogleSyncStatusContext` | GoogleSyncStatusContext.tsx | Google Ads sync status |
+| `AssistantContext` | AssistantContext.tsx | AI assistant panel state |
+| `GlobalStateContext` | GlobalStateContext.tsx | React Query provider, global state |
+
+### Usage
+```tsx
+const { user, isAuthenticated } = useAuth();
+const { selectedAccount } = useAccounts();
+const { sidebarWidth } = useSidebar();
+const { startDate, endDate } = useDateRange();
+```
+
+---
+
+## 9. Naming Conventions
+
+| Type | Convention | Examples |
+|------|-----------|----------|
+| Service file | camelCase | `accounts.ts`, `googleAdwordsCampaigns.ts` |
+| Service object | camelCase + `Service` | `accountsService`, `googleAdwordsCampaignsService` |
+| Query hook | `use` + Entity + Purpose | `useAccountsPaginated`, `useChannels` |
+| Mutation hook | `use` + Action + Entity | `useCreateAccount`, `useUpdateAccount` |
+| Query key | camelCase entity name | `queryKeys.accounts.all` |
+| Context | PascalCase + `Context` | `AuthContext`, `AccountsContext` |
+| Hook for context | `use` + Name | `useAuth()`, `useSidebar()` |
+
+---
+
+## 10. Checklist — New Service/Hook
+
+1. [ ] Create service in `src/services/` following the module pattern
+2. [ ] Define TypeScript interface for the entity
+3. [ ] Add query keys in `src/hooks/queries/queryKeys.ts`
+4. [ ] Create query hook in `src/hooks/queries/`
+5. [ ] Create mutation hook in `src/hooks/mutations/` if needed
+6. [ ] Invalidate relevant queries on mutation success
+7. [ ] Handle 401/403 in retry logic

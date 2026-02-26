@@ -1,3 +1,6 @@
+import type { Platform } from "../../types";
+import { type ICampaignDraft as IGoogleCampaignDraft } from "../../types/google/campaignDraft";
+
 /**
  * Pixis AI chat streaming (POST /chat).
  * SSE stream format: data: { type, subtype?, session_id?, message?, ... }
@@ -17,10 +20,10 @@ export interface PixisChatStreamEvent {
   full_message?: string;
   // Campaign draft fields
   draft_id?: string;
-  platform?: string;
+  platform?: Platform;
   campaign_type?: string;
   complete?: boolean;
-  draft?: Record<string, unknown>;
+  draft?: Platform extends "google" ? IGoogleCampaignDraft : Record<string, unknown>;
   questions?: Record<string, unknown>;
   keys_for_form?: string[];
   validation_error?: string | null;
@@ -36,7 +39,9 @@ export interface PixisChatParams {
   profile_id?: string;
   workspace_id?: number;
   user_id?: string;
-  platform?: string;
+  platform?: Platform;
+  /** "stream-json" | "stream-json-partial" | "json" — for testing output formats */
+  output_format?: string;
 }
 
 /** Timeline item for ordered display: thinking | tool_call | text | campaign-draft */
@@ -49,16 +54,16 @@ export type PixisTimelineItem =
 /** Campaign draft data from AI agent */
 export interface CampaignDraftData {
   draft_id: string;
-  platform: string;
+  platform?: Platform;
   campaign_type: string;
   complete: boolean;
-  draft: Record<string, unknown>;
+  draft: Platform extends "google" ? IGoogleCampaignDraft : Record<string, unknown>;
   questions: Record<string, unknown>;
   keys_for_form: string[];
   validation_error: string | null;
 }
 
-const getBaseUrl = (): string => {
+export const getBaseUrl = (): string => {
   const baseUrl = import.meta.env.VITE_AI_AGENT_BASE_URL;
   if (!baseUrl) throw new Error("VITE_AI_AGENT_BASE_URL is not set");
   return String(baseUrl).replace(/\/$/, "");
@@ -199,7 +204,7 @@ export async function streamPixisChat(
           if (etype === "campaign-draft") {
             callbacks.onCampaignDraft?.({
               draft_id: ev.draft_id ?? "",
-              platform: ev.platform ?? "",
+              platform: ev.platform,
               campaign_type: ev.campaign_type ?? "",
               complete: ev.complete ?? false,
               draft: ev.draft ?? {},
