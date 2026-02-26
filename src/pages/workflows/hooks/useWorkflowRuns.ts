@@ -13,5 +13,6 @@ export const useWorkflowRuns = (
         ? workflowsService.getWorkflowRuns(accountId, workflowId)
         : Promise.resolve([]),
     enabled: !!accountId && !!workflowId,
+    refetchOnMount: "always", // Ensure fresh runs (with cur_sessions_id) when modal opens
   });
 };

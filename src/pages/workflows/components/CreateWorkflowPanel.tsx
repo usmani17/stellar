@@ -658,6 +658,7 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
                 prompt: prompt.trim() || "Generate a performance report...",
                 format,
                 workflowId: editingWorkflow?.id ?? undefined,
+                workflowName: name?.trim() || editingWorkflow?.name,
                 logoUrl: brandSettings?.logoUrl || undefined,
                 primaryColor: brandSettings?.primaryColor || undefined,
               }

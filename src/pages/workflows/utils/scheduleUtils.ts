@@ -91,6 +91,48 @@ export function getCurrentTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
+/**
+ * Format an ISO date string in a given timezone for display.
+ * Used by run history and any time display that should reflect the workflow's schedule timezone.
+ */
+export function formatDateInTimezone(
+  isoDate: string,
+  timezone: string,
+  options: Intl.DateTimeFormatOptions = {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }
+): string {
+  const tz = timezone || getCurrentTimezone();
+  try {
+    return new Date(isoDate).toLocaleString("en-US", { ...options, timeZone: tz });
+  } catch {
+    return new Date(isoDate).toLocaleString("en-US", options);
+  }
+}
+
+/** Format time only (HH:MM AM/PM) in a given timezone. */
+export function formatTimeInTimezone(isoDate: string, timezone: string): string {
+  const tz = timezone || getCurrentTimezone();
+  try {
+    return new Date(isoDate).toLocaleTimeString("en-US", {
+      timeZone: tz,
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return new Date(isoDate).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+}
+
 export function formatTimezoneDisplay(tz: string): string {
   const parts = formatTimezoneDisplayParts(tz);
   if (!parts) return tz;

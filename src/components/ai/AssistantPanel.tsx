@@ -9,8 +9,7 @@ import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
 import { MessageContent } from "../ai/MessageContent";
 import { ContentWithCharts } from "../ai/ContentWithCharts";
 import { CampaignDraftPreview } from "../ai/CampaignDraftPreview";
-import { ThoughtsSection } from "../ai/ThoughtsSection";
-import { RanToolBadges } from "../ai/RanToolBadges";
+import { AssistantActivityBlock } from "../ai/AssistantActivityBlock";
 import { accountsService, type Account } from "../../services/accounts";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
@@ -1194,32 +1193,64 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                         <div className="min-w-0 flex flex-col items-start p-4 gap-3 w-full max-w-full bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm">
                                             {error && <div className="text-sm text-red-600">{error}</div>}
                                             <div className="flex flex-col gap-3 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
-                                                {timeline.length === 0 && aiStreaming && (
-                                                    <div className="flex items-center gap-2 text-[#556179]">
-                                                        <span className="text-xs font-medium">Thinking</span>
-                                                        <div className="flex gap-1">
-                                                            <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
-                                                            <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-                                                            <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                {sortedTimeline.map((item, idx) => {
-                                                    if (item.type === "thinking" && item.content?.trim()) {
-                                                        return <ThoughtsSection key={`t-${idx}`} content={item.content!} defaultExpanded />;
+                                                {(() => {
+                                                    type Segment = { type: "activity"; items: PixisTimelineItem[] } | { type: "text"; content: string; idx: number };
+                                                    const isActivity = (i: PixisTimelineItem) =>
+                                                        (i.type === "thinking" && !!i.content?.trim()) || i.type === "tool_call";
+                                                    const segments: Segment[] = [];
+                                                    let i = 0;
+                                                    while (i < sortedTimeline.length) {
+                                                        const item = sortedTimeline[i];
+                                                        if (isActivity(item)) {
+                                                            const run: PixisTimelineItem[] = [];
+                                                            while (i < sortedTimeline.length && isActivity(sortedTimeline[i])) {
+                                                                run.push(sortedTimeline[i]);
+                                                                i++;
+                                                            }
+                                                            segments.push({ type: "activity", items: run });
+                                                            continue;
+                                                        }
+                                                        if (item.type === "text" && item.content) {
+                                                            segments.push({ type: "text", content: item.content, idx: i });
+                                                            i++;
+                                                            continue;
+                                                        }
+                                                        i++;
                                                     }
-                                                    if (item.type === "tool_call") {
-                                                        return <RanToolBadges key={`tc-${idx}`} tools={[{ label: item.label }]} />;
+                                                    if (timeline.length === 0 && aiStreaming) {
+                                                        segments.unshift({ type: "activity", items: [] });
                                                     }
-                                                    if (item.type === "text" && item.content) {
+                                                    return segments.map((seg, si) => {
+                                                        if (seg.type === "activity") {
+                                                            const showBlock = seg.items.length > 0 || (timeline.length === 0 && aiStreaming);
+                                                            if (!showBlock) return null;
+                                                            return (
+                                                                <AssistantActivityBlock
+                                                                    key={`act-${si}`}
+                                                                    items={seg.items}
+                                                                    defaultThoughtsExpanded
+                                                                    placeholder={
+                                                                        seg.items.length === 0 && timeline.length === 0 && aiStreaming ? (
+                                                                            <div className="flex items-center gap-2 text-[#556179]">
+                                                                                <span className="text-xs font-medium">Thinking</span>
+                                                                                <div className="flex gap-1">
+                                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
+                                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                                                                                </div>
+                                                                            </div>
+                                                                        ) : undefined
+                                                                    }
+                                                                />
+                                                            );
+                                                        }
                                                         return (
-                                                            <div key={`txt-${idx}`} className="assistant-message-content w-full">
-                                                                <ContentWithCharts content={item.content} type="ai" />
+                                                            <div key={`txt-${seg.idx}`} className="assistant-message-content w-full">
+                                                                <ContentWithCharts content={seg.content} type="ai" />
                                                             </div>
                                                         );
-                                                    }
-                                                    return null;
-                                                })}
+                                                    });
+                                                })()}
                                                 {timeline.length === 0 && content && (
                                                     <div className="assistant-message-content w-full">
                                                         <ContentWithCharts content={content} type="ai" />

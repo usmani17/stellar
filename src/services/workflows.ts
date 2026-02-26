@@ -49,6 +49,8 @@ export interface WorkflowRun {
   ranAt: string; // ISO
   status: "success" | "failed" | "skipped" | "in_progress";
   outputUrl?: string; // for success: link to report
+  /** Session ID (cur_sessions.id) for fetching run history from session table */
+  sessionId?: string;
 }
 
 export interface CreateWorkflowPayload {
@@ -80,6 +82,7 @@ export interface WorkflowExecutePayload {
   prompt: string;
   format: "pdf" | "docx";
   workflowId?: number | null;
+  workflowName?: string | null;
   customerId?: string | null;
   loginCustomerId?: string | null;
   /** Brand logo URL for reports (from global Report Settings) */
@@ -108,6 +111,42 @@ export interface BrandReportSettings {
 }
 
 // ── Workflow service ─────────────────────────────────────────────────────
+
+/** Raw API response shape (snake_case from backend). */
+interface RawWorkflowRun {
+  id: number;
+  workflow_id: number;
+  ran_at: string;
+  status: "success" | "failed" | "skipped" | "in_progress";
+  output_url?: string | null;
+  cur_sessions_id?: string | null;
+  error_message?: string | null;
+  is_preview?: boolean;
+  created_at?: string;
+  retry_count?: number;
+  started_at?: string;
+  completed_at?: string;
+  triggered_by?: string;
+}
+
+function normalizeWorkflowRun(r: RawWorkflowRun | Record<string, unknown>): WorkflowRun {
+  const raw = r as Record<string, unknown>;
+  const sessionId =
+    raw.cur_sessions_id ??
+    raw.curSessionsId ??
+    raw.cur_session_id ??
+    raw.curSessionId ??
+    raw.session_id ??
+    raw.sessionId;
+  return {
+    id: String(raw.id ?? raw.Id),
+    workflowId: Number(raw.workflow_id ?? raw.workflowId ?? 0),
+    ranAt: String(raw.ran_at ?? raw.ranAt ?? ""),
+    status: (raw.status as WorkflowRun["status"]) ?? "skipped",
+    outputUrl: (raw.output_url ?? raw.outputUrl) as string | undefined,
+    sessionId: sessionId != null && sessionId !== "" ? String(sessionId) : undefined,
+  };
+}
 
 function workflowsPath(accountId: number) {
   return `/assistant/${accountId}/workflows`;
@@ -148,10 +187,13 @@ export const workflowsService = {
     accountId: number,
     workflowId: number
   ): Promise<WorkflowRun[]> => {
-    const { data } = await api.get<WorkflowRun[]>(
+    const { data } = await api.get<RawWorkflowRun[] | { runs?: RawWorkflowRun[]; results?: RawWorkflowRun[] }>(
       `${workflowsPath(accountId)}/${workflowId}/runs/`
     );
-    return data;
+    const runs = Array.isArray(data)
+      ? data
+      : (data?.runs ?? data?.results ?? []);
+    return (runs ?? []).map(normalizeWorkflowRun);
   },
 
   runWorkflowNow: async (

@@ -28,7 +28,7 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
   const [logoUrl, setLogoUrl] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#136D6D");
   const [defaultDeliveryEmail, setDefaultDeliveryEmail] = useState("");
-  const [deliveryAction, setDeliveryAction] = useState<DeliveryAction | null>(
+  const [,setDeliveryAction] = useState<DeliveryAction | null>(
     null
   );
   const [logoError, setLogoError] = useState(false);

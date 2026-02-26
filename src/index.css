@@ -1569,6 +1569,42 @@ body input[type="submit"]:disabled {
   margin-left: 1rem;
 }
 
+/* Assistant activity block: quote-like scrollable thoughts + tools */
+.assistant-activity-block {
+  width: 100%;
+  border-left: 4px solid rgba(19, 109, 109, 0.4);
+  background: rgba(19, 109, 109, 0.04);
+  border-radius: 0 8px 8px 0;
+  overflow: hidden;
+}
+
+.assistant-activity-block-scroll {
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.75rem 1rem;
+}
+
+.assistant-activity-block-placeholder {
+  font-size: 13px;
+  color: var(--color-semantic-text-secondary, #556179);
+  padding: 0.25rem 0;
+}
+
+.assistant-activity-block-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.assistant-activity-block .assistant-thoughts-section {
+  margin: 0;
+}
+
+.assistant-activity-block .assistant-thoughts-body {
+  padding: 0 0.5rem 0.5rem;
+}
+
 /* Ran tool badges */
 .assistant-ran-tool-row {
   display: flex;
