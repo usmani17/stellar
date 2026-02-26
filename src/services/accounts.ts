@@ -597,6 +597,97 @@ export const accountsService = {
     return response.data;
   },
 
+  getMetaCampaignDetail: async (
+    channelId: number,
+    campaignId: string,
+    params?: { start_date?: string; end_date?: string }
+  ): Promise<{
+    campaign: {
+      id: number;
+      campaign_id: string;
+      campaign_name: string;
+      status?: string;
+      start_time?: string;
+      stop_time?: string;
+      daily_budget?: string;
+      impressions?: number;
+      clicks?: number;
+      spends?: number;
+      sales?: number;
+      acos?: number;
+      roas?: number;
+    };
+    chart_data: Array<{
+      date: string;
+      spend: number;
+      sales: number;
+      impressions?: number;
+      clicks?: number;
+    }>;
+    kpi_cards: Array<{
+      label: string;
+      value: string;
+      change?: string | null;
+      isPositive?: boolean | null;
+    }>;
+  }> => {
+    const response = await api.get(
+      `/meta/channels/${channelId}/campaigns/${encodeURIComponent(campaignId)}/`,
+      { params: params || {} }
+    );
+    return response.data;
+  },
+
+  getMetaCreatives: async (
+    channelId: number,
+    params: {
+      filters?: Array<{ field: string; operator?: string; value: unknown }>;
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+    }
+  ): Promise<{
+    creatives: Array<{
+      id: number;
+      creative_id: string | number;
+      creative_name: string;
+      campaign_id?: string | number;
+      campaign_name?: string;
+      ad_id?: string | number;
+      ad_name?: string;
+      status?: string;
+      impressions?: number;
+      clicks?: number;
+      spends?: number;
+      sales?: number;
+      acos?: number;
+      roas?: number;
+    }>;
+    summary: {
+      total_creatives: number;
+      total_spends: number;
+      total_sales: number;
+      total_impressions: number;
+      total_clicks: number;
+      avg_acos: number;
+      avg_roas: number;
+    };
+    chart_data?: Array<{ date: string; spend: number; sales: number; impressions?: number; clicks?: number }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/creatives/`,
+      params
+    );
+    return response.data;
+  },
+
   // Amazon Portfolios (per account, optionally filtered by profileId)
   getPortfolios: async (
     accountId: number,
