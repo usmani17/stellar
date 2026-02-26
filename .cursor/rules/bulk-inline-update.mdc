@@ -1,0 +1,92 @@
+---
+description: Bulk and inline update patterns for entities (campaigns, ad groups, keywords, targets, Meta). Payload, confirmation/summary modals, and backend alignment.
+globs: "src/pages/**/*Campaigns*.tsx,src/pages/**/AdGroups.tsx,src/pages/**/Keywords.tsx,src/pages/**/Targets.tsx,src/pages/**/MetaCampaigns.tsx,src/utils/groupedPayload.ts,src/utils/campaignBulkPayload.ts,src/utils/editSummary.ts,src/utils/statusHelpers.ts,src/hooks/useEditSummaryModal.tsx,src/components/ui/EditSummaryModal.tsx"
+alwaysApply: false
+---
+# Bulk & Inline Update Rule
+
+Use **Campaign** as the reference implementation. All other entities (Ad Groups, Keywords, Targets, Meta campaigns) must follow the same structure.
+
+## 1. Payload (Frontend)
+
+- **Use `buildGroupedPayload`** from `src/utils/groupedPayload.ts` for all entities. Map each entity to `{ entityId, profile_id, type }` (type e.g. `"SP"`).
+- Campaigns: use `buildGroupedCampaignPayload` from `src/utils/campaignBulkPayload.ts` (wraps `buildGroupedPayload`).
+- **Same utility for inline edit:** pass a single-item array to `buildGroupedPayload`.
+
+```ts
+import { buildGroupedPayload } from "../utils/groupedPayload";
+const payload = buildGroupedPayload(
+  entities.map((e) => ({
+    entityId: e.campaignId, // or adgroupId, keywordId, targetId
+    profile_id: e.profile_id,
+    type: e.type ?? "SP",
+  }))
+);
+```
+
+Request shape: `payload[profile_id][campaign_type][entity_ids]`, plus `action`, `status` / `budgetAction`, `unit`, `value`, `upperLimit`, `lowerLimit` as needed.
+
+**Meta campaigns (no grouped payload):** Use flat `campaignIds` only. Service: `accountsService.bulkUpdateMetaCampaigns(channelId, { campaignIds, status?, daily_budget?, action?: "delete" })`. By-ids: `accountsService.getMetaCampaignsByIds(channelId, { campaignIds })`. Backend accepts single `daily_budget` (Set To only); no increase/decrease. Status: `ACTIVE` | `PAUSED` | `ARCHIVED`.
+
+## 2. Confirmation Modal (Pre-Update)
+
+- Show **before** the API call when user confirms a bulk action. **Same structure for inline edit** (single entity): use the same layout as bulk so confirmation is consistent (see `docs/BULK_INLINE_UPDATE_SPEC.md` §3).
+- **Contents:** (1) **Title:** "Confirm Status Changes" or "Confirm Budget Changes". (2) **Summary row:** "X campaigns will be updated: Status change" (or "Budget change"); for inline use "1 campaign will be updated: …". (3) **Preview table:** columns **Entity Name | Old Value | New Value**; bulk: up to 10 rows, footer "Showing 10 of N selected" if more; inline: one row. (4) **Buttons:** Cancel | Confirm (disabled while loading).
+- When selection spans pages (bulk only): show "Loading selected campaigns..." and call `getEntityByIds(accountId, selectedIds)` when modal opens; store in `selectedEntitiesFetched`. Use that for preview; disable Confirm while `selectedEntitiesFetching` or `bulkLoading`.
+- **Bulk Actions toolbar:** Place on the **right** (`flex justify-end` on the toolbar row). Dropdown: Enable, Pause, Archive, Edit Budget, Delete.
+
+## 3. Edit Summary Modal (Post-Update)
+
+- **Hook:** `const { showEditSummary, EditSummaryModal } = useEditSummaryModal();`
+- **Inline:** `showEditSummary({ entityType: "campaign", action: "updated", mode: "inline", succeededCount: 1, entityName: entity.campaign_name || entity.name, field: "Status", oldValue: "Enabled", newValue: "Paused" });`
+- **Bulk:** `showEditSummary({ entityType: "campaign", action: "updated", mode: "bulk", succeededCount: response.updated, failedCount: response.failed, succeededItems: [{ label, field, oldValue, newValue }], details: response.errors?.slice(0, 5).map(...) });`
+- Use **actual entity name** in `entityName` / `succeededItems[].label` (from backend `campaignName` or equivalent), not a generic label.
+
+## 4. Backend Alignment
+
+- Bulk response must include: `updated`, `failed`, `successes`, `errors`.
+- Each **success** item: `*Id`, `profileId`, `response`, `field` ("State"/"Budget"/"Bid"), `oldValue`, `newValue`, `*Name` (e.g. `campaignName`).
+- Each **error** item: `entityId` (e.g. `campaignId`), `error` (string).
+- Backend should use handler modules for value logic (e.g. `campaign_update_handlers/state.py`, `budget.py`); views only validate and pass `action` + `context`. Use `_update_entity_group`-style flow: build batch → single API request → parse response → DB + Log per success, append to errors for failures.
+
+## 5. Status & Currency
+
+- **Status display:** Use `normalizeStatusDisplay()` from `src/utils/statusHelpers.ts` (display: "Enabled", "Paused", "Archived"; API may use "enable", "pause", "ENABLED", "PAUSED").
+- **Money:** Use project `formatCurrency(value, currency)` for budget, bid, and confirmation/summary modals.
+
+## 6. Post-Success
+
+- Clear selection: `setSelectedEntities(new Set())`.
+- Close confirmation modal.
+- Invalidate list cache: `queryClient.invalidateQueries({ queryKey: [...] })`.
+
+## 7. Entity Types in Edit Summary
+
+Ensure entity is in `ENTITY_LABELS` / `ENTITY_LABELS_PLURAL` in `src/utils/editSummary.ts` (e.g. `campaign`, `adGroup`, `keyword`, `target`).
+
+## 8. Checklist for New Entities
+
+- [ ] **Amazon:** Use `buildGroupedPayload` (map to `{ entityId, profile_id, type }`) for both inline and bulk. **Meta:** Use flat `campaignIds` array; no grouped payload.
+- [ ] Backend returns `successes` with `field`, `oldValue`, `newValue`, entity name key; `errors` with `entityId`, `error`.
+- [ ] Add/get `getEntityByIds` endpoint and service; fetch selected entities when confirmation modal opens (cross-page).
+- [ ] Confirmation: Entity Name | Old Value | New Value preview; disable Confirm while loading or bulk in progress.
+- [ ] **Inline edit confirmation:** Same structure as bulk (spec §3): title, summary row "1 … will be updated: Status/Budget change", preview table Entity Name | Old Value | New Value (one row), Cancel | Confirm; on Confirm run API then edit summary.
+- [ ] Edit summary: `showEditSummary` with real `entityName` (inline) or `succeededItems` (bulk).
+- [ ] Clear selection and invalidate cache after success.
+- [ ] Use `normalizeStatusDisplay` and `formatCurrency` where applicable.
+
+## 9. Inline Edit (State and Budget Columns)
+
+- **State column:** Inline `<select>` in each row (not a button that opens a popover). Options: Enabled, Paused, Archived. Style by status: light green background for Enabled (e.g. `bg-emerald-50`), grey for Paused/Archived (`bg-gray-100`). Show caret/chevron on the right. **On change:** show the **same confirmation modal as bulk** (per spec §3): title "Confirm Status Changes", summary "1 campaign will be updated: Status change", **preview table** with one row (Entity Name | Old Value | New Value), Cancel | Confirm; on Confirm call API with single entity ID, then `showEditSummary` with `mode: "inline"`, `field: "Status"`; reload list. On Cancel, close modal (no API call).
+- **Budget column:** Inline text/number `<input>` in each row: use classes `inline-edit-input w-full min-w-[120px]`. Value from row; on focus set local editing state; on blur (or Enter) if value changed show the **same confirmation modal as bulk**: title "Confirm Budget Changes", summary "1 campaign will be updated: Budget change", **preview table** with one row (Entity Name | Old Value | New Value), Cancel | Confirm; on Confirm call API for that row only, then `showEditSummary` with `field: "Budget"`; reload list. On Cancel, close modal (no API call).
+- **Inline confirmation:** Use the **same modal structure** as bulk confirmation (title, summary row, preview table Entity Name | Old Value | New Value, Cancel | Confirm). Store pending inline action in state (e.g. `inlineConfirm: { type: "status" | "budget", campaignId, row, newStatus? | newBudget? }`); on confirm run the API, show edit summary on success, clear pending state. See `docs/BULK_INLINE_UPDATE_SPEC.md` §3.
+
+## 10. Reference Files
+
+| Area | File |
+|------|------|
+| Payload (Amazon) | `src/utils/groupedPayload.ts`, `src/utils/campaignBulkPayload.ts` |
+| Meta campaigns list | `src/pages/meta/MetaCampaigns.tsx` (bulk: toolbar right, confirmation, budget panel Set To only, delete modal; inline: State dropdown) |
+| Edit summary | `src/utils/editSummary.ts`, `src/hooks/useEditSummaryModal.tsx`, `src/components/ui/EditSummaryModal.tsx` |
+| Status | `src/utils/statusHelpers.ts` |
+| Full spec | `docs/BULK_INLINE_UPDATE_SPEC.md` |

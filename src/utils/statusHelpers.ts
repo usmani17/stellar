@@ -10,6 +10,8 @@ export function normalizeStatusDisplay(status: string | null | undefined): strin
   switch (normalized) {
     case "enable":
     case "enabled":
+    case "active":
+    case "actived":
       return "Enabled";
     case "pause":
     case "paused":
