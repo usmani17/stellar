@@ -11,10 +11,15 @@ import { ScheduleBuilder } from "./ScheduleBuilder";
 import { NextRunsPreview } from "./NextRunsPreview";
 import { WorkflowPreviewModal } from "./WorkflowPreviewModal";
 import { PromptBuilderModal } from "./PromptBuilderModal";
+import { MarkdownPromptEditor } from "./MarkdownPromptEditor";
 import {
   getCurrentTimezone,
   formatTimezoneDisplayParts,
   getTimezoneOptions,
+  normalizeSchedule,
+  sanitizeScheduleForApi,
+  toWeekdaysArray,
+  toMonthDaysArray,
 } from "../utils/scheduleUtils";
 import type { Workflow, ScheduleConfig, DeliveryAction } from "../../../services/workflows";
 
@@ -108,7 +113,7 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
       setDeliveryAction(
         editingWorkflow.deliveryAction ?? { type: "email", email: "" }
       );
-      setSchedule(editingWorkflow.schedule);
+      setSchedule(normalizeSchedule(editingWorkflow.schedule));
     } else {
       setName("");
       setChannelId(undefined);
@@ -223,12 +228,12 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
       e.schedule = "Select a date";
     if (
       schedule.frequency === "weekly" &&
-      (!schedule.weekdays || schedule.weekdays.length === 0)
+      toWeekdaysArray(schedule.weekdays).length === 0
     )
       e.schedule = "Select at least one day";
     if (
       schedule.frequency === "monthly" &&
-      (!schedule.monthDays || schedule.monthDays.length === 0)
+      toMonthDaysArray(schedule.monthDays).length === 0
     )
       e.schedule = "Select at least one day";
     setErrors(e);
@@ -253,7 +258,7 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
         prompt: prompt.trim(),
         format,
         deliveryAction: useDefaultDelivery ? null : deliveryAction,
-        schedule,
+        schedule: sanitizeScheduleForApi(schedule),
       };
 
       if (editingWorkflow) {
@@ -450,17 +455,15 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
                   Build prompt
                 </button>
               </div>
-              <textarea
-                className={cn(
-                  "campaign-input w-full min-h-[72px] resize-y text-[13px]",
-                  errors.prompt && "border-red-500 focus:ring-red-500"
-                )}
+              <MarkdownPromptEditor
                 value={prompt}
-                onChange={(e) => {
-                  setPrompt(e.target.value);
+                onChange={(val) => {
+                  setPrompt(val);
                   if (errors.prompt) setErrors((prev) => ({ ...prev, prompt: "" }));
                 }}
-                placeholder="Describe the report you want to generate, or click Build prompt..."
+                placeholder="Describe the report you want to generate, or click Build prompt... (markdown supported)"
+                minHeight="72px"
+                error={!!errors.prompt}
               />
               {errors.prompt && (
                 <p className="mt-1 text-xs text-red-600">{errors.prompt}</p>
@@ -605,16 +608,7 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-sandstorm-s40">
-          <button
-            onClick={onClose}
-            className="edit-button"
-            disabled={isSaving}
-          >
-            <span className="text-[10.64px] text-[#072929] font-normal">
-              Cancel
-            </span>
-          </button>
+        <div className="flex items-center justify-start gap-2 px-5 py-3 border-t border-sandstorm-s40">
           <button
             type="button"
             onClick={() => setPreviewOpen(true)}
@@ -651,6 +645,26 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
         format={format}
         integrationName={selectedChannel?.channel_name}
         profileName={profileName || undefined}
+        accountId={accountId}
+        executePayload={
+          accountId
+            ? {
+                accountId,
+                channelId: channelId ?? undefined,
+                profileId: profileId ?? undefined,
+                accountName: editingWorkflow?.accountName,
+                channelName: selectedChannel?.channel_name,
+                profileName: profileName || undefined,
+                prompt: prompt.trim() || "Generate a performance report...",
+                format,
+                workflowId: editingWorkflow?.id ?? undefined,
+                workflowName: name?.trim() || editingWorkflow?.name,
+                logoUrl: brandSettings?.logoUrl || undefined,
+                primaryColor: brandSettings?.primaryColor || undefined,
+              }
+            : undefined
+        }
+        workflowId={editingWorkflow?.id ?? undefined}
       />
 
       <PromptBuilderModal

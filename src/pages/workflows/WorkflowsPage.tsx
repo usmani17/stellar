@@ -27,6 +27,8 @@ export const WorkflowsPage: React.FC = () => {
     isDeleting,
     updateWorkflow,
     isUpdating,
+    runWorkflowNow,
+    isRunning,
   } = useWorkflows(accountIdNum);
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export const WorkflowsPage: React.FC = () => {
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
         <DashboardHeader />
-        <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-white min-h-screen">
+        <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-sandstorm-s0 min-h-screen">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-h1100 font-agrandir text-forest-f60">
               Workflows
@@ -69,11 +71,11 @@ export const WorkflowsPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSettingsOpen(true)}
-                className="edit-button"
+                className="edit-button inline-flex items-center gap-2"
                 aria-label="Report settings"
               >
-                <Settings className="w-5 h-5 text-[#072929]" />
-                <span className="text-[10.64px] text-[#072929] font-normal">
+                <Settings className="w-5 h-5 text-forest-f60" />
+                <span className="text-[10.64px] text-forest-f60 font-normal">
                   Settings
                 </span>
               </button>
@@ -98,6 +100,8 @@ export const WorkflowsPage: React.FC = () => {
             isDeleting={isDeleting}
             onTogglePause={handleTogglePause}
             isUpdating={isUpdating}
+            onRunNow={runWorkflowNow}
+            isRunning={isRunning}
             onCreateNew={() => setPanelOpen(true)}
           />
 

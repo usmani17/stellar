@@ -91,6 +91,48 @@ export function getCurrentTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
+/**
+ * Format an ISO date string in a given timezone for display.
+ * Used by run history and any time display that should reflect the workflow's schedule timezone.
+ */
+export function formatDateInTimezone(
+  isoDate: string,
+  timezone: string,
+  options: Intl.DateTimeFormatOptions = {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }
+): string {
+  const tz = timezone || getCurrentTimezone();
+  try {
+    return new Date(isoDate).toLocaleString("en-US", { ...options, timeZone: tz });
+  } catch {
+    return new Date(isoDate).toLocaleString("en-US", options);
+  }
+}
+
+/** Format time only (HH:MM AM/PM) in a given timezone. */
+export function formatTimeInTimezone(isoDate: string, timezone: string): string {
+  const tz = timezone || getCurrentTimezone();
+  try {
+    return new Date(isoDate).toLocaleTimeString("en-US", {
+      timeZone: tz,
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return new Date(isoDate).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+}
+
 export function formatTimezoneDisplay(tz: string): string {
   const parts = formatTimezoneDisplayParts(tz);
   if (!parts) return tz;
@@ -122,6 +164,39 @@ export function formatTimezoneDisplayParts(tz: string): { city: string; time: st
 // ── Schedule formatting ──────────────────────────────────────────────────
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** Normalize weekdays to a number array; handles API/DB returning non-array values. Exported for use in forms. */
+export function toWeekdaysArray(val: unknown): number[] {
+  if (Array.isArray(val)) {
+    return val.filter((v) => typeof v === "number");
+  }
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? parsed.filter((v: unknown) => typeof v === "number") : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+/** Normalize monthDays to a number array; handles API/DB returning non-array values. Exported for use in forms. */
+export function toMonthDaysArray(val: unknown): number[] {
+  if (Array.isArray(val)) {
+    return val.filter((v) => typeof v === "number");
+  }
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? parsed.filter((v: unknown) => typeof v === "number") : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 const MONTH_SUFFIX = (d: number) => {
   if (d >= 11 && d <= 13) return "th";
   switch (d % 10) {
@@ -169,14 +244,15 @@ export function formatSchedule(schedule: ScheduleConfig): string {
     case "daily":
       return `Daily at ${time}${suffix}`;
     case "weekly": {
-      const days =
-        schedule.weekdays?.map((d) => DAY_NAMES[d]).join(", ") ?? "";
+      const weekdaysArr = toWeekdaysArray(schedule.weekdays);
+      const days = weekdaysArr.map((d) => DAY_NAMES[d]).join(", ") ?? "";
       return `Weekly ${days} at ${time}${suffix}`;
     }
     case "monthly": {
+      const monthDaysArr = toMonthDaysArray(schedule.monthDays);
       const days =
-        schedule.monthDays
-          ?.sort((a, b) => a - b)
+        monthDaysArr
+          .sort((a, b) => a - b)
           .map((d) => `${d}${MONTH_SUFFIX(d)}`)
           .join(", ") ?? "";
       return `Monthly on ${days} at ${time}${suffix}`;
@@ -193,12 +269,12 @@ function isScheduleComplete(schedule: ScheduleConfig): boolean {
   if (schedule.frequency === "once" && !schedule.date) return false;
   if (
     schedule.frequency === "weekly" &&
-    (!schedule.weekdays || schedule.weekdays.length === 0)
+    toWeekdaysArray(schedule.weekdays).length === 0
   )
     return false;
   if (
     schedule.frequency === "monthly" &&
-    (!schedule.monthDays || schedule.monthDays.length === 0)
+    toMonthDaysArray(schedule.monthDays).length === 0
   )
     return false;
   return true;
@@ -273,8 +349,9 @@ export function computeNextRuns(
     return results;
   }
 
-  if (schedule.frequency === "weekly" && schedule.weekdays?.length) {
-    const sortedDays = [...schedule.weekdays].sort((a, b) => a - b);
+  const weekdaysArr = toWeekdaysArray(schedule.weekdays);
+  if (schedule.frequency === "weekly" && weekdaysArr.length > 0) {
+    const sortedDays = [...weekdaysArr].sort((a, b) => a - b);
     let cursor = new Date(
       now.getFullYear(),
       now.getMonth(),
@@ -299,8 +376,9 @@ export function computeNextRuns(
     return results;
   }
 
-  if (schedule.frequency === "monthly" && schedule.monthDays?.length) {
-    const sortedDays = [...schedule.monthDays].sort((a, b) => a - b);
+  const monthDaysArr = toMonthDaysArray(schedule.monthDays);
+  if (schedule.frequency === "monthly" && monthDaysArr.length > 0) {
+    const sortedDays = [...monthDaysArr].sort((a, b) => a - b);
     let year = now.getFullYear();
     let month = now.getMonth();
     const maxIter = count * 60;
@@ -329,4 +407,40 @@ export function computeNextRuns(
   }
 
   return results;
+}
+
+// ── Schedule normalization (for forms) ───────────────────────────────────
+
+/** Normalize a schedule from API so weekdays/monthDays are proper number arrays. */
+export function normalizeSchedule(schedule: ScheduleConfig): ScheduleConfig {
+  const weekdays = toWeekdaysArray(schedule.weekdays);
+  const monthDays = toMonthDaysArray(schedule.monthDays);
+  return {
+    ...schedule,
+    timezone: schedule.timezone || getCurrentTimezone(),
+    time: schedule.time || "09:00",
+    weekdays: schedule.frequency === "weekly" ? weekdays : undefined,
+    monthDays: schedule.frequency === "monthly" ? monthDays : undefined,
+  };
+}
+
+/**
+ * Sanitize schedule before sending to API. Ensures weekdays/monthDays are always
+ * proper number[] (never strings or corrupted arrays). Use before create/update.
+ */
+export function sanitizeScheduleForApi(schedule: ScheduleConfig): ScheduleConfig {
+  const base: ScheduleConfig = {
+    frequency: schedule.frequency,
+    time: schedule.time || "09:00",
+    timezone: schedule.timezone || getCurrentTimezone(),
+  };
+  if (schedule.date) base.date = schedule.date;
+  if (schedule.endDate) base.endDate = schedule.endDate;
+  if (schedule.frequency === "weekly") {
+    base.weekdays = toWeekdaysArray(schedule.weekdays);
+  }
+  if (schedule.frequency === "monthly") {
+    base.monthDays = toMonthDaysArray(schedule.monthDays);
+  }
+  return base;
 }

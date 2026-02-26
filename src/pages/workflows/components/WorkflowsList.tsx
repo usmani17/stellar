@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Pencil,
   Trash2,
@@ -14,6 +14,7 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  Zap,
 } from "lucide-react";
 import { Loader, ConfirmationModal, Tooltip } from "../../../components/ui";
 import { WorkflowRunHistoryModal } from "./WorkflowRunHistoryModal";
@@ -21,6 +22,7 @@ import { WorkflowPreviewModal } from "./WorkflowPreviewModal";
 import { cn } from "../../../lib/cn";
 import type { Workflow } from "../../../services/workflows";
 import { formatSchedule, computeNextRuns } from "../utils/scheduleUtils";
+import { useBrandSettings } from "../hooks/useBrandSettings";
 
 interface WorkflowsListProps {
   accountId: number | undefined;
@@ -31,6 +33,8 @@ interface WorkflowsListProps {
   isDeleting: boolean;
   onTogglePause: (workflow: Workflow) => void;
   isUpdating: boolean;
+  onRunNow: (workflowId: number) => Promise<unknown>;
+  isRunning: boolean;
   onCreateNew: () => void;
 }
 
@@ -43,12 +47,17 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   isDeleting,
   onTogglePause,
   isUpdating,
+  onRunNow,
+  isRunning,
   onCreateNew,
 }) => {
+  const { settings: brandSettings } = useBrandSettings(accountId);
   const [deleteTarget, setDeleteTarget] = useState<Workflow | null>(null);
   const [pauseTarget, setPauseTarget] = useState<Workflow | null>(null);
   const [historyWorkflow, setHistoryWorkflow] = useState<Workflow | null>(null);
   const [previewWorkflow, setPreviewWorkflow] = useState<Workflow | null>(null);
+  const [runningWorkflowId, setRunningWorkflowId] = useState<number | null>(null);
+  const runInProgressRef = useRef(false);
   const [page, setPage] = useState(1);
 
   const WORKFLOWS_PER_PAGE = 10;
@@ -84,7 +93,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
     return (
       <>
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 rounded-full bg-sandstorm-s10 flex items-center justify-center mb-4">
+          <div className="w-16 h-16 rounded-full bg-sandstorm-s20 flex items-center justify-center mb-4">
             <CalendarClock className="w-8 h-8 text-forest-f30" />
           </div>
           <h3 className="text-lg font-medium text-forest-f60 mb-2">
@@ -121,7 +130,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
 
   return (
     <>
-      <div className="flex flex-col gap-4 min-w-0 overflow-x-hidden">
+      <div className="flex flex-col gap-5 min-w-0 overflow-x-hidden">
         {paginatedWorkflows.map((wf) => {
           const nextRuns = computeNextRuns(wf.schedule, 5);
           const nextRun = nextRuns[0];
@@ -133,48 +142,45 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
             <div
               key={wf.id}
               className={cn(
-                "rounded-xl border p-3 sm:p-4 shadow-sm transition-shadow min-w-0 w-full",
-                wf.status === "paused"
-                  ? "border border-sandstorm-s40 border-l-4 border-l-yellow-y10 bg-yellow-y50"
-                  : "border-sandstorm-s40 bg-white hover:shadow-md"
+                "rounded-xl border border-sandstorm-s40 p-0 min-w-0 w-full overflow-hidden",
+                "bg-white transition-all duration-200 shadow-sm hover:shadow-md",
+                "border-l-4",
+                wf.status === "active" ? "border-l-forest-f40" : "border-l-sandstorm-s60"
               )}
             >
-              {/* Header: Name + badges */}
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3 mb-3">
-                <h3 className="text-base font-agrandir font-medium text-forest-f60 truncate min-w-0">
+              {/* Header: Name + status badges */}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3 px-4 pt-4 sm:px-5 sm:pt-5">
+                <h3 className="text-base font-agrandir font-semibold text-forest-f60 truncate min-w-0">
                   {wf.name || "Untitled workflow"}
                 </h3>
                 <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                  <span
-                    className={cn(
-                      "inline-flex items-center px-2 py-1 rounded text-xs font-medium uppercase",
-                      wf.format === "pdf"
-                        ? "bg-red-r0 text-red-r30"
-                        : "bg-blue-50 text-blue-700"
-                    )}
-                  >
+                  <span className="inline-flex items-center px-2 py-1 rounded border border-sandstorm-s40 bg-white text-[11px] font-medium uppercase text-forest-f30">
                     {wf.format}
                   </span>
                   <span
                     className={cn(
-                      "status-badge",
+                      "inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium",
                       wf.status === "active"
-                        ? "status-badge-enabled"
-                        : "status-badge-paused"
+                        ? "bg-forest-f40/10 text-forest-f40"
+                        : "bg-sandstorm-s20 text-forest-f30"
                     )}
                   >
+                    <span
+                      className={cn(
+                        "w-1.5 h-1.5 rounded-full shrink-0",
+                        wf.status === "active" ? "bg-forest-f40" : "bg-forest-f30"
+                      )}
+                    />
                     {wf.status === "active" ? "Active" : "Paused"}
                   </span>
                 </div>
               </div>
 
-              {/* Meta: 1 col on mobile, 2 cols on sm+ */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-4">
-                <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-sandstorm-s5 border border-sandstorm-s40 px-2.5 py-2 sm:px-3 sm:py-2.5 min-w-0">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-forest-f40/10">
-                    <Link2 className="w-4 h-4 text-forest-f40" />
-                  </div>
-                  <div className="min-w-0 flex-1">
+              {/* Details: 3 columns - Integration, Profile, Schedule */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 px-4 sm:px-5 py-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Link2 className="w-4 h-4 shrink-0 text-forest-f30" />
+                  <div className="min-w-0">
                     <p className="text-[10px] font-medium uppercase tracking-wider text-forest-f30">
                       Integration
                     </p>
@@ -183,11 +189,9 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-sandstorm-s5 border border-sandstorm-s40 px-2.5 py-2 sm:px-3 sm:py-2.5 min-w-0">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-forest-f40/10">
-                    <User className="w-4 h-4 text-forest-f40" />
-                  </div>
-                  <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <User className="w-4 h-4 shrink-0 text-forest-f30" />
+                  <div className="min-w-0">
                     <p className="text-[10px] font-medium uppercase tracking-wider text-forest-f30">
                       Profile
                     </p>
@@ -196,11 +200,9 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-sandstorm-s5 border border-sandstorm-s40 px-2.5 py-2 sm:px-3 sm:py-2.5 min-w-0">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-forest-f40/10">
-                    <Calendar className="w-4 h-4 text-forest-f40" />
-                  </div>
-                  <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Calendar className="w-4 h-4 shrink-0 text-forest-f30" />
+                  <div className="min-w-0">
                     <p className="text-[10px] font-medium uppercase tracking-wider text-forest-f30">
                       Schedule
                     </p>
@@ -209,98 +211,112 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-sandstorm-s5 border border-sandstorm-s40 px-2.5 py-2 sm:px-3 sm:py-2.5 min-w-0">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-forest-f40/10">
-                    <Clock className="w-4 h-4 text-forest-f40" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-forest-f30">
-                      Next run
-                    </p>
-                    {wf.status === "paused" ? (
-                      <p className="truncate text-sm text-forest-f30">
-                        —
-                      </p>
-                    ) : nextRun && nextRunsTooltip ? (
-                      <Tooltip
-                        heading="Upcoming runs"
-                        description={nextRunsTooltip}
-                        position="topLeft"
-                      >
-                        <p className="truncate text-sm text-forest-f60 cursor-help border-b border-dotted border-forest-f40 w-fit">
-                          {nextRun.formatted}
-                        </p>
-                      </Tooltip>
-                    ) : (
-                      <p className="truncate text-sm text-forest-f60">
-                        {nextRun ? nextRun.formatted : "—"}
-                      </p>
-                    )}
-                  </div>
-                </div>
               </div>
 
-              {/* Actions - wrap with adequate touch targets on mobile */}
-              <div className="flex flex-wrap items-center gap-2 sm:gap-1 pt-3 border-t border-sandstorm-s40">
-                <button
-                  onClick={() => setPreviewWorkflow(wf)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-[10.64px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors min-h-[36px] sm:min-h-0"
-                  title="Preview workflow run"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  Preview
-                </button>
-                <button
-                  onClick={() => onEdit(wf)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-[10.64px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors min-h-[36px] sm:min-h-0"
-                  title="Edit workflow"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  Edit
-                </button>
-                <button
-                  onClick={() => setHistoryWorkflow(wf)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-[10.64px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors min-h-[36px] sm:min-h-0"
-                  title="View run history"
-                >
-                  <History className="w-3.5 h-3.5" />
-                  History
-                </button>
-                <button
-                  onClick={() =>
-                    wf.status === "active"
-                      ? setPauseTarget(wf)
-                      : onTogglePause(wf)
-                  }
-                  disabled={isUpdating}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-[10.64px] transition-colors disabled:opacity-50 min-h-[36px] sm:min-h-0",
-                    wf.status === "active"
-                      ? "text-yellow-y10 hover:bg-yellow-y0"
-                      : "text-forest-f60 hover:bg-sandstorm-s20"
-                  )}
-                  title={wf.status === "active" ? "Pause workflow" : "Resume workflow"}
-                >
-                  {wf.status === "active" ? (
-                    <>
-                      <Pause className="w-3.5 h-3.5" />
+              {/* Next Run band */}
+              <div className="flex items-center gap-2 mx-4 sm:mx-5 mb-4 py-2.5 px-3 rounded-lg bg-sandstorm-s10 border border-sandstorm-s40">
+                <Clock className="w-4 h-4 shrink-0 text-forest-f30" />
+                <span className="text-[10px] font-medium uppercase tracking-wider text-forest-f30">
+                  Next run:
+                </span>
+                {wf.status === "paused" ? (
+                  <span className="text-sm text-forest-f30">—</span>
+                ) : nextRun && nextRunsTooltip ? (
+                  <Tooltip
+                    heading="Upcoming runs"
+                    description={nextRunsTooltip}
+                    position="topLeft"
+                  >
+                    <span className="text-sm text-forest-f60 cursor-help border-b border-dotted border-forest-f30">
+                      {nextRun.formatted}
+                    </span>
+                  </Tooltip>
+                ) : (
+                  <span className="text-sm text-forest-f60">
+                    {nextRun ? nextRun.formatted : "—"}
+                  </span>
+                )}
+              </div>
+
+              {/* Actions: left = Preview, History, Pause, More | right = Run Now, Edit, Delete */}
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-4 sm:px-5 sm:pb-5 pt-2 border-t border-sandstorm-s40">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPreviewWorkflow(wf)}
+                    className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors"
+                    title="Preview"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Preview
+                  </button>
+                  <button
+                    onClick={() => setHistoryWorkflow(wf)}
+                    className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors"
+                    title="History"
+                  >
+                    <History className="w-4 h-4" />
+                    History
+                  </button>
+                  {wf.status === "active" && (
+                    <button
+                      onClick={() => setPauseTarget(wf)}
+                      disabled={isUpdating}
+                      className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors disabled:opacity-50"
+                      title="Pause"
+                    >
+                      <Pause className="w-4 h-4" />
                       Pause
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-3.5 h-3.5" />
-                      Resume
-                    </>
+                    </button>
                   )}
-                </button>
-                <button
-                  onClick={() => setDeleteTarget(wf)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-[10.64px] text-red-r30 hover:bg-red-r0 transition-colors min-h-[36px] sm:min-h-0"
-                  title="Delete workflow"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete
-                </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      if (runInProgressRef.current) return;
+                      runInProgressRef.current = true;
+                      setRunningWorkflowId(wf.id);
+                      try {
+                        await onRunNow(wf.id);
+                      } finally {
+                        runInProgressRef.current = false;
+                        setRunningWorkflowId(null);
+                      }
+                    }}
+                    disabled={!!runningWorkflowId}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-medium bg-forest-f40 text-white hover:bg-forest-f50 transition-colors disabled:opacity-50"
+                    title="Run Now"
+                  >
+                    <Zap className="w-4 h-4" />
+                    {isRunning && runningWorkflowId === wf.id ? "Running..." : "Run Now"}
+                  </button>
+                  <button
+                    onClick={() => onEdit(wf)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-medium border border-sandstorm-s60 bg-white text-forest-f60 hover:bg-sandstorm-s10 transition-colors"
+                    title="Edit"
+                  >
+                    <Pencil className="w-4 h-4" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setDeleteTarget(wf)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-medium border border-red-r30 bg-red-r0 text-red-r30 hover:bg-red-r10 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </button>
+                  {wf.status === "paused" && (
+                    <button
+                      onClick={() => onTogglePause(wf)}
+                      disabled={isUpdating}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-medium border border-sandstorm-s60 bg-white text-forest-f60 hover:bg-sandstorm-s10 transition-colors disabled:opacity-50"
+                      title="Resume"
+                    >
+                      <Play className="w-4 h-4" />
+                      Resume
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -371,6 +387,26 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
         format={previewWorkflow?.format ?? "pdf"}
         integrationName={previewWorkflow?.channelName || "All Channels"}
         profileName={previewWorkflow?.profileName || "All Profiles"}
+        accountId={previewWorkflow ? accountId : undefined}
+        executePayload={
+          previewWorkflow
+            ? {
+                accountId: previewWorkflow.accountId,
+                channelId: previewWorkflow.channelId ?? undefined,
+                profileId: previewWorkflow.profileId ?? undefined,
+                accountName: previewWorkflow.accountName,
+                channelName: previewWorkflow.channelName,
+                profileName: previewWorkflow.profileName,
+                prompt: previewWorkflow.prompt,
+                format: previewWorkflow.format,
+                workflowId: previewWorkflow.id,
+                workflowName: previewWorkflow.name,
+                logoUrl: brandSettings?.logoUrl || undefined,
+                primaryColor: brandSettings?.primaryColor || undefined,
+              }
+            : undefined
+        }
+        workflowId={previewWorkflow?.id ?? undefined}
       />
     </>
   );

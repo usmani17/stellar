@@ -1,42 +1,54 @@
-import React from "react";
-import { BaseModal } from "../../../components/ui";
-import { FileText, MessageSquare, X } from "lucide-react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { BaseModal, Alert } from "../../../components/ui";
+import { FileText, MessageSquare, X, Download, Loader2 } from "lucide-react";
+import { StellarMarkDown } from "../../../components/ai/StellarMarkDown";
+import { workflowsService } from "../../../services/workflows";
+import type {
+  WorkflowExecutePayload,
+  WorkflowExecuteResponse,
+} from "../../../services/workflows";
+
+type TimelineItem =
+  | { type: "thinking"; content: string }
+  | { type: "tool_call"; label: string }
+  | { type: "assistant"; content: string };
+
+function extractAssistantText(ev: Record<string, unknown>): string {
+  try {
+    const msg = ev.message as { content?: Array<{ text?: string }> } | undefined;
+    const parts = msg?.content ?? [];
+    if (parts[0] && typeof parts[0] === "object" && "text" in parts[0])
+      return String(parts[0].text ?? "");
+  } catch {
+    // ignore
+  }
+  return "";
+}
+
+function getToolCallLabel(ev: Record<string, unknown>): string {
+  const tc = ev.tool_call as Record<string, unknown> | undefined;
+  if (!tc) return "Processing...";
+  if (tc.shellToolCall) return "Running analysis...";
+  if (tc.readToolCall) return "Reading data...";
+  if (tc.writeToolCall) return "Writing output...";
+  return "Processing...";
+}
 
 interface WorkflowPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** User's prompt - shown in dummy messages */
+  /** User's prompt for the workflow */
   prompt: string;
   format: "pdf" | "docx";
   integrationName?: string;
   profileName?: string;
+  /** When provided, enables Generate Preview. Required for execution. */
+  accountId?: number;
+  /** Execute payload for API call. Required when accountId is set. */
+  executePayload?: WorkflowExecutePayload | null;
+  workflowId?: number | null;
 }
-
-const DUMMY_MESSAGES = [
-  {
-    role: "user" as const,
-    content: "Generate a weekly performance report for my Google Ads account.",
-    time: "9:00 AM",
-  },
-  {
-    role: "assistant" as const,
-    content:
-      "I've started generating your report. Fetching performance data from your connected account...",
-    time: "9:00 AM",
-  },
-  {
-    role: "assistant" as const,
-    content:
-      "Data fetched successfully. Analyzing metrics and building the report structure.",
-    time: "9:01 AM",
-  },
-  {
-    role: "assistant" as const,
-    content:
-      "Report generated successfully. Your PDF report is ready. You can download it below.",
-    time: "9:02 AM",
-  },
-];
 
 export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
   isOpen,
@@ -45,11 +57,82 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
   format,
   integrationName = "All Channels",
   profileName = "All Profiles",
+  accountId,
+  executePayload,
+  workflowId,
 }) => {
+  const [result, setResult] = useState<WorkflowExecuteResponse | null>(null);
+  const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [timeline]);
+
+  const handleStreamEvent = useCallback((ev: Record<string, unknown>) => {
+    if (ev.type === "thinking") {
+      const text = (ev.text as string) || "";
+      if (text.trim())
+        setTimeline((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.type === "thinking")
+            return [...prev.slice(0, -1), { type: "thinking" as const, content: last.content + text }];
+          return [...prev, { type: "thinking", content: text }];
+        });
+    } else if (ev.type === "tool_call") {
+      const label = getToolCallLabel(ev);
+      setTimeline((prev) => [...prev, { type: "tool_call", label }]);
+    } else if (ev.type === "assistant") {
+      const text = extractAssistantText(ev);
+      if (text)
+        setTimeline((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.type === "assistant" && text.startsWith(last.content))
+            return [...prev.slice(0, -1), { type: "assistant", content: text }];
+          if (last?.type === "assistant" && last.content.startsWith(text)) return prev;
+          if (last?.type === "assistant" && text.length > last.content.length)
+            return [...prev.slice(0, -1), { type: "assistant", content: text }];
+          return [...prev, { type: "assistant", content: text }];
+        });
+    }
+  }, []);
+
+  const previewMutation = useMutation({
+    mutationFn: async () => {
+      if (!accountId || !executePayload)
+        throw new Error("Account and payload required for preview");
+      setTimeline([{ type: "tool_call", label: "Starting..." }]);
+      return workflowsService.executeWorkflow(
+        accountId,
+        { ...executePayload, workflowId: workflowId ?? undefined },
+        "preview",
+        { onEvent: handleStreamEvent }
+      );
+    },
+    onSuccess: (data) => {
+      setResult(data);
+    },
+  });
+
+  const canExecute = Boolean(accountId && executePayload);
+  const isExecuting = previewMutation.isPending;
+  const lastError =
+    previewMutation.error instanceof Error ? previewMutation.error.message : null;
+
+  const handleClose = () => {
+    setResult(null);
+    setTimeline([]);
+    previewMutation.reset();
+    onClose();
+  };
+
   return (
     <BaseModal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       size="2xl"
       maxWidth="max-w-2xl"
       maxHeight="max-h-[85vh]"
@@ -64,7 +147,7 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
             Workflow Preview
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 rounded-lg hover:bg-sandstorm-s10 text-forest-f30 transition-colors"
             aria-label="Close preview"
           >
@@ -72,60 +155,101 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-          <p className="text-sm text-forest-f30">
-            This is a preview of what your workflow run will look like. In a
-            real run, the assistant will process your prompt and generate the
-            report.
-          </p>
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+          {/* Intro text */}
+          {canExecute && !isExecuting && !result && (
+            <p className="text-sm text-forest-f30">
+              Generate a sample {format.toUpperCase()} report from your prompt
+              using the agent.
+            </p>
+          )}
+          {!canExecute && (
+            <p className="text-sm text-forest-f30">
+              Select a brand and configure your workflow to enable preview.
+            </p>
+          )}
 
-          {/* Assistant Messages */}
+          {/* User prompt — label above, prompt below, aligned left */}
           <div>
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <MessageSquare className="w-4 h-4 text-forest-f40" />
-              <h3 className="text-sm font-medium text-forest-f60">
-                Assistant Messages
-              </h3>
+              <h3 className="text-sm font-medium text-forest-f60">Your prompt</h3>
             </div>
-            <div className="space-y-3">
-              {/* First message uses actual prompt */}
-              <div className="flex justify-end">
-                <div className="max-w-[85%] rounded-lg bg-forest-f40 px-4 py-2.5 text-sm text-white">
-                  <p className="whitespace-pre-wrap">
-                    {prompt || "Generate a weekly performance report..."}
-                  </p>
-                  <span className="text-xs opacity-80 mt-1 block">
-                    You · {DUMMY_MESSAGES[0].time}
-                  </span>
-                </div>
+            <div className="rounded-xl border border-sandstorm-s40 bg-sandstorm-s5 px-4 py-3 text-sm text-forest-f60 shadow-sm [&_a]:text-forest-f40 [&_a]:underline">
+              <div className="[&_p]:mb-1 [&_p:last-child]:mb-0">
+                <StellarMarkDown
+                  content={prompt || "Generate a performance report..."}
+                  type="human"
+                />
               </div>
-              {DUMMY_MESSAGES.slice(1).map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-lg px-4 py-2.5 text-sm ${
-                      msg.role === "user"
-                        ? "bg-forest-f40 text-white"
-                        : "bg-sandstorm-s5 border border-sandstorm-s40 text-forest-f60"
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                    <span
-                      className={`text-xs mt-1 block ${
-                        msg.role === "user" ? "opacity-80" : "text-forest-f30"
-                      }`}
-                    >
-                      Assistant · {msg.time}
-                    </span>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
 
-          {/* Report Preview */}
+          {/* Generate Preview Report — primary CTA, centered */}
+          {canExecute && !result && (
+            <div className="flex justify-center">
+              <button
+                onClick={() => previewMutation.mutate()}
+                disabled={isExecuting}
+                className="create-entity-button inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 text-sm font-medium"
+              >
+                <FileText className="w-5 h-5" />
+                <span>Generate Preview Report</span>
+              </button>
+            </div>
+          )}
+
+          {/* Assistant messages — scrollable, appends as they arrive */}
+          {isExecuting && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <MessageSquare className="w-4 h-4 text-forest-f40" />
+                <h3 className="text-sm font-medium text-forest-f60">
+                  Assistant
+                </h3>
+              </div>
+              <div
+                ref={scrollRef}
+                className="max-h-[280px] overflow-y-auto rounded-xl border border-sandstorm-s40 bg-sandstorm-s5 p-4 space-y-3 shadow-sm"
+              >
+                {timeline.map((item, i) => (
+                  <div key={i} className="flex justify-start">
+                    {item.type === "thinking" && (
+                      <div className="max-w-full rounded-lg px-3 py-2 text-xs text-forest-f30 bg-sandstorm-s10 border border-sandstorm-s30 italic">
+                        {item.content}
+                      </div>
+                    )}
+                    {item.type === "tool_call" && (
+                      <div className="rounded-lg px-3 py-2 text-sm text-forest-f60 bg-sandstorm-s10 border border-sandstorm-s30">
+                        {item.label}
+                      </div>
+                    )}
+                    {item.type === "assistant" && (
+                      <div className="max-w-full rounded-lg px-4 py-2.5 text-sm bg-white border border-sandstorm-s40 text-forest-f60">
+                        <div className="[&_p]:mb-1 [&_p:last-child]:mb-0">
+                          <StellarMarkDown content={item.content} type="ai" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {/* Single loading indicator at bottom while streaming */}
+                <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-forest-f30">
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                  <span>Generating...</span>
+                </div>
+              </div>
+              <p className="text-xs text-forest-f30 mt-2">
+                This may take a few minutes. The agent is gathering data and
+                generating your {format.toUpperCase()} report.
+              </p>
+            </div>
+          )}
+
+          {lastError && <Alert variant="error">{lastError}</Alert>}
+
+          {/* Report result — only when we have the report */}
+          {result?.url && (
           <div>
             <div className="flex items-center gap-2 mb-3">
               <FileText className="w-4 h-4 text-forest-f40" />
@@ -133,30 +257,37 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
                 Generated Report
               </h3>
             </div>
-            <div className="rounded-lg border border-sandstorm-s40 bg-sandstorm-s5 p-6">
+            <div className="rounded-xl border border-sandstorm-s40 bg-sandstorm-s5 p-6 shadow-sm">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-14 rounded bg-red-100 flex items-center justify-center shrink-0">
-                  <span className="text-red-600 font-bold text-xs">
+                <div className="w-12 h-14 rounded flex items-center justify-center shrink-0 bg-forest-f40/10">
+                  <span className="font-bold text-xs text-forest-f40">
                     {format.toUpperCase()}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-forest-f60">
-                    {integrationName} — {profileName} Report
+                    {result.title ||
+                      `${integrationName} — ${profileName} Report`}
                   </p>
                   <p className="text-xs text-forest-f30 mt-1">
-                    Generated based on your prompt. In a real run, this would be
-                    a downloadable {format.toUpperCase()} file.
+                    {result.generated_at
+                      ? `Generated ${new Date(result.generated_at).toLocaleString()}.`
+                      : "Your report is ready."}
                   </p>
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="px-3 py-1.5 rounded bg-forest-f40 text-white text-xs font-medium">
-                      Preview (dummy)
-                    </div>
-                  </div>
+                  <a
+                    href={result.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="create-entity-button inline-flex items-center gap-2 mt-3"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span className="text-[10.64px]">Download report</span>
+                  </a>
                 </div>
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
     </BaseModal>
