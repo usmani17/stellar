@@ -483,6 +483,54 @@ export const accountsService = {
     return response.data;
   },
 
+  getMetaCampaignsByIds: async (
+    channelId: number,
+    params: { campaignIds: string[] }
+  ): Promise<{
+    campaigns: Array<{
+      id?: number;
+      campaign_id: string;
+      campaign_name: string;
+      status?: string;
+      start_time?: string;
+      stop_time?: string;
+      daily_budget?: string | number;
+    }>;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/campaigns/by-ids/`,
+      params
+    );
+    return response.data;
+  },
+
+  bulkUpdateMetaCampaigns: async (
+    channelId: number,
+    payload: {
+      campaignIds: string[];
+      status?: string;
+      daily_budget?: number;
+      action?: "delete";
+    }
+  ): Promise<{
+    updated: number;
+    failed: number;
+    successes: Array<{
+      campaignId: string;
+      campaignName: string;
+      field: string;
+      oldValue: string;
+      newValue: string;
+    }>;
+    errors: Array<{ campaignId: string; error: string }>;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/campaigns/bulk-update/`,
+      payload
+    );
+    return response.data;
+  },
+
   getMetaAdSets: async (
     channelId: number,
     params: {

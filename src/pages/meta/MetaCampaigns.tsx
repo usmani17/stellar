@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { formatCurrency, formatPercentage, formatNumber } from "../../utils/formatters";
@@ -15,6 +15,8 @@ import {
   DynamicFilterPanel,
   type FilterValues,
 } from "../../components/filters/DynamicFilterPanel";
+import { useEditSummaryModal } from "../../hooks/useEditSummaryModal";
+import { normalizeStatusDisplay } from "../../utils/statusHelpers";
 
 export interface MetaCampaignRow {
   id: number;
@@ -69,6 +71,26 @@ export const MetaCampaigns: React.FC = () => {
   });
   const [chartCollapsed, setChartCollapsed] = useState(false);
 
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [pendingStatusAction, setPendingStatusAction] = useState<"ACTIVE" | "PAUSED" | "ARCHIVED" | null>(null);
+  const [showBudgetPanel, setShowBudgetPanel] = useState(false);
+  const [isBudgetChange, setIsBudgetChange] = useState(false);
+  const [budgetValue, setBudgetValue] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [selectedCampaignsFetched, setSelectedCampaignsFetched] = useState<MetaCampaignRow[] | null>(null);
+  const [selectedCampaignsFetching, setSelectedCampaignsFetching] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [inlineBudgetCampaignId, setInlineBudgetCampaignId] = useState<string | null>(null);
+  const [inlineBudgetValue, setInlineBudgetValue] = useState("");
+  type InlineConfirm =
+    | { type: "status"; campaignId: string; newStatus: "ACTIVE" | "PAUSED" | "ARCHIVED"; row: MetaCampaignRow }
+    | { type: "budget"; campaignId: string; newBudget: number; row: MetaCampaignRow };
+  const [inlineConfirm, setInlineConfirm] = useState<InlineConfirm | null>(null);
+  const [inlineConfirmLoading, setInlineConfirmLoading] = useState(false);
+  const bulkDropdownRef = useRef<HTMLDivElement>(null);
+
+  const { showEditSummary, EditSummaryModal } = useEditSummaryModal();
   const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
 
   const loadCampaigns = useCallback(async () => {
@@ -235,6 +257,244 @@ export const MetaCampaigns: React.FC = () => {
     }
   };
 
+  // Fetch selected campaigns when confirmation modal opens (cross-page selection)
+  useEffect(() => {
+    if (!showConfirmationModal || selectedCampaigns.size === 0 || !channelIdNum) {
+      if (!showConfirmationModal) setSelectedCampaignsFetched(null);
+      return;
+    }
+    let cancelled = false;
+    setSelectedCampaignsFetching(true);
+    accountsService
+      .getMetaCampaignsByIds(channelIdNum, { campaignIds: Array.from(selectedCampaigns) })
+      .then((res) => {
+        if (!cancelled) setSelectedCampaignsFetched((res.campaigns ?? []) as MetaCampaignRow[]);
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedCampaignsFetched([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSelectedCampaignsFetching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showConfirmationModal, selectedCampaigns.size, channelIdNum]);
+
+  const getSelectedCampaignsData = (): MetaCampaignRow[] => {
+    if (selectedCampaignsFetched != null) return selectedCampaignsFetched;
+    return campaigns.filter((c) =>
+      selectedCampaigns.has(String(c.campaign_id ?? c.id))
+    );
+  };
+
+  // Close bulk dropdown when clicking outside
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (bulkDropdownRef.current && !bulkDropdownRef.current.contains(e.target as Node)) {
+        setShowBulkActions(false);
+      }
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
+
+  const runBulkStatus = async (statusValue: "ACTIVE" | "PAUSED" | "ARCHIVED") => {
+    if (!channelIdNum || selectedCampaigns.size === 0) return;
+    setBulkLoading(true);
+    try {
+      const res = await accountsService.bulkUpdateMetaCampaigns(channelIdNum, {
+        campaignIds: Array.from(selectedCampaigns),
+        status: statusValue,
+      });
+      setSelectedCampaigns(new Set());
+      const succeededItems = (res.successes ?? []).slice(0, 10).map((s) => ({
+        label: s.campaignName ?? `Campaign ${s.campaignId}`,
+        field: s.field,
+        oldValue: s.oldValue,
+        newValue: s.newValue,
+      }));
+      showEditSummary({
+        entityType: "campaign",
+        action: "updated",
+        mode: "bulk",
+        succeededCount: res.updated ?? 0,
+        failedCount: (res.failed ?? 0) > 0 ? res.failed : undefined,
+        succeededItems,
+        details: (res.errors ?? []).slice(0, 5).map((e) => ({
+          label: `Campaign ${e.campaignId}`,
+          value: e.error,
+        })),
+      });
+      loadCampaigns();
+    } catch (err: unknown) {
+      console.error("Meta bulk status update failed", err);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const runBulkBudget = async () => {
+    if (!channelIdNum || selectedCampaigns.size === 0) return;
+    const valueNum = parseFloat(budgetValue);
+    if (isNaN(valueNum)) return;
+    setBulkLoading(true);
+    try {
+      const res = await accountsService.bulkUpdateMetaCampaigns(channelIdNum, {
+        campaignIds: Array.from(selectedCampaigns),
+        daily_budget: valueNum,
+      });
+      setSelectedCampaigns(new Set());
+      setShowBudgetPanel(false);
+      setBudgetValue("");
+      const succeededItems = (res.successes ?? []).slice(0, 10).map((s) => ({
+        label: s.campaignName ?? `Campaign ${s.campaignId}`,
+        field: s.field,
+        oldValue: s.oldValue,
+        newValue: s.newValue,
+      }));
+      showEditSummary({
+        entityType: "campaign",
+        action: "updated",
+        mode: "bulk",
+        succeededCount: res.updated ?? 0,
+        failedCount: (res.failed ?? 0) > 0 ? res.failed : undefined,
+        succeededItems,
+        details: (res.errors ?? []).slice(0, 5).map((e) => ({
+          label: `Campaign ${e.campaignId}`,
+          value: e.error,
+        })),
+      });
+      loadCampaigns();
+    } catch (err: unknown) {
+      console.error("Meta bulk budget update failed", err);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const runBulkDelete = async () => {
+    if (!channelIdNum || selectedCampaigns.size === 0) return;
+    setBulkLoading(true);
+    try {
+      const res = await accountsService.bulkUpdateMetaCampaigns(channelIdNum, {
+        campaignIds: Array.from(selectedCampaigns),
+        action: "delete",
+      });
+      setSelectedCampaigns(new Set());
+      setShowDeleteModal(false);
+      const succeededItems = (res.successes ?? []).slice(0, 10).map((s) => ({
+        label: s.campaignName ?? `Campaign ${s.campaignId}`,
+        field: s.field,
+        oldValue: s.oldValue,
+        newValue: s.newValue,
+      }));
+      showEditSummary({
+        entityType: "campaign",
+        action: "deleted",
+        mode: "bulk",
+        succeededCount: res.updated ?? 0,
+        failedCount: (res.failed ?? 0) > 0 ? res.failed : undefined,
+        succeededItems,
+        details: (res.errors ?? []).slice(0, 5).map((e) => ({
+          label: `Campaign ${e.campaignId}`,
+          value: e.error,
+        })),
+      });
+      loadCampaigns();
+    } catch (err: unknown) {
+      console.error("Meta bulk delete failed", err);
+      setShowDeleteModal(false);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleInlineStatusChange = (campaignId: string, newStatus: "ACTIVE" | "PAUSED" | "ARCHIVED") => {
+    if (!channelIdNum) return;
+    const row = campaigns.find((c) => String(c.campaign_id ?? c.id) === campaignId);
+    if (!row) return;
+    setInlineConfirm({ type: "status", campaignId, newStatus, row });
+  };
+
+  const handleInlineBudgetBlur = (campaignId: string, value: string) => {
+    if (!channelIdNum) return;
+    setInlineBudgetCampaignId(null);
+    const num = parseFloat(value.replace(/,/g, ""));
+    if (Number.isNaN(num) || num < 0) return;
+    const row = campaigns.find((c) => String(c.campaign_id ?? c.id) === campaignId);
+    if (!row) return;
+    const current = row.daily_budget != null ? Number(row.daily_budget) : null;
+    if (current !== null && Math.abs(current - num) < 0.001) return;
+    setInlineConfirm({ type: "budget", campaignId, newBudget: num, row });
+  };
+
+  const runInlineConfirm = async () => {
+    if (!channelIdNum || !inlineConfirm) return;
+    setInlineConfirmLoading(true);
+    try {
+      if (inlineConfirm.type === "status") {
+        const res = await accountsService.bulkUpdateMetaCampaigns(channelIdNum, {
+          campaignIds: [inlineConfirm.campaignId],
+          status: inlineConfirm.newStatus,
+        });
+        if ((res.updated ?? 0) > 0) {
+          showEditSummary({
+            entityType: "campaign",
+            action: "updated",
+            mode: "inline",
+            succeededCount: 1,
+            entityName: inlineConfirm.row.campaign_name ?? "Campaign",
+            field: "Status",
+            oldValue: normalizeStatusDisplay(inlineConfirm.row.status),
+            newValue: normalizeStatusDisplay(inlineConfirm.newStatus),
+          });
+          loadCampaigns();
+        }
+      } else {
+        const res = await accountsService.bulkUpdateMetaCampaigns(channelIdNum, {
+          campaignIds: [inlineConfirm.campaignId],
+          daily_budget: inlineConfirm.newBudget,
+        });
+        if ((res.updated ?? 0) > 0) {
+          const current = inlineConfirm.row.daily_budget != null ? Number(inlineConfirm.row.daily_budget) : null;
+          showEditSummary({
+            entityType: "campaign",
+            action: "updated",
+            mode: "inline",
+            succeededCount: 1,
+            entityName: inlineConfirm.row.campaign_name ?? "Campaign",
+            field: "Budget",
+            oldValue: current != null ? formatCurrency(current) : "—",
+            newValue: formatCurrency(inlineConfirm.newBudget),
+          });
+          loadCampaigns();
+        }
+      }
+    } catch (err: unknown) {
+      console.error("Meta inline update failed", err);
+    } finally {
+      setInlineConfirm(null);
+      setInlineConfirmLoading(false);
+    }
+  };
+
+  const getStatusOption = (status: string | undefined): "ACTIVE" | "PAUSED" | "ARCHIVED" => {
+    const u = (status ?? "").toUpperCase();
+    if (u === "ACTIVE" || u === "ENABLED" || u === "ACTIVED") return "ACTIVE";
+    if (u === "PAUSED" || u === "PAUSE") return "PAUSED";
+    if (u === "ARCHIVED" || u === "ARCHIVE") return "ARCHIVED";
+    return "PAUSED";
+  };
+
+  const statusSelectBg = (status: string | undefined) => {
+    const s = getStatusOption(status);
+    if (s === "ACTIVE") return "bg-emerald-50 border-emerald-200 text-[#065f46]";
+    if (s === "PAUSED") return "bg-gray-100 border-gray-200 text-[#374151]";
+    if (s === "ARCHIVED") return "bg-gray-100 border-gray-200 text-[#6b7280]";
+    return "bg-gray-50 border-gray-200 text-[#556179]";
+  };
+
   return (
     <div className="min-h-screen bg-white flex">
       <Sidebar />
@@ -322,6 +582,306 @@ export const MetaCampaigns: React.FC = () => {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Bulk Actions and table */}
+              <div className="relative">
+                <div className="flex items-center justify-end gap-2 mb-4">
+                  <div className="relative inline-flex justify-end" ref={bulkDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowBulkActions((prev) => !prev);
+                        setShowBudgetPanel(false);
+                      }}
+                      className="edit-button flex items-center gap-2"
+                    >
+                      <svg
+                        className="w-5 h-5 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Bulk Actions
+                      </span>
+                      <svg
+                        className={`w-5 h-5 text-[#E3E3E3] transition-transform ${showBulkActions ? "rotate-180" : ""}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                    {showBulkActions && (
+                      <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                        {[
+                          { value: "ACTIVE", label: "Enable" },
+                          { value: "PAUSED", label: "Pause" },
+                          { value: "ARCHIVED", label: "Archive" },
+                          { value: "edit_budget", label: "Edit Budget" },
+                          { value: "delete", label: "Delete" },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            disabled={selectedCampaigns.size === 0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (selectedCampaigns.size === 0) return;
+                              setShowBulkActions(false);
+                              if (opt.value === "edit_budget") {
+                                setShowBudgetPanel(true);
+                                setIsBudgetChange(true);
+                                setPendingStatusAction(null);
+                              } else if (opt.value === "delete") {
+                                setShowDeleteModal(true);
+                                setShowBudgetPanel(false);
+                                setPendingStatusAction(null);
+                              } else {
+                                setShowBudgetPanel(false);
+                                setPendingStatusAction(opt.value as "ACTIVE" | "PAUSED" | "ARCHIVED");
+                                setIsBudgetChange(false);
+                                setShowConfirmationModal(true);
+                              }
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Budget panel - Set To only (Meta API single value) */}
+                {selectedCampaigns.size > 0 && showBudgetPanel && (
+                  <div className="mb-4 border border-gray-200 rounded-xl p-4 bg-[#f9f9f6]">
+                    <p className="text-[10.64px] font-semibold text-[#556179] mb-3">
+                      Set daily budget for {selectedCampaigns.size} campaign(s) (in account currency)
+                    </p>
+                    <div className="flex flex-wrap items-end gap-3 justify-between">
+                      <div className="w-[160px]">
+                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                          Value
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={budgetValue}
+                          onChange={(e) => setBudgetValue(e.target.value)}
+                          placeholder="e.g. 20.00"
+                          className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 ml-auto">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowBudgetPanel(false);
+                            setBudgetValue("");
+                            setShowBulkActions(false);
+                          }}
+                          className="cancel-button"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!budgetValue || bulkLoading) return;
+                            setIsBudgetChange(true);
+                            setPendingStatusAction(null);
+                            setShowConfirmationModal(true);
+                          }}
+                          disabled={bulkLoading || !budgetValue}
+                          className="create-entity-button btn-sm"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Confirmation Modal (status or budget) */}
+                {showConfirmationModal && (
+                  <div
+                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
+                    onClick={(e) => {
+                      if (e.target === e.currentTarget && !bulkLoading) {
+                        setShowConfirmationModal(false);
+                        setPendingStatusAction(null);
+                        setIsBudgetChange(false);
+                      }
+                    }}
+                  >
+                    <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                      <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                        {isBudgetChange ? "Confirm Budget Changes" : "Confirm Status Changes"}
+                      </h3>
+                      <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4 mb-4">
+                        <span className="text-[12.16px] text-[#556179]">
+                          {selectedCampaigns.size} campaign{selectedCampaigns.size !== 1 ? "s" : ""} will be updated:{" "}
+                        </span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {isBudgetChange ? "Budget" : "Status"} change
+                        </span>
+                      </div>
+                      {selectedCampaignsFetching ? (
+                        <div className="mb-6 py-8 text-center text-[12.16px] text-[#556179]">
+                          Loading selected campaigns...
+                        </div>
+                      ) : (
+                        (() => {
+                          const data = getSelectedCampaignsData();
+                          const preview = data.slice(0, 10);
+                          const hasMore = data.length > 10;
+                          return (
+                            <div className="mb-6">
+                              <div className="mb-2 text-[10.64px] text-[#556179]">
+                                {hasMore
+                                  ? `Showing ${preview.length} of ${data.length} selected campaigns`
+                                  : `${data.length} campaign${data.length !== 1 ? "s" : ""} selected`}
+                              </div>
+                              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                <table className="w-full table-fixed">
+                                  <thead className="bg-[#f5f5f0]">
+                                    <tr>
+                                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase w-[40%] max-w-[240px]">Campaign Name</th>
+                                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">Old Value</th>
+                                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">New Value</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {preview.map((c) => {
+                                      const cid = String(c.campaign_id ?? c.id);
+                                      const name = c.campaign_name ?? "—";
+                                      const oldVal = isBudgetChange
+                                        ? (c.daily_budget != null ? formatCurrency(Number(c.daily_budget)) : "—")
+                                        : normalizeStatusDisplay(c.status);
+                                      const newVal = isBudgetChange
+                                        ? formatCurrency(parseFloat(budgetValue) || 0)
+                                        : pendingStatusAction ? normalizeStatusDisplay(pendingStatusAction) : "—";
+                                      return (
+                                        <tr key={cid} className="border-b border-gray-200 last:border-b-0">
+                                          <td className="px-4 py-2 text-[10.64px] text-[#072929] max-w-[240px] truncate" title={name}>{name}</td>
+                                          <td className="px-4 py-2 text-[10.64px] text-[#556179]">{oldVal}</td>
+                                          <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">{newVal}</td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          );
+                        })()
+                      )}
+                      <div className="flex justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!bulkLoading) {
+                              setShowConfirmationModal(false);
+                              setPendingStatusAction(null);
+                              setIsBudgetChange(false);
+                            }
+                          }}
+                          disabled={bulkLoading}
+                          className="cancel-button"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (bulkLoading || selectedCampaignsFetching) return;
+                            try {
+                              if (isBudgetChange) {
+                                await runBulkBudget();
+                                setShowBudgetPanel(false);
+                                setBudgetValue("");
+                              } else if (pendingStatusAction) {
+                                await runBulkStatus(pendingStatusAction);
+                              }
+                            } finally {
+                              setShowConfirmationModal(false);
+                              setPendingStatusAction(null);
+                              setIsBudgetChange(false);
+                            }
+                          }}
+                          disabled={bulkLoading || selectedCampaignsFetching}
+                          className="create-entity-button btn-sm flex items-center gap-2"
+                        >
+                          {bulkLoading ? (
+                            <>
+                              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Applying...
+                            </>
+                          ) : (
+                            "Confirm"
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Delete confirmation modal */}
+                {showDeleteModal && (
+                  <div
+                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
+                    onClick={(e) => {
+                      if (e.target === e.currentTarget && !bulkLoading) setShowDeleteModal(false);
+                    }}
+                  >
+                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+                      <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                        Delete campaigns?
+                      </h3>
+                      <p className="text-[12.16px] text-[#556179] mb-4">
+                        You are about to permanently delete {selectedCampaigns.size} selected campaign
+                        {selectedCampaigns.size !== 1 ? "s" : ""}. This action cannot be undone.
+                      </p>
+                      <div className="flex justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={() => !bulkLoading && setShowDeleteModal(false)}
+                          disabled={bulkLoading}
+                          className="cancel-button"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={runBulkDelete}
+                          disabled={bulkLoading}
+                          className="px-4 py-2 bg-red-600 text-white text-[10.64px] rounded-lg hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {bulkLoading ? "Deleting..." : "Confirm"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               </div>
 
               {/* Table card - same structure and classes as Google */}
@@ -461,25 +1021,65 @@ export const MetaCampaigns: React.FC = () => {
                                   aria-label={`Select ${row.campaign_name || cid}`}
                                 />
                               </td>
-                              <td className="table-cell table-sticky-first-column min-w-[300px] max-w-[400px] group-hover:bg-[#f9f9f6] py-3 px-4 text-left">
+                              <td className="table-cell table-sticky-first-column min-w-[300px] max-w-[400px] group-hover:bg-[#f9f9f6] py-3 px-4 text-left overflow-hidden">
                                 <Link
                                   to={`/brands/${accountId}/${channelId}/meta/campaigns/${row.campaign_id}`}
-                                  className="table-edit-link table-text leading-[1.26] text-[#072929]"
+                                  className="table-edit-link table-text leading-[1.26] text-[#072929] block truncate"
+                                  title={row.campaign_name || undefined}
                                 >
                                   {row.campaign_name || "—"}
                                 </Link>
                               </td>
                               <td className="table-cell py-3 px-4 text-left">
-                                <span className="table-text leading-[1.26] text-[#556179]">
-                                  {row.status ?? "—"}
-                                </span>
+                                <select
+                                  value={getStatusOption(row.status)}
+                                  onChange={(e) =>
+                                    handleInlineStatusChange(cid, e.target.value as "ACTIVE" | "PAUSED" | "ARCHIVED")
+                                  }
+                                  className={`edit-button google-table-dropdown min-w-0 ${statusSelectBg(row.status)}`}
+                                  style={{
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                                    backgroundPosition: "right 6px center",
+                                  }}
+                                  aria-label={`Status for ${row.campaign_name || cid}`}
+                                >
+                                  <option value="ACTIVE">Enabled</option>
+                                  <option value="PAUSED">Paused</option>
+                                  <option value="ARCHIVED">Archived</option>
+                                </select>
                               </td>
                               <td className="table-cell py-3 px-4">
-                                <span className="table-text leading-[1.26] text-[#072929]">
-                                  {row.daily_budget != null
-                                    ? formatCurrency(Number(row.daily_budget))
-                                    : "—"}
-                                </span>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={
+                                    inlineBudgetCampaignId === cid
+                                      ? inlineBudgetValue
+                                      : row.daily_budget != null
+                                        ? String(row.daily_budget)
+                                        : ""
+                                  }
+                                  onFocus={() => {
+                                    setInlineBudgetCampaignId(cid);
+                                    setInlineBudgetValue(
+                                      row.daily_budget != null ? String(row.daily_budget) : ""
+                                    );
+                                  }}
+                                  onChange={(e) => {
+                                    if (inlineBudgetCampaignId === cid) setInlineBudgetValue(e.target.value);
+                                  }}
+                                  onBlur={(e) => {
+                                    handleInlineBudgetBlur(cid, e.target.value);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.currentTarget.blur();
+                                    }
+                                  }}
+                                  placeholder="—"
+                                  className="inline-edit-input w-full min-w-[120px]"
+                                  aria-label={`Budget for ${row.campaign_name || cid}`}
+                                />
                               </td>
                               <td className="table-cell py-3 px-4 text-left">
                                 <span className="table-text leading-[1.26] text-[#556179]">
@@ -608,6 +1208,83 @@ export const MetaCampaigns: React.FC = () => {
                 )}
               </div>
             </div>
+                {/* Inline edit confirmation (same structure as bulk per BULK_INLINE_UPDATE_SPEC) */}
+                {inlineConfirm && (
+                  <div
+                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
+                    onClick={(e) => {
+                      if (e.target === e.currentTarget && !inlineConfirmLoading) setInlineConfirm(null);
+                    }}
+                  >
+                    <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                      <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                        {inlineConfirm.type === "status" ? "Confirm Status Changes" : "Confirm Budget Changes"}
+                      </h3>
+                      <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4 mb-4">
+                        <span className="text-[12.16px] text-[#556179]">
+                          1 campaign will be updated:{" "}
+                        </span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {inlineConfirm.type === "status" ? "Status" : "Budget"} change
+                        </span>
+                      </div>
+                      <div className="mb-6">
+                        <div className="border border-gray-200 rounded-lg overflow-hidden">
+                          <table className="w-full table-fixed">
+                            <thead className="bg-[#f5f5f0]">
+                              <tr>
+                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase w-[40%] max-w-[240px]">Campaign Name</th>
+                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">Old Value</th>
+                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">New Value</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr className="border-b border-gray-200">
+                                <td className="px-4 py-2 text-[10.64px] text-[#072929] truncate" title={inlineConfirm.row.campaign_name ?? undefined}>{inlineConfirm.row.campaign_name ?? "—"}</td>
+                                <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                  {inlineConfirm.type === "status"
+                                    ? normalizeStatusDisplay(inlineConfirm.row.status)
+                                    : inlineConfirm.row.daily_budget != null ? formatCurrency(Number(inlineConfirm.row.daily_budget)) : "—"}
+                                </td>
+                                <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                  {inlineConfirm.type === "status"
+                                    ? normalizeStatusDisplay(inlineConfirm.newStatus)
+                                    : formatCurrency(inlineConfirm.newBudget)}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={() => !inlineConfirmLoading && setInlineConfirm(null)}
+                          disabled={inlineConfirmLoading}
+                          className="cancel-button"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={runInlineConfirm}
+                          disabled={inlineConfirmLoading}
+                          className="create-entity-button btn-sm flex items-center gap-2"
+                        >
+                          {inlineConfirmLoading ? (
+                            <>
+                              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Applying...
+                            </>
+                          ) : (
+                            "Confirm"
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+            <EditSummaryModal />
           </div>
         </Assistant>
       </div>
