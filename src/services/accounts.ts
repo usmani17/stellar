@@ -511,6 +511,11 @@ export const accountsService = {
       status?: string;
       daily_budget?: number;
       action?: "delete";
+      budget_action?: "increase" | "decrease" | "set";
+      budget_unit?: "percent" | "amount";
+      budget_value?: number;
+      upper_limit?: number;
+      lower_limit?: number;
     }
   ): Promise<{
     updated: number;
@@ -584,6 +589,63 @@ export const accountsService = {
     const response = await api.post(
       `/meta/channels/${channelId}/adsets/`,
       params
+    );
+    return response.data;
+  },
+
+  getMetaAdSetsByIds: async (
+    channelId: number,
+    params: { adsetIds: string[] }
+  ): Promise<{
+    adsets: Array<{
+      id: number;
+      adset_id: number | string;
+      adset_name: string;
+      campaign_id?: number | string;
+      campaign_name?: string;
+      status?: string;
+      start_time?: string;
+      end_time?: string;
+      start_date?: string;
+      end_date?: string;
+      daily_budget?: string;
+    }>;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/adsets/by-ids/`,
+      params
+    );
+    return response.data;
+  },
+
+  bulkUpdateMetaAdSets: async (
+    channelId: number,
+    payload: {
+      adsetIds: string[];
+      status?: string;
+      daily_budget?: number;
+      action?: "delete";
+      budget_action?: "increase" | "decrease" | "set";
+      budget_unit?: "percent" | "amount";
+      budget_value?: number;
+      upper_limit?: number;
+      lower_limit?: number;
+    }
+  ): Promise<{
+    updated: number;
+    failed: number;
+    successes: Array<{
+      adsetId: string;
+      adsetName: string;
+      field: string;
+      oldValue: string;
+      newValue: string;
+    }>;
+    errors: Array<{ adsetId: string; error: string }>;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/adsets/bulk-update/`,
+      payload
     );
     return response.data;
   },

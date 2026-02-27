@@ -27,6 +27,7 @@ export function isMoneyField(field: string | undefined): boolean {
 export type EntityType =
   | "campaign"
   | "adGroup"
+  | "adSet"
   | "keyword"
   | "target"
   | "negativeKeyword"
@@ -41,6 +42,7 @@ export type EditAction = "updated" | "created" | "deleted" | "archived";
 const ENTITY_LABELS: Record<EntityType, string> = {
   campaign: "Campaign",
   adGroup: "Ad group",
+  adSet: "Ad set",
   keyword: "Keyword",
   target: "Target",
   negativeKeyword: "Negative keyword",
@@ -54,6 +56,7 @@ const ENTITY_LABELS: Record<EntityType, string> = {
 const ENTITY_LABELS_PLURAL: Record<EntityType, string> = {
   campaign: "Campaigns",
   adGroup: "Ad groups",
+  adSet: "Ad sets",
   keyword: "Keywords",
   target: "Targets",
   negativeKeyword: "Negative keywords",
