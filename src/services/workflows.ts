@@ -225,24 +225,7 @@ export const workflowsService = {
     const url = `${pixisBase}/workflow/execute?mode=${mode}`;
     const token = localStorage.getItem("accessToken");
 
-    if (mode === "run") {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: "include",
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error((err as { error?: string }).error || `Request failed: ${res.status}`);
-      }
-      return res.json();
-    }
-
-    // Preview: stream SSE, resolve with workflow_result
+    // Preview and run: stream SSE, resolve with workflow_result
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -256,6 +239,13 @@ export const workflowsService = {
       const err = await res.json().catch(() => ({ error: res.statusText }));
       throw new Error((err as { error?: string }).error || `Request failed: ${res.status}`);
     }
+
+    // Backend may return JSON for run mode (no streaming yet) or SSE for both
+    const contentType = res.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      return res.json() as Promise<WorkflowExecuteResponse>;
+    }
+
     const reader = res.body?.getReader();
     if (!reader) throw new Error("No response body");
     const decoder = new TextDecoder();

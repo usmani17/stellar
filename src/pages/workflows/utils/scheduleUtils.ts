@@ -411,6 +411,18 @@ export function computeNextRuns(
 
 // ── Schedule normalization (for forms) ───────────────────────────────────
 
+/** Round HH:mm to nearest 15 minutes. */
+function roundTimeTo15Min(timeStr: string): string {
+  const [hStr, mStr] = (timeStr || "09:00").split(":");
+  const h = parseInt(hStr, 10) || 0;
+  const m = parseInt(mStr || "0", 10) || 0;
+  const totalMins = h * 60 + m;
+  const rounded = Math.round(totalMins / 15) * 15;
+  const newH = Math.floor(rounded / 60) % 24;
+  const newM = rounded % 60;
+  return `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
+}
+
 /** Normalize a schedule from API so weekdays/monthDays are proper number arrays. */
 export function normalizeSchedule(schedule: ScheduleConfig): ScheduleConfig {
   const weekdays = toWeekdaysArray(schedule.weekdays);
@@ -418,7 +430,7 @@ export function normalizeSchedule(schedule: ScheduleConfig): ScheduleConfig {
   return {
     ...schedule,
     timezone: schedule.timezone || getCurrentTimezone(),
-    time: schedule.time || "09:00",
+    time: roundTimeTo15Min(schedule.time || "09:00"),
     weekdays: schedule.frequency === "weekly" ? weekdays : undefined,
     monthDays: schedule.frequency === "monthly" ? monthDays : undefined,
   };
@@ -431,7 +443,7 @@ export function normalizeSchedule(schedule: ScheduleConfig): ScheduleConfig {
 export function sanitizeScheduleForApi(schedule: ScheduleConfig): ScheduleConfig {
   const base: ScheduleConfig = {
     frequency: schedule.frequency,
-    time: schedule.time || "09:00",
+    time: roundTimeTo15Min(schedule.time || "09:00"),
     timezone: schedule.timezone || getCurrentTimezone(),
   };
   if (schedule.date) base.date = schedule.date;

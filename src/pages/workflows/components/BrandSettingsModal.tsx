@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ImageIcon, Loader2, Upload, Mail } from "lucide-react";
-import { BaseModal, Input, Alert } from "../../../components/ui";
+import { ImageIcon, Loader2, Upload, Mail, Check } from "lucide-react";
+import { BaseModal, Input } from "../../../components/ui";
 import { useAuth } from "../../../contexts/AuthContext";
 import {
   assetUploadService,
   type DeliveryAction,
 } from "../../../services/workflows";
 import { useBrandSettings } from "../hooks/useBrandSettings";
+import { cn } from "../../../lib/cn";
 
 const HEX_REGEX = /^#[0-9A-Fa-f]{6}$/;
 
@@ -33,7 +34,7 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
   );
   const [logoError, setLogoError] = useState(false);
   const [colorError, setColorError] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
+  const [saved, setSaved] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,7 +56,7 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
       );
       setLogoError(false);
       setColorError("");
-      setSuccessMsg("");
+      setSaved(false);
     }
   }, [settings, user?.email, isOpen]);
 
@@ -105,13 +106,10 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
         defaultDeliveryEmail: defaultDeliveryEmail.trim() || undefined,
         deliveryAction: payloadDeliveryAction,
       });
-      setSuccessMsg("Settings saved successfully");
-      setTimeout(() => {
-        setSuccessMsg("");
-        onClose();
-      }, 1200);
+      setSaved(true);
+      setTimeout(() => onClose(), 400);
     } catch {
-      setSuccessMsg("");
+      setSaved(false);
     }
   };
 
@@ -124,12 +122,6 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
         <p className="text-sm text-forest-f30 mb-5">
           Default logo, color, and delivery for PDF reports. Workflows can override these per workflow.
         </p>
-
-        {successMsg && (
-          <Alert variant="success" className="mb-4">
-            {successMsg}
-          </Alert>
-        )}
 
         <div className="space-y-6">
           {/* Logo: Upload or URL */}
@@ -267,10 +259,22 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
           <button
             onClick={handleSave}
             disabled={isUpdating || !!colorError || isLoading}
-            className="create-entity-button"
+            className={cn(
+              "create-entity-button transition-colors duration-200",
+              saved && "bg-forest-f40"
+            )}
           >
-            <span className="text-[10.64px] text-white font-normal">
-              {isUpdating ? "Saving..." : "Save Settings"}
+            <span className="text-[10.64px] text-white font-normal inline-flex items-center gap-1.5">
+              {isUpdating ? (
+                "Saving..."
+              ) : saved ? (
+                <>
+                  <Check className="w-3.5 h-3.5" aria-hidden />
+                  Saved
+                </>
+              ) : (
+                "Save Settings"
+              )}
             </span>
           </button>
         </div>

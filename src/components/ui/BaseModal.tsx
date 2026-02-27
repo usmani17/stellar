@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 export type ModalSize = "sm" | "md" | "lg" | "xl" | "2xl" | "4xl" | "full";
 
@@ -43,7 +43,26 @@ export const BaseModal: React.FC<BaseModalProps> = ({
   className,
   containerClassName,
 }) => {
-  if (!isOpen) return null;
+  const [isExiting, setIsExiting] = useState(false);
+  const prevOpenRef = useRef(isOpen);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsExiting(false);
+    } else if (prevOpenRef.current) {
+      setIsExiting(true);
+    }
+    prevOpenRef.current = isOpen;
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isExiting) return;
+    const id = setTimeout(() => setIsExiting(false), 150);
+    return () => clearTimeout(id);
+  }, [isExiting]);
+
+  const shouldRender = isOpen || isExiting;
+  if (!shouldRender) return null;
 
   const modalWidthClass = maxWidth || sizeClasses[size];
 
@@ -59,11 +78,15 @@ export const BaseModal: React.FC<BaseModalProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 ${backdropOpacity} flex items-center justify-center ${zIndex}`}
+      className={`fixed inset-0 ${backdropOpacity} flex items-center justify-center ${zIndex} transition-opacity duration-150 ${
+        isExiting ? "opacity-0" : "opacity-100"
+      }`}
       onClick={handleBackdropClick}
     >
       <div
-        className={`bg-white rounded-xl shadow-lg ${modalWidthClass} w-full mx-4 ${maxHeight} overflow-y-auto ${className || ""}`}
+        className={`bg-white rounded-xl shadow-lg ${modalWidthClass} w-full mx-4 ${maxHeight} overflow-y-auto transition-opacity duration-150 ${
+          isExiting ? "opacity-0" : "opacity-100"
+        } ${className || ""}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={containerClassName || padding}>{children}</div>

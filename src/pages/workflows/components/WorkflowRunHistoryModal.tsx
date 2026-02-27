@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { BaseModal } from "../../../components/ui";
 import {
   History,
@@ -15,6 +16,7 @@ import {
 import { cn } from "../../../lib/cn";
 import type { Workflow, WorkflowRun } from "../../../services/workflows";
 import { useWorkflowRuns } from "../hooks/useWorkflowRuns";
+import { queryKeys } from "../../../hooks/queries/queryKeys";
 import { useSessionHistory } from "../hooks/useSessionHistory";
 import { formatDateInTimezone } from "../utils/scheduleUtils";
 import { Loader } from "../../../components/ui";
@@ -233,12 +235,19 @@ export const WorkflowRunHistoryModal: React.FC<WorkflowRunHistoryModalProps> = (
   onClose,
   workflow,
 }) => {
+  const queryClient = useQueryClient();
   const { data: runs = [], isLoading } = useWorkflowRuns(
     workflow?.accountId,
     workflow?.id
   );
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    if (isOpen && workflow?.id) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.workflows.runs(workflow.id) });
+    }
+  }, [isOpen, workflow?.id, queryClient]);
 
   const totalPages = Math.max(1, Math.ceil(runs.length / RUNS_PER_PAGE));
   const paginatedRuns = useMemo(() => {

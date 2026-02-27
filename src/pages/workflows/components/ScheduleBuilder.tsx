@@ -21,6 +21,30 @@ const FREQUENCIES: { value: ScheduleConfig["frequency"]; label: string }[] = [
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+/** Round HH:mm to nearest 15 min for display when value isn't on a 15-min boundary. */
+function toNearest15(timeStr: string): string {
+  const [hStr, mStr] = (timeStr || "09:00").split(":");
+  const h = parseInt(hStr, 10) || 0;
+  const m = parseInt(mStr || "0", 10) || 0;
+  const totalMins = h * 60 + m;
+  const rounded = Math.round(totalMins / 15) * 15;
+  const newH = Math.floor(rounded / 60) % 24;
+  const newM = rounded % 60;
+  return `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
+}
+
+const TIME_OPTIONS: { value: string; label: string }[] = (() => {
+  const opts: { value: string; label: string }[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+      const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      opts.push({ value, label: `${hour12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}` });
+    }
+  }
+  return opts;
+})();
+
 export const ScheduleBuilder: React.FC<ScheduleBuilderProps> = ({
   value,
   onChange,
@@ -75,17 +99,22 @@ export const ScheduleBuilder: React.FC<ScheduleBuilderProps> = ({
         </div>
       </div>
 
-      {/* Time of day */}
+      {/* Time of day — 15-minute dropdown */}
       <div>
         <label className="block text-[13px] font-medium text-forest-f60 mb-1">
           Time
         </label>
-        <input
-          type="time"
-          value={value.time || "09:00"}
+        <select
+          value={toNearest15(value.time || "09:00")}
           onChange={(e) => onChange({ ...value, time: e.target.value })}
           className="campaign-input w-full"
-        />
+        >
+          {TIME_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Conditional fields */}

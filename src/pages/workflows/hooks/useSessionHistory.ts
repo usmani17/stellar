@@ -14,5 +14,6 @@ export const useSessionHistory = (sessionId: string | undefined, enabled: boolea
       return res.history;
     },
     enabled: !!sessionId && enabled,
+    refetchOnMount: "always",
   });
 };

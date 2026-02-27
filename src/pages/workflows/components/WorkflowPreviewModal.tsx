@@ -1,13 +1,15 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BaseModal, Alert } from "../../../components/ui";
-import { FileText, MessageSquare, X, Download, Loader2 } from "lucide-react";
+import { FileText, MessageSquare, X, Loader2, CheckCircle, Zap } from "lucide-react";
 import { StellarMarkDown } from "../../../components/ai/StellarMarkDown";
+import { ContentWithCharts } from "../../../components/ai/ContentWithCharts";
 import { workflowsService } from "../../../services/workflows";
 import type {
   WorkflowExecutePayload,
   WorkflowExecuteResponse,
 } from "../../../services/workflows";
+import { queryKeys } from "../../../hooks/queries/queryKeys";
 
 type TimelineItem =
   | { type: "thinking"; content: string }
@@ -27,17 +29,30 @@ function extractAssistantText(ev: Record<string, unknown>): string {
 }
 
 function getToolCallLabel(ev: Record<string, unknown>): string {
-  const tc = ev.tool_call as Record<string, unknown> | undefined;
-  if (!tc) return "Processing...";
-  if (tc.shellToolCall) return "Running analysis...";
-  if (tc.readToolCall) return "Reading data...";
-  if (tc.writeToolCall) return "Writing output...";
+  const tc = ev.tool_call as {
+    name?: string;
+    shellToolCall?: unknown;
+    readToolCall?: { args?: { path?: string } };
+    writeToolCall?: { args?: { path?: string } };
+  } | undefined;
+  if (typeof ev.label === "string") return ev.label;
+  if (typeof tc?.name === "string") return tc.name;
+  if (tc?.shellToolCall) return "Querying datasource...";
+  if (tc?.readToolCall) {
+    const p = tc.readToolCall?.args?.path ?? "";
+    return `Reading: ${p.split("/").pop() ?? "file"}`;
+  }
+  if (tc?.writeToolCall) {
+    const p = tc.writeToolCall?.args?.path ?? "";
+    return `Writing: ${p.split("/").pop() ?? "file"}`;
+  }
   return "Processing...";
 }
 
 interface WorkflowPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
+  mode: "preview" | "run";
   /** User's prompt for the workflow */
   prompt: string;
   format: "pdf" | "docx";
@@ -53,6 +68,7 @@ interface WorkflowPreviewModalProps {
 export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
   isOpen,
   onClose,
+  mode,
   prompt,
   format,
   integrationName = "All Channels",
@@ -61,9 +77,13 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
   executePayload,
   workflowId,
 }) => {
+  const queryClient = useQueryClient();
   const [result, setResult] = useState<WorkflowExecuteResponse | null>(null);
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+  const [runCompleted, setRunCompleted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const isRunMode = mode === "run";
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -100,32 +120,37 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
     }
   }, []);
 
-  const previewMutation = useMutation({
+  const executeMutation = useMutation({
     mutationFn: async () => {
       if (!accountId || !executePayload)
-        throw new Error("Account and payload required for preview");
+        throw new Error("Account and payload required for execution");
       setTimeline([{ type: "tool_call", label: "Starting..." }]);
       return workflowsService.executeWorkflow(
         accountId,
         { ...executePayload, workflowId: workflowId ?? undefined },
-        "preview",
+        mode,
         { onEvent: handleStreamEvent }
       );
     },
     onSuccess: (data) => {
       setResult(data);
+      if (mode === "run" && workflowId) {
+        setRunCompleted(true);
+        queryClient.invalidateQueries({ queryKey: queryKeys.workflows.runs(workflowId) });
+      }
     },
   });
 
   const canExecute = Boolean(accountId && executePayload);
-  const isExecuting = previewMutation.isPending;
+  const isExecuting = executeMutation.isPending;
   const lastError =
-    previewMutation.error instanceof Error ? previewMutation.error.message : null;
+    executeMutation.error instanceof Error ? executeMutation.error.message : null;
 
   const handleClose = () => {
     setResult(null);
     setTimeline([]);
-    previewMutation.reset();
+    setRunCompleted(false);
+    executeMutation.reset();
     onClose();
   };
 
@@ -144,7 +169,7 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-sandstorm-s40">
           <h2 className="text-lg font-agrandir font-medium text-forest-f60">
-            Workflow Preview
+            {isRunMode ? "Run Workflow" : "Workflow Preview"}
           </h2>
           <button
             onClick={handleClose}
@@ -157,10 +182,11 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
           {/* Intro text */}
-          {canExecute && !isExecuting && !result && (
+          {canExecute && !isExecuting && !result && !runCompleted && (
             <p className="text-sm text-forest-f30">
-              Generate a sample {format.toUpperCase()} report from your prompt
-              using the agent.
+              {isRunMode
+                ? `Run this workflow now. It may take up to 2 minutes to complete.`
+                : `Generate a sample ${format.toUpperCase()} report from your prompt using the agent.`}
             </p>
           )}
           {!canExecute && (
@@ -185,17 +211,41 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
             </div>
           </div>
 
-          {/* Generate Preview Report — primary CTA, centered */}
-          {canExecute && !result && (
+          {/* Primary CTA — Generate Preview or Run workflow */}
+          {canExecute && !result && !runCompleted && (
             <div className="flex justify-center">
               <button
-                onClick={() => previewMutation.mutate()}
+                onClick={() => executeMutation.mutate()}
                 disabled={isExecuting}
                 className="create-entity-button inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 text-sm font-medium"
               >
-                <FileText className="w-5 h-5" />
-                <span>Generate Preview Report</span>
+                {isRunMode ? (
+                  <>
+                    <Zap className="w-5 h-5" />
+                    <span>Run workflow</span>
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-5 h-5" />
+                    <span>Generate Preview Report</span>
+                  </>
+                )}
               </button>
+            </div>
+          )}
+
+          {/* Run completed message */}
+          {isRunMode && runCompleted && (
+            <div className="flex items-center gap-3 py-4 px-4 rounded-xl border border-forest-f40 bg-forest-f40/5">
+              <CheckCircle className="w-6 h-6 text-forest-f40 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-forest-f60">
+                  Workflow run completed
+                </p>
+                <p className="text-xs text-forest-f30 mt-0.5">
+                  Check Run History for results.
+                </p>
+              </div>
             </div>
           )}
 
@@ -227,7 +277,7 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
                     {item.type === "assistant" && (
                       <div className="max-w-full rounded-lg px-4 py-2.5 text-sm bg-white border border-sandstorm-s40 text-forest-f60">
                         <div className="[&_p]:mb-1 [&_p:last-child]:mb-0">
-                          <StellarMarkDown content={item.content} type="ai" />
+                          <ContentWithCharts content={item.content} type="ai" />
                         </div>
                       </div>
                     )}
@@ -247,47 +297,6 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
           )}
 
           {lastError && <Alert variant="error">{lastError}</Alert>}
-
-          {/* Report result — only when we have the report */}
-          {result?.url && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <FileText className="w-4 h-4 text-forest-f40" />
-              <h3 className="text-sm font-medium text-forest-f60">
-                Generated Report
-              </h3>
-            </div>
-            <div className="rounded-xl border border-sandstorm-s40 bg-sandstorm-s5 p-6 shadow-sm">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-14 rounded flex items-center justify-center shrink-0 bg-forest-f40/10">
-                  <span className="font-bold text-xs text-forest-f40">
-                    {format.toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-forest-f60">
-                    {result.title ||
-                      `${integrationName} — ${profileName} Report`}
-                  </p>
-                  <p className="text-xs text-forest-f30 mt-1">
-                    {result.generated_at
-                      ? `Generated ${new Date(result.generated_at).toLocaleString()}.`
-                      : "Your report is ready."}
-                  </p>
-                  <a
-                    href={result.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="create-entity-button inline-flex items-center gap-2 mt-3"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span className="text-[10.64px]">Download report</span>
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-          )}
         </div>
       </div>
     </BaseModal>

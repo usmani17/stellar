@@ -33,8 +33,6 @@ interface WorkflowsListProps {
   isDeleting: boolean;
   onTogglePause: (workflow: Workflow) => void;
   isUpdating: boolean;
-  onRunNow: (workflowId: number) => Promise<unknown>;
-  isRunning: boolean;
   onCreateNew: () => void;
 }
 
@@ -47,8 +45,6 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   isDeleting,
   onTogglePause,
   isUpdating,
-  onRunNow,
-  isRunning,
   onCreateNew,
 }) => {
   const { settings: brandSettings } = useBrandSettings(accountId);
@@ -56,8 +52,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   const [pauseTarget, setPauseTarget] = useState<Workflow | null>(null);
   const [historyWorkflow, setHistoryWorkflow] = useState<Workflow | null>(null);
   const [previewWorkflow, setPreviewWorkflow] = useState<Workflow | null>(null);
-  const [runningWorkflowId, setRunningWorkflowId] = useState<number | null>(null);
-  const runInProgressRef = useRef(false);
+  const [runWorkflow, setRunWorkflow] = useState<Workflow | null>(null);
   const [page, setPage] = useState(1);
 
   const WORKFLOWS_PER_PAGE = 10;
@@ -271,23 +266,12 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={async () => {
-                      if (runInProgressRef.current) return;
-                      runInProgressRef.current = true;
-                      setRunningWorkflowId(wf.id);
-                      try {
-                        await onRunNow(wf.id);
-                      } finally {
-                        runInProgressRef.current = false;
-                        setRunningWorkflowId(null);
-                      }
-                    }}
-                    disabled={!!runningWorkflowId}
+                    onClick={() => setRunWorkflow(wf)}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-medium bg-forest-f40 text-white hover:bg-forest-f50 transition-colors disabled:opacity-50"
                     title="Run Now"
                   >
                     <Zap className="w-4 h-4" />
-                    {isRunning && runningWorkflowId === wf.id ? "Running..." : "Run Now"}
+                    Run Now
                   </button>
                   <button
                     onClick={() => onEdit(wf)}
@@ -383,6 +367,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
       <WorkflowPreviewModal
         isOpen={!!previewWorkflow}
         onClose={() => setPreviewWorkflow(null)}
+        mode="preview"
         prompt={previewWorkflow?.prompt ?? ""}
         format={previewWorkflow?.format ?? "pdf"}
         integrationName={previewWorkflow?.channelName || "All Channels"}
@@ -407,6 +392,36 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
             : undefined
         }
         workflowId={previewWorkflow?.id ?? undefined}
+      />
+
+      <WorkflowPreviewModal
+        isOpen={!!runWorkflow}
+        onClose={() => setRunWorkflow(null)}
+        mode="run"
+        prompt={runWorkflow?.prompt ?? ""}
+        format={runWorkflow?.format ?? "pdf"}
+        integrationName={runWorkflow?.channelName || "All Channels"}
+        profileName={runWorkflow?.profileName || "All Profiles"}
+        accountId={runWorkflow ? accountId : undefined}
+        executePayload={
+          runWorkflow
+            ? {
+                accountId: runWorkflow.accountId,
+                channelId: runWorkflow.channelId ?? undefined,
+                profileId: runWorkflow.profileId ?? undefined,
+                accountName: runWorkflow.accountName,
+                channelName: runWorkflow.channelName,
+                profileName: runWorkflow.profileName,
+                prompt: runWorkflow.prompt,
+                format: runWorkflow.format,
+                workflowId: runWorkflow.id,
+                workflowName: runWorkflow.name,
+                logoUrl: brandSettings?.logoUrl || undefined,
+                primaryColor: brandSettings?.primaryColor || undefined,
+              }
+            : undefined
+        }
+        workflowId={runWorkflow?.id ?? undefined}
       />
     </>
   );

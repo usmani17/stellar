@@ -612,7 +612,8 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
           <button
             type="button"
             onClick={() => setPreviewOpen(true)}
-            className="edit-button flex items-center gap-2"
+            disabled={!prompt.trim()}
+            className="edit-button flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Eye className="w-4 h-4 text-[#072929]" />
             <span className="text-[10.64px] text-[#072929] font-normal">
@@ -641,6 +642,7 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
       <WorkflowPreviewModal
         isOpen={previewOpen}
         onClose={() => setPreviewOpen(false)}
+        mode="preview"
         prompt={prompt.trim() || "Generate a performance report..."}
         format={format}
         integrationName={selectedChannel?.channel_name}
