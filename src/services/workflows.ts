@@ -225,11 +225,13 @@ export const workflowsService = {
     const url = `${pixisBase}/workflow/execute?mode=${mode}`;
     const token = localStorage.getItem("accessToken");
 
-    // Preview and run: stream SSE, resolve with workflow_result
+    // Preview and run: stream SSE, resolve with workflow_result.
+    // Accept: text/event-stream asks agent to stream (same as preview) so frontend receives events.
     const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: "text/event-stream",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       credentials: "include",
@@ -240,7 +242,9 @@ export const workflowsService = {
       throw new Error((err as { error?: string }).error || `Request failed: ${res.status}`);
     }
 
-    // Backend may return JSON for run mode (no streaming yet) or SSE for both
+    // If agent returns application/json (run mode), we take JSON path and onEvent is never called.
+    // For frontend to receive stream events, the Pixis agent must return text/event-stream for run mode
+    // (same as preview) and emit SSE events: data: {"type":"thinking",...}, data: {"type":"tool_call",...}, etc.
     const contentType = res.headers.get("content-type") ?? "";
     if (contentType.includes("application/json")) {
       return res.json() as Promise<WorkflowExecuteResponse>;

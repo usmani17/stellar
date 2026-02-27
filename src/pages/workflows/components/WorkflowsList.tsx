@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Pencil,
   Trash2,
@@ -56,11 +56,15 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   const [page, setPage] = useState(1);
 
   const WORKFLOWS_PER_PAGE = 10;
-  const totalPages = Math.max(1, Math.ceil(workflows.length / WORKFLOWS_PER_PAGE));
+  const sortedWorkflows = useMemo(
+    () => [...workflows].sort((a, b) => (a.status === "active" && b.status === "paused" ? -1 : a.status === "paused" && b.status === "active" ? 1 : 0)),
+    [workflows]
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedWorkflows.length / WORKFLOWS_PER_PAGE));
   const paginatedWorkflows = useMemo(() => {
     const start = (page - 1) * WORKFLOWS_PER_PAGE;
-    return workflows.slice(start, start + WORKFLOWS_PER_PAGE);
-  }, [workflows, page]);
+    return sortedWorkflows.slice(start, start + WORKFLOWS_PER_PAGE);
+  }, [sortedWorkflows, page]);
 
   useEffect(() => {
     if (page > totalPages && totalPages > 0) setPage(totalPages);
@@ -137,10 +141,11 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
             <div
               key={wf.id}
               className={cn(
-                "rounded-xl border border-sandstorm-s40 p-0 min-w-0 w-full overflow-hidden",
+                "rounded-xl border p-0 min-w-0 w-full overflow-hidden",
                 "bg-white transition-all duration-200 shadow-sm hover:shadow-md",
-                "border-l-4",
-                wf.status === "active" ? "border-l-forest-f40" : "border-l-sandstorm-s60"
+                wf.status === "active"
+                  ? "border border-sandstorm-s40 border-l-[5px] border-l-forest-f40"
+                  : "border border-yellow-y10/40 border-l-4 border-l-yellow-y10"
               )}
             >
               {/* Header: Name + status badges */}
@@ -157,13 +162,13 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                       "inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium",
                       wf.status === "active"
                         ? "bg-forest-f40/10 text-forest-f40"
-                        : "bg-sandstorm-s20 text-forest-f30"
+                        : "bg-yellow-y50 text-yellow-y10"
                     )}
                   >
                     <span
                       className={cn(
                         "w-1.5 h-1.5 rounded-full shrink-0",
-                        wf.status === "active" ? "bg-forest-f40" : "bg-forest-f30"
+                        wf.status === "active" ? "bg-forest-f40" : "bg-yellow-y10"
                       )}
                     />
                     {wf.status === "active" ? "Active" : "Paused"}
@@ -233,6 +238,25 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                 )}
               </div>
 
+              {/* Paused banner - lower in card, prominent CTA */}
+              {wf.status === "paused" && (
+                <div className="flex items-center justify-between gap-3 mx-4 sm:mx-5 mb-4 py-3 px-4 rounded-lg bg-yellow-y50 border border-yellow-y10/60">
+                  <div className="flex items-center gap-2 text-forest-f60">
+                    <Pause className="w-4 h-4 text-yellow-y10 shrink-0" />
+                    <span className="text-sm font-medium">Paused — not running on schedule</span>
+                  </div>
+                  <button
+                    onClick={() => onTogglePause(wf)}
+                    disabled={isUpdating}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-forest-f40 text-white hover:bg-forest-f50 transition-colors disabled:opacity-50 shrink-0"
+                    title="Resume"
+                  >
+                    <Play className="w-4 h-4" />
+                    Resume
+                  </button>
+                </div>
+              )}
+
               {/* Actions: left = Preview, History, Pause, More | right = Run Now, Edit, Delete */}
               <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-4 sm:px-5 sm:pb-5 pt-2 border-t border-sandstorm-s40">
                 <div className="flex items-center gap-1">
@@ -289,17 +313,6 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                     <Trash2 className="w-4 h-4" />
                     Delete
                   </button>
-                  {wf.status === "paused" && (
-                    <button
-                      onClick={() => onTogglePause(wf)}
-                      disabled={isUpdating}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-medium border border-sandstorm-s60 bg-white text-forest-f60 hover:bg-sandstorm-s10 transition-colors disabled:opacity-50"
-                      title="Resume"
-                    >
-                      <Play className="w-4 h-4" />
-                      Resume
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
