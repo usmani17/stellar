@@ -207,8 +207,9 @@ export const workflowsService = {
   },
 
   /**
-   * Execute workflow (preview or run). Calls Pixis API (VITE_AI_AGENT_BASE_URL).
-   * Preview: streams SSE events, ends with workflow_result. Run: returns final JSON only.
+   * Execute workflow (preview or run).
+   * Preview: calls agent directly, streams SSE, no history.
+   * Run: calls backend run-stream (streams SSE + records history on finish).
    */
   executeWorkflow: async (
     accountId: number,
@@ -219,21 +220,23 @@ export const workflowsService = {
     if (payload.accountId !== accountId) {
       throw new Error("Payload accountId must match accountId");
     }
-    const pixisBase =
-      (import.meta.env.VITE_AI_AGENT_BASE_URL || "").replace(/\/$/, "") ||
-      "http://localhost:8001";
-    const url = `${pixisBase}/workflow/execute?mode=${mode}`;
     const token = localStorage.getItem("accessToken");
+    const apiBase = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api").replace(/\/$/, "");
+    // Run: backend proxies agent stream and records workflow run history
+    const url =
+      mode === "run" && payload.workflowId
+        ? `${apiBase}${workflowsPath(accountId)}/${payload.workflowId}/run-stream/`
+        : `${(import.meta.env.VITE_AI_AGENT_BASE_URL || "http://localhost:8001").replace(/\/$/, "")}/workflow/execute?mode=preview`;
 
-    // Preview and run: stream SSE, resolve with workflow_result.
-    // Accept: text/event-stream asks agent to stream (same as preview) so frontend receives events.
+    // Preview: Accept text/event-stream asks agent to stream. Run: omit Accept for backend (DRF rejects it).
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+    if (mode === "preview") headers.Accept = "text/event-stream";
     const res = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "text/event-stream",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers,
       credentials: "include",
       body: JSON.stringify(payload),
     });
@@ -242,9 +245,6 @@ export const workflowsService = {
       throw new Error((err as { error?: string }).error || `Request failed: ${res.status}`);
     }
 
-    // If agent returns application/json (run mode), we take JSON path and onEvent is never called.
-    // For frontend to receive stream events, the Pixis agent must return text/event-stream for run mode
-    // (same as preview) and emit SSE events: data: {"type":"thinking",...}, data: {"type":"tool_call",...}, etc.
     const contentType = res.headers.get("content-type") ?? "";
     if (contentType.includes("application/json")) {
       return res.json() as Promise<WorkflowExecuteResponse>;

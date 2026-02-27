@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Pencil,
   Trash2,
@@ -23,6 +24,7 @@ import { cn } from "../../../lib/cn";
 import type { Workflow } from "../../../services/workflows";
 import { formatSchedule, computeNextRuns } from "../utils/scheduleUtils";
 import { useBrandSettings } from "../hooks/useBrandSettings";
+import { queryKeys } from "../../../hooks/queries/queryKeys";
 
 interface WorkflowsListProps {
   accountId: number | undefined;
@@ -47,6 +49,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   isUpdating,
   onCreateNew,
 }) => {
+  const queryClient = useQueryClient();
   const { settings: brandSettings } = useBrandSettings(accountId);
   const [deleteTarget, setDeleteTarget] = useState<Workflow | null>(null);
   const [pauseTarget, setPauseTarget] = useState<Workflow | null>(null);
@@ -269,7 +272,12 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                     Preview
                   </button>
                   <button
-                    onClick={() => setHistoryWorkflow(wf)}
+                    onClick={() => {
+                      queryClient.refetchQueries({
+                        queryKey: queryKeys.workflows.runs(wf.id),
+                      });
+                      setHistoryWorkflow(wf);
+                    }}
                     className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors"
                     title="History"
                   >
