@@ -268,6 +268,8 @@ export const WorkflowRunHistoryModal: React.FC<WorkflowRunHistoryModalProps> = (
 
   if (!isOpen) return null;
 
+  const showPagination = runs.length > RUNS_PER_PAGE;
+
   return (
     <BaseModal
       isOpen={isOpen}
@@ -279,8 +281,9 @@ export const WorkflowRunHistoryModal: React.FC<WorkflowRunHistoryModalProps> = (
       padding="p-0"
       containerClassName=""
     >
-      <div className="flex flex-col">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-sandstorm-s40">
+      <div className="flex flex-col h-full max-h-[85vh]">
+        {/* Fixed Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-sandstorm-s40 shrink-0 bg-white">
           <div className="min-w-0">
             <h2 className="text-base font-agrandir font-medium text-forest-f60">
               Run History
@@ -300,7 +303,8 @@ export const WorkflowRunHistoryModal: React.FC<WorkflowRunHistoryModalProps> = (
           </button>
         </div>
 
-        <div className="p-4">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader size="md" />
@@ -316,7 +320,6 @@ export const WorkflowRunHistoryModal: React.FC<WorkflowRunHistoryModalProps> = (
               </div>
             </div>
           ) : (
-            <>
             <ul className="space-y-2">
               {paginatedRuns.map((run) => {
                 const config = statusConfig[run.status];
@@ -384,33 +387,33 @@ export const WorkflowRunHistoryModal: React.FC<WorkflowRunHistoryModalProps> = (
                 );
               })}
             </ul>
-
-            {runs.length > RUNS_PER_PAGE && (
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-sandstorm-s40">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-forest-f60 hover:bg-sandstorm-s10 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </button>
-                <span className="text-sm text-forest-f30">
-                  Page {page} of {totalPages}
-                </span>
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-forest-f60 hover:bg-sandstorm-s10 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-            </>
           )}
         </div>
+
+        {/* Fixed Footer/Pagination */}
+        {showPagination && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-sandstorm-s40 shrink-0 bg-white">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-forest-f60 hover:bg-sandstorm-s10 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </button>
+            <span className="text-sm text-forest-f30">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-forest-f60 hover:bg-sandstorm-s10 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
     </BaseModal>
   );
