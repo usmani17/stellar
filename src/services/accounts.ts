@@ -428,6 +428,376 @@ export const accountsService = {
     return response.data;
   },
 
+  getMetaCampaigns: async (
+    channelId: number,
+    params: {
+      filters?: Array<{ field: string; value: unknown }>;
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+    }
+  ): Promise<{
+    campaigns: Array<{
+      id: number;
+      campaign_id: string;
+      campaign_name: string;
+      status?: string;
+      start_date?: string;
+      end_date?: string;
+      daily_budget?: number;
+      impressions?: number;
+      clicks?: number;
+      spends?: number;
+      sales?: number;
+      acos?: number;
+      roas?: number;
+    }>;
+    summary: {
+      total_campaigns: number;
+      total_spends: number;
+      total_sales: number;
+      total_impressions: number;
+      total_clicks: number;
+      avg_acos: number;
+      avg_roas: number;
+    };
+    chart_data?: Array<{
+      date: string;
+      spend: number;
+      sales: number;
+      impressions?: number;
+      clicks?: number;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/campaigns/`,
+      params
+    );
+    return response.data;
+  },
+
+  getMetaCampaignsByIds: async (
+    channelId: number,
+    params: { campaignIds: string[] }
+  ): Promise<{
+    campaigns: Array<{
+      id?: number;
+      campaign_id: string;
+      campaign_name: string;
+      status?: string;
+      start_time?: string;
+      stop_time?: string;
+      daily_budget?: string | number;
+    }>;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/campaigns/by-ids/`,
+      params
+    );
+    return response.data;
+  },
+
+  bulkUpdateMetaCampaigns: async (
+    channelId: number,
+    payload: {
+      campaignIds: string[];
+      status?: string;
+      daily_budget?: number;
+      action?: "delete";
+      budget_action?: "increase" | "decrease" | "set";
+      budget_unit?: "percent" | "amount";
+      budget_value?: number;
+      upper_limit?: number;
+      lower_limit?: number;
+    }
+  ): Promise<{
+    updated: number;
+    failed: number;
+    successes: Array<{
+      campaignId: string;
+      campaignName: string;
+      field: string;
+      oldValue: string;
+      newValue: string;
+    }>;
+    errors: Array<{ campaignId: string; error: string }>;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/campaigns/bulk-update/`,
+      payload
+    );
+    return response.data;
+  },
+
+  getMetaAdSets: async (
+    channelId: number,
+    params: {
+      filters?: Array<{ field: string; value: unknown }>;
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+    }
+  ): Promise<{
+    adsets: Array<{
+      id: number;
+      adset_id: number | string;
+      adset_name: string;
+      campaign_id?: number | string;
+      campaign_name?: string;
+      status?: string;
+      start_time?: string;
+      end_time?: string;
+      daily_budget?: string;
+      impressions?: number;
+      clicks?: number;
+      spends?: number;
+      sales?: number;
+      acos?: number;
+      roas?: number;
+    }>;
+    summary: {
+      total_adsets: number;
+      total_spends: number;
+      total_sales: number;
+      total_impressions: number;
+      total_clicks: number;
+      avg_acos: number;
+      avg_roas: number;
+    };
+    chart_data?: Array<{
+      date: string;
+      spend: number;
+      sales: number;
+      impressions?: number;
+      clicks?: number;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/adsets/`,
+      params
+    );
+    return response.data;
+  },
+
+  getMetaAdSetsByIds: async (
+    channelId: number,
+    params: { adsetIds: string[] }
+  ): Promise<{
+    adsets: Array<{
+      id: number;
+      adset_id: number | string;
+      adset_name: string;
+      campaign_id?: number | string;
+      campaign_name?: string;
+      status?: string;
+      start_time?: string;
+      end_time?: string;
+      start_date?: string;
+      end_date?: string;
+      daily_budget?: string;
+    }>;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/adsets/by-ids/`,
+      params
+    );
+    return response.data;
+  },
+
+  bulkUpdateMetaAdSets: async (
+    channelId: number,
+    payload: {
+      adsetIds: string[];
+      status?: string;
+      daily_budget?: number;
+      action?: "delete";
+      budget_action?: "increase" | "decrease" | "set";
+      budget_unit?: "percent" | "amount";
+      budget_value?: number;
+      upper_limit?: number;
+      lower_limit?: number;
+    }
+  ): Promise<{
+    updated: number;
+    failed: number;
+    successes: Array<{
+      adsetId: string;
+      adsetName: string;
+      field: string;
+      oldValue: string;
+      newValue: string;
+    }>;
+    errors: Array<{ adsetId: string; error: string }>;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/adsets/bulk-update/`,
+      payload
+    );
+    return response.data;
+  },
+
+  getMetaAds: async (
+    channelId: number,
+    params: {
+      filters?: Array<{ field: string; value: unknown }>;
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+    }
+  ): Promise<{
+    ads: Array<{
+      id: number;
+      ad_id: number | string;
+      ad_name: string;
+      campaign_id?: number | string;
+      campaign_name?: string;
+      adset_id?: number | string;
+      adset_name?: string;
+      status?: string;
+      created_time?: string;
+      impressions?: number;
+      clicks?: number;
+      spends?: number;
+      sales?: number;
+      acos?: number;
+      roas?: number;
+    }>;
+    summary: {
+      total_ads: number;
+      total_spends: number;
+      total_sales: number;
+      total_impressions: number;
+      total_clicks: number;
+      avg_acos: number;
+      avg_roas: number;
+    };
+    chart_data?: Array<{
+      date: string;
+      spend: number;
+      sales: number;
+      impressions?: number;
+      clicks?: number;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/ads/`,
+      params
+    );
+    return response.data;
+  },
+
+  getMetaCampaignDetail: async (
+    channelId: number,
+    campaignId: string,
+    params?: { start_date?: string; end_date?: string }
+  ): Promise<{
+    campaign: {
+      id: number;
+      campaign_id: string;
+      campaign_name: string;
+      status?: string;
+      start_time?: string;
+      stop_time?: string;
+      daily_budget?: string;
+      impressions?: number;
+      clicks?: number;
+      spends?: number;
+      sales?: number;
+      acos?: number;
+      roas?: number;
+    };
+    chart_data: Array<{
+      date: string;
+      spend: number;
+      sales: number;
+      impressions?: number;
+      clicks?: number;
+    }>;
+    kpi_cards: Array<{
+      label: string;
+      value: string;
+      change?: string | null;
+      isPositive?: boolean | null;
+    }>;
+  }> => {
+    const response = await api.get(
+      `/meta/channels/${channelId}/campaigns/${encodeURIComponent(campaignId)}/`,
+      { params: params || {} }
+    );
+    return response.data;
+  },
+
+  getMetaCreatives: async (
+    channelId: number,
+    params: {
+      filters?: Array<{ field: string; operator?: string; value: unknown }>;
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+    }
+  ): Promise<{
+    creatives: Array<{
+      id: number;
+      creative_id: string | number;
+      creative_name: string;
+      campaign_id?: string | number;
+      campaign_name?: string;
+      ad_id?: string | number;
+      ad_name?: string;
+      status?: string;
+      impressions?: number;
+      clicks?: number;
+      spends?: number;
+      sales?: number;
+      acos?: number;
+      roas?: number;
+    }>;
+    summary: {
+      total_creatives: number;
+      total_spends: number;
+      total_sales: number;
+      total_impressions: number;
+      total_clicks: number;
+      avg_acos: number;
+      avg_roas: number;
+    };
+    chart_data?: Array<{ date: string; spend: number; sales: number; impressions?: number; clicks?: number }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/creatives/`,
+      params
+    );
+    return response.data;
+  },
+
   // Amazon Portfolios (per account, optionally filtered by profileId)
   getPortfolios: async (
     accountId: number,
