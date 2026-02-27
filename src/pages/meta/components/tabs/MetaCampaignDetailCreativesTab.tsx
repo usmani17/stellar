@@ -20,6 +20,8 @@ interface MetaCampaignDetailCreativesTabProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  createButton?: React.ReactNode;
+  createPanel?: React.ReactNode;
 }
 
 export const MetaCampaignDetailCreativesTab: React.FC<MetaCampaignDetailCreativesTabProps> = ({
@@ -34,12 +36,25 @@ export const MetaCampaignDetailCreativesTab: React.FC<MetaCampaignDetailCreative
   currentPage,
   totalPages,
   onPageChange,
+  createButton,
+  createPanel,
 }) => {
   const allSelected = creatives.length > 0 && creatives.every((c) => selectedIds.has(c.creative_id ?? c.id));
   const someSelected = selectedIds.size > 0;
 
   return (
     <div className="relative">
+      {(createButton != null || createPanel != null) && (
+        <>
+          <div className="flex items-center justify-between mb-4">
+            <div />
+            <div className="flex items-center gap-2">
+              {createButton}
+            </div>
+          </div>
+          {createPanel}
+        </>
+      )}
       <div className="overflow-x-auto w-full">
         <table className="min-w-[1000px] w-full">
           <thead>

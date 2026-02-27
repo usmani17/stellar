@@ -17,6 +17,8 @@ import {
 } from "../../components/filters/DynamicFilterPanel";
 import { useEditSummaryModal } from "../../hooks/useEditSummaryModal";
 import { normalizeStatusDisplay } from "../../utils/statusHelpers";
+import { CreateMetaCampaignPanel } from "../../components/meta/CreateMetaCampaignPanel";
+import { EditMetaCampaignPanel } from "../../components/meta/EditMetaCampaignPanel";
 
 export interface MetaCampaignRow {
   id: number;
@@ -89,6 +91,9 @@ export const MetaCampaigns: React.FC = () => {
   const [inlineConfirm, setInlineConfirm] = useState<InlineConfirm | null>(null);
   const [inlineConfirmLoading, setInlineConfirmLoading] = useState(false);
   const bulkDropdownRef = useRef<HTMLDivElement>(null);
+  const [showCreateCampaignPanel, setShowCreateCampaignPanel] = useState(false);
+  type EditingCampaign = { campaignId: string; name: string; status?: string; dailyBudget?: number } | null;
+  const [editingCampaign, setEditingCampaign] = useState<EditingCampaign>(null);
 
   const { showEditSummary, EditSummaryModal } = useEditSummaryModal();
   const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
@@ -513,6 +518,17 @@ export const MetaCampaigns: React.FC = () => {
                 </h1>
                 <div className="flex items-center gap-2">
                   <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateCampaignPanel(true);
+                      setIsFilterPanelOpen(false);
+                    }}
+                    className="create-entity-button btn-sm"
+                  >
+                    Create campaign
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                     className="edit-button"
                   >
@@ -562,6 +578,28 @@ export const MetaCampaigns: React.FC = () => {
                   accountId={accountId ?? ""}
                   marketplace="meta"
                   entityType="campaigns"
+                />
+              )}
+
+              {/* Create Campaign Panel */}
+              {showCreateCampaignPanel && channelIdNum !== undefined && (
+                <CreateMetaCampaignPanel
+                  channelId={channelIdNum}
+                  onSuccess={loadCampaigns}
+                  onClose={() => setShowCreateCampaignPanel(false)}
+                />
+              )}
+
+              {/* Edit Campaign Panel */}
+              {editingCampaign && channelIdNum !== undefined && (
+                <EditMetaCampaignPanel
+                  channelId={channelIdNum}
+                  campaignId={editingCampaign.campaignId}
+                  initialName={editingCampaign.name}
+                  initialStatus={editingCampaign.status}
+                  initialDailyBudget={editingCampaign.dailyBudget}
+                  onSuccess={loadCampaigns}
+                  onClose={() => setEditingCampaign(null)}
                 />
               )}
 
@@ -1022,13 +1060,30 @@ export const MetaCampaigns: React.FC = () => {
                                 />
                               </td>
                               <td className="table-cell table-sticky-first-column min-w-[300px] max-w-[400px] group-hover:bg-[#f9f9f6] py-3 px-4 text-left overflow-hidden">
-                                <Link
-                                  to={`/brands/${accountId}/${channelId}/meta/campaigns/${row.campaign_id}`}
-                                  className="table-edit-link table-text leading-[1.26] text-[#072929] block truncate"
-                                  title={row.campaign_name || undefined}
-                                >
-                                  {row.campaign_name || "—"}
-                                </Link>
+                                <div className="flex items-center gap-2">
+                                  <Link
+                                    to={`/brands/${accountId}/${channelId}/meta/campaigns/${row.campaign_id}`}
+                                    className="table-edit-link table-text leading-[1.26] text-[#072929] block truncate flex-1 min-w-0"
+                                    title={row.campaign_name || undefined}
+                                  >
+                                    {row.campaign_name || "—"}
+                                  </Link>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      setEditingCampaign({
+                                        campaignId: cid,
+                                        name: row.campaign_name || "",
+                                        status: row.status,
+                                        dailyBudget: row.daily_budget != null ? Number(row.daily_budget) : undefined,
+                                      });
+                                    }}
+                                    className="text-[10.64px] text-[#136D6D] hover:underline shrink-0"
+                                  >
+                                    Edit
+                                  </button>
+                                </div>
                               </td>
                               <td className="table-cell py-3 px-4 text-left">
                                 <select
