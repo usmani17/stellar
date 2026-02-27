@@ -257,18 +257,20 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         if (v.startsWith("/") && !isExactCommand) {
             const afterSlash = v.slice(1).toLowerCase();
             if (afterSlash === "" || SLASH_COMMANDS.some((c) => c.cmd.slice(1).startsWith(afterSlash))) {
-                setIsSlashDropdownOpen(true);
-                setSlashSelectedIndex(0);
+                queueMicrotask(() => {
+                    setIsSlashDropdownOpen(true);
+                    setSlashSelectedIndex(0);
+                });
                 return;
             }
         }
-        setIsSlashDropdownOpen(false);
+        queueMicrotask(() => setIsSlashDropdownOpen(false));
     }, [editableContent, isExactCommand]);
 
     // Keep selected index in range when filter narrows
     useEffect(() => {
         if (isSlashDropdownOpen && filteredSlashCommands.length > 0 && slashSelectedIndex >= filteredSlashCommands.length) {
-            setSlashSelectedIndex(filteredSlashCommands.length - 1);
+            queueMicrotask(() => setSlashSelectedIndex(filteredSlashCommands.length - 1));
         }
     }, [isSlashDropdownOpen, filteredSlashCommands.length, slashSelectedIndex]);
 
@@ -1220,7 +1222,14 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                     if (timeline.length === 0 && aiStreaming) {
                                                         segments.unshift({ type: "activity", items: [] });
                                                     }
-                                                    return segments.map((seg, si) => {
+                                                    // Only show the last text segment — earlier ones are superseded by streaming
+                                                    // (tool_call interleaving causes multiple text blocks with overlapping content)
+                                                    const textSegs = segments.filter((s): s is Extract<typeof s, { type: "text" }> => s.type === "text");
+                                                    const lastTextIdx = textSegs.length > 1 ? segments.lastIndexOf(textSegs[textSegs.length - 1]) : -1;
+                                                    const segmentsToRender = lastTextIdx >= 0 && textSegs.length > 1
+                                                        ? segments.filter((s, i) => s.type !== "text" || i === lastTextIdx)
+                                                        : segments;
+                                                    return segmentsToRender.map((seg, si) => {
                                                         if (seg.type === "activity") {
                                                             const showBlock = seg.items.length > 0 || (timeline.length === 0 && aiStreaming);
                                                             if (!showBlock) return null;
