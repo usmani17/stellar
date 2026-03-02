@@ -19,6 +19,7 @@ export const WorkflowsPage: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | undefined>();
+  const [updatingWorkflowId, setUpdatingWorkflowId] = useState<number | null>(null);
 
   const {
     workflows,
@@ -45,12 +46,17 @@ export const WorkflowsPage: React.FC = () => {
   };
 
   const handleTogglePause = async (workflow: Workflow) => {
-    await updateWorkflow({
-      id: workflow.id,
-      payload: {
-        status: workflow.status === "active" ? "paused" : "active",
-      },
-    });
+    setUpdatingWorkflowId(workflow.id);
+    try {
+      await updateWorkflow({
+        id: workflow.id,
+        payload: {
+          status: workflow.status === "active" ? "paused" : "active",
+        },
+      });
+    } finally {
+      setUpdatingWorkflowId(null);
+    }
   };
 
   return (
@@ -98,6 +104,7 @@ export const WorkflowsPage: React.FC = () => {
             isDeleting={isDeleting}
             onTogglePause={handleTogglePause}
             isUpdating={isUpdating}
+            updatingWorkflowId={updatingWorkflowId}
             onCreateNew={() => setPanelOpen(true)}
           />
 
