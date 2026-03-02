@@ -236,11 +236,7 @@ export const Radio: React.FC<RadioProps> = ({
               border-forest-f50
               border-solid
               rounded-[20px]
-              ${
-                size === "small"
-                  ? "left-[5px] top-[5px]"
-                  : "left-1/2 top-1/2 translate-x-[-50%] translate-y-[-50%]"
-              }
+              left-1/2 top-1/2 translate-x-[-50%] translate-y-[-50%]
               ${sizeConfig.focusRing}
             `}
             />
@@ -268,11 +264,7 @@ export const Radio: React.FC<RadioProps> = ({
                 border-forest-f50
                 border-solid
                 rounded-[20px]
-                ${
-                  size === "small"
-                    ? "bottom-[5px] left-1/2 top-[5px] translate-x-[-50%]"
-                    : "bottom-[5px] left-1/2 top-[5px] translate-x-[-50%]"
-                }
+                left-1/2 top-1/2 translate-x-[-50%] translate-y-[-50%]
                 ${sizeConfig.focusRing}
               `}
             />
@@ -326,15 +318,14 @@ export const Radio: React.FC<RadioProps> = ({
               flex
               items-center
               justify-start
+              font-gtAmerica ${getTextColorClass()}
             `}
-            className={`font-gtAmerica ${getTextColorClass()}`}
           >
             {label}
           </div>
           {required && (
             <span
-              className="text-[#ae2a19] text-[12px] leading-[16px] font-semibold ml-1"
-              className="font-sans"
+              className="text-[#ae2a19] text-[12px] leading-[16px] font-semibold ml-1 font-sans"
             >
               *
             </span>
