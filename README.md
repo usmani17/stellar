@@ -21,7 +21,7 @@ VITE_AMAZON_CALLBACK_URL=http://localhost:5173/amazon-oauth-callback
 VITE_AI_AGENT_BASE_URL=http://localhost:8000
 ```
 
-- `VITE_AI_AGENT_BASE_URL`: AI agent API (Pixis Analyze: sessions, POST /chat; or LangGraph: threads, assistants, stream). Single URL for all AI agent endpoints.
+- `VITE_AI_AGENT_BASE_URL`: AI agent API (Pixis: POST /chat, POST /workflow/execute, sessions). Set to where Pixis runs (e.g. `http://localhost:8001` if Pixis is on a different port than stellar).
 
 4. Run the development server:
 ```bash

@@ -19,6 +19,7 @@ import { useEditSummaryModal } from "../../hooks/useEditSummaryModal";
 import { normalizeStatusDisplay } from "../../utils/statusHelpers";
 import { CreateMetaCampaignPanel } from "../../components/meta/CreateMetaCampaignPanel";
 import { EditMetaCampaignPanel } from "../../components/meta/EditMetaCampaignPanel";
+import { Dropdown } from "../../components/ui/Dropdown";
 
 export interface MetaCampaignRow {
   id: number;
@@ -78,7 +79,11 @@ export const MetaCampaigns: React.FC = () => {
   const [pendingStatusAction, setPendingStatusAction] = useState<"ACTIVE" | "PAUSED" | "ARCHIVED" | null>(null);
   const [showBudgetPanel, setShowBudgetPanel] = useState(false);
   const [isBudgetChange, setIsBudgetChange] = useState(false);
+  const [budgetAction, setBudgetAction] = useState<"increase" | "decrease" | "set">("set");
+  const [budgetUnit, setBudgetUnit] = useState<"percent" | "amount">("amount");
   const [budgetValue, setBudgetValue] = useState("");
+  const [upperLimit, setUpperLimit] = useState("");
+  const [lowerLimit, setLowerLimit] = useState("");
   const [bulkLoading, setBulkLoading] = useState(false);
   const [selectedCampaignsFetched, setSelectedCampaignsFetched] = useState<MetaCampaignRow[] | null>(null);
   const [selectedCampaignsFetching, setSelectedCampaignsFetching] = useState(false);
@@ -339,19 +344,66 @@ export const MetaCampaigns: React.FC = () => {
     }
   };
 
+  const calculateNewBudget = (currentBudget: number): number => {
+    const valueNum = parseFloat(budgetValue);
+    if (isNaN(valueNum)) return currentBudget;
+    let newBudget = currentBudget;
+    if (budgetAction === "increase") {
+      if (budgetUnit === "percent") {
+        newBudget = currentBudget * (1 + valueNum / 100);
+      } else {
+        newBudget = currentBudget + valueNum;
+      }
+      if (upperLimit) {
+        const upper = parseFloat(upperLimit);
+        if (!isNaN(upper)) newBudget = Math.min(newBudget, upper);
+      }
+    } else if (budgetAction === "decrease") {
+      if (budgetUnit === "percent") {
+        newBudget = currentBudget * (1 - valueNum / 100);
+      } else {
+        newBudget = currentBudget - valueNum;
+      }
+      if (lowerLimit) {
+        const lower = parseFloat(lowerLimit);
+        if (!isNaN(lower)) newBudget = Math.max(newBudget, lower);
+      }
+    } else {
+      newBudget = valueNum;
+    }
+    return Math.max(0, newBudget);
+  };
+
   const runBulkBudget = async () => {
     if (!channelIdNum || selectedCampaigns.size === 0) return;
     const valueNum = parseFloat(budgetValue);
     if (isNaN(valueNum)) return;
     setBulkLoading(true);
     try {
-      const res = await accountsService.bulkUpdateMetaCampaigns(channelIdNum, {
+      const payload: Parameters<typeof accountsService.bulkUpdateMetaCampaigns>[1] = {
         campaignIds: Array.from(selectedCampaigns),
-        daily_budget: valueNum,
-      });
+      };
+      if (budgetAction === "set") {
+        payload.daily_budget = valueNum;
+      } else {
+        payload.budget_action = budgetAction;
+        payload.budget_unit = budgetUnit;
+        payload.budget_value = valueNum;
+        if (upperLimit) {
+          const u = parseFloat(upperLimit);
+          if (!isNaN(u)) payload.upper_limit = u;
+        }
+        if (lowerLimit) {
+          const l = parseFloat(lowerLimit);
+          if (!isNaN(l)) payload.lower_limit = l;
+        }
+      }
+      const res = await accountsService.bulkUpdateMetaCampaigns(channelIdNum, payload);
       setSelectedCampaigns(new Set());
       setShowBudgetPanel(false);
       setBudgetValue("");
+      setUpperLimit("");
+      setLowerLimit("");
       const succeededItems = (res.successes ?? []).slice(0, 10).map((s) => ({
         label: s.campaignName ?? `Campaign ${s.campaignId}`,
         field: s.field,
@@ -707,33 +759,118 @@ export const MetaCampaigns: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Budget panel - Set To only (Meta API single value) */}
+                {/* Budget editor panel - same as Google Campaigns (Action, Unit, Value, Upper/Lower limit) */}
                 {selectedCampaigns.size > 0 && showBudgetPanel && (
                   <div className="mb-4 border border-gray-200 rounded-xl p-4 bg-[#f9f9f6]">
-                    <p className="text-[10.64px] font-semibold text-[#556179] mb-3">
-                      Set daily budget for {selectedCampaigns.size} campaign(s) (in account currency)
-                    </p>
                     <div className="flex flex-wrap items-end gap-3 justify-between">
+                      <div className="w-[160px]">
+                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                          Action
+                        </label>
+                        <Dropdown
+                          options={[
+                            { value: "increase", label: "Increase By" },
+                            { value: "decrease", label: "Decrease By" },
+                            { value: "set", label: "Set To" },
+                          ]}
+                          value={budgetAction}
+                          onChange={(val) => {
+                            const action = val as "increase" | "decrease" | "set";
+                            setBudgetAction(action);
+                            if (action === "set") setBudgetUnit("amount");
+                          }}
+                          buttonClassName="edit-button  w-full"
+                          width="w-full"
+                        />
+                      </div>
+                      {(budgetAction === "increase" || budgetAction === "decrease") && (
+                        <div className="w-[140px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Unit
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${budgetUnit === "percent"
+                                ? "bg-forest-f40 border-forest-f40 text-white"
+                                : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                }`}
+                              onClick={() => setBudgetUnit("percent")}
+                            >
+                              %
+                            </button>
+                            <button
+                              type="button"
+                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${budgetUnit === "amount"
+                                ? "bg-forest-f40 border-forest-f40 text-white"
+                                : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                }`}
+                              onClick={() => setBudgetUnit("amount")}
+                            >
+                              $
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       <div className="w-[160px]">
                         <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                           Value
                         </label>
-                        <input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          value={budgetValue}
-                          onChange={(e) => setBudgetValue(e.target.value)}
-                          placeholder="e.g. 20.00"
-                          className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                        />
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min={0}
+                            step={budgetUnit === "percent" ? 0.1 : 0.01}
+                            value={budgetValue}
+                            onChange={(e) => setBudgetValue(e.target.value)}
+                            placeholder={budgetUnit === "percent" ? "e.g. 10" : "e.g. 20.00"}
+                            className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
+                            {budgetUnit === "percent" ? "%" : "$"}
+                          </span>
+                        </div>
                       </div>
+                      {budgetAction === "increase" && (
+                        <div className="w-[160px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Upper Limit (optional)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={upperLimit}
+                            onChange={(e) => setUpperLimit(e.target.value)}
+                            placeholder="e.g. 100"
+                            className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                          />
+                        </div>
+                      )}
+                      {budgetAction === "decrease" && (
+                        <div className="w-[160px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Lower Limit (optional)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={lowerLimit}
+                            onChange={(e) => setLowerLimit(e.target.value)}
+                            placeholder="e.g. 5"
+                            className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                          />
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 ml-auto">
                         <button
                           type="button"
                           onClick={() => {
                             setShowBudgetPanel(false);
                             setBudgetValue("");
+                            setUpperLimit("");
+                            setLowerLimit("");
                             setShowBulkActions(false);
                           }}
                           className="cancel-button"
@@ -811,11 +948,12 @@ export const MetaCampaigns: React.FC = () => {
                                     {preview.map((c) => {
                                       const cid = String(c.campaign_id ?? c.id);
                                       const name = c.campaign_name ?? "—";
+                                      const currentBudget = c.daily_budget != null ? Number(c.daily_budget) : 0;
                                       const oldVal = isBudgetChange
                                         ? (c.daily_budget != null ? formatCurrency(Number(c.daily_budget)) : "—")
                                         : normalizeStatusDisplay(c.status);
                                       const newVal = isBudgetChange
-                                        ? formatCurrency(parseFloat(budgetValue) || 0)
+                                        ? formatCurrency(calculateNewBudget(currentBudget))
                                         : pendingStatusAction ? normalizeStatusDisplay(pendingStatusAction) : "—";
                                       return (
                                         <tr key={cid} className="border-b border-gray-200 last:border-b-0">
@@ -1225,8 +1363,8 @@ export const MetaCampaigns: React.FC = () => {
                             key={pageNum}
                             onClick={() => setCurrentPage(pageNum)}
                             className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
-                                ? "bg-white text-[#136D6D] font-semibold"
-                                : "text-black hover:bg-gray-50"
+                              ? "bg-white text-[#136D6D] font-semibold"
+                              : "text-black hover:bg-gray-50"
                               }`}
                           >
                             {pageNum}
@@ -1242,8 +1380,8 @@ export const MetaCampaigns: React.FC = () => {
                         <button
                           onClick={() => setCurrentPage(totalPages)}
                           className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
-                              ? "bg-white text-[#136D6D] font-semibold"
-                              : "text-black hover:bg-gray-50"
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
                             }`}
                         >
                           {totalPages}
@@ -1263,82 +1401,82 @@ export const MetaCampaigns: React.FC = () => {
                 )}
               </div>
             </div>
-                {/* Inline edit confirmation (same structure as bulk per BULK_INLINE_UPDATE_SPEC) */}
-                {inlineConfirm && (
-                  <div
-                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
-                    onClick={(e) => {
-                      if (e.target === e.currentTarget && !inlineConfirmLoading) setInlineConfirm(null);
-                    }}
-                  >
-                    <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
-                      <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                        {inlineConfirm.type === "status" ? "Confirm Status Changes" : "Confirm Budget Changes"}
-                      </h3>
-                      <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4 mb-4">
-                        <span className="text-[12.16px] text-[#556179]">
-                          1 campaign will be updated:{" "}
-                        </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {inlineConfirm.type === "status" ? "Status" : "Budget"} change
-                        </span>
-                      </div>
-                      <div className="mb-6">
-                        <div className="border border-gray-200 rounded-lg overflow-hidden">
-                          <table className="w-full table-fixed">
-                            <thead className="bg-[#f5f5f0]">
-                              <tr>
-                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase w-[40%] max-w-[240px]">Campaign Name</th>
-                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">Old Value</th>
-                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">New Value</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr className="border-b border-gray-200">
-                                <td className="px-4 py-2 text-[10.64px] text-[#072929] truncate" title={inlineConfirm.row.campaign_name ?? undefined}>{inlineConfirm.row.campaign_name ?? "—"}</td>
-                                <td className="px-4 py-2 text-[10.64px] text-[#556179]">
-                                  {inlineConfirm.type === "status"
-                                    ? normalizeStatusDisplay(inlineConfirm.row.status)
-                                    : inlineConfirm.row.daily_budget != null ? formatCurrency(Number(inlineConfirm.row.daily_budget)) : "—"}
-                                </td>
-                                <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
-                                  {inlineConfirm.type === "status"
-                                    ? normalizeStatusDisplay(inlineConfirm.newStatus)
-                                    : formatCurrency(inlineConfirm.newBudget)}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                      <div className="flex justify-end gap-3">
-                        <button
-                          type="button"
-                          onClick={() => !inlineConfirmLoading && setInlineConfirm(null)}
-                          disabled={inlineConfirmLoading}
-                          className="cancel-button"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={runInlineConfirm}
-                          disabled={inlineConfirmLoading}
-                          className="create-entity-button btn-sm flex items-center gap-2"
-                        >
-                          {inlineConfirmLoading ? (
-                            <>
-                              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              Applying...
-                            </>
-                          ) : (
-                            "Confirm"
-                          )}
-                        </button>
-                      </div>
+            {/* Inline edit confirmation (same structure as bulk per BULK_INLINE_UPDATE_SPEC) */}
+            {inlineConfirm && (
+              <div
+                className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget && !inlineConfirmLoading) setInlineConfirm(null);
+                }}
+              >
+                <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                  <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                    {inlineConfirm.type === "status" ? "Confirm Status Changes" : "Confirm Budget Changes"}
+                  </h3>
+                  <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4 mb-4">
+                    <span className="text-[12.16px] text-[#556179]">
+                      1 campaign will be updated:{" "}
+                    </span>
+                    <span className="text-[12.16px] font-semibold text-[#072929]">
+                      {inlineConfirm.type === "status" ? "Status" : "Budget"} change
+                    </span>
+                  </div>
+                  <div className="mb-6">
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="w-full table-fixed">
+                        <thead className="bg-[#f5f5f0]">
+                          <tr>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase w-[40%] max-w-[240px]">Campaign Name</th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">Old Value</th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">New Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b border-gray-200">
+                            <td className="px-4 py-2 text-[10.64px] text-[#072929] truncate" title={inlineConfirm.row.campaign_name ?? undefined}>{inlineConfirm.row.campaign_name ?? "—"}</td>
+                            <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                              {inlineConfirm.type === "status"
+                                ? normalizeStatusDisplay(inlineConfirm.row.status)
+                                : inlineConfirm.row.daily_budget != null ? formatCurrency(Number(inlineConfirm.row.daily_budget)) : "—"}
+                            </td>
+                            <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                              {inlineConfirm.type === "status"
+                                ? normalizeStatusDisplay(inlineConfirm.newStatus)
+                                : formatCurrency(inlineConfirm.newBudget)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   </div>
-                )}
+                  <div className="flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => !inlineConfirmLoading && setInlineConfirm(null)}
+                      disabled={inlineConfirmLoading}
+                      className="cancel-button"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={runInlineConfirm}
+                      disabled={inlineConfirmLoading}
+                      className="create-entity-button btn-sm flex items-center gap-2"
+                    >
+                      {inlineConfirmLoading ? (
+                        <>
+                          <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Applying...
+                        </>
+                      ) : (
+                        "Confirm"
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             <EditSummaryModal />
           </div>
         </Assistant>

@@ -191,16 +191,14 @@ export const Tooltip: React.FC<TooltipProps> = ({
             >
               {heading && (
                 <p
-                  className="font-medium relative shrink-0 w-full"
-                  className="font-gtAmerica"
+                  className="font-gtAmerica font-medium relative shrink-0 w-full"
                 >
                   {heading}
                 </p>
               )}
               {description && (
                 <p
-                  className="font-normal relative shrink-0 w-full"
-                  className="font-gtAmerica"
+                  className="font-gtAmerica font-normal relative shrink-0 w-full"
                 >
                   {description}
                 </p>

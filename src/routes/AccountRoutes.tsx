@@ -16,6 +16,7 @@ import { WorkspaceSettings } from "../pages/WorkspaceSettings";
 import { NoWorkspace } from "../pages/NoWorkspace";
 import { CompleteSignup } from "../pages/CompleteSignup";
 import { ColorExamples } from "../pages/ColorExamples";
+import { WorkflowsPage } from "../pages/workflows/WorkflowsPage";
 
 function ChannelsToIntegrationsRedirect() {
     const { accountId } = useParams<{ accountId: string }>();
@@ -140,6 +141,22 @@ function AccountRoutes() {
                                 <BrandAccessRoute>
                                     <Layout>
                                         <AccountUsers />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/brands/:accountId/workflows"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <WorkflowsPage />
                                     </Layout>
                                 </BrandAccessRoute>
                             </AccountRequiredRoute>
