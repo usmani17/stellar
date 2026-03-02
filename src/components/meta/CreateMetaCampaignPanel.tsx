@@ -4,17 +4,26 @@ import { metaCampaignsService } from "../../services/meta";
 import type { CreateMetaCampaignPayload, MetaCampaignStatus } from "../../types/meta";
 import { Loader } from "../ui/Loader";
 
-const META_OBJECTIVES: { value: string; label: string }[] = [
-  { value: "OUTCOME_TRAFFIC", label: "Traffic" },
-  { value: "OUTCOME_LEADS", label: "Leads" },
-  { value: "OUTCOME_AWARENESS", label: "Awareness" },
-  { value: "OUTCOME_ENGAGEMENT", label: "Engagement" },
-  { value: "OUTCOME_SALES", label: "Sales" },
-  { value: "LINK_CLICKS", label: "Link Clicks" },
-  { value: "BRAND_AWARENESS", label: "Brand Awareness" },
-  { value: "REACH", label: "Reach" },
-  { value: "VIDEO_VIEWS", label: "Video Views" },
-  { value: "CONVERSIONS", label: "Conversions" },
+const META_OBJECTIVES: { value: string; label: string; caption: string }[] = [
+  { value: "OUTCOME_AWARENESS", label: "Awareness", caption: "Show your ads to people who are most likely to remember them." },
+  { value: "OUTCOME_TRAFFIC", label: "Traffic", caption: "Send people to a destination, like your website, app, Instagram profile or Facebook event." },
+  { value: "OUTCOME_ENGAGEMENT", label: "Engagement", caption: "Get more messages, purchases through messaging, video views, interactions, Page likes or event responses." },
+  { value: "OUTCOME_LEADS", label: "Leads", caption: "Collect leads for your business or brand." },
+  { value: "OUTCOME_APP_PROMOTION", label: "App Promotion", caption: "Find new people to install your app and continue using it." },
+  { value: "OUTCOME_SALES", label: "Sales", caption: "Find people likely to purchase your product or service." },
+];
+
+const SPECIAL_AD_CATEGORIES: { value: string; label: string; caption: string }[] = [
+  { value: "NONE", label: "None", caption: "" },
+  { value: "CREDIT", label: "Financial products and services", caption: "Ads for credit cards, long-term financing, checking and saving accounts, investment services, insurance services, or other related financial opportunities." },
+  { value: "EMPLOYMENT", label: "Employment", caption: "Ads for job offers, internships, professional certification programs or other related opportunities." },
+  { value: "HOUSING", label: "Housing", caption: "Ads for real estate listings, homeowners insurance, mortgage loans or other related opportunities." },
+  { value: "ISSUES_ELECTIONS_POLITICS", label: "Social Issues, elections or politics", caption: "Ads about social issues (such as economy, or civil and social rights), elections, or political figures or campaigns." },
+];
+
+const BUYING_TYPES: { value: string; label: string; caption: string }[] = [
+  { value: "AUCTION", label: "Auction", caption: "Buy in real-time with cost effective bidding." },
+  { value: "RESERVATION", label: "Reservation", caption: "Buy in advance for more predictable outcomes." },
 ];
 
 export interface MetaProfileOption {
@@ -42,6 +51,8 @@ export const CreateMetaCampaignPanel: React.FC<CreateMetaCampaignPanelProps> = (
   const [objective, setObjective] = useState("OUTCOME_TRAFFIC");
   const [status, setStatus] = useState<MetaCampaignStatus>("PAUSED");
   const [dailyBudget, setDailyBudget] = useState<string>("");
+  const [specialAdCategories, setSpecialAdCategories] = useState("NONE");
+  const [buyingType, setBuyingType] = useState("AUCTION");
   const [profileId, setProfileId] = useState<number | "">("");
   const [profiles, setProfiles] = useState<MetaProfileOption[]>([]);
   const [profilesLoading, setProfilesLoading] = useState(true);
@@ -91,6 +102,8 @@ export const CreateMetaCampaignPanel: React.FC<CreateMetaCampaignPanelProps> = (
         name: name.trim(),
         objective,
         status,
+        buying_type: buyingType,
+        special_ad_categories: specialAdCategories === "NONE" ? [] : [specialAdCategories],
       };
       if (dailyBudget !== "" && !Number.isNaN(Number(dailyBudget))) {
         payload.daily_budget = Number(dailyBudget);
@@ -195,6 +208,44 @@ export const CreateMetaCampaignPanel: React.FC<CreateMetaCampaignPanelProps> = (
                         </option>
                       ))}
                     </select>
+                    <p className="text-[11px] text-[#556179] mt-1">
+                      {META_OBJECTIVES.find((o) => o.value === objective)?.caption ?? ""}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="form-label-small">Buying type</label>
+                    <select
+                      value={buyingType}
+                      onChange={(e) => setBuyingType(e.target.value)}
+                      className={inputClass}
+                    >
+                      {BUYING_TYPES.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-[#556179] mt-1">
+                      {BUYING_TYPES.find((opt) => opt.value === buyingType)?.caption ?? ""}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="form-label-small">Special ad categories</label>
+                    <select
+                      value={specialAdCategories}
+                      onChange={(e) => setSpecialAdCategories(e.target.value)}
+                      className={inputClass}
+                    >
+                      {SPECIAL_AD_CATEGORIES.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    {(() => {
+                      const caption = SPECIAL_AD_CATEGORIES.find((opt) => opt.value === specialAdCategories)?.caption;
+                      return caption ? <p className="text-[11px] text-[#556179] mt-1">{caption}</p> : null;
+                    })()}
                   </div>
                   <div>
                     <label className="form-label-small">Status</label>
