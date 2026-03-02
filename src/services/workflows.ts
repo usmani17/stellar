@@ -18,9 +18,12 @@ export type DeliveryType = "email" | "slack" | "whatsapp" | "sms" | "webhook";
 
 export interface DeliveryAction {
   type: DeliveryType;
-  email?: string; // for email
-  webhookUrl?: string; // for slack, webhook
-  phoneNumber?: string; // for whatsapp, sms
+  /** Single email (legacy); prefer `emails` for multiple */
+  email?: string;
+  /** Multiple recipient emails for type "email" */
+  emails?: string[];
+  /** Slack incoming webhook URL for type "slack" */
+  webhookUrl?: string;
 }
 
 export interface Workflow {
@@ -105,8 +108,7 @@ export interface BrandReportSettings {
   accountId: number;
   logoUrl: string;
   primaryColor: string; // hex e.g. "#136D6D"
-  /** Default email for report delivery; workflows can override per-workflow */
-  defaultDeliveryEmail?: string;
+  /** Default delivery (email addresses or Slack webhook); workflows can override per-workflow */
   deliveryAction?: DeliveryAction | null;
 }
 

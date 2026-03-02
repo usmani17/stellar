@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ImageIcon, Loader2, Upload, Mail, Check } from "lucide-react";
-import { BaseModal, Input } from "../../../components/ui";
+import { ImageIcon, Loader2, Upload, Mail, Check, Plus, Trash2 } from "lucide-react";
+import { BaseModal, Input, Radio } from "../../../components/ui";
 import { useAuth } from "../../../contexts/AuthContext";
 import {
   assetUploadService,
@@ -28,10 +28,9 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
 
   const [logoUrl, setLogoUrl] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#136D6D");
-  const [defaultDeliveryEmail, setDefaultDeliveryEmail] = useState("");
-  const [,setDeliveryAction] = useState<DeliveryAction | null>(
-    null
-  );
+  const [defaultDeliveryType, setDefaultDeliveryType] = useState<"email" | "slack">("email");
+  const [defaultDeliveryEmails, setDefaultDeliveryEmails] = useState<string[]>([""]);
+  const [defaultDeliveryWebhookUrl, setDefaultDeliveryWebhookUrl] = useState("");
   const [logoError, setLogoError] = useState(false);
   const [colorError, setColorError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -42,18 +41,22 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
     if (settings) {
       setLogoUrl(settings.logoUrl);
       setPrimaryColor(settings.primaryColor);
-      const email =
-        settings.defaultDeliveryEmail ||
-        (settings.deliveryAction?.type === "email"
-          ? settings.deliveryAction.email
-          : undefined) ||
-        user?.email ||
-        "";
-      setDefaultDeliveryEmail(email);
-      setDeliveryAction(
-        settings.deliveryAction ??
-          (email ? { type: "email", email } : null)
-      );
+      const da = settings.deliveryAction;
+      if (da?.type === "slack") {
+        setDefaultDeliveryType("slack");
+        setDefaultDeliveryWebhookUrl(da.webhookUrl ?? "");
+        setDefaultDeliveryEmails([""]);
+      } else {
+        setDefaultDeliveryType("email");
+        let emails: string[] = [];
+        const fromDa = da?.emails?.filter(Boolean);
+        if (fromDa?.length) emails = fromDa;
+        else if (da?.email) emails = [da.email];
+        else if (user?.email) emails = [user.email];
+        else emails = [""];
+        setDefaultDeliveryEmails(emails.length ? emails : [""]);
+        setDefaultDeliveryWebhookUrl("");
+      }
       setLogoError(false);
       setColorError("");
       setSaved(false);
@@ -95,15 +98,19 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
 
   const handleSave = async () => {
     if (!validateColor(primaryColor)) return;
+    const emails = defaultDeliveryEmails.map((e) => e.trim()).filter(Boolean);
     const payloadDeliveryAction: DeliveryAction | null =
-      defaultDeliveryEmail.trim()
-        ? { type: "email", email: defaultDeliveryEmail.trim() }
-        : null;
+      defaultDeliveryType === "slack"
+        ? defaultDeliveryWebhookUrl.trim()
+          ? { type: "slack", webhookUrl: defaultDeliveryWebhookUrl.trim() }
+          : null
+        : emails.length > 0
+          ? { type: "email", emails }
+          : null;
     try {
       await updateSettings({
         logoUrl,
         primaryColor,
-        defaultDeliveryEmail: defaultDeliveryEmail.trim() || undefined,
         deliveryAction: payloadDeliveryAction,
       });
       setSaved(true);
@@ -225,23 +232,74 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
             )}
           </div>
 
-          {/* Default Delivery Email */}
+          {/* Default Delivery */}
           <div>
             <label className="block text-[13px] font-medium text-forest-f60 mb-1">
-              Default delivery email
+              Default delivery
             </label>
             <p className="text-xs text-forest-f30 mb-2">
-              Reports will be sent here unless a workflow specifies a custom address. Defaults to your logged-in email.
+              Reports will be sent here unless a workflow specifies custom delivery.
             </p>
-            <div className="flex items-center gap-2">
-              <Mail className="w-4 h-4 text-forest-f40 shrink-0" />
-              <Input
-                type="email"
-                value={defaultDeliveryEmail}
-                onChange={(e) => setDefaultDeliveryEmail(e.target.value)}
-                placeholder={user?.email ?? "reports@company.com"}
+            <div className="flex items-center gap-4 mb-3">
+              <Radio
+                checked={defaultDeliveryType === "email"}
+                onChange={() => setDefaultDeliveryType("email")}
+                label="Email"
+              />
+              <Radio
+                checked={defaultDeliveryType === "slack"}
+                onChange={() => setDefaultDeliveryType("slack")}
+                label="Slack"
               />
             </div>
+            {defaultDeliveryType === "email" && (
+              <div className="space-y-2">
+                {defaultDeliveryEmails.map((email, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-forest-f40 shrink-0" />
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        const next = [...defaultDeliveryEmails];
+                        next[i] = e.target.value;
+                        setDefaultDeliveryEmails(next);
+                      }}
+                      placeholder={user?.email ?? "reports@company.com"}
+                      className="flex-1 min-w-0"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = defaultDeliveryEmails.filter((_, j) => j !== i);
+                        setDefaultDeliveryEmails(next.length ? next : [""]);
+                      }}
+                      className="p-2 text-forest-f30 hover:text-red-r30 rounded transition-colors"
+                      aria-label="Remove email"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setDefaultDeliveryEmails([...defaultDeliveryEmails, ""])}
+                  className="inline-flex items-center gap-1.5 text-[13px] text-forest-f40 hover:text-forest-f50"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add email
+                </button>
+              </div>
+            )}
+            {defaultDeliveryType === "slack" && (
+              <Input
+                type="url"
+                value={defaultDeliveryWebhookUrl}
+                onChange={(e) => setDefaultDeliveryWebhookUrl(e.target.value)}
+                placeholder="https://hooks.slack.com/services/..."
+                className="w-full"
+              />
+            )}
           </div>
         </div>
 
