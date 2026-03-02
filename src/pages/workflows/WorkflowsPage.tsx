@@ -5,6 +5,7 @@ import { useSidebar } from "../../contexts/SidebarContext";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
+import { useDebouncedSearch } from "../../hooks/useDebouncedSearch";
 import { useWorkflows } from "./hooks/useWorkflows";
 import { WorkflowsList } from "./components/WorkflowsList";
 import { BrandSettingsModal } from "./components/BrandSettingsModal";
@@ -20,6 +21,8 @@ export const WorkflowsPage: React.FC = () => {
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | undefined>();
   const [updatingWorkflowId, setUpdatingWorkflowId] = useState<number | null>(null);
+  const [searchInputValue, setSearchInputValue, debouncedSearchValue] =
+    useDebouncedSearch("", 400);
 
   const {
     workflows,
@@ -28,7 +31,7 @@ export const WorkflowsPage: React.FC = () => {
     isDeleting,
     updateWorkflow,
     isUpdating,
-  } = useWorkflows(accountIdNum);
+  } = useWorkflows(accountIdNum, { search: debouncedSearchValue });
 
   useEffect(() => {
     setPageTitle("Workflows");
@@ -68,11 +71,53 @@ export const WorkflowsPage: React.FC = () => {
       >
         <DashboardHeader />
         <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-sandstorm-s0 min-h-screen">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
             <h1 className="text-h1100 font-agrandir text-forest-f60">
               Workflows
             </h1>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+              <div className="search-input-container flex gap-[8px] h-[40px] items-center p-[10px] w-full sm:w-[272px]">
+                <div className="relative shrink-0 size-[12px]" aria-hidden>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M5.5 9.5C7.70914 9.5 9.5 7.70914 9.5 5.5C9.5 3.29086 7.70914 1.5 5.5 1.5C3.29086 1.5 1.5 3.29086 1.5 5.5C1.5 7.70914 3.29086 9.5 5.5 9.5Z"
+                      stroke="#556179"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M10.5 10.5L8.5 8.5"
+                      stroke="#556179"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  value={searchInputValue}
+                  onChange={(e) => setSearchInputValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
+                  placeholder="Search workflows by name"
+                  className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179] font-sans font-normal min-w-0"
+                  autoComplete="off"
+                  aria-label="Search workflows by name"
+                />
+              </div>
+              <div className="flex items-center gap-3">
               <button
                 onClick={() => setSettingsOpen(true)}
                 className="edit-button inline-flex items-center gap-2"
@@ -92,6 +137,7 @@ export const WorkflowsPage: React.FC = () => {
                   Create Workflow
                 </span>
               </button>
+              </div>
             </div>
           </div>
 

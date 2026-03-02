@@ -104,8 +104,8 @@ export const queryKeys = {
   },
   workflows: {
     all: ["workflows"] as const,
-    lists: (accountId: number) =>
-      [...queryKeys.workflows.all, "list", accountId] as const,
+    lists: (accountId: number, search?: string) =>
+      [...queryKeys.workflows.all, "list", accountId, search ?? ""] as const,
     detail: (id: number) =>
       [...queryKeys.workflows.all, "detail", id] as const,
     runs: (workflowId: number) =>

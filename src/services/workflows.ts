@@ -153,8 +153,15 @@ function workflowsPath(accountId: number) {
 }
 
 export const workflowsService = {
-  getWorkflows: async (accountId: number): Promise<Workflow[]> => {
-    const { data } = await api.get<Workflow[]>(`${workflowsPath(accountId)}/`);
+  getWorkflows: async (
+    accountId: number,
+    params?: { search?: string }
+  ): Promise<Workflow[]> => {
+    const { data } = await api.get<Workflow[]>(`${workflowsPath(accountId)}/`, {
+      params: params?.search?.trim()
+        ? { search: params.search.trim() }
+        : undefined,
+    });
     return data;
   },
 
