@@ -12,21 +12,14 @@ import { useSidebar } from "../../contexts/SidebarContext";
 import { useAccounts } from "../../contexts/AccountsContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useChannels } from "../../hooks/queries/useChannels";
-import { ConfirmationModal } from "../ui/ConfirmationModal";
-import { SelectBrandRequiredModal } from "../ui/SelectBrandRequiredModal";
+import { ConfirmationModal, SelectBrandRequiredModal } from "../ui";
 import StellarLogo from "../../assets/images/stellar-logo-v2 1.svg";
-import InstacartIcon from "../../assets/images/cib_instacart.svg";
-import CampaignIcon from "../../assets/images/campaign-svgrepo-com 1.svg";
 import CampaignIconRegular from "../../assets/images/campaign.svg";
 import CampaignWhiteIcon from "../../assets/campaign-white.svg";
 import AdGroupIcon from "../../assets/images/adgroups.svg";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
-import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
 import AmazonIcon from "../../assets/images/ri_amazon-fill-1.svg";
-import WalmartIcon from "../../assets/images/cbi_walmart.svg";
-import TopKeywordsIcon from "../../assets/images/cbi_walmart.svg";
-import TopProductsIcon from "../../assets/images/cib_instacart.svg";
-import PixelsLikeBoxIcon from "../../assets/images/cib_instacart.svg";
+import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
 import ProductTargetIcon from "../../assets/images/producttarget.svg";
 import KeywordsIcon from "../../assets/images/keywords.svg";
 import KeywordsWhiteIcon from "../../assets/images/keywords-white.svg";
@@ -41,6 +34,7 @@ import ProfilesActiveIcon from "../../assets/images/profiles-active.svg";
 import UsersIcon from "../../assets/images/users.svg";
 import UsersActiveIcon from "../../assets/images/users-active.svg";
 import WorkspaceIcon from "../../assets/workspace.svg";
+import { CalendarClock } from "lucide-react";
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
 
 const WORKSPACE_SECTION_STORAGE_KEY = "workspace-section-collapsed";
@@ -117,15 +111,15 @@ export const Sidebar: React.FC = () => {
       return saved === "true" || saved === null; // Default to collapsed
     });
 
-  // Auto-expand/collapse sections based on current page
   useEffect(() => {
-    const marketplace = getMarketplaceFromUrl(location.pathname);
-    const isBrandsArea =
-      location.pathname === "/brands" ||
-      /^\/brands\/\d+\/integrations$/.test(location.pathname) ||
-      /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
-      /^\/brands\/\d+\/users$/.test(location.pathname) ||
-      location.pathname === "/workspace/team";
+  const marketplace = getMarketplaceFromUrl(location.pathname);
+  const isBrandsArea =
+    location.pathname === "/brands" ||
+    /^\/brands\/\d+\/integrations$/.test(location.pathname) ||
+    /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
+    /^\/brands\/\d+\/users$/.test(location.pathname) ||
+    /^\/brands\/\d+\/workflows$/.test(location.pathname) ||
+    location.pathname === "/workspace/team";
 
     if (isBrandsArea) {
       setIsWorkspaceSectionCollapsed(false);
@@ -177,6 +171,20 @@ export const Sidebar: React.FC = () => {
     );
   }, [isMetaSectionCollapsed]);
 
+  useEffect(() => {
+    localStorage.setItem(
+      TIKTOK_SECTION_STORAGE_KEY,
+      String(isTikTokSectionCollapsed),
+    );
+  }, [isTikTokSectionCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      META_SECTION_STORAGE_KEY,
+      String(isMetaSectionCollapsed),
+    );
+  }, [isMetaSectionCollapsed]);
+
   const toggleAmazonSection = () => {
     setIsAmazonSectionCollapsed((prev) => !prev);
   };
@@ -205,6 +213,8 @@ export const Sidebar: React.FC = () => {
       return /^\/brands\/\d+\/profiles$/.test(location.pathname);
     if (path === "/brands/users" || path === "/workspace/team")
       return location.pathname === "/workspace/team" || /^\/brands\/\d+\/users$/.test(location.pathname);
+    if (path === "/brands/workflows")
+      return /^\/brands\/\d+\/workflows$/.test(location.pathname);
     if (path === "/campaigns") {
       return (
         location.pathname.includes("/campaigns") &&
@@ -563,6 +573,35 @@ export const Sidebar: React.FC = () => {
                       </span>
                     </Link>
                   )}
+                  <Link
+                    to={
+                      accountId
+                        ? buildAccountRoute(accountId, "workflows")
+                        : "/brands"
+                    }
+                    onClick={(e) =>
+                      handleAccountRequiredClick(e, () =>
+                        accountId
+                          ? buildAccountRoute(accountId, "workflows")
+                          : "/brands",
+                      )
+                    }
+                    className={`flex items-center p-2 rounded-xl gap-2 ${
+                      isActive("/brands/workflows")
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                    }`}
+                    title="Workflows"
+                  >
+                    <CalendarClock
+                      className={`w-5 h-5 shrink-0 ${
+                        isActive("/brands/workflows") ? "text-white" : "text-forest-f30"
+                      }`}
+                    />
+                    <span className="text-[12.32px] font-normal leading-[16px]">
+                      Workflows
+                    </span>
+                  </Link>
                 </div>
               )}
             </>
