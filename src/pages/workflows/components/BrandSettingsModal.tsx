@@ -51,7 +51,6 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
         let emails: string[] = [];
         const fromDa = da?.emails?.filter(Boolean);
         if (fromDa?.length) emails = fromDa;
-        else if (da?.email) emails = [da.email];
         else if (user?.email) emails = [user.email];
         else emails = [""];
         setDefaultDeliveryEmails(emails.length ? emails : [""]);

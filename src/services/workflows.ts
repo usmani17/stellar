@@ -18,12 +18,12 @@ export type DeliveryType = "email" | "slack" | "whatsapp" | "sms" | "webhook";
 
 export interface DeliveryAction {
   type: DeliveryType;
-  /** Single email (legacy); prefer `emails` for multiple */
-  email?: string;
   /** Multiple recipient emails for type "email" */
   emails?: string[];
   /** Slack incoming webhook URL for type "slack" */
   webhookUrl?: string;
+  /** Multiple recipient phone numbers for type "sms" or "whatsapp" */
+  phoneNumbers?: string[];
 }
 
 export interface Workflow {

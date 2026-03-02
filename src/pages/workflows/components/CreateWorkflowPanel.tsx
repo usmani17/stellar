@@ -118,8 +118,7 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
         });
       } else {
         const emails =
-          da?.emails?.filter(Boolean) ??
-          (da?.email ? [da.email] : [""]);
+          da?.emails?.filter(Boolean) ?? [];
         setDeliveryAction({
           type: "email",
           emails: emails.length ? emails : [""],
@@ -551,10 +550,6 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
                         ? brandSettings.deliveryAction.emails[0]
                         : `${brandSettings.deliveryAction.emails.length} emails`})
                     </span>
-                  ) : brandSettings.deliveryAction.email ? (
-                    <span className="text-forest-f30 ml-1">
-                      ({brandSettings.deliveryAction.email})
-                    </span>
                   ) : null)}
                 {brandSettings?.deliveryAction?.type === "slack" &&
                   brandSettings.deliveryAction.webhookUrl && (
@@ -693,8 +688,7 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
             {useDefaultDelivery &&
               !(
                 (brandSettings?.deliveryAction?.type === "email" &&
-                  ((brandSettings.deliveryAction.emails?.length ?? 0) > 0 ||
-                    !!brandSettings.deliveryAction.email)) ||
+                  ((brandSettings.deliveryAction.emails?.length ?? 0) > 0)) ||
                 (brandSettings?.deliveryAction?.type === "slack" &&
                   !!brandSettings.deliveryAction.webhookUrl)
               ) && (
