@@ -39,6 +39,14 @@ export interface AssistantScope {
   profileId: number | null;
   profileName?: string | null;
   marketplace?: string | null;
+  /** Multi-select: one or more profiles for cross-platform analysis. When set, overrides single profileId. */
+  selectedProfiles?: Array<{
+    accountId: string;
+    channelId: string;
+    profileId: number;
+    profileName?: string | null;
+    marketplace?: string | null;
+  }>;
 }
 
 /** Session with runtime state (messages, etc.) */
@@ -133,6 +141,7 @@ export const AssistantProvider: React.FC<{
     profileId: null,
     profileName: null,
     marketplace: null,
+    selectedProfiles: [],
   });
 
   const setAssistantScope = useCallback((updates: Partial<AssistantScope>) => {
@@ -154,14 +163,21 @@ export const AssistantProvider: React.FC<{
       assistantScope.channelId &&
       assistantScope.profileId
     ) {
-      // Ready to chat
+      // Ready to chat (single profile)
     }
-  }, [assistantScope.accountId, assistantScope.channelId, assistantScope.profileId]);
+    if (assistantScope.selectedProfiles && assistantScope.selectedProfiles.length > 0) {
+      // Ready to chat (multi-profile)
+    }
+  }, [assistantScope.accountId, assistantScope.channelId, assistantScope.profileId, assistantScope.selectedProfiles]);
 
   const effectiveAccountId = assistantScope.accountId ?? propAccountId ?? null;
   const effectiveChannelId = assistantScope.channelId ?? propChannelId ?? null;
   const effectiveProfileId = assistantScope.profileId;
   const effectiveMarketplace = assistantScope.marketplace ?? null;
+  /** When set, use for multi-profile analyze; otherwise single profile from effective* fields. */
+  const effectiveSelectedProfiles = assistantScope.selectedProfiles?.length
+    ? assistantScope.selectedProfiles
+    : null;
 
   const currentSession =
     sessions.find((s) => s.id === currentSessionId) ?? null;
@@ -264,11 +280,15 @@ export const AssistantProvider: React.FC<{
           if (prev.accountId === nextAccountId && prev.channelId === nextChannelId && prev.profileId === nextProfileId) {
             return prev;
           }
+          const oneProfile = nextAccountId && nextChannelId && nextProfileId != null
+            ? [{ accountId: nextAccountId, channelId: nextChannelId, profileId: nextProfileId, profileName: prev.profileName ?? undefined, marketplace: prev.marketplace ?? undefined }]
+            : [];
           return {
             ...prev,
             accountId: nextAccountId,
             channelId: nextChannelId,
             profileId: nextProfileId,
+            selectedProfiles: oneProfile,
           };
         });
       }
@@ -402,14 +422,34 @@ export const AssistantProvider: React.FC<{
       const trimmed = content.trim();
       if (!trimmed) return;
 
-      const accountIdNum = effectiveAccountId
+      let accountIdNum: number | undefined = effectiveAccountId
         ? parseInt(effectiveAccountId, 10)
         : undefined;
-      const channelIdNum = effectiveChannelId
+      let channelIdNum: number | undefined = effectiveChannelId
         ? parseInt(effectiveChannelId, 10)
         : undefined;
+      let profileIdForReq: string | undefined = effectiveProfileId != null ? String(effectiveProfileId) : undefined;
+      let platformForReq: string | undefined = effectiveMarketplace ?? undefined;
+      let platformsForReq: Array<{ platform: string; profile_id: string; channel_id: number; account_id: number }> | undefined;
 
-      if (!accountIdNum) return;
+      if (effectiveSelectedProfiles?.length) {
+        platformsForReq = effectiveSelectedProfiles
+          .map((p) => ({
+            platform: (p.marketplace ?? "google").toLowerCase(),
+            profile_id: String(p.profileId),
+            channel_id: parseInt(p.channelId, 10),
+            account_id: parseInt(p.accountId, 10),
+          }))
+          .filter((p) => !Number.isNaN(p.channel_id) && !Number.isNaN(p.account_id));
+        if (platformsForReq.length === 0) return;
+        const first = platformsForReq[0];
+        accountIdNum = first.account_id;
+        channelIdNum = first.channel_id;
+        profileIdForReq = first.profile_id;
+        platformForReq = first.platform;
+      } else if (!accountIdNum) {
+        return;
+      }
 
       setInputValue("");
       abortControllerRef.current = new AbortController();
@@ -520,10 +560,11 @@ export const AssistantProvider: React.FC<{
               | undefined)?.cursor_session_id ?? currentSessionId ?? undefined,
             account_id: accountIdNum,
             channel_id: channelIdNum,
-            profile_id: effectiveProfileId != null ? String(effectiveProfileId) : undefined,
+            profile_id: profileIdForReq,
             workspace_id: user?.workspace?.id ?? undefined,
             user_id: user?.id != null ? String(user.id) : undefined,
-            platform: effectiveMarketplace ?? undefined,
+            platform: platformForReq,
+            ...(platformsForReq && platformsForReq.length > 0 ? { platforms: platformsForReq } : {}),
             ...(OUTPUT_FORMAT_FOR_TESTING && { output_format: OUTPUT_FORMAT_FOR_TESTING }),
           },
           token,
@@ -662,7 +703,7 @@ export const AssistantProvider: React.FC<{
                     workspace_id: user?.workspace?.id ?? null,
                     account_id: accountIdNum ?? null,
                     channel_id: channelIdNum ?? null,
-                    profile_id: effectiveProfileId != null ? String(effectiveProfileId) : null,
+                    profile_id: profileIdForReq ?? null,
                     created_at: new Date().toISOString(),
                     last_activity_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
@@ -815,6 +856,7 @@ export const AssistantProvider: React.FC<{
       effectiveChannelId,
       effectiveProfileId,
       effectiveMarketplace,
+      effectiveSelectedProfiles,
       currentSessionId,
       sessions,
       getAccessToken,

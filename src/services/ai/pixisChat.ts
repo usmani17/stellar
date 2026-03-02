@@ -40,6 +40,13 @@ export interface PixisChatParams {
   workspace_id?: number;
   user_id?: string;
   platform?: Platform;
+  /** Multi-profile analysis: list of { platform, profile_id, channel_id, account_id }. When set, overrides single profile_id. */
+  platforms?: Array<{
+    platform: string;
+    profile_id: string;
+    channel_id: number;
+    account_id: number;
+  }>;
   /** "stream-json" | "stream-json-partial" | "json" — for testing output formats */
   output_format?: string;
 }
