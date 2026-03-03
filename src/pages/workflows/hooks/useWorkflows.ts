@@ -88,7 +88,7 @@ export const useWorkflows = (
   return {
     workflows: query.data ?? [],
     isLoading: query.isLoading,
-    isSearching: query.isLoading && query.data !== undefined,
+    isSearching: search != null && query.isFetching,
     error: query.error,
     createWorkflow: createMutation.mutateAsync,
     isCreating: createMutation.isPending,
