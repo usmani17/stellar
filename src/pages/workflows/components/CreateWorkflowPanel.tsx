@@ -530,175 +530,188 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
               />
               <span className="text-[13px] text-forest-f60">
                 Use default from Report Settings
-                {brandSettings?.deliveryAction?.actions?.find(a => a.type === "email") &&
-                  (brandSettings.deliveryAction.actions.find(a => a.type === "email")?.emails?.length ? (
+                {brandSettings?.deliveryAction?.actions?.find((a) => a.type === "email") &&
+                  (brandSettings.deliveryAction.actions.find((a) => a.type === "email")?.emails?.length ? (
                     <span className="text-forest-f30 ml-1">
-                      ({brandSettings.deliveryAction.actions.find(a => a.type === "email")!.emails!.length === 1
-                        ? brandSettings.deliveryAction.actions.find(a => a.type === "email")!.emails![0]
-                        : `${brandSettings.deliveryAction.actions.find(a => a.type === "email")!.emails!.length} emails`})
+                      ({brandSettings.deliveryAction.actions.find((a) => a.type === "email")!.emails!.length === 1
+                        ? brandSettings.deliveryAction.actions.find((a) => a.type === "email")!.emails![0]
+                        : `${brandSettings.deliveryAction.actions.find((a) => a.type === "email")!.emails!.length} emails`})
                     </span>
                   ) : null)}
-                {brandSettings?.deliveryAction?.actions?.find(a => a.type === "slack") &&
-                  brandSettings.deliveryAction.actions.find(a => a.type === "slack")?.webhookUrl && (
+                {brandSettings?.deliveryAction?.actions?.find((a) => a.type === "slack") &&
+                  brandSettings.deliveryAction.actions.find((a) => a.type === "slack")?.webhookUrl && (
                     <span className="text-forest-f30 ml-1">(Slack)</span>
                   )}
               </span>
             </label>
+
             {!useDefaultDelivery && (
-              <div className="space-y-3">
-                <div className="flex gap-4">
+              <div className="space-y-5">
+                {/* Sub-section: Email */}
+                <div className="rounded-lg border border-sandstorm-s40 bg-white p-4 space-y-4">
+                  <h4 className="text-sm font-semibold text-forest-f60 border-b border-sandstorm-s40 pb-2 -mt-0.5">
+                    Email
+                  </h4>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={!!deliveryAction.actions.find(a => a.type === "email")}
+                      checked={!!deliveryAction.actions.find((a) => a.type === "email")}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setDeliveryAction(prev => ({
-                            actions: [...prev.actions, { type: "email", emails: [""] }]
+                          setDeliveryAction((prev) => ({
+                            actions: [...prev.actions, { type: "email", emails: [""] }],
                           }));
                         } else {
-                          setDeliveryAction(prev => ({
-                            actions: prev.actions.filter(a => a.type !== "email")
+                          setDeliveryAction((prev) => ({
+                            actions: prev.actions.filter((a) => a.type !== "email"),
                           }));
                         }
                       }}
                       className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 accent-[#136D6D]"
                     />
-                    <span className="text-[13px] text-forest-f60">Email</span>
+                    <span className="text-[13px] text-forest-f60">Send report to email</span>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={!!deliveryAction.actions.find(a => a.type === "slack")}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setDeliveryAction(prev => ({
-                            actions: [...prev.actions, { type: "slack", webhookUrl: "" }]
-                          }));
-                        } else {
-                          setDeliveryAction(prev => ({
-                            actions: prev.actions.filter(a => a.type !== "slack")
-                          }));
-                        }
-                      }}
-                      className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 accent-[#136D6D]"
-                    />
-                    <span className="text-[13px] text-forest-f60">Slack</span>
-                  </label>
-                </div>
-                {deliveryAction.actions.find(a => a.type === "email") && (
-                  <div>
-                    <label className="block text-[13px] font-medium text-forest-f60 mb-1">
-                      Email addresses
-                    </label>
-                    {(deliveryAction.actions.find(a => a.type === "email")?.emails ?? [""]).map((email: string, i: number) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-2 mb-2 last:mb-0"
-                      >
-                        <input
-                          type="email"
-                          value={email}
-                          onChange={(e) => {
-                            setDeliveryAction((prev) => ({
-                              actions: prev.actions.map(action => 
-                                action.type === "email" 
-                                  ? { ...action, emails: action.emails?.map((email, idx) => idx === i ? e.target.value : email) ?? [""] }
-                                  : action
-                              )
-                            }));
-                          }}
-                          placeholder="report@company.com"
-                          className={cn(
-                            "campaign-input flex-1 min-w-0",
-                            errors.delivery &&
-                            "border-red-500 focus:ring-red-500"
-                          )}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDeliveryAction((prev) => ({
-                              actions: prev.actions.map(action => 
-                                action.type === "email" 
-                                  ? { ...action, emails: action.emails?.filter((_, j) => j !== i).length ? action.emails?.filter((_, j) => j !== i) : [""] }
-                                  : action
-                              )
-                            }));
-                          }}
-                          className="p-2 text-forest-f30 hover:text-red-r30 rounded transition-colors"
-                          aria-label="Remove email"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setDeliveryAction((prev) => ({
-                          actions: prev.actions.map(action => 
-                            action.type === "email" 
-                              ? { ...action, emails: [...(action.emails ?? [""]), ""] }
-                              : action
-                          )
-                        }))
-                      }
-                      className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-forest-f40 hover:text-forest-f50"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add email
-                    </button>
-                  </div>
-                )}
-                {deliveryAction.actions.find(a => a.type === "slack") && (
-                  <div>
-                    <label className="block text-[13px] font-medium text-forest-f60 mb-1">
-                      Slack webhook URL
-                      <a 
-                        href="https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="ml-2 text-forest-f40 hover:text-forest-f50 text-xs underline"
-                      >
-                        Learn how to create webhook
-                      </a>
-                    </label>
-                    <input
-                      type="url"
-                      value={deliveryAction.actions.find(a => a.type === "slack")?.webhookUrl ?? ""}
-                      onChange={(e) =>
-                        setDeliveryAction((prev) => ({
-                          actions: prev.actions.map(action => 
-                            action.type === "slack" 
-                              ? { ...action, webhookUrl: e.target.value }
-                              : action
-                          )
-                        }))
-                      }
-                      placeholder="https://hooks.slack.com/services/..."
-                      className={cn(
-                        "campaign-input w-full",
-                        errors.delivery && "border-red-500 focus:ring-red-500"
+                  {deliveryAction.actions.find((a) => a.type === "email") && (
+                    <div className="space-y-2">
+                      {(deliveryAction.actions.find((a) => a.type === "email")?.emails ?? [""]).map(
+                        (email: string, i: number) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <input
+                              type="email"
+                              value={email}
+                              onChange={(e) => {
+                                setDeliveryAction((prev) => ({
+                                  actions: prev.actions.map((action) =>
+                                    action.type === "email"
+                                      ? {
+                                          ...action,
+                                          emails:
+                                            action.emails?.map((em, idx) => (idx === i ? e.target.value : em)) ?? [""],
+                                        }
+                                      : action
+                                  ),
+                                }));
+                              }}
+                              placeholder="report@company.com"
+                              className={cn(
+                                "campaign-input flex-1 min-w-0",
+                                errors.delivery && "border-red-500 focus:ring-red-500"
+                              )}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeliveryAction((prev) => ({
+                                  actions: prev.actions.map((action) =>
+                                    action.type === "email"
+                                      ? {
+                                          ...action,
+                                          emails:
+                                            (action.emails?.filter((_, j) => j !== i).length ?? 0) > 0
+                                              ? action.emails?.filter((_, j) => j !== i)
+                                              : [""],
+                                        }
+                                      : action
+                                  ),
+                                }));
+                              }}
+                              className="p-2 text-forest-f30 hover:text-red-r30 rounded transition-colors"
+                              aria-label="Remove email"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )
                       )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDeliveryAction((prev) => ({
+                            actions: prev.actions.map((action) =>
+                              action.type === "email"
+                                ? { ...action, emails: [...(action.emails ?? [""]), ""] }
+                                : action
+                            ),
+                          }))
+                        }
+                        className="inline-flex items-center gap-1.5 text-[13px] text-forest-f40 hover:text-forest-f50"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add email
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Sub-section: Slack */}
+                <div className="rounded-lg border border-sandstorm-s40 bg-white p-4 space-y-4">
+                  <h4 className="text-sm font-semibold text-forest-f60 border-b border-sandstorm-s40 pb-2 -mt-0.5">
+                    Slack
+                  </h4>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!deliveryAction.actions.find((a) => a.type === "slack")}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setDeliveryAction((prev) => ({
+                            actions: [...prev.actions, { type: "slack", webhookUrl: "" }],
+                          }));
+                        } else {
+                          setDeliveryAction((prev) => ({
+                            actions: prev.actions.filter((a) => a.type !== "slack"),
+                          }));
+                        }
+                      }}
+                      className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 accent-[#136D6D]"
                     />
-                  </div>
-                )}
+                    <span className="text-[13px] text-forest-f60">Send report to Slack channel</span>
+                  </label>
+                  {deliveryAction.actions.find((a) => a.type === "slack") && (
+                    <div className="space-y-2">
+                      <input
+                        type="url"
+                        value={deliveryAction.actions.find((a) => a.type === "slack")?.webhookUrl ?? ""}
+                        onChange={(e) =>
+                          setDeliveryAction((prev) => ({
+                            actions: prev.actions.map((action) =>
+                              action.type === "slack" ? { ...action, webhookUrl: e.target.value } : action
+                            ),
+                          }))
+                        }
+                        placeholder="https://hooks.slack.com/services/..."
+                        className={cn(
+                          "campaign-input w-full",
+                          errors.delivery && "border-red-500 focus:ring-red-500"
+                        )}
+                      />
+                      <a
+                        href="https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-forest-f40 hover:text-forest-f50 underline"
+                      >
+                        Learn how to create Slack webhook
+                      </a>
+                    </div>
+                  )}
+                </div>
+
                 {errors.delivery && (
-                  <p className="mt-1 text-xs text-red-600">{errors.delivery}</p>
+                  <p className="text-xs text-red-600">{errors.delivery}</p>
                 )}
               </div>
             )}
+
             {useDefaultDelivery &&
               !(
-                (brandSettings?.deliveryAction?.actions?.find(a => a.type === "email") &&
-                  ((brandSettings.deliveryAction.actions.find(a => a.type === "email")?.emails?.length ?? 0) > 0)) ||
-                (brandSettings?.deliveryAction?.actions?.find(a => a.type === "slack") &&
-                  !!brandSettings.deliveryAction.actions.find(a => a.type === "slack")?.webhookUrl)
+                (brandSettings?.deliveryAction?.actions?.find((a) => a.type === "email") &&
+                  ((brandSettings.deliveryAction.actions.find((a) => a.type === "email")?.emails?.length ?? 0) > 0)) ||
+                (brandSettings?.deliveryAction?.actions?.find((a) => a.type === "slack") &&
+                  !!brandSettings.deliveryAction.actions.find((a) => a.type === "slack")?.webhookUrl)
               ) && (
                 <p className="text-xs text-yellow-y10">
-                  Set a default delivery in Report Settings, or choose Custom
-                  delivery below.
+                  Set a default delivery in Report Settings, or choose custom delivery below.
                 </p>
               )}
           </div>

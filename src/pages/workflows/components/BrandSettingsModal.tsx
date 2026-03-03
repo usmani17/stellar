@@ -273,105 +273,112 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
           )}
 
           {activeTab === "Delivery" && (
-          <div>
-            <label className="block text-[13px] font-medium text-forest-f60 mb-1">
-              Default delivery
-            </label>
-            <p className="text-xs text-forest-f30 mb-2">
+          <div className="space-y-5">
+            <p className="text-xs text-forest-f30">
               Reports will be sent here unless a workflow specifies custom delivery.
             </p>
-            <div className="flex items-center gap-4 mb-3">
+
+            {/* Section: Email */}
+            <div className="rounded-lg border border-sandstorm-s40 bg-sandstorm-s5 p-4 space-y-4">
+              <h3 className="text-sm font-semibold text-forest-f60 border-b border-sandstorm-s40 pb-2 -mt-0.5">
+                Email
+              </h3>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={selectedDeliveryTypes.includes("email")}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedDeliveryTypes(prev => [...prev, "email"]);
+                      setSelectedDeliveryTypes((prev) => [...prev, "email"]);
                     } else {
-                      setSelectedDeliveryTypes(prev => prev.filter(t => t !== "email"));
+                      setSelectedDeliveryTypes((prev) => prev.filter((t) => t !== "email"));
                     }
                   }}
                   className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 accent-[#136D6D]"
                 />
-                <span className="text-[13px] text-forest-f60">Email</span>
+                <span className="text-[13px] text-forest-f60">Send reports to email</span>
               </label>
+              {selectedDeliveryTypes.includes("email") && (
+                <div className="space-y-2">
+                  {defaultDeliveryEmails.map((email, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-forest-f40 shrink-0" />
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(e) => {
+                          const next = [...defaultDeliveryEmails];
+                          next[i] = e.target.value;
+                          setDefaultDeliveryEmails(next);
+                        }}
+                        placeholder={user?.email ?? "reports@company.com"}
+                        className="flex-1 min-w-0"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = defaultDeliveryEmails.filter((_, j) => j !== i);
+                          setDefaultDeliveryEmails(next.length ? next : [""]);
+                        }}
+                        className="p-2 text-forest-f30 hover:text-red-r30 rounded transition-colors"
+                        aria-label="Remove email"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setDefaultDeliveryEmails([...defaultDeliveryEmails, ""])}
+                    className="inline-flex items-center gap-1.5 text-[13px] text-forest-f40 hover:text-forest-f50"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add email
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Section: Slack */}
+            <div className="rounded-lg border border-sandstorm-s40 bg-sandstorm-s5 p-4 space-y-4">
+              <h3 className="text-sm font-semibold text-forest-f60 border-b border-sandstorm-s40 pb-2 -mt-0.5">
+                Slack
+              </h3>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={selectedDeliveryTypes.includes("slack")}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedDeliveryTypes(prev => [...prev, "slack"]);
+                      setSelectedDeliveryTypes((prev) => [...prev, "slack"]);
                     } else {
-                      setSelectedDeliveryTypes(prev => prev.filter(t => t !== "slack"));
+                      setSelectedDeliveryTypes((prev) => prev.filter((t) => t !== "slack"));
                     }
                   }}
                   className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 accent-[#136D6D]"
                 />
-                <span className="text-[13px] text-forest-f60">Slack</span>
+                <span className="text-[13px] text-forest-f60">Send reports to Slack channel</span>
               </label>
-            </div>
-            {selectedDeliveryTypes.includes("email") && (
-              <div className="space-y-2">
-                {defaultDeliveryEmails.map((email, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-forest-f40 shrink-0" />
-                    <Input
-                      type="email"
-                      value={email}
-                      onChange={(e) => {
-                        const next = [...defaultDeliveryEmails];
-                        next[i] = e.target.value;
-                        setDefaultDeliveryEmails(next);
-                      }}
-                      placeholder={user?.email ?? "reports@company.com"}
-                      className="flex-1 min-w-0"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = defaultDeliveryEmails.filter((_, j) => j !== i);
-                        setDefaultDeliveryEmails(next.length ? next : [""]);
-                      }}
-                      className="p-2 text-forest-f30 hover:text-red-r30 rounded transition-colors"
-                      aria-label="Remove email"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setDefaultDeliveryEmails([...defaultDeliveryEmails, ""])}
-                  className="inline-flex items-center gap-1.5 text-[13px] text-forest-f40 hover:text-forest-f50"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add email
-                </button>
-              </div>
-            )}
-            {selectedDeliveryTypes.includes("slack") && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
+              {selectedDeliveryTypes.includes("slack") && (
+                <div className="space-y-2">
                   <Input
                     type="url"
                     value={defaultDeliveryWebhookUrl}
                     onChange={(e) => setDefaultDeliveryWebhookUrl(e.target.value)}
                     placeholder="https://hooks.slack.com/services/..."
-                    className="flex-1"
+                    className="w-full"
                   />
+                  <a
+                    href="https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-forest-f40 hover:text-forest-f50 underline"
+                  >
+                    Learn how to create Slack webhook
+                  </a>
                 </div>
-                <a 
-                  href="https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-xs text-forest-f40 hover:text-forest-f50 underline"
-                >
-                  Learn how to create Slack webhook
-                </a>
-              </div>
-            )}
+              )}
+            </div>
           </div>
           )}
         </div>
