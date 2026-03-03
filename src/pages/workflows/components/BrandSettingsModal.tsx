@@ -9,6 +9,9 @@ import {
 import { useBrandSettings } from "../hooks/useBrandSettings";
 import { cn } from "../../../lib/cn";
 
+const BRAND_SETTINGS_TABS = ["Branding", "Delivery"] as const;
+type BrandSettingsTab = (typeof BRAND_SETTINGS_TABS)[number];
+
 const HEX_REGEX = /^#[0-9A-Fa-f]{6}$/;
 
 interface BrandSettingsModalProps {
@@ -35,6 +38,7 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
   const [colorError, setColorError] = useState("");
   const [saved, setSaved] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [activeTab, setActiveTab] = useState<BrandSettingsTab>("Branding");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -139,11 +143,32 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
         <h2 className="text-xl font-agrandir font-medium text-forest-f60 mb-4">
           Report Settings
         </h2>
-        <p className="text-sm text-forest-f30 mb-5">
+        <p className="text-sm text-forest-f30 mb-4">
           Default logo, color, and delivery for PDF reports. Workflows can override these per workflow.
         </p>
 
+        {/* Tab navigation */}
+        <div className="flex items-center gap-2 mb-5 border-b border-sandstorm-s40">
+          {BRAND_SETTINGS_TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "px-4 py-2 text-[14px] font-medium transition-colors border-b-2 -mb-px cursor-pointer",
+                activeTab === tab
+                  ? "border-forest-f40 text-forest-f60"
+                  : "border-transparent text-forest-f30 hover:text-forest-f60"
+              )}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
         <div className="space-y-6">
+          {activeTab === "Branding" && (
+            <>
           {/* Logo: Upload or URL */}
           <div>
             <label className="block text-[13px] font-medium text-forest-f60 mb-2">
@@ -244,8 +269,10 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
               <p className="mt-1.5 text-xs text-forest-f30">{primaryColor}</p>
             )}
           </div>
+            </>
+          )}
 
-          {/* Default Delivery */}
+          {activeTab === "Delivery" && (
           <div>
             <label className="block text-[13px] font-medium text-forest-f60 mb-1">
               Default delivery
@@ -346,6 +373,7 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* Footer */}
