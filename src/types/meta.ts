@@ -29,7 +29,9 @@ export interface CreateMetaCampaignPayload {
   daily_budget?: number;
   lifetime_budget?: number;
   special_ad_categories?: string[];
+  special_ad_category_country?: string[];
   buying_type?: string;
+  bid_strategy?: string;
 }
 
 export interface UpdateMetaCampaignPayload {
@@ -44,12 +46,44 @@ export interface MetaCampaignCreateResponse {
 }
 
 /** Ad set create – targeting matches Meta Targeting spec. */
+export interface MetaGeoLocations {
+  countries?: string[];
+  regions?: Array<{ key: string }>;
+  cities?: Array<{ key: string; radius?: number; distance_unit?: string }>;
+  location_types?: string[];
+  [key: string]: unknown;
+}
+
 export interface MetaTargetingSpec {
-  geo_locations?: { countries?: string[]; cities?: unknown; regions?: unknown };
+  geo_locations?: MetaGeoLocations;
   age_min?: number;
   age_max?: number;
-  facebook_positions?: string[];
+  genders?: number[]; // 1 male, 2 female
+  interests?: Array<{ id: string; name?: string }>;
+  behaviors?: Array<{ id: string; name?: string }>;
+  custom_audiences?: Array<{ id: string }>;
+  excluded_custom_audiences?: Array<{ id: string }>;
   publisher_platforms?: string[];
+  device_platforms?: string[];
+  facebook_positions?: string[];
+  instagram_positions?: string[];
+  audience_network_positions?: string[];
+  flexible_spec?: unknown[];
+  exclusions?: unknown;
+  [key: string]: unknown;
+}
+
+/** Promoted object for ad set (varies by campaign objective). */
+export interface MetaPromotedObject {
+  page_id?: string;
+  pixel_id?: string;
+  custom_event_type?: string;
+  custom_event_str?: string;
+  application_id?: string;
+  object_store_url?: string;
+  event_id?: string;
+  product_set_id?: string;
+  offline_conversion_data_set_id?: string;
   [key: string]: unknown;
 }
 
@@ -68,7 +102,9 @@ export interface CreateMetaAdSetPayload {
   start_time?: string;
   end_time?: string;
   bid_amount?: number;
-  promoted_object?: { page_id?: string; [key: string]: unknown };
+  destination_type?: string;
+  promoted_object?: MetaPromotedObject;
+  pacing_type?: string[];
 }
 
 export interface UpdateMetaAdSetPayload {

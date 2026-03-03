@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
+import { accountsService } from "../../services/accounts";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
@@ -43,6 +44,7 @@ export function MetaCampaignDetail() {
   const [isCreateAdSetPanelOpen, setIsCreateAdSetPanelOpen] = useState(false);
   const [isCreateCreativePanelOpen, setIsCreateCreativePanelOpen] = useState(false);
   const [isCreateAdPanelOpen, setIsCreateAdPanelOpen] = useState(false);
+  const [profileIdFallback, setProfileIdFallback] = useState<number | null>(null);
 
   const {
     campaignDetail,
@@ -87,6 +89,25 @@ export function MetaCampaignDetail() {
     setPageTitle(campaignDetail?.campaign?.campaign_name ?? "Meta Campaign");
     return () => resetPageTitle();
   }, [campaignDetail?.campaign?.campaign_name]);
+
+  // When campaign has no profile_id, fetch Meta profiles and use first as fallback for Create Meta Ad Set.
+  useEffect(() => {
+    if (!channelId || !campaignDetail || campaignDetail.campaign.profile_id != null) {
+      if (campaignDetail?.campaign?.profile_id != null) setProfileIdFallback(null);
+      return;
+    }
+    let cancelled = false;
+    accountsService
+      .fetchMetaProfiles(parseInt(channelId, 10))
+      .then((res) => {
+        if (cancelled) return;
+        const list = (res.profiles || []) as Array<{ id?: number }>;
+        const first = list.find((p) => p.id != null);
+        if (first?.id != null) setProfileIdFallback(first.id);
+      })
+      .catch(() => { if (!cancelled) setProfileIdFallback(null); });
+    return () => { cancelled = true; };
+  }, [channelId, campaignDetail]);
 
   const listPath = `/brands/${accountId}/${channelId}/meta/campaigns`;
   const kpiCards = useMemo(
@@ -138,8 +159,8 @@ export function MetaCampaignDetail() {
                       key={index}
                       label={card.label}
                       value={card.value}
-                      change={card.change}
-                      isPositive={card.isPositive}
+                      change={card.change ?? undefined}
+                      isPositive={card.isPositive ?? undefined}
                       className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
                     />
                   ))}
@@ -195,7 +216,13 @@ export function MetaCampaignDetail() {
                         campaignId && (
                           <CreateMetaAdSetPanel
                             channelId={parseInt(channelId, 10)}
+                            profileId={campaignDetail?.campaign?.profile_id ?? profileIdFallback ?? 0}
                             campaignId={campaignId}
+                            campaignObjective={campaignDetail?.campaign?.objective}
+                            campaignBudgetSet={
+                              campaignDetail?.campaign?.daily_budget != null &&
+                              String(campaignDetail.campaign.daily_budget).trim() !== ""
+                            }
                             accountId={accountId}
                             onSuccess={() => {
                               adsetsHook.loadAdsets();

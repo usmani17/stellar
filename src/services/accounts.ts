@@ -726,6 +726,7 @@ export const accountsService = {
       sales?: number;
       acos?: number;
       roas?: number;
+      profile_id?: number;
     };
     chart_data: Array<{
       date: string;

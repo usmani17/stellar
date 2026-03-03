@@ -7,7 +7,10 @@ export interface MetaCampaignDetailData {
     id: number;
     campaign_id: string;
     campaign_name: string;
+    /** Ad account (profile) ID for this campaign; used when creating ad sets. */
+    profile_id?: number;
     status?: string;
+    objective?: string;
     start_time?: string;
     stop_time?: string;
     daily_budget?: string;
