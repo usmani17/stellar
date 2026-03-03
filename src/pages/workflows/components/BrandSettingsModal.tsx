@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ImageIcon, Loader2, Upload, Mail, Check, Plus, Trash2 } from "lucide-react";
-import { BaseModal, Input, Radio } from "../../../components/ui";
+import { BaseModal, Input } from "../../../components/ui";
 import { useAuth } from "../../../contexts/AuthContext";
 import {
   assetUploadService,
@@ -28,9 +28,9 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
 
   const [logoUrl, setLogoUrl] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#136D6D");
-  const [defaultDeliveryType, setDefaultDeliveryType] = useState<"email" | "slack">("email");
   const [defaultDeliveryEmails, setDefaultDeliveryEmails] = useState<string[]>([""]);
   const [defaultDeliveryWebhookUrl, setDefaultDeliveryWebhookUrl] = useState("");
+  const [selectedDeliveryTypes, setSelectedDeliveryTypes] = useState<("email" | "slack")[]>(["email"]);
   const [logoError, setLogoError] = useState(false);
   const [colorError, setColorError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -42,20 +42,31 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
       setLogoUrl(settings.logoUrl);
       setPrimaryColor(settings.primaryColor);
       const da = settings.deliveryAction;
-      if (da?.type === "slack") {
-        setDefaultDeliveryType("slack");
-        setDefaultDeliveryWebhookUrl(da.webhookUrl ?? "");
-        setDefaultDeliveryEmails([""]);
+      const selectedTypes: ("email" | "slack")[] = [];
+      
+      if (da?.actions?.find(a => a.type === "slack")) {
+        selectedTypes.push("slack");
+        setDefaultDeliveryWebhookUrl(da.actions.find(a => a.type === "slack")?.webhookUrl ?? "");
       } else {
-        setDefaultDeliveryType("email");
+        setDefaultDeliveryWebhookUrl("");
+      }
+      
+      if (da?.actions?.find(a => a.type === "email")) {
+        selectedTypes.push("email");
         let emails: string[] = [];
-        const fromDa = da?.emails?.filter(Boolean);
+        const fromDa = da?.actions?.find(a => a.type === "email")?.emails?.filter(Boolean);
         if (fromDa?.length) emails = fromDa;
         else if (user?.email) emails = [user.email];
         else emails = [""];
         setDefaultDeliveryEmails(emails.length ? emails : [""]);
-        setDefaultDeliveryWebhookUrl("");
+      } else {
+        let emails: string[] = [];
+        if (user?.email) emails = [user.email];
+        else emails = [""];
+        setDefaultDeliveryEmails(emails.length ? emails : [""]);
       }
+      
+      setSelectedDeliveryTypes(selectedTypes.length ? selectedTypes : ["email"]);
       setLogoError(false);
       setColorError("");
       setSaved(false);
@@ -98,14 +109,17 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
   const handleSave = async () => {
     if (!validateColor(primaryColor)) return;
     const emails = defaultDeliveryEmails.map((e) => e.trim()).filter(Boolean);
-    const payloadDeliveryAction: DeliveryAction | null =
-      defaultDeliveryType === "slack"
-        ? defaultDeliveryWebhookUrl.trim()
-          ? { type: "slack", webhookUrl: defaultDeliveryWebhookUrl.trim() }
-          : null
-        : emails.length > 0
-          ? { type: "email", emails }
-          : null;
+    const actions: DeliveryAction["actions"] = [];
+    
+    if (selectedDeliveryTypes.includes("slack") && defaultDeliveryWebhookUrl.trim()) {
+      actions.push({ type: "slack", webhookUrl: defaultDeliveryWebhookUrl.trim() });
+    }
+    
+    if (selectedDeliveryTypes.includes("email") && emails.length > 0) {
+      actions.push({ type: "email", emails });
+    }
+    
+    const payloadDeliveryAction: DeliveryAction | null = actions.length > 0 ? { actions } : null;
     try {
       await updateSettings({
         logoUrl,
@@ -240,18 +254,38 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
               Reports will be sent here unless a workflow specifies custom delivery.
             </p>
             <div className="flex items-center gap-4 mb-3">
-              <Radio
-                checked={defaultDeliveryType === "email"}
-                onChange={() => setDefaultDeliveryType("email")}
-                label="Email"
-              />
-              <Radio
-                checked={defaultDeliveryType === "slack"}
-                onChange={() => setDefaultDeliveryType("slack")}
-                label="Slack"
-              />
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedDeliveryTypes.includes("email")}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedDeliveryTypes(prev => [...prev, "email"]);
+                    } else {
+                      setSelectedDeliveryTypes(prev => prev.filter(t => t !== "email"));
+                    }
+                  }}
+                  className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 accent-[#136D6D]"
+                />
+                <span className="text-[13px] text-forest-f60">Email</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedDeliveryTypes.includes("slack")}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedDeliveryTypes(prev => [...prev, "slack"]);
+                    } else {
+                      setSelectedDeliveryTypes(prev => prev.filter(t => t !== "slack"));
+                    }
+                  }}
+                  className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 accent-[#136D6D]"
+                />
+                <span className="text-[13px] text-forest-f60">Slack</span>
+              </label>
             </div>
-            {defaultDeliveryType === "email" && (
+            {selectedDeliveryTypes.includes("email") && (
               <div className="space-y-2">
                 {defaultDeliveryEmails.map((email, i) => (
                   <div key={i} className="flex items-center gap-2">
@@ -290,14 +324,26 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
                 </button>
               </div>
             )}
-            {defaultDeliveryType === "slack" && (
-              <Input
-                type="url"
-                value={defaultDeliveryWebhookUrl}
-                onChange={(e) => setDefaultDeliveryWebhookUrl(e.target.value)}
-                placeholder="https://hooks.slack.com/services/..."
-                className="w-full"
-              />
+            {selectedDeliveryTypes.includes("slack") && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Input
+                    type="url"
+                    value={defaultDeliveryWebhookUrl}
+                    onChange={(e) => setDefaultDeliveryWebhookUrl(e.target.value)}
+                    placeholder="https://hooks.slack.com/services/..."
+                    className="flex-1"
+                  />
+                </div>
+                <a 
+                  href="https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-forest-f40 hover:text-forest-f50 underline"
+                >
+                  Learn how to create Slack webhook
+                </a>
+              </div>
             )}
           </div>
         </div>

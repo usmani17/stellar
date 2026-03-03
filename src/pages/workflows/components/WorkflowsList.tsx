@@ -17,7 +17,7 @@ import {
   ChevronRight,
   Zap,
 } from "lucide-react";
-import { Loader, ConfirmationModal, Tooltip } from "../../../components/ui";
+import { ConfirmationModal, Tooltip } from "../../../components/ui";
 import { WorkflowRunHistoryModal } from "./WorkflowRunHistoryModal";
 import { WorkflowPreviewModal } from "./WorkflowPreviewModal";
 import { cn } from "../../../lib/cn";
@@ -29,7 +29,6 @@ import { queryKeys } from "../../../hooks/queries/queryKeys";
 interface WorkflowsListProps {
   accountId: number | undefined;
   workflows: Workflow[];
-  isLoading: boolean;
   onEdit: (workflow: Workflow) => void;
   onDelete: (id: number) => Promise<void>;
   isDeleting: boolean;
@@ -42,7 +41,6 @@ interface WorkflowsListProps {
 export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   accountId,
   workflows,
-  isLoading,
   onEdit,
   onDelete,
   isDeleting,
@@ -74,14 +72,6 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   useEffect(() => {
     if (page > totalPages && totalPages > 0) setPage(totalPages);
   }, [page, totalPages]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader />
-      </div>
-    );
-  }
 
   if (!accountId) {
     return (

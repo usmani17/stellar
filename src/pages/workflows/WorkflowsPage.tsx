@@ -10,6 +10,7 @@ import { useWorkflows } from "./hooks/useWorkflows";
 import { WorkflowsList } from "./components/WorkflowsList";
 import { BrandSettingsModal } from "./components/BrandSettingsModal";
 import { CreateWorkflowPanel } from "./components/CreateWorkflowPanel";
+import { Loader } from "../../components/ui";
 import type { Workflow } from "../../services/workflows";
 
 export const WorkflowsPage: React.FC = () => {
@@ -26,7 +27,7 @@ export const WorkflowsPage: React.FC = () => {
 
   const {
     workflows,
-    isLoading,
+    isSearching,
     deleteWorkflow,
     isDeleting,
     updateWorkflow,
@@ -116,6 +117,11 @@ export const WorkflowsPage: React.FC = () => {
                   autoComplete="off"
                   aria-label="Search workflows by name"
                 />
+                {isSearching && (
+                  <div className="relative shrink-0 size-4">
+                    <Loader size="sm" />
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-3">
               <button
@@ -144,7 +150,6 @@ export const WorkflowsPage: React.FC = () => {
           <WorkflowsList
             accountId={accountIdNum}
             workflows={workflows}
-            isLoading={isLoading}
             onEdit={handleEdit}
             onDelete={deleteWorkflow}
             isDeleting={isDeleting}

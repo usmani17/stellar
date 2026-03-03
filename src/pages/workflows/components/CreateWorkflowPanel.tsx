@@ -74,8 +74,7 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
   const [format, setFormat] = useState<"pdf" | "docx">("pdf");
   const [useDefaultDelivery, setUseDefaultDelivery] = useState(true);
   const [deliveryAction, setDeliveryAction] = useState<DeliveryAction>({
-    type: "email",
-    emails: [""],
+    actions: [{ type: "email", emails: [""] }],
   });
   const [schedule, setSchedule] = useState<ScheduleConfig>(defaultSchedule);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -111,18 +110,10 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
       setFormat(editingWorkflow.format);
       setUseDefaultDelivery(editingWorkflow.deliveryAction == null);
       const da = editingWorkflow.deliveryAction;
-      if (da?.type === "slack") {
-        setDeliveryAction({
-          type: "slack",
-          webhookUrl: da.webhookUrl ?? "",
-        });
+      if (da?.actions) {
+        setDeliveryAction(da);
       } else {
-        const emails =
-          da?.emails?.filter(Boolean) ?? [];
-        setDeliveryAction({
-          type: "email",
-          emails: emails.length ? emails : [""],
-        });
+        setDeliveryAction({ actions: [{ type: "email", emails: [""] }] });
       }
       setSchedule(normalizeSchedule(editingWorkflow.schedule));
     } else {
@@ -133,7 +124,7 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
       setPrompt("");
       setFormat("pdf");
       setUseDefaultDelivery(true);
-      setDeliveryAction({ type: "email", emails: [""] });
+      setDeliveryAction({ actions: [{ type: "email", emails: [""] }] });
       setSchedule({ ...defaultSchedule, timezone: getCurrentTimezone() });
     }
     setErrors({});
@@ -228,15 +219,21 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
     if (!name.trim()) e.name = "Name is required";
     if (!prompt.trim()) e.prompt = "Prompt is required";
     if (!useDefaultDelivery) {
-      if (deliveryAction.type === "email") {
-        const emails = (deliveryAction.emails ?? []).map((s) => s.trim()).filter(Boolean);
+      const emailAction = deliveryAction.actions.find(a => a.type === "email");
+      const slackAction = deliveryAction.actions.find(a => a.type === "slack");
+      
+      if (emailAction) {
+        const emails = (emailAction.emails ?? []).map((s: string) => s.trim()).filter(Boolean);
         if (emails.length === 0) e.delivery = "Add at least one email address";
-        else if (emails.some((addr) => !emailRegex.test(addr)))
+        else if (emails.some((addr: string) => !emailRegex.test(addr)))
           e.delivery = "Enter valid email addresses";
-      } else if (deliveryAction.type === "slack") {
-        if (!deliveryAction.webhookUrl?.trim())
-          e.delivery = "Enter a Slack webhook URL";
       }
+      
+      if (slackAction && !slackAction.webhookUrl?.trim())
+        e.delivery = "Enter a Slack webhook URL";
+      
+      if (deliveryAction.actions.length === 0)
+        e.delivery = "Select at least one delivery option";
     }
     if (
       schedule.frequency === "once" &&
@@ -276,17 +273,7 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
         format,
         deliveryAction: useDefaultDelivery
           ? null
-          : deliveryAction.type === "email"
-            ? {
-              type: "email" as const,
-              emails: (deliveryAction.emails ?? [])
-                .map((s) => s.trim())
-                .filter(Boolean),
-            }
-            : {
-              type: "slack" as const,
-              webhookUrl: deliveryAction.webhookUrl?.trim() ?? "",
-            },
+          : deliveryAction,
         schedule: sanitizeScheduleForApi(schedule),
       };
 
@@ -543,16 +530,16 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
               />
               <span className="text-[13px] text-forest-f60">
                 Use default from Report Settings
-                {brandSettings?.deliveryAction?.type === "email" &&
-                  (brandSettings.deliveryAction.emails?.length ? (
+                {brandSettings?.deliveryAction?.actions?.find(a => a.type === "email") &&
+                  (brandSettings.deliveryAction.actions.find(a => a.type === "email")?.emails?.length ? (
                     <span className="text-forest-f30 ml-1">
-                      ({brandSettings.deliveryAction.emails.length === 1
-                        ? brandSettings.deliveryAction.emails[0]
-                        : `${brandSettings.deliveryAction.emails.length} emails`})
+                      ({brandSettings.deliveryAction.actions.find(a => a.type === "email")!.emails!.length === 1
+                        ? brandSettings.deliveryAction.actions.find(a => a.type === "email")!.emails![0]
+                        : `${brandSettings.deliveryAction.actions.find(a => a.type === "email")!.emails!.length} emails`})
                     </span>
                   ) : null)}
-                {brandSettings?.deliveryAction?.type === "slack" &&
-                  brandSettings.deliveryAction.webhookUrl && (
+                {brandSettings?.deliveryAction?.actions?.find(a => a.type === "slack") &&
+                  brandSettings.deliveryAction.actions.find(a => a.type === "slack")?.webhookUrl && (
                     <span className="text-forest-f30 ml-1">(Slack)</span>
                   )}
               </span>
@@ -560,39 +547,51 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
             {!useDefaultDelivery && (
               <div className="space-y-3">
                 <div className="flex gap-4">
-                  <Radio
-                    name="delivery-type"
-                    checked={deliveryAction.type === "email"}
-                    onChange={() =>
-                      setDeliveryAction({
-                        type: "email",
-                        emails:
-                          (deliveryAction.emails ?? [""]).filter(Boolean)
-                            .length > 0
-                            ? deliveryAction.emails ?? [""]
-                            : [""],
-                      })
-                    }
-                    label="Email"
-                  />
-                  <Radio
-                    name="delivery-type"
-                    checked={deliveryAction.type === "slack"}
-                    onChange={() =>
-                      setDeliveryAction({
-                        type: "slack",
-                        webhookUrl: deliveryAction.webhookUrl ?? "",
-                      })
-                    }
-                    label="Slack"
-                  />
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!deliveryAction.actions.find(a => a.type === "email")}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setDeliveryAction(prev => ({
+                            actions: [...prev.actions, { type: "email", emails: [""] }]
+                          }));
+                        } else {
+                          setDeliveryAction(prev => ({
+                            actions: prev.actions.filter(a => a.type !== "email")
+                          }));
+                        }
+                      }}
+                      className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 accent-[#136D6D]"
+                    />
+                    <span className="text-[13px] text-forest-f60">Email</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!deliveryAction.actions.find(a => a.type === "slack")}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setDeliveryAction(prev => ({
+                            actions: [...prev.actions, { type: "slack", webhookUrl: "" }]
+                          }));
+                        } else {
+                          setDeliveryAction(prev => ({
+                            actions: prev.actions.filter(a => a.type !== "slack")
+                          }));
+                        }
+                      }}
+                      className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 accent-[#136D6D]"
+                    />
+                    <span className="text-[13px] text-forest-f60">Slack</span>
+                  </label>
                 </div>
-                {deliveryAction.type === "email" && (
+                {deliveryAction.actions.find(a => a.type === "email") && (
                   <div>
                     <label className="block text-[13px] font-medium text-forest-f60 mb-1">
                       Email addresses
                     </label>
-                    {(deliveryAction.emails ?? [""]).map((email, i) => (
+                    {(deliveryAction.actions.find(a => a.type === "email")?.emails ?? [""]).map((email: string, i: number) => (
                       <div
                         key={i}
                         className="flex items-center gap-2 mb-2 last:mb-0"
@@ -601,13 +600,13 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
                           type="email"
                           value={email}
                           onChange={(e) => {
-                            const next = [...(deliveryAction.emails ?? [""])];
-                            next[i] = e.target.value;
-                            setDeliveryAction((prev) =>
-                              prev.type === "email"
-                                ? { ...prev, emails: next }
-                                : prev
-                            );
+                            setDeliveryAction((prev) => ({
+                              actions: prev.actions.map(action => 
+                                action.type === "email" 
+                                  ? { ...action, emails: action.emails?.map((email, idx) => idx === i ? e.target.value : email) ?? [""] }
+                                  : action
+                              )
+                            }));
                           }}
                           placeholder="report@company.com"
                           className={cn(
@@ -619,17 +618,13 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            const next = (deliveryAction.emails ?? [""]).filter(
-                              (_, j) => j !== i
-                            );
-                            setDeliveryAction((prev) =>
-                              prev.type === "email"
-                                ? {
-                                  ...prev,
-                                  emails: next.length ? next : [""],
-                                }
-                                : prev
-                            );
+                            setDeliveryAction((prev) => ({
+                              actions: prev.actions.map(action => 
+                                action.type === "email" 
+                                  ? { ...action, emails: action.emails?.filter((_, j) => j !== i).length ? action.emails?.filter((_, j) => j !== i) : [""] }
+                                  : action
+                              )
+                            }));
                           }}
                           className="p-2 text-forest-f30 hover:text-red-r30 rounded transition-colors"
                           aria-label="Remove email"
@@ -641,14 +636,13 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
                     <button
                       type="button"
                       onClick={() =>
-                        setDeliveryAction((prev) =>
-                          prev.type === "email"
-                            ? {
-                              ...prev,
-                              emails: [...(prev.emails ?? [""]), ""],
-                            }
-                            : prev
-                        )
+                        setDeliveryAction((prev) => ({
+                          actions: prev.actions.map(action => 
+                            action.type === "email" 
+                              ? { ...action, emails: [...(action.emails ?? [""]), ""] }
+                              : action
+                          )
+                        }))
                       }
                       className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-forest-f40 hover:text-forest-f50"
                     >
@@ -657,20 +651,30 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
                     </button>
                   </div>
                 )}
-                {deliveryAction.type === "slack" && (
+                {deliveryAction.actions.find(a => a.type === "slack") && (
                   <div>
                     <label className="block text-[13px] font-medium text-forest-f60 mb-1">
                       Slack webhook URL
+                      <a 
+                        href="https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="ml-2 text-forest-f40 hover:text-forest-f50 text-xs underline"
+                      >
+                        Learn how to create webhook
+                      </a>
                     </label>
                     <input
                       type="url"
-                      value={deliveryAction.webhookUrl ?? ""}
+                      value={deliveryAction.actions.find(a => a.type === "slack")?.webhookUrl ?? ""}
                       onChange={(e) =>
-                        setDeliveryAction((prev) =>
-                          prev.type === "slack"
-                            ? { ...prev, webhookUrl: e.target.value }
-                            : prev
-                        )
+                        setDeliveryAction((prev) => ({
+                          actions: prev.actions.map(action => 
+                            action.type === "slack" 
+                              ? { ...action, webhookUrl: e.target.value }
+                              : action
+                          )
+                        }))
                       }
                       placeholder="https://hooks.slack.com/services/..."
                       className={cn(
@@ -687,10 +691,10 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
             )}
             {useDefaultDelivery &&
               !(
-                (brandSettings?.deliveryAction?.type === "email" &&
-                  ((brandSettings.deliveryAction.emails?.length ?? 0) > 0)) ||
-                (brandSettings?.deliveryAction?.type === "slack" &&
-                  !!brandSettings.deliveryAction.webhookUrl)
+                (brandSettings?.deliveryAction?.actions?.find(a => a.type === "email") &&
+                  ((brandSettings.deliveryAction.actions.find(a => a.type === "email")?.emails?.length ?? 0) > 0)) ||
+                (brandSettings?.deliveryAction?.actions?.find(a => a.type === "slack") &&
+                  !!brandSettings.deliveryAction.actions.find(a => a.type === "slack")?.webhookUrl)
               ) && (
                 <p className="text-xs text-yellow-y10">
                   Set a default delivery in Report Settings, or choose Custom
