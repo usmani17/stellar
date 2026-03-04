@@ -17,7 +17,7 @@ import {
   ChevronRight,
   Zap,
 } from "lucide-react";
-import { Loader, ConfirmationModal, Tooltip } from "../../../components/ui";
+import { ConfirmationModal, Tooltip } from "../../../components/ui";
 import { WorkflowRunHistoryModal } from "./WorkflowRunHistoryModal";
 import { WorkflowPreviewModal } from "./WorkflowPreviewModal";
 import { cn } from "../../../lib/cn";
@@ -29,24 +29,24 @@ import { queryKeys } from "../../../hooks/queries/queryKeys";
 interface WorkflowsListProps {
   accountId: number | undefined;
   workflows: Workflow[];
-  isLoading: boolean;
   onEdit: (workflow: Workflow) => void;
   onDelete: (id: number) => Promise<void>;
   isDeleting: boolean;
   onTogglePause: (workflow: Workflow) => void;
   isUpdating: boolean;
+  updatingWorkflowId: number | null;
   onCreateNew: () => void;
 }
 
 export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   accountId,
   workflows,
-  isLoading,
   onEdit,
   onDelete,
   isDeleting,
   onTogglePause,
   isUpdating,
+  updatingWorkflowId,
   onCreateNew,
 }) => {
   const queryClient = useQueryClient();
@@ -72,14 +72,6 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   useEffect(() => {
     if (page > totalPages && totalPages > 0) setPage(totalPages);
   }, [page, totalPages]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader />
-      </div>
-    );
-  }
 
   if (!accountId) {
     return (
@@ -250,7 +242,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                   </div>
                   <button
                     onClick={() => onTogglePause(wf)}
-                    disabled={isUpdating}
+                    disabled={isUpdating && updatingWorkflowId === wf.id}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-forest-f40 text-white hover:bg-forest-f50 transition-colors disabled:opacity-50 shrink-0"
                     title="Resume"
                   >
@@ -287,7 +279,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                   {wf.status === "active" && (
                     <button
                       onClick={() => setPauseTarget(wf)}
-                      disabled={isUpdating}
+                      disabled={isUpdating && updatingWorkflowId === wf.id}
                       className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors disabled:opacity-50"
                       title="Pause"
                     >

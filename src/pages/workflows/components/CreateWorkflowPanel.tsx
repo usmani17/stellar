@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { X, Eye, GripVertical, FileText, Wand2 } from "lucide-react";
+import { X, Eye, GripVertical, FileText, Wand2, Plus, Trash2 } from "lucide-react";
 import { Dropdown, Radio, Alert, Loader } from "../../../components/ui";
 import type { DropdownOption } from "../../../components/ui";
 import { cn } from "../../../lib/cn";
@@ -74,8 +74,7 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
   const [format, setFormat] = useState<"pdf" | "docx">("pdf");
   const [useDefaultDelivery, setUseDefaultDelivery] = useState(true);
   const [deliveryAction, setDeliveryAction] = useState<DeliveryAction>({
-    type: "email",
-    email: "",
+    actions: [{ type: "email", emails: [""] }],
   });
   const [schedule, setSchedule] = useState<ScheduleConfig>(defaultSchedule);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -110,9 +109,12 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
       setPrompt(editingWorkflow.prompt);
       setFormat(editingWorkflow.format);
       setUseDefaultDelivery(editingWorkflow.deliveryAction == null);
-      setDeliveryAction(
-        editingWorkflow.deliveryAction ?? { type: "email", email: "" }
-      );
+      const da = editingWorkflow.deliveryAction;
+      if (da?.actions) {
+        setDeliveryAction(da);
+      } else {
+        setDeliveryAction({ actions: [{ type: "email", emails: [""] }] });
+      }
       setSchedule(normalizeSchedule(editingWorkflow.schedule));
     } else {
       setName("");
@@ -122,7 +124,7 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
       setPrompt("");
       setFormat("pdf");
       setUseDefaultDelivery(true);
-      setDeliveryAction({ type: "email", email: "" });
+      setDeliveryAction({ actions: [{ type: "email", emails: [""] }] });
       setSchedule({ ...defaultSchedule, timezone: getCurrentTimezone() });
     }
     setErrors({});
@@ -211,16 +213,28 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
 
   const tzParts = formatTimezoneDisplayParts(schedule.timezone || getCurrentTimezone());
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const validate = (): boolean => {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = "Name is required";
     if (!prompt.trim()) e.prompt = "Prompt is required";
-    if (
-      !useDefaultDelivery &&
-      deliveryAction.type === "email" &&
-      (!deliveryAction.email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(deliveryAction.email.trim()))
-    )
-      e.delivery = "Enter a valid email address";
+    if (!useDefaultDelivery) {
+      const emailAction = deliveryAction.actions.find(a => a.type === "email");
+      const slackAction = deliveryAction.actions.find(a => a.type === "slack");
+      
+      if (emailAction) {
+        const emails = (emailAction.emails ?? []).map((s: string) => s.trim()).filter(Boolean);
+        if (emails.length === 0) e.delivery = "Add at least one email address";
+        else if (emails.some((addr: string) => !emailRegex.test(addr)))
+          e.delivery = "Enter valid email addresses";
+      }
+      
+      if (slackAction && !slackAction.webhookUrl?.trim())
+        e.delivery = "Enter a Slack webhook URL";
+      
+      if (deliveryAction.actions.length === 0)
+        e.delivery = "Select at least one delivery option";
+    }
     if (
       schedule.frequency === "once" &&
       !schedule.date
@@ -257,7 +271,9 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
         profileName,
         prompt: prompt.trim(),
         format,
-        deliveryAction: useDefaultDelivery ? null : deliveryAction,
+        deliveryAction: useDefaultDelivery
+          ? null
+          : deliveryAction,
         schedule: sanitizeScheduleForApi(schedule),
       };
 
@@ -295,11 +311,10 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
         <div
           onMouseDown={handleResizeMouseDown}
           onDoubleClick={handleResizeDoubleClick}
-          className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-[201] w-2 h-16 flex items-center justify-center rounded-r cursor-col-resize transition-colors outline-none focus-visible:ring-2 focus-visible:ring-forest-f40 focus-visible:ring-offset-1 ${
-            isResizing
+          className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-[201] w-2 h-16 flex items-center justify-center rounded-r cursor-col-resize transition-colors outline-none focus-visible:ring-2 focus-visible:ring-forest-f40 focus-visible:ring-offset-1 ${isResizing
               ? "bg-forest-f40 text-white"
               : "bg-sandstorm-s40 hover:bg-forest-f40/80 text-forest-f60 hover:text-white border border-r-0 border-sandstorm-s40"
-          }`}
+            }`}
           title="Drag to resize · Double-click to reset"
           aria-label="Resize panel"
           tabIndex={0}
@@ -325,13 +340,12 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
         {/* Content */}
         <div
           ref={contentRef}
-          className="flex-1 overflow-y-auto px-5 py-3 space-y-4"
+          className="flex-1 overflow-y-auto px-5 py-3 space-y-5"
         >
           {errors.form && (
             <Alert variant="error">{errors.form}</Alert>
           )}
 
-          {/* Section: Name */}
           <div>
             <label className="block text-[13px] font-medium text-forest-f60 mb-1">
               Workflow Name
@@ -354,12 +368,12 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
               <p className="mt-1 text-xs text-red-600">{errors.name}</p>
             )}
           </div>
-
-          {/* Section: Target */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-medium text-forest-f30 uppercase tracking-wider">
+          {/* Section: Basic (Name + Target) */}
+          <div className="rounded-lg border border-sandstorm-s40 bg-sandstorm-s5 p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-forest-f60 border-b border-sandstorm-s40 pb-2 -mt-0.5">
               Target
             </h3>
+
 
             {channels.length === 0 ? (
               <Alert variant="warning">
@@ -429,11 +443,21 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
                 </div>
               </>
             )}
+            {!channelId && (
+              <p className="text-xs text-forest-f30 italic">
+                No integration selected — report will include all integrations.
+              </p>
+            )}
+            {channelId && !profileId && (
+              <p className="text-xs text-forest-f30 italic">
+                No profile selected — report will include all profiles for this integration.
+              </p>
+            )}
           </div>
 
           {/* Section: Action */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-medium text-forest-f30 uppercase tracking-wider">
+          <div className="rounded-lg border border-sandstorm-s40 bg-sandstorm-s5 p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-forest-f60 border-b border-sandstorm-s40 pb-2 -mt-0.5">
               Action
             </h3>
 
@@ -489,81 +513,212 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
             </div>
           </div>
 
-          {/* Section: Delivery - hidden for now, always uses default */}
-          <div className="hidden space-y-3">
-            <h3 className="text-xs font-medium text-forest-f30 uppercase tracking-wider">
+          {/* Section: Delivery */}
+          <div className="rounded-lg border border-sandstorm-s40 bg-sandstorm-s5 p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-forest-f60 border-b border-sandstorm-s40 pb-2 -mt-0.5">
               Delivery
             </h3>
             <p className="text-[13px] text-forest-f60">
               Where to send the report after it’s generated.
             </p>
-            <div className="flex flex-col gap-2">
-              <label className="inline-flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="delivery-source"
-                  checked={useDefaultDelivery}
-                  onChange={() => setUseDefaultDelivery(true)}
-                  className="text-forest-f40 focus:ring-forest-f40"
-                />
-                <span className="text-[13px] text-forest-f60">
-                  Use default from Report Settings
-                  {brandSettings?.defaultDeliveryEmail && (
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useDefaultDelivery}
+                onChange={(e) => setUseDefaultDelivery(e.target.checked)}
+                className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 accent-[#136D6D] mt-0.5"
+              />
+              <span className="text-[13px] text-forest-f60">
+                Use default from Report Settings
+                {brandSettings?.deliveryAction?.actions?.find((a) => a.type === "email") &&
+                  (brandSettings.deliveryAction.actions.find((a) => a.type === "email")?.emails?.length ? (
                     <span className="text-forest-f30 ml-1">
-                      ({brandSettings.defaultDeliveryEmail})
+                      ({brandSettings.deliveryAction.actions.find((a) => a.type === "email")!.emails!.length === 1
+                        ? brandSettings.deliveryAction.actions.find((a) => a.type === "email")!.emails![0]
+                        : `${brandSettings.deliveryAction.actions.find((a) => a.type === "email")!.emails!.length} emails`})
                     </span>
+                  ) : null)}
+                {brandSettings?.deliveryAction?.actions?.find((a) => a.type === "slack") &&
+                  brandSettings.deliveryAction.actions.find((a) => a.type === "slack")?.webhookUrl && (
+                    <span className="text-forest-f30 ml-1">(Slack)</span>
                   )}
-                </span>
-              </label>
-              <label className="inline-flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="delivery-source"
-                  checked={!useDefaultDelivery}
-                  onChange={() => setUseDefaultDelivery(false)}
-                  className="text-forest-f40 focus:ring-forest-f40"
-                />
-                <span className="text-[13px] text-forest-f60">
-                  Custom delivery
-                </span>
-              </label>
-            </div>
+              </span>
+            </label>
+
             {!useDefaultDelivery && (
-              <div>
-                <label className="block text-[13px] font-medium text-forest-f60 mb-1">
-                  Email address
-                </label>
-                <input
-                  type="email"
-                  value={deliveryAction.email ?? ""}
-                  onChange={(e) =>
-                    setDeliveryAction((prev) =>
-                      prev.type === "email"
-                        ? { ...prev, email: e.target.value }
-                        : prev
-                    )
-                  }
-                  placeholder="report@company.com"
-                  className={cn(
-                    "campaign-input w-full",
-                    errors.delivery && "border-red-500 focus:ring-red-500"
+              <div className="space-y-5">
+                {/* Sub-section: Email */}
+                <div className="rounded-lg border border-sandstorm-s40 bg-white p-4 space-y-4">
+                  <h4 className="text-sm font-semibold text-forest-f60 border-b border-sandstorm-s40 pb-2 -mt-0.5">
+                    Email
+                  </h4>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!deliveryAction.actions.find((a) => a.type === "email")}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setDeliveryAction((prev) => ({
+                            actions: [...prev.actions, { type: "email", emails: [""] }],
+                          }));
+                        } else {
+                          setDeliveryAction((prev) => ({
+                            actions: prev.actions.filter((a) => a.type !== "email"),
+                          }));
+                        }
+                      }}
+                      className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 accent-[#136D6D]"
+                    />
+                    <span className="text-[13px] text-forest-f60">Send report to email</span>
+                  </label>
+                  {deliveryAction.actions.find((a) => a.type === "email") && (
+                    <div className="space-y-2">
+                      {(deliveryAction.actions.find((a) => a.type === "email")?.emails ?? [""]).map(
+                        (email: string, i: number) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <input
+                              type="email"
+                              value={email}
+                              onChange={(e) => {
+                                setDeliveryAction((prev) => ({
+                                  actions: prev.actions.map((action) =>
+                                    action.type === "email"
+                                      ? {
+                                          ...action,
+                                          emails:
+                                            action.emails?.map((em, idx) => (idx === i ? e.target.value : em)) ?? [""],
+                                        }
+                                      : action
+                                  ),
+                                }));
+                              }}
+                              placeholder="report@company.com"
+                              className={cn(
+                                "campaign-input flex-1 min-w-0",
+                                errors.delivery && "border-red-500 focus:ring-red-500"
+                              )}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeliveryAction((prev) => ({
+                                  actions: prev.actions.map((action) =>
+                                    action.type === "email"
+                                      ? {
+                                          ...action,
+                                          emails:
+                                            (action.emails?.filter((_, j) => j !== i).length ?? 0) > 0
+                                              ? action.emails?.filter((_, j) => j !== i)
+                                              : [""],
+                                        }
+                                      : action
+                                  ),
+                                }));
+                              }}
+                              className="p-2 text-forest-f30 hover:text-red-r30 rounded transition-colors"
+                              aria-label="Remove email"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDeliveryAction((prev) => ({
+                            actions: prev.actions.map((action) =>
+                              action.type === "email"
+                                ? { ...action, emails: [...(action.emails ?? [""]), ""] }
+                                : action
+                            ),
+                          }))
+                        }
+                        className="inline-flex items-center gap-1.5 text-[13px] text-forest-f40 hover:text-forest-f50"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add email
+                      </button>
+                    </div>
                   )}
-                />
+                </div>
+
+                {/* Sub-section: Slack */}
+                <div className="rounded-lg border border-sandstorm-s40 bg-white p-4 space-y-4">
+                  <h4 className="text-sm font-semibold text-forest-f60 border-b border-sandstorm-s40 pb-2 -mt-0.5">
+                    Slack
+                  </h4>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!deliveryAction.actions.find((a) => a.type === "slack")}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setDeliveryAction((prev) => ({
+                            actions: [...prev.actions, { type: "slack", webhookUrl: "" }],
+                          }));
+                        } else {
+                          setDeliveryAction((prev) => ({
+                            actions: prev.actions.filter((a) => a.type !== "slack"),
+                          }));
+                        }
+                      }}
+                      className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 accent-[#136D6D]"
+                    />
+                    <span className="text-[13px] text-forest-f60">Send report to Slack channel</span>
+                  </label>
+                  {deliveryAction.actions.find((a) => a.type === "slack") && (
+                    <div className="space-y-2">
+                      <input
+                        type="url"
+                        value={deliveryAction.actions.find((a) => a.type === "slack")?.webhookUrl ?? ""}
+                        onChange={(e) =>
+                          setDeliveryAction((prev) => ({
+                            actions: prev.actions.map((action) =>
+                              action.type === "slack" ? { ...action, webhookUrl: e.target.value } : action
+                            ),
+                          }))
+                        }
+                        placeholder="https://hooks.slack.com/services/..."
+                        className={cn(
+                          "campaign-input w-full",
+                          errors.delivery && "border-red-500 focus:ring-red-500"
+                        )}
+                      />
+                      <a
+                        href="https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-forest-f40 hover:text-forest-f50 underline"
+                      >
+                        Learn how to create Slack webhook
+                      </a>
+                    </div>
+                  )}
+                </div>
+
                 {errors.delivery && (
-                  <p className="mt-1 text-xs text-red-600">{errors.delivery}</p>
+                  <p className="text-xs text-red-600">{errors.delivery}</p>
                 )}
               </div>
             )}
-            {useDefaultDelivery && !brandSettings?.defaultDeliveryEmail && (
-              <p className="text-xs text-yellow-y10">
-                Set a default email in Report Settings, or choose Custom delivery below.
-              </p>
-            )}
+
+            {useDefaultDelivery &&
+              !(
+                (brandSettings?.deliveryAction?.actions?.find((a) => a.type === "email") &&
+                  ((brandSettings.deliveryAction.actions.find((a) => a.type === "email")?.emails?.length ?? 0) > 0)) ||
+                (brandSettings?.deliveryAction?.actions?.find((a) => a.type === "slack") &&
+                  !!brandSettings.deliveryAction.actions.find((a) => a.type === "slack")?.webhookUrl)
+              ) && (
+                <p className="text-xs text-yellow-y10">
+                  Set a default delivery in Report Settings, or choose custom delivery below.
+                </p>
+              )}
           </div>
 
           {/* Section: Schedule */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-medium text-forest-f30 uppercase tracking-wider">
+          <div className="rounded-lg border border-sandstorm-s40 bg-sandstorm-s5 p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-forest-f60 border-b border-sandstorm-s40 pb-2 -mt-0.5">
               Schedule
             </h3>
             <ScheduleBuilder
@@ -577,34 +732,34 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
             {errors.schedule && (
               <p className="text-xs text-red-600">{errors.schedule}</p>
             )}
-          </div>
 
-          {/* Section: Timezone */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-forest-f30 uppercase tracking-wider">
-                Timezone
-              </label>
-              {tzParts && (
-                <span className="text-[11px] text-forest-f30 tabular-nums">
-                  Current: {tzParts.time} {tzParts.abbrev}
-                </span>
-              )}
+            {/* Timezone (inside Schedule section) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[13px] font-medium text-forest-f60">
+                  Timezone
+                </label>
+                {tzParts && (
+                  <span className="text-[11px] text-forest-f30 tabular-nums">
+                    Current: {tzParts.time} {tzParts.abbrev}
+                  </span>
+                )}
+              </div>
+              <Dropdown
+                options={timezoneOptions}
+                value={schedule.timezone}
+                onChange={(val) =>
+                  setSchedule((prev) => ({ ...prev, timezone: val }))
+                }
+                placeholder="Select timezone"
+                searchable
+                searchPlaceholder="Search timezones..."
+              />
             </div>
-            <Dropdown
-              options={timezoneOptions}
-              value={schedule.timezone}
-              onChange={(val) =>
-                setSchedule((prev) => ({ ...prev, timezone: val }))
-              }
-              placeholder="Select timezone"
-              searchable
-              searchPlaceholder="Search timezones..."
-            />
-          </div>
 
-          {/* Section: Next Runs Preview */}
-          <NextRunsPreview schedule={schedule} />
+            {/* Next Runs Preview (inside Schedule section) */}
+            <NextRunsPreview schedule={schedule} />
+          </div>
         </div>
 
         {/* Footer */}
@@ -651,19 +806,19 @@ export const CreateWorkflowPanel: React.FC<CreateWorkflowPanelProps> = ({
         executePayload={
           accountId
             ? {
-                accountId,
-                channelId: channelId ?? undefined,
-                profileId: profileId ?? undefined,
-                accountName: editingWorkflow?.accountName,
-                channelName: selectedChannel?.channel_name,
-                profileName: profileName || undefined,
-                prompt: prompt.trim() || "Generate a performance report...",
-                format,
-                workflowId: editingWorkflow?.id ?? undefined,
-                workflowName: name?.trim() || editingWorkflow?.name,
-                logoUrl: brandSettings?.logoUrl || undefined,
-                primaryColor: brandSettings?.primaryColor || undefined,
-              }
+              accountId,
+              channelId: channelId ?? undefined,
+              profileId: profileId ?? undefined,
+              accountName: editingWorkflow?.accountName,
+              channelName: selectedChannel?.channel_name,
+              profileName: profileName || undefined,
+              prompt: prompt.trim() || "Generate a performance report...",
+              format,
+              workflowId: editingWorkflow?.id ?? undefined,
+              workflowName: name?.trim() || editingWorkflow?.name,
+              logoUrl: brandSettings?.logoUrl || undefined,
+              primaryColor: brandSettings?.primaryColor || undefined,
+            }
             : undefined
         }
         workflowId={editingWorkflow?.id ?? undefined}

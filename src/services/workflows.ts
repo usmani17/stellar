@@ -17,10 +17,15 @@ export interface ScheduleConfig {
 export type DeliveryType = "email" | "slack" | "whatsapp" | "sms" | "webhook";
 
 export interface DeliveryAction {
-  type: DeliveryType;
-  email?: string; // for email
-  webhookUrl?: string; // for slack, webhook
-  phoneNumber?: string; // for whatsapp, sms
+  actions: Array<{
+    type: DeliveryType;
+    /** Multiple recipient emails for type "email" */
+    emails?: string[];
+    /** Slack incoming webhook URL for type "slack" */
+    webhookUrl?: string;
+    /** Multiple recipient phone numbers for type "sms" or "whatsapp" */
+    phoneNumbers?: string[];
+  }>;
 }
 
 export interface Workflow {
@@ -105,8 +110,7 @@ export interface BrandReportSettings {
   accountId: number;
   logoUrl: string;
   primaryColor: string; // hex e.g. "#136D6D"
-  /** Default email for report delivery; workflows can override per-workflow */
-  defaultDeliveryEmail?: string;
+  /** Default delivery (email addresses or Slack webhook); workflows can override per-workflow */
   deliveryAction?: DeliveryAction | null;
 }
 
@@ -153,8 +157,15 @@ function workflowsPath(accountId: number) {
 }
 
 export const workflowsService = {
-  getWorkflows: async (accountId: number): Promise<Workflow[]> => {
-    const { data } = await api.get<Workflow[]>(`${workflowsPath(accountId)}/`);
+  getWorkflows: async (
+    accountId: number,
+    params?: { search?: string }
+  ): Promise<Workflow[]> => {
+    const { data } = await api.get<Workflow[]>(`${workflowsPath(accountId)}/`, {
+      params: params?.search?.trim()
+        ? { search: params.search.trim() }
+        : undefined,
+    });
     return data;
   },
 

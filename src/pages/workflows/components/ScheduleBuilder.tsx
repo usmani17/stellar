@@ -1,5 +1,6 @@
 import React from "react";
-import { SingleDatePicker } from "../../../components/ui";
+import { SingleDatePicker, Dropdown } from "../../../components/ui";
+import type { DropdownOption } from "../../../components/ui";
 import { cn } from "../../../lib/cn";
 import {
   toWeekdaysArray,
@@ -104,17 +105,14 @@ export const ScheduleBuilder: React.FC<ScheduleBuilderProps> = ({
         <label className="block text-[13px] font-medium text-forest-f60 mb-1">
           Time
         </label>
-        <select
+        <Dropdown
+          options={TIME_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
           value={toNearest15(value.time || "09:00")}
-          onChange={(e) => onChange({ ...value, time: e.target.value })}
-          className="campaign-input w-full"
-        >
-          {TIME_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          onChange={(val) => onChange({ ...value, time: val })}
+          placeholder="Select time"
+          searchable
+          searchPlaceholder="Search time..."
+        />
       </div>
 
       {/* Conditional fields */}

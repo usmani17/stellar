@@ -7,16 +7,20 @@ import {
   type UpdateWorkflowPayload,
 } from "../../../services/workflows";
 
-export const useWorkflows = (accountId: number | undefined) => {
+export const useWorkflows = (
+  accountId: number | undefined,
+  options?: { search?: string }
+) => {
   const queryClient = useQueryClient();
+  const search = options?.search?.trim() || undefined;
 
   const query = useQuery<Workflow[], Error>({
     queryKey: accountId
-      ? queryKeys.workflows.lists(accountId)
+      ? queryKeys.workflows.lists(accountId, search)
       : ["workflows", "list", "disabled"],
     queryFn: async () => {
       if (!accountId) return [];
-      return workflowsService.getWorkflows(accountId);
+      return workflowsService.getWorkflows(accountId, { search });
     },
     enabled: !!accountId,
   });
@@ -27,7 +31,7 @@ export const useWorkflows = (accountId: number | undefined) => {
     onSuccess: () => {
       if (accountId) {
         queryClient.invalidateQueries({
-          queryKey: queryKeys.workflows.lists(accountId),
+          queryKey: queryKeys.workflows.all,
         });
       }
     },
@@ -47,7 +51,7 @@ export const useWorkflows = (accountId: number | undefined) => {
     onSuccess: () => {
       if (accountId) {
         queryClient.invalidateQueries({
-          queryKey: queryKeys.workflows.lists(accountId),
+          queryKey: queryKeys.workflows.all,
         });
       }
     },
@@ -61,7 +65,7 @@ export const useWorkflows = (accountId: number | undefined) => {
     onSuccess: () => {
       if (accountId) {
         queryClient.invalidateQueries({
-          queryKey: queryKeys.workflows.lists(accountId),
+          queryKey: queryKeys.workflows.all,
         });
       }
     },
@@ -75,7 +79,7 @@ export const useWorkflows = (accountId: number | undefined) => {
     onSuccess: () => {
       if (accountId) {
         queryClient.invalidateQueries({
-          queryKey: queryKeys.workflows.lists(accountId),
+          queryKey: queryKeys.workflows.all,
         });
       }
     },
@@ -84,6 +88,7 @@ export const useWorkflows = (accountId: number | undefined) => {
   return {
     workflows: query.data ?? [],
     isLoading: query.isLoading,
+    isSearching: search != null && query.isFetching,
     error: query.error,
     createWorkflow: createMutation.mutateAsync,
     isCreating: createMutation.isPending,
