@@ -1,6 +1,7 @@
 import { Login } from "../pages/Login";
 import { CampaignFormTestPage, TestAIChatToolsPage } from "../pages/test-ai-chat";
 import { Signup } from "../pages/Signup";
+import { PublicDashboardPage } from "../pages/workflows/PublicDashboardPage";
 import { ForgotPassword } from "../pages/ForgotPassword";
 import { ResetPassword } from "../pages/ResetPassword";
 import { VerifyEmail } from "../pages/VerifyEmail";
@@ -62,6 +63,8 @@ function PublicRoutes() {
                 path="/test-ai-chat-tools"
                 element={<TestAIChatToolsPage />}
             />
+            <Route path="/dashboards/share/:shareId" element={<PublicDashboardPage />} />
+            <Route path="/dashboards/demo" element={<PublicDashboardPage />} />
         </>
     );
 }

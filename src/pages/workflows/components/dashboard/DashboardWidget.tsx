@@ -1,0 +1,341 @@
+import React, { useState, useEffect, useRef } from "react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Code,
+  GripVertical,
+  Maximize2,
+  Minimize2,
+  BarChart2,
+  Table2,
+  LineChart,
+  PieChart,
+  TrendingUp,
+} from "lucide-react";
+import type { ProgressStep } from "./ProgressFlow";
+import { ProgressFlow, SIMPLE_STEPS, MULTI_GAQL_STEPS } from "./ProgressFlow";
+import { DashboardTable } from "./DashboardTable";
+import { DashboardBarChart } from "./DashboardBarChart";
+import { DashboardLineChart } from "./DashboardLineChart";
+import { DashboardPieChart } from "./DashboardPieChart";
+import { DashboardAreaChart } from "./DashboardAreaChart";
+import { DashboardComboChart } from "./DashboardComboChart";
+import { DashboardComparisonChart } from "./DashboardComparisonChart";
+import { Dropdown } from "../../../../components/ui";
+import type { DropdownOption } from "../../../../components/ui";
+import type { DashboardComponent, VisualizationType } from "../../types/dashboard";
+import { isMultiGaqlQuery } from "../../types/dashboard";
+import { getDashboardComponentData } from "../../../../services/dashboard";
+import { getMockDataForComponent } from "../../utils/dashboardMockData";
+import { getQuerySummary } from "../../utils/queryDisplay";
+import { useDashboardTheme } from "../../contexts/DashboardThemeContext";
+
+const VIZ_ICON_CLS = "w-4 h-4 shrink-0";
+
+const VIZ_ICONS: Record<VisualizationType, React.ReactNode> = {
+  table: <Table2 className={VIZ_ICON_CLS} aria-hidden />,
+  bar_chart: <BarChart2 className={VIZ_ICON_CLS} aria-hidden />,
+  line_chart: <LineChart className={VIZ_ICON_CLS} aria-hidden />,
+  pie_chart: <PieChart className={VIZ_ICON_CLS} aria-hidden />,
+  area_chart: <TrendingUp className={VIZ_ICON_CLS} aria-hidden />,
+  combo_chart: <BarChart2 className={VIZ_ICON_CLS} aria-hidden />,
+  comparison_chart: <BarChart2 className={VIZ_ICON_CLS} aria-hidden />,
+};
+
+const VIZ_TYPE_OPTIONS: DropdownOption<VisualizationType>[] = [
+  { value: "table", label: "Table" },
+  { value: "bar_chart", label: "Bar chart" },
+  { value: "line_chart", label: "Line chart" },
+  { value: "pie_chart", label: "Pie chart" },
+  { value: "area_chart", label: "Area chart" },
+];
+
+interface DashboardWidgetProps {
+  component: DashboardComponent;
+  accountId: number | undefined;
+  workflowId: number | undefined;
+  shareId?: string;
+  staggerDelayMs?: number;
+  showQueryDetails?: boolean;
+  editable?: boolean;
+  isExpanded?: boolean;
+  onExpandToggle?: () => void;
+  dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
+  /** Override chart type (e.g. user switched from line to bar in demo) */
+  effectiveVisualizationType?: VisualizationType;
+  onVisualizationChange?: (componentId: string, type: VisualizationType) => void;
+}
+
+type WidgetStatus =
+  | "pending"
+  | "fetching"
+  | "saving"
+  | "fetching2"
+  | "joining"
+  | "analyzing"
+  | "ready";
+
+const STEP_DURATION_MS = 800;
+const FETCH_DURATION_MS = 1200;
+
+export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
+  component,
+  accountId: _accountId,
+  workflowId: _workflowId,
+  shareId,
+  staggerDelayMs = 0,
+  showQueryDetails = false,
+  editable = false,
+  isExpanded = false,
+  onExpandToggle,
+  dragHandleProps,
+  effectiveVisualizationType,
+  onVisualizationChange,
+}) => {
+  const vizType = effectiveVisualizationType ?? component.visualization_type;
+  const [status, setStatus] = useState<WidgetStatus>("pending");
+  const [data, setData] = useState<Record<string, unknown>[]>([]);
+  const mountedRef = useRef(true);
+  const hasFetchedRef = useRef(false);
+  const lastComponentIdRef = useRef(component.id);
+  const isMulti = isMultiGaqlQuery(component.query);
+  const steps = isMulti ? MULTI_GAQL_STEPS : SIMPLE_STEPS;
+
+  useEffect(() => {
+    if (lastComponentIdRef.current !== component.id) {
+      lastComponentIdRef.current = component.id;
+      hasFetchedRef.current = false;
+    }
+    if (hasFetchedRef.current) return;
+
+    mountedRef.current = true;
+    const run = async () => {
+      if (staggerDelayMs > 0) await new Promise((r) => setTimeout(r, staggerDelayMs));
+      if (!mountedRef.current) return;
+
+      setStatus("fetching");
+      await new Promise((r) => setTimeout(r, FETCH_DURATION_MS));
+      if (!mountedRef.current) return;
+
+      setStatus("saving");
+      await new Promise((r) => setTimeout(r, STEP_DURATION_MS));
+      if (!mountedRef.current) return;
+
+      if (isMulti) {
+        setStatus("fetching2");
+        await new Promise((r) => setTimeout(r, FETCH_DURATION_MS));
+        if (!mountedRef.current) return;
+
+        setStatus("joining");
+        await new Promise((r) => setTimeout(r, STEP_DURATION_MS));
+        if (!mountedRef.current) return;
+      }
+
+      setStatus("analyzing");
+      await new Promise((r) => setTimeout(r, STEP_DURATION_MS));
+      if (!mountedRef.current) return;
+
+      const componentForMock = {
+        ...component,
+        visualization_type: vizType,
+      };
+      const rows = shareId
+        ? await getDashboardComponentData(shareId, component.id, component)
+        : getMockDataForComponent(componentForMock);
+      setData(rows);
+      setStatus("ready");
+      hasFetchedRef.current = true;
+    };
+    run();
+    return () => { mountedRef.current = false; };
+  }, [component, staggerDelayMs, isMulti, shareId, vizType]);
+
+  const statusToStep: Record<WidgetStatus, ProgressStep> = {
+    pending: "fetch",
+    fetching: "fetch",
+    saving: "save",
+    fetching2: "fetch2",
+    joining: "join",
+    analyzing: "analyze",
+    ready: "display",
+  };
+  const activeStep = statusToStep[status];
+  const { isDark } = useDashboardTheme();
+  const [queryExpanded, setQueryExpanded] = useState(false);
+  const querySummary = showQueryDetails ? getQuerySummary(component) : null;
+
+  return (
+    <div
+      className={`rounded-xl min-h-[280px] flex flex-col overflow-hidden transition-all duration-200 ${
+        isDark
+          ? "border border-neutral-700 bg-neutral-800 shadow-lg hover:shadow-xl"
+          : "border border-sandstorm-s40/80 bg-white shadow-[0_1px_2px_rgba(7,41,41,0.04)] hover:shadow-[0_4px_12px_rgba(7,41,41,0.06)]"
+      }`}
+    >
+      <div
+        className={`flex flex-col border-b flex-shrink-0 ${
+          isDark
+            ? "border-neutral-700 bg-neutral-800/80"
+            : "border-sandstorm-s40/60 bg-sandstorm-s5/50"
+        }`}
+      >
+        <div className="flex items-center gap-3 px-4 py-3">
+          {editable && dragHandleProps && (
+            <div
+              {...dragHandleProps}
+              className="p-1 -ml-1 rounded-lg cursor-grab active:cursor-grabbing hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0"
+              aria-label="Drag to reorder"
+            >
+              <GripVertical className={`w-4 h-4 ${isDark ? "text-neutral-400" : "text-forest-f30"}`} />
+            </div>
+          )}
+          <div
+            className={`w-1 h-6 rounded-full shrink-0 ${isDark ? "bg-[#2DD4BF]/60" : "bg-forest-f40/40"}`}
+            aria-hidden
+          />
+          <h3
+            className={`text-[12px] font-semibold truncate flex-1 min-w-0 ${
+              isDark ? "text-neutral-100" : "text-forest-f60"
+            }`}
+          >
+            {component.title}
+          </h3>
+          <div className="flex items-center gap-1 shrink-0">
+          {editable && onExpandToggle && (
+            <button
+              type="button"
+              onClick={onExpandToggle}
+              className={`inline-flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-colors ${
+                isDark ? "text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200" : "text-forest-f30 hover:bg-sandstorm-s20 hover:text-forest-f60"
+              }`}
+              aria-label={isExpanded ? "Collapse" : "Expand to full width"}
+            >
+              {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+          )}
+          {editable && onVisualizationChange && (
+            <Dropdown<VisualizationType>
+              options={VIZ_TYPE_OPTIONS}
+              value={vizType}
+              onChange={(value: VisualizationType) =>
+                onVisualizationChange(component.id, value)
+              }
+              closeOnSelect
+              position="bottom"
+              width="w-36"
+              menuClassName="!min-w-[140px]"
+              className="shrink-0 w-8 h-8 flex items-center justify-center"
+              renderButton={(
+                _opt: DropdownOption<VisualizationType> | null,
+                isOpen: boolean,
+                toggle: () => void
+              ) => (
+                <button
+                  type="button"
+                  onClick={toggle}
+                  className={`inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
+                    isDark
+                      ? "text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200"
+                      : "text-forest-f30 hover:bg-sandstorm-s20 hover:text-forest-f60"
+                  }`}
+                  aria-label={`Chart type: ${vizType.replace(/_/g, " ")}. Click to change.`}
+                >
+                  {VIZ_ICONS[vizType]}
+                  {isOpen ? <ChevronUp className="w-2.5 h-2.5 ml-0.5" /> : <ChevronDown className="w-2.5 h-2.5 ml-0.5" />}
+                </button>
+              )}
+              renderOption={(opt: DropdownOption<VisualizationType>, isSelected: boolean) => (
+                <div className="flex items-center justify-between w-full gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-[10px]">
+                    {VIZ_ICONS[opt.value as VisualizationType]}
+                    {opt.label}
+                  </span>
+                  {isSelected && (
+                    <svg
+                      className="w-3 h-3 text-forest-f40 shrink-0"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                      aria-hidden
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </div>
+              )}
+            />
+          )}
+          {querySummary && (
+            <button
+              type="button"
+              onClick={() => setQueryExpanded((e) => !e)}
+              className={`shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors ml-auto ${
+                isDark
+                  ? "text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200"
+                  : "text-forest-f30 hover:bg-sandstorm-s20 hover:text-forest-f60"
+              }`}
+              aria-expanded={queryExpanded}
+              aria-label={`${querySummary.type} query. Click to ${queryExpanded ? "collapse" : "expand"}.`}
+            >
+              <Code className="w-4 h-4" aria-hidden />
+            </button>
+          )}
+          </div>
+        </div>
+        {querySummary && queryExpanded && (
+          <div
+            className={`px-4 pb-3 pt-0 border-t ${
+              isDark ? "border-neutral-700 bg-neutral-800/50" : "border-sandstorm-s40/40 bg-sandstorm-s5/30"
+            }`}
+          >
+            <pre
+              className={`text-[10px] overflow-x-auto whitespace-pre-wrap break-words font-mono max-h-32 overflow-y-auto ${
+                isDark ? "text-neutral-300" : "text-forest-f30"
+              }`}
+            >
+              {querySummary.full}
+            </pre>
+          </div>
+        )}
+      </div>
+      <div className="flex-1 flex flex-col min-h-0">
+        {status !== "ready" ? (
+          <div className="flex-1 flex items-center justify-center py-8 px-4">
+            <ProgressFlow activeStep={activeStep} steps={steps} isDark={isDark} />
+          </div>
+        ) : vizType === "table" ? (
+          <div className="flex-1 min-h-0 overflow-auto dashboard-table-wrapper pb-4">
+            <DashboardTable component={component} data={data} isDark={isDark} />
+          </div>
+        ) : vizType === "line_chart" ? (
+          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+            <DashboardLineChart component={component} data={data} isDark={isDark} />
+          </div>
+        ) : vizType === "pie_chart" ? (
+          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+            <DashboardPieChart component={component} data={data} isDark={isDark} />
+          </div>
+        ) : vizType === "area_chart" ? (
+          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+            <DashboardAreaChart component={component} data={data} isDark={isDark} />
+          </div>
+        ) : vizType === "combo_chart" ? (
+          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+            <DashboardComboChart component={component} data={data} isDark={isDark} />
+          </div>
+        ) : vizType === "comparison_chart" ? (
+          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+            <DashboardComparisonChart component={component} data={data} isDark={isDark} />
+          </div>
+        ) : (
+          <div className="flex-1 min-h-[180px] flex items-center justify-center px-3 pb-3">
+            <DashboardBarChart component={component} data={data} isDark={isDark} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};

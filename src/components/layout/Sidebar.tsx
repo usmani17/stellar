@@ -113,7 +113,7 @@ export const Sidebar: React.FC = () => {
     /^\/brands\/\d+\/integrations$/.test(location.pathname) ||
     /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
     /^\/brands\/\d+\/users$/.test(location.pathname) ||
-    /^\/brands\/\d+\/workflows$/.test(location.pathname) ||
+    /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname) ||
     location.pathname === "/workspace/team";
 
   // Derive effective collapsed state from pathname (no setState in effect)
@@ -209,7 +209,7 @@ export const Sidebar: React.FC = () => {
     if (path === "/brands/users" || path === "/workspace/team")
       return location.pathname === "/workspace/team" || /^\/brands\/\d+\/users$/.test(location.pathname);
     if (path === "/brands/workflows")
-      return /^\/brands\/\d+\/workflows$/.test(location.pathname);
+      return /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname);
     if (path === "/campaigns") {
       return (
         location.pathname.includes("/campaigns") &&

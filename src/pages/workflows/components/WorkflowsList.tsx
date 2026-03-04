@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Pencil,
@@ -16,15 +17,20 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  LayoutGrid,
+  BarChart2,
 } from "lucide-react";
 import { ConfirmationModal, Tooltip } from "../../../components/ui";
 import { WorkflowRunHistoryModal } from "./WorkflowRunHistoryModal";
 import { WorkflowPreviewModal } from "./WorkflowPreviewModal";
+import { CreateDashboardModal } from "./CreateDashboardModal";
 import { cn } from "../../../lib/cn";
 import type { Workflow } from "../../../services/workflows";
 import { formatSchedule, computeNextRuns } from "../utils/scheduleUtils";
 import { useBrandSettings } from "../hooks/useBrandSettings";
 import { queryKeys } from "../../../hooks/queries/queryKeys";
+import { buildAccountRoute } from "../../../utils/urlHelpers";
+import { hasDashboardForWorkflow } from "../utils/dashboardStorage";
 
 interface WorkflowsListProps {
   accountId: number | undefined;
@@ -49,6 +55,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   updatingWorkflowId,
   onCreateNew,
 }) => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { settings: brandSettings } = useBrandSettings(accountId);
   const [deleteTarget, setDeleteTarget] = useState<Workflow | null>(null);
@@ -56,6 +63,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   const [historyWorkflow, setHistoryWorkflow] = useState<Workflow | null>(null);
   const [previewWorkflow, setPreviewWorkflow] = useState<Workflow | null>(null);
   const [runWorkflow, setRunWorkflow] = useState<Workflow | null>(null);
+  const [createDashboardWorkflow, setCreateDashboardWorkflow] = useState<Workflow | null>(null);
   const [page, setPage] = useState(1);
 
   const WORKFLOWS_PER_PAGE = 10;
@@ -276,6 +284,26 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                     <History className="w-4 h-4" />
                     History
                   </button>
+                  <button
+                    onClick={() => setCreateDashboardWorkflow(wf)}
+                    className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors"
+                    title="Create Dashboard"
+                    aria-label="Create Dashboard"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                    Create Dashboard
+                  </button>
+                  {hasDashboardForWorkflow(wf.id) && (
+                    <button
+                      onClick={() => navigate(buildAccountRoute(accountId, `workflows/${wf.id}/dashboard`))}
+                      className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors"
+                      title="View Dashboard"
+                      aria-label="View Dashboard"
+                    >
+                      <BarChart2 className="w-4 h-4" />
+                      View Dashboard
+                    </button>
+                  )}
                   {wf.status === "active" && (
                     <button
                       onClick={() => setPauseTarget(wf)}
@@ -405,6 +433,17 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
             : undefined
         }
         workflowId={previewWorkflow?.id ?? undefined}
+      />
+
+      <CreateDashboardModal
+        isOpen={!!createDashboardWorkflow}
+        onClose={() => setCreateDashboardWorkflow(null)}
+        workflowId={createDashboardWorkflow?.id ?? 0}
+        onCreated={() => {
+          if (createDashboardWorkflow && accountId) {
+            navigate(buildAccountRoute(accountId, `workflows/${createDashboardWorkflow.id}/dashboard`));
+          }
+        }}
       />
 
       <WorkflowPreviewModal
