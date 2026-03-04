@@ -166,3 +166,134 @@ export interface MetaAdCreateResponse {
   id: string;
   [key: string]: unknown;
 }
+
+/** Custom Audience subtype (Meta API). */
+export type MetaCustomAudienceSubtype =
+  | "CUSTOM"
+  | "WEBSITE"
+  | "APP"
+  | "OFFLINE_EVENT"
+  | "LOOKALIKE"
+  | "ENGAGEMENT";
+
+/** Customer file source (for customer list uploads). */
+export type MetaCustomerFileSource =
+  | "USER_PROVIDED_ONLY"
+  | "PARTNER_PROVIDED_ONLY"
+  | "BOTH_USER_AND_PARTNER_PROVIDED";
+
+export interface CustomAudienceCreatePayload {
+  name: string;
+  subtype: MetaCustomAudienceSubtype;
+  description?: string;
+  customer_file_source?: MetaCustomerFileSource;
+  retention_days?: number;
+  rule?: string;
+  prefill?: boolean;
+  /** Required when subtype is WEBSITE or APP to resolve ad account. */
+  profile_id?: number;
+}
+
+export interface LookalikeSpec {
+  country: string;
+  ratio: number;
+}
+
+export interface LookalikeAudienceCreatePayload {
+  name?: string;
+  origin_audience_id: string;
+  lookalike_spec: LookalikeSpec;
+}
+
+export interface MetaAudienceRow {
+  id?: number;
+  audience_id: string;
+  name: string;
+  subtype?: string;
+  type?: "custom" | "lookalike";
+  description?: string;
+  status?: string;
+  created_time?: string;
+  approximate_count_lower_bound?: number;
+  [key: string]: unknown;
+}
+
+export interface MetaAudiencesListResponse {
+  audiences: MetaAudienceRow[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  next_cursor?: string | null;
+}
+
+export interface MetaAudienceCreateResponse {
+  id: string;
+  [key: string]: unknown;
+}
+
+/** Audience rule structure for Meta Custom Audiences (WEBSITE/APP). */
+export interface AudienceRuleEventSource {
+  id: string;
+  type: "pixel" | "app";
+}
+
+export interface AudienceRuleFilter {
+  field: string;
+  operator: string;
+  value: string;
+}
+
+export interface AudienceRuleFilterSet {
+  operator: "and" | "or";
+  filters: AudienceRuleFilter[];
+}
+
+export type AudienceRuleAggregationType =
+  | "count"
+  | "sum"
+  | "avg"
+  | "min"
+  | "max"
+  | "time_spent"
+  | "last_event_time_field";
+
+export interface AudienceRuleAggregation {
+  type: AudienceRuleAggregationType;
+  field?: string;
+  operator: string;
+  value: string | number;
+}
+
+export interface AudienceRuleRule {
+  event_sources: AudienceRuleEventSource[];
+  retention_seconds: number;
+  filter: AudienceRuleFilterSet;
+  aggregation?: AudienceRuleAggregation;
+}
+
+export interface AudienceRuleSet {
+  operator: "and" | "or";
+  rules: AudienceRuleRule[];
+}
+
+export interface AudienceRule {
+  inclusions: AudienceRuleSet;
+  exclusions: AudienceRuleSet;
+}
+
+const DEFAULT_RULE_SET: AudienceRuleSet = {
+  operator: "and",
+  rules: [],
+};
+
+export function getDefaultAudienceRule(): AudienceRule {
+  return {
+    inclusions: { ...DEFAULT_RULE_SET },
+    exclusions: { ...DEFAULT_RULE_SET },
+  };
+}
+
+export function audienceRuleToJsonString(rule: AudienceRule): string {
+  return JSON.stringify(rule);
+}

@@ -34,7 +34,7 @@ import ProfilesActiveIcon from "../../assets/images/profiles-active.svg";
 import UsersIcon from "../../assets/images/users.svg";
 import UsersActiveIcon from "../../assets/images/users-active.svg";
 import WorkspaceIcon from "../../assets/workspace.svg";
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, Users } from "lucide-react";
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
 
 const WORKSPACE_SECTION_STORAGE_KEY = "workspace-section-collapsed";
@@ -257,10 +257,13 @@ export const Sidebar: React.FC = () => {
       return location.pathname.includes("/meta/adsets");
     }
     if (path === "/meta/ads") {
-      return location.pathname.includes("/meta/ads") && !location.pathname.includes("/meta/adsets") && !location.pathname.includes("/meta/creatives");
+      return location.pathname.includes("/meta/ads") && !location.pathname.includes("/meta/adsets") && !location.pathname.includes("/meta/creatives") && !location.pathname.includes("/meta/audiences");
     }
     if (path === "/meta/creatives") {
       return location.pathname.includes("/meta/creatives");
+    }
+    if (path === "/meta/audiences") {
+      return location.pathname.includes("/meta/audiences");
     }
 
     // Generic paths for Amazon (exclude google and tiktok paths)
@@ -1368,6 +1371,39 @@ export const Sidebar: React.FC = () => {
                     }`}
                   >
                     Creative
+                  </span>
+                )}
+              </Link>
+              <Link
+                to={
+                  accountId
+                    ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "audiences")
+                    : "/brands"
+                }
+                onClick={(e) =>
+                  handleMarketplaceClick("meta", e, () =>
+                    accountId
+                      ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "audiences")
+                      : "/brands/1/meta/audiences",
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/meta/audiences") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/meta/audiences")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "Audiences" : undefined}
+              >
+                <Users className={`w-5 h-5 ${isActive("/meta/audiences") ? "brightness-0 invert" : ""}`} />
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/meta/audiences") ? "!text-white" : ""
+                    }`}
+                  >
+                    Audiences
                   </span>
                 )}
               </Link>
