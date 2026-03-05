@@ -33,6 +33,8 @@ import ProfilesIcon from "../../assets/images/profiles.svg";
 import ProfilesActiveIcon from "../../assets/images/profiles-active.svg";
 import UsersIcon from "../../assets/images/users.svg";
 import UsersActiveIcon from "../../assets/images/users-active.svg";
+import StrategiesIcon from "../../assets/images/strategies.svg";
+import StrategiesActiveIcon from "../../assets/images/strategies-active.svg";
 import WorkspaceIcon from "../../assets/workspace.svg";
 import { CalendarClock } from "lucide-react";
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
@@ -1592,6 +1594,30 @@ export const Sidebar: React.FC = () => {
           )}
         </div>
         )}
+
+        {/* Strategies - bottom of sidebar */}
+        <Link
+          to="/strategies"
+          className={`flex items-center p-2 rounded-xl gap-2 mt-4 ${
+            isCollapsed ? "justify-center" : ""
+          } ${
+            isActive("/strategies")
+              ? "w-full bg-forest-f60 !text-white hover:!text-white"
+              : "text-black hover:bg-transparent hover:text-[#136D6D]"
+          }`}
+          title={isCollapsed ? "Strategies" : undefined}
+        >
+          <img
+            src={isActive("/strategies") ? StrategiesActiveIcon : StrategiesIcon}
+            alt=""
+            className="w-5 h-5 shrink-0"
+          />
+          {!isCollapsed && (
+            <span className="text-[12.32px] font-normal leading-[16px]">
+              Strategies
+            </span>
+          )}
+        </Link>
       </div>
 
       {channelRequiredModal !== null &&
