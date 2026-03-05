@@ -159,6 +159,9 @@ export interface DashboardComponent {
   filters: Record<string, unknown>;
   pagination: DashboardPagination;
   refresh_interval_seconds: number;
+  /** Grid size for this widget. */
+  rows: number;
+  cols: number;
 }
 
 export interface DashboardConfig {

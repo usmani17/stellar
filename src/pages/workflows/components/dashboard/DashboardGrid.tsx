@@ -35,6 +35,7 @@ interface DashboardGridProps {
 
 function SortableWidgetWrapper({
   component,
+  layoutCols,
   accountId,
   dashboardId,
   shareId,
@@ -47,6 +48,7 @@ function SortableWidgetWrapper({
   onVisualizationChange,
 }: {
   component: DashboardComponent;
+  layoutCols: number;
   accountId: number | undefined;
   dashboardId: number | undefined;
   shareId?: string;
@@ -74,11 +76,24 @@ function SortableWidgetWrapper({
 
   const dragHandleProps = editable ? { ...attributes, ...listeners } : undefined;
 
+  // Calculate grid span classes based on component's rows and cols
+  const colSpanClass =
+    component.cols >= layoutCols
+      ? layoutCols === 4
+        ? "md:col-span-4"
+        : layoutCols === 3
+          ? "md:col-span-3"
+          : "md:col-span-2"
+      : component.cols >= 2
+        ? "md:col-span-2"
+        : "col-span-1";
+  const rowSpanClass = component.rows >= 2 ? "row-span-2" : "row-span-1";
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`${isExpanded ? "md:col-span-2" : ""} ${isDragging ? "z-50 opacity-90" : ""}`}
+      className={`${colSpanClass} ${rowSpanClass} ${isDragging ? "z-50 opacity-90" : ""}`}
     >
       <DashboardWidget
         component={component}
@@ -107,7 +122,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
   editable = false,
 }) => {
   const { layout, components } = config;
-  const { cols } = layout;
+  const { cols: layoutCols, rows: layoutRows } = layout;
 
   const [orderedIds, setOrderedIds] = useState<string[]>(() =>
     components.map((c) => c.id)
@@ -158,11 +173,17 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     useSensor(KeyboardSensor)
   );
 
-  const gridCols = cols >= 2 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1";
+  // Generate grid classes based on dashboard layout columns
+  const gridColsClass = 
+    layoutCols === 1 ? "grid-cols-1" :
+    layoutCols === 2 ? "grid-cols-2" :
+    layoutCols === 3 ? "grid-cols-3" :
+    layoutCols === 4 ? "grid-cols-4" :
+    "grid-cols-2";
 
   const gridContent = (
     <div
-      className={`grid gap-3 ${gridCols}`}
+      className={`grid gap-3 ${gridColsClass}`}
       style={{ gridAutoRows: "minmax(280px, auto)" }}
     >
       {orderedComponents.map((comp, i) =>
@@ -170,6 +191,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
           <SortableWidgetWrapper
             key={comp.id}
             component={comp}
+            layoutCols={layoutCols}
             accountId={accountId}
             dashboardId={dashboardId}
             shareId={shareId}
@@ -182,15 +204,29 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
             onVisualizationChange={handleVisualizationChange}
           />
         ) : (
-          <DashboardWidget
+          <div
             key={comp.id}
-            component={comp}
-            accountId={accountId}
-            dashboardId={dashboardId}
-            shareId={shareId}
-            staggerDelayMs={i * STAGGER_DELAY_MS}
-            showQueryDetails={showQueryDetails}
-          />
+            className={`${
+              comp.cols >= layoutCols
+                ? layoutCols === 4
+                  ? "md:col-span-4"
+                  : layoutCols === 3
+                    ? "md:col-span-3"
+                    : "md:col-span-2"
+                : comp.cols >= 2
+                  ? "md:col-span-2"
+                  : "col-span-1"
+            } ${comp.rows >= 2 ? "row-span-2" : "row-span-1"}`}
+          >
+            <DashboardWidget
+              component={comp}
+              accountId={accountId}
+              dashboardId={dashboardId}
+              shareId={shareId}
+              staggerDelayMs={i * STAGGER_DELAY_MS}
+              showQueryDetails={showQueryDetails}
+            />
+          </div>
         )
       )}
     </div>

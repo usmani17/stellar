@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Share2, Moon, Sun } from "lucide-react";
+import { ArrowLeft, Share2, Moon, Sun, RotateCw } from "lucide-react";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
@@ -27,7 +27,7 @@ export const WorkflowDashboardPage: React.FC = () => {
     enabled: !!accountIdNum && !!dashboardIdNum,
   });
 
-  const { data: dashboard, isLoading: isLoadingDashboard } = useQuery({
+  const { data: dashboard, isLoading: isLoadingDashboard, refetch: refetchDashboard } = useQuery({
     queryKey: ["dashboard", accountIdNum, dashboardIdNum],
     queryFn: () => getDashboardDetail(accountIdNum!, dashboardIdNum!),
     enabled: !!accountIdNum && !!dashboardIdNum,
@@ -73,6 +73,7 @@ export const WorkflowDashboardPage: React.FC = () => {
         config={dashboard?.config}
         accountIdNum={accountIdNum}
         dashboardId={dashboard?.id}
+        onRefresh={() => refetchDashboard()}
       />
     </DashboardThemeProvider>
   );
@@ -87,6 +88,7 @@ function WorkflowDashboardContent({
   config,
   accountIdNum,
   dashboardId,
+  onRefresh,
 }: {
   workflowsPath: string;
   sidebarWidth: number;
@@ -96,6 +98,7 @@ function WorkflowDashboardContent({
   config: import("./types/dashboard").DashboardConfig | undefined;
   accountIdNum: number | undefined;
   dashboardId: number | undefined;
+  onRefresh: () => void;
 }) {
   const { isDark, toggleTheme } = useDashboardTheme();
 
@@ -128,6 +131,17 @@ function WorkflowDashboardContent({
                 </h1>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onRefresh}
+                  className={`p-2 rounded transition-colors ${isDark
+                      ? "text-neutral-400 hover:bg-neutral-700 hover:text-white"
+                      : "text-forest-f30 hover:bg-sandstorm-s20 hover:text-forest-f60"
+                    }`}
+                  aria-label="Refresh dashboard"
+                >
+                  <RotateCw className="w-4 h-4" />
+                </button>
                 <button
                   type="button"
                   onClick={toggleTheme}
