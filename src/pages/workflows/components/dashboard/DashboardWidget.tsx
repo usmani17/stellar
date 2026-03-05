@@ -11,6 +11,7 @@ import {
   LineChart,
   PieChart,
   TrendingUp,
+  LayoutDashboard,
 } from "lucide-react";
 import type { ProgressStep } from "./ProgressFlow";
 import { ProgressFlow, SIMPLE_STEPS, MULTI_GAQL_STEPS } from "./ProgressFlow";
@@ -21,9 +22,10 @@ import { DashboardPieChart } from "./DashboardPieChart";
 import { DashboardAreaChart } from "./DashboardAreaChart";
 import { DashboardComboChart } from "./DashboardComboChart";
 import { DashboardComparisonChart } from "./DashboardComparisonChart";
+import { DashboardSingleMetric } from "./DashboardSingleMetric";
 import { Dropdown } from "../../../../components/ui";
 import type { DropdownOption } from "../../../../components/ui";
-import type { DashboardComponent, VisualizationType } from "../../types/dashboard";
+import type { DashboardComponent, LineChartDatum, PieChartDatum, SingleMetricDatum, VisualizationType } from "../../types/dashboard";
 import { isMultiGaqlQuery } from "../../types/dashboard";
 import { getDashboardComponentData } from "../../../../services/dashboard";
 import { getMockDataForComponent } from "../../utils/dashboardMockData";
@@ -40,6 +42,7 @@ const VIZ_ICONS: Record<VisualizationType, React.ReactNode> = {
   area_chart: <TrendingUp className={VIZ_ICON_CLS} aria-hidden />,
   combo_chart: <BarChart2 className={VIZ_ICON_CLS} aria-hidden />,
   comparison_chart: <BarChart2 className={VIZ_ICON_CLS} aria-hidden />,
+  single_metric: <LayoutDashboard className={VIZ_ICON_CLS} aria-hidden />,
 };
 
 const VIZ_TYPE_OPTIONS: DropdownOption<VisualizationType>[] = [
@@ -48,6 +51,9 @@ const VIZ_TYPE_OPTIONS: DropdownOption<VisualizationType>[] = [
   { value: "line_chart", label: "Line chart" },
   { value: "pie_chart", label: "Pie chart" },
   { value: "area_chart", label: "Area chart" },
+  { value: "combo_chart", label: "Combo chart" },
+  { value: "comparison_chart", label: "Comparison chart" },
+  { value: "single_metric", label: "Single metric" },
 ];
 
 interface DashboardWidgetProps {
@@ -94,7 +100,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
 }) => {
   const vizType = effectiveVisualizationType ?? component.visualization_type;
   const [status, setStatus] = useState<WidgetStatus>("pending");
-  const [data, setData] = useState<Record<string, unknown>[]>([]);
+  const [data, setData] = useState<DashboardComponent>({} as DashboardComponent);
   const mountedRef = useRef(true);
   const hasFetchedRef = useRef(false);
   const lastComponentIdRef = useRef(component.id);
@@ -140,14 +146,14 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
         visualization_type: vizType,
       };
 
-      let rows: Record<string, unknown>[] = [];
+      let rows: DashboardComponent;
       if (accountId && dashboardId) {
         rows = await getDashboardComponentData(accountId, dashboardId, component.id, component);
       } else if (shareId) {
         // TODO: handle shareId public access
-        rows = getMockDataForComponent(componentForMock);
+        rows = {data:getMockDataForComponent(componentForMock)} as DashboardComponent;
       } else {
-        rows = getMockDataForComponent(componentForMock);
+        rows = {data:getMockDataForComponent(componentForMock)} as DashboardComponent;
       }
 
       setData(rows);
@@ -308,31 +314,35 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
           </div>
         ) : vizType === "table" ? (
           <div className="flex-1 min-h-0 overflow-auto dashboard-table-wrapper pb-4">
-            <DashboardTable component={component} data={data} isDark={isDark} />
+            <DashboardTable component={component} data={data.data} isDark={isDark} />
           </div>
         ) : vizType === "line_chart" ? (
           <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
-            <DashboardLineChart component={component} data={data} isDark={isDark} />
+            <DashboardLineChart component={component} data={data.data as LineChartDatum[]} isDark={isDark} />
           </div>
         ) : vizType === "pie_chart" ? (
           <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
-            <DashboardPieChart component={component} data={data} isDark={isDark} />
+            <DashboardPieChart component={component} data={data.data as PieChartDatum[]} isDark={isDark} />
           </div>
         ) : vizType === "area_chart" ? (
           <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
-            <DashboardAreaChart component={component} data={data} isDark={isDark} />
+            <DashboardAreaChart component={component} data={data.data} isDark={isDark} />
           </div>
         ) : vizType === "combo_chart" ? (
           <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
-            <DashboardComboChart component={component} data={data} isDark={isDark} />
+            <DashboardComboChart component={component} data={data.data} isDark={isDark} />
           </div>
         ) : vizType === "comparison_chart" ? (
           <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
-            <DashboardComparisonChart component={component} data={data} isDark={isDark} />
+            <DashboardComparisonChart component={component} data={data.data} isDark={isDark} />
+          </div>
+        ) : vizType === "single_metric" ? (
+          <div className="flex-1 min-h-[120px] flex flex-col">
+            <DashboardSingleMetric component={component} data={data.data as SingleMetricDatum[]} isDark={isDark} />
           </div>
         ) : (
           <div className="flex-1 min-h-[180px] flex items-center justify-center px-3 pb-3">
-            <DashboardBarChart component={component} data={data} isDark={isDark} />
+            <DashboardBarChart component={component} data={data.data} isDark={isDark} />
           </div>
         )}
       </div>

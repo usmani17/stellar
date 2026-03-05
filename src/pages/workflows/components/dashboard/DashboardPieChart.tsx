@@ -1,15 +1,15 @@
 import React from "react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { getChartColors, TOOLTIP_STYLE } from "../../../../utils/chartStyles";
-import type { DashboardComponent } from "../../types/dashboard";
+import type { DashboardComponent, PieChartDatum } from "../../types/dashboard";
 
 interface DashboardPieChartProps {
   component: DashboardComponent;
-  data: Record<string, unknown>[];
+  data: PieChartDatum[];
   isDark?: boolean;
 }
 
-function inferChartKeys(data: Record<string, unknown>[]): {
+function inferChartKeys(data: PieChartDatum[]): {
   nameKey: string;
   valueKey: string;
 } {
@@ -39,7 +39,7 @@ export const DashboardPieChart: React.FC<DashboardPieChartProps> = ({
   const tooltipText = isDark ? "#e5e7eb" : "#072929";
   const legendTextColor = isDark ? "#d1d5db" : "#374151";
 
-  const total = data.reduce((sum, row) => sum + Number((row as Record<string, unknown>)[valueKey] ?? 0), 0);
+  const total = data.reduce((sum, row) => sum + Number((row as PieChartDatum)[valueKey] ?? 0), 0);
 
   return (
     <div className="min-h-[200px] w-full">
@@ -81,7 +81,7 @@ export const DashboardPieChart: React.FC<DashboardPieChartProps> = ({
             wrapperStyle={{ zIndex: 10 }}
             labelStyle={{ color: tooltipText }}
             itemStyle={{ color: tooltipText }}
-            formatter={(v: unknown, _name: unknown, item: { payload?: Record<string, unknown>; name?: string }) => {
+            formatter={(v: unknown, _name: unknown, item: { payload?: Record<string, unknown>; name?: string }): [React.ReactNode, string] => {
               const label = item.payload?.[nameKey] ?? item.name ?? "";
               const formatted =
                 typeof v === "number" && /spend|cost|value|micros/i.test(valueKey)
@@ -89,7 +89,7 @@ export const DashboardPieChart: React.FC<DashboardPieChartProps> = ({
                   : typeof v === "number"
                     ? v.toLocaleString()
                     : String(v);
-              return [formatted, label || valueKey.replace(/_/g, " ")];
+              return [formatted, String(label || valueKey.replace(/_/g, " "))];
             }}
           />
         </PieChart>

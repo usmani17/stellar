@@ -9,15 +9,15 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { AXIS_STYLE, AXIS_STYLE_DARK, TOOLTIP_STYLE, getChartColors } from "../../../../utils/chartStyles";
-import type { DashboardComponent } from "../../types/dashboard";
+import type { DashboardComponent, LineChartDatum } from "../../types/dashboard";
 
 interface DashboardLineChartProps {
   component: DashboardComponent;
-  data: Record<string, unknown>[];
+  data: LineChartDatum[];
   isDark?: boolean;
 }
 
-function inferChartKeys(data: Record<string, unknown>[]): {
+function inferChartKeys(data: LineChartDatum[]): {
   xKey: string;
   valueKeys: string[];
 } {
@@ -86,12 +86,12 @@ export const DashboardLineChart: React.FC<DashboardLineChartProps> = ({
             wrapperStyle={{ zIndex: 10 }}
             labelStyle={{ color: tooltipText }}
             itemStyle={{ color: tooltipText }}
-            formatter={(v: unknown, name: string) => [
+            formatter={(v: unknown, name: string): [React.ReactNode, string] => [
               typeof v === "number" && /spend|cost|value|micros/i.test(name)
                 ? `$${v.toLocaleString()}`
                 : typeof v === "number"
                   ? v.toLocaleString()
-                  : v,
+                  : (v as React.ReactNode),
               name.replace(/_/g, " "),
             ]}
           />

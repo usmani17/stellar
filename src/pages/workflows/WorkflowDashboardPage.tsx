@@ -66,7 +66,7 @@ export const WorkflowDashboardPage: React.FC = () => {
       <WorkflowDashboardContent
         workflowsPath={workflowsPath}
         sidebarWidth={sidebarWidth}
-        workflowName={workflow?.name}
+        workflowName={workflow?.name +  " | " + (dashboard?.name)}
         shareCopied={shareCopied}
         handleShare={handleShare}
         config={dashboard?.config}

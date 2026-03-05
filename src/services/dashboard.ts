@@ -6,10 +6,8 @@
 
 import api from "./api";
 import type { DashboardConfig, DashboardComponent } from "../pages/workflows/types/dashboard";
-import { getMockDataForComponent } from "../pages/workflows/utils/dashboardMockData";
 
 const API_BASE = "/assistant";
-const USE_REAL_API = import.meta.env.VITE_USE_DASHBOARD_API === "true";
 
 export interface DashboardResponse {
   id: number;
@@ -29,13 +27,10 @@ export interface DashboardResponse {
  * Fetch all dashboards for an account.
  */
 export async function getDashboards(accountId: number): Promise<DashboardResponse[]> {
-  if (USE_REAL_API) {
-    const { data } = await api.get<DashboardResponse[]>(
-      `${API_BASE}/${accountId}/dashboards/`
-    );
-    return data;
-  }
-  return [];
+  const { data } = await api.get<DashboardResponse[]>(
+    `${API_BASE}/${accountId}/dashboards/`
+  );
+  return data;
 }
 
 /**
@@ -45,11 +40,8 @@ export async function getDashboardForWorkflow(
   accountId: number,
   workflowId: number
 ): Promise<DashboardResponse | null> {
-  if (USE_REAL_API) {
     const dashboards = await getDashboards(accountId);
     return dashboards.find((d) => d.workflowId === workflowId) ?? null;
-  }
-  return null;
 }
 
 /**
@@ -59,13 +51,10 @@ export async function getDashboardDetail(
   accountId: number,
   dashboardId: number
 ): Promise<DashboardResponse | null> {
-  if (USE_REAL_API) {
-    const { data } = await api.get<DashboardResponse>(
-      `${API_BASE}/${accountId}/dashboards/${dashboardId}/`
-    );
-    return data;
-  }
-  return null;
+  const { data } = await api.get<DashboardResponse>(
+    `${API_BASE}/${accountId}/dashboards/${dashboardId}/`
+  );
+  return data;
 }
 
 /**
@@ -75,12 +64,10 @@ export async function getDashboardDetail(
 export async function getDashboardConfig(
   shareId: string
 ): Promise<{ config: DashboardConfig; workflowName?: string } | null> {
-  if (USE_REAL_API) {
-    // Current backend doesn't have /dashboards/share/{shareId} yet
-    // fallback or error
-    return null;
-  }
-  return null;
+    const { data } = await api.get<DashboardConfig>(
+      `${API_BASE}/dashboards/share/${shareId}/`
+    );
+    return { config: data };
 }
 
 // ── Component data ──────────────────────────────────────────────────────────
@@ -113,13 +100,10 @@ export async function getDashboardComponentData(
   dashboardId: number,
   componentId: string,
   _component: DashboardComponent
-): Promise<Record<string, unknown>[]> {
-  if (USE_REAL_API) {
-    const { data } = await api.get<{ data: Record<string, unknown>[] }>(
+): Promise<DashboardComponent> {
+    const  {data}  = await api.get<DashboardComponent>(
       `${API_BASE}/${accountId}/dashboards/${dashboardId}/components/${componentId}/`
     );
-    return data?.data ?? [];
-  }
-
-  return getMockDataForComponent(_component);
+    const resp = data ?? _component;
+    return resp;
 }

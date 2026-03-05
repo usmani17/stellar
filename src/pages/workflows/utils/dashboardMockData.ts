@@ -34,6 +34,10 @@ export function getMockDataForComponent(
     return getMockComparisonChartData(id);
   }
 
+  if (vizType === "single_metric") {
+    return getMockSingleMetricData(id);
+  }
+
   switch (id) {
     case "campaign-perf":
     case "campaign-perf-date-range":
@@ -442,4 +446,19 @@ function getMockComparisonChartData(
     this_week: Math.round(800 + (i + 1) * 120 + Math.random() * 100),
     last_week: Math.round(600 + (i + 1) * 100 + Math.random() * 80),
   }));
+}
+
+function getMockSingleMetricData(
+  _componentId: string
+): Record<string, unknown>[] {
+  return [
+    {
+      total_spend: 450.0,
+      impressions: 1200.0,
+      clicks: 180.0,
+      conversions: 12.0,
+      roas: 4.0,
+      ctr_pct: 15.0,
+    },
+  ];
 }

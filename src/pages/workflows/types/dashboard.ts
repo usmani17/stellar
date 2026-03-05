@@ -91,7 +91,61 @@ export type VisualizationType =
   | "pie_chart"
   | "area_chart"
   | "combo_chart"
-  | "comparison_chart";
+  | "comparison_chart"
+  | "single_metric";
+
+/** Data row for table — arbitrary key/value columns */
+export type TableDataRow = Record<string, unknown>;
+
+/** Datum for bar chart — category + numeric value(s) */
+export interface BarChartDatum {
+  name: string;
+  value: number;
+  [key: string]: unknown;
+}
+
+/** Datum for line/area/combo — date/category + numeric series */
+export interface LineChartDatum {
+  date: string;
+  [key: string]: unknown;
+}
+
+/** Datum for pie chart — label + value */
+export interface PieChartDatum {
+  name: string;
+  value: number;
+  [key: string]: unknown;
+}
+
+/** Datum for area chart — same shape as line */
+export type AreaChartDatum = LineChartDatum;
+
+/** Datum for combo chart — multiple value keys */
+export type ComboChartDatum = LineChartDatum;
+
+/** Datum for comparison chart — dimension + comparable values */
+export type ComparisonChartDatum = LineChartDatum;
+
+/** Row for single_metric — one or more metric key/value pairs (typically one row) */
+export type SingleMetricDatum = Record<string, unknown>;
+
+/** Data array type for each visualization type */
+export type VisualizationDataMap = {
+  table: TableDataRow[];
+  bar_chart: BarChartDatum[];
+  line_chart: LineChartDatum[];
+  pie_chart: PieChartDatum[];
+  area_chart: AreaChartDatum[];
+  combo_chart: ComboChartDatum[];
+  comparison_chart: ComparisonChartDatum[];
+  single_metric: SingleMetricDatum[];
+};
+
+/** Optional mapping for chart components: query result keys → chart axes (backend uses for transform) */
+export interface DashboardDataKeys {
+  x: string;
+  series: string[];
+}
 
 export interface DashboardComponent {
   id: string;
@@ -99,6 +153,8 @@ export interface DashboardComponent {
   visualization_type: VisualizationType;
   data_source: "google_ads" | "internal_db";
   query: DashboardQuery;
+  data_keys?: DashboardDataKeys;
+  data: VisualizationDataMap[VisualizationType];
   sort: DashboardSort;
   filters: Record<string, unknown>;
   pagination: DashboardPagination;
