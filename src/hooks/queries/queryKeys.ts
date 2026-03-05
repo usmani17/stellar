@@ -102,6 +102,7 @@ export const queryKeys = {
         profileId,
       ] as const,
   },
+
   workflows: {
     all: ["workflows"] as const,
     lists: (accountId: number, search?: string) =>
@@ -115,5 +116,15 @@ export const queryKeys = {
     all: ["brandSettings"] as const,
     detail: (accountId: number) =>
       [...queryKeys.brandSettings.all, accountId] as const,
+  },
+  strategies: {
+    all: ["strategies"] as const,
+    lists: () => [...queryKeys.strategies.all, "list"] as const,
+    detail: (id: number) => [...queryKeys.strategies.all, "detail", id] as const,
+  },
+  automations: {
+    all: ["automations"] as const,
+    lists: (strategyId: number) =>
+      [...queryKeys.automations.all, "list", strategyId] as const,
   },
 } as const;

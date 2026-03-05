@@ -298,6 +298,50 @@ export const accountsService = {
     return response.data;
   },
 
+  /**
+   * Fetch all profiles the logged-in user can access in one API call.
+   * Returns items with camelCase keys for frontend use.
+   */
+  getAllAccessibleProfiles: async (): Promise<
+    Array<{
+      id: string;
+      accountId: number;
+      accountName: string;
+      channelId: number;
+      channelName: string;
+      channelType: string;
+      profileId: number;
+      profileName: string;
+      label: string;
+    }>
+  > => {
+    const response = await api.get<{
+      profiles: Array<{
+        id: string;
+        account_id: number;
+        account_name: string;
+        channel_id: number;
+        channel_name: string;
+        channel_type: string;
+        profile_id: number;
+        profile_name: string;
+        label: string;
+      }>;
+      total: number;
+    }>("/accounts/all-profiles/");
+    return (response.data.profiles || []).map((p) => ({
+      id: p.id,
+      accountId: p.account_id,
+      accountName: p.account_name,
+      channelId: p.channel_id,
+      channelName: p.channel_name,
+      channelType: p.channel_type,
+      profileId: p.profile_id,
+      profileName: p.profile_name,
+      label: p.label,
+    }));
+  },
+
   // Amazon Profiles (per channel; for channel-specific screens)
   getProfiles: async (
     channelId: number

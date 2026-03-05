@@ -314,6 +314,9 @@ export const Sidebar: React.FC = () => {
         !location.pathname.includes("/tiktok/log-history")
       );
     }
+    if (path === "/strategies") {
+      return location.pathname === "/strategies" || location.pathname === "/strategies/new" || /^\/strategies\/\d+$/.test(location.pathname);
+    }
     return location.pathname === path;
   };
 

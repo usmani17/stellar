@@ -13,6 +13,8 @@ import { Dashboards } from "../pages/Dashboards";
 import { LogHistory } from "../pages/LogHistory";
 import { Profile } from "../pages/Profile";
 import { WorkspaceSettings } from "../pages/WorkspaceSettings";
+import { Strategies } from "../pages/Strategies";
+import { StrategyDetail } from "../pages/StrategyDetail";
 import { NoWorkspace } from "../pages/NoWorkspace";
 import { CompleteSignup } from "../pages/CompleteSignup";
 import { ColorExamples } from "../pages/ColorExamples";
@@ -69,6 +71,30 @@ function AccountRoutes() {
                         <WorkspaceRequiredRoute>
                             <Layout>
                                 <LogHistory />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/strategies"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <Strategies />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/strategies/:strategyId"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <StrategyDetail />
                             </Layout>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
