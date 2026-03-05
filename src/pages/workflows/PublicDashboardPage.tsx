@@ -3,7 +3,6 @@ import { useParams, useLocation } from "react-router-dom";
 import { BarChart3, Moon, Sun, RotateCcw } from "lucide-react";
 import { DashboardGrid } from "./components/dashboard/DashboardGrid";
 import { getDashboardConfig } from "../../services/dashboard";
-import { clearDemoLayoutState } from "./utils/dashboardStorage";
 import { FULL_TEST_DASHBOARD_CONFIG } from "./constants/fullTestDashboard";
 import { DashboardThemeProvider, useDashboardTheme } from "./contexts/DashboardThemeContext";
 import type { DashboardConfig } from "./types/dashboard";
@@ -34,33 +33,29 @@ function PublicDashboardInner({
       data-theme={isDark ? "dark" : "light"}
     >
       <div
-        className={`min-h-screen transition-colors duration-300 ${
-          isDark
+        className={`min-h-screen transition-colors duration-300 ${isDark
             ? "bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900"
             : "bg-gradient-to-br from-sandstorm-s0 via-sandstorm-s5 to-sandstorm-s10"
-        }`}
+          }`}
       >
         <header
-          className={`backdrop-blur-sm border-b sticky top-0 z-10 transition-colors duration-300 ${
-            isDark
+          className={`backdrop-blur-sm border-b sticky top-0 z-10 transition-colors duration-300 ${isDark
               ? "bg-neutral-800/90 border-neutral-700"
               : "bg-white/80 border-sandstorm-s40/60"
-          }`}
+            }`}
         >
           <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div
-                className={`flex items-center justify-center w-10 h-10 rounded-xl ${
-                  isDark ? "bg-[#2DD4BF]/20 text-[#2DD4BF]" : "bg-forest-f40/10 text-forest-f40"
-                }`}
+                className={`flex items-center justify-center w-10 h-10 rounded-xl ${isDark ? "bg-[#2DD4BF]/20 text-[#2DD4BF]" : "bg-forest-f40/10 text-forest-f40"
+                  }`}
               >
                 <BarChart3 className="w-5 h-5" aria-hidden />
               </div>
               <div>
                 <h1
-                  className={`text-lg font-semibold tracking-tight ${
-                    isDark ? "text-neutral-100" : "text-forest-f60"
-                  }`}
+                  className={`text-lg font-semibold tracking-tight ${isDark ? "text-neutral-100" : "text-forest-f60"
+                    }`}
                 >
                   {title}
                 </h1>
@@ -72,11 +67,10 @@ function PublicDashboardInner({
             <button
               type="button"
               onClick={toggleTheme}
-              className={`p-2 rounded-lg transition-colors ${
-                isDark
+              className={`p-2 rounded-lg transition-colors ${isDark
                   ? "text-neutral-300 hover:bg-neutral-700 hover:text-white"
                   : "text-forest-f30 hover:bg-sandstorm-s20 hover:text-forest-f60"
-              }`}
+                }`}
               aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
             >
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -87,11 +81,10 @@ function PublicDashboardInner({
         <main className="max-w-[1600px] mx-auto px-6 py-8">
           {isDemoMode && (
             <div
-              className={`mb-6 px-4 py-3 rounded-lg text-sm flex flex-wrap items-center justify-between gap-3 ${
-                isDark
+              className={`mb-6 px-4 py-3 rounded-lg text-sm flex flex-wrap items-center justify-between gap-3 ${isDark
                   ? "bg-[#2DD4BF]/15 border border-[#2DD4BF]/40 text-[#a7f3eb]"
                   : "bg-forest-f40/10 border border-forest-f40/20 text-forest-f60"
-              }`}
+                }`}
             >
               <span>
                 <strong>Demo mode</strong> — Charts on top, tables below. Drag the <strong>⋮⋮</strong> handle to reorder. Click <strong>⤢</strong> to expand. Use the <strong>chart type</strong> dropdown to switch (table, bar, line, pie, area). Click <strong>GAQL</strong> / <strong>SQL</strong> to view the query.
@@ -100,11 +93,10 @@ function PublicDashboardInner({
                 <button
                   type="button"
                   onClick={onResetLayout}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    isDark
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isDark
                       ? "text-[#2DD4BF] hover:bg-[#2DD4BF]/20"
                       : "text-forest-f60 hover:bg-forest-f40/15"
-                  }`}
+                    }`}
                 >
                   <RotateCcw className="w-3.5 h-3.5" aria-hidden />
                   Reset layout
@@ -146,7 +138,6 @@ export const PublicDashboardPage: React.FC = () => {
   const [layoutKey, setLayoutKey] = useState(0);
 
   const handleResetLayout = useCallback(() => {
-    clearDemoLayoutState();
     setLayoutKey((k) => k + 1);
   }, []);
 

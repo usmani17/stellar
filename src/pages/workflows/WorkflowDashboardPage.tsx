@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Share2, Moon, Sun } from "lucide-react";
@@ -7,18 +7,15 @@ import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { DashboardGrid } from "./components/dashboard/DashboardGrid";
-import { getDashboardForWorkflow } from "./utils/dashboardStorage";
-import { DEFAULT_DASHBOARD_CONFIG } from "./constants/defaultDashboard";
-import { setShareConfig } from "./utils/dashboardStorage";
 import { workflowsService } from "../../services/workflows";
+import { getDashboardForWorkflow } from "../../services/dashboard";
 import { queryKeys } from "../../hooks/queries/queryKeys";
 import { DashboardThemeProvider, useDashboardTheme } from "./contexts/DashboardThemeContext";
 
 export const WorkflowDashboardPage: React.FC = () => {
   const { accountId, workflowId } = useParams<{ accountId: string; workflowId: string }>();
   const { sidebarWidth } = useSidebar();
-  const [config, setConfig] = useState(DEFAULT_DASHBOARD_CONFIG);
-  const [shareCopied, setShareCopied] = useState(false);
+  const [shareCopied, setShareCopied] = React.useState(false);
 
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
   const workflowIdNum = workflowId ? parseInt(workflowId, 10) : undefined;
@@ -29,41 +26,40 @@ export const WorkflowDashboardPage: React.FC = () => {
     enabled: !!accountIdNum && !!workflowIdNum,
   });
 
+  const { data: dashboard, isLoading: isLoadingDashboard } = useQuery({
+    queryKey: ["dashboard", accountIdNum, workflowIdNum],
+    queryFn: () => getDashboardForWorkflow(accountIdNum!, workflowIdNum!),
+    enabled: !!accountIdNum && !!workflowIdNum,
+  });
+
   useEffect(() => {
     setPageTitle(workflow?.name ? `${workflow.name} — Dashboard` : "Dashboard");
     return () => resetPageTitle();
   }, [workflow?.name]);
 
-  useEffect(() => {
-    if (workflowIdNum) {
-      const stored = getDashboardForWorkflow(workflowIdNum);
-      if (stored) {
-        setConfig(stored);
-      }
-    }
-  }, [workflowIdNum]);
-
   const handleShare = async () => {
-    if (!accountIdNum || !workflowIdNum) return;
+    if (!accountIdNum || !workflowIdNum || !dashboard) return;
     const shareId = crypto.randomUUID();
-    setShareConfig(shareId, {
-      workflowId: workflowIdNum,
-      accountId: accountIdNum,
-      config,
-      workflowName: workflow?.name,
-    });
+    // TODO: implement real sharing via backend
     const url = `${window.location.origin}/dashboards/share/${shareId}`;
     try {
       await navigator.clipboard.writeText(url);
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
     } catch {
-      // fallback: open in new tab or show URL
       window.open(url, "_blank");
     }
   };
 
   const workflowsPath = accountId ? `/brands/${accountId}/workflows` : "/brands";
+
+  if (isLoadingDashboard) {
+    return (
+      <div className="min-h-screen bg-sandstorm-s0 flex items-center justify-center">
+        <p className="text-forest-f30 animate-pulse">Loading dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <DashboardThemeProvider>
@@ -73,9 +69,10 @@ export const WorkflowDashboardPage: React.FC = () => {
         workflowName={workflow?.name}
         shareCopied={shareCopied}
         handleShare={handleShare}
-        config={config}
+        config={dashboard?.config}
         accountIdNum={accountIdNum}
         workflowIdNum={workflowIdNum}
+        dashboardId={dashboard?.id}
       />
     </DashboardThemeProvider>
   );
@@ -90,15 +87,17 @@ function WorkflowDashboardContent({
   config,
   accountIdNum,
   workflowIdNum,
+  dashboardId,
 }: {
   workflowsPath: string;
   sidebarWidth: number;
   workflowName?: string;
   shareCopied: boolean;
   handleShare: () => void;
-  config: import("./types/dashboard").DashboardConfig;
+  config: import("./types/dashboard").DashboardConfig | undefined;
   accountIdNum: number | undefined;
   workflowIdNum: number | undefined;
+  dashboardId: number | undefined;
 }) {
   const { isDark, toggleTheme } = useDashboardTheme();
 
@@ -111,9 +110,8 @@ function WorkflowDashboardContent({
       >
         <DashboardHeader />
         <div
-          className={`px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 min-h-screen transition-colors ${
-            isDark ? "bg-neutral-900" : "bg-sandstorm-s0"
-          }`}
+          className={`px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 min-h-screen transition-colors ${isDark ? "bg-neutral-900" : "bg-sandstorm-s0"
+            }`}
         >
           <div className="space-y-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -134,22 +132,21 @@ function WorkflowDashboardContent({
                 <button
                   type="button"
                   onClick={toggleTheme}
-                  className={`p-2 rounded transition-colors ${
-                    isDark
+                  className={`p-2 rounded transition-colors ${isDark
                       ? "text-neutral-400 hover:bg-neutral-700 hover:text-white"
                       : "text-forest-f30 hover:bg-sandstorm-s20 hover:text-forest-f60"
-                  }`}
+                    }`}
                   aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
                 >
                   {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </button>
                 <button
                   onClick={handleShare}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-medium border transition-colors ${
-                    isDark
+                  disabled={!dashboardId}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-medium border transition-colors ${isDark
                       ? "border-neutral-600 bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
                       : "border-sandstorm-s40 bg-white text-forest-f60 hover:bg-sandstorm-s5"
-                  }`}
+                    } disabled:opacity-50`}
                   aria-label="Share dashboard"
                 >
                   <Share2 className="w-3.5 h-3.5" />
@@ -158,11 +155,18 @@ function WorkflowDashboardContent({
               </div>
             </div>
 
-            <DashboardGrid
-              config={config}
-              accountId={accountIdNum}
-              workflowId={workflowIdNum}
-            />
+            {config ? (
+              <DashboardGrid
+                config={config}
+                accountId={accountIdNum}
+                workflowId={workflowIdNum}
+                dashboardId={dashboardId}
+              />
+            ) : (
+              <div className={`p-12 text-center rounded-xl border border-dashed ${isDark ? "border-neutral-700 text-neutral-400" : "border-sandstorm-s40 text-forest-f30"}`}>
+                <p>No dashboard configuration found for this workflow.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   Pencil,
   Trash2,
@@ -17,8 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
-  LayoutGrid,
   BarChart2,
+  LayoutGrid,
 } from "lucide-react";
 import { ConfirmationModal, Tooltip } from "../../../components/ui";
 import { WorkflowRunHistoryModal } from "./WorkflowRunHistoryModal";
@@ -30,7 +30,7 @@ import { formatSchedule, computeNextRuns } from "../utils/scheduleUtils";
 import { useBrandSettings } from "../hooks/useBrandSettings";
 import { queryKeys } from "../../../hooks/queries/queryKeys";
 import { buildAccountRoute } from "../../../utils/urlHelpers";
-import { hasDashboardForWorkflow } from "../utils/dashboardStorage";
+import { getDashboards } from "../../../services/dashboard";
 
 interface WorkflowsListProps {
   accountId: number | undefined;
@@ -65,6 +65,12 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   const [runWorkflow, setRunWorkflow] = useState<Workflow | null>(null);
   const [createDashboardWorkflow, setCreateDashboardWorkflow] = useState<Workflow | null>(null);
   const [page, setPage] = useState(1);
+
+  const { data: dashboards = [] } = useQuery({
+    queryKey: ["dashboards", accountId],
+    queryFn: () => getDashboards(accountId!),
+    enabled: !!accountId,
+  });
 
   const WORKFLOWS_PER_PAGE = 10;
   const sortedWorkflows = useMemo(
@@ -293,7 +299,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                     <LayoutGrid className="w-4 h-4" />
                     Create Dashboard
                   </button>
-                  {hasDashboardForWorkflow(wf.id) && (
+                  {dashboards.some((d) => d.workflowId === wf.id) && (
                     <button
                       onClick={() => navigate(buildAccountRoute(accountId, `workflows/${wf.id}/dashboard`))}
                       className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors"
@@ -417,19 +423,19 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
         executePayload={
           previewWorkflow
             ? {
-                accountId: previewWorkflow.accountId,
-                channelId: previewWorkflow.channelId ?? undefined,
-                profileId: previewWorkflow.profileId ?? undefined,
-                accountName: previewWorkflow.accountName,
-                channelName: previewWorkflow.channelName,
-                profileName: previewWorkflow.profileName,
-                prompt: previewWorkflow.prompt,
-                format: previewWorkflow.format,
-                workflowId: previewWorkflow.id,
-                workflowName: previewWorkflow.name,
-                logoUrl: brandSettings?.logoUrl || undefined,
-                primaryColor: brandSettings?.primaryColor || undefined,
-              }
+              accountId: previewWorkflow.accountId,
+              channelId: previewWorkflow.channelId ?? undefined,
+              profileId: previewWorkflow.profileId ?? undefined,
+              accountName: previewWorkflow.accountName,
+              channelName: previewWorkflow.channelName,
+              profileName: previewWorkflow.profileName,
+              prompt: previewWorkflow.prompt,
+              format: previewWorkflow.format,
+              workflowId: previewWorkflow.id,
+              workflowName: previewWorkflow.name,
+              logoUrl: brandSettings?.logoUrl || undefined,
+              primaryColor: brandSettings?.primaryColor || undefined,
+            }
             : undefined
         }
         workflowId={previewWorkflow?.id ?? undefined}
@@ -439,7 +445,9 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
         isOpen={!!createDashboardWorkflow}
         onClose={() => setCreateDashboardWorkflow(null)}
         workflowId={createDashboardWorkflow?.id ?? 0}
+        accountId={accountId}
         onCreated={() => {
+          queryClient.invalidateQueries({ queryKey: ["dashboards", accountId] });
           if (createDashboardWorkflow && accountId) {
             navigate(buildAccountRoute(accountId, `workflows/${createDashboardWorkflow.id}/dashboard`));
           }
@@ -458,19 +466,19 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
         executePayload={
           runWorkflow
             ? {
-                accountId: runWorkflow.accountId,
-                channelId: runWorkflow.channelId ?? undefined,
-                profileId: runWorkflow.profileId ?? undefined,
-                accountName: runWorkflow.accountName,
-                channelName: runWorkflow.channelName,
-                profileName: runWorkflow.profileName,
-                prompt: runWorkflow.prompt,
-                format: runWorkflow.format,
-                workflowId: runWorkflow.id,
-                workflowName: runWorkflow.name,
-                logoUrl: brandSettings?.logoUrl || undefined,
-                primaryColor: brandSettings?.primaryColor || undefined,
-              }
+              accountId: runWorkflow.accountId,
+              channelId: runWorkflow.channelId ?? undefined,
+              profileId: runWorkflow.profileId ?? undefined,
+              accountName: runWorkflow.accountName,
+              channelName: runWorkflow.channelName,
+              profileName: runWorkflow.profileName,
+              prompt: runWorkflow.prompt,
+              format: runWorkflow.format,
+              workflowId: runWorkflow.id,
+              workflowName: runWorkflow.name,
+              logoUrl: brandSettings?.logoUrl || undefined,
+              primaryColor: brandSettings?.primaryColor || undefined,
+            }
             : undefined
         }
         workflowId={runWorkflow?.id ?? undefined}
