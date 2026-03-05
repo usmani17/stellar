@@ -301,7 +301,7 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                   </button>
                   {dashboards.some((d) => d.workflowId === wf.id) && (
                     <button
-                      onClick={() => navigate(buildAccountRoute(accountId, `dashboard/${dashboards.find((d) => d.workflowId === wf.id)?.id}`))}
+                      onClick={() => navigate(buildAccountRoute(accountId, `dashboards/${dashboards.find((d) => d.workflowId === wf.id)?.id}`))}
                       className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors"
                       title="View Dashboard"
                       aria-label="View Dashboard"
