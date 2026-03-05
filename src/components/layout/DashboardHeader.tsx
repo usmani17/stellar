@@ -666,7 +666,7 @@ export const DashboardHeader: React.FC = () => {
             </div>
           </>
         )}
-        {params.accountId && params.channelId && <AssistantTrigger />}
+        {params.accountId && (params.channelId || isWorkflowsPage) && <AssistantTrigger />}
       </div>
 
       {/* User Settings - Bottom Left (Fixed Position) */}

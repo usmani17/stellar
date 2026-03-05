@@ -68,16 +68,16 @@ export interface SqlQuery {
 
 export type DashboardQuery = GaqlQuery | { multi_gaql: MultiGaqlQuery } | SqlQuery;
 
-export function isGaqlQuery(q: DashboardQuery): q is GaqlQuery {
-  return "gaql" in q && typeof (q as GaqlQuery).gaql === "string";
+export function isGaqlQuery(q: DashboardQuery | null | undefined): q is GaqlQuery {
+  return q != null && typeof q === "object" && "gaql" in q && typeof (q as GaqlQuery).gaql === "string";
 }
 
-export function isMultiGaqlQuery(q: DashboardQuery): q is { multi_gaql: MultiGaqlQuery } {
-  return "multi_gaql" in q && typeof (q as { multi_gaql: MultiGaqlQuery }).multi_gaql === "object";
+export function isMultiGaqlQuery(q: DashboardQuery | null | undefined): q is { multi_gaql: MultiGaqlQuery } {
+  return q != null && typeof q === "object" && "multi_gaql" in q && typeof (q as { multi_gaql: MultiGaqlQuery }).multi_gaql === "object";
 }
 
-export function isSqlQuery(q: DashboardQuery): q is SqlQuery {
-  return "sql" in q && typeof (q as SqlQuery).sql === "string";
+export function isSqlQuery(q: DashboardQuery | null | undefined): q is SqlQuery {
+  return q != null && typeof q === "object" && "sql" in q && typeof (q as SqlQuery).sql === "string";
 }
 
 export type DashboardPagination =

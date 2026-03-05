@@ -11,6 +11,7 @@ import { workflowsService } from "../../services/workflows";
 import { getDashboardForWorkflow } from "../../services/dashboard";
 import { queryKeys } from "../../hooks/queries/queryKeys";
 import { DashboardThemeProvider, useDashboardTheme } from "./contexts/DashboardThemeContext";
+import { Assistant } from "../../components/layout/Assistant";
 
 export const WorkflowDashboardPage: React.FC = () => {
   const { accountId, workflowId } = useParams<{ accountId: string; workflowId: string }>();
@@ -109,6 +110,7 @@ function WorkflowDashboardContent({
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
         <DashboardHeader />
+        <Assistant />
         <div
           className={`px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 min-h-screen transition-colors ${isDark ? "bg-neutral-900" : "bg-sandstorm-s0"
             }`}

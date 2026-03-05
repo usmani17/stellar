@@ -12,6 +12,7 @@ const API_BASE = "/assistant";
 export interface DashboardResponse {
   id: number;
   name: string;
+  description?: string;
   accountId: number;
   channelId?: number;
   profileId?: number;
