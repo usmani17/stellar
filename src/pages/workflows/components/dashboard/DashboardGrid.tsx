@@ -27,7 +27,6 @@ const STAGGER_DELAY_MS = 500;
 interface DashboardGridProps {
   config: DashboardConfig;
   accountId: number | undefined;
-  workflowId: number | undefined;
   dashboardId: number | undefined;
   shareId?: string;
   showQueryDetails?: boolean;

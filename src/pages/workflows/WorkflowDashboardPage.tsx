@@ -8,29 +8,29 @@ import { useSidebar } from "../../contexts/SidebarContext";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { DashboardGrid } from "./components/dashboard/DashboardGrid";
 import { workflowsService } from "../../services/workflows";
-import { getDashboardForWorkflow } from "../../services/dashboard";
+import { getDashboardDetail } from "../../services/dashboard";
 import { queryKeys } from "../../hooks/queries/queryKeys";
 import { DashboardThemeProvider, useDashboardTheme } from "./contexts/DashboardThemeContext";
 import { Assistant } from "../../components/layout/Assistant";
 
 export const WorkflowDashboardPage: React.FC = () => {
-  const { accountId, workflowId } = useParams<{ accountId: string; workflowId: string }>();
+  const { accountId, dashboardId } = useParams<{ accountId: string; dashboardId: string }>();
   const { sidebarWidth } = useSidebar();
   const [shareCopied, setShareCopied] = React.useState(false);
 
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
-  const workflowIdNum = workflowId ? parseInt(workflowId, 10) : undefined;
+  const dashboardIdNum = dashboardId ? parseInt(dashboardId, 10) : undefined;
 
   const { data: workflow } = useQuery({
-    queryKey: [...queryKeys.workflows.detail(workflowIdNum ?? 0), accountIdNum],
-    queryFn: () => workflowsService.getWorkflow(accountIdNum!, workflowIdNum!),
-    enabled: !!accountIdNum && !!workflowIdNum,
+    queryKey: [...queryKeys.workflows.detail(dashboardIdNum ?? 0), accountIdNum],
+    queryFn: () => workflowsService.getWorkflow(accountIdNum!, dashboardIdNum!),
+    enabled: !!accountIdNum && !!dashboardIdNum,
   });
 
   const { data: dashboard, isLoading: isLoadingDashboard } = useQuery({
-    queryKey: ["dashboard", accountIdNum, workflowIdNum],
-    queryFn: () => getDashboardForWorkflow(accountIdNum!, workflowIdNum!),
-    enabled: !!accountIdNum && !!workflowIdNum,
+    queryKey: ["dashboard", accountIdNum, dashboardIdNum],
+    queryFn: () => getDashboardDetail(accountIdNum!, dashboardIdNum!),
+    enabled: !!accountIdNum && !!dashboardIdNum,
   });
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export const WorkflowDashboardPage: React.FC = () => {
   }, [workflow?.name]);
 
   const handleShare = async () => {
-    if (!accountIdNum || !workflowIdNum || !dashboard) return;
+    if (!accountIdNum || !dashboardIdNum || !dashboard) return;
     const shareId = crypto.randomUUID();
     // TODO: implement real sharing via backend
     const url = `${window.location.origin}/dashboards/share/${shareId}`;
@@ -52,7 +52,7 @@ export const WorkflowDashboardPage: React.FC = () => {
     }
   };
 
-  const workflowsPath = accountId ? `/brands/${accountId}/workflows` : "/brands";
+  const workflowsPath = accountId ? `/brands/${accountId}/workflows?tab=dashboards` : "/brands";
 
   if (isLoadingDashboard) {
     return (
@@ -67,12 +67,11 @@ export const WorkflowDashboardPage: React.FC = () => {
       <WorkflowDashboardContent
         workflowsPath={workflowsPath}
         sidebarWidth={sidebarWidth}
-        workflowName={workflow?.name +  " | " + (dashboard?.name)}
+        workflowName={dashboard?.name}
         shareCopied={shareCopied}
         handleShare={handleShare}
         config={dashboard?.config}
         accountIdNum={accountIdNum}
-        workflowIdNum={workflowIdNum}
         dashboardId={dashboard?.id}
       />
     </DashboardThemeProvider>
@@ -87,7 +86,6 @@ function WorkflowDashboardContent({
   handleShare,
   config,
   accountIdNum,
-  workflowIdNum,
   dashboardId,
 }: {
   workflowsPath: string;
@@ -97,7 +95,6 @@ function WorkflowDashboardContent({
   handleShare: () => void;
   config: import("./types/dashboard").DashboardConfig | undefined;
   accountIdNum: number | undefined;
-  workflowIdNum: number | undefined;
   dashboardId: number | undefined;
 }) {
   const { isDark, toggleTheme } = useDashboardTheme();
@@ -123,7 +120,7 @@ function WorkflowDashboardContent({
                   className="inline-flex items-center gap-1.5 text-[11px] font-medium text-forest-f40 hover:text-forest-f50"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
-                  Back to workflows
+                  Back to dashboards
                 </Link>
                 <div className={`h-4 w-px ${isDark ? "bg-neutral-600" : "bg-sandstorm-s40"}`} aria-hidden />
                 <h1 className={`text-[14px] font-semibold ${isDark ? "text-neutral-100" : "text-forest-f60"}`}>
@@ -161,7 +158,6 @@ function WorkflowDashboardContent({
               <DashboardGrid
                 config={config}
                 accountId={accountIdNum}
-                workflowId={workflowIdNum}
                 dashboardId={dashboardId}
               />
             ) : (

@@ -150,7 +150,7 @@ function AccountRoutes() {
                 }
             />
             <Route
-                path="/brands/:accountId/workflows/:workflowId/dashboard"
+                path="/brands/:accountId/dashboard/:dashboardId"
                 element={
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>

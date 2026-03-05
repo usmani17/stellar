@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Plus, Settings } from "lucide-react";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { Sidebar } from "../../components/layout/Sidebar";
@@ -17,10 +17,13 @@ import { Assistant } from "../../components/layout/Assistant";
 
 export const WorkflowsPage: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
   const { sidebarWidth } = useSidebar();
 
-  const [activeTab, setActiveTab] = useState<"workflows" | "dashboards">("workflows");
+  // Get initial tab from URL, default to "workflows"
+  const initialTab = (searchParams.get("tab") as "workflows" | "dashboards") || "workflows";
+  const [activeTab, setActiveTab] = useState<"workflows" | "dashboards">(initialTab);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | undefined>();
@@ -41,6 +44,12 @@ export const WorkflowsPage: React.FC = () => {
     setPageTitle("Workflows");
     return () => resetPageTitle();
   }, []);
+
+  // Update URL when tab changes
+  const handleTabChange = (tab: "workflows" | "dashboards") => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   const handleEdit = (workflow: Workflow) => {
     setEditingWorkflow(workflow);
@@ -81,7 +90,7 @@ export const WorkflowsPage: React.FC = () => {
             <div className="border-b border-[#E8E8E3]">
               <nav className="-mb-px flex space-x-8">
                 <button
-                  onClick={() => setActiveTab("workflows")}
+                  onClick={() => handleTabChange("workflows")}
                   className={`py-2 px-1 border-b-2 font-medium text-sm ${
                     activeTab === "workflows"
                       ? "border-forest-f60 text-forest-f60"
@@ -91,7 +100,7 @@ export const WorkflowsPage: React.FC = () => {
                   Workflows
                 </button>
                 <button
-                  onClick={() => setActiveTab("dashboards")}
+                  onClick={() => handleTabChange("dashboards")}
                   className={`py-2 px-1 border-b-2 font-medium text-sm ${
                     activeTab === "dashboards"
                       ? "border-forest-f60 text-forest-f60"

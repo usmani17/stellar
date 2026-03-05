@@ -1,5 +1,6 @@
 import React from "react";
 import { Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getDashboards, type DashboardResponse } from "../../../services/dashboard";
 
@@ -8,6 +9,8 @@ interface DashboardsListProps {
 }
 
 export const DashboardsList: React.FC<DashboardsListProps> = ({ accountId }) => {
+  const navigate = useNavigate();
+  
   const { data: dashboards = [] } = useQuery({
     queryKey: ["dashboards", accountId],
     queryFn: () => getDashboards(accountId!),
@@ -44,7 +47,7 @@ export const DashboardsList: React.FC<DashboardsListProps> = ({ accountId }) => 
                   Last updated: {dashboard.updatedAt ? new Date(dashboard.updatedAt).toLocaleDateString() : "Unknown"}
                 </span>
                 <button 
-                  onClick={() => {/* TODO: Navigate to dashboard */}}
+                  onClick={() => navigate(`/brands/${accountId}/dashboard/${dashboard.id}`)}
                   className="text-sm text-forest-f60 hover:text-[#0e5a5a] font-medium"
                 >
                   View Dashboard →
