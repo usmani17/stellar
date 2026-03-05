@@ -1,5 +1,18 @@
 import api from "./api";
 
+export interface StrategyAutomationPayload {
+  entity: string;
+  action: string;
+  change_value?: number | null;
+  change_unit?: string;
+  change_cap?: number | null;
+  conditions: Record<string, unknown>[];
+  schedule_enabled?: boolean;
+  schedule_frequency?: string | null;
+  schedule_run_at?: string | null;
+  schedule_run_days?: number[] | null;
+}
+
 export interface Strategy {
   id: number;
   name: string;
@@ -10,9 +23,11 @@ export interface Strategy {
   max_change_per_week: string;
   min_data_window_days: number | null;
   min_spend_threshold: number | null;
-  ignore_last_48_hours: boolean;
+  ignore_last_48_hours?: boolean;
+  ignore_last_hours?: number | null;
+  ignore_campaigns_created_in_last_days?: number | null;
   exclude_learning_campaigns: boolean;
-  ignore_campaigns_in_last_7_days: boolean;
+  ignore_campaigns_in_last_7_days?: boolean;
   frequency: string;
   run_days: string;
   run_at: string | null;
@@ -21,7 +36,8 @@ export interface Strategy {
   last_run: string | null;
   created_at: string;
   updated_at: string;
-  channel_ids: number[];
+  profile_ids: number[];
+  automations?: StrategyAutomationPayload[];
 }
 
 export interface CreateStrategyData {
@@ -34,14 +50,17 @@ export interface CreateStrategyData {
   min_data_window_days?: number | null;
   min_spend_threshold?: number | null;
   ignore_last_48_hours?: boolean;
-  exclude_learning_campaigns?: boolean;
   ignore_campaigns_in_last_7_days?: boolean;
+  exclude_learning_campaigns?: boolean;
   frequency?: string;
   run_days?: string;
   run_at?: string | null;
   is_approved?: boolean;
   approval_layer?: string;
-  channel_ids?: number[];
+  /** Profile IDs (Brand/Integration/Profile selection). Stored in strategies_app_strategyprofile. */
+  profile_ids?: number[];
+  /** Automation tabs: entity, action, conditions (filters), schedule, etc. */
+  automations?: StrategyAutomationPayload[];
 }
 
 export const strategiesService = {

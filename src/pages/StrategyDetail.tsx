@@ -132,7 +132,7 @@ export const StrategyDetail: React.FC = () => {
   const [maxChangePerWeekUnit, setMaxChangePerWeekUnit] = useState<"%" | "$">("$");
   const [minBudgetFloor, setMinBudgetFloor] = useState("");
   const [maxBudgetCap, setMaxBudgetCap] = useState("");
-  const [minDataWindow, setMinDataWindow] = useState("Last 30 days");
+  const [minDataWindowDays, setMinDataWindowDays] = useState(30);
   const [minSpendThreshold, setMinSpendThreshold] = useState("");
   const [ignoreLast48Hours, setIgnoreLast48Hours] = useState(true);
   const [ignoreLastHoursValue, setIgnoreLastHoursValue] = useState("48");
@@ -224,10 +224,10 @@ export const StrategyDetail: React.FC = () => {
     );
     setMaxChangePerDay(strategy.max_change_per_day ?? "");
     setMaxChangePerWeek(strategy.max_change_per_week ?? "");
-    setMinDataWindow(
-      strategy.min_data_window_days != null && strategy.min_data_window_days >= 0
-        ? `Last ${strategy.min_data_window_days} days`
-        : "Last 30 days"
+    setMinDataWindowDays(
+      strategy.min_data_window_days != null && strategy.min_data_window_days >= 1
+        ? strategy.min_data_window_days
+        : 30
     );
     setMinSpendThreshold(
       strategy.min_spend_threshold != null ? String(strategy.min_spend_threshold) : ""
@@ -237,6 +237,40 @@ export const StrategyDetail: React.FC = () => {
     setExcludeLearningCampaigns(strategy.exclude_learning_campaigns ?? false);
     setFrequency(strategy.frequency ?? "Weekly");
     setRunAt(normalizeTimeForInput(strategy.run_at ?? "00:00"));
+    if (strategy.run_days && typeof strategy.run_days === "string") {
+      const days = strategy.run_days
+        .split(",")
+        .map((s) => (WEEKDAYS as readonly string[]).indexOf(s.trim()))
+        .filter((i) => i >= 0);
+      if (days.length > 0) setRunDays(days);
+    }
+    if (strategy.profile_ids && strategy.profile_ids.length > 0) {
+      setSelectedProfileIds(strategy.profile_ids.map(String));
+    }
+    if (strategy.automations && strategy.automations.length > 0) {
+      setAutomationTabs(
+        strategy.automations.map((a) => ({
+          entity: a.entity ?? "Campaign",
+          filters: (a.conditions ?? []) as unknown as FilterValues,
+          actionState: {
+            action: a.action ?? "",
+            adjustmentValue: a.change_value != null ? String(a.change_value) : "",
+            adjustmentValueUnit: a.change_unit === "absolute" ? "$" : "%",
+            actionLimitValue:
+              a.change_cap != null ? String(a.change_cap) : "",
+          },
+          scheduleState: {
+            scheduleEnabled: a.schedule_enabled ?? false,
+            frequency: a.schedule_frequency ?? "Weekly",
+            runAt:
+              typeof a.schedule_run_at === "string"
+                ? a.schedule_run_at
+                : "00:00",
+            runDays: Array.isArray(a.schedule_run_days) ? a.schedule_run_days : [0, 2, 3],
+          },
+        }))
+      );
+    }
   }, [strategy]);
 
   const toggleRunDay = (dayIndex: number) => {
@@ -262,15 +296,15 @@ export const StrategyDetail: React.FC = () => {
     };
   }, []);
 
-  // When editing, pre-select profiles whose channel is linked to this strategy
+  // When editing, pre-select profiles linked to this strategy (profile_ids)
   useEffect(() => {
-    if (!strategy?.channel_ids?.length || !allProfiles?.length) return;
-    const channelIdSet = new Set(strategy.channel_ids);
+    if (!strategy?.profile_ids?.length || !allProfiles?.length) return;
+    const profileIdSet = new Set(strategy.profile_ids.map(String));
     const ids = allProfiles
-      .filter((p) => channelIdSet.has(p.channelId))
+      .filter((p) => profileIdSet.has(p.id))
       .map((p) => p.id);
     setSelectedProfileIds((prev) => (prev.length === 0 ? ids : prev));
-  }, [strategy?.channel_ids, allProfiles]);
+  }, [strategy?.profile_ids, allProfiles]);
 
   // Close profile dropdown when clicking outside
   useEffect(() => {
@@ -321,20 +355,36 @@ export const StrategyDetail: React.FC = () => {
   };
 
   const buildPayload = (): CreateStrategyData => {
-    const channelIds =
-      allProfiles && selectedProfileIds.length > 0
-        ? [
-            ...new Set(
-              allProfiles
-                .filter((p) => selectedProfileIds.includes(p.id))
-                .map((p) => p.channelId)
-            ),
-          ]
+    const profileIds =
+      selectedProfileIds.length > 0
+        ? selectedProfileIds.map((id) => parseInt(id, 10)).filter((n) => !Number.isNaN(n))
         : undefined;
     const goalValue =
       optimizationGoal === "Custom Optimization"
         ? customOptimizationText.trim() || undefined
         : optimizationGoal.trim() || undefined;
+    const automations = automationTabs.map((tab) => ({
+      entity: tab.entity,
+      action: tab.actionState.action || "pause",
+      change_value: tab.actionState.adjustmentValue
+        ? parseFloat(tab.actionState.adjustmentValue)
+        : undefined,
+      change_unit: tab.actionState.adjustmentValueUnit === "$" ? "absolute" : "percent",
+      change_cap: tab.actionState.actionLimitValue
+        ? parseFloat(tab.actionState.actionLimitValue)
+        : undefined,
+      conditions: (tab.filters as unknown) as Record<string, unknown>[],
+      schedule_enabled: tab.scheduleState.scheduleEnabled,
+      schedule_frequency: tab.scheduleState.scheduleEnabled
+        ? tab.scheduleState.frequency
+        : undefined,
+      schedule_run_at: tab.scheduleState.scheduleEnabled
+        ? tab.scheduleState.runAt
+        : undefined,
+      schedule_run_days: tab.scheduleState.scheduleEnabled
+        ? tab.scheduleState.runDays
+        : undefined,
+    }));
     const payload: CreateStrategyData = {
       name: formName.trim(),
       goal: goalValue,
@@ -342,16 +392,56 @@ export const StrategyDetail: React.FC = () => {
       max_change_per_day: maxChangePerDay.trim() || undefined,
       max_change_per_week: maxChangePerWeek.trim() || undefined,
       min_spend_threshold: minSpendThreshold ? parseFloat(minSpendThreshold) : undefined,
-      min_data_window_days: minDataWindow === "Last 30 days" ? 30 : undefined,
+      min_data_window_days: minDataWindowDays,
       ignore_last_48_hours: ignoreLast48Hours,
       exclude_learning_campaigns: excludeLearningCampaigns,
       ignore_campaigns_in_last_7_days: ignoreCampaigns7Days,
       frequency,
       run_at: runAt,
       run_days: runDaysString,
-      channel_ids: channelIds,
+      profile_ids: profileIds,
+      automations,
     };
     return payload;
+  };
+
+  /** Returns an error message or null if valid. Used when status is Enable or Pause. */
+  const validateBeforeEnableOrPause = (): string | null => {
+    if (!formName.trim()) {
+      return "Strategy name is required.";
+    }
+    if (selectedProfileIds.length === 0) {
+      return "Select at least one profile (Brand / Integration / Profile).";
+    }
+    if (optimizationGoal === "Custom Optimization" && !customOptimizationText.trim()) {
+      return "Enter a custom optimization goal.";
+    }
+    for (let t = 0; t < automationTabs.length; t++) {
+      const tab = automationTabs[t];
+      for (let i = 0; i < tab.filters.length; i++) {
+        const f = tab.filters[i];
+        const fieldSet = f.field != null && String(f.field).trim() !== "";
+        const operatorSet = f.operator != null && String(f.operator).trim() !== "";
+        let valueEmpty = f.value == null;
+        if (!valueEmpty && typeof f.value === "string") valueEmpty = f.value.trim() === "";
+        if (!valueEmpty && Array.isArray(f.value)) valueEmpty = f.value.length === 0;
+        if (
+          !valueEmpty &&
+          typeof f.value === "object" &&
+          f.value !== null &&
+          !Array.isArray(f.value) &&
+          "min" in f.value &&
+          "max" in f.value
+        ) {
+          const range = f.value as { min?: number; max?: number };
+          valueEmpty = range.min == null || range.max == null;
+        }
+        if (!fieldSet || !operatorSet || valueEmpty) {
+          return `Automation ${t + 1}: complete all filter rows (field, operator, and value must be set).`;
+        }
+      }
+    }
+    return null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -360,6 +450,14 @@ export const StrategyDetail: React.FC = () => {
     if (!formName.trim()) {
       setFormError("Strategy name is required.");
       return;
+    }
+    const isEnableOrPause = formState === "Enable" || formState === "Pause";
+    if (isEnableOrPause) {
+      const validationError = validateBeforeEnableOrPause();
+      if (validationError) {
+        setFormError(validationError);
+        return;
+      }
     }
     const payload = buildPayload();
     try {
@@ -935,11 +1033,20 @@ export const StrategyDetail: React.FC = () => {
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-wrap gap-4">
                     <FormField label="Minimum Data Window">
-                      <div className="campaign-input w-full h-12 rounded-[12px] px-3 border border-[#e3e3e3] bg-[#FEFEFB] flex items-center justify-between">
-                        <span className="text-[14px] text-[#072929]">
-                          {minDataWindow}
-                        </span>
-                        <ChevronDown className="w-5 h-5 text-[#e3e3e3]" />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={1}
+                          value={minDataWindowDays}
+                          onChange={(e) => {
+                            const v = parseInt(e.target.value, 10);
+                            setMinDataWindowDays(
+                              !Number.isNaN(v) && v >= 1 ? v : 1
+                            );
+                          }}
+                          className="campaign-input w-full h-12 rounded-[12px] px-3 border border-[#e3e3e3] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        />
+                        <span className="text-[14px] text-[#072929]">days</span>
                       </div>
                     </FormField>
                     <FormField label="Minimum Spend Threshold">
