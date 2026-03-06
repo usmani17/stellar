@@ -19,7 +19,7 @@ export interface AutomationActionState {
 }
 
 export const DEFAULT_ACTION_STATE: AutomationActionState = {
-  action: "",
+  action: "pause",
   adjustmentValue: "",
   adjustmentValueUnit: "%",
   actionLimitValue: "",

@@ -626,12 +626,21 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   const createDefaultFilter = (): FilterItem | null => {
     const first = filterFields[0];
     if (!first) return null;
-    const op = first.default_operator || (first.operators?.[0] ?? "eq");
+    const isDropdown =
+      first.type === "static_dropdown" || first.type === "dynamic_dropdown";
+    const op = isDropdown
+      ? "eq"
+      : first.default_operator || (first.operators?.[0] ?? "eq");
+    let value: string | number | object | string[] =
+      first.type === "number" ? 0 : "";
+    if (isDropdown && first.type === "static_dropdown" && first.options?.length) {
+      value = first.options[0].value;
+    }
     return {
       id: `filter-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       field: first.field_name,
       operator: op,
-      value: first.type === "number" ? 0 : "",
+      value,
     };
   };
 
@@ -657,6 +666,34 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
       onApply([defaultFilter]);
     }
   }, [variant, activeFilters.length, filterFields.length]);
+
+  // Rows variant: for dropdown fields (e.g. Status) set operator to "eq" and default value to first option
+  useEffect(() => {
+    if (variant !== "rows" || activeFilters.length === 0) return;
+    let hasChange = false;
+    const next = activeFilters.map((f) => {
+      const field = getFieldByName(f.field);
+      const isDrop =
+        field?.type === "static_dropdown" ||
+        field?.type === "dynamic_dropdown";
+      if (!isDrop) return f;
+      const options = getOptionsForFieldName(f.field);
+      const needOperator = !f.operator || f.operator === "";
+      const needValue =
+        (f.value === "" || f.value == null) && options.length > 0;
+      if (!needOperator && !needValue) return f;
+      hasChange = true;
+      return {
+        ...f,
+        operator: needOperator ? "eq" : f.operator,
+        value: needValue ? options[0].value : f.value,
+      };
+    });
+    if (hasChange) {
+      setActiveFilters(next);
+      onApply(next);
+    }
+  }, [variant, activeFilters, filterFields, dynamicOptionsByField]);
 
   if (!isOpen) return null;
 
@@ -718,10 +755,20 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                     value={filter.field}
                     onChange={(value) => {
                       const nextField = getFieldByName(value);
-                      const nextVal = nextField?.type === "number" ? 0 : "";
+                      const isDropdown =
+                        nextField?.type === "static_dropdown" ||
+                        nextField?.type === "dynamic_dropdown";
+                      const operator = isDropdown
+                        ? "eq"
+                        : nextField?.default_operator ?? "";
+                      let nextVal: string | number | object | string[] =
+                        nextField?.type === "number" ? 0 : "";
+                      if (isDropdown && nextField?.type === "static_dropdown" && nextField.options?.length) {
+                        nextVal = nextField.options[0].value;
+                      }
                       updateFilterInList(filter.id, {
                         field: value,
-                        operator: nextField?.default_operator ?? "",
+                        operator,
                         value: nextVal,
                       });
                     }}
