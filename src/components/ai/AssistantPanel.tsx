@@ -57,7 +57,7 @@ const INSIGHT_ICON_MAP: Record<string, React.ComponentType<{ className?: string 
 const SLASH_COMMANDS = [
   { cmd: "/pdf", label: "Generate PDF report" },
   { cmd: "/docx", label: "Generate Word report" },
-  { cmd: "/dashboard", label: "Create custom dashboard" },
+  { cmd: "/custom-dashboard", label: "Create custom dashboard" },
 ] as const;
 
 /** Profile item from GET /accounts/:accountId/profiles/ (channel_id, channel_name, profile name) */
