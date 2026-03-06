@@ -82,6 +82,12 @@ export interface CreateStrategyData {
   automations?: StrategyAutomationPayload[];
 }
 
+export interface StrategiesPaginatedResponse {
+  count: number;
+  total_pages: number;
+  results: Strategy[];
+}
+
 export const strategiesService = {
   getStrategies: async (): Promise<Strategy[]> => {
     const response = await api.get<Strategy[] | { results: Strategy[] }>(
@@ -93,6 +99,28 @@ export const strategiesService = {
       return (data as { results: Strategy[] }).results ?? [];
     }
     return [];
+  },
+
+  getStrategiesPaginated: async (params: {
+    page: number;
+    page_size: number;
+    search?: string;
+  }): Promise<StrategiesPaginatedResponse> => {
+    const queryParams: Record<string, string | number> = {
+      page: params.page,
+      page_size: params.page_size,
+    };
+    if (params.search != null && params.search.trim() !== "") {
+      queryParams.search = params.search.trim();
+    }
+    const response = await api.get<StrategiesPaginatedResponse>("/strategies/", {
+      params: queryParams,
+    });
+    const data = response.data;
+    if (data && typeof data === "object" && "results" in data && "count" in data && "total_pages" in data) {
+      return data as StrategiesPaginatedResponse;
+    }
+    return { count: 0, total_pages: 1, results: [] };
   },
 
   getStrategy: async (id: number): Promise<Strategy> => {
@@ -118,5 +146,54 @@ export const strategiesService = {
 
   deleteStrategy: async (id: number): Promise<void> => {
     await api.delete(`/strategies/${id}/`);
+  },
+
+  /**
+   * Duplicate a strategy: fetches full strategy then creates a new one with
+   * name "Copy of {name}", status Draft, and same settings/automations/profile_ids.
+   */
+  duplicateStrategy: async (sourceId: number): Promise<Strategy> => {
+    const source = await api.get<Strategy>(`/strategies/${sourceId}/`).then((r) => r.data);
+    const automations = (source.automations ?? []).map((a) => {
+      const conditions = Array.isArray(a.conditions) ? a.conditions : [];
+      return {
+        entity: a.entity,
+        action: a.action,
+        change_value: a.change_value ?? null,
+        change_unit: a.change_unit ?? "percent",
+        change_cap: a.change_cap ?? null,
+        conditions,
+        schedule_enabled: a.schedule_enabled ?? false,
+        schedule_frequency: a.schedule_frequency ?? undefined,
+        schedule_run_at: a.schedule_run_at ?? undefined,
+        schedule_run_days: Array.isArray(a.schedule_run_days) ? a.schedule_run_days : undefined,
+      };
+    });
+    const payload: CreateStrategyData = {
+      name: `Copy of ${source.name || "Strategy"}`,
+      goal: source.goal,
+      status: "Draft",
+      platform: source.platform,
+      max_change_per_day: String(source.max_change_per_day ?? ""),
+      max_change_per_week: String(source.max_change_per_week ?? ""),
+      min_budget_floor: source.min_budget_floor ?? undefined,
+      max_budget_cap: source.max_budget_cap ?? undefined,
+      min_execution_cap: source.min_execution_cap ?? undefined,
+      max_execution_cap: source.max_execution_cap ?? undefined,
+      min_data_window_days: source.min_data_window_days ?? undefined,
+      min_spend_threshold: source.min_spend_threshold ?? undefined,
+      ignore_last_hours: source.ignore_last_hours ?? undefined,
+      ignore_campaigns_created_in_last_days: source.ignore_campaigns_created_in_last_days ?? undefined,
+      exclude_learning_campaigns: source.exclude_learning_campaigns,
+      frequency: source.frequency,
+      run_days: Array.isArray(source.run_days) ? source.run_days : undefined,
+      run_at: source.run_at ?? undefined,
+      is_approved: source.is_approved,
+      approval_layer: source.approval_layer,
+      profile_ids: source.profile_ids?.length ? source.profile_ids : undefined,
+      automations,
+    };
+    const created = await api.post<Strategy>("/strategies/", payload).then((r) => r.data);
+    return created;
   },
 };

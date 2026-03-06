@@ -27,6 +27,8 @@ export { CustomizeColumns } from "./CustomizeColumns";
 export type { ColumnOption } from "./CustomizeColumns";
 export { Avatar } from "./Avatar";
 export { Badge } from "./Badge";
+export { Banner } from "./Banner";
+export type { BannerType } from "./Banner";
 export { ConfirmationModal } from "./ConfirmationModal";
 export { ImageCropModal } from "./ImageCropModal";
 export { IntegrationCard } from "./IntegrationCard";
