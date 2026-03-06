@@ -315,6 +315,9 @@ export const Strategies: React.FC = () => {
                                     strategy.status === "Enabled"
                                   ? "Enabled"
                                   : "Paused"}
+                              {strategy.status.toLowerCase() === "enabled"
+                                ? "Enabled"
+                                : "Paused"}
                             </span>
                           </td>
                           <td className="table-cell text-[14px] text-[#556179]">
@@ -335,7 +338,10 @@ export const Strategies: React.FC = () => {
                                 type="button"
                                 className="text-[13px] text-[#136D6D] hover:underline disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                                 onClick={(e) => handleRun(e, strategy)}
-                                disabled={strategy.is_running || startingRunId === strategy.id}
+                                disabled={
+                                  strategy.is_running ||
+                                  startingRunId === strategy.id
+                                }
                               >
                                 {strategy.is_running
                                   ? "Running…"
