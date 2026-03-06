@@ -485,6 +485,26 @@ export const StrategyDetail: React.FC = () => {
       decrease_bid: "decrease_bid_pct",
     };
 
+    const isFilterRowComplete = (f: FilterValues[number]): boolean => {
+      const fieldSet = f.field != null && String(f.field).trim() !== "";
+      const operatorSet = f.operator != null && String(f.operator).trim() !== "";
+      let valueEmpty = f.value == null;
+      if (!valueEmpty && typeof f.value === "string") valueEmpty = f.value.trim() === "";
+      if (!valueEmpty && Array.isArray(f.value)) valueEmpty = f.value.length === 0;
+      if (
+        !valueEmpty &&
+        typeof f.value === "object" &&
+        f.value !== null &&
+        !Array.isArray(f.value) &&
+        "min" in f.value &&
+        "max" in f.value
+      ) {
+        const range = f.value as { min?: number; max?: number };
+        valueEmpty = range.min == null || range.max == null;
+      }
+      return fieldSet && operatorSet && !valueEmpty;
+    };
+
     const automations = automationTabs.map((tab, index) => ({
       ...(typeof (tab as { id?: number }).id === "number" && { id: (tab as { id?: number }).id }),
       entity: entityToApi[tab.entity] ?? "campaign",
@@ -496,7 +516,7 @@ export const StrategyDetail: React.FC = () => {
       change_cap: tab.actionState.actionLimitValue
         ? parseFloat(tab.actionState.actionLimitValue)
         : undefined,
-      conditions: (tab.filters as unknown) as Record<string, unknown>[],
+      conditions: (tab.filters.filter(isFilterRowComplete) as unknown) as Record<string, unknown>[],
       sort_order: index,
       schedule_enabled: tab.scheduleState.scheduleEnabled,
       schedule_frequency: tab.scheduleState.scheduleEnabled
@@ -579,7 +599,8 @@ export const StrategyDetail: React.FC = () => {
           const range = f.value as { min?: number; max?: number };
           valueEmpty = range.min == null || range.max == null;
         }
-        if (!fieldSet || !operatorSet || valueEmpty) {
+        const rowStarted = fieldSet || operatorSet || !valueEmpty;
+        if (rowStarted && (!fieldSet || !operatorSet || valueEmpty)) {
           return `Automation ${t + 1}: complete all filter rows (field, operator, and value must be set).`;
         }
       }
@@ -691,8 +712,8 @@ export const StrategyDetail: React.FC = () => {
           entity: "campaign",
           action: "increase_budget_pct",
           conditions: [
-            { id: "dummy-f1", field: "campaign_advertising_channel_type", value: "SEARCH" },
-            { id: "dummy-f2", field: "campaign_status", value: "ENABLED" },
+            { id: "dummy-f1", field: "campaign_advertising_channel_type", operator: "eq", value: "SEARCH" },
+            { id: "dummy-f2", field: "campaign_status", operator: "eq", value: "ENABLED" },
           ],
           change_value: 20,
           change_unit: "percent",
