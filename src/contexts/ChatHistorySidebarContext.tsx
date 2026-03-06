@@ -8,7 +8,7 @@ import React, {
 
 const COLLAPSE_DELAY_MS = 150;
 
-interface ChatHistorySidebarContextType {
+export interface ChatHistorySidebarContextType {
   isExpanded: boolean;
   setExpanded: (expanded: boolean) => void;
   /** Schedule collapse after delay (used when leaving Home link - user may be moving to sidebar) */
@@ -19,7 +19,13 @@ interface ChatHistorySidebarContextType {
 const ChatHistorySidebarContext =
   createContext<ChatHistorySidebarContextType | undefined>(undefined);
 
-export const useChatHistorySidebar = () => useContext(ChatHistorySidebarContext);
+export const useChatHistorySidebar = (): ChatHistorySidebarContextType => {
+  const ctx = useContext(ChatHistorySidebarContext);
+  if (ctx === undefined) {
+    throw new Error("useChatHistorySidebar must be used within ChatHistorySidebarProvider");
+  }
+  return ctx;
+};
 
 export const ChatHistorySidebarProvider: React.FC<{
   children: React.ReactNode;

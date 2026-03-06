@@ -1,6 +1,9 @@
 import React, { useState, useMemo } from "react";
 import { useAssistant } from "../../contexts/AssistantContext";
-import { useChatHistorySidebar } from "../../contexts/ChatHistorySidebarContext";
+import {
+  useChatHistorySidebar,
+  type ChatHistorySidebarContextType,
+} from "../../contexts/ChatHistorySidebarContext";
 import { groupSessionsByDate } from "../../utils/assistantSessionUtils";
 import { Plus, Search, BarChart3 } from "lucide-react";
 import { cn } from "../../lib/cn";
@@ -9,7 +12,8 @@ const CHAT_HISTORY_SIDEBAR_WIDTH = 260;
 const CHAT_HISTORY_SIDEBAR_COLLAPSED = 0;
 
 export const ChatHistorySidebar: React.FC = () => {
-  const { isExpanded, setExpanded } = useChatHistorySidebar();
+  const { isExpanded, setExpanded }: ChatHistorySidebarContextType =
+    useChatHistorySidebar();
   const {
     sessions,
     currentSessionId,
