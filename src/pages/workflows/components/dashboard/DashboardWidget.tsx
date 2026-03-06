@@ -349,7 +349,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             <DashboardComparisonChart component={component} data={data.data} isDark={isDark} />
           </div>
         ) : vizType === "single_metric" ? (
-          <div className="flex-1 min-h-[120px] flex flex-col">
+          <div className="flex-1 min-h-[200px] flex flex-col">
             <DashboardSingleMetric component={component} data={data.data as SingleMetricDatum[]} isDark={isDark} />
           </div>
         ) : vizType === "stacked_bar_chart" ? (
@@ -361,7 +361,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             <DashboardDonutChart component={component} data={data.data as PieChartDatum[]} isDark={isDark} />
           </div>
         ) : vizType === "funnel_chart" ? (
-          <div className="flex-1 min-h-[180px] flex items-center justify-center px-3 pb-3">
+          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
             <DashboardFunnelChart component={component} data={data.data as FunnelChartDatum[]} isDark={isDark} />
           </div>
         ) : vizType === "scatter_plot" ? (
@@ -369,15 +369,15 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             <DashboardScatterPlot component={component} data={data.data as Record<string, unknown>[]} isDark={isDark} />
           </div>
         ) : vizType === "gauge_chart" ? (
-          <div className="flex-1 min-h-[180px] flex items-center justify-center px-3 pb-3">
+          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
             <DashboardGaugeChart component={component} data={data.data as Record<string, unknown>[]} isDark={isDark} />
           </div>
         ) : vizType === "horizontal_bar_chart" ? (
-          <div className="flex-1 min-h-[180px] flex items-center justify-center px-3 pb-3">
+          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
             <DashboardHorizontalBarChart component={component} data={data.data as Record<string, unknown>[]} isDark={isDark} />
           </div>
         ) : (
-          <div className="flex-1 min-h-[180px] flex items-center justify-center px-3 pb-3">
+          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
             <DashboardBarChart component={component} data={data.data} isDark={isDark} />
           </div>
         )}

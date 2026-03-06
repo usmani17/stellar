@@ -84,21 +84,22 @@ export const DashboardTable: React.FC<DashboardTableProps> = ({ component, data,
   };
 
   return (
-    <div className="overflow-x-auto dashboard-table">
-      <table className="w-full border-collapse text-[12px]">
-        <thead>
-          <tr>
-            {columns.map((col) => {
-              const isSorted = sortField === col;
-              return (
-                <th
-                  key={col}
-                  className={`text-left py-3 px-4 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap ${
-                    isDark
-                      ? "text-neutral-400 bg-neutral-700/50"
-                      : "text-forest-f30 bg-sandstorm-s20/90"
-                  }`}
-                >
+    <div className="dashboard-table flex flex-col overflow-hidden">
+      <div className="overflow-auto max-h-[320px] min-h-0">
+        <table className="w-full border-collapse text-[12px]">
+          <thead className="sticky top-0 z-10">
+            <tr>
+              {columns.map((col) => {
+                const isSorted = sortField === col;
+                return (
+                  <th
+                    key={col}
+                    className={`text-left py-3 px-4 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap ${
+                      isDark
+                        ? "text-neutral-400 bg-neutral-700/50"
+                        : "text-forest-f30 bg-sandstorm-s20/90"
+                    }`}
+                  >
                   <button
                     type="button"
                     onClick={() => handleSort(col)}
@@ -144,6 +145,7 @@ export const DashboardTable: React.FC<DashboardTableProps> = ({ component, data,
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 };
