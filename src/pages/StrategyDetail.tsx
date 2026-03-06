@@ -371,7 +371,7 @@ export const StrategyDetail: React.FC = () => {
     setCustomOptimizationText(isCustomGoal ? goal : "");
     const statusVal = strategy.status ?? "";
     setFormState(
-      statusVal === "active" || statusVal === "Enabled"
+        statusVal.toLowerCase() === "enabled"
         ? "Enable"
         : "Pause",
     );
@@ -721,7 +721,7 @@ export const StrategyDetail: React.FC = () => {
       goal: goalValue,
       status:
         formState === "Enable"
-          ? "active"
+          ? "enabled"
           : formState === "Pause"
             ? "paused"
             : "paused",
@@ -1003,7 +1003,11 @@ export const StrategyDetail: React.FC = () => {
         ? goal
         : "",
     );
-    setFormState(payload.status === "active" ? "Enable" : "Pause");
+    setFormState(
+      payload.status?.toLowerCase() === "enabled"
+        ? "Enable"
+        : "Pause",
+    );
     setSelectedProfileIds((payload.profile_ids ?? []).map((id) => String(id)));
     setMaxChangePerDay(payload.max_change_per_day ?? "");
     setMaxChangePerWeek(payload.max_change_per_week ?? "");

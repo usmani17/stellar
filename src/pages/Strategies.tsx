@@ -253,8 +253,7 @@ export const Strategies: React.FC = () => {
                           </td>
                           <td className="table-cell">
                             <span className="text-[14px] text-[#556179]">
-                              {strategy.status === "active" ||
-                              strategy.status === "Enabled"
+                              {strategy.status.toLowerCase() === "enabled"
                                 ? "Enabled"
                                 : "Paused"}
                             </span>
