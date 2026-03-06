@@ -1,8 +1,10 @@
-import React from "react";
-import { Plus, Link2, User } from "lucide-react";
+import React, { useState } from "react";
+import { Plus, Link2, User, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { getDashboards, type DashboardResponse } from "../../../services/dashboard";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getDashboards, softDeleteDashboard, type DashboardResponse } from "../../../services/dashboard";
+import { ConfirmationModal } from "../../../components/ui";
+import { cn } from "../../../lib/cn";
 
 interface DashboardsListProps {
   accountId?: number;
@@ -10,11 +12,27 @@ interface DashboardsListProps {
 
 export const DashboardsList: React.FC<DashboardsListProps> = ({ accountId }) => {
   const navigate = useNavigate();
-  
+  const queryClient = useQueryClient();
+  const [dashboardToDelete, setDashboardToDelete] = useState<{ id: number; name: string } | null>(null);
+
   const { data: dashboards = [] } = useQuery({
     queryKey: ["dashboards", accountId],
     queryFn: () => getDashboards(accountId!),
     enabled: !!accountId,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () =>
+      accountId && dashboardToDelete
+        ? softDeleteDashboard(accountId, dashboardToDelete.id)
+        : Promise.reject(new Error("Missing account or dashboard")),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dashboards", accountId] });
+      setDashboardToDelete(null);
+    },
+    onError: () => {
+      setDashboardToDelete(null);
+    },
   });
 
   return (
@@ -74,12 +92,28 @@ export const DashboardsList: React.FC<DashboardsListProps> = ({ accountId }) => 
                 <span className="text-xs text-[#556179]">
                   Last updated: {dashboard.updatedAt ? new Date(dashboard.updatedAt).toLocaleDateString() : "Unknown"}
                 </span>
-                <button 
-                  onClick={() => navigate(`/brands/${accountId}/dashboards/${dashboard.id}`)}
-                  className="text-sm text-forest-f60 hover:text-[#0e5a5a] font-medium whitespace-nowrap"
-                >
-                  View Dashboard →
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDashboardToDelete({ id: dashboard.id, name: dashboard.name });
+                    }}
+                    className={cn(
+                      "p-1.5 rounded-md text-forest-f30 hover:text-red-r30 hover:bg-red-r0 transition-colors",
+                      "focus:outline-none focus:ring-2 focus:ring-red-r30 focus:ring-offset-1"
+                    )}
+                    aria-label={`Delete dashboard ${dashboard.name}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => navigate(`/brands/${accountId}/dashboards/${dashboard.id}`)}
+                    className="text-sm text-forest-f60 hover:text-[#0e5a5a] font-medium whitespace-nowrap"
+                  >
+                    View Dashboard →
+                  </button>
+                </div>
               </div>
             </div>
           ))
@@ -103,6 +137,23 @@ export const DashboardsList: React.FC<DashboardsListProps> = ({ accountId }) => 
           </div>
         )}
       </div>
+
+      <ConfirmationModal
+        isOpen={!!dashboardToDelete}
+        onClose={() => !deleteMutation.isPending && setDashboardToDelete(null)}
+        onConfirm={() => deleteMutation.mutate()}
+        title="Remove dashboard"
+        message={
+          dashboardToDelete
+            ? `Are you sure you want to remove "${dashboardToDelete.name}"? It will no longer appear in your list.`
+            : ""
+        }
+        confirmButtonLabel="Remove"
+        cancelButtonLabel="Cancel"
+        type="danger"
+        isLoading={deleteMutation.isPending}
+        loadingLabel="Removing…"
+      />
     </>
   );
 };

@@ -101,6 +101,16 @@ export async function updateDashboardConfig(
   return data;
 }
 
+/**
+ * Soft-delete a dashboard (sets deleted_at; it will no longer appear in the list).
+ */
+export async function softDeleteDashboard(
+  accountId: number,
+  dashboardId: number
+): Promise<void> {
+  await api.delete(`${API_BASE}/${accountId}/dashboards/${dashboardId}/`);
+}
+
 /** Deduplicate concurrent requests (e.g. React StrictMode double-invokes effects) */
 const componentDataCache = new Map<string, Promise<DashboardComponent>>();
 

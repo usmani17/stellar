@@ -21,7 +21,7 @@ export const CreateDashboardModal: React.FC<CreateDashboardModalProps> = ({
   accountId,
 }) => {
   const [error, setError] = useState<string | null>(null);
-  const { openAssistant, setInputValue, setAssistantScope } = useAssistant();
+  const { openAssistant, setInputValue, setAssistantScope, startNewSession } = useAssistant();
 
   const { data: channels = [] } = useChannels(accountId);
   const channelId = channels.length > 0 ? channels[0].id : undefined;
@@ -55,12 +55,13 @@ export const CreateDashboardModal: React.FC<CreateDashboardModalProps> = ({
       return;
     }
 
-    // Open assistant with pre-filled message including workflow prompt
-    let message = `${workflow.prompt}\n\nCreate a dashboard for above with workflow id ${workflow.id}`;
-    if (isUpdate && dashboardId) {
-      message = `${workflow.prompt}\n\nUpdate dashboard (ID: ${dashboardId} : ${existingDashboard?.name}) for workflow id ${workflow.id } : ${workflow.name}`;
-    }
+    // Open assistant with pre-filled message; include workflow prompt only for create
+    const message =
+      isUpdate && dashboardId
+        ? `Update dashboard (ID: ${dashboardId} : ${existingDashboard?.name}) for workflow (id ${workflow.id} : ${workflow.name})`
+        : `${workflow.prompt}\n\nCreate a dashboard for above with workflow id (${workflow.id} : ${workflow.name})`;
 
+    startNewSession();
     setAssistantScope({
       accountId: accountId.toString(),
       channelId: channelId?.toString(),
