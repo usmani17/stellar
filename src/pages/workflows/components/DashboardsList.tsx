@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus } from "lucide-react";
+import { Plus, Link2, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getDashboards, type DashboardResponse } from "../../../services/dashboard";
@@ -39,16 +39,44 @@ export const DashboardsList: React.FC<DashboardsListProps> = ({ accountId }) => 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {dashboards.length > 0 ? (
           dashboards.map((dashboard: DashboardResponse) => (
-            <div key={dashboard.id} className="bg-white rounded-lg border border-[#E8E8E3] p-6 hover:shadow-md transition-shadow">
-              <h3 className="text-lg font-medium text-[#072929] mb-2">{dashboard.name}</h3>
-              <p className="text-sm text-[#556179] mb-4">{dashboard.description || "No description available"}</p>
-              <div className="flex justify-between items-center">
+            <div key={dashboard.id} className="bg-white rounded-lg border border-[#E8E8E3] p-6 hover:shadow-md transition-shadow flex flex-col gap-4">
+              <div>
+                <h3 className="text-lg font-medium text-[#072929] mb-2">{dashboard.name}</h3>
+              </div>
+
+              {/* Integration and Profile Info */}
+              <div className="space-y-3">
+                {dashboard.channelName && (
+                  <div className="flex items-center gap-2.5">
+                    <Link2 className="w-4 h-4 shrink-0 text-forest-f30" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-forest-f30">
+                        Integration
+                      </p>
+                      <p className="truncate text-sm text-forest-f60">{dashboard.channelName || "All Integrations"}</p>
+                    </div>
+                  </div>
+                )}
+                {dashboard.profileName && (
+                  <div className="flex items-center gap-2.5">
+                    <User className="w-4 h-4 shrink-0 text-forest-f30" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-forest-f30">
+                        Profile
+                      </p>
+                      <p className="truncate text-sm text-forest-f60">{dashboard.profileName || "All Profiles"}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center mt-auto pt-4 border-t border-[#E8E8E3]">
                 <span className="text-xs text-[#556179]">
                   Last updated: {dashboard.updatedAt ? new Date(dashboard.updatedAt).toLocaleDateString() : "Unknown"}
                 </span>
                 <button 
-                  onClick={() => navigate(`/brands/${accountId}/dashboards/${dashboard.id}`)}
-                  className="text-sm text-forest-f60 hover:text-[#0e5a5a] font-medium"
+                  onClick={() => navigate(`/brands/${accountId}/dashboard/${dashboard.id}`)}
+                  className="text-sm text-forest-f60 hover:text-[#0e5a5a] font-medium whitespace-nowrap"
                 >
                   View Dashboard →
                 </button>

@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { BaseModal } from "../../../components/ui";
 import { createDashboard } from "../../../services/dashboard";
 import { FULL_TEST_DASHBOARD_CONFIG } from "../constants/fullTestDashboard";
+import { useChannels } from "../../../hooks/queries/useChannels";
+import { useGoogleProfiles } from "../../../hooks/queries/useGoogleProfiles";
 
 interface CreateDashboardModalProps {
   isOpen: boolean;
@@ -21,6 +23,14 @@ export const CreateDashboardModal: React.FC<CreateDashboardModalProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { data: channels = [] } = useChannels(accountId);
+  const channelId = channels.length > 0 ? channels[0].id : undefined;
+  const isGoogle = channels[0].channel_type === "google";
+  const googleChannelId = isGoogle ? channelId : undefined;
+  const {
+    data: googleProfilesData,
+    isLoading: isLoadingProfiles,
+  } : { data: any, isLoading: boolean } = useGoogleProfiles(googleChannelId);
   const handleCreate = async () => {
     if (!accountId) {
       setError("Account ID is required");
@@ -31,6 +41,9 @@ export const CreateDashboardModal: React.FC<CreateDashboardModalProps> = ({
     try {
       await createDashboard(accountId, {
         name: "Workflow Dashboard",
+        platform: "google",
+        profileId: googleProfilesData?.[0]?.id,
+        channelId: channelId,
         config: FULL_TEST_DASHBOARD_CONFIG,
         workflowId,
       });
@@ -70,7 +83,7 @@ export const CreateDashboardModal: React.FC<CreateDashboardModalProps> = ({
           <button
             type="button"
             onClick={handleCreate}
-            disabled={isCreating}
+            disabled={isCreating || isLoadingProfiles}
             className="create-entity-button disabled:opacity-50"
           >
             <span className="text-[10.64px] text-white font-normal">
