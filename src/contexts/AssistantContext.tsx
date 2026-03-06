@@ -939,7 +939,6 @@ export const AssistantProvider: React.FC<{
 // eslint-disable-next-line react-refresh/only-export-components -- context file exports provider + hook
 export const useAssistant = (): AssistantContextType => {
   const context = useContext(AssistantContext);
-  console.log("useAssistant context:", context?.inputValue);
   if (context === undefined) {
     throw new Error("useAssistant must be used within an AssistantProvider");
   }
