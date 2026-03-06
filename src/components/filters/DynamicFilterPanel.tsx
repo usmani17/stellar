@@ -117,6 +117,11 @@ const generateTestFilters = (filterFields: FilterField[]): FilterValues => {
   return testFilters;
 };
 
+function ensureFilterArray(value: unknown): FilterValues {
+  if (Array.isArray(value)) return value;
+  return [];
+}
+
 export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   isOpen,
   onClose,
@@ -132,8 +137,9 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   // Get channelId from URL params for Google AdWords, or from props when not on a channel route
   const params = useParams<{ channelId?: string }>();
   const channelId = channelIdProp ?? params.channelId;
-  
-  const [activeFilters, setActiveFilters] = useState<FilterValues>(initialFilters);
+
+  const safeInitialFilters = ensureFilterArray(initialFilters);
+  const [activeFilters, setActiveFilters] = useState<FilterValues>(safeInitialFilters);
   const [filterFields, setFilterFields] = useState<FilterField[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
   const [selectedField, setSelectedField] = useState<string>("");
@@ -248,8 +254,9 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
 
   // Sync active filters with initialFilters on mount
   useEffect(() => {
-    if (initialFilters.length > 0 && activeFilters.length === 0) {
-      setActiveFilters(initialFilters);
+    const safe = ensureFilterArray(initialFilters);
+    if (safe.length > 0 && activeFilters.length === 0) {
+      setActiveFilters(safe);
       isInitialMountRef.current = true;
     }
   }, [initialFilters]);

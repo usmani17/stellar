@@ -1,16 +1,20 @@
 import api from "./api";
 
 export interface StrategyAutomationPayload {
+  id?: number;
   entity: string;
   action: string;
   change_value?: number | null;
   change_unit?: string;
   change_cap?: number | null;
-  conditions: Record<string, unknown>[];
+  max_entity_delta?: number | null;
+  /** Backend may return parsed array or JSON string. */
+  conditions: Record<string, unknown>[] | string;
+  sort_order?: number;
   schedule_enabled?: boolean;
   schedule_frequency?: string | null;
   schedule_run_at?: string | null;
-  schedule_run_days?: number[] | null;
+  schedule_run_days?: number[] | string | null;
 }
 
 export interface Strategy {
@@ -19,17 +23,25 @@ export interface Strategy {
   goal: string;
   status: string;
   platform: string;
-  max_change_per_day: string;
-  max_change_per_week: string;
+  /** Backend may return number; form uses string. */
+  max_change_per_day: string | number;
+  max_change_per_week: string | number;
+  min_budget_floor?: number | null;
+  max_budget_cap?: number | null;
+  min_execution_cap?: number | null;
+  max_execution_cap?: number | null;
   min_data_window_days: number | null;
   min_spend_threshold: number | null;
+  /** Backend sends ignore_last_hours (e.g. 48). Optional legacy for UI. */
   ignore_last_48_hours?: boolean;
   ignore_last_hours?: number | null;
   ignore_campaigns_created_in_last_days?: number | null;
   exclude_learning_campaigns: boolean;
+  /** Legacy; backend uses ignore_campaigns_created_in_last_days (e.g. 7). */
   ignore_campaigns_in_last_7_days?: boolean;
   frequency: string;
-  run_days: string;
+  /** Backend may return number[] or JSON array string e.g. "[0,1,2,3,4]". */
+  run_days: number[] | string;
   run_at: string | null;
   is_approved: boolean;
   approval_layer: string;
@@ -43,30 +55,37 @@ export interface Strategy {
 export interface CreateStrategyData {
   name: string;
   goal?: string;
+  /** Backend: active | paused | archived */
   status?: string;
+  /** Backend: google | amazon | meta | tiktok | walmart (required on create) */
   platform?: string;
   max_change_per_day?: string;
   max_change_per_week?: string;
+  min_budget_floor?: number | null;
+  max_budget_cap?: number | null;
+  min_execution_cap?: number | null;
+  max_execution_cap?: number | null;
   min_data_window_days?: number | null;
   min_spend_threshold?: number | null;
-  ignore_last_48_hours?: boolean;
-  ignore_campaigns_in_last_7_days?: boolean;
+  /** Backend: int (e.g. 48). Sent instead of ignore_last_48_hours. */
+  ignore_last_hours?: number | null;
+  /** Backend: int (e.g. 7). Sent instead of ignore_campaigns_in_last_7_days. */
+  ignore_campaigns_created_in_last_days?: number | null;
   exclude_learning_campaigns?: boolean;
   frequency?: string;
-  run_days?: string;
+  /** Backend: list[int] weekdays (0=Mon..6=Sun) */
+  run_days?: number[];
   run_at?: string | null;
   is_approved?: boolean;
   approval_layer?: string;
-  /** Profile IDs (Brand/Integration/Profile selection). Stored in strategies_app_strategyprofile. */
   profile_ids?: number[];
-  /** Automation tabs: entity, action, conditions (filters), schedule, etc. */
   automations?: StrategyAutomationPayload[];
 }
 
 export const strategiesService = {
   getStrategies: async (): Promise<Strategy[]> => {
     const response = await api.get<Strategy[] | { results: Strategy[] }>(
-      "/accounts/strategies/"
+      "/strategies/"
     );
     const data = response.data;
     if (Array.isArray(data)) return data;
@@ -77,12 +96,12 @@ export const strategiesService = {
   },
 
   getStrategy: async (id: number): Promise<Strategy> => {
-    const response = await api.get<Strategy>(`/accounts/strategies/${id}/`);
+    const response = await api.get<Strategy>(`/strategies/${id}/`);
     return response.data;
   },
 
   createStrategy: async (data: CreateStrategyData): Promise<Strategy> => {
-    const response = await api.post<Strategy>("/accounts/strategies/", data);
+    const response = await api.post<Strategy>("/strategies/", data);
     return response.data;
   },
 
@@ -91,34 +110,13 @@ export const strategiesService = {
     data: Partial<CreateStrategyData>
   ): Promise<Strategy> => {
     const response = await api.patch<Strategy>(
-      `/accounts/strategies/${id}/`,
+      `/strategies/${id}/`,
       data
     );
     return response.data;
   },
 
   deleteStrategy: async (id: number): Promise<void> => {
-    await api.delete(`/accounts/strategies/${id}/`);
-  },
-};
-
-export interface Automation {
-  id: number;
-  strategy: number;
-  entity: string;
-  action: string;
-  change_value: number | null;
-  change_cap: number | null;
-  conditions: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export const automationsService = {
-  getAutomations: async (strategyId: number): Promise<Automation[]> => {
-    const response = await api.get<Automation[]>(
-      `/accounts/strategies/${strategyId}/automations/`
-    );
-    return response.data;
+    await api.delete(`/strategies/${id}/`);
   },
 };

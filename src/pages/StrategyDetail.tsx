@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { useSidebar } from "../contexts/SidebarContext";
-import { useStrategy, useAutomations } from "../hooks/queries/useStrategies";
+import { useStrategy } from "../hooks/queries/useStrategies";
 import { useCreateStrategy, useUpdateStrategy } from "../hooks/mutations/useStrategyMutations";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
@@ -17,8 +17,8 @@ import {
 } from "../components/StrategyAutomation";
 import { ScheduleFields, WEEKDAYS } from "../components/ScheduleFields";
 import { ChevronDown, X, Search } from "lucide-react";
-import type { CreateStrategyData } from "../services/strategies";
-import { accountsService } from "../services/accounts";
+import { strategiesService, type CreateStrategyData } from "../services/strategies";
+import { useAllAccessibleProfiles, type AllAccessibleProfile } from "../hooks/queries/useAllAccessibleProfiles";
 import GoalsIcon from "../assets/images/strategy/goals.svg";
 import StrategyDetailIcon from "../assets/images/strategy/strategy-detail.svg";
 import GuardrailIcon from "../assets/images/strategy/guardrail.svg";
@@ -36,6 +36,63 @@ const OPTIMIZATION_GOALS = [
   "Stabilize Performance",
   "Custom Optimization",
 ] as const;
+
+/** Parse run_days from backend: array, JSON string "[0,1,2]", or comma-separated day names. */
+function parseRunDays(value: number[] | string | null | undefined): number[] {
+  if (value == null) return [];
+  if (Array.isArray(value)) return value.filter((d) => d >= 0 && d <= 6);
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed) as unknown;
+        return Array.isArray(parsed)
+          ? (parsed as number[]).filter((d) => typeof d === "number" && d >= 0 && d <= 6)
+          : [];
+      } catch {
+        return [];
+      }
+    }
+    const days = trimmed
+      .split(",")
+      .map((s) => (WEEKDAYS as readonly string[]).indexOf(s.trim()))
+      .filter((i) => i >= 0);
+    return days;
+  }
+  return [];
+}
+
+/** Parse automation conditions from backend: array or JSON string. Return FilterValues with ids. */
+function parseConditionsToFilters(
+  value: unknown,
+  generateId: () => string
+): FilterValues {
+  let arr: unknown[] = [];
+  if (Array.isArray(value)) {
+    arr = value;
+  } else if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      arr = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      arr = [];
+    }
+  }
+  return arr.map((item) => {
+    const obj = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+    const value = obj.value;
+    const typedValue: string | number | string[] | { min: number; max: number } =
+      value === undefined || value === null
+        ? ""
+        : (value as string | number | string[] | { min: number; max: number });
+    return {
+      id: (obj.id as string) || generateId(),
+      field: String(obj.field ?? ""),
+      operator: obj.operator != null ? String(obj.operator) : undefined,
+      value: typedValue,
+    };
+  });
+}
 
 /** Normalize API/label time (e.g. "12:00 AM") to HH:mm for <input type="time"> */
 function normalizeTimeForInput(value: string): string {
@@ -64,9 +121,7 @@ const STATE_OPTIONS = [
   { value: "Pause", label: "Pause" },
 ] as const;
 
-type ProfileOption = Awaited<
-  ReturnType<typeof accountsService.getAllAccessibleProfiles>
->[number];
+type ProfileOption = AllAccessibleProfile;
 
 const SectionCard: React.FC<{
   icon: React.ReactNode;
@@ -112,9 +167,9 @@ export const StrategyDetail: React.FC = () => {
   const { strategy, isLoading: strategyLoading, isError, error } = useStrategy(
     isCreateMode ? undefined : id
   );
-  const { automations, isLoading: automationsLoading } = useAutomations(id);
   const createStrategyMutation = useCreateStrategy();
   const updateStrategyMutation = useUpdateStrategy(id ?? 0);
+  const { profiles: allProfiles, isLoading: profilesLoading } = useAllAccessibleProfiles();
 
   const [optimizationGoal, setOptimizationGoal] = useState<string>("");
   const [customOptimizationText, setCustomOptimizationText] = useState("");
@@ -123,8 +178,6 @@ export const StrategyDetail: React.FC = () => {
   const [selectedProfileIds, setSelectedProfileIds] = useState<string[]>([]);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [profileSearch, setProfileSearch] = useState("");
-  const [allProfiles, setAllProfiles] = useState<ProfileOption[] | null>(null);
-  const [profilesLoading, setProfilesLoading] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const [maxChangePerDay, setMaxChangePerDay] = useState("");
   const [maxChangePerWeek, setMaxChangePerWeek] = useState("");
@@ -219,11 +272,28 @@ export const StrategyDetail: React.FC = () => {
       goal && !OPTIMIZATION_GOALS.includes(goal as (typeof OPTIMIZATION_GOALS)[number]);
     setOptimizationGoal(isCustomGoal ? "Custom Optimization" : goal);
     setCustomOptimizationText(isCustomGoal ? goal : "");
+    const statusVal = strategy.status ?? "";
     setFormState(
-      strategy.status === "Enabled" ? "Enable" : (strategy.status ?? "Draft")
+      statusVal === "active" || statusVal === "Enabled"
+        ? "Enable"
+        : statusVal === "paused"
+          ? "Pause"
+          : statusVal === "archived"
+            ? "Pause"
+            : "Draft"
     );
-    setMaxChangePerDay(strategy.max_change_per_day ?? "");
-    setMaxChangePerWeek(strategy.max_change_per_week ?? "");
+    setMaxChangePerDay(
+      strategy.max_change_per_day != null ? String(strategy.max_change_per_day) : ""
+    );
+    setMaxChangePerWeek(
+      strategy.max_change_per_week != null ? String(strategy.max_change_per_week) : ""
+    );
+    setMinBudgetFloor(
+      strategy.min_budget_floor != null ? String(strategy.min_budget_floor) : ""
+    );
+    setMaxBudgetCap(
+      strategy.max_budget_cap != null ? String(strategy.max_budget_cap) : ""
+    );
     setMinDataWindowDays(
       strategy.min_data_window_days != null && strategy.min_data_window_days >= 1
         ? strategy.min_data_window_days
@@ -232,43 +302,96 @@ export const StrategyDetail: React.FC = () => {
     setMinSpendThreshold(
       strategy.min_spend_threshold != null ? String(strategy.min_spend_threshold) : ""
     );
-    setIgnoreLast48Hours(strategy.ignore_last_48_hours ?? true);
-    setIgnoreCampaigns7Days(strategy.ignore_campaigns_in_last_7_days ?? true);
+    const ignoreHours = strategy.ignore_last_hours ?? (strategy.ignore_last_48_hours ? 48 : null);
+    setIgnoreLast48Hours(ignoreHours != null && ignoreHours >= 48);
+    const ignoreDays = strategy.ignore_campaigns_created_in_last_days ?? (strategy.ignore_campaigns_in_last_7_days ? 7 : null);
+    setIgnoreCampaigns7Days(ignoreDays != null && ignoreDays >= 7);
     setExcludeLearningCampaigns(strategy.exclude_learning_campaigns ?? false);
     setFrequency(strategy.frequency ?? "Weekly");
     setRunAt(normalizeTimeForInput(strategy.run_at ?? "00:00"));
-    if (strategy.run_days && typeof strategy.run_days === "string") {
-      const days = strategy.run_days
-        .split(",")
-        .map((s) => (WEEKDAYS as readonly string[]).indexOf(s.trim()))
-        .filter((i) => i >= 0);
-      if (days.length > 0) setRunDays(days);
-    }
+    const parsedRunDays = parseRunDays(strategy.run_days);
+    if (parsedRunDays.length > 0) setRunDays(parsedRunDays);
     if (strategy.profile_ids && strategy.profile_ids.length > 0) {
       setSelectedProfileIds(strategy.profile_ids.map(String));
     }
+    const apiEntityToUi: Record<string, string> = {
+      campaign: "Campaign",
+      ad_group: "Ad Group",
+      keyword: "Keyword",
+      ad: "Ads",
+    };
+    const apiActionToUi: Record<string, string> = {
+      pause: "pause",
+      enable: "enable",
+      increase_budget_pct: "increase_budget",
+      decrease_budget_pct: "decrease_budget",
+      increase_bid_pct: "increase_bid",
+      decrease_bid_pct: "decrease_bid",
+    };
+    const globalFrequency = strategy.frequency ?? "Weekly";
+    const globalRunAt =
+      typeof strategy.run_at === "string"
+        ? normalizeTimeForInput(strategy.run_at)
+        : "00:00";
+    const globalRunDays = parsedRunDays.length > 0 ? parsedRunDays : [0, 2, 3];
+
     if (strategy.automations && strategy.automations.length > 0) {
       setAutomationTabs(
-        strategy.automations.map((a) => ({
-          entity: a.entity ?? "Campaign",
-          filters: (a.conditions ?? []) as unknown as FilterValues,
-          actionState: {
-            action: a.action ?? "",
-            adjustmentValue: a.change_value != null ? String(a.change_value) : "",
-            adjustmentValueUnit: a.change_unit === "absolute" ? "$" : "%",
-            actionLimitValue:
-              a.change_cap != null ? String(a.change_cap) : "",
-          },
-          scheduleState: {
-            scheduleEnabled: a.schedule_enabled ?? false,
-            frequency: a.schedule_frequency ?? "Weekly",
-            runAt:
-              typeof a.schedule_run_at === "string"
-                ? a.schedule_run_at
-                : "00:00",
-            runDays: Array.isArray(a.schedule_run_days) ? a.schedule_run_days : [0, 2, 3],
-          },
-        }))
+        strategy.automations.map((a) => {
+          const hasOwnSchedule = a.schedule_enabled === true;
+
+          let scheduleRunDays: number[] = globalRunDays;
+          if (hasOwnSchedule && a.schedule_run_days != null) {
+            const scheduleRunDaysRaw = a.schedule_run_days;
+            if (Array.isArray(scheduleRunDaysRaw) && scheduleRunDaysRaw.length > 0) {
+              scheduleRunDays = scheduleRunDaysRaw.filter((d) => d >= 0 && d <= 6);
+            } else if (
+              typeof scheduleRunDaysRaw === "string" &&
+              scheduleRunDaysRaw.trim().startsWith("[")
+            ) {
+              try {
+                const parsed = JSON.parse(scheduleRunDaysRaw) as unknown;
+                scheduleRunDays = Array.isArray(parsed)
+                  ? (parsed as number[]).filter((d) => typeof d === "number" && d >= 0 && d <= 6)
+                  : globalRunDays;
+              } catch {
+                // keep global
+              }
+            }
+          }
+
+          const frequency =
+            hasOwnSchedule && a.schedule_frequency != null && a.schedule_frequency !== ""
+              ? a.schedule_frequency
+              : globalFrequency;
+          const runAtRaw =
+            hasOwnSchedule && a.schedule_run_at != null && String(a.schedule_run_at).trim() !== ""
+              ? String(a.schedule_run_at)
+              : globalRunAt;
+          const runAtNormalized =
+            /^\d{1,2}:\d{2}(:\d{2})?$/.test(runAtRaw) ? runAtRaw.slice(0, 5) : globalRunAt;
+
+          return {
+            ...(typeof (a as { id?: number }).id === "number" && { id: (a as { id?: number }).id }),
+            entity: apiEntityToUi[a.entity ?? ""] ?? "Campaign",
+            filters: parseConditionsToFilters(a.conditions, () =>
+              `filter-${Date.now()}-${Math.random().toString(36).slice(2)}`
+            ),
+            actionState: {
+              action: apiActionToUi[a.action ?? ""] ?? "",
+              adjustmentValue: a.change_value != null ? String(a.change_value) : "",
+              adjustmentValueUnit: a.change_unit === "absolute" ? "$" : "%",
+              actionLimitValue:
+                a.change_cap != null ? String(a.change_cap) : "",
+            },
+            scheduleState: {
+              scheduleEnabled: hasOwnSchedule,
+              frequency,
+              runAt: runAtNormalized,
+              runDays: scheduleRunDays,
+            },
+          };
+        })
       );
     }
   }, [strategy]);
@@ -279,26 +402,9 @@ export const StrategyDetail: React.FC = () => {
     );
   };
 
-  // Fetch all accessible profiles (brand – integration – profile) for multi-select
-  useEffect(() => {
-    let cancelled = false;
-    setProfilesLoading(true);
-    accountsService
-      .getAllAccessibleProfiles()
-      .then((list) => {
-        if (!cancelled) setAllProfiles(list);
-      })
-      .finally(() => {
-        if (!cancelled) setProfilesLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   // When editing, pre-select profiles linked to this strategy (profile_ids)
   useEffect(() => {
-    if (!strategy?.profile_ids?.length || !allProfiles?.length) return;
+    if (!strategy?.profile_ids?.length || allProfiles.length === 0) return;
     const profileIdSet = new Set(strategy.profile_ids.map(String));
     const ids = allProfiles
       .filter((p) => profileIdSet.has(p.id))
@@ -363,9 +469,26 @@ export const StrategyDetail: React.FC = () => {
       optimizationGoal === "Custom Optimization"
         ? customOptimizationText.trim() || undefined
         : optimizationGoal.trim() || undefined;
-    const automations = automationTabs.map((tab) => ({
-      entity: tab.entity,
-      action: tab.actionState.action || "pause",
+
+    const entityToApi: Record<string, string> = {
+      Campaign: "campaign",
+      "Ad Group": "ad_group",
+      Keyword: "keyword",
+      Ads: "ad",
+    };
+    const actionToApi: Record<string, string> = {
+      pause: "pause",
+      enable: "enable",
+      increase_budget: "increase_budget_pct",
+      decrease_budget: "decrease_budget_pct",
+      increase_bid: "increase_bid_pct",
+      decrease_bid: "decrease_bid_pct",
+    };
+
+    const automations = automationTabs.map((tab, index) => ({
+      ...(typeof (tab as { id?: number }).id === "number" && { id: (tab as { id?: number }).id }),
+      entity: entityToApi[tab.entity] ?? "campaign",
+      action: actionToApi[tab.actionState.action] ?? "pause",
       change_value: tab.actionState.adjustmentValue
         ? parseFloat(tab.actionState.adjustmentValue)
         : undefined,
@@ -374,6 +497,7 @@ export const StrategyDetail: React.FC = () => {
         ? parseFloat(tab.actionState.actionLimitValue)
         : undefined,
       conditions: (tab.filters as unknown) as Record<string, unknown>[],
+      sort_order: index,
       schedule_enabled: tab.scheduleState.scheduleEnabled,
       schedule_frequency: tab.scheduleState.scheduleEnabled
         ? tab.scheduleState.frequency
@@ -385,20 +509,39 @@ export const StrategyDetail: React.FC = () => {
         ? tab.scheduleState.runDays
         : undefined,
     }));
+
+    const platformFromProfile = firstSelectedProfile?.channelType
+      ? String(firstSelectedProfile.channelType).toLowerCase()
+      : "google";
+    const runAtFormatted =
+      /^\d{1,2}:\d{2}(:\d{2})?$/.test(runAt) && runAt.length <= 8
+        ? runAt.length === 5
+          ? `${runAt}:00`
+          : runAt
+        : "00:00:00";
+
     const payload: CreateStrategyData = {
       name: formName.trim(),
       goal: goalValue,
-      status: formState === "Enable" ? "Enabled" : formState,
+      status:
+        formState === "Enable"
+          ? "active"
+          : formState === "Pause"
+            ? "paused"
+            : "paused",
+      platform: platformFromProfile,
       max_change_per_day: maxChangePerDay.trim() || undefined,
       max_change_per_week: maxChangePerWeek.trim() || undefined,
+      min_budget_floor: minBudgetFloor.trim() ? parseFloat(minBudgetFloor) : null,
+      max_budget_cap: maxBudgetCap.trim() ? parseFloat(maxBudgetCap) : null,
       min_spend_threshold: minSpendThreshold ? parseFloat(minSpendThreshold) : undefined,
       min_data_window_days: minDataWindowDays,
-      ignore_last_48_hours: ignoreLast48Hours,
+      ignore_last_hours: ignoreLast48Hours ? 48 : 0,
+      ignore_campaigns_created_in_last_days: ignoreCampaigns7Days ? 7 : 0,
       exclude_learning_campaigns: excludeLearningCampaigns,
-      ignore_campaigns_in_last_7_days: ignoreCampaigns7Days,
       frequency,
-      run_at: runAt,
-      run_days: runDaysString,
+      run_at: runAtFormatted,
+      run_days: runDays,
       profile_ids: profileIds,
       automations,
     };
@@ -480,6 +623,234 @@ export const StrategyDetail: React.FC = () => {
 
   const isPending =
     createStrategyMutation.isPending || updateStrategyMutation.isPending;
+
+  const [testCreatePending, setTestCreatePending] = useState(false);
+  const [testCreateMessage, setTestCreateMessage] = useState<string | null>(null);
+
+  const getFakeCreatePayload = (): CreateStrategyData => {
+    const profileId =
+      allProfiles.length > 0 ? parseInt(allProfiles[0].id, 10) : 1;
+    return {
+      name: `Test strategy ${new Date().toISOString().slice(0, 19).replace("T", " ")}`,
+      goal: "Maximize conversions",
+      status: "paused",
+      platform: "google",
+      profile_ids: [profileId],
+      max_change_per_day: "50",
+      max_change_per_week: "200",
+      min_data_window_days: 31,
+      min_spend_threshold: 1,
+      ignore_last_hours: 48,
+      ignore_campaigns_created_in_last_days: 7,
+      exclude_learning_campaigns: false,
+      frequency: "daily",
+      run_days: [0, 1, 2, 3, 4],
+      run_at: "09:00:00",
+      automations: [
+        {
+          entity: "campaign",
+          action: "increase_budget_pct",
+          conditions: [
+            { field: "campaign_advertising_channel_type", value: "SEARCH" },
+            { field: "campaign_status", value: "ENABLED" },
+          ],
+          change_value: 20,
+          change_unit: "percent",
+          change_cap: 500,
+          max_entity_delta: 50,
+          sort_order: 0,
+        },
+      ],
+    };
+  };
+
+  /** Full dummy payload for "Fill form & create": includes guardrails and one automation. */
+  const getDummyPayload = (): CreateStrategyData => {
+    const profileId =
+      allProfiles.length > 0 ? parseInt(allProfiles[0].id, 10) : 1;
+    return {
+      name: `Dummy strategy ${new Date().toISOString().slice(0, 19).replace("T", " ")}`,
+      goal: "Improve ROAS",
+      status: "paused",
+      platform: "google",
+      profile_ids: [profileId],
+      max_change_per_day: "25",
+      max_change_per_week: "100",
+      min_budget_floor: 50,
+      max_budget_cap: 5000,
+      min_data_window_days: 30,
+      min_spend_threshold: 10,
+      ignore_last_hours: 48,
+      ignore_campaigns_created_in_last_days: 7,
+      exclude_learning_campaigns: true,
+      frequency: "Weekly",
+      run_days: [0, 1, 2, 3, 4],
+      run_at: "09:00:00",
+      automations: [
+        {
+          entity: "campaign",
+          action: "increase_budget_pct",
+          conditions: [
+            { id: "dummy-f1", field: "campaign_advertising_channel_type", value: "SEARCH" },
+            { id: "dummy-f2", field: "campaign_status", value: "ENABLED" },
+          ],
+          change_value: 20,
+          change_unit: "percent",
+          change_cap: 500,
+          sort_order: 0,
+          schedule_enabled: true,
+          schedule_frequency: "Weekly",
+          schedule_run_at: "08:00:00",
+          schedule_run_days: [1, 3, 5],
+        },
+      ],
+    };
+  };
+
+  /** Set all form state from a create payload (used by "Fill form & create"). */
+  const fillFormFromPayload = (payload: CreateStrategyData) => {
+    setFormName(payload.name ?? "");
+    const goal = payload.goal ?? "";
+    setOptimizationGoal(
+      goal && OPTIMIZATION_GOALS.includes(goal as (typeof OPTIMIZATION_GOALS)[number])
+        ? goal
+        : goal
+          ? "Custom Optimization"
+          : "Improve ROAS"
+    );
+    setCustomOptimizationText(
+      goal && !OPTIMIZATION_GOALS.includes(goal as (typeof OPTIMIZATION_GOALS)[number])
+        ? goal
+        : ""
+    );
+    setFormState(payload.status === "active" ? "Enable" : "Pause");
+    setSelectedProfileIds(
+      (payload.profile_ids ?? []).map((id) => String(id))
+    );
+    setMaxChangePerDay(payload.max_change_per_day ?? "");
+    setMaxChangePerWeek(payload.max_change_per_week ?? "");
+    setMinBudgetFloor(
+      payload.min_budget_floor != null ? String(payload.min_budget_floor) : ""
+    );
+    setMaxBudgetCap(
+      payload.max_budget_cap != null ? String(payload.max_budget_cap) : ""
+    );
+    setMinDataWindowDays(payload.min_data_window_days ?? 30);
+    setMinSpendThreshold(
+      payload.min_spend_threshold != null ? String(payload.min_spend_threshold) : ""
+    );
+    setIgnoreLast48Hours((payload.ignore_last_hours ?? 0) > 0);
+    setIgnoreLastHoursValue("48");
+    setIgnoreCampaigns7Days((payload.ignore_campaigns_created_in_last_days ?? 0) > 0);
+    setIgnoreCampaignsDaysValue("7");
+    setExcludeLearningCampaigns(payload.exclude_learning_campaigns ?? false);
+    setFrequency(payload.frequency ?? "Weekly");
+    const runAtRaw = payload.run_at ?? "00:00:00";
+    setRunAt(/^\d{1,2}:\d{2}(:\d{2})?$/.test(runAtRaw) ? runAtRaw.slice(0, 5) : "00:00");
+    setRunDays(Array.isArray(payload.run_days) ? payload.run_days : []);
+    const apiEntityToUi: Record<string, string> = {
+      campaign: "Campaign",
+      ad_group: "Ad Group",
+      keyword: "Keyword",
+      ad: "Ads",
+    };
+    const apiActionToUi: Record<string, string> = {
+      pause: "pause",
+      enable: "enable",
+      increase_budget_pct: "increase_budget",
+      decrease_budget_pct: "decrease_budget",
+      increase_bid_pct: "increase_bid",
+      decrease_bid_pct: "decrease_bid",
+    };
+    const tabs = (payload.automations ?? []).map((a) => {
+      const hasOwnSchedule =
+        a.schedule_enabled &&
+        (a.schedule_run_at != null || (a.schedule_run_days != null && (a.schedule_run_days as number[]).length > 0));
+      const scheduleRunDays = Array.isArray(a.schedule_run_days)
+        ? a.schedule_run_days
+        : typeof a.schedule_run_days === "string"
+          ? (() => {
+              try {
+                const p = JSON.parse(a.schedule_run_days as string) as unknown;
+                return Array.isArray(p) ? p : [];
+              } catch {
+                return [];
+              }
+            })()
+          : [];
+      const scheduleRunAtRaw =
+        hasOwnSchedule && a.schedule_run_at != null
+          ? String(a.schedule_run_at)
+          : "00:00:00";
+      const runAtNormalized =
+        /^\d{1,2}:\d{2}(:\d{2})?$/.test(scheduleRunAtRaw) ? scheduleRunAtRaw.slice(0, 5) : "00:00";
+      return {
+        entity: apiEntityToUi[a.entity ?? ""] ?? "Campaign",
+        filters: parseConditionsToFilters(a.conditions, () =>
+          `filter-${Date.now()}-${Math.random().toString(36).slice(2)}`
+        ),
+        actionState: {
+          action: apiActionToUi[a.action ?? ""] ?? "",
+          adjustmentValue: a.change_value != null ? String(a.change_value) : "",
+          adjustmentValueUnit: a.change_unit === "absolute" ? "$" : "%",
+          actionLimitValue: a.change_cap != null ? String(a.change_cap) : "",
+        },
+        scheduleState: {
+          scheduleEnabled: !!a.schedule_enabled,
+          frequency: a.schedule_frequency ?? "Weekly",
+          runAt: runAtNormalized,
+          runDays: scheduleRunDays,
+        },
+      };
+    });
+    if (tabs.length > 0) {
+      setAutomationTabs(tabs);
+      setActiveAutomationTab(0);
+    }
+  };
+
+  const [fillAndCreatePending, setFillAndCreatePending] = useState(false);
+  const handleFillFormAndCreate = async () => {
+    setFormError(null);
+    const payload = getDummyPayload();
+    fillFormFromPayload(payload);
+    setFillAndCreatePending(true);
+    try {
+      const created = await createStrategyMutation.mutateAsync(payload);
+      navigate(`/strategies/${created.id}`, { replace: true });
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { detail?: string; name?: string[] } } })?.response?.data
+          ?.detail ||
+        (err as { response?: { data?: { name?: string[] } } })?.response?.data?.name?.[0] ||
+        (err as Error)?.message ||
+        "Create failed.";
+      setFormError(message);
+    } finally {
+      setFillAndCreatePending(false);
+    }
+  };
+
+  const handleTestCreateApi = async () => {
+    setTestCreateMessage(null);
+    setFormError(null);
+    setTestCreatePending(true);
+    try {
+      const payload = getFakeCreatePayload();
+      const created = await strategiesService.createStrategy(payload);
+      setTestCreateMessage(`Created strategy ID: ${created.id}`);
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { detail?: string; name?: string[] } } })?.response?.data
+          ?.detail ||
+        (err as { response?: { data?: { name?: string[] } } })?.response?.data?.name?.[0] ||
+        (err as Error)?.message ||
+        "Request failed.";
+      setTestCreateMessage(`Error: ${message}`);
+    } finally {
+      setTestCreatePending(false);
+    }
+  };
 
   if (id !== undefined && !isCreateMode && (isNaN(id) || id < 0)) {
     return (
@@ -1164,6 +1535,17 @@ export const StrategyDetail: React.FC = () => {
               </SectionCard>
 
               {/* Footer */}
+              {testCreateMessage && (
+                <p
+                  className={
+                    testCreateMessage.startsWith("Error")
+                      ? "text-[14px] text-red-600"
+                      : "text-[14px] text-green-700"
+                  }
+                >
+                  {testCreateMessage}
+                </p>
+              )}
               <div className="flex gap-3 justify-end pt-6 border-t border-[#E8E8E3]">
                 <Link
                   to="/strategies"
@@ -1171,6 +1553,26 @@ export const StrategyDetail: React.FC = () => {
                 >
                   Cancel
                 </Link>
+                {isCreateMode && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleFillFormAndCreate}
+                      disabled={fillAndCreatePending || isPending}
+                      className="h-10 px-4 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-800 text-[14px] font-medium hover:bg-emerald-200 disabled:opacity-50"
+                    >
+                      {fillAndCreatePending ? "Creating..." : "Fill form & create"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleTestCreateApi}
+                      disabled={testCreatePending}
+                      className="h-10 px-4 rounded-lg bg-amber-100 border border-amber-300 text-amber-800 text-[14px] font-medium hover:bg-amber-200 disabled:opacity-50"
+                    >
+                      {testCreatePending ? "Testing..." : "Test Create API"}
+                    </button>
+                  </>
+                )}
                 <button
                   type="submit"
                   disabled={isPending}

@@ -330,7 +330,7 @@ export const accountsService = {
       total: number;
     }>("/accounts/all-profiles/");
     return (response.data.profiles || []).map((p) => ({
-      id: p.id,
+      id: String(p.id),
       accountId: p.account_id,
       accountName: p.account_name,
       channelId: p.channel_id,
