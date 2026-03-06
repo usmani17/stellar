@@ -33,6 +33,7 @@ export const WorkflowsPage: React.FC = () => {
 
   const {
     workflows,
+    isLoading,
     isSearching,
     deleteWorkflow,
     isDeleting,
@@ -194,6 +195,7 @@ export const WorkflowsPage: React.FC = () => {
               <WorkflowsList
                 accountId={accountIdNum}
                 workflows={workflows}
+                isLoading={isLoading}
                 onEdit={handleEdit}
                 onDelete={deleteWorkflow}
                 isDeleting={isDeleting}

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAssistant, type SessionWithMessages } from "../../contexts/AssistantContext";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
-import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus } from "lucide-react";
+import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
 import { MessageContent } from "../ai/MessageContent";
@@ -16,34 +16,12 @@ import AmazonIcon from "../../assets/images/amazon-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
 import { CampaignFormForChat, type CampaignFormForChatHandle } from "../ai/CampaignFormForChat";
 import { deriveCampaignStateFromContent } from "../../utils/chartJsonParser";
-
-// Helper function to group sessions by date, ordered by latest first
-const groupSessionsByDate = (sessions: SessionWithMessages[]): Record<string, SessionWithMessages[]> => {
-    const groups: Record<string, SessionWithMessages[]> = {};
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const sorted = [...sessions]
-      .filter((s) => s.id !== "__pending__")
-      .sort((a, b) =>
-        new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime()
-      );
-
-    sorted.forEach((session) => {
-        const d = new Date(session.updated_at ?? session.created_at ?? 0);
-        const ds = d.toDateString();
-        const todayStr = today.toDateString();
-        const yesterdayStr = yesterday.toDateString();
-        let groupKey: string;
-        if (ds === todayStr) groupKey = "Today";
-        else if (ds === yesterdayStr) groupKey = "Yesterday";
-        else groupKey = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-        if (!groups[groupKey]) groups[groupKey] = [];
-        groups[groupKey].push(session);
-    });
-    return groups;
-};
+import { groupSessionsByDate } from "../../utils/assistantSessionUtils";
+import {
+    INSIGHT_CARDS,
+    INSIGHT_CATEGORIES,
+    type InsightCategory,
+} from "./insightCardsConfig";
 
 /** Set to false to hide the "Fill in the details" schema form (e.g. Logo image URL, Daily budget) in campaign setup. */
 const SHOW_CAMPAIGN_SCHEMA_FORM = true;
@@ -68,10 +46,18 @@ const getInitialColor = (initial: string): string => {
 const ASSISTANT_TEXTAREA_MIN_HEIGHT = 24;
 const ASSISTANT_TEXTAREA_MAX_HEIGHT = 200;
 
+const INSIGHT_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+    Users,
+    ClipboardList,
+    BarChart3,
+    Sparkles,
+};
+
 /** Slash commands — sent as-is to backend (no expansion) */
 const SLASH_COMMANDS = [
   { cmd: "/pdf", label: "Generate PDF report" },
   { cmd: "/docx", label: "Generate Word report" },
+  { cmd: "/dashboard", label: "Create custom dashboard" },
 ] as const;
 
 /** Profile item from GET /accounts/:accountId/profiles/ (channel_id, channel_name, profile name) */
@@ -96,12 +82,17 @@ function profileIdForDisplay(p: AccountProfileOption): string {
     return p.customer_id ?? p.advertiser_id ?? p.ad_account_id ?? p.profileId ?? String(p.id);
 }
 
+export type AssistantPanelVariant = "panel" | "page";
+
 interface AssistantPanelProps {
     className?: string;
+    /** "panel" = slide-over (close button, history dropdown); "page" = full page (no close, no history dropdown) */
+    variant?: AssistantPanelVariant;
 }
 
 export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     className = "",
+    variant = "panel",
 }) => {
     const {
         isOpen,
@@ -149,14 +140,15 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     const [isSlashDropdownOpen, setIsSlashDropdownOpen] = useState(false);
     const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
     const [editableContent, setEditableContent] = useState(""); // for slash trigger; actual DOM is source of truth
+    const [insightCategory, setInsightCategory] = useState<InsightCategory>("all");
     const editableSyncRafRef = useRef<number | null>(null);
     const accountDropdownRef = useRef<HTMLDivElement>(null);
     const integrationProfileDropdownRef = useRef<HTMLDivElement>(null);
     const slashDropdownRef = useRef<HTMLDivElement>(null);
 
-    // Load accounts when panel is open
+    // Load accounts when panel is open or when on chat page (variant=page)
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen && variant !== "page") return;
         let cancelled = false;
         queueMicrotask(() => setIsLoadingAccounts(true));
         accountsService.getAccounts({ all: true })
@@ -167,7 +159,25 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 if (!cancelled) setIsLoadingAccounts(false);
             });
         return () => { cancelled = true; };
-    }, [isOpen]);
+    }, [isOpen, variant]);
+
+    // Auto-select first account when only one exists (enables session list API call on /chat)
+    useEffect(() => {
+        if (
+            variant === "page" &&
+            !isLoadingAccounts &&
+            accounts.length === 1 &&
+            !assistantScope.accountId
+        ) {
+            setAssistantScope({
+                accountId: String(accounts[0].id),
+                channelId: null,
+                profileId: null,
+                profileName: null,
+                marketplace: null,
+            });
+        }
+    }, [variant, isLoadingAccounts, accounts, assistantScope.accountId, setAssistantScope]);
 
     // Load profiles when account is selected
     useEffect(() => {
@@ -883,7 +893,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         <div
             className={`flex flex-col h-full bg-[var(--color-semantic-background-primary)] shadow-lg ${className}`}
         >
-            {/* Top row: chat tabs (left) + New Chat & Close (right) */}
+            {/* Top row: chat tabs (left) + New Chat & Close (right) — hidden when variant=page (history in sidebar) */}
+            {variant === "panel" ? (
             <div className="assistant-top-row">
                 <div className="assistant-top-row-inner">
                     <div className="assistant-tabs-scroll interactive-scrollbar">
@@ -935,6 +946,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         ) : null}
                     </div>
                     <div className="assistant-top-row-actions">
+                        {variant === "panel" && (
                         <div ref={historyDropdownRef} className="relative">
                             <button
                                 type="button"
@@ -1020,6 +1032,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 </div>
                             )}
                         </div>
+                        )}
                         <button
                             type="button"
                             onClick={handleNewSession}
@@ -1029,6 +1042,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         >
                             <Plus className="w-5 h-5" strokeWidth={2.5} />
                         </button>
+                        {variant === "panel" && (
                         <button
                             type="button"
                             onClick={(e) => {
@@ -1042,9 +1056,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         >
                             <X className="w-5 h-5" />
                         </button>
+                        )}
                     </div>
                 </div>
             </div>
+            ) : null}
             {/* Second row: account/channel (left only) */}
             <div className="assistant-account-row">
                 <div className="assistant-account-row-inner">
@@ -1129,13 +1145,13 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         </div>
                     </div>
                 ) : !hasMessages ? (
-                    /* Empty State: show 3-step setup until user selects Analyze or Create Campaign; then hide setup and show prompts only */
+                    /* Empty State: show 3-step setup until user selects Analyze or Create Campaign; then hide setup and show prompts or insight cards */
                     <div className="flex flex-col items-center justify-center h-full gap-6">
                         {/* Assistant logo and title at top, above setup */}
                         <div className="mb-0">
                             <img src={StellarLogo} alt="Assistant" className="h-16 w-16" />
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900">
+                        <h3 className="text-lg font-medium text-forest-f60">
                             Assistant
                         </h3>
 
@@ -1143,16 +1159,67 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         {!canChat && contextSection}
 
                         {!canChat ? (
-                            <p className="text-sm text-gray-600 text-center px-4">
+                            <p className="text-sm text-forest-f30 text-center px-4">
                                 {!assistantScope.accountId
                                     ? "Select an account above to start."
                                     : !assistantScope.channelId || !assistantScope.profileId
                                         ? "Select an integration–profile above to start."
                                         : "Start typing to begin."}
                             </p>
+                        ) : variant === "page" ? (
+                            /* Page variant: category filters + insight cards */
+                            <div className="w-full max-w-4xl px-4">
+                                <div className="flex flex-wrap gap-2 mb-6 justify-center">
+                                    {INSIGHT_CATEGORIES.map((cat) => (
+                                        <button
+                                            key={cat.id}
+                                            type="button"
+                                            onClick={() => setInsightCategory(cat.id)}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                insightCategory === cat.id
+                                                    ? "bg-forest-f40 text-white"
+                                                    : "bg-sandstorm-s40 text-forest-f60 hover:bg-sandstorm-s40/80"
+                                            }`}
+                                        >
+                                            {cat.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {(insightCategory === "all"
+                                        ? INSIGHT_CARDS
+                                        : INSIGHT_CARDS.filter((c) => c.category === insightCategory)
+                                    ).map((card) => {
+                                        const Icon = INSIGHT_ICON_MAP[card.iconName] ?? BarChart3;
+                                        return (
+                                            <button
+                                                key={card.id}
+                                                type="button"
+                                                onClick={() => handlePromptClick(card.prompt)}
+                                                className="flex flex-col items-start p-4 rounded-xl border border-sandstorm-s40 bg-sandstorm-s5 hover:border-forest-f40/40 hover:bg-forest-f40/5 transition-colors text-left"
+                                            >
+                                                <Icon className="w-5 h-5 text-forest-f40 mb-2" />
+                                                <span className="text-xs font-medium text-forest-f30 uppercase tracking-wide mb-1">
+                                                    {INSIGHT_CATEGORIES.find((c) => c.id === card.category)?.label ?? card.category}
+                                                </span>
+                                                <h4 className="text-sm font-medium text-forest-f60 mb-1">
+                                                    {card.title}
+                                                </h4>
+                                                <p className="text-xs text-forest-f30 line-clamp-2 mb-3">
+                                                    {card.description}
+                                                </p>
+                                                <span className="text-xs font-medium text-forest-f40 flex items-center gap-1">
+                                                    Get Started
+                                                    <ArrowUp className="w-3 h-3 rotate-90" strokeWidth={2.5} />
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         ) : (
                             <div className="w-full max-w-sm">
-                                <p className="text-sm text-gray-600 mb-3">Would you like to:</p>
+                                <p className="text-sm text-forest-f30 mb-3">Would you like to:</p>
                                 <div className="flex flex-col gap-2">
                                     {suggestedPrompts.map((prompt) => (
                                         <button

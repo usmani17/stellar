@@ -1,26 +1,7 @@
 import React from "react";
-import { Check, Database, ArrowDownToLine, LayoutGrid, Save, GitMerge, Filter } from "lucide-react";
+import { Check, Database, LayoutGrid, Save, GitMerge, Filter } from "lucide-react";
 
-export type ProgressStep =
-  | "fetch"
-  | "save"
-  | "fetch2"
-  | "join"
-  | "analyze"
-  | "display";
-
-/** Simple pipeline: fetch → save → analyze → display */
-export const SIMPLE_STEPS: ProgressStep[] = ["fetch", "save", "analyze", "display"];
-
-/** Multi-GAQL pipeline: fetch → save → fetch2 → join → analyze → display */
-export const MULTI_GAQL_STEPS: ProgressStep[] = [
-  "fetch",
-  "save",
-  "fetch2",
-  "join",
-  "analyze",
-  "display",
-];
+import type { ProgressStep } from "./progressFlowConstants";
 
 const STEP_LABELS: Record<ProgressStep, string> = {
   fetch: "Fetch",
@@ -43,7 +24,7 @@ interface ProgressFlowProps {
   activeStep: ProgressStep;
   steps: ProgressStep[];
   isDark?: boolean;
-};
+}
 
 function getStepStatus(
   step: ProgressStep,

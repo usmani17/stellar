@@ -86,11 +86,28 @@ export type PdfReportData = {
   generated_at: string;
 };
 
+export type DashboardReportComponentSummary = {
+  id: string;
+  title: string;
+  visualization_type: string;
+};
+
+export type DashboardReportData = {
+  dashboard_id: number;
+  name: string;
+  account_id: number;
+  components_count: number;
+  layout: { rows: number; cols: number };
+  components: DashboardReportComponentSummary[];
+  url: string;
+};
+
 export type ContentSegment =
   | { type: "markdown"; content: string }
   | { type: "chart"; config: ChartConfig }
   | { type: "campaign-setup"; data: CampaignDraftData }
-  | { type: "pdf-report"; data: PdfReportData };
+  | { type: "pdf-report"; data: PdfReportData }
+  | { type: "custom-dashboard"; data: DashboardReportData };
 
 
 
@@ -102,6 +119,35 @@ export function parsePdfReportJson(jsonStr: string): PdfReportData | null {
       url: String(parsed.url),
       title: String(parsed.title ?? "Report"),
       generated_at: String(parsed.generated_at ?? ""),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function parseDashboardReportJson(jsonStr: string): DashboardReportData | null {
+  try {
+    const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
+    if (typeof parsed.dashboard_id !== "number" || !parsed.name) return null;
+    const layout = parsed.layout as Record<string, number> | undefined;
+    const components = Array.isArray(parsed.components)
+      ? (parsed.components as DashboardReportComponentSummary[]).map((c) => ({
+          id: String(c.id ?? ""),
+          title: String(c.title ?? ""),
+          visualization_type: String(c.visualization_type ?? "table"),
+        }))
+      : [];
+    return {
+      dashboard_id: parsed.dashboard_id as number,
+      name: String(parsed.name),
+      account_id: (parsed.account_id as number) ?? 0,
+      components_count: (parsed.components_count as number) ?? components.length,
+      layout: {
+        rows: layout?.rows ?? 2,
+        cols: layout?.cols ?? 2,
+      },
+      components,
+      url: String(parsed.url ?? ""),
     };
   } catch {
     return null;
@@ -229,7 +275,7 @@ export function extractDisplayContentFromEvents(events: unknown[]): string {
 export function parseContentWithBlocks(raw: string): ContentSegment[] {
   const segments: ContentSegment[] = [];
   let lastIndex = 0;
-  const blockRe = /```(chart-json|campaign-setup|pdf-report|docx-report)\s*\n([\s\S]*?)\n```/g;
+  const blockRe = /```(chart-json|campaign-setup|pdf-report|docx-report|custom-dashboard)\s*\n([\s\S]*?)\n```/g;
   let match;
   while ((match = blockRe.exec(raw)) !== null) {
     const mdPart = raw.slice(lastIndex, match.index);
@@ -247,6 +293,9 @@ export function parseContentWithBlocks(raw: string): ContentSegment[] {
     } else if (blockType === "pdf-report" || blockType === "docx-report") {
       const data = parsePdfReportJson(inner);
       if (data) segments.push({ type: "pdf-report", data });
+    } else if (blockType === "custom-dashboard") {
+      const data = parseDashboardReportJson(inner);
+      if (data) segments.push({ type: "custom-dashboard", data });
     }
     lastIndex = match.index + match[0].length;
   }

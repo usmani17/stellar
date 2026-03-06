@@ -2,19 +2,25 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   ChevronDown,
   ChevronUp,
-  Code,
   GripVertical,
   Maximize2,
   Minimize2,
+  RotateCw,
   BarChart2,
+  BarChart3,
+  BarChartHorizontal,
   Table2,
   LineChart,
   PieChart,
   TrendingUp,
   LayoutDashboard,
+  Filter,
+  ScatterChart,
+  Gauge,
 } from "lucide-react";
-import type { ProgressStep } from "./ProgressFlow";
-import { ProgressFlow, SIMPLE_STEPS, MULTI_GAQL_STEPS } from "./ProgressFlow";
+import type { ProgressStep } from "./progressFlowConstants";
+import { SIMPLE_STEPS, MULTI_GAQL_STEPS } from "./progressFlowConstants";
+import { ProgressFlow } from "./ProgressFlow";
 import { DashboardTable } from "./DashboardTable";
 import { DashboardBarChart } from "./DashboardBarChart";
 import { DashboardLineChart } from "./DashboardLineChart";
@@ -23,13 +29,18 @@ import { DashboardAreaChart } from "./DashboardAreaChart";
 import { DashboardComboChart } from "./DashboardComboChart";
 import { DashboardComparisonChart } from "./DashboardComparisonChart";
 import { DashboardSingleMetric } from "./DashboardSingleMetric";
+import { DashboardStackedBarChart } from "./DashboardStackedBarChart";
+import { DashboardDonutChart } from "./DashboardDonutChart";
+import { DashboardFunnelChart } from "./DashboardFunnelChart";
+import { DashboardScatterPlot } from "./DashboardScatterPlot";
+import { DashboardGaugeChart } from "./DashboardGaugeChart";
+import { DashboardHorizontalBarChart } from "./DashboardHorizontalBarChart";
 import { Dropdown } from "../../../../components/ui";
 import type { DropdownOption } from "../../../../components/ui";
-import type { DashboardComponent, LineChartDatum, PieChartDatum, SingleMetricDatum, VisualizationType } from "../../types/dashboard";
+import type { DashboardComponent, LineChartDatum, PieChartDatum, SingleMetricDatum, FunnelChartDatum, VisualizationType } from "../../types/dashboard";
 import { isMultiGaqlQuery } from "../../types/dashboard";
 import { getDashboardComponentData } from "../../../../services/dashboard";
 import { getMockDataForComponent } from "../../utils/dashboardMockData";
-import { getQuerySummary } from "../../utils/queryDisplay";
 import { useDashboardTheme } from "../../contexts/DashboardThemeContext";
 
 const VIZ_ICON_CLS = "w-4 h-4 shrink-0";
@@ -43,6 +54,12 @@ const VIZ_ICONS: Record<VisualizationType, React.ReactNode> = {
   combo_chart: <BarChart2 className={VIZ_ICON_CLS} aria-hidden />,
   comparison_chart: <BarChart2 className={VIZ_ICON_CLS} aria-hidden />,
   single_metric: <LayoutDashboard className={VIZ_ICON_CLS} aria-hidden />,
+  stacked_bar_chart: <BarChart3 className={VIZ_ICON_CLS} aria-hidden />,
+  donut_chart: <PieChart className={VIZ_ICON_CLS} aria-hidden />,
+  funnel_chart: <Filter className={VIZ_ICON_CLS} aria-hidden />,
+  scatter_plot: <ScatterChart className={VIZ_ICON_CLS} aria-hidden />,
+  gauge_chart: <Gauge className={VIZ_ICON_CLS} aria-hidden />,
+  horizontal_bar_chart: <BarChartHorizontal className={VIZ_ICON_CLS} aria-hidden />,
 };
 
 const VIZ_TYPE_OPTIONS: DropdownOption<VisualizationType>[] = [
@@ -54,6 +71,12 @@ const VIZ_TYPE_OPTIONS: DropdownOption<VisualizationType>[] = [
   { value: "combo_chart", label: "Combo chart" },
   { value: "comparison_chart", label: "Comparison chart" },
   { value: "single_metric", label: "Single metric" },
+  { value: "stacked_bar_chart", label: "Stacked bar" },
+  { value: "donut_chart", label: "Donut chart" },
+  { value: "funnel_chart", label: "Funnel" },
+  { value: "scatter_plot", label: "Scatter plot" },
+  { value: "gauge_chart", label: "Gauge" },
+  { value: "horizontal_bar_chart", label: "Horizontal bar" },
 ];
 
 interface DashboardWidgetProps {
@@ -67,7 +90,7 @@ interface DashboardWidgetProps {
   isExpanded?: boolean;
   onExpandToggle?: () => void;
   dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
-  /** Override chart type (e.g. user switched from line to bar in demo) */
+  /** Override chart type (e.g., user switched from line to bar in demo) */
   effectiveVisualizationType?: VisualizationType;
   onVisualizationChange?: (componentId: string, type: VisualizationType) => void;
 }
@@ -90,7 +113,6 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   dashboardId,
   shareId,
   staggerDelayMs = 0,
-  showQueryDetails = false,
   editable = false,
   isExpanded = false,
   onExpandToggle,
@@ -101,11 +123,18 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   const vizType = effectiveVisualizationType ?? component.visualization_type;
   const [status, setStatus] = useState<WidgetStatus>("pending");
   const [data, setData] = useState<DashboardComponent>({} as DashboardComponent);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const mountedRef = useRef(true);
   const hasFetchedRef = useRef(false);
   const lastComponentIdRef = useRef(component.id);
   const isMulti = isMultiGaqlQuery(component.query);
   const steps = isMulti ? MULTI_GAQL_STEPS : SIMPLE_STEPS;
+
+  const handleRefresh = () => {
+    hasFetchedRef.current = false;
+    setStatus("pending");
+    setRefreshTrigger((prev) => prev + 1);
+  };
 
   useEffect(() => {
     if (lastComponentIdRef.current !== component.id) {
@@ -116,7 +145,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
 
     mountedRef.current = true;
     const run = async () => {
-      if (staggerDelayMs > 0) await new Promise((r) => setTimeout(r, staggerDelayMs));
+      if (refreshTrigger === 0 && staggerDelayMs > 0) await new Promise((r) => setTimeout(r, staggerDelayMs));
       if (!mountedRef.current) return;
 
       setStatus("fetching");
@@ -148,7 +177,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
 
       let rows: DashboardComponent;
       if (accountId && dashboardId) {
-        rows = await getDashboardComponentData(accountId, dashboardId, component.id, component);
+        rows = await getDashboardComponentData(accountId, dashboardId, component.id, component, refreshTrigger);
       } else if (shareId) {
         // TODO: handle shareId public access
         rows = {data:getMockDataForComponent(componentForMock)} as DashboardComponent;
@@ -160,9 +189,9 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
       setStatus("ready");
       hasFetchedRef.current = true;
     };
-    run();
+    void run();
     return () => { mountedRef.current = false; };
-  }, [component, staggerDelayMs, isMulti, shareId, vizType, accountId, dashboardId]);
+  }, [component, staggerDelayMs, isMulti, shareId, vizType, accountId, dashboardId, refreshTrigger]);
 
   const statusToStep: Record<WidgetStatus, ProgressStep> = {
     pending: "fetch",
@@ -175,8 +204,6 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   };
   const activeStep = statusToStep[status];
   const { isDark } = useDashboardTheme();
-  const [queryExpanded, setQueryExpanded] = useState(false);
-  const querySummary = showQueryDetails ? getQuerySummary(component) : null;
 
   return (
     <div
@@ -277,35 +304,20 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
                 )}
               />
             )}
-            {querySummary && (
-              <button
-                type="button"
-                onClick={() => setQueryExpanded((e) => !e)}
-                className={`shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors ml-auto ${isDark
-                  ? "text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200"
-                  : "text-forest-f30 hover:bg-sandstorm-s20 hover:text-forest-f60"
-                  }`}
-                aria-expanded={queryExpanded}
-                aria-label={`${querySummary.type} query. Click to ${queryExpanded ? "collapse" : "expand"}.`}
-              >
-                <Code className="w-4 h-4" aria-hidden />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={status !== "ready"}
+              className={`shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${isDark
+                  ? "text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  : "text-forest-f30 hover:bg-sandstorm-s20 hover:text-forest-f60 disabled:opacity-50 disabled:cursor-not-allowed"
+                }`}
+              aria-label="Refresh this widget"
+            >
+              <RotateCw className={`w-4 h-4 ${status !== "ready" ? "animate-spin" : ""}`} aria-hidden />
+            </button>
           </div>
         </div>
-        {querySummary && queryExpanded && (
-          <div
-            className={`px-4 pb-3 pt-0 border-t ${isDark ? "border-neutral-700 bg-neutral-800/50" : "border-sandstorm-s40/40 bg-sandstorm-s5/30"
-              }`}
-          >
-            <pre
-              className={`text-[10px] overflow-x-auto whitespace-pre-wrap break-words font-mono max-h-32 overflow-y-auto ${isDark ? "text-neutral-300" : "text-forest-f30"
-                }`}
-            >
-              {querySummary.full}
-            </pre>
-          </div>
-        )}
       </div>
       <div className="flex-1 flex flex-col min-h-0">
         {status !== "ready" ? (
@@ -339,6 +351,30 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
         ) : vizType === "single_metric" ? (
           <div className="flex-1 min-h-[120px] flex flex-col">
             <DashboardSingleMetric component={component} data={data.data as SingleMetricDatum[]} isDark={isDark} />
+          </div>
+        ) : vizType === "stacked_bar_chart" ? (
+          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+            <DashboardStackedBarChart component={component} data={data.data as Record<string, unknown>[]} isDark={isDark} />
+          </div>
+        ) : vizType === "donut_chart" ? (
+          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+            <DashboardDonutChart component={component} data={data.data as PieChartDatum[]} isDark={isDark} />
+          </div>
+        ) : vizType === "funnel_chart" ? (
+          <div className="flex-1 min-h-[180px] flex items-center justify-center px-3 pb-3">
+            <DashboardFunnelChart component={component} data={data.data as FunnelChartDatum[]} isDark={isDark} />
+          </div>
+        ) : vizType === "scatter_plot" ? (
+          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+            <DashboardScatterPlot component={component} data={data.data as Record<string, unknown>[]} isDark={isDark} />
+          </div>
+        ) : vizType === "gauge_chart" ? (
+          <div className="flex-1 min-h-[180px] flex items-center justify-center px-3 pb-3">
+            <DashboardGaugeChart component={component} data={data.data as Record<string, unknown>[]} isDark={isDark} />
+          </div>
+        ) : vizType === "horizontal_bar_chart" ? (
+          <div className="flex-1 min-h-[180px] flex items-center justify-center px-3 pb-3">
+            <DashboardHorizontalBarChart component={component} data={data.data as Record<string, unknown>[]} isDark={isDark} />
           </div>
         ) : (
           <div className="flex-1 min-h-[180px] flex items-center justify-center px-3 pb-3">

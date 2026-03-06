@@ -94,17 +94,48 @@ export async function createDashboard(
 }
 
 /**
+ * Update dashboard config (layout, component order, visualization types, etc.).
+ */
+export async function updateDashboardConfig(
+  accountId: number,
+  dashboardId: number,
+  config: DashboardConfig
+): Promise<DashboardResponse> {
+  const { data } = await api.patch<DashboardResponse>(
+    `${API_BASE}/${accountId}/dashboards/${dashboardId}/`,
+    { config }
+  );
+  return data;
+}
+
+/** Deduplicate concurrent requests (e.g. React StrictMode double-invokes effects) */
+const componentDataCache = new Map<string, Promise<DashboardComponent>>();
+
+/**
  * Fetch data for a single dashboard component.
+ * Deduplicates concurrent identical requests so each widget makes only one API call.
  */
 export async function getDashboardComponentData(
   accountId: number,
   dashboardId: number,
   componentId: string,
-  _component: DashboardComponent
+  _component: DashboardComponent,
+  refreshTrigger = 0
 ): Promise<DashboardComponent> {
-    const  {data}  = await api.get<DashboardComponent>(
-      `${API_BASE}/${accountId}/dashboards/${dashboardId}/components/${componentId}/`
-    );
-    const resp = data ?? _component;
-    return resp;
+  const key = `${accountId}-${dashboardId}-${componentId}-${refreshTrigger}`;
+  const cached = componentDataCache.get(key);
+  if (cached) return cached;
+
+  const promise = (async () => {
+    try {
+      const { data } = await api.get<DashboardComponent>(
+        `${API_BASE}/${accountId}/dashboards/${dashboardId}/components/${componentId}/`
+      );
+      return data ?? _component;
+    } finally {
+      componentDataCache.delete(key);
+    }
+  })();
+  componentDataCache.set(key, promise);
+  return promise;
 }

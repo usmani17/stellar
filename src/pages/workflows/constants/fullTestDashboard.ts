@@ -2,14 +2,12 @@ import type { DashboardConfig } from "../types/dashboard";
 
 /**
  * Full-fledged test dashboard — exercises all query types and viz types.
- * Demo order: charts/graphs first, then tables.
- * 1. Bar, line, pie, area charts
- * 2. Tables (GAQL, date_range, multi-GAQL, SQL)
+ * Demo order: KPIs, charts/graphs, new viz types, then tables.
  */
 export const FULL_TEST_DASHBOARD_CONFIG: DashboardConfig = {
   layout: {
     cols: 2,
-    rows: 4,
+    rows: 10,
   },
   components: [
     // ── First 4 in demo: Daily spend, Keyword Spend, Spend by campaign (pie), Impressions over time ──
@@ -86,6 +84,167 @@ export const FULL_TEST_DASHBOARD_CONFIG: DashboardConfig = {
       visualization_type: "bar_chart",
       sort: { field: "metrics.cost_micros", order: "desc" },
       refresh_interval_seconds: 300,
+    },
+    // ── Single Metric KPI Row ──
+    {
+      id: "total-spend-kpi",
+      title: "Total Spend (KPI)",
+      data_source: "google_ads",
+      query: {
+        gaql: "SELECT metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions FROM customer WHERE segments.date DURING LAST_30_DAYS",
+        format: "json",
+      },
+      filters: {},
+      visualization_type: "single_metric",
+      data_keys: { x: "", series: ["metrics.impressions", "metrics.clicks", "metrics.costMicros", "metrics.conversions"] },
+      sort: { field: "metrics.costMicros", order: "desc" },
+      pagination: null,
+      refresh_interval_seconds: 300,
+      rows: 1,
+      cols: 2,
+    },
+    // ── Combo Chart ──
+    {
+      id: "spend-ctr-combo",
+      title: "Spend (bars) + CTR (line)",
+      data_source: "google_ads",
+      query: {
+        gaql: "SELECT segments.date, metrics.cost_micros, metrics.ctr FROM campaign WHERE segments.date DURING LAST_14_DAYS ORDER BY segments.date ASC",
+        format: "json",
+      },
+      filters: {},
+      visualization_type: "combo_chart",
+      data_keys: { x: "segments.date", series: ["metrics.costMicros", "metrics.ctr"] },
+      sort: { field: "segments.date", order: "asc" },
+      pagination: null,
+      refresh_interval_seconds: 300,
+      rows: 1,
+      cols: 1,
+    },
+    // ── Comparison Chart ──
+    {
+      id: "month-comparison",
+      title: "This month vs last month",
+      data_source: "google_ads",
+      query: {
+        gaql: "SELECT campaign.name, metrics.clicks, metrics.impressions FROM campaign WHERE segments.date DURING LAST_30_DAYS ORDER BY metrics.clicks DESC LIMIT 5",
+        format: "json",
+      },
+      filters: {},
+      visualization_type: "comparison_chart",
+      data_keys: { x: "campaign.name", series: ["metrics.clicks", "metrics.impressions"] },
+      sort: { field: "metrics.clicks", order: "desc" },
+      pagination: null,
+      refresh_interval_seconds: 300,
+      rows: 1,
+      cols: 1,
+    },
+    // ── Stacked Bar Chart ──
+    {
+      id: "spend-stacked",
+      title: "Spend by campaign type (stacked)",
+      data_source: "google_ads",
+      query: {
+        gaql: "SELECT segments.date, metrics.cost_micros, metrics.clicks FROM campaign WHERE segments.date DURING LAST_7_DAYS ORDER BY segments.date ASC",
+        format: "json",
+      },
+      filters: {},
+      visualization_type: "stacked_bar_chart",
+      data_keys: { x: "segments.date", series: ["metrics.costMicros", "metrics.clicks"] },
+      sort: { field: "segments.date", order: "asc" },
+      pagination: null,
+      refresh_interval_seconds: 300,
+      rows: 1,
+      cols: 1,
+    },
+    // ── Donut Chart ──
+    {
+      id: "budget-donut",
+      title: "Budget allocation",
+      data_source: "google_ads",
+      query: {
+        gaql: "SELECT campaign.name, metrics.cost_micros FROM campaign WHERE segments.date DURING LAST_30_DAYS ORDER BY metrics.cost_micros DESC LIMIT 5",
+        format: "json",
+      },
+      filters: {},
+      visualization_type: "donut_chart",
+      data_keys: { x: "campaign.name", series: ["metrics.costMicros"] },
+      sort: { field: "metrics.costMicros", order: "desc" },
+      pagination: null,
+      refresh_interval_seconds: 300,
+      rows: 1,
+      cols: 1,
+    },
+    // ── Funnel Chart ──
+    {
+      id: "conversion-funnel",
+      title: "Conversion funnel",
+      data_source: "google_ads",
+      query: {
+        gaql: "SELECT metrics.impressions, metrics.clicks, metrics.conversions FROM customer WHERE segments.date DURING LAST_30_DAYS",
+        format: "json",
+      },
+      filters: {},
+      visualization_type: "funnel_chart",
+      sort: { field: "value", order: "desc" },
+      pagination: null,
+      refresh_interval_seconds: 300,
+      rows: 1,
+      cols: 1,
+    },
+    // ── Scatter Plot ──
+    {
+      id: "spend-vs-conversions",
+      title: "Spend vs Conversions",
+      data_source: "google_ads",
+      query: {
+        gaql: "SELECT campaign.name, metrics.cost_micros, metrics.conversions FROM campaign WHERE segments.date DURING LAST_30_DAYS ORDER BY metrics.cost_micros DESC LIMIT 20",
+        format: "json",
+      },
+      filters: {},
+      visualization_type: "scatter_plot",
+      data_keys: { x: "metrics.costMicros", series: ["metrics.conversions"] },
+      sort: { field: "metrics.costMicros", order: "desc" },
+      pagination: null,
+      refresh_interval_seconds: 300,
+      rows: 1,
+      cols: 1,
+    },
+    // ── Gauge Chart ──
+    {
+      id: "budget-utilization",
+      title: "Budget utilization",
+      data_source: "internal_db",
+      query: {
+        sql: "SELECT ROUND(SUM(cost_micros)::numeric / NULLIF(SUM(budget_micros), 0) * 100, 1) AS utilization FROM reports_campaign WHERE workspace_id = %(workspace_id)s AND date >= %(since)s",
+        params: { since: "2025-02-01" },
+      },
+      filters: {},
+      visualization_type: "gauge_chart",
+      data_keys: { x: "", series: ["utilization"] },
+      sort: { field: "utilization", order: "desc" },
+      pagination: null,
+      refresh_interval_seconds: 300,
+      rows: 1,
+      cols: 1,
+    },
+    // ── Horizontal Bar Chart ──
+    {
+      id: "top-campaigns-horizontal",
+      title: "Top 10 campaigns by spend",
+      data_source: "google_ads",
+      query: {
+        gaql: "SELECT campaign.name, metrics.cost_micros FROM campaign WHERE segments.date DURING LAST_30_DAYS ORDER BY metrics.cost_micros DESC LIMIT 10",
+        format: "json",
+      },
+      filters: {},
+      visualization_type: "horizontal_bar_chart",
+      data_keys: { x: "campaign.name", series: ["metrics.costMicros"] },
+      sort: { field: "metrics.costMicros", order: "desc" },
+      pagination: null,
+      refresh_interval_seconds: 300,
+      rows: 1,
+      cols: 1,
     },
     // ── Tables ──
     {

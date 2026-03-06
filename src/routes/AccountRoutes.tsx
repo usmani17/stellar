@@ -33,7 +33,7 @@ function AccountRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <Layout>
-                                <Navigate to="/brands" replace />
+                                <Navigate to="/chat" replace />
                             </Layout>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>

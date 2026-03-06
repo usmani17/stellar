@@ -57,13 +57,12 @@ export function getPixisAiBaseUrl(): string | null {
 
 export const pixisAiSessionsService = {
   list: async (
-    accountId: number,
     accessToken: string,
-    options?: { limit?: number; offset?: number }
+    options?: { accountId?: number; limit?: number; offset?: number }
   ): Promise<{ sessions: PixisSession[] }> => {
     const baseUrl = getBaseUrl();
     const params = new URLSearchParams();
-    params.set("account_id", String(accountId));
+    if (options?.accountId != null) params.set("account_id", String(options.accountId));
     if (options?.limit) params.set("limit", String(options.limit));
     if (options?.offset) params.set("offset", String(options.offset));
 

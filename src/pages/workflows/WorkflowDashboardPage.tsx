@@ -1,15 +1,13 @@
 import React, { useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Share2, Moon, Sun, RotateCw } from "lucide-react";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { DashboardGrid } from "./components/dashboard/DashboardGrid";
-import { workflowsService } from "../../services/workflows";
-import { getDashboardDetail } from "../../services/dashboard";
-import { queryKeys } from "../../hooks/queries/queryKeys";
+import { getDashboardDetail, updateDashboardConfig } from "../../services/dashboard";
 import { DashboardThemeProvider, useDashboardTheme } from "./contexts/DashboardThemeContext";
 import { Assistant } from "../../components/layout/Assistant";
 
@@ -21,12 +19,6 @@ export const WorkflowDashboardPage: React.FC = () => {
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
   const dashboardIdNum = dashboardId ? parseInt(dashboardId, 10) : undefined;
 
-  const { data: workflow } = useQuery({
-    queryKey: [...queryKeys.workflows.detail(dashboardIdNum ?? 0), accountIdNum],
-    queryFn: () => workflowsService.getWorkflow(accountIdNum!, dashboardIdNum!),
-    enabled: !!accountIdNum && !!dashboardIdNum,
-  });
-
   const { data: dashboard, isLoading: isLoadingDashboard, refetch: refetchDashboard } = useQuery({
     queryKey: ["dashboard", accountIdNum, dashboardIdNum],
     queryFn: () => getDashboardDetail(accountIdNum!, dashboardIdNum!),
@@ -34,9 +26,9 @@ export const WorkflowDashboardPage: React.FC = () => {
   });
 
   useEffect(() => {
-    setPageTitle(workflow?.name ? `${workflow.name} — Dashboard` : "Dashboard");
+    setPageTitle(dashboard?.name ? `${dashboard.name} — Dashboard` : "Dashboard");
     return () => resetPageTitle();
-  }, [workflow?.name]);
+  }, [dashboard?.name]);
 
   const handleShare = async () => {
     if (!accountIdNum || !dashboardIdNum || !dashboard) return;
@@ -74,6 +66,7 @@ export const WorkflowDashboardPage: React.FC = () => {
         accountIdNum={accountIdNum}
         dashboardId={dashboard?.id}
         onRefresh={() => refetchDashboard()}
+        refetchDashboard={refetchDashboard}
       />
     </DashboardThemeProvider>
   );
@@ -89,6 +82,7 @@ function WorkflowDashboardContent({
   accountIdNum,
   dashboardId,
   onRefresh,
+  refetchDashboard,
 }: {
   workflowsPath: string;
   sidebarWidth: number;
@@ -99,8 +93,27 @@ function WorkflowDashboardContent({
   accountIdNum: number | undefined;
   dashboardId: number | undefined;
   onRefresh: () => void;
+  refetchDashboard: () => void;
 }) {
   const { isDark, toggleTheme } = useDashboardTheme();
+  const queryClient = useQueryClient();
+
+  const updateConfigMutation = useMutation({
+    mutationFn: (newConfig: import("./types/dashboard").DashboardConfig) =>
+      updateDashboardConfig(accountIdNum!, dashboardId!, newConfig),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dashboard", accountIdNum, dashboardId] });
+      refetchDashboard();
+    },
+    onError: (err) => {
+      console.error("Failed to update dashboard config:", err);
+    },
+  });
+
+  const handleConfigChange = (newConfig: import("./types/dashboard").DashboardConfig) => {
+    if (!accountIdNum || !dashboardId) return;
+    updateConfigMutation.mutate(newConfig);
+  };
 
   return (
     <div className="min-h-screen bg-white flex">
@@ -112,12 +125,15 @@ function WorkflowDashboardContent({
         <DashboardHeader />
         <Assistant />
         <div
-          className={`px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 min-h-screen transition-colors ${isDark ? "bg-neutral-900" : "bg-sandstorm-s0"
+          className={`min-h-screen transition-colors duration-300 ${isDark
+              ? "bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900"
+              : "bg-gradient-to-br from-sandstorm-s0 via-sandstorm-s5 to-sandstorm-s10"
             }`}
         >
-          <div className="space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
+          <div className="max-w-[1600px] mx-auto px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8">
+            <div className="space-y-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
                 <Link
                   to={workflowsPath}
                   className="inline-flex items-center gap-1.5 text-[11px] font-medium text-forest-f40 hover:text-forest-f50"
@@ -129,8 +145,8 @@ function WorkflowDashboardContent({
                 <h1 className={`text-[14px] font-semibold ${isDark ? "text-neutral-100" : "text-forest-f60"}`}>
                   {workflowName ?? "Dashboard"}
                 </h1>
-              </div>
-              <div className="flex items-center gap-2">
+                </div>
+                <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={onRefresh}
@@ -165,20 +181,24 @@ function WorkflowDashboardContent({
                   <Share2 className="w-3.5 h-3.5" />
                   {shareCopied ? "Copied" : "Share"}
                 </button>
+                </div>
               </div>
-            </div>
 
-            {config ? (
-              <DashboardGrid
-                config={config}
-                accountId={accountIdNum}
-                dashboardId={dashboardId}
-              />
-            ) : (
-              <div className={`p-12 text-center rounded-xl border border-dashed ${isDark ? "border-neutral-700 text-neutral-400" : "border-sandstorm-s40 text-forest-f30"}`}>
-                <p>No dashboard configuration found for this workflow.</p>
-              </div>
-            )}
+              {config ? (
+                <DashboardGrid
+                  config={config}
+                  accountId={accountIdNum}
+                  dashboardId={dashboardId}
+                  showQueryDetails
+                  editable
+                  onConfigChange={handleConfigChange}
+                />
+              ) : (
+                <div className={`p-12 text-center rounded-xl border border-dashed ${isDark ? "border-neutral-700 text-neutral-400" : "border-sandstorm-s40 text-forest-f30"}`}>
+                  <p>No dashboard configuration found.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -4,6 +4,10 @@ import PublicRoutes from "./PublicRoutes";
 import OAuthRoutes from "./OAuthRoutes";
 import ChannelRoutes from "./ChannelRoutes";
 import AccountRoutes from "./AccountRoutes";
+import { ProtectedRoute } from "../components/auth/ProtectedRoute";
+import { WorkspaceRequiredRoute } from "../components/auth/WorkspaceRequiredRoute";
+import { Layout } from "../components/layout/Layout";
+import { AssistantPage } from "../pages/AssistantPage";
 import AmazonRoutes from "./AmazonRoutes";
 import GoogleRoutes from "./GoogleRoutes";
 import MetaRoutes from "./MetaRoutes";
@@ -25,6 +29,18 @@ function AppRoutes() {
     return (
         <Routes>
             <Route element={<AssistantWrapper />}>
+                <Route
+                    path="/chat"
+                    element={
+                        <ProtectedRoute>
+                            <WorkspaceRequiredRoute>
+                                <Layout>
+                                    <AssistantPage />
+                                </Layout>
+                            </WorkspaceRequiredRoute>
+                        </ProtectedRoute>
+                    }
+                />
                 {PublicRoutes()}
                 {OAuthRoutes()}
                 {ChannelRoutes()}

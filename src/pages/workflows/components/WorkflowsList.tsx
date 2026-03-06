@@ -20,7 +20,7 @@ import {
   BarChart2,
   LayoutGrid,
 } from "lucide-react";
-import { ConfirmationModal, Tooltip } from "../../../components/ui";
+import { ConfirmationModal, Tooltip, Loader } from "../../../components/ui";
 import { WorkflowRunHistoryModal } from "./WorkflowRunHistoryModal";
 import { WorkflowPreviewModal } from "./WorkflowPreviewModal";
 import { CreateDashboardModal } from "./CreateDashboardModal";
@@ -35,6 +35,7 @@ import { getDashboards } from "../../../services/dashboard";
 interface WorkflowsListProps {
   accountId: number | undefined;
   workflows: Workflow[];
+  isLoading?: boolean;
   onEdit: (workflow: Workflow) => void;
   onDelete: (id: number) => Promise<void>;
   isDeleting: boolean;
@@ -47,6 +48,7 @@ interface WorkflowsListProps {
 export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   accountId,
   workflows,
+  isLoading = false,
   onEdit,
   onDelete,
   isDeleting,
@@ -93,6 +95,14 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
         <p className="text-forest-f30 text-sm">
           Select a brand to view workflows.
         </p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <Loader size="lg" message="Loading workflows..." />
       </div>
     );
   }

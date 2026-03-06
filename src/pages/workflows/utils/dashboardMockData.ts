@@ -38,6 +38,30 @@ export function getMockDataForComponent(
     return getMockSingleMetricData(id);
   }
 
+  if (vizType === "stacked_bar_chart") {
+    return getMockStackedBarData(component);
+  }
+
+  if (vizType === "donut_chart") {
+    return getMockPieChartData(id);
+  }
+
+  if (vizType === "funnel_chart") {
+    return getMockFunnelData();
+  }
+
+  if (vizType === "scatter_plot") {
+    return getMockScatterData(component);
+  }
+
+  if (vizType === "gauge_chart") {
+    return getMockGaugeData();
+  }
+
+  if (vizType === "horizontal_bar_chart") {
+    return getMockHorizontalBarData(component);
+  }
+
   switch (id) {
     case "campaign-perf":
     case "campaign-perf-date-range":
@@ -461,4 +485,70 @@ function getMockSingleMetricData(
       ctr_pct: 15.0,
     },
   ];
+}
+
+function getMockStackedBarData(component: DashboardComponent): Record<string, unknown>[] {
+  const xKey = component.data_keys?.x ?? "date";
+  const seriesKeys = component.data_keys?.series ?? ["search", "display", "shopping"];
+  const baseDate = new Date("2025-02-24");
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() + i);
+    const row: Record<string, unknown> = {
+      [xKey]: d.toISOString().slice(0, 10),
+    };
+    const values = [
+      Math.round(300000000 + Math.random() * 200000000),
+      Math.round(150000000 + Math.random() * 100000000),
+    ];
+    seriesKeys.forEach((k, idx) => {
+      row[k] = values[idx] ?? Math.round(80000000 + Math.random() * 60000000);
+    });
+    return row;
+  });
+}
+
+function getMockFunnelData(): Record<string, unknown>[] {
+  return [
+    { name: "Impressions", value: 125000 },
+    { name: "Clicks", value: 3400 },
+    { name: "Conversions", value: 120 },
+    { name: "Purchases", value: 45 },
+  ];
+}
+
+function getMockScatterData(component: DashboardComponent): Record<string, unknown>[] {
+  const xKey = component.data_keys?.x ?? "spend";
+  const yKey = component.data_keys?.series?.[0] ?? "conversions";
+  const nameKey = "campaign.name";
+  return Array.from({ length: 15 }, (_, i) => ({
+    [xKey]: Math.round(100000000 + Math.random() * 900000000),
+    [yKey]: Math.round(2 + Math.random() * 20),
+    [nameKey]: `Campaign ${i + 1}`,
+  }));
+}
+
+function getMockGaugeData(): Record<string, unknown>[] {
+  return [{ utilization: 73.2 }];
+}
+
+function getMockHorizontalBarData(component: DashboardComponent): Record<string, unknown>[] {
+  const labelKey = component.data_keys?.x ?? "name";
+  const valueKey = component.data_keys?.series?.[0] ?? "value";
+  const campaigns = [
+    { label: "Summer Sale", val: 892000000 },
+    { label: "Athletic", val: 654000000 },
+    { label: "Winter 2024", val: 421000000 },
+    { label: "Everyday", val: 312000000 },
+    { label: "Brand Awareness", val: 198000000 },
+    { label: "Spring Collection", val: 176000000 },
+    { label: "Holiday Promo", val: 145000000 },
+    { label: "Back to School", val: 132000000 },
+    { label: "Flash Sale", val: 118000000 },
+    { label: "New Arrivals", val: 98000000 },
+  ];
+  return campaigns.map((c) => ({
+    [labelKey]: c.label,
+    [valueKey]: c.val,
+  }));
 }
