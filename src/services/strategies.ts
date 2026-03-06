@@ -50,6 +50,8 @@ export interface Strategy {
   is_approved: boolean;
   approval_layer: string;
   last_run: string | null;
+  /** True while a run is in progress (manual or scheduled). */
+  is_running?: boolean;
   created_at: string;
   updated_at: string;
   profile_ids: number[];
@@ -125,6 +127,13 @@ export interface StrategyRunsResponse {
   results: StrategyRunHistoryItem[];
 }
 
+/** Response from POST /strategies/:id/runs/ (trigger run). */
+export interface StrategyRunTriggerResponse {
+  status: string;
+  message: string;
+  strategy_id: number;
+}
+
 export const strategiesService = {
   getStrategies: async (): Promise<Strategy[]> => {
     const response = await api.get<Strategy[] | { results: Strategy[] }>(
@@ -181,6 +190,14 @@ export const strategiesService = {
       `/strategies/${strategyId}/runs/`,
     );
     return response.data?.results ?? [];
+  },
+
+  /** Trigger a strategy run (Run button). Returns 202; run executes async. */
+  runStrategy: async (strategyId: number): Promise<StrategyRunTriggerResponse> => {
+    const response = await api.post<StrategyRunTriggerResponse>(
+      `/strategies/${strategyId}/runs/`,
+    );
+    return response.data;
   },
 
   createStrategy: async (data: CreateStrategyData): Promise<Strategy> => {

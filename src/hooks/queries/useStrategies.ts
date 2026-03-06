@@ -17,6 +17,7 @@ export const useStrategiesPaginated = (
         search: search?.trim() || undefined,
       }),
     enabled: options?.enabled ?? true,
+    refetchOnWindowFocus: false,
     retry: (failureCount, error: any) => {
       if (error?.response?.status === 401 || error?.response?.status === 403)
         return false;

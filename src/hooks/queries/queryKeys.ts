@@ -126,6 +126,8 @@ export const queryKeys = {
       ] as const,
     detail: (id: number) =>
       [...queryKeys.strategies.all, "detail", id] as const,
+    runs: (strategyId: number) =>
+      [...queryKeys.strategies.all, "runs", strategyId] as const,
   },
   automations: {
     all: ["automations"] as const,

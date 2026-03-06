@@ -3,7 +3,10 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { useSidebar } from "../contexts/SidebarContext";
 import { useStrategiesPaginated } from "../hooks/queries/useStrategies";
-import { useDuplicateStrategy } from "../hooks/mutations/useStrategyMutations";
+import {
+  useDuplicateStrategy,
+  useRunStrategy,
+} from "../hooks/mutations/useStrategyMutations";
 import { useDebouncedSearch } from "../hooks/useDebouncedSearch";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
@@ -26,12 +29,16 @@ export const Strategies: React.FC = () => {
     refetch,
   } = useStrategiesPaginated(currentPage, PAGE_SIZE, debouncedSearchQuery);
   const duplicateMutation = useDuplicateStrategy();
+  const runMutation = useRunStrategy();
   const { sidebarWidth } = useSidebar();
   const navigate = useNavigate();
   const location = useLocation();
   const [showCreatedSuccess, setShowCreatedSuccess] = useState(false);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
+  const [runSuccessId, setRunSuccessId] = useState<number | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
+  const [startingRunId, setStartingRunId] = useState<number | null>(null);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -63,12 +70,45 @@ export const Strategies: React.FC = () => {
     }
   };
 
+  const handleRun = (e: React.MouseEvent, strategy: Strategy) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (strategy.is_running || startingRunId === strategy.id) return;
+    setRunError(null);
+    setRunSuccessId(null);
+    setStartingRunId(strategy.id);
+    runMutation.mutate(strategy.id, {
+      onSuccess: () => {
+        setRunSuccessId(strategy.id);
+        setStartingRunId(null);
+        refetch();
+        setTimeout(() => setRunSuccessId(null), 3000);
+      },
+      onError: (err: Error & { response?: { data?: { detail?: string } } }) => {
+        setStartingRunId(null);
+        const msg =
+          err?.response?.data?.detail ??
+          err?.message ??
+          "Failed to start strategy run.";
+        setRunError(msg);
+      },
+    });
+  };
+
   useEffect(() => {
     setPageTitle("Strategies");
     return () => {
       resetPageTitle();
     };
   }, []);
+
+  // Poll only while at least one strategy is running (every 10s) so we update when run completes
+  const anyRunning = strategies.some((s) => s.is_running);
+  useEffect(() => {
+    if (!anyRunning) return;
+    const interval = setInterval(() => refetch(), 10000);
+    return () => clearInterval(interval);
+  }, [anyRunning, refetch]);
 
   // Show success banner and refetch list when redirected here after creating a strategy
   useEffect(() => {
@@ -118,6 +158,22 @@ export const Strategies: React.FC = () => {
                 message={duplicateError}
                 dismissable
                 onDismiss={() => setDuplicateError(null)}
+              />
+            )}
+            {runError && (
+              <Banner
+                type="error"
+                message={runError}
+                dismissable
+                onDismiss={() => setRunError(null)}
+              />
+            )}
+            {runSuccessId !== null && (
+              <Banner
+                type="success"
+                message="Strategy run started. It’s running in the background."
+                dismissable
+                onDismiss={() => setRunSuccessId(null)}
               />
             )}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -253,10 +309,12 @@ export const Strategies: React.FC = () => {
                           </td>
                           <td className="table-cell">
                             <span className="text-[14px] text-[#556179]">
-                              {strategy.status === "active" ||
-                              strategy.status === "Enabled"
-                                ? "Enabled"
-                                : "Paused"}
+                              {strategy.is_running
+                                ? "Running"
+                                : strategy.status === "active" ||
+                                    strategy.status === "Enabled"
+                                  ? "Enabled"
+                                  : "Paused"}
                             </span>
                           </td>
                           <td className="table-cell text-[14px] text-[#556179]">
@@ -273,6 +331,19 @@ export const Strategies: React.FC = () => {
                             onClick={(e) => e.stopPropagation()}
                           >
                             <div className="flex items-center gap-2 flex-wrap">
+                              <button
+                                type="button"
+                                className="text-[13px] text-[#136D6D] hover:underline disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                onClick={(e) => handleRun(e, strategy)}
+                                disabled={strategy.is_running || startingRunId === strategy.id}
+                              >
+                                {strategy.is_running
+                                  ? "Running…"
+                                  : startingRunId === strategy.id
+                                    ? "Starting…"
+                                    : "Run"}
+                              </button>
+                              <span className="text-[#e8e8e3]">|</span>
                               <Link
                                 to={`/strategies/${strategy.id}/run-history`}
                                 className="text-[13px] text-[#136D6D] hover:underline"

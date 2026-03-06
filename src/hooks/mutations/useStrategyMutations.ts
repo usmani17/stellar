@@ -3,6 +3,7 @@ import {
   strategiesService,
   type Strategy,
   type CreateStrategyData,
+  type StrategyRunTriggerResponse,
 } from "../../services/strategies";
 import { queryKeys } from "../queries/queryKeys";
 
@@ -36,6 +37,20 @@ export const useUpdateStrategy = (id: number) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.strategies.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.strategies.detail(id) });
+    },
+  });
+};
+
+export const useRunStrategy = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<StrategyRunTriggerResponse, Error, number>({
+    mutationFn: (strategyId) => strategiesService.runStrategy(strategyId),
+    onSuccess: (_, strategyId) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.strategies.all });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.strategies.runs(strategyId),
+      });
     },
   });
 };
