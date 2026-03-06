@@ -16,7 +16,7 @@ export const FULL_TEST_DASHBOARD_CONFIG: DashboardConfig = {
       title: "Daily spend",
       data_source: "internal_db",
       query: {
-        sql: "SELECT date, SUM(cost_micros) AS cost_micros FROM reports_campaign WHERE workspace_id = %(workspace_id)s AND date >= %(since)s GROUP BY date ORDER BY date ASC",
+        sql: "SELECT date, SUM(cost_micros) AS cost_micros FROM google.reports_campaign_68 WHERE workspace_id = %(workspace_id)s AND date >= %(since)s GROUP BY date ORDER BY date ASC",
         params: { since: "2025-02-01" },
       },
       filters: {},
@@ -216,7 +216,7 @@ export const FULL_TEST_DASHBOARD_CONFIG: DashboardConfig = {
       title: "Budget utilization",
       data_source: "internal_db",
       query: {
-        sql: "SELECT ROUND(SUM(cost_micros)::numeric / NULLIF(SUM(budget_micros), 0) * 100, 1) AS utilization FROM reports_campaign WHERE workspace_id = %(workspace_id)s AND date >= %(since)s",
+        sql: "SELECT ROUND(SUM(cost_micros)::numeric / NULLIF(SUM(budget_micros), 0) * 100, 1) AS utilization FROM google.reports_campaign_68 WHERE workspace_id = %(workspace_id)s AND date >= %(since)s",
         params: { since: "2025-02-01" },
       },
       filters: {},

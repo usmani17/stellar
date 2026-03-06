@@ -16,16 +16,6 @@ export function hasDashboardForWorkflow(workflowId: number): boolean {
   }
 }
 
-export function getDashboardForWorkflow(workflowId: number): DashboardConfig | null {
-  try {
-    const raw = localStorage.getItem(`${WORKFLOW_DASHBOARD_PREFIX}${workflowId}`);
-    if (!raw) return null;
-    return JSON.parse(raw) as DashboardConfig;
-  } catch {
-    return null;
-  }
-}
-
 export function setDashboardForWorkflow(workflowId: number, config: DashboardConfig): void {
   try {
     localStorage.setItem(`${WORKFLOW_DASHBOARD_PREFIX}${workflowId}`, JSON.stringify(config));

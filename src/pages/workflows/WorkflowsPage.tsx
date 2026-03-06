@@ -77,14 +77,14 @@ export const WorkflowsPage: React.FC = () => {
   };
 
   return (
-    <>
+    <div className="min-h-screen bg-white flex">
       <Sidebar />
       <div
-        className="transition-all duration-300"
+        className="flex-1 min-w-0 w-full h-screen flex flex-col"
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
         <DashboardHeader />
-        <Assistant />
+        <Assistant >
         <div className="px-4 pt-[104px] pb-6 sm:px-6 lg:px-8 lg:pt-[112px] lg:pb-8 bg-sandstorm-s0 min-h-screen">
           {/* Tabs */}
           <div className="mb-6">
@@ -224,7 +224,8 @@ export const WorkflowsPage: React.FC = () => {
             editingWorkflow={editingWorkflow}
           />
         </div>
+        </Assistant>
       </div>
-    </>
+    </div>
   );
 };

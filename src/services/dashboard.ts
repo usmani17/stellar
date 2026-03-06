@@ -12,11 +12,14 @@ const API_BASE = "/assistant";
 export interface DashboardResponse {
   id: number;
   name: string;
+  platform: string;
   description?: string;
   accountId: number;
   channelId?: number;
   profileId?: number;
   workflowId?: number;
+  channelName?: string;
+  profileName?: string;
   config: DashboardConfig;
   createdAt: string;
   updatedAt: string;
@@ -32,17 +35,6 @@ export async function getDashboards(accountId: number): Promise<DashboardRespons
     `${API_BASE}/${accountId}/dashboards/`
   );
   return data;
-}
-
-/**
- * Fetch dashboard config by workflow ID.
- */
-export async function getDashboardForWorkflow(
-  accountId: number,
-  workflowId: number
-): Promise<DashboardResponse | null> {
-    const dashboards = await getDashboards(accountId);
-    return dashboards.find((d) => d.workflowId === workflowId) ?? null;
 }
 
 /**
@@ -84,6 +76,7 @@ export async function createDashboard(
     workflowId?: number;
     channelId?: number;
     profileId?: number;
+    platform: string;
   }
 ): Promise<DashboardResponse> {
   const { data } = await api.post<DashboardResponse>(
@@ -108,6 +101,16 @@ export async function updateDashboardConfig(
   return data;
 }
 
+/**
+ * Soft-delete a dashboard (sets deleted_at; it will no longer appear in the list).
+ */
+export async function softDeleteDashboard(
+  accountId: number,
+  dashboardId: number
+): Promise<void> {
+  await api.delete(`${API_BASE}/${accountId}/dashboards/${dashboardId}/`);
+}
+
 /** Deduplicate concurrent requests (e.g. React StrictMode double-invokes effects) */
 const componentDataCache = new Map<string, Promise<DashboardComponent>>();
 
@@ -120,6 +123,8 @@ export async function getDashboardComponentData(
   dashboardId: number,
   componentId: string,
   _component: DashboardComponent,
+  channelId?: number,
+  profileId?: number,
   refreshTrigger = 0
 ): Promise<DashboardComponent> {
   const key = `${accountId}-${dashboardId}-${componentId}-${refreshTrigger}`;
@@ -129,7 +134,13 @@ export async function getDashboardComponentData(
   const promise = (async () => {
     try {
       const { data } = await api.get<DashboardComponent>(
-        `${API_BASE}/${accountId}/dashboards/${dashboardId}/components/${componentId}/`
+        `${API_BASE}/${accountId}/dashboards/${dashboardId}/components/${componentId}/`,
+        {
+          params: {
+            channelId,
+            profileId,
+          },
+        }
       );
       return data ?? _component;
     } finally {
