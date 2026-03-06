@@ -89,7 +89,8 @@ export const StrategyAutomation: React.FC<StrategyAutomationProps> = ({
   onActionStateChange,
   onScheduleStateChange,
 }) => {
-  const { action, adjustmentValue, adjustmentValueUnit, actionLimitValue } = actionState;
+  const { action, adjustmentValue, actionLimitValue } = actionState;
+  const adjustmentValueUnit = actionState.adjustmentValueUnit === "$" ? "$" : "%";
   const { scheduleEnabled, frequency, runAt, runDays } = scheduleState;
 
   const isIncreaseAction = action === "increase_bid" || action === "increase_budget";
@@ -163,9 +164,9 @@ export const StrategyAutomation: React.FC<StrategyAutomationProps> = ({
           {showActionInputs && (
             <>
               <div className="flex flex-col gap-1 min-w-[140px] flex-1 max-w-[200px]">
-                <div className="text-[14px] font-medium text-text-primary">
+                <label className="text-[14px] font-medium text-text-primary">
                   Adjustment Value
-                </div>
+                </label>
                 <div className="flex h-10 rounded-[12px] border border-[#e3e3e3] bg-[#FEFEFB] overflow-hidden transition-colors focus-within:border focus-within:border-[#136D6D]">
                   <input
                     type="number"
@@ -174,7 +175,7 @@ export const StrategyAutomation: React.FC<StrategyAutomationProps> = ({
                       onActionStateChange({ adjustmentValue: e.target.value })
                     }
                     placeholder={isIncreaseAction ? "20" : "10"}
-                    className="flex-1 border-0 rounded-none h-full text-[12px] px-3 outline-none bg-transparent"
+                    className="flex-1 min-w-0 border-0 rounded-none h-full text-[12px] px-3 outline-none bg-transparent text-[#072929]"
                   />
                   <button
                     type="button"
@@ -183,7 +184,8 @@ export const StrategyAutomation: React.FC<StrategyAutomationProps> = ({
                         adjustmentValueUnit: adjustmentValueUnit === "%" ? "$" : "%",
                       })
                     }
-                    className="flex items-center justify-center px-3 text-[14px] text-[#072929] border-l border-[#E8E8E3] h-full min-w-[44px] hover:bg-[#f5f5f0] transition-colors"
+                    className="flex items-center justify-center px-3 text-[14px] font-medium text-[#072929] border-l border-[#E8E8E3] h-full min-w-[44px] hover:bg-[#f5f5f0] transition-colors shrink-0"
+                    aria-label={`Unit: ${adjustmentValueUnit}. Click to switch to ${adjustmentValueUnit === "%" ? "$" : "%"}.`}
                   >
                     {adjustmentValueUnit}
                   </button>

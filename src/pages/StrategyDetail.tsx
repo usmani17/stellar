@@ -6,7 +6,7 @@ import { useStrategy } from "../hooks/queries/useStrategies";
 import { useCreateStrategy, useUpdateStrategy } from "../hooks/mutations/useStrategyMutations";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
-import { Checkbox, Dropdown } from "../components/ui";
+import { Checkbox, Dropdown, Loader } from "../components/ui";
 import {
   StrategyAutomation,
   type FilterValues,
@@ -94,9 +94,10 @@ function parseConditionsToFilters(
   });
 }
 
-/** Normalize API/label time (e.g. "12:00 AM") to HH:mm for <input type="time"> */
-function normalizeTimeForInput(value: string): string {
-  const s = value.trim();
+/** Normalize API/label time (e.g. "12:00 AM", "08:00:00") to HH:mm for <input type="time"> */
+function normalizeTimeForInput(value: string | unknown): string {
+  if (value == null) return "00:00";
+  const s = String(value).trim();
   const match12h = s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
   if (match12h) {
     let h = parseInt(match12h[1], 10);
@@ -106,13 +107,75 @@ function normalizeTimeForInput(value: string): string {
     if (ampm === "AM" && h === 12) h = 0;
     return `${String(h).padStart(2, "0")}:${m}`;
   }
-  const match24h = s.match(/^(\d{1,2}):(\d{2})$/);
+  const match24h = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
   if (match24h) {
     const h = String(parseInt(match24h[1], 10) % 24).padStart(2, "0");
     const m = String(parseInt(match24h[2], 10) % 60).padStart(2, "0");
     return `${h}:${m}`;
   }
   return "00:00";
+}
+
+/** Normalize backend frequency (e.g. "weekly") to display form ("Weekly") for dropdowns. */
+function normalizeFrequencyDisplay(freq: string | null | undefined): string {
+  if (freq == null || typeof freq !== "string") return "Weekly";
+  const lower = freq.trim().toLowerCase();
+  if (lower === "daily") return "Daily";
+  if (lower === "weekly") return "Weekly";
+  if (lower === "monthly") return "Monthly";
+  return freq.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+/** Parse approval_layer from API (JSON: { first_run?, campaigns_over?, change_exceeds? }). */
+function parseApprovalLayer(value: string | null | undefined): {
+  first_run?: boolean;
+  campaigns_over?: number | null;
+  change_exceeds?: number | null;
+} {
+  if (value == null || typeof value !== "string" || value.trim() === "") {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    return {
+      first_run: parsed.first_run === true,
+      campaigns_over:
+        typeof parsed.campaigns_over === "number"
+          ? parsed.campaigns_over
+          : typeof parsed.campaigns_over === "string"
+            ? parseFloat(parsed.campaigns_over)
+            : null,
+      change_exceeds:
+        typeof parsed.change_exceeds === "number"
+          ? parsed.change_exceeds
+          : typeof parsed.change_exceeds === "string"
+            ? parseFloat(parsed.change_exceeds)
+            : null,
+    };
+  } catch {
+    return {};
+  }
+}
+
+/** Build approval_layer JSON for API from form state. */
+function buildApprovalLayer(state: {
+  requireApprovalFirstRun: boolean;
+  requireApprovalCampaignsOver: boolean;
+  requireApprovalCampaignsOverValue: string;
+  requireApprovalChangeExceeds: boolean;
+  requireApprovalChangeExceedsValue: string;
+}): string {
+  const obj: Record<string, unknown> = {};
+  if (state.requireApprovalFirstRun) obj.first_run = true;
+  if (state.requireApprovalCampaignsOver) {
+    const n = parseFloat(state.requireApprovalCampaignsOverValue);
+    obj.campaigns_over = Number.isFinite(n) ? n : 20;
+  }
+  if (state.requireApprovalChangeExceeds) {
+    const n = parseFloat(state.requireApprovalChangeExceedsValue);
+    obj.change_exceeds = Number.isFinite(n) ? n : 25;
+  }
+  return Object.keys(obj).length === 0 ? "" : JSON.stringify(obj);
 }
 
 const STATE_OPTIONS = [
@@ -288,6 +351,10 @@ export const StrategyDetail: React.FC = () => {
     setMaxChangePerWeek(
       strategy.max_change_per_week != null ? String(strategy.max_change_per_week) : ""
     );
+    const dayUnit = (strategy.max_change_per_day_unit ?? strategy.max_change_unit ?? "percent").toLowerCase();
+    const weekUnit = (strategy.max_change_per_week_unit ?? strategy.max_change_unit ?? "percent").toLowerCase();
+    setMaxChangePerDayUnit(dayUnit === "absolute" ? "$" : "%");
+    setMaxChangePerWeekUnit(weekUnit === "absolute" ? "$" : "%");
     setMinBudgetFloor(
       strategy.min_budget_floor != null ? String(strategy.min_budget_floor) : ""
     );
@@ -303,17 +370,25 @@ export const StrategyDetail: React.FC = () => {
       strategy.min_spend_threshold != null ? String(strategy.min_spend_threshold) : ""
     );
     const ignoreHours = strategy.ignore_last_hours ?? (strategy.ignore_last_48_hours ? 48 : null);
-    setIgnoreLast48Hours(ignoreHours != null && ignoreHours >= 48);
+    setIgnoreLast48Hours(ignoreHours != null && ignoreHours > 0);
+    setIgnoreLastHoursValue(ignoreHours != null && ignoreHours > 0 ? String(ignoreHours) : "48");
     const ignoreDays = strategy.ignore_campaigns_created_in_last_days ?? (strategy.ignore_campaigns_in_last_7_days ? 7 : null);
-    setIgnoreCampaigns7Days(ignoreDays != null && ignoreDays >= 7);
+    setIgnoreCampaigns7Days(ignoreDays != null && ignoreDays > 0);
+    setIgnoreCampaignsDaysValue(ignoreDays != null && ignoreDays > 0 ? String(ignoreDays) : "7");
     setExcludeLearningCampaigns(strategy.exclude_learning_campaigns ?? false);
-    setFrequency(strategy.frequency ?? "Weekly");
+    setFrequency(normalizeFrequencyDisplay(strategy.frequency ?? undefined));
     setRunAt(normalizeTimeForInput(strategy.run_at ?? "00:00"));
     const parsedRunDays = parseRunDays(strategy.run_days);
     if (parsedRunDays.length > 0) setRunDays(parsedRunDays);
     if (strategy.profile_ids && strategy.profile_ids.length > 0) {
       setSelectedProfileIds(strategy.profile_ids.map(String));
     }
+    const approval = parseApprovalLayer(strategy.approval_layer);
+    setRequireApprovalFirstRun(approval.first_run ?? false);
+    setRequireApprovalCampaignsOver(approval.campaigns_over != null);
+    setRequireApprovalCampaignsOverValue(approval.campaigns_over != null ? String(approval.campaigns_over) : "20");
+    setRequireApprovalChangeExceeds(approval.change_exceeds != null);
+    setRequireApprovalChangeExceedsValue(approval.change_exceeds != null ? String(approval.change_exceeds) : "25");
     const apiEntityToUi: Record<string, string> = {
       campaign: "Campaign",
       ad_group: "Ad Group",
@@ -328,17 +403,18 @@ export const StrategyDetail: React.FC = () => {
       increase_bid_pct: "increase_bid",
       decrease_bid_pct: "decrease_bid",
     };
-    const globalFrequency = strategy.frequency ?? "Weekly";
-    const globalRunAt =
-      typeof strategy.run_at === "string"
-        ? normalizeTimeForInput(strategy.run_at)
-        : "00:00";
+    const globalFrequency = normalizeFrequencyDisplay(strategy.frequency ?? undefined);
+    const globalRunAt = normalizeTimeForInput(strategy.run_at ?? "00:00");
     const globalRunDays = parsedRunDays.length > 0 ? parsedRunDays : [0, 2, 3];
 
     if (strategy.automations && strategy.automations.length > 0) {
       setAutomationTabs(
         strategy.automations.map((a) => {
-          const hasOwnSchedule = a.schedule_enabled === true;
+          const hasScheduleFields =
+            (a.schedule_frequency != null && String(a.schedule_frequency).trim() !== "") ||
+            (a.schedule_run_at != null && String(a.schedule_run_at).trim() !== "") ||
+            (Array.isArray(a.schedule_run_days) && a.schedule_run_days.length > 0);
+          const hasOwnSchedule = a.schedule_enabled === true || hasScheduleFields;
 
           let scheduleRunDays: number[] = globalRunDays;
           if (hasOwnSchedule && a.schedule_run_days != null) {
@@ -361,15 +437,13 @@ export const StrategyDetail: React.FC = () => {
           }
 
           const frequency =
-            hasOwnSchedule && a.schedule_frequency != null && a.schedule_frequency !== ""
-              ? a.schedule_frequency
+            hasOwnSchedule && a.schedule_frequency != null && String(a.schedule_frequency).trim() !== ""
+              ? normalizeFrequencyDisplay(a.schedule_frequency)
               : globalFrequency;
-          const runAtRaw =
-            hasOwnSchedule && a.schedule_run_at != null && String(a.schedule_run_at).trim() !== ""
-              ? String(a.schedule_run_at)
-              : globalRunAt;
           const runAtNormalized =
-            /^\d{1,2}:\d{2}(:\d{2})?$/.test(runAtRaw) ? runAtRaw.slice(0, 5) : globalRunAt;
+            hasOwnSchedule && a.schedule_run_at != null && String(a.schedule_run_at).trim() !== ""
+              ? normalizeTimeForInput(a.schedule_run_at)
+              : globalRunAt;
 
           return {
             ...(typeof (a as { id?: number }).id === "number" && { id: (a as { id?: number }).id }),
@@ -540,6 +614,13 @@ export const StrategyDetail: React.FC = () => {
           : runAt
         : "00:00:00";
 
+    const approvalLayerJson = buildApprovalLayer({
+      requireApprovalFirstRun,
+      requireApprovalCampaignsOver,
+      requireApprovalCampaignsOverValue,
+      requireApprovalChangeExceeds,
+      requireApprovalChangeExceedsValue,
+    });
     const payload: CreateStrategyData = {
       name: formName.trim(),
       goal: goalValue,
@@ -552,13 +633,21 @@ export const StrategyDetail: React.FC = () => {
       platform: platformFromProfile,
       max_change_per_day: maxChangePerDay.trim() || undefined,
       max_change_per_week: maxChangePerWeek.trim() || undefined,
+      max_change_per_day_unit: maxChangePerDayUnit === "$" ? "absolute" : "percent",
+      max_change_per_week_unit: maxChangePerWeekUnit === "$" ? "absolute" : "percent",
       min_budget_floor: minBudgetFloor.trim() ? parseFloat(minBudgetFloor) : null,
       max_budget_cap: maxBudgetCap.trim() ? parseFloat(maxBudgetCap) : null,
       min_spend_threshold: minSpendThreshold ? parseFloat(minSpendThreshold) : undefined,
       min_data_window_days: minDataWindowDays,
-      ignore_last_hours: ignoreLast48Hours ? 48 : 0,
-      ignore_campaigns_created_in_last_days: ignoreCampaigns7Days ? 7 : 0,
+      ignore_last_hours: ignoreLast48Hours
+        ? (parseInt(ignoreLastHoursValue, 10) || 48)
+        : 0,
+      ignore_campaigns_created_in_last_days: ignoreCampaigns7Days
+        ? (parseInt(ignoreCampaignsDaysValue, 10) || 7)
+        : 0,
       exclude_learning_campaigns: excludeLearningCampaigns,
+      is_approved: approvalLayerJson === "",
+      approval_layer: approvalLayerJson,
       frequency,
       run_at: runAtFormatted,
       run_days: runDays,
@@ -937,9 +1026,18 @@ export const StrategyDetail: React.FC = () => {
     <div className="min-h-screen bg-white flex">
       <Sidebar />
       <div
-        className="flex-1 w-full"
+        className="flex-1 w-full relative"
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
+        {isPending && (
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-[2px]"
+            aria-busy="true"
+            aria-live="polite"
+          >
+            <Loader size="lg" message="Saving..." showMessage={true} />
+          </div>
+        )}
         <AccountsHeader />
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white">
           <div className="mb-6">
@@ -1337,9 +1435,14 @@ export const StrategyDetail: React.FC = () => {
                       profile={firstSelectedProfile ?? null}
                       entity={currentAutomation?.entity ?? "Campaign"}
                       filters={currentAutomation?.filters ?? []}
-                      actionState={
-                        currentAutomation?.actionState ?? DEFAULT_ACTION_STATE
-                      }
+                      actionState={(() => {
+                        const raw = currentAutomation?.actionState ?? DEFAULT_ACTION_STATE;
+                        return {
+                          ...DEFAULT_ACTION_STATE,
+                          ...raw,
+                          adjustmentValueUnit: raw.adjustmentValueUnit === "$" ? "$" : "%",
+                        };
+                      })()}
                       scheduleState={
                         currentAutomation?.scheduleState ?? DEFAULT_SCHEDULE_STATE
                       }

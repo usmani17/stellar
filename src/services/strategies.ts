@@ -26,6 +26,10 @@ export interface Strategy {
   /** Backend may return number; form uses string. */
   max_change_per_day: string | number;
   max_change_per_week: string | number;
+  /** Unit for max_change_per_day: "percent" | "absolute" */
+  max_change_per_day_unit?: string | null;
+  /** Unit for max_change_per_week: "percent" | "absolute" */
+  max_change_per_week_unit?: string | null;
   min_budget_floor?: number | null;
   max_budget_cap?: number | null;
   min_execution_cap?: number | null;
@@ -61,6 +65,10 @@ export interface CreateStrategyData {
   platform?: string;
   max_change_per_day?: string;
   max_change_per_week?: string;
+  /** "percent" | "absolute" */
+  max_change_per_day_unit?: string;
+  /** "percent" | "absolute" */
+  max_change_per_week_unit?: string;
   min_budget_floor?: number | null;
   max_budget_cap?: number | null;
   min_execution_cap?: number | null;
