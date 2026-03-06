@@ -75,7 +75,7 @@ export const DashboardsList: React.FC<DashboardsListProps> = ({ accountId }) => 
                   Last updated: {dashboard.updatedAt ? new Date(dashboard.updatedAt).toLocaleDateString() : "Unknown"}
                 </span>
                 <button 
-                  onClick={() => navigate(`/brands/${accountId}/dashboard/${dashboard.id}`)}
+                  onClick={() => navigate(`/brands/${accountId}/dashboards/${dashboard.id}`)}
                   className="text-sm text-forest-f60 hover:text-[#0e5a5a] font-medium whitespace-nowrap"
                 >
                   View Dashboard →
