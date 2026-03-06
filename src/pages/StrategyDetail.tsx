@@ -195,7 +195,6 @@ function buildApprovalLayer(state: {
 }
 
 const STATE_OPTIONS = [
-  { value: "Draft", label: "Draft" },
   { value: "Enable", label: "Enable" },
   { value: "Pause", label: "Pause" },
 ] as const;
@@ -257,7 +256,7 @@ export const StrategyDetail: React.FC = () => {
   const [optimizationGoal, setOptimizationGoal] = useState<string>("");
   const [customOptimizationText, setCustomOptimizationText] = useState("");
   const [formName, setFormName] = useState("");
-  const [formState, setFormState] = useState("Draft");
+  const [formState, setFormState] = useState("Pause");
   const [selectedProfileIds, setSelectedProfileIds] = useState<string[]>([]);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [profileSearch, setProfileSearch] = useState("");
@@ -374,11 +373,7 @@ export const StrategyDetail: React.FC = () => {
     setFormState(
       statusVal === "active" || statusVal === "Enabled"
         ? "Enable"
-        : statusVal === "paused"
-          ? "Pause"
-          : statusVal === "archived"
-            ? "Pause"
-            : "Draft",
+        : "Pause",
     );
     setMaxChangePerDay(
       strategy.max_change_per_day != null
