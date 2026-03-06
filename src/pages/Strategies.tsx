@@ -311,13 +311,9 @@ export const Strategies: React.FC = () => {
                             <span className="text-[14px] text-[#556179]">
                               {strategy.is_running
                                 ? "Running"
-                                : strategy.status === "active" ||
-                                    strategy.status === "Enabled"
+                                : (strategy.status.toLowerCase() === "enabled"
                                   ? "Enabled"
-                                  : "Paused"}
-                              {strategy.status.toLowerCase() === "enabled"
-                                ? "Enabled"
-                                : "Paused"}
+                                  : "Paused")}
                             </span>
                           </td>
                           <td className="table-cell text-[14px] text-[#556179]">
