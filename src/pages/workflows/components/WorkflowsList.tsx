@@ -456,10 +456,10 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
         onClose={() => setCreateDashboardWorkflow(null)}
         workflowId={createDashboardWorkflow?.id ?? 0}
         accountId={accountId}
-        onCreated={() => {
+        onCreated={(data : any) => {
           queryClient.invalidateQueries({ queryKey: ["dashboards", accountId] });
           if (createDashboardWorkflow && accountId) {
-            navigate(buildAccountRoute(accountId, `workflows/${createDashboardWorkflow.id}/dashboard`));
+            navigate(buildAccountRoute(accountId, `dashboards/${data.id}`));
           }
         }}
       />

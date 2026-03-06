@@ -10,7 +10,7 @@ interface CreateDashboardModalProps {
   onClose: () => void;
   workflowId: number;
   accountId?: number;
-  onCreated?: () => void;
+  onCreated?: (data: any) => void;
 }
 
 export const CreateDashboardModal: React.FC<CreateDashboardModalProps> = ({
@@ -39,7 +39,7 @@ export const CreateDashboardModal: React.FC<CreateDashboardModalProps> = ({
     setIsCreating(true);
     setError(null);
     try {
-      await createDashboard(accountId, {
+      const data = await createDashboard(accountId, {
         name: "Workflow Dashboard",
         platform: "google",
         profileId: googleProfilesData?.[0]?.id,
@@ -47,7 +47,7 @@ export const CreateDashboardModal: React.FC<CreateDashboardModalProps> = ({
         config: FULL_TEST_DASHBOARD_CONFIG,
         workflowId,
       });
-      onCreated?.();
+      onCreated?.(data);
       onClose();
     } catch (err: unknown) {
       const message =
