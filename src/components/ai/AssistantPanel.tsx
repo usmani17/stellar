@@ -98,6 +98,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         isOpen,
         messages,
         isLoading,
+        inputValue,
         setInputValue,
         sendMessage,
         suggestedPrompts,
@@ -145,6 +146,15 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     const accountDropdownRef = useRef<HTMLDivElement>(null);
     const integrationProfileDropdownRef = useRef<HTMLDivElement>(null);
     const slashDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Sync inputValue from context to editableContent and DOM
+    useEffect(() => {
+        if (inputValue && editableRef.current) {
+            setEditableContent(inputValue);
+            // Update the actual DOM element
+            editableRef.current.textContent = inputValue;
+        }
+    }, [inputValue, isOpen]);
 
     // Load accounts when panel is open or when on chat page (variant=page)
     useEffect(() => {

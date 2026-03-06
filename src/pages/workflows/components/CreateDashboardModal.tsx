@@ -1,72 +1,86 @@
 import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { BaseModal } from "../../../components/ui";
-import { createDashboard } from "../../../services/dashboard";
-import { FULL_TEST_DASHBOARD_CONFIG } from "../constants/fullTestDashboard";
+import { getDashboards } from "../../../services/dashboard";
 import { useChannels } from "../../../hooks/queries/useChannels";
 import { useGoogleProfiles } from "../../../hooks/queries/useGoogleProfiles";
+import { useAssistant } from "../../../contexts/AssistantContext";
+import type { Workflow } from "../../../services/workflows";
 
 interface CreateDashboardModalProps {
   isOpen: boolean;
   onClose: () => void;
-  workflowId: number;
+  workflow: Workflow;
   accountId?: number;
-  onCreated?: (data: any) => void;
 }
 
 export const CreateDashboardModal: React.FC<CreateDashboardModalProps> = ({
   isOpen,
   onClose,
-  workflowId,
+  workflow,
   accountId,
-  onCreated,
 }) => {
-  const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { openAssistant, setInputValue, setAssistantScope } = useAssistant();
 
   const { data: channels = [] } = useChannels(accountId);
   const channelId = channels.length > 0 ? channels[0].id : undefined;
-  const isGoogle = channels[0].channel_type === "google";
+  const isGoogle = channels.length > 0 && channels[0].channel_type === "google";
   const googleChannelId = isGoogle ? channelId : undefined;
   const {
     data: googleProfilesData,
     isLoading: isLoadingProfiles,
   } : { data: any, isLoading: boolean } = useGoogleProfiles(googleChannelId);
+
+  // Fetch dashboards for this account
+  const { data: dashboards = [] } = useQuery({
+    queryKey: ["dashboards", accountId],
+    queryFn: () => (accountId ? getDashboards(accountId) : Promise.resolve([])),
+    enabled: Boolean(accountId && isOpen && workflow),
+  });
+
+  // Find dashboard for this workflow
+  const existingDashboard = workflow ? dashboards.find((d) => d.workflowId === workflow.id) : undefined;
+  const dashboardId = existingDashboard?.id;
+  const isUpdate = Boolean(dashboardId);
+
   const handleCreate = async () => {
     if (!accountId) {
       setError("Account ID is required");
       return;
     }
-    setIsCreating(true);
-    setError(null);
-    try {
-      const data = await createDashboard(accountId, {
-        name: "Workflow Dashboard",
-        platform: "google",
-        profileId: googleProfilesData?.[0]?.id,
-        channelId: channelId,
-        config: FULL_TEST_DASHBOARD_CONFIG,
-        workflowId,
-      });
-      onCreated?.(data);
-      onClose();
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to create dashboard";
-      setError(message);
-    } finally {
-      setIsCreating(false);
+
+    if (!workflow) {
+      setError("Workflow is required");
+      return;
     }
+
+    // Open assistant with pre-filled message including workflow prompt
+    let message = `${workflow.prompt}\n\nCreate a dashboard for above with workflow id ${workflow.id}`;
+    if (isUpdate && dashboardId) {
+      message = `${workflow.prompt}\n\nUpdate dashboard (ID: ${dashboardId} : ${existingDashboard?.name}) for workflow id ${workflow.id } : ${workflow.name}`;
+    }
+
+    setAssistantScope({
+      accountId: accountId.toString(),
+      channelId: channelId?.toString(),
+      profileId: googleProfilesData?.[0]?.id ? Number(googleProfilesData[0].id) : undefined,
+    });
+    setInputValue(message);
+    openAssistant();
+    onClose();
   };
 
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} size="lg" padding="p-0">
       <div className="px-5 py-5 sm:px-6 sm:py-6">
         <h2 className="text-xl font-agrandir font-medium text-forest-f60 mb-4">
-          Create Dashboard
+          {isUpdate ? "Update Dashboard" : "Create Dashboard"}
         </h2>
         <p className="text-sm text-forest-f30 mb-4">
-          Create a dashboard with campaign performance, multi-GAQL joins,
-          workflow runs, daily spend chart, and keyword spend.
+          {isUpdate
+            ? "Our AI assistant will help you update this dashboard with the latest data and insights."
+            : "Our AI assistant will create a customized dashboard for you based on your workflow requirements."}
         </p>
         {error && (
           <p className="text-sm text-red-600 mb-4">{error}</p>
@@ -75,7 +89,7 @@ export const CreateDashboardModal: React.FC<CreateDashboardModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            disabled={isCreating}
+            disabled={false}
             className="px-3 py-2 rounded-lg text-[11px] font-medium border border-sandstorm-s40 bg-white text-forest-f60 hover:bg-sandstorm-s5 transition-colors disabled:opacity-50"
           >
             Cancel
@@ -83,11 +97,11 @@ export const CreateDashboardModal: React.FC<CreateDashboardModalProps> = ({
           <button
             type="button"
             onClick={handleCreate}
-            disabled={isCreating || isLoadingProfiles}
+            disabled={isLoadingProfiles || !workflow}
             className="create-entity-button disabled:opacity-50"
           >
             <span className="text-[10.64px] text-white font-normal">
-              {isCreating ? "Creating..." : "Create Dashboard"}
+              {isUpdate ? "Update Dashboard" : "Create Dashboard"}
             </span>
           </button>
         </div>

@@ -527,6 +527,7 @@ export const AssistantProvider: React.FC<{
             workspace_id: user?.workspace?.id ?? undefined,
             user_id: user?.id != null ? String(user.id) : undefined,
             platform: effectiveMarketplace ?? undefined,
+            // @ts-ignore - for testing purposes only, to override backend default output format
             ...(OUTPUT_FORMAT_FOR_TESTING && { output_format: OUTPUT_FORMAT_FOR_TESTING }),
           },
           token,
@@ -938,6 +939,7 @@ export const AssistantProvider: React.FC<{
 // eslint-disable-next-line react-refresh/only-export-components -- context file exports provider + hook
 export const useAssistant = (): AssistantContextType => {
   const context = useContext(AssistantContext);
+  console.log("useAssistant context:", context?.inputValue);
   if (context === undefined) {
     throw new Error("useAssistant must be used within an AssistantProvider");
   }

@@ -303,11 +303,11 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                   <button
                     onClick={() => setCreateDashboardWorkflow(wf)}
                     className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors"
-                    title="Create Dashboard"
-                    aria-label="Create Dashboard"
+                    title={dashboards.some((d) => d.workflowId === wf.id) ? "Update Dashboard" : "Create Dashboard"}
+                    aria-label={dashboards.some((d) => d.workflowId === wf.id) ? "Update Dashboard" : "Create Dashboard"}
                   >
                     <LayoutGrid className="w-4 h-4" />
-                    Create Dashboard
+                    {dashboards.some((d) => d.workflowId === wf.id) ? "Update Dashboard" : "Create Dashboard"}
                   </button>
                   {dashboards.some((d) => d.workflowId === wf.id) && (
                     <button
@@ -454,14 +454,8 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
       <CreateDashboardModal
         isOpen={!!createDashboardWorkflow}
         onClose={() => setCreateDashboardWorkflow(null)}
-        workflowId={createDashboardWorkflow?.id ?? 0}
+        workflow={createDashboardWorkflow as any}
         accountId={accountId}
-        onCreated={(data : any) => {
-          queryClient.invalidateQueries({ queryKey: ["dashboards", accountId] });
-          if (createDashboardWorkflow && accountId) {
-            navigate(buildAccountRoute(accountId, `dashboards/${data.id}`));
-          }
-        }}
       />
 
       <WorkflowPreviewModal
