@@ -271,7 +271,7 @@ export const Strategies: React.FC = () => {
                           >
                             <div className="flex items-center gap-2 flex-wrap">
                               <Link
-                                to={`/strategies/${strategy.id}`}
+                                to={`/strategies/${strategy.id}/run-history`}
                                 className="text-[13px] text-[#136D6D] hover:underline"
                               >
                                 View

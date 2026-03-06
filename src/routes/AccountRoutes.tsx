@@ -15,6 +15,7 @@ import { Profile } from "../pages/Profile";
 import { WorkspaceSettings } from "../pages/WorkspaceSettings";
 import { Strategies } from "../pages/Strategies";
 import { StrategyDetail } from "../pages/StrategyDetail";
+import { StrategyRunHistory } from "../pages/StrategyRunHistory";
 import { NoWorkspace } from "../pages/NoWorkspace";
 import { CompleteSignup } from "../pages/CompleteSignup";
 import { ColorExamples } from "../pages/ColorExamples";
@@ -83,6 +84,18 @@ function AccountRoutes() {
                         <WorkspaceRequiredRoute>
                             <Layout>
                                 <Strategies />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/strategies/:strategyId/run-history"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <StrategyRunHistory />
                             </Layout>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>

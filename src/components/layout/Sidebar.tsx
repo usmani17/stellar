@@ -315,7 +315,7 @@ export const Sidebar: React.FC = () => {
       );
     }
     if (path === "/strategies") {
-      return location.pathname === "/strategies" || location.pathname === "/strategies/new" || /^\/strategies\/\d+$/.test(location.pathname);
+      return location.pathname === "/strategies" || location.pathname === "/strategies/new" || /^\/strategies\/\d+(\/run-history)?$/.test(location.pathname);
     }
     return location.pathname === path;
   };
