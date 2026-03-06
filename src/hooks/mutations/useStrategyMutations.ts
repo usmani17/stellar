@@ -12,7 +12,18 @@ export const useCreateStrategy = () => {
   return useMutation<Strategy, Error, CreateStrategyData>({
     mutationFn: (data) => strategiesService.createStrategy(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.strategies.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.strategies.all });
+    },
+  });
+};
+
+export const useDuplicateStrategy = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<Strategy, Error, number>({
+    mutationFn: (sourceId) => strategiesService.duplicateStrategy(sourceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.strategies.all });
     },
   });
 };
@@ -23,7 +34,7 @@ export const useUpdateStrategy = (id: number) => {
   return useMutation<Strategy, Error, Partial<CreateStrategyData>>({
     mutationFn: (data) => strategiesService.updateStrategy(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.strategies.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.strategies.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.strategies.detail(id) });
     },
   });

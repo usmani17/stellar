@@ -121,6 +121,8 @@ export const queryKeys = {
   strategies: {
     all: ["strategies"] as const,
     lists: () => [...queryKeys.strategies.all, "list"] as const,
+    listPaginated: (page: number, pageSize: number, search?: string) =>
+      [...queryKeys.strategies.all, "list", "paginated", page, pageSize, search ?? ""] as const,
     detail: (id: number) => [...queryKeys.strategies.all, "detail", id] as const,
   },
   automations: {

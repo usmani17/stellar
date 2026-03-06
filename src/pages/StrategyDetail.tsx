@@ -716,7 +716,7 @@ export const StrategyDetail: React.FC = () => {
     try {
       if (isCreateMode) {
         const created = await createStrategyMutation.mutateAsync(payload);
-        navigate(`/strategies/${created.id}`, { replace: true });
+        navigate("/strategies", { replace: true, state: { strategyCreated: true } });
       } else if (id !== undefined && !isCreateMode) {
         await updateStrategyMutation.mutateAsync(payload);
         navigate(`/strategies/${id}`, { replace: true });
@@ -927,7 +927,7 @@ export const StrategyDetail: React.FC = () => {
     setFillAndCreatePending(true);
     try {
       const created = await createStrategyMutation.mutateAsync(payload);
-      navigate(`/strategies/${created.id}`, { replace: true });
+      navigate("/strategies", { replace: true, state: { strategyCreated: true } });
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { detail?: string; name?: string[] } } })?.response?.data
