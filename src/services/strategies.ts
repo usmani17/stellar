@@ -96,10 +96,39 @@ export interface StrategiesPaginatedResponse {
   results: Strategy[];
 }
 
+/** One automation execution within a run (from run history API). */
+export interface StrategySummaryRunItem {
+  entity: string;
+  action: string;
+  entity_count: number;
+  total_delta: number | string;
+  total_old_budget?: number | string | null;
+  total_new_budget?: number | string | null;
+  change_percent?: number | string | null;
+  ran_at: string | null;
+}
+
+/** One strategy run with aggregated stats (from run history API). */
+export interface StrategyRunHistoryItem {
+  id: number;
+  ran_at: string;
+  status: string;
+  triggered_by: string;
+  error_message: string;
+  automation_count: number;
+  entity_count: number;
+  total_delta: number | string;
+  summary_runs: StrategySummaryRunItem[];
+}
+
+export interface StrategyRunsResponse {
+  results: StrategyRunHistoryItem[];
+}
+
 export const strategiesService = {
   getStrategies: async (): Promise<Strategy[]> => {
     const response = await api.get<Strategy[] | { results: Strategy[] }>(
-      "/strategies/"
+      "/strategies/",
     );
     const data = response.data;
     if (Array.isArray(data)) return data;
@@ -121,11 +150,20 @@ export const strategiesService = {
     if (params.search != null && params.search.trim() !== "") {
       queryParams.search = params.search.trim();
     }
-    const response = await api.get<StrategiesPaginatedResponse>("/strategies/", {
-      params: queryParams,
-    });
+    const response = await api.get<StrategiesPaginatedResponse>(
+      "/strategies/",
+      {
+        params: queryParams,
+      },
+    );
     const data = response.data;
-    if (data && typeof data === "object" && "results" in data && "count" in data && "total_pages" in data) {
+    if (
+      data &&
+      typeof data === "object" &&
+      "results" in data &&
+      "count" in data &&
+      "total_pages" in data
+    ) {
       return data as StrategiesPaginatedResponse;
     }
     return { count: 0, total_pages: 1, results: [] };
@@ -136,6 +174,15 @@ export const strategiesService = {
     return response.data;
   },
 
+  getStrategyRuns: async (
+    strategyId: number,
+  ): Promise<StrategyRunHistoryItem[]> => {
+    const response = await api.get<StrategyRunsResponse>(
+      `/strategies/${strategyId}/runs/`,
+    );
+    return response.data?.results ?? [];
+  },
+
   createStrategy: async (data: CreateStrategyData): Promise<Strategy> => {
     const response = await api.post<Strategy>("/strategies/", data);
     return response.data;
@@ -143,12 +190,9 @@ export const strategiesService = {
 
   updateStrategy: async (
     id: number,
-    data: Partial<CreateStrategyData>
+    data: Partial<CreateStrategyData>,
   ): Promise<Strategy> => {
-    const response = await api.patch<Strategy>(
-      `/strategies/${id}/`,
-      data
-    );
+    const response = await api.patch<Strategy>(`/strategies/${id}/`, data);
     return response.data;
   },
 
@@ -161,7 +205,9 @@ export const strategiesService = {
    * name "Copy of {name}", status Draft, and same settings/automations/profile_ids.
    */
   duplicateStrategy: async (sourceId: number): Promise<Strategy> => {
-    const source = await api.get<Strategy>(`/strategies/${sourceId}/`).then((r) => r.data);
+    const source = await api
+      .get<Strategy>(`/strategies/${sourceId}/`)
+      .then((r) => r.data);
     const automations = (source.automations ?? []).map((a) => {
       const conditions = Array.isArray(a.conditions) ? a.conditions : [];
       return {
@@ -174,7 +220,9 @@ export const strategiesService = {
         schedule_enabled: a.schedule_enabled ?? false,
         schedule_frequency: a.schedule_frequency ?? undefined,
         schedule_run_at: a.schedule_run_at ?? undefined,
-        schedule_run_days: Array.isArray(a.schedule_run_days) ? a.schedule_run_days : undefined,
+        schedule_run_days: Array.isArray(a.schedule_run_days)
+          ? a.schedule_run_days
+          : undefined,
       };
     });
     const payload: CreateStrategyData = {
@@ -191,7 +239,8 @@ export const strategiesService = {
       min_data_window_days: source.min_data_window_days ?? undefined,
       min_spend_threshold: source.min_spend_threshold ?? undefined,
       ignore_last_hours: source.ignore_last_hours ?? undefined,
-      ignore_campaigns_created_in_last_days: source.ignore_campaigns_created_in_last_days ?? undefined,
+      ignore_campaigns_created_in_last_days:
+        source.ignore_campaigns_created_in_last_days ?? undefined,
       exclude_learning_campaigns: source.exclude_learning_campaigns,
       frequency: source.frequency,
       run_days: Array.isArray(source.run_days) ? source.run_days : undefined,
@@ -201,7 +250,9 @@ export const strategiesService = {
       profile_ids: source.profile_ids?.length ? source.profile_ids : undefined,
       automations,
     };
-    const created = await api.post<Strategy>("/strategies/", payload).then((r) => r.data);
+    const created = await api
+      .post<Strategy>("/strategies/", payload)
+      .then((r) => r.data);
     return created;
   },
 };

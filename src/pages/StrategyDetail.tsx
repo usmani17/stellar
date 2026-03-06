@@ -3,7 +3,10 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { useSidebar } from "../contexts/SidebarContext";
 import { useStrategy } from "../hooks/queries/useStrategies";
-import { useCreateStrategy, useUpdateStrategy } from "../hooks/mutations/useStrategyMutations";
+import {
+  useCreateStrategy,
+  useUpdateStrategy,
+} from "../hooks/mutations/useStrategyMutations";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
 import { Checkbox, Dropdown, Loader } from "../components/ui";
@@ -17,8 +20,14 @@ import {
 } from "../components/StrategyAutomation";
 import { ScheduleFields, WEEKDAYS } from "../components/ScheduleFields";
 import { ChevronDown, X, Search } from "lucide-react";
-import { strategiesService, type CreateStrategyData } from "../services/strategies";
-import { useAllAccessibleProfiles, type AllAccessibleProfile } from "../hooks/queries/useAllAccessibleProfiles";
+import {
+  strategiesService,
+  type CreateStrategyData,
+} from "../services/strategies";
+import {
+  useAllAccessibleProfiles,
+  type AllAccessibleProfile,
+} from "../hooks/queries/useAllAccessibleProfiles";
 import GoalsIcon from "../assets/images/strategy/goals.svg";
 import StrategyDetailIcon from "../assets/images/strategy/strategy-detail.svg";
 import GuardrailIcon from "../assets/images/strategy/guardrail.svg";
@@ -47,7 +56,9 @@ function parseRunDays(value: number[] | string | null | undefined): number[] {
       try {
         const parsed = JSON.parse(trimmed) as unknown;
         return Array.isArray(parsed)
-          ? (parsed as number[]).filter((d) => typeof d === "number" && d >= 0 && d <= 6)
+          ? (parsed as number[]).filter(
+              (d) => typeof d === "number" && d >= 0 && d <= 6,
+            )
           : [];
       } catch {
         return [];
@@ -65,7 +76,7 @@ function parseRunDays(value: number[] | string | null | undefined): number[] {
 /** Parse automation conditions from backend: array or JSON string. Return FilterValues with ids. */
 function parseConditionsToFilters(
   value: unknown,
-  generateId: () => string
+  generateId: () => string,
 ): FilterValues {
   let arr: unknown[] = [];
   if (Array.isArray(value)) {
@@ -79,9 +90,14 @@ function parseConditionsToFilters(
     }
   }
   return arr.map((item) => {
-    const obj = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+    const obj =
+      item && typeof item === "object" ? (item as Record<string, unknown>) : {};
     const value = obj.value;
-    const typedValue: string | number | string[] | { min: number; max: number } =
+    const typedValue:
+      | string
+      | number
+      | string[]
+      | { min: number; max: number } =
       value === undefined || value === null
         ? ""
         : (value as string | number | string[] | { min: number; max: number });
@@ -203,9 +219,7 @@ const SectionCard: React.FC<{
         </h3>
       </div>
     </div>
-    {description && (
-          <p className="text-[14px] text-[#072929]">{description}</p>
-        )}
+    {description && <p className="text-[14px] text-[#072929]">{description}</p>}
     {children}
   </div>
 );
@@ -214,10 +228,12 @@ const FormField: React.FC<{
   label: string;
   children: React.ReactNode;
   className?: string;
-}> = ({ label, children, className = "" }) => (
+  error?: string;
+}> = ({ label, children, className = "", error }) => (
   <div className={`flex flex-col gap-1 w-full max-w-[360px] ${className}`}>
     <label className="text-[16px] font-medium text-[#072929]">{label}</label>
     {children}
+    {error && <p className="text-[12px] text-red-600 mt-1">{error}</p>}
   </div>
 );
 
@@ -227,12 +243,16 @@ export const StrategyDetail: React.FC = () => {
   const id = strategyId && !isCreateMode ? parseInt(strategyId, 10) : undefined;
   const navigate = useNavigate();
   const { sidebarWidth } = useSidebar();
-  const { strategy, isLoading: strategyLoading, isError, error } = useStrategy(
-    isCreateMode ? undefined : id
-  );
+  const {
+    strategy,
+    isLoading: strategyLoading,
+    isError,
+    error,
+  } = useStrategy(isCreateMode ? undefined : id);
   const createStrategyMutation = useCreateStrategy();
   const updateStrategyMutation = useUpdateStrategy(id ?? 0);
-  const { profiles: allProfiles, isLoading: profilesLoading } = useAllAccessibleProfiles();
+  const { profiles: allProfiles, isLoading: profilesLoading } =
+    useAllAccessibleProfiles();
 
   const [optimizationGoal, setOptimizationGoal] = useState<string>("");
   const [customOptimizationText, setCustomOptimizationText] = useState("");
@@ -244,8 +264,12 @@ export const StrategyDetail: React.FC = () => {
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const [maxChangePerDay, setMaxChangePerDay] = useState("");
   const [maxChangePerWeek, setMaxChangePerWeek] = useState("");
-  const [maxChangePerDayUnit, setMaxChangePerDayUnit] = useState<"%" | "$">("%");
-  const [maxChangePerWeekUnit, setMaxChangePerWeekUnit] = useState<"%" | "$">("$");
+  const [maxChangePerDayUnit, setMaxChangePerDayUnit] = useState<"%" | "$">(
+    "%",
+  );
+  const [maxChangePerWeekUnit, setMaxChangePerWeekUnit] = useState<"%" | "$">(
+    "$",
+  );
   const [minBudgetFloor, setMinBudgetFloor] = useState("");
   const [maxBudgetCap, setMaxBudgetCap] = useState("");
   const [minDataWindowDays, setMinDataWindowDays] = useState(30);
@@ -254,16 +278,25 @@ export const StrategyDetail: React.FC = () => {
   const [ignoreLastHoursValue, setIgnoreLastHoursValue] = useState("48");
   const [ignoreCampaigns7Days, setIgnoreCampaigns7Days] = useState(true);
   const [ignoreCampaignsDaysValue, setIgnoreCampaignsDaysValue] = useState("7");
-  const [excludeLearningCampaigns, setExcludeLearningCampaigns] = useState(false);
+  const [excludeLearningCampaigns, setExcludeLearningCampaigns] =
+    useState(false);
   const [frequency, setFrequency] = useState("Weekly");
   const [runAt, setRunAt] = useState("00:00");
   const [runDays, setRunDays] = useState<number[]>([0, 2, 3]); // Mon, Wed, Thu
   const [requireApprovalFirstRun, setRequireApprovalFirstRun] = useState(false);
-  const [requireApprovalCampaignsOver, setRequireApprovalCampaignsOver] = useState(false);
-  const [requireApprovalCampaignsOverValue, setRequireApprovalCampaignsOverValue] = useState("20");
-  const [requireApprovalChangeExceeds, setRequireApprovalChangeExceeds] = useState(false);
-  const [requireApprovalChangeExceedsValue, setRequireApprovalChangeExceedsValue] = useState("25");
-  const [formError, setFormError] = useState<string | null>(null);
+  const [requireApprovalCampaignsOver, setRequireApprovalCampaignsOver] =
+    useState(false);
+  const [
+    requireApprovalCampaignsOverValue,
+    setRequireApprovalCampaignsOverValue,
+  ] = useState("20");
+  const [requireApprovalChangeExceeds, setRequireApprovalChangeExceeds] =
+    useState(false);
+  const [
+    requireApprovalChangeExceedsValue,
+    setRequireApprovalChangeExceedsValue,
+  ] = useState("25");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [activeAutomationTab, setActiveAutomationTab] = useState(0);
   /** One automation = one tab; each has its own entity, filters, action state, and schedule. */
   const [automationTabs, setAutomationTabs] = useState<
@@ -288,7 +321,7 @@ export const StrategyDetail: React.FC = () => {
         .sort((a, b) => a - b)
         .map((d) => WEEKDAYS[d])
         .join(", ") || "—",
-    [runDays]
+    [runDays],
   );
 
   // Map Entity dropdown to API entity_type for dynamic filters (Google Campaigns / Ad Groups / Keywords / Ads)
@@ -302,8 +335,6 @@ export const StrategyDetail: React.FC = () => {
         return "adgroups";
       case "Keyword":
         return "keywords";
-      case "Ads":
-        return "ads";
       default:
         return "campaigns";
     }
@@ -332,7 +363,8 @@ export const StrategyDetail: React.FC = () => {
     setFormName(strategy.name ?? "");
     const goal = strategy.goal ?? "";
     const isCustomGoal =
-      goal && !OPTIMIZATION_GOALS.includes(goal as (typeof OPTIMIZATION_GOALS)[number]);
+      goal &&
+      !OPTIMIZATION_GOALS.includes(goal as (typeof OPTIMIZATION_GOALS)[number]);
     setOptimizationGoal(isCustomGoal ? "Custom Optimization" : goal);
     setCustomOptimizationText(isCustomGoal ? goal : "");
     const statusVal = strategy.status ?? "";
@@ -343,38 +375,62 @@ export const StrategyDetail: React.FC = () => {
           ? "Pause"
           : statusVal === "archived"
             ? "Pause"
-            : "Draft"
+            : "Draft",
     );
     setMaxChangePerDay(
-      strategy.max_change_per_day != null ? String(strategy.max_change_per_day) : ""
+      strategy.max_change_per_day != null
+        ? String(strategy.max_change_per_day)
+        : "",
     );
     setMaxChangePerWeek(
-      strategy.max_change_per_week != null ? String(strategy.max_change_per_week) : ""
+      strategy.max_change_per_week != null
+        ? String(strategy.max_change_per_week)
+        : "",
     );
-    const dayUnit = (strategy.max_change_per_day_unit ?? strategy.max_change_unit ?? "percent").toLowerCase();
-    const weekUnit = (strategy.max_change_per_week_unit ?? strategy.max_change_unit ?? "percent").toLowerCase();
+    const dayUnit = (
+      strategy.max_change_per_day_unit ??
+      strategy.max_change_unit ??
+      "percent"
+    ).toLowerCase();
+    const weekUnit = (
+      strategy.max_change_per_week_unit ??
+      strategy.max_change_unit ??
+      "percent"
+    ).toLowerCase();
     setMaxChangePerDayUnit(dayUnit === "absolute" ? "$" : "%");
     setMaxChangePerWeekUnit(weekUnit === "absolute" ? "$" : "%");
     setMinBudgetFloor(
-      strategy.min_budget_floor != null ? String(strategy.min_budget_floor) : ""
+      strategy.min_budget_floor != null
+        ? String(strategy.min_budget_floor)
+        : "",
     );
     setMaxBudgetCap(
-      strategy.max_budget_cap != null ? String(strategy.max_budget_cap) : ""
+      strategy.max_budget_cap != null ? String(strategy.max_budget_cap) : "",
     );
     setMinDataWindowDays(
-      strategy.min_data_window_days != null && strategy.min_data_window_days >= 1
+      strategy.min_data_window_days != null &&
+        strategy.min_data_window_days >= 1
         ? strategy.min_data_window_days
-        : 30
+        : 30,
     );
     setMinSpendThreshold(
-      strategy.min_spend_threshold != null ? String(strategy.min_spend_threshold) : ""
+      strategy.min_spend_threshold != null
+        ? String(strategy.min_spend_threshold)
+        : "",
     );
-    const ignoreHours = strategy.ignore_last_hours ?? (strategy.ignore_last_48_hours ? 48 : null);
+    const ignoreHours =
+      strategy.ignore_last_hours ?? (strategy.ignore_last_48_hours ? 48 : null);
     setIgnoreLast48Hours(ignoreHours != null && ignoreHours > 0);
-    setIgnoreLastHoursValue(ignoreHours != null && ignoreHours > 0 ? String(ignoreHours) : "48");
-    const ignoreDays = strategy.ignore_campaigns_created_in_last_days ?? (strategy.ignore_campaigns_in_last_7_days ? 7 : null);
+    setIgnoreLastHoursValue(
+      ignoreHours != null && ignoreHours > 0 ? String(ignoreHours) : "48",
+    );
+    const ignoreDays =
+      strategy.ignore_campaigns_created_in_last_days ??
+      (strategy.ignore_campaigns_in_last_7_days ? 7 : null);
     setIgnoreCampaigns7Days(ignoreDays != null && ignoreDays > 0);
-    setIgnoreCampaignsDaysValue(ignoreDays != null && ignoreDays > 0 ? String(ignoreDays) : "7");
+    setIgnoreCampaignsDaysValue(
+      ignoreDays != null && ignoreDays > 0 ? String(ignoreDays) : "7",
+    );
     setExcludeLearningCampaigns(strategy.exclude_learning_campaigns ?? false);
     setFrequency(normalizeFrequencyDisplay(strategy.frequency ?? undefined));
     setRunAt(normalizeTimeForInput(strategy.run_at ?? "00:00"));
@@ -386,24 +442,31 @@ export const StrategyDetail: React.FC = () => {
     const approval = parseApprovalLayer(strategy.approval_layer);
     setRequireApprovalFirstRun(approval.first_run ?? false);
     setRequireApprovalCampaignsOver(approval.campaigns_over != null);
-    setRequireApprovalCampaignsOverValue(approval.campaigns_over != null ? String(approval.campaigns_over) : "20");
+    setRequireApprovalCampaignsOverValue(
+      approval.campaigns_over != null ? String(approval.campaigns_over) : "20",
+    );
     setRequireApprovalChangeExceeds(approval.change_exceeds != null);
-    setRequireApprovalChangeExceedsValue(approval.change_exceeds != null ? String(approval.change_exceeds) : "25");
+    setRequireApprovalChangeExceedsValue(
+      approval.change_exceeds != null ? String(approval.change_exceeds) : "25",
+    );
     const apiEntityToUi: Record<string, string> = {
       campaign: "Campaign",
       ad_group: "Ad Group",
       keyword: "Keyword",
-      ad: "Ads",
+      ad: "Campaign", // Ads entity removed from UI; map to Campaign when loading
     };
     const apiActionToUi: Record<string, string> = {
       pause: "pause",
       enable: "enable",
       increase_budget_pct: "increase_budget",
       decrease_budget_pct: "decrease_budget",
+      set_budget: "set_budget",
       increase_bid_pct: "increase_bid",
       decrease_bid_pct: "decrease_bid",
     };
-    const globalFrequency = normalizeFrequencyDisplay(strategy.frequency ?? undefined);
+    const globalFrequency = normalizeFrequencyDisplay(
+      strategy.frequency ?? undefined,
+    );
     const globalRunAt = normalizeTimeForInput(strategy.run_at ?? "00:00");
     const globalRunDays = parsedRunDays.length > 0 ? parsedRunDays : [0, 2, 3];
 
@@ -411,16 +474,25 @@ export const StrategyDetail: React.FC = () => {
       setAutomationTabs(
         strategy.automations.map((a) => {
           const hasScheduleFields =
-            (a.schedule_frequency != null && String(a.schedule_frequency).trim() !== "") ||
-            (a.schedule_run_at != null && String(a.schedule_run_at).trim() !== "") ||
-            (Array.isArray(a.schedule_run_days) && a.schedule_run_days.length > 0);
-          const hasOwnSchedule = a.schedule_enabled === true || hasScheduleFields;
+            (a.schedule_frequency != null &&
+              String(a.schedule_frequency).trim() !== "") ||
+            (a.schedule_run_at != null &&
+              String(a.schedule_run_at).trim() !== "") ||
+            (Array.isArray(a.schedule_run_days) &&
+              a.schedule_run_days.length > 0);
+          const hasOwnSchedule =
+            a.schedule_enabled === true || hasScheduleFields;
 
           let scheduleRunDays: number[] = globalRunDays;
           if (hasOwnSchedule && a.schedule_run_days != null) {
             const scheduleRunDaysRaw = a.schedule_run_days;
-            if (Array.isArray(scheduleRunDaysRaw) && scheduleRunDaysRaw.length > 0) {
-              scheduleRunDays = scheduleRunDaysRaw.filter((d) => d >= 0 && d <= 6);
+            if (
+              Array.isArray(scheduleRunDaysRaw) &&
+              scheduleRunDaysRaw.length > 0
+            ) {
+              scheduleRunDays = scheduleRunDaysRaw.filter(
+                (d) => d >= 0 && d <= 6,
+              );
             } else if (
               typeof scheduleRunDaysRaw === "string" &&
               scheduleRunDaysRaw.trim().startsWith("[")
@@ -428,7 +500,9 @@ export const StrategyDetail: React.FC = () => {
               try {
                 const parsed = JSON.parse(scheduleRunDaysRaw) as unknown;
                 scheduleRunDays = Array.isArray(parsed)
-                  ? (parsed as number[]).filter((d) => typeof d === "number" && d >= 0 && d <= 6)
+                  ? (parsed as number[]).filter(
+                      (d) => typeof d === "number" && d >= 0 && d <= 6,
+                    )
                   : globalRunDays;
               } catch {
                 // keep global
@@ -437,23 +511,32 @@ export const StrategyDetail: React.FC = () => {
           }
 
           const frequency =
-            hasOwnSchedule && a.schedule_frequency != null && String(a.schedule_frequency).trim() !== ""
+            hasOwnSchedule &&
+            a.schedule_frequency != null &&
+            String(a.schedule_frequency).trim() !== ""
               ? normalizeFrequencyDisplay(a.schedule_frequency)
               : globalFrequency;
           const runAtNormalized =
-            hasOwnSchedule && a.schedule_run_at != null && String(a.schedule_run_at).trim() !== ""
+            hasOwnSchedule &&
+            a.schedule_run_at != null &&
+            String(a.schedule_run_at).trim() !== ""
               ? normalizeTimeForInput(a.schedule_run_at)
               : globalRunAt;
 
           return {
-            ...(typeof (a as { id?: number }).id === "number" && { id: (a as { id?: number }).id }),
+            ...(typeof (a as { id?: number }).id === "number" && {
+              id: (a as { id?: number }).id,
+            }),
             entity: apiEntityToUi[a.entity ?? ""] ?? "Campaign",
-            filters: parseConditionsToFilters(a.conditions, () =>
-              `filter-${Date.now()}-${Math.random().toString(36).slice(2)}`
+            filters: parseConditionsToFilters(
+              a.conditions,
+              () =>
+                `filter-${Date.now()}-${Math.random().toString(36).slice(2)}`,
             ),
             actionState: {
               action: apiActionToUi[a.action ?? ""] ?? "",
-              adjustmentValue: a.change_value != null ? String(a.change_value) : "",
+              adjustmentValue:
+                a.change_value != null ? String(a.change_value) : "",
               adjustmentValueUnit: a.change_unit === "absolute" ? "$" : "%",
               actionLimitValue:
                 a.change_cap != null ? String(a.change_cap) : "",
@@ -465,20 +548,22 @@ export const StrategyDetail: React.FC = () => {
               runDays: scheduleRunDays,
             },
           };
-        })
+        }),
       );
     }
   }, [strategy]);
 
   const toggleRunDay = (dayIndex: number) => {
     setRunDays((prev) =>
-      prev.includes(dayIndex) ? prev.filter((d) => d !== dayIndex) : [...prev, dayIndex]
+      prev.includes(dayIndex)
+        ? prev.filter((d) => d !== dayIndex)
+        : [...prev, dayIndex],
     );
   };
 
   // When editing, pre-select profiles linked to this strategy (profile_ids)
   useEffect(() => {
-    if (!strategy?.profile_ids?.length || allProfiles.length === 0) return;
+    if (!strategy?.profile_ids?.length || !allProfiles?.length) return;
     const profileIdSet = new Set(strategy.profile_ids.map(String));
     const ids = allProfiles
       .filter((p) => profileIdSet.has(p.id))
@@ -498,9 +583,21 @@ export const StrategyDetail: React.FC = () => {
     };
     if (profileDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [profileDropdownOpen]);
+
+  // Fetch run history when viewing an existing strategy
+  useEffect(() => {
+    if (isCreateMode || id == null) return;
+    setRunsLoading(true);
+    strategiesService
+      .getStrategyRuns(id)
+      .then(setRuns)
+      .catch(() => setRuns([]))
+      .finally(() => setRunsLoading(false));
+  }, [id, isCreateMode]);
 
   const filteredProfiles = useMemo(() => {
     if (!allProfiles) return [];
@@ -511,7 +608,7 @@ export const StrategyDetail: React.FC = () => {
         p.label.toLowerCase().includes(q) ||
         p.accountName.toLowerCase().includes(q) ||
         p.channelName.toLowerCase().includes(q) ||
-        p.profileName.toLowerCase().includes(q)
+        p.profileName.toLowerCase().includes(q),
     );
   }, [allProfiles, profileSearch]);
 
@@ -524,7 +621,7 @@ export const StrategyDetail: React.FC = () => {
   const toggleSelectAllFiltered = () => {
     if (allFilteredSelected) {
       setSelectedProfileIds((prev) =>
-        prev.filter((id) => !filteredProfiles.some((p) => p.id === id))
+        prev.filter((id) => !filteredProfiles.some((p) => p.id === id)),
       );
     } else {
       const toAdd = filteredProfiles
@@ -537,7 +634,9 @@ export const StrategyDetail: React.FC = () => {
   const buildPayload = (): CreateStrategyData => {
     const profileIds =
       selectedProfileIds.length > 0
-        ? selectedProfileIds.map((id) => parseInt(id, 10)).filter((n) => !Number.isNaN(n))
+        ? selectedProfileIds
+            .map((id) => parseInt(id, 10))
+            .filter((n) => !Number.isNaN(n))
         : undefined;
     const goalValue =
       optimizationGoal === "Custom Optimization"
@@ -548,23 +647,26 @@ export const StrategyDetail: React.FC = () => {
       Campaign: "campaign",
       "Ad Group": "ad_group",
       Keyword: "keyword",
-      Ads: "ad",
     };
     const actionToApi: Record<string, string> = {
       pause: "pause",
       enable: "enable",
       increase_budget: "increase_budget_pct",
       decrease_budget: "decrease_budget_pct",
+      set_budget: "set_budget",
       increase_bid: "increase_bid_pct",
       decrease_bid: "decrease_bid_pct",
     };
 
     const isFilterRowComplete = (f: FilterValues[number]): boolean => {
       const fieldSet = f.field != null && String(f.field).trim() !== "";
-      const operatorSet = f.operator != null && String(f.operator).trim() !== "";
+      const operatorSet =
+        f.operator != null && String(f.operator).trim() !== "";
       let valueEmpty = f.value == null;
-      if (!valueEmpty && typeof f.value === "string") valueEmpty = f.value.trim() === "";
-      if (!valueEmpty && Array.isArray(f.value)) valueEmpty = f.value.length === 0;
+      if (!valueEmpty && typeof f.value === "string")
+        valueEmpty = f.value.trim() === "";
+      if (!valueEmpty && Array.isArray(f.value))
+        valueEmpty = f.value.length === 0;
       if (
         !valueEmpty &&
         typeof f.value === "object" &&
@@ -580,17 +682,23 @@ export const StrategyDetail: React.FC = () => {
     };
 
     const automations = automationTabs.map((tab, index) => ({
-      ...(typeof (tab as { id?: number }).id === "number" && { id: (tab as { id?: number }).id }),
+      ...(typeof (tab as { id?: number }).id === "number" && {
+        id: (tab as { id?: number }).id,
+      }),
       entity: entityToApi[tab.entity] ?? "campaign",
       action: actionToApi[tab.actionState.action] ?? "pause",
       change_value: tab.actionState.adjustmentValue
         ? parseFloat(tab.actionState.adjustmentValue)
         : undefined,
-      change_unit: tab.actionState.adjustmentValueUnit === "$" ? "absolute" : "percent",
+      change_unit:
+        tab.actionState.adjustmentValueUnit === "$" ? "absolute" : "percent",
       change_cap: tab.actionState.actionLimitValue
         ? parseFloat(tab.actionState.actionLimitValue)
         : undefined,
-      conditions: (tab.filters.filter(isFilterRowComplete) as unknown) as Record<string, unknown>[],
+      conditions: tab.filters.filter(isFilterRowComplete) as unknown as Record<
+        string,
+        unknown
+      >[],
       sort_order: index,
       schedule_enabled: tab.scheduleState.scheduleEnabled,
       schedule_frequency: tab.scheduleState.scheduleEnabled
@@ -633,17 +741,23 @@ export const StrategyDetail: React.FC = () => {
       platform: platformFromProfile,
       max_change_per_day: maxChangePerDay.trim() || undefined,
       max_change_per_week: maxChangePerWeek.trim() || undefined,
-      max_change_per_day_unit: maxChangePerDayUnit === "$" ? "absolute" : "percent",
-      max_change_per_week_unit: maxChangePerWeekUnit === "$" ? "absolute" : "percent",
-      min_budget_floor: minBudgetFloor.trim() ? parseFloat(minBudgetFloor) : null,
+      max_change_per_day_unit:
+        maxChangePerDayUnit === "$" ? "absolute" : "percent",
+      max_change_per_week_unit:
+        maxChangePerWeekUnit === "$" ? "absolute" : "percent",
+      min_budget_floor: minBudgetFloor.trim()
+        ? parseFloat(minBudgetFloor)
+        : null,
       max_budget_cap: maxBudgetCap.trim() ? parseFloat(maxBudgetCap) : null,
-      min_spend_threshold: minSpendThreshold ? parseFloat(minSpendThreshold) : undefined,
+      min_spend_threshold: minSpendThreshold
+        ? parseFloat(minSpendThreshold)
+        : undefined,
       min_data_window_days: minDataWindowDays,
       ignore_last_hours: ignoreLast48Hours
-        ? (parseInt(ignoreLastHoursValue, 10) || 48)
+        ? parseInt(ignoreLastHoursValue, 10) || 48
         : 0,
       ignore_campaigns_created_in_last_days: ignoreCampaigns7Days
-        ? (parseInt(ignoreCampaignsDaysValue, 10) || 7)
+        ? parseInt(ignoreCampaignsDaysValue, 10) || 7
         : 0,
       exclude_learning_campaigns: excludeLearningCampaigns,
       is_approved: approvalLayerJson === "",
@@ -657,26 +771,37 @@ export const StrategyDetail: React.FC = () => {
     return payload;
   };
 
-  /** Returns an error message or null if valid. Used when status is Enable or Pause. */
-  const validateBeforeEnableOrPause = (): string | null => {
+  /** Returns field-level validation errors. Used when status is Enable or Pause. */
+  const getValidationFieldErrors = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
     if (!formName.trim()) {
-      return "Strategy name is required.";
+      errors.name = "Strategy name is required.";
+      return errors;
     }
     if (selectedProfileIds.length === 0) {
-      return "Select at least one profile (Brand / Integration / Profile).";
+      errors.profile_ids =
+        "Select at least one profile (Brand / Integration / Profile).";
+      return errors;
     }
-    if (optimizationGoal === "Custom Optimization" && !customOptimizationText.trim()) {
-      return "Enter a custom optimization goal.";
+    if (
+      optimizationGoal === "Custom Optimization" &&
+      !customOptimizationText.trim()
+    ) {
+      errors.custom_optimization = "Enter a custom optimization goal.";
+      return errors;
     }
     for (let t = 0; t < automationTabs.length; t++) {
       const tab = automationTabs[t];
       for (let i = 0; i < tab.filters.length; i++) {
         const f = tab.filters[i];
         const fieldSet = f.field != null && String(f.field).trim() !== "";
-        const operatorSet = f.operator != null && String(f.operator).trim() !== "";
+        const operatorSet =
+          f.operator != null && String(f.operator).trim() !== "";
         let valueEmpty = f.value == null;
-        if (!valueEmpty && typeof f.value === "string") valueEmpty = f.value.trim() === "";
-        if (!valueEmpty && Array.isArray(f.value)) valueEmpty = f.value.length === 0;
+        if (!valueEmpty && typeof f.value === "string")
+          valueEmpty = f.value.trim() === "";
+        if (!valueEmpty && Array.isArray(f.value))
+          valueEmpty = f.value.length === 0;
         if (
           !valueEmpty &&
           typeof f.value === "object" &&
@@ -690,25 +815,26 @@ export const StrategyDetail: React.FC = () => {
         }
         const rowStarted = fieldSet || operatorSet || !valueEmpty;
         if (rowStarted && (!fieldSet || !operatorSet || valueEmpty)) {
-          return `Automation ${t + 1}: complete all filter rows (field, operator, and value must be set).`;
+          errors.automation = `Automation ${t + 1}: complete all filter rows (field, operator, and value must be set).`;
+          return errors;
         }
       }
     }
-    return null;
+    return errors;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(null);
+    setFieldErrors({});
     if (!formName.trim()) {
-      setFormError("Strategy name is required.");
+      setFieldErrors({ name: "Strategy name is required." });
       return;
     }
     const isEnableOrPause = formState === "Enable" || formState === "Pause";
     if (isEnableOrPause) {
-      const validationError = validateBeforeEnableOrPause();
-      if (validationError) {
-        setFormError(validationError);
+      const validationErrors = getValidationFieldErrors();
+      if (Object.keys(validationErrors).length > 0) {
+        setFieldErrors(validationErrors);
         return;
       }
     }
@@ -716,18 +842,36 @@ export const StrategyDetail: React.FC = () => {
     try {
       if (isCreateMode) {
         const created = await createStrategyMutation.mutateAsync(payload);
-        navigate("/strategies", { replace: true, state: { strategyCreated: true } });
+        navigate("/strategies", {
+          replace: true,
+          state: { strategyCreated: true },
+        });
       } else if (id !== undefined && !isCreateMode) {
         await updateStrategyMutation.mutateAsync(payload);
         navigate(`/strategies/${id}`, { replace: true });
       }
     } catch (err: any) {
-      setFormError(
-        err?.response?.data?.name?.[0] ||
-          err?.response?.data?.detail ||
+      const data = err?.response?.data;
+      const next: Record<string, string> = {};
+      if (data && typeof data === "object" && !Array.isArray(data)) {
+        for (const key of Object.keys(data)) {
+          const val = data[key];
+          const msg = Array.isArray(val)
+            ? val[0]
+            : typeof val === "string"
+              ? val
+              : null;
+          if (msg) next[key] = msg;
+        }
+      }
+      if (Object.keys(next).length === 0) {
+        next._form =
+          data?.detail ||
+          data?.name?.[0] ||
           err?.message ||
-          "Failed to save strategy."
-      );
+          "Failed to save strategy.";
+      }
+      setFieldErrors(next);
     }
   };
 
@@ -735,7 +879,9 @@ export const StrategyDetail: React.FC = () => {
     createStrategyMutation.isPending || updateStrategyMutation.isPending;
 
   const [testCreatePending, setTestCreatePending] = useState(false);
-  const [testCreateMessage, setTestCreateMessage] = useState<string | null>(null);
+  const [testCreateMessage, setTestCreateMessage] = useState<string | null>(
+    null,
+  );
 
   const getFakeCreatePayload = (): CreateStrategyData => {
     const profileId =
@@ -777,7 +923,9 @@ export const StrategyDetail: React.FC = () => {
   /** Full dummy payload for "Fill form & create": includes guardrails and one automation. */
   const getDummyPayload = (): CreateStrategyData => {
     const profileId =
-      allProfiles.length > 0 ? parseInt(allProfiles[0].id, 10) : 1;
+      profilesForDropdown.length > 0
+        ? parseInt(profilesForDropdown[0].id, 10)
+        : 1;
     return {
       name: `Dummy strategy ${new Date().toISOString().slice(0, 19).replace("T", " ")}`,
       goal: "Improve ROAS",
@@ -801,8 +949,18 @@ export const StrategyDetail: React.FC = () => {
           entity: "campaign",
           action: "increase_budget_pct",
           conditions: [
-            { id: "dummy-f1", field: "campaign_advertising_channel_type", operator: "eq", value: "SEARCH" },
-            { id: "dummy-f2", field: "campaign_status", operator: "eq", value: "ENABLED" },
+            {
+              id: "dummy-f1",
+              field: "campaign_advertising_channel_type",
+              operator: "eq",
+              value: "SEARCH",
+            },
+            {
+              id: "dummy-f2",
+              field: "campaign_status",
+              operator: "eq",
+              value: "ENABLED",
+            },
           ],
           change_value: 20,
           change_unit: "percent",
@@ -822,60 +980,73 @@ export const StrategyDetail: React.FC = () => {
     setFormName(payload.name ?? "");
     const goal = payload.goal ?? "";
     setOptimizationGoal(
-      goal && OPTIMIZATION_GOALS.includes(goal as (typeof OPTIMIZATION_GOALS)[number])
+      goal &&
+        OPTIMIZATION_GOALS.includes(goal as (typeof OPTIMIZATION_GOALS)[number])
         ? goal
         : goal
           ? "Custom Optimization"
-          : "Improve ROAS"
+          : "Improve ROAS",
     );
     setCustomOptimizationText(
-      goal && !OPTIMIZATION_GOALS.includes(goal as (typeof OPTIMIZATION_GOALS)[number])
+      goal &&
+        !OPTIMIZATION_GOALS.includes(
+          goal as (typeof OPTIMIZATION_GOALS)[number],
+        )
         ? goal
-        : ""
+        : "",
     );
     setFormState(payload.status === "active" ? "Enable" : "Pause");
-    setSelectedProfileIds(
-      (payload.profile_ids ?? []).map((id) => String(id))
-    );
+    setSelectedProfileIds((payload.profile_ids ?? []).map((id) => String(id)));
     setMaxChangePerDay(payload.max_change_per_day ?? "");
     setMaxChangePerWeek(payload.max_change_per_week ?? "");
     setMinBudgetFloor(
-      payload.min_budget_floor != null ? String(payload.min_budget_floor) : ""
+      payload.min_budget_floor != null ? String(payload.min_budget_floor) : "",
     );
     setMaxBudgetCap(
-      payload.max_budget_cap != null ? String(payload.max_budget_cap) : ""
+      payload.max_budget_cap != null ? String(payload.max_budget_cap) : "",
     );
     setMinDataWindowDays(payload.min_data_window_days ?? 30);
     setMinSpendThreshold(
-      payload.min_spend_threshold != null ? String(payload.min_spend_threshold) : ""
+      payload.min_spend_threshold != null
+        ? String(payload.min_spend_threshold)
+        : "",
     );
     setIgnoreLast48Hours((payload.ignore_last_hours ?? 0) > 0);
     setIgnoreLastHoursValue("48");
-    setIgnoreCampaigns7Days((payload.ignore_campaigns_created_in_last_days ?? 0) > 0);
+    setIgnoreCampaigns7Days(
+      (payload.ignore_campaigns_created_in_last_days ?? 0) > 0,
+    );
     setIgnoreCampaignsDaysValue("7");
     setExcludeLearningCampaigns(payload.exclude_learning_campaigns ?? false);
     setFrequency(payload.frequency ?? "Weekly");
     const runAtRaw = payload.run_at ?? "00:00:00";
-    setRunAt(/^\d{1,2}:\d{2}(:\d{2})?$/.test(runAtRaw) ? runAtRaw.slice(0, 5) : "00:00");
+    setRunAt(
+      /^\d{1,2}:\d{2}(:\d{2})?$/.test(runAtRaw)
+        ? runAtRaw.slice(0, 5)
+        : "00:00",
+    );
     setRunDays(Array.isArray(payload.run_days) ? payload.run_days : []);
     const apiEntityToUi: Record<string, string> = {
       campaign: "Campaign",
       ad_group: "Ad Group",
       keyword: "Keyword",
-      ad: "Ads",
+      ad: "Campaign", // Ads entity removed from UI; map to Campaign when loading
     };
     const apiActionToUi: Record<string, string> = {
       pause: "pause",
       enable: "enable",
       increase_budget_pct: "increase_budget",
       decrease_budget_pct: "decrease_budget",
+      set_budget: "set_budget",
       increase_bid_pct: "increase_bid",
       decrease_bid_pct: "decrease_bid",
     };
     const tabs = (payload.automations ?? []).map((a) => {
       const hasOwnSchedule =
         a.schedule_enabled &&
-        (a.schedule_run_at != null || (a.schedule_run_days != null && (a.schedule_run_days as number[]).length > 0));
+        (a.schedule_run_at != null ||
+          (a.schedule_run_days != null &&
+            (a.schedule_run_days as number[]).length > 0));
       const scheduleRunDays = Array.isArray(a.schedule_run_days)
         ? a.schedule_run_days
         : typeof a.schedule_run_days === "string"
@@ -892,12 +1063,14 @@ export const StrategyDetail: React.FC = () => {
         hasOwnSchedule && a.schedule_run_at != null
           ? String(a.schedule_run_at)
           : "00:00:00";
-      const runAtNormalized =
-        /^\d{1,2}:\d{2}(:\d{2})?$/.test(scheduleRunAtRaw) ? scheduleRunAtRaw.slice(0, 5) : "00:00";
+      const runAtNormalized = /^\d{1,2}:\d{2}(:\d{2})?$/.test(scheduleRunAtRaw)
+        ? scheduleRunAtRaw.slice(0, 5)
+        : "00:00";
       return {
         entity: apiEntityToUi[a.entity ?? ""] ?? "Campaign",
-        filters: parseConditionsToFilters(a.conditions, () =>
-          `filter-${Date.now()}-${Math.random().toString(36).slice(2)}`
+        filters: parseConditionsToFilters(
+          a.conditions,
+          () => `filter-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         ),
         actionState: {
           action: apiActionToUi[a.action ?? ""] ?? "",
@@ -921,21 +1094,25 @@ export const StrategyDetail: React.FC = () => {
 
   const [fillAndCreatePending, setFillAndCreatePending] = useState(false);
   const handleFillFormAndCreate = async () => {
-    setFormError(null);
+    setFieldErrors({});
     const payload = getDummyPayload();
     fillFormFromPayload(payload);
     setFillAndCreatePending(true);
     try {
       const created = await createStrategyMutation.mutateAsync(payload);
-      navigate("/strategies", { replace: true, state: { strategyCreated: true } });
+      navigate("/strategies", {
+        replace: true,
+        state: { strategyCreated: true },
+      });
     } catch (err: unknown) {
       const message =
-        (err as { response?: { data?: { detail?: string; name?: string[] } } })?.response?.data
-          ?.detail ||
-        (err as { response?: { data?: { name?: string[] } } })?.response?.data?.name?.[0] ||
+        (err as { response?: { data?: { detail?: string; name?: string[] } } })
+          ?.response?.data?.detail ||
+        (err as { response?: { data?: { name?: string[] } } })?.response?.data
+          ?.name?.[0] ||
         (err as Error)?.message ||
         "Create failed.";
-      setFormError(message);
+      setFieldErrors({ _form: message });
     } finally {
       setFillAndCreatePending(false);
     }
@@ -943,7 +1120,7 @@ export const StrategyDetail: React.FC = () => {
 
   const handleTestCreateApi = async () => {
     setTestCreateMessage(null);
-    setFormError(null);
+    setFieldErrors({});
     setTestCreatePending(true);
     try {
       const payload = getFakeCreatePayload();
@@ -951,9 +1128,10 @@ export const StrategyDetail: React.FC = () => {
       setTestCreateMessage(`Created strategy ID: ${created.id}`);
     } catch (err: unknown) {
       const message =
-        (err as { response?: { data?: { detail?: string; name?: string[] } } })?.response?.data
-          ?.detail ||
-        (err as { response?: { data?: { name?: string[] } } })?.response?.data?.name?.[0] ||
+        (err as { response?: { data?: { detail?: string; name?: string[] } } })
+          ?.response?.data?.detail ||
+        (err as { response?: { data?: { name?: string[] } } })?.response?.data
+          ?.name?.[0] ||
         (err as Error)?.message ||
         "Request failed.";
       setTestCreateMessage(`Error: ${message}`);
@@ -997,7 +1175,10 @@ export const StrategyDetail: React.FC = () => {
     );
   }
 
-  if (!isCreateMode && (isError || (!strategyLoading && id !== undefined && !strategy))) {
+  if (
+    !isCreateMode &&
+    (isError || (!strategyLoading && id !== undefined && !strategy))
+  ) {
     return (
       <div className="min-h-screen bg-white flex">
         <Sidebar />
@@ -1019,7 +1200,9 @@ export const StrategyDetail: React.FC = () => {
     );
   }
 
-  const pageTitle = isCreateMode ? "Create Strategy" : (strategy?.name ?? "Edit Strategy");
+  const pageTitle = isCreateMode
+    ? "Create Strategy"
+    : (strategy?.name ?? "Edit Strategy");
   const submitLabel = isCreateMode ? "Create Strategy" : "Save";
 
   return (
@@ -1048,8 +1231,8 @@ export const StrategyDetail: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="w-full">
             <div className="bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] p-6 flex flex-col gap-6 w-full">
-              {formError && (
-                <p className="text-[14px] text-red-600">{formError}</p>
+              {fieldErrors._form && (
+                <p className="text-[14px] text-red-600">{fieldErrors._form}</p>
               )}
 
               {/* Optimization Goal (Optional) */}
@@ -1094,11 +1277,14 @@ export const StrategyDetail: React.FC = () => {
                   <FormField
                     label="Custom Optimization"
                     className="mt-2 max-w-full"
+                    error={fieldErrors.custom_optimization}
                   >
                     <input
                       type="text"
                       value={customOptimizationText}
-                      onChange={(e) => setCustomOptimizationText(e.target.value)}
+                      onChange={(e) =>
+                        setCustomOptimizationText(e.target.value)
+                      }
                       placeholder="Describe your optimization goal"
                       className="campaign-input h-12 rounded-[12px] px-3 border max-w-[360px] border-[#e3e3e3] bg-[#FEFEFB]"
                     />
@@ -1108,11 +1294,16 @@ export const StrategyDetail: React.FC = () => {
 
               {/* Strategy Details */}
               <SectionCard
-                icon={<img src={StrategyDetailIcon} alt="" className="w-6 h-6" />}
+                icon={
+                  <img src={StrategyDetailIcon} alt="" className="w-6 h-6" />
+                }
                 title="Strategy Details"
               >
                 <div className="flex flex-wrap gap-4 w-full md:flex-nowrap">
-                  <FormField label="Strategy Name" className="w-full md:flex-1 md:min-w-0">
+                  <FormField
+                    label="Strategy Name"
+                    className="w-full md:flex-1 md:min-w-0"
+                  >
                     <input
                       type="text"
                       value={formName}
@@ -1122,7 +1313,10 @@ export const StrategyDetail: React.FC = () => {
                       required
                     />
                   </FormField>
-                  <FormField label="State" className="w-full md:flex-1 md:min-w-0">
+                  <FormField
+                    label="State"
+                    className="w-full md:flex-1 md:min-w-0"
+                  >
                     <Dropdown
                       options={[...STATE_OPTIONS]}
                       value={formState}
@@ -1134,13 +1328,15 @@ export const StrategyDetail: React.FC = () => {
                       closeOnSelect={true}
                     />
                   </FormField>
-                  <FormField label="Brand / Integration / Profile" className="w-full md:flex-1 md:min-w-0">
+                  <FormField
+                    label="Brand / Integration / Profile"
+                    className="w-full md:flex-1 md:min-w-0"
+                    error={fieldErrors.profile_ids}
+                  >
                     <div className="relative w-full" ref={profileDropdownRef}>
                       <button
                         type="button"
-                        onClick={() =>
-                          setProfileDropdownOpen((open) => !open)
-                        }
+                        onClick={() => setProfileDropdownOpen((open) => !open)}
                         className="campaign-input w-full h-12 rounded-[12px] px-3 border border-[#e3e3e3] bg-[#FEFEFB] flex items-center justify-between gap-2 text-left"
                       >
                         <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -1160,15 +1356,18 @@ export const StrategyDetail: React.FC = () => {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setSelectedProfileIds((prev) =>
-                                          prev.filter((x) => x !== id)
+                                          prev.filter((x) => x !== id),
                                         );
                                       }}
                                       onKeyDown={(e) => {
-                                        if (e.key === "Enter" || e.key === " ") {
+                                        if (
+                                          e.key === "Enter" ||
+                                          e.key === " "
+                                        ) {
                                           e.preventDefault();
                                           e.stopPropagation();
                                           setSelectedProfileIds((prev) =>
-                                            prev.filter((x) => x !== id)
+                                            prev.filter((x) => x !== id),
                                           );
                                         }
                                       }}
@@ -1187,9 +1386,7 @@ export const StrategyDetail: React.FC = () => {
                             )
                           ) : (
                             <span className="text-[14px] text-[#072929]">
-                              {profilesLoading
-                                ? "Loading…"
-                                : "Select profile"}
+                              {profilesLoading ? "Loading…" : "Select profile"}
                             </span>
                           )}
                         </div>
@@ -1206,9 +1403,7 @@ export const StrategyDetail: React.FC = () => {
                             <input
                               type="text"
                               value={profileSearch}
-                              onChange={(e) =>
-                                setProfileSearch(e.target.value)
-                              }
+                              onChange={(e) => setProfileSearch(e.target.value)}
                               placeholder="Search for brands"
                               className="bg-transparent flex-1 min-w-0 text-[14px] text-[#072929] placeholder:text-neutral-n300 outline-none"
                             />
@@ -1222,9 +1417,8 @@ export const StrategyDetail: React.FC = () => {
                               onChange={toggleSelectAllFiltered}
                             />
                             <span className="text-[14px] font-medium text-neutral-n600">
-                              Select All (
-                              {selectedProfileIds.length}/
-                              {allProfiles?.length ?? 0})
+                              Select All ({selectedProfileIds.length}/
+                              {profilesForDropdown.length})
                             </span>
                           </div>
                           <div className="overflow-auto flex-1 min-h-0 mt-1">
@@ -1244,7 +1438,7 @@ export const StrategyDetail: React.FC = () => {
                                     setSelectedProfileIds((prev) =>
                                       prev.includes(p.id)
                                         ? prev.filter((x) => x !== p.id)
-                                        : [...prev, p.id]
+                                        : [...prev, p.id],
                                     );
                                   }}
                                   onKeyDown={(e) => {
@@ -1253,7 +1447,7 @@ export const StrategyDetail: React.FC = () => {
                                       setSelectedProfileIds((prev) =>
                                         prev.includes(p.id)
                                           ? prev.filter((x) => x !== p.id)
-                                          : [...prev, p.id]
+                                          : [...prev, p.id],
                                       );
                                     }
                                   }}
@@ -1264,7 +1458,9 @@ export const StrategyDetail: React.FC = () => {
                                     className="shrink-0"
                                   >
                                     <Checkbox
-                                      checked={selectedProfileIds.includes(p.id)}
+                                      checked={selectedProfileIds.includes(
+                                        p.id,
+                                      )}
                                       onChange={(checked) => {
                                         if (checked) {
                                           setSelectedProfileIds((prev) => [
@@ -1273,7 +1469,7 @@ export const StrategyDetail: React.FC = () => {
                                           ]);
                                         } else {
                                           setSelectedProfileIds((prev) =>
-                                            prev.filter((x) => x !== p.id)
+                                            prev.filter((x) => x !== p.id),
                                           );
                                         }
                                       }}
@@ -1300,7 +1496,10 @@ export const StrategyDetail: React.FC = () => {
                 description="Protect budgets and enforce data stability."
               >
                 <div className="flex flex-nowrap gap-4">
-                  <FormField label="Max Change Per Day" className="flex-1 min-w-0 max-w-[180px]">
+                  <FormField
+                    label="Max Change Per Day"
+                    className="flex-1 min-w-0 max-w-[180px]"
+                  >
                     <div className="flex h-10 rounded-[12px] border border-[#e3e3e3] bg-[#FEFEFB] overflow-hidden transition-colors focus-within:border focus-within:border-[#136D6D]">
                       <input
                         type="number"
@@ -1311,14 +1510,19 @@ export const StrategyDetail: React.FC = () => {
                       />
                       <button
                         type="button"
-                        onClick={() => setMaxChangePerDayUnit((u) => (u === "%" ? "$" : "%"))}
+                        onClick={() =>
+                          setMaxChangePerDayUnit((u) => (u === "%" ? "$" : "%"))
+                        }
                         className="flex items-center justify-center px-3 text-[14px] text-[#072929] border-l border-[#E8E8E3] h-full min-w-[44px] hover:bg-[#f5f5f0] transition-colors"
                       >
                         {maxChangePerDayUnit}
                       </button>
                     </div>
                   </FormField>
-                  <FormField label="Max Change Per Week" className="flex-1 min-w-0 max-w-[180px]">
+                  <FormField
+                    label="Max Change Per Week"
+                    className="flex-1 min-w-0 max-w-[180px]"
+                  >
                     <div className="flex h-10 rounded-[12px] border border-[#e3e3e3] bg-[#FEFEFB] overflow-hidden transition-colors focus-within:border focus-within:border-[#136D6D]">
                       <input
                         type="number"
@@ -1329,14 +1533,21 @@ export const StrategyDetail: React.FC = () => {
                       />
                       <button
                         type="button"
-                        onClick={() => setMaxChangePerWeekUnit((u) => (u === "%" ? "$" : "%"))}
+                        onClick={() =>
+                          setMaxChangePerWeekUnit((u) =>
+                            u === "%" ? "$" : "%",
+                          )
+                        }
                         className="flex items-center justify-center px-3 text-[14px] text-[#072929] border-l border-[#E8E8E3] h-full min-w-[44px] hover:bg-[#f5f5f0] transition-colors"
                       >
                         {maxChangePerWeekUnit}
                       </button>
                     </div>
                   </FormField>
-                  <FormField label="Minimum Budget Floor" className="flex-1 min-w-0 max-w-[180px]">
+                  <FormField
+                    label="Minimum Budget Floor"
+                    className="flex-1 min-w-0 max-w-[180px]"
+                  >
                     <input
                       type="number"
                       value={minBudgetFloor}
@@ -1345,7 +1556,10 @@ export const StrategyDetail: React.FC = () => {
                       className="campaign-input w-full h-12 rounded-[12px] px-3 border border-[#e3e3e3] bg-[#FEFEFB]"
                     />
                   </FormField>
-                  <FormField label="Maximum Budget Cap" className="flex-1 min-w-0 max-w-[180px]">
+                  <FormField
+                    label="Maximum Budget Cap"
+                    className="flex-1 min-w-0 max-w-[180px]"
+                  >
                     <input
                       type="number"
                       value={maxBudgetCap}
@@ -1364,6 +1578,11 @@ export const StrategyDetail: React.FC = () => {
                 description="Define the automation."
               >
                 <div className="flex flex-col gap-4 w-full">
+                  {fieldErrors.automation && (
+                    <p className="text-[12px] text-red-600">
+                      {fieldErrors.automation}
+                    </p>
+                  )}
                   <div className="flex items-center gap-4 border-b border-[#E8E8E3] pb-0">
                     <div className="flex rounded-lg overflow-hidden border border-[#E8E8E3]">
                       {automationTabs.map((_, index) => (
@@ -1388,7 +1607,9 @@ export const StrategyDetail: React.FC = () => {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setAutomationTabs((prev) => {
-                                  const next = prev.filter((_, i) => i !== index);
+                                  const next = prev.filter(
+                                    (_, i) => i !== index,
+                                  );
                                   return next;
                                 });
                                 setActiveAutomationTab((prev) => {
@@ -1423,7 +1644,11 @@ export const StrategyDetail: React.FC = () => {
                       }}
                       className="flex justify-start items-center gap-2 cursor-pointer text-[#072929] hover:opacity-80"
                     >
-                      <img src={PlusIcon} alt="add automation" className="w-5 h-5" />
+                      <img
+                        src={PlusIcon}
+                        alt="add automation"
+                        className="w-5 h-5"
+                      />
                       <span className="text-sm font-medium leading-5 tracking-tight">
                         Add
                       </span>
@@ -1436,15 +1661,19 @@ export const StrategyDetail: React.FC = () => {
                       entity={currentAutomation?.entity ?? "Campaign"}
                       filters={currentAutomation?.filters ?? []}
                       actionState={(() => {
-                        const raw = currentAutomation?.actionState ?? DEFAULT_ACTION_STATE;
+                        const raw =
+                          currentAutomation?.actionState ??
+                          DEFAULT_ACTION_STATE;
                         return {
                           ...DEFAULT_ACTION_STATE,
                           ...raw,
-                          adjustmentValueUnit: raw.adjustmentValueUnit === "$" ? "$" : "%",
+                          adjustmentValueUnit:
+                            raw.adjustmentValueUnit === "$" ? "$" : "%",
                         };
                       })()}
                       scheduleState={
-                        currentAutomation?.scheduleState ?? DEFAULT_SCHEDULE_STATE
+                        currentAutomation?.scheduleState ??
+                        DEFAULT_SCHEDULE_STATE
                       }
                       entityType={filterEntityType}
                       onEntityChange={(newEntity) => {
@@ -1536,7 +1765,7 @@ export const StrategyDetail: React.FC = () => {
                           onChange={(e) => {
                             const v = parseInt(e.target.value, 10);
                             setMinDataWindowDays(
-                              !Number.isNaN(v) && v >= 1 ? v : 1
+                              !Number.isNaN(v) && v >= 1 ? v : 1,
                             );
                           }}
                           className="campaign-input w-full h-12 rounded-[12px] px-3 border border-[#e3e3e3] bg-[#FEFEFB] text-[14px] text-[#072929]"
@@ -1566,7 +1795,9 @@ export const StrategyDetail: React.FC = () => {
                         type="number"
                         min="0"
                         value={ignoreLastHoursValue}
-                        onChange={(e) => setIgnoreLastHoursValue(e.target.value)}
+                        onChange={(e) =>
+                          setIgnoreLastHoursValue(e.target.value)
+                        }
                         disabled={!ignoreLast48Hours}
                         className="campaign-input w-[100px] h-12 rounded-[12px] px-3 text-center disabled:opacity-60 disabled:cursor-not-allowed"
                       />
@@ -1580,7 +1811,9 @@ export const StrategyDetail: React.FC = () => {
                       type="number"
                       min="0"
                       value={ignoreCampaignsDaysValue}
-                      onChange={(e) => setIgnoreCampaignsDaysValue(e.target.value)}
+                      onChange={(e) =>
+                        setIgnoreCampaignsDaysValue(e.target.value)
+                      }
                       disabled={!ignoreCampaigns7Days}
                       className="campaign-input w-[100px] h-12 rounded-[12px] px-3 text-center disabled:opacity-60 disabled:cursor-not-allowed"
                     />
@@ -1658,6 +1891,126 @@ export const StrategyDetail: React.FC = () => {
                 </div>
               </SectionCard>
 
+              {/* Run history (only when editing an existing strategy) */}
+              {!isCreateMode && id != null && (
+                <SectionCard
+                  icon={<img src={DateIcon} alt="" className="w-6 h-6" />}
+                  title="Run history"
+                >
+                  <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-x-auto overflow-y-visible relative">
+                    {runsLoading && (
+                      <div className="absolute inset-0 bg-white/60 z-10 flex items-center justify-center rounded-[12px]" />
+                    )}
+                    <div className="overflow-x-auto overflow-y-visible">
+                      <table className="w-full">
+                        <thead>
+                          <tr>
+                            <th className="table-header">Run date</th>
+                            <th className="table-header">Status</th>
+                            <th className="table-header">Triggered by</th>
+                            <th className="table-header">Automations</th>
+                            <th className="table-header">Entities updated</th>
+                            <th className="table-header">Total delta</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {runsLoading ? (
+                            Array.from({ length: 3 }).map((_, index) => (
+                              <tr
+                                key={`skeleton-${index}`}
+                                className="table-row"
+                              >
+                                <td className="table-cell">
+                                  <div className="h-5 bg-gray-200 rounded animate-pulse w-28" />
+                                </td>
+                                <td className="table-cell">
+                                  <div className="h-5 bg-gray-200 rounded animate-pulse w-20" />
+                                </td>
+                                <td className="table-cell">
+                                  <div className="h-5 bg-gray-200 rounded animate-pulse w-20" />
+                                </td>
+                                <td className="table-cell">
+                                  <div className="h-5 bg-gray-200 rounded animate-pulse w-16" />
+                                </td>
+                                <td className="table-cell">
+                                  <div className="h-5 bg-gray-200 rounded animate-pulse w-16" />
+                                </td>
+                                <td className="table-cell">
+                                  <div className="h-5 bg-gray-200 rounded animate-pulse w-20" />
+                                </td>
+                              </tr>
+                            ))
+                          ) : runs.length === 0 ? (
+                            <tr>
+                              <td
+                                colSpan={6}
+                                className="table-cell text-center py-12"
+                              >
+                                <p className="text-[14px] text-[#556179]">
+                                  No runs yet for this strategy.
+                                </p>
+                              </td>
+                            </tr>
+                          ) : (
+                            runs.map((run) => {
+                              const ranAt = run.ran_at
+                                ? new Date(run.ran_at).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      year: "numeric",
+                                      month: "short",
+                                      day: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )
+                                : "—";
+                              const delta =
+                                typeof run.total_delta === "number"
+                                  ? run.total_delta
+                                  : parseFloat(String(run.total_delta ?? 0));
+                              const deltaStr =
+                                Number.isNaN(delta) || delta === 0
+                                  ? "—"
+                                  : delta > 0
+                                    ? `+$${delta.toFixed(2)}`
+                                    : `-$${Math.abs(delta).toFixed(2)}`;
+                              return (
+                                <tr
+                                  key={run.id}
+                                  className="table-row hover:bg-[#f3f4f6]"
+                                >
+                                  <td className="table-cell text-[14px] text-[#313850]">
+                                    {ranAt}
+                                  </td>
+                                  <td className="table-cell">
+                                    <span className="text-[14px] text-[#556179] capitalize">
+                                      {run.status.replace("_", " ")}
+                                    </span>
+                                  </td>
+                                  <td className="table-cell text-[14px] text-[#556179]">
+                                    {run.triggered_by || "—"}
+                                  </td>
+                                  <td className="table-cell text-[14px] text-[#556179]">
+                                    {run.automation_count}
+                                  </td>
+                                  <td className="table-cell text-[14px] text-[#556179]">
+                                    {run.entity_count}
+                                  </td>
+                                  <td className="table-cell text-[14px] text-[#556179] font-medium">
+                                    {deltaStr}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </SectionCard>
+              )}
+
               {/* Footer */}
               {testCreateMessage && (
                 <p
@@ -1685,7 +2038,9 @@ export const StrategyDetail: React.FC = () => {
                       disabled={fillAndCreatePending || isPending}
                       className="h-10 px-4 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-800 text-[14px] font-medium hover:bg-emerald-200 disabled:opacity-50"
                     >
-                      {fillAndCreatePending ? "Creating..." : "Fill form & create"}
+                      {fillAndCreatePending
+                        ? "Creating..."
+                        : "Fill form & create"}
                     </button>
                     <button
                       type="button"

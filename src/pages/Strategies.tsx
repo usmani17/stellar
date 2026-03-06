@@ -13,7 +13,8 @@ import type { Strategy } from "../services/strategies";
 const PAGE_SIZE = 10;
 
 export const Strategies: React.FC = () => {
-  const [searchQuery, setSearchQuery, debouncedSearchQuery] = useDebouncedSearch("", 400);
+  const [searchQuery, setSearchQuery, debouncedSearchQuery] =
+    useDebouncedSearch("", 400);
   const [currentPage, setCurrentPage] = useState(1);
   const {
     strategies,
@@ -46,9 +47,14 @@ export const Strategies: React.FC = () => {
       navigate(`/strategies/${created.id}`);
     } catch (err: unknown) {
       const msg =
-        (err as { response?: { data?: { detail?: string; name?: string[] } }; message?: string })
-          ?.response?.data?.detail ??
-        (err as { response?: { data?: { name?: string[] } } })?.response?.data?.name?.[0] ??
+        (
+          err as {
+            response?: { data?: { detail?: string; name?: string[] } };
+            message?: string;
+          }
+        )?.response?.data?.detail ??
+        (err as { response?: { data?: { name?: string[] } } })?.response?.data
+          ?.name?.[0] ??
         (err as Error)?.message ??
         "Failed to duplicate strategy.";
       setDuplicateError(msg);
@@ -171,7 +177,10 @@ export const Strategies: React.FC = () => {
                   <tbody>
                     {isError ? (
                       <tr>
-                        <td colSpan={7} className="table-cell text-center py-12">
+                        <td
+                          colSpan={7}
+                          className="table-cell text-center py-12"
+                        >
                           <p className="text-[14px] text-red-600 mb-2">
                             Failed to load strategies.
                           </p>
@@ -256,10 +265,13 @@ export const Strategies: React.FC = () => {
                           <td className="table-cell text-[14px] text-[#556179]">
                             {formatDate(strategy.last_run)}
                           </td>
-                          <td className="table-cell" onClick={(e) => e.stopPropagation()}>
+                          <td
+                            className="table-cell"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <div className="flex items-center gap-2 flex-wrap">
                               <Link
-                                to={`/strategies/${strategy.id}/run-history`}
+                                to={`/strategies/${strategy.id}`}
                                 className="text-[13px] text-[#136D6D] hover:underline"
                               >
                                 View
@@ -278,7 +290,9 @@ export const Strategies: React.FC = () => {
                                 onClick={(e) => handleDuplicate(e, strategy)}
                                 disabled={duplicatingId !== null}
                               >
-                                {duplicatingId === strategy.id ? "Duplicating…" : "Duplicate"}
+                                {duplicatingId === strategy.id
+                                  ? "Duplicating…"
+                                  : "Duplicate"}
                               </button>
                             </div>
                           </td>
@@ -346,9 +360,7 @@ export const Strategies: React.FC = () => {
                   )}
                   <button
                     onClick={() =>
-                      setCurrentPage((prev) =>
-                        Math.min(totalPages, prev + 1)
-                      )
+                      setCurrentPage((prev) => Math.min(totalPages, prev + 1))
                     }
                     disabled={currentPage === totalPages}
                     className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"

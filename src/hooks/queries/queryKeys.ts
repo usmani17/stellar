@@ -11,9 +11,16 @@ export const queryKeys = {
     all: ["accounts"] as const,
     lists: () => [...queryKeys.accounts.all, "list"] as const,
     listAll: () => [...queryKeys.accounts.all, "list", "all"] as const,
-    allAccessibleProfiles: () => [...queryKeys.accounts.all, "all-accessible-profiles"] as const,
+    allAccessibleProfiles: () =>
+      [...queryKeys.accounts.all, "all-accessible-profiles"] as const,
     listPaginated: (page?: number, pageSize?: number) =>
-      [...queryKeys.accounts.all, "list", "paginated", page ?? 1, pageSize ?? 10] as const,
+      [
+        ...queryKeys.accounts.all,
+        "list",
+        "paginated",
+        page ?? 1,
+        pageSize ?? 10,
+      ] as const,
     detail: (id: number) => [...queryKeys.accounts.all, "detail", id] as const,
   },
   channels: {
@@ -29,17 +36,20 @@ export const queryKeys = {
       accountId: number,
       params?: Record<string, any>,
       channelId?: number | string | null,
-      profileId?: string | number | null
+      profileId?: string | number | null,
     ) => {
       // Create a stable key from params by sorting keys
       const paramsKey = params
         ? JSON.stringify(
             Object.keys(params)
               .sort()
-              .reduce((acc, key) => {
-                acc[key] = params[key];
-                return acc;
-              }, {} as Record<string, any>)
+              .reduce(
+                (acc, key) => {
+                  acc[key] = params[key];
+                  return acc;
+                },
+                {} as Record<string, any>,
+              ),
           )
         : "default";
       return [
@@ -52,12 +62,7 @@ export const queryKeys = {
       ] as const;
     },
     detail: (accountId: number, campaignId: string | number) =>
-      [
-        ...queryKeys.campaigns.all,
-        "detail",
-        accountId,
-        campaignId,
-      ] as const,
+      [...queryKeys.campaigns.all, "detail", accountId, campaignId] as const,
   },
   googleProfiles: {
     all: ["googleProfiles"] as const,
@@ -78,19 +83,9 @@ export const queryKeys = {
   assets: {
     all: ["assets"] as const,
     lists: (profileId: number, assetType?: string) =>
-      [
-        ...queryKeys.assets.all,
-        "list",
-        profileId,
-        assetType || "all",
-      ] as const,
+      [...queryKeys.assets.all, "list", profileId, assetType || "all"] as const,
     detail: (profileId: number, assetId: string) =>
-      [
-        ...queryKeys.assets.all,
-        "detail",
-        profileId,
-        assetId,
-      ] as const,
+      [...queryKeys.assets.all, "detail", profileId, assetId] as const,
   },
   googleConversionActions: {
     all: ["googleConversionActions"] as const,
@@ -108,8 +103,7 @@ export const queryKeys = {
     all: ["workflows"] as const,
     lists: (accountId: number, search?: string) =>
       [...queryKeys.workflows.all, "list", accountId, search ?? ""] as const,
-    detail: (id: number) =>
-      [...queryKeys.workflows.all, "detail", id] as const,
+    detail: (id: number) => [...queryKeys.workflows.all, "detail", id] as const,
     runs: (workflowId: number) =>
       [...queryKeys.workflows.all, "runs", workflowId] as const,
   },
@@ -122,8 +116,16 @@ export const queryKeys = {
     all: ["strategies"] as const,
     lists: () => [...queryKeys.strategies.all, "list"] as const,
     listPaginated: (page: number, pageSize: number, search?: string) =>
-      [...queryKeys.strategies.all, "list", "paginated", page, pageSize, search ?? ""] as const,
-    detail: (id: number) => [...queryKeys.strategies.all, "detail", id] as const,
+      [
+        ...queryKeys.strategies.all,
+        "list",
+        "paginated",
+        page,
+        pageSize,
+        search ?? "",
+      ] as const,
+    detail: (id: number) =>
+      [...queryKeys.strategies.all, "detail", id] as const,
   },
   automations: {
     all: ["automations"] as const,

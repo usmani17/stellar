@@ -1,15 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-  strategiesService,
-  type Strategy,
-} from "../../services/strategies";
+import { strategiesService, type Strategy } from "../../services/strategies";
 import { queryKeys } from "./queryKeys";
 
 export const useStrategiesPaginated = (
   page: number,
   pageSize: number,
   search?: string,
-  options?: { enabled?: boolean }
+  options?: { enabled?: boolean },
 ) => {
   const query = useQuery({
     queryKey: queryKeys.strategies.listPaginated(page, pageSize, search ?? ""),
@@ -21,7 +18,8 @@ export const useStrategiesPaginated = (
       }),
     enabled: options?.enabled ?? true,
     retry: (failureCount, error: any) => {
-      if (error?.response?.status === 401 || error?.response?.status === 403) return false;
+      if (error?.response?.status === 401 || error?.response?.status === 403)
+        return false;
       return failureCount < 3;
     },
   });
@@ -63,7 +61,7 @@ export const useStrategies = (options?: { enabled?: boolean }) => {
 
 export const useStrategy = (
   strategyId: number | undefined,
-  options?: { enabled?: boolean }
+  options?: { enabled?: boolean },
 ) => {
   const query = useQuery<Strategy, Error>({
     queryKey: queryKeys.strategies.detail(strategyId ?? 0),

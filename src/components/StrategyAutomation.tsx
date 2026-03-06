@@ -61,7 +61,6 @@ const ENTITY_OPTIONS = [
   { value: "Campaign", label: "Campaign" },
   { value: "Ad Group", label: "Ad Group" },
   { value: "Keyword", label: "Keyword" },
-  { value: "Ads", label: "Ads" },
 ] as const;
 
 const ALL_ACTION_OPTIONS = [
@@ -69,6 +68,7 @@ const ALL_ACTION_OPTIONS = [
   { value: "enable", label: "Enable" },
   { value: "increase_budget", label: "Increase budget" },
   { value: "decrease_budget", label: "Decrease budget" },
+  { value: "set_budget", label: "Set to" },
   { value: "increase_bid", label: "Increase bid" },
   { value: "decrease_bid", label: "Decrease bid" },
 ] as const;
@@ -95,7 +95,8 @@ export const StrategyAutomation: React.FC<StrategyAutomationProps> = ({
 
   const isIncreaseAction = action === "increase_bid" || action === "increase_budget";
   const isDecreaseAction = action === "decrease_bid" || action === "decrease_budget";
-  const showActionInputs = isIncreaseAction || isDecreaseAction;
+  const isSetToAction = action === "set_budget";
+  const showActionInputs = isIncreaseAction || isDecreaseAction || isSetToAction;
 
   const actionOptions = useMemo(() => {
     if (entity === "Campaign") {
@@ -104,7 +105,7 @@ export const StrategyAutomation: React.FC<StrategyAutomationProps> = ({
       );
     }
     return ALL_ACTION_OPTIONS.filter(
-      (o) => o.value !== "increase_budget" && o.value !== "decrease_budget"
+      (o) => o.value !== "increase_budget" && o.value !== "decrease_budget" && o.value !== "set_budget"
     );
   }, [entity]);
 
@@ -153,7 +154,12 @@ export const StrategyAutomation: React.FC<StrategyAutomationProps> = ({
             <Dropdown
               options={actionOptions}
               value={action}
-              onChange={(value) => onActionStateChange({ action: value })}
+              onChange={(value) =>
+                onActionStateChange({
+                  action: value,
+                  ...(value === "set_budget" ? { adjustmentValueUnit: "$" as const } : {}),
+                })
+              }
               placeholder="Select action"
               buttonClassName="campaign-input w-full h-12 rounded-xl px-3 border border-border-default bg-background-field flex items-center justify-between text-sm text-text-primary"
               width="w-full"
@@ -165,46 +171,57 @@ export const StrategyAutomation: React.FC<StrategyAutomationProps> = ({
             <>
               <div className="flex flex-col gap-1 min-w-[140px] flex-1 max-w-[200px]">
                 <label className="text-[14px] font-medium text-text-primary">
-                  Adjustment Value
+                  {isSetToAction ? "Amount ($)" : "Adjustment Value"}
                 </label>
                 <div className="flex h-10 rounded-[12px] border border-[#e3e3e3] bg-[#FEFEFB] overflow-hidden transition-colors focus-within:border focus-within:border-[#136D6D]">
                   <input
                     type="number"
                     value={adjustmentValue}
                     onChange={(e) =>
-                      onActionStateChange({ adjustmentValue: e.target.value })
-                    }
-                    placeholder={isIncreaseAction ? "20" : "10"}
-                    className="flex-1 min-w-0 border-0 rounded-none h-full text-[12px] px-3 outline-none bg-transparent text-[#072929]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
                       onActionStateChange({
-                        adjustmentValueUnit: adjustmentValueUnit === "%" ? "$" : "%",
+                        adjustmentValue: e.target.value,
+                        ...(isSetToAction ? { adjustmentValueUnit: "$" as const } : {}),
                       })
                     }
-                    className="flex items-center justify-center px-3 text-[14px] font-medium text-[#072929] border-l border-[#E8E8E3] h-full min-w-[44px] hover:bg-[#f5f5f0] transition-colors shrink-0"
-                    aria-label={`Unit: ${adjustmentValueUnit}. Click to switch to ${adjustmentValueUnit === "%" ? "$" : "%"}.`}
-                  >
-                    {adjustmentValueUnit}
-                  </button>
+                    placeholder={isSetToAction ? "e.g. 100" : isIncreaseAction ? "20" : "10"}
+                    className="flex-1 min-w-0 border-0 rounded-none h-full text-[12px] px-3 outline-none bg-transparent text-[#072929]"
+                  />
+                  {!isSetToAction ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onActionStateChange({
+                          adjustmentValueUnit: adjustmentValueUnit === "%" ? "$" : "%",
+                        })
+                      }
+                      className="flex items-center justify-center px-3 text-[14px] font-medium text-[#072929] border-l border-[#E8E8E3] h-full min-w-[44px] hover:bg-[#f5f5f0] transition-colors shrink-0"
+                      aria-label={`Unit: ${adjustmentValueUnit}. Click to switch to ${adjustmentValueUnit === "%" ? "$" : "%"}.`}
+                    >
+                      {adjustmentValueUnit}
+                    </button>
+                  ) : (
+                    <span className="flex items-center justify-center px-3 text-[14px] font-medium text-[#072929] border-l border-[#E8E8E3] h-full min-w-[44px] shrink-0">
+                      $
+                    </span>
+                  )}
                 </div>
               </div>
-              <div className="flex flex-col gap-1 min-w-[120px] flex-1 max-w-[180px]">
-                <div className="text-[14px] font-medium text-text-primary">
-                  {isIncreaseAction ? "Max Cap (Optional)" : "Floor (Optional)"}
+              {!isSetToAction && (
+                <div className="flex flex-col gap-1 min-w-[120px] flex-1 max-w-[180px]">
+                  <div className="text-[14px] font-medium text-text-primary">
+                    {isIncreaseAction ? "Max Cap (Optional)" : "Floor (Optional)"}
+                  </div>
+                  <input
+                    type="number"
+                    value={actionLimitValue}
+                    onChange={(e) =>
+                      onActionStateChange({ actionLimitValue: e.target.value })
+                    }
+                    placeholder={isIncreaseAction ? "e.g. 500" : "e.g. 50"}
+                    className="campaign-input w-full h-10 rounded-[12px] px-3 border border-border-default bg-background-field text-text-primary text-[12px]"
+                  />
                 </div>
-                <input
-                  type="number"
-                  value={actionLimitValue}
-                  onChange={(e) =>
-                    onActionStateChange({ actionLimitValue: e.target.value })
-                  }
-                  placeholder={isIncreaseAction ? "e.g. 500" : "e.g. 50"}
-                  className="campaign-input w-full h-10 rounded-[12px] px-3 border border-border-default bg-background-field text-text-primary text-[12px]"
-                />
-              </div>
+              )}
             </>
           )}
         </div>
