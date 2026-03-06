@@ -119,11 +119,11 @@ function WorkflowDashboardContent({
     <div className="min-h-screen bg-white flex">
       <Sidebar />
       <div
-        className="transition-all duration-300 flex-1 min-w-0"
+        className="flex-1 min-w-0 w-full h-screen flex flex-col"
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
         <DashboardHeader />
-        <Assistant />
+        <Assistant>
         <div
           className={`min-h-screen transition-colors duration-300 ${isDark
               ? "bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900"
@@ -201,6 +201,7 @@ function WorkflowDashboardContent({
             </div>
           </div>
         </div>
+        </Assistant>
       </div>
     </div>
   );
