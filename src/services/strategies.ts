@@ -261,14 +261,24 @@ export const strategiesService = {
 
   /**
    * Duplicate a strategy: fetches full strategy then creates a new one with
-   * name "Copy of {name}", status Draft, and same settings/automations/profile_ids.
+   * name "Copy of {name}", status Paused, and same settings/automations/profile_ids.
    */
   duplicateStrategy: async (sourceId: number): Promise<Strategy> => {
     const source = await api
       .get<Strategy>(`/strategies/${sourceId}/`)
       .then((r) => r.data);
     const automations = (source.automations ?? []).map((a) => {
-      const conditions = Array.isArray(a.conditions) ? a.conditions : [];
+      let conditions: Record<string, unknown>[] = [];
+      if (Array.isArray(a.conditions)) {
+        conditions = a.conditions;
+      } else if (typeof a.conditions === "string" && a.conditions.trim()) {
+        try {
+          const parsed = JSON.parse(a.conditions) as unknown;
+          conditions = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          conditions = [];
+        }
+      }
       return {
         entity: a.entity,
         action: a.action,
@@ -287,7 +297,7 @@ export const strategiesService = {
     const payload: CreateStrategyData = {
       name: `Copy of ${source.name || "Strategy"}`,
       goal: source.goal,
-      status: "Draft",
+      status: "paused",
       platform: source.platform,
       max_change_per_day: String(source.max_change_per_day ?? ""),
       max_change_per_week: String(source.max_change_per_week ?? ""),
@@ -309,6 +319,8 @@ export const strategiesService = {
       profile_ids: source.profile_ids?.length ? source.profile_ids : undefined,
       automations,
     };
+    // Backend only accepts status: enabled | paused | archived (no "Draft")
+    payload.status = "paused";
     const created = await api
       .post<Strategy>("/strategies/", payload)
       .then((r) => r.data);

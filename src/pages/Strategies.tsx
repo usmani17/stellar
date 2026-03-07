@@ -49,7 +49,8 @@ const ACTION_SIGN: Record<string, string> = {
 const WEEKDAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function formatAutomationSummary(a: StrategyAutomationPayload): string {
-  const entity = ENTITY_LABEL[a.entity?.toLowerCase() ?? ""] ?? a.entity ?? "Automation";
+  const entity =
+    ENTITY_LABEL[a.entity?.toLowerCase() ?? ""] ?? a.entity ?? "Automation";
   const sign = ACTION_SIGN[a.action ?? ""] ?? "";
   const val = a.change_value != null ? String(a.change_value) : "";
   const unit = a.change_unit === "absolute" ? "$" : "%";
@@ -64,13 +65,15 @@ function formatAutomationAction(a: StrategyAutomationPayload): string {
   const cap = a.change_cap != null ? String(a.change_cap) : null;
   if (!val) return label;
   const isSetTo = (a.action ?? "") === "set_budget";
-  const main = isSetTo
-    ? `${label} ${val}${unit}`
-    : `${label} by ${val}${unit}`;
-  return cap != null ? `${main} (cap ${unit === "$" ? "$" : ""}${cap}${unit === "$" ? "" : "%"})` : main;
+  const main = isSetTo ? `${label} ${val}${unit}` : `${label} by ${val}${unit}`;
+  return cap != null
+    ? `${main} (cap ${unit === "$" ? "$" : ""}${cap}${unit === "$" ? "" : "%"})`
+    : main;
 }
 
-function parseConditions(conditions: StrategyAutomationPayload["conditions"]): Record<string, unknown>[] {
+function parseConditions(
+  conditions: StrategyAutomationPayload["conditions"],
+): Record<string, unknown>[] {
   let arr: Record<string, unknown>[] = [];
   if (Array.isArray(conditions)) arr = conditions;
   else if (typeof conditions === "string") {
@@ -84,7 +87,9 @@ function parseConditions(conditions: StrategyAutomationPayload["conditions"]): R
   return arr;
 }
 
-function formatAutomationFilters(conditions: StrategyAutomationPayload["conditions"]): string {
+function formatAutomationFilters(
+  conditions: StrategyAutomationPayload["conditions"],
+): string {
   const arr = parseConditions(conditions);
   if (arr.length === 0) return "—";
   const parts = arr.slice(0, 3).map((c) => {
@@ -94,11 +99,15 @@ function formatAutomationFilters(conditions: StrategyAutomationPayload["conditio
     const valStr = val != null ? String(val) : "?";
     return `${field} ${op} ${valStr}`;
   });
-  return arr.length > 3 ? `${parts.join(", ")} +${arr.length - 3}` : parts.join(", ");
+  return arr.length > 3
+    ? `${parts.join(", ")} +${arr.length - 3}`
+    : parts.join(", ");
 }
 
 /** Full filters string for tooltip (all conditions, one per line for readability). */
-function formatAutomationFiltersFull(conditions: StrategyAutomationPayload["conditions"]): string {
+function formatAutomationFiltersFull(
+  conditions: StrategyAutomationPayload["conditions"],
+): string {
   const arr = parseConditions(conditions);
   if (arr.length === 0) return "No filters";
   return arr
@@ -129,7 +138,8 @@ function formatStrategySchedule(s: Strategy): string {
     }
   }
   if (freq === "daily" && time) return `Daily ${time}`;
-  if (freq === "weekly" && dayStr) return `Weekly ${dayStr}${time ? ` ${time}` : ""}`;
+  if (freq === "weekly" && dayStr)
+    return `Weekly ${dayStr}${time ? ` ${time}` : ""}`;
   if (freq === "monthly" && time) return `Monthly ${time}`;
   return freq || time ? [freq, time].filter(Boolean).join(" ") || "—" : "—";
 }
@@ -137,7 +147,8 @@ function formatStrategySchedule(s: Strategy): string {
 function formatAutomationSchedule(a: StrategyAutomationPayload): string {
   if (!a.schedule_enabled) return "Strategy default";
   const freq = (a.schedule_frequency ?? "").toLowerCase();
-  const time = a.schedule_run_at != null ? String(a.schedule_run_at).slice(0, 5) : "";
+  const time =
+    a.schedule_run_at != null ? String(a.schedule_run_at).slice(0, 5) : "";
   const days = a.schedule_run_days;
   let dayStr = "";
   if (Array.isArray(days) && days.length > 0) {
@@ -152,9 +163,12 @@ function formatAutomationSchedule(a: StrategyAutomationPayload): string {
     }
   }
   if (freq === "daily" && time) return `Daily ${time}`;
-  if (freq === "weekly" && dayStr) return `Weekly ${dayStr}${time ? ` ${time}` : ""}`;
+  if (freq === "weekly" && dayStr)
+    return `Weekly ${dayStr}${time ? ` ${time}` : ""}`;
   if (freq === "monthly" && time) return `Monthly ${time}`;
-  return freq || time ? [freq, time].filter(Boolean).join(" ") || "Custom" : "Custom";
+  return freq || time
+    ? [freq, time].filter(Boolean).join(" ") || "Custom"
+    : "Custom";
 }
 
 export const Strategies: React.FC = () => {
@@ -194,10 +208,16 @@ export const Strategies: React.FC = () => {
   /** "strategyId-automationId" when that automation's run is starting. */
   const [startingRunKey, setStartingRunKey] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewStrategyId, setPreviewStrategyId] = useState<number | null>(null);
-  const [previewAutomationId, setPreviewAutomationId] = useState<number | null>(null);
+  const [previewStrategyId, setPreviewStrategyId] = useState<number | null>(
+    null,
+  );
+  const [previewAutomationId, setPreviewAutomationId] = useState<number | null>(
+    null,
+  );
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewResults, setPreviewResults] = useState<AutomationPreviewRow[]>([]);
+  const [previewResults, setPreviewResults] = useState<AutomationPreviewRow[]>(
+    [],
+  );
   const [previewSummary, setPreviewSummary] = useState("");
   const [previewError, setPreviewError] = useState<string | null>(null);
 
@@ -254,7 +274,9 @@ export const Strategies: React.FC = () => {
           refetch();
           setTimeout(() => setRunSuccessId(null), 3000);
         },
-        onError: (err: Error & { response?: { data?: { detail?: string } } }) => {
+        onError: (
+          err: Error & { response?: { data?: { detail?: string } } },
+        ) => {
           setStartingRunKey(null);
           const msg =
             err?.response?.data?.detail ??
@@ -512,10 +534,10 @@ export const Strategies: React.FC = () => {
                                 <span className="text-[14px] text-[#556179]">
                                   {strategy.is_running
                                     ? "Running"
-                                    : (strategy.status.toLowerCase() ===
-                                      "enabled"
+                                    : strategy.status.toLowerCase() ===
+                                        "enabled"
                                       ? "Enabled"
-                                      : "Paused")}
+                                      : "Paused"}
                                 </span>
                               </td>
                               <td className="table-cell text-[14px] text-[#556179]">
@@ -572,7 +594,10 @@ export const Strategies: React.FC = () => {
                                     className="table-cell p-0 align-top"
                                   >
                                     <div className="pl-10 py-3 pr-4 min-w-0">
-                                      <table className="w-full border border-sandstorm-s40 rounded-lg overflow-hidden bg-white" style={{ tableLayout: "fixed" }}>
+                                      <table
+                                        className="w-full border border-sandstorm-s40 rounded-lg overflow-hidden bg-white"
+                                        style={{ tableLayout: "fixed" }}
+                                      >
                                         <colgroup>
                                           <col style={{ width: "140px" }} />
                                           <col style={{ width: "160px" }} />
@@ -607,14 +632,24 @@ export const Strategies: React.FC = () => {
                                                 className="table-row border-b border-sandstorm-s40 last:border-b-0"
                                               >
                                                 <td className="table-cell py-2 px-3 text-[13px] text-forest-f60 font-medium overflow-hidden">
-                                                  <span className="block truncate" title={formatAutomationSummary(automation)}>
+                                                  <span
+                                                    className="block truncate"
+                                                    title={formatAutomationSummary(
+                                                      automation,
+                                                    )}
+                                                  >
                                                     {formatAutomationSummary(
                                                       automation,
                                                     )}
                                                   </span>
                                                 </td>
                                                 <td className="table-cell py-2 px-3 text-[13px] text-forest-f30 overflow-hidden">
-                                                  <span className="block truncate" title={formatAutomationAction(automation)}>
+                                                  <span
+                                                    className="block truncate"
+                                                    title={formatAutomationAction(
+                                                      automation,
+                                                    )}
+                                                  >
                                                     {formatAutomationAction(
                                                       automation,
                                                     )}
@@ -632,7 +667,12 @@ export const Strategies: React.FC = () => {
                                                       triggerClassName="block min-w-0 max-w-full"
                                                       className="[&>div]:max-w-[320px] [&>div]:min-w-[200px]"
                                                     >
-                                                      <span className="block truncate cursor-help max-w-full" title={formatAutomationFiltersFull(automation.conditions)}>
+                                                      <span
+                                                        className="block truncate cursor-help max-w-full"
+                                                        title={formatAutomationFiltersFull(
+                                                          automation.conditions,
+                                                        )}
+                                                      >
                                                         {formatAutomationFilters(
                                                           automation.conditions,
                                                         )}
@@ -641,7 +681,12 @@ export const Strategies: React.FC = () => {
                                                   </div>
                                                 </td>
                                                 <td className="table-cell py-2 px-3 text-[13px] text-forest-f30 overflow-hidden">
-                                                  <span className="block truncate" title={formatAutomationSchedule(automation)}>
+                                                  <span
+                                                    className="block truncate"
+                                                    title={formatAutomationSchedule(
+                                                      automation,
+                                                    )}
+                                                  >
                                                     {formatAutomationSchedule(
                                                       automation,
                                                     )}
@@ -655,47 +700,105 @@ export const Strategies: React.FC = () => {
                                                           type="button"
                                                           className="text-[13px] text-forest-f40 hover:underline font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                                                           onClick={(e) =>
-                                                            handleRunAutomation(e, strategy, automation)
+                                                            handleRunAutomation(
+                                                              e,
+                                                              strategy,
+                                                              automation,
+                                                            )
                                                           }
                                                           disabled={
                                                             strategy.is_running ||
-                                                            startingRunKey === `${strategy.id}-${automation.id}`
+                                                            startingRunKey ===
+                                                              `${strategy.id}-${automation.id}`
                                                           }
                                                         >
                                                           {strategy.is_running ||
-                                                          startingRunKey === `${strategy.id}-${automation.id}`
+                                                          startingRunKey ===
+                                                            `${strategy.id}-${automation.id}`
                                                             ? "Running…"
                                                             : "Run"}
                                                         </button>
-                                                        <span className="text-forest-f30">|</span>
+                                                        <span className="text-forest-f30">
+                                                          |
+                                                        </span>
                                                         <button
                                                           type="button"
                                                           className="text-[13px] text-forest-f40 hover:underline font-medium whitespace-nowrap"
                                                           onClick={(e) => {
                                                             e.stopPropagation();
-                                                            setPreviewStrategyId(strategy.id);
-                                                            setPreviewAutomationId(automation.id);
-                                                            setPreviewOpen(true);
-                                                            setPreviewLoading(true);
-                                                            setPreviewError(null);
-                                                            setPreviewResults([]);
-                                                            setPreviewSummary("");
+                                                            setPreviewStrategyId(
+                                                              strategy.id,
+                                                            );
+                                                            setPreviewAutomationId(
+                                                              automation.id,
+                                                            );
+                                                            setPreviewOpen(
+                                                              true,
+                                                            );
+                                                            setPreviewLoading(
+                                                              true,
+                                                            );
+                                                            setPreviewError(
+                                                              null,
+                                                            );
+                                                            setPreviewResults(
+                                                              [],
+                                                            );
+                                                            setPreviewSummary(
+                                                              "",
+                                                            );
                                                             strategiesService
-                                                              .getAutomationPreview(strategy.id, automation.id)
+                                                              .getAutomationPreview(
+                                                                strategy.id,
+                                                                automation.id,
+                                                              )
                                                               .then((res) => {
-                                                                setPreviewResults(res.results ?? []);
-                                                                setPreviewSummary(res.summary ?? "");
+                                                                setPreviewResults(
+                                                                  res.results ??
+                                                                    [],
+                                                                );
+                                                                setPreviewSummary(
+                                                                  res.summary ??
+                                                                    "",
+                                                                );
                                                               })
-                                                              .catch((err: unknown) => {
-                                                                const msg =
-                                                                  (err as { response?: { data?: { summary?: string } } })?.response?.data?.summary ??
-                                                                  (err as Error)?.message ??
-                                                                  "Failed to load preview.";
-                                                                setPreviewError(msg);
-                                                                setPreviewResults([]);
-                                                                setPreviewSummary("");
-                                                              })
-                                                              .finally(() => setPreviewLoading(false));
+                                                              .catch(
+                                                                (
+                                                                  err: unknown,
+                                                                ) => {
+                                                                  const msg =
+                                                                    (
+                                                                      err as {
+                                                                        response?: {
+                                                                          data?: {
+                                                                            summary?: string;
+                                                                          };
+                                                                        };
+                                                                      }
+                                                                    )?.response
+                                                                      ?.data
+                                                                      ?.summary ??
+                                                                    (
+                                                                      err as Error
+                                                                    )
+                                                                      ?.message ??
+                                                                    "Failed to load preview.";
+                                                                  setPreviewError(
+                                                                    msg,
+                                                                  );
+                                                                  setPreviewResults(
+                                                                    [],
+                                                                  );
+                                                                  setPreviewSummary(
+                                                                    "",
+                                                                  );
+                                                                },
+                                                              )
+                                                              .finally(() =>
+                                                                setPreviewLoading(
+                                                                  false,
+                                                                ),
+                                                              );
                                                           }}
                                                         >
                                                           Preview
@@ -893,7 +996,10 @@ export const Strategies: React.FC = () => {
                                 key={`${row.entity_name}-${i}`}
                                 className="border-b border-gray-200 last:border-b-0"
                               >
-                                <td className="px-4 py-2 text-[10.64px] text-forest-f60 max-w-[200px] truncate" title={row.entity_name}>
+                                <td
+                                  className="px-4 py-2 text-[10.64px] text-forest-f60 max-w-[200px] truncate"
+                                  title={row.entity_name}
+                                >
                                   {row.entity_name}
                                 </td>
                                 <td className="px-4 py-2 text-[10.64px] text-forest-f30">
