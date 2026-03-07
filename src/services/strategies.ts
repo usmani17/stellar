@@ -108,6 +108,8 @@ export interface AutomationRunHistoryItem {
   total_change_amount: number | string | null;
   total_change_amount_percentage: number | string | null;
   execution_time_ms: number | null;
+  portfolio_value_before: number | string | null;
+  portfolio_value_after: number | string | null;
   skipped: number;
   skipped_reason: string;
   guardrail_triggered: boolean;

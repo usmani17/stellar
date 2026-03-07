@@ -10,6 +10,7 @@ import {
   strategiesService,
   type AutomationRunHistoryItem,
 } from "../services/strategies";
+import { formatCurrency } from "../utils/formatters";
 
 export const StrategyRunHistory: React.FC = () => {
   const { strategyId } = useParams<{ strategyId: string }>();
@@ -91,12 +92,12 @@ export const StrategyRunHistory: React.FC = () => {
         <AccountsHeader />
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white">
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex flex-col gap-2">
               <Link
-                to={`/strategies/${id}`}
-                className="inline-flex items-center gap-1 text-[14px] text-forest-f40 hover:underline"
+                to="/strategies"
+                className="inline-flex items-center gap-1 text-[14px] text-forest-f40 hover:underline w-fit"
               >
-                <ChevronLeft className="w-4 h-4" /> Back to strategy
+                <ChevronLeft className="w-4 h-4" /> Back to Strategies
               </Link>
               <h1 className="text-[22px] sm:text-[24px] font-medium text-forest-f60">
                 Run history{strategyName ? ` – ${strategyName}` : ""}
@@ -122,6 +123,8 @@ export const StrategyRunHistory: React.FC = () => {
                       <th className="table-header">Number of changes</th>
                       <th className="table-header">Amount Changed</th>
                       <th className="table-header">% Changed</th>
+                      <th className="table-header">Portfolio value (before)</th>
+                      <th className="table-header">Portfolio value (after)</th>
                       <th className="table-header">Execution Time</th>
                     </tr>
                   </thead>
@@ -147,12 +150,21 @@ export const StrategyRunHistory: React.FC = () => {
                           <td className="table-cell">
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-20" />
                           </td>
+                          <td className="table-cell">
+                            <div className="h-5 bg-gray-200 rounded animate-pulse w-20" />
+                          </td>
+                          <td className="table-cell">
+                            <div className="h-5 bg-gray-200 rounded animate-pulse w-20" />
+                          </td>
+                          <td className="table-cell">
+                            <div className="h-5 bg-gray-200 rounded animate-pulse w-20" />
+                          </td>
                         </tr>
                       ))
                     ) : runs.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={6}
+                          colSpan={8}
                           className="table-cell text-center py-12"
                         >
                           <p className="text-[14px] text-forest-f30">
@@ -190,6 +202,14 @@ export const StrategyRunHistory: React.FC = () => {
                         const timeMs = run.execution_time_ms;
                         const timeStr =
                           timeMs != null ? `${timeMs} ms` : "—";
+                        const portfolioBefore =
+                          run.portfolio_value_before != null
+                            ? formatCurrency(Number(run.portfolio_value_before))
+                            : "—";
+                        const portfolioAfter =
+                          run.portfolio_value_after != null
+                            ? formatCurrency(Number(run.portfolio_value_after))
+                            : "—";
                         return (
                           <tr
                             key={run.id}
@@ -211,6 +231,12 @@ export const StrategyRunHistory: React.FC = () => {
                               {pctStr}
                             </td>
                             <td className="table-cell text-[14px] text-forest-f30">
+                              {portfolioBefore}
+                            </td>
+                            <td className="table-cell text-[14px] text-forest-f30">
+                              {portfolioAfter}
+                            </td>
+                            <td className="table-cell text-[14px] text-forest-f30">
                               {timeStr}
                             </td>
                           </tr>
@@ -222,29 +248,69 @@ export const StrategyRunHistory: React.FC = () => {
               </div>
             </div>
 
-            {totalCount > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
-                <p className="text-[14px] text-forest-f30">
-                  Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, totalCount)} of {totalCount} run
-                  {totalCount !== 1 ? "s" : ""}
-                  <span className="ml-2 text-forest-f40">
-                    · Page {page} of {totalPages}
-                  </span>
-                </p>
-                <div className="flex items-center gap-2">
+            {totalPages > 1 && (
+              <div className="flex items-center justify-end mt-4">
+                <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                   <button
                     type="button"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1 || loading}
-                    className="px-3 py-1.5 text-[14px] font-medium text-forest-f60 bg-white border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
                   >
                     Previous
                   </button>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (page <= 3) {
+                      pageNum = i + 1;
+                    } else if (page >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = page - 2 + i;
+                    }
+                    pageNum = Math.max(1, Math.min(pageNum, totalPages));
+                    return (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setPage(pageNum)}
+                        disabled={loading}
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                          page === pageNum
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  {totalPages > 5 && page < totalPages - 2 && (
+                    <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                      ...
+                    </span>
+                  )}
+                  {totalPages > 5 && page < totalPages - 2 && (
+                    <button
+                      type="button"
+                      onClick={() => setPage(totalPages)}
+                      disabled={loading}
+                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                        page === totalPages
+                          ? "bg-white text-[#136D6D] font-semibold"
+                          : "text-black hover:bg-gray-50"
+                      }`}
+                    >
+                      {totalPages}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages || loading}
-                    className="px-3 py-1.5 text-[14px] font-medium text-forest-f60 bg-white border border-sandstorm-s40 rounded-lg hover:bg-sandstorm-s5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
                   >
                     Next
                   </button>
