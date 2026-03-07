@@ -65,8 +65,8 @@ function parseRunDays(value: number[] | string | null | undefined): number[] {
         const parsed = JSON.parse(trimmed) as unknown;
         return Array.isArray(parsed)
           ? (parsed as number[]).filter(
-              (d) => typeof d === "number" && d >= 0 && d <= 6,
-            )
+            (d) => typeof d === "number" && d >= 0 && d <= 6,
+          )
           : [];
       } catch {
         return [];
@@ -387,7 +387,7 @@ export const StrategyDetail: React.FC = () => {
     setCustomOptimizationText(isCustomGoal ? goal : "");
     const statusVal = strategy.status ?? "";
     setFormState(
-        statusVal.toLowerCase() === "enabled"
+      statusVal.toLowerCase() === "enabled"
         ? "Enable"
         : "Pause",
     );
@@ -515,8 +515,8 @@ export const StrategyDetail: React.FC = () => {
                 const parsed = JSON.parse(scheduleRunDaysRaw) as unknown;
                 scheduleRunDays = Array.isArray(parsed)
                   ? (parsed as number[]).filter(
-                      (d) => typeof d === "number" && d >= 0 && d <= 6,
-                    )
+                    (d) => typeof d === "number" && d >= 0 && d <= 6,
+                  )
                   : globalRunDays;
               } catch {
                 // keep global
@@ -526,14 +526,14 @@ export const StrategyDetail: React.FC = () => {
 
           const frequency =
             hasOwnSchedule &&
-            a.schedule_frequency != null &&
-            String(a.schedule_frequency).trim() !== ""
+              a.schedule_frequency != null &&
+              String(a.schedule_frequency).trim() !== ""
               ? normalizeFrequencyDisplay(a.schedule_frequency)
               : globalFrequency;
           const runAtNormalized =
             hasOwnSchedule &&
-            a.schedule_run_at != null &&
-            String(a.schedule_run_at).trim() !== ""
+              a.schedule_run_at != null &&
+              String(a.schedule_run_at).trim() !== ""
               ? normalizeTimeForInput(a.schedule_run_at)
               : globalRunAt;
 
@@ -667,8 +667,8 @@ export const StrategyDetail: React.FC = () => {
     const profileIds =
       selectedProfileIds.length > 0
         ? selectedProfileIds
-            .map((id) => parseInt(id, 10))
-            .filter((n) => !Number.isNaN(n))
+          .map((id) => parseInt(id, 10))
+          .filter((n) => !Number.isNaN(n))
         : undefined;
     const goalValue =
       optimizationGoal === "Custom Optimization"
@@ -1110,13 +1110,13 @@ export const StrategyDetail: React.FC = () => {
         ? a.schedule_run_days
         : typeof a.schedule_run_days === "string"
           ? (() => {
-              try {
-                const p = JSON.parse(a.schedule_run_days as string) as unknown;
-                return Array.isArray(p) ? p : [];
-              } catch {
-                return [];
-              }
-            })()
+            try {
+              const p = JSON.parse(a.schedule_run_days as string) as unknown;
+              return Array.isArray(p) ? p : [];
+            } catch {
+              return [];
+            }
+          })()
           : [];
       const scheduleRunAtRaw =
         hasOwnSchedule && a.schedule_run_at != null
@@ -1329,10 +1329,9 @@ export const StrategyDetail: React.FC = () => {
                       className={`
                         flex-1 min-w-[120px] sm:min-w-[140px] h-[62px] px-3 sm:px-4 rounded-[20px] flex items-center justify-between gap-2 sm:gap-4
                         border-2 transition-all
-                        ${
-                          optimizationGoal === goal
-                            ? "bg-[#f0f0ed] border-[#136D6D] shadow-[0px_4px_0px_0px_#136D6D]"
-                            : "bg-[#F9F9F6] border-[#E8E8E3] hover:border-[#d0d0cb]"
+                        ${optimizationGoal === goal
+                          ? "bg-[#f0f0ed] border-[#136D6D] shadow-[0px_4px_0px_0px_#136D6D]"
+                          : "bg-[#F9F9F6] border-[#E8E8E3] hover:border-[#d0d0cb]"
                         }
                       `}
                     >
@@ -1340,11 +1339,10 @@ export const StrategyDetail: React.FC = () => {
                         {goal}
                       </span>
                       <span
-                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                          optimizationGoal === goal
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${optimizationGoal === goal
                             ? "border-[#136D6D] bg-[#136D6D]"
                             : "border-[#E8E8E3]"
-                        }`}
+                          }`}
                       >
                         {optimizationGoal === goal && (
                           <span className="w-2 h-2 rounded-full bg-[#F9F9F6]" />
@@ -1382,7 +1380,7 @@ export const StrategyDetail: React.FC = () => {
                 title="Strategy Details"
               >
                 <div className="flex flex-wrap gap-4 w-full md:flex-nowrap">
-                  <div ref={nameFieldRef} className="w-full md:flex-1 md:min-w-0">
+                  <div ref={nameFieldRef} className="flex flex-col gap-1 w-full max-w-[360px] md:flex-1 md:min-w-0">
                     <FormField
                       label="Strategy Name"
                       className="w-full"
@@ -1476,9 +1474,8 @@ export const StrategyDetail: React.FC = () => {
                           )}
                         </div>
                         <ChevronDown
-                          className={`w-5 h-5 text-[#e3e3e3] shrink-0 transition-transform ${
-                            profileDropdownOpen ? "rotate-180" : ""
-                          }`}
+                          className={`w-5 h-5 text-[#e3e3e3] shrink-0 transition-transform ${profileDropdownOpen ? "rotate-180" : ""
+                            }`}
                         />
                       </button>
                       {profileDropdownOpen && (
@@ -1682,11 +1679,10 @@ export const StrategyDetail: React.FC = () => {
                         return (
                           <div
                             key={index}
-                            className={`flex items-center gap-1 px-3 py-1 text-[14px] border-l border-[#E8E8E3] first:border-l-0 ${
-                              activeAutomationTab === index
+                            className={`flex items-center gap-1 px-3 py-1 text-[14px] border-l border-[#E8E8E3] first:border-l-0 ${activeAutomationTab === index
                                 ? "bg-[#136D6D] text-[#F9F9F6]"
                                 : "bg-white text-neutral-n300"
-                            }`}
+                              }`}
                           >
                             <button
                               type="button"
