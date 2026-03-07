@@ -153,3 +153,71 @@ export async function getDashboardComponentData(
   componentDataCache.set(key, promise);
   return promise;
 }
+
+/** SSE progress event: stage id and optional payload (display = full component result). */
+export interface DashboardComponentStreamEvent {
+  stage: string;
+  data: unknown;
+}
+
+/**
+ * Fetch component data via SSE stream; progress events drive the progress UI.
+ * Calls onProgress for each event; when stage === "display", data is the DashboardComponent result.
+ * On stream error or non-2xx, rejects so caller can fall back to getDashboardComponentData.
+ */
+export async function getDashboardComponentDataStream(
+  accountId: number,
+  dashboardId: number,
+  componentId: string,
+  _component: DashboardComponent,
+  onProgress: (event: DashboardComponentStreamEvent) => void,
+  channelId?: number,
+  profileId?: number,
+  hardRefresh = false
+): Promise<DashboardComponent> {
+  const baseURL = (api.defaults.baseURL || "").replace(/\/$/, "");
+  const params = new URLSearchParams();
+  if (channelId != null) params.set("channelId", String(channelId));
+  if (profileId != null) params.set("profileId", String(profileId));
+  if (hardRefresh) params.set("refresh", "1");
+  const qs = params.toString();
+  const url = `${baseURL}${API_BASE}/${accountId}/dashboards/${dashboardId}/components/${componentId}/stream/${qs ? `?${qs}` : ""}`;
+  const token = localStorage.getItem("accessToken");
+  const headers: HeadersInit = {
+    Accept: "text/event-stream",
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+    throw new Error(`Stream failed: ${response.status}`);
+  }
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error("No response body");
+  }
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let lastData: DashboardComponent | null = null;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n\n");
+    buffer = lines.pop() ?? "";
+    for (const chunk of lines) {
+      const dataLine = chunk.split("\n").find((l) => l.startsWith("data: "));
+      if (!dataLine) continue;
+      try {
+        const payload = JSON.parse(dataLine.slice(6)) as DashboardComponentStreamEvent;
+        onProgress(payload);
+        if (payload.stage === "display" && payload.data != null) {
+          lastData = payload.data as DashboardComponent;
+        }
+      } catch {
+        // skip malformed
+      }
+    }
+  }
+  if (lastData) return lastData;
+  throw new Error("No display event in stream");
+}

@@ -38,7 +38,7 @@ import { Dropdown } from "../../../../components/ui";
 import type { DropdownOption } from "../../../../components/ui";
 import type { DashboardComponent, LineChartDatum, PieChartDatum, SingleMetricDatum, FunnelChartDatum, VisualizationType } from "../../types/dashboard";
 import { isMultiGaqlQuery, isMultiMetaQuery } from "../../types/dashboard";
-import { getDashboardComponentData } from "../../../../services/dashboard";
+import { getDashboardComponentData, getDashboardComponentDataStream } from "../../../../services/dashboard";
 import { getMockDataForComponent } from "../../utils/dashboardMockData";
 import { useDashboardTheme } from "../../contexts/DashboardThemeContext";
 import { cn } from "../../../../lib/cn";
@@ -126,6 +126,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   const vizType = effectiveVisualizationType ?? component.visualization_type;
   const [status, setStatus] = useState<WidgetStatus>("pending");
   const [data, setData] = useState<DashboardComponent>({} as DashboardComponent);
+  const [streamActiveStep, setStreamActiveStep] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const mountedRef = useRef(true);
   const hasFetchedRef = useRef(false);
@@ -160,6 +161,47 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
       if (refreshTrigger === 0 && staggerDelayMs > 0) await new Promise((r) => setTimeout(r, staggerDelayMs));
       if (!mountedRef.current) return;
 
+      const componentForMock = {
+        ...component,
+        visualization_type: vizType,
+      };
+
+      if (accountId && dashboardId) {
+        try {
+          setStatus("fetching");
+          setStreamActiveStep(null);
+          const result = await getDashboardComponentDataStream(
+            accountId,
+            dashboardId,
+            component.id,
+            component,
+            (event) => {
+              if (!mountedRef.current) return;
+              setStreamActiveStep(event.stage);
+              if (event.stage === "display" && event.data != null) {
+                setData(event.data as DashboardComponent);
+                setStatus("ready");
+                setStreamActiveStep(null);
+                hasFetchedRef.current = true;
+              }
+            },
+            component.channel_id ?? undefined,
+            component.profile_id ?? undefined,
+            hardRefreshTrigger > 0
+          );
+          if (mountedRef.current && status !== "ready") {
+            setData(result);
+            setStatus("ready");
+            setStreamActiveStep(null);
+          }
+          hasFetchedRef.current = true;
+          return;
+        } catch (_e) {
+          setStreamActiveStep(null);
+          // Fall back to non-streaming fetch with simulated progress
+        }
+      }
+
       setStatus("fetching");
       await new Promise((r) => setTimeout(r, FETCH_DURATION_MS));
       if (!mountedRef.current) return;
@@ -182,11 +224,6 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
       await new Promise((r) => setTimeout(r, STEP_DURATION_MS));
       if (!mountedRef.current) return;
 
-      const componentForMock = {
-        ...component,
-        visualization_type: vizType,
-      };
-
       let rows: DashboardComponent;
       if (accountId && dashboardId) {
         rows = await getDashboardComponentData(
@@ -201,9 +238,9 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
         );
       } else if (shareId) {
         // TODO: handle shareId public access
-        rows = {data:getMockDataForComponent(componentForMock)} as DashboardComponent;
+        rows = { data: getMockDataForComponent(componentForMock) } as DashboardComponent;
       } else {
-        rows = {data:getMockDataForComponent(componentForMock)} as DashboardComponent;
+        rows = { data: getMockDataForComponent(componentForMock) } as DashboardComponent;
       }
 
       setData(rows);
@@ -233,7 +270,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
         return steps[0]?.id ?? "fetch";
     }
   }
-  const activeStep = getActiveStepId(status);
+  const activeStep = streamActiveStep ?? getActiveStepId(status);
   const { isDark } = useDashboardTheme();
 
   return (
