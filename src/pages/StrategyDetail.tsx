@@ -1,5 +1,11 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import {
+  useParams,
+  useNavigate,
+  useLocation,
+  useSearchParams,
+  Link,
+} from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { useSidebar } from "../contexts/SidebarContext";
 import { useStrategy } from "../hooks/queries/useStrategies";
@@ -241,6 +247,8 @@ export const StrategyDetail: React.FC = () => {
   const isCreateMode = strategyId === "new";
   const id = strategyId && !isCreateMode ? parseInt(strategyId, 10) : undefined;
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { sidebarWidth } = useSidebar();
   const {
     strategy,
@@ -568,6 +576,35 @@ export const StrategyDetail: React.FC = () => {
       .map((p) => p.id);
     setSelectedProfileIds((prev) => (prev.length === 0 ? ids : prev));
   }, [strategy?.profile_ids, allProfiles]);
+
+  // Open a specific automation tab when navigated from list (state.automationIndex or ?automation=1). Only apply once per strategy load.
+  const appliedInitialAutomationTabRef = useRef(false);
+  useEffect(() => {
+    appliedInitialAutomationTabRef.current = false;
+  }, [id]);
+  useEffect(() => {
+    if (isCreateMode || !strategy || automationTabs.length === 0) return;
+    if (appliedInitialAutomationTabRef.current) return;
+    const fromState = (location.state as { automationIndex?: number } | null)
+      ?.automationIndex;
+    const fromQuery = searchParams.get("automation");
+    const rawIndex =
+      fromState ??
+      (fromQuery != null ? parseInt(fromQuery, 10) - 1 : null);
+    if (rawIndex == null || Number.isNaN(rawIndex)) return;
+    appliedInitialAutomationTabRef.current = true;
+    const index = Math.max(
+      0,
+      Math.min(rawIndex, automationTabs.length - 1),
+    );
+    setActiveAutomationTab(index);
+  }, [
+    isCreateMode,
+    strategy,
+    location.state,
+    searchParams,
+    automationTabs.length,
+  ]);
 
   // Close profile dropdown when clicking outside
   useEffect(() => {

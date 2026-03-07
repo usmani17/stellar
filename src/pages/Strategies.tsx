@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { useSidebar } from "../contexts/SidebarContext";
 import { useStrategiesPaginated } from "../hooks/queries/useStrategies";
@@ -10,15 +11,164 @@ import {
 import { useDebouncedSearch } from "../hooks/useDebouncedSearch";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
-import { Banner, Button } from "../components/ui";
-import type { Strategy } from "../services/strategies";
+import { Banner, Button, Tooltip } from "../components/ui";
+import { cn } from "../lib/cn";
+import type {
+  Strategy,
+  StrategyAutomationPayload,
+} from "../services/strategies";
 
 const PAGE_SIZE = 10;
+
+const ENTITY_LABEL: Record<string, string> = {
+  campaign: "Campaign",
+  ad_group: "Ad group",
+  ad: "Campaign",
+  keyword: "Keyword",
+};
+
+const ACTION_LABEL: Record<string, string> = {
+  increase_budget_pct: "Increase",
+  decrease_budget_pct: "Decrease",
+  set_budget: "Set to",
+  increase_bid_pct: "Increase bid",
+  decrease_bid_pct: "Decrease bid",
+};
+
+const ACTION_SIGN: Record<string, string> = {
+  increase_budget_pct: "+",
+  decrease_budget_pct: "−",
+  set_budget: "=",
+  increase_bid_pct: "+",
+  decrease_bid_pct: "−",
+};
+
+const WEEKDAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function formatAutomationSummary(a: StrategyAutomationPayload): string {
+  const entity = ENTITY_LABEL[a.entity?.toLowerCase() ?? ""] ?? a.entity ?? "Automation";
+  const sign = ACTION_SIGN[a.action ?? ""] ?? "";
+  const val = a.change_value != null ? String(a.change_value) : "";
+  const unit = a.change_unit === "absolute" ? "$" : "%";
+  if (val) return `${entity} · ${sign}${val}${unit}`;
+  return `${entity} · ${a.action ?? "—"}`;
+}
+
+function formatAutomationAction(a: StrategyAutomationPayload): string {
+  const label = ACTION_LABEL[a.action ?? ""] ?? a.action ?? "—";
+  const val = a.change_value != null ? String(a.change_value) : "";
+  const unit = a.change_unit === "absolute" ? "$" : "%";
+  const cap = a.change_cap != null ? String(a.change_cap) : null;
+  if (!val) return label;
+  const isSetTo = (a.action ?? "") === "set_budget";
+  const main = isSetTo
+    ? `${label} ${val}${unit}`
+    : `${label} by ${val}${unit}`;
+  return cap != null ? `${main} (cap ${unit === "$" ? "$" : ""}${cap}${unit === "$" ? "" : "%"})` : main;
+}
+
+function parseConditions(conditions: StrategyAutomationPayload["conditions"]): Record<string, unknown>[] {
+  let arr: Record<string, unknown>[] = [];
+  if (Array.isArray(conditions)) arr = conditions;
+  else if (typeof conditions === "string") {
+    try {
+      const parsed = JSON.parse(conditions) as unknown;
+      arr = Array.isArray(parsed) ? (parsed as Record<string, unknown>[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return arr;
+}
+
+function formatAutomationFilters(conditions: StrategyAutomationPayload["conditions"]): string {
+  const arr = parseConditions(conditions);
+  if (arr.length === 0) return "—";
+  const parts = arr.slice(0, 3).map((c) => {
+    const field = (c.field as string) ?? "?";
+    const op = (c.operator as string) ?? "=";
+    const val = c.value;
+    const valStr = val != null ? String(val) : "?";
+    return `${field} ${op} ${valStr}`;
+  });
+  return arr.length > 3 ? `${parts.join(", ")} +${arr.length - 3}` : parts.join(", ");
+}
+
+/** Full filters string for tooltip (all conditions, one per line for readability). */
+function formatAutomationFiltersFull(conditions: StrategyAutomationPayload["conditions"]): string {
+  const arr = parseConditions(conditions);
+  if (arr.length === 0) return "No filters";
+  return arr
+    .map((c) => {
+      const field = (c.field as string) ?? "?";
+      const op = (c.operator as string) ?? "=";
+      const val = c.value;
+      const valStr = val != null ? String(val) : "?";
+      return `${field} ${op} ${valStr}`;
+    })
+    .join("\n");
+}
+
+function formatStrategySchedule(s: Strategy): string {
+  const freq = (s.frequency ?? "").toLowerCase();
+  const time = s.run_at != null ? String(s.run_at).slice(0, 5) : "";
+  let dayStr = "";
+  const runDays = s.run_days;
+  if (Array.isArray(runDays) && runDays.length > 0) {
+    dayStr = runDays.map((d) => WEEKDAYS_SHORT[d] ?? d).join(", ");
+  } else if (typeof runDays === "string" && runDays.trim().startsWith("[")) {
+    try {
+      const parsed = JSON.parse(runDays) as unknown;
+      const arr = Array.isArray(parsed) ? (parsed as number[]) : [];
+      dayStr = arr.map((d) => WEEKDAYS_SHORT[d] ?? d).join(", ");
+    } catch {
+      // ignore
+    }
+  }
+  if (freq === "daily" && time) return `Daily ${time}`;
+  if (freq === "weekly" && dayStr) return `Weekly ${dayStr}${time ? ` ${time}` : ""}`;
+  if (freq === "monthly" && time) return `Monthly ${time}`;
+  return freq || time ? [freq, time].filter(Boolean).join(" ") || "—" : "—";
+}
+
+function formatAutomationSchedule(a: StrategyAutomationPayload): string {
+  if (!a.schedule_enabled) return "Strategy default";
+  const freq = (a.schedule_frequency ?? "").toLowerCase();
+  const time = a.schedule_run_at != null ? String(a.schedule_run_at).slice(0, 5) : "";
+  const days = a.schedule_run_days;
+  let dayStr = "";
+  if (Array.isArray(days) && days.length > 0) {
+    dayStr = days.map((d) => WEEKDAYS_SHORT[d] ?? d).join(", ");
+  } else if (typeof days === "string" && days.trim().startsWith("[")) {
+    try {
+      const parsed = JSON.parse(days) as unknown;
+      const arr = Array.isArray(parsed) ? (parsed as number[]) : [];
+      dayStr = arr.map((d) => WEEKDAYS_SHORT[d] ?? d).join(", ");
+    } catch {
+      // ignore
+    }
+  }
+  if (freq === "daily" && time) return `Daily ${time}`;
+  if (freq === "weekly" && dayStr) return `Weekly ${dayStr}${time ? ` ${time}` : ""}`;
+  if (freq === "monthly" && time) return `Monthly ${time}`;
+  return freq || time ? [freq, time].filter(Boolean).join(" ") || "Custom" : "Custom";
+}
 
 export const Strategies: React.FC = () => {
   const [searchQuery, setSearchQuery, debouncedSearchQuery] =
     useDebouncedSearch("", 400);
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedStrategyIds, setExpandedStrategyIds] = useState<Set<number>>(
+    () => new Set(),
+  );
+  const toggleExpanded = useCallback((id: number) => {
+    setExpandedStrategyIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
   const {
     strategies,
     totalPages,
@@ -226,6 +376,7 @@ export const Strategies: React.FC = () => {
                       <th className="table-header">Status</th>
                       <th className="table-header">Platform</th>
                       <th className="table-header">Channels</th>
+                      <th className="table-header">Schedule</th>
                       <th className="table-header">Last run</th>
                       <th className="table-header">Actions</th>
                     </tr>
@@ -234,7 +385,7 @@ export const Strategies: React.FC = () => {
                     {isError ? (
                       <tr>
                         <td
-                          colSpan={7}
+                          colSpan={8}
                           className="table-cell text-center py-12"
                         >
                           <p className="text-[14px] text-red-600 mb-2">
@@ -264,6 +415,9 @@ export const Strategies: React.FC = () => {
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-16" />
                           </td>
                           <td className="table-cell">
+                            <div className="h-5 bg-gray-200 rounded animate-pulse w-24" />
+                          </td>
+                          <td className="table-cell">
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-28" />
                           </td>
                           <td className="table-cell">
@@ -274,7 +428,7 @@ export const Strategies: React.FC = () => {
                     ) : strategies.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={7}
+                          colSpan={8}
                           className="table-cell text-center py-12"
                         >
                           <p className="text-[14px] text-[#556179] mb-4">
@@ -293,87 +447,250 @@ export const Strategies: React.FC = () => {
                         </td>
                       </tr>
                     ) : (
-                      strategies.map((strategy: Strategy) => (
-                        <tr
-                          key={strategy.id}
-                          className="table-row group cursor-pointer hover:bg-[#f3f4f6]"
-                          onClick={() => navigate(`/strategies/${strategy.id}`)}
-                        >
-                          <td className="table-cell">
-                            <span className="text-[14px] font-medium text-[#313850]">
-                              {strategy.name || "—"}
-                            </span>
-                          </td>
-                          <td className="table-cell text-[14px] text-[#556179]">
-                            {strategy.goal || "—"}
-                          </td>
-                          <td className="table-cell">
-                            <span className="text-[14px] text-[#556179]">
-                              {strategy.is_running
-                                ? "Running"
-                                : (strategy.status.toLowerCase() === "enabled"
-                                  ? "Enabled"
-                                  : "Paused")}
-                            </span>
-                          </td>
-                          <td className="table-cell text-[14px] text-[#556179]">
-                            {strategy.platform || "—"}
-                          </td>
-                          <td className="table-cell text-[14px] text-[#556179]">
-                            {strategy.channel_ids?.length ?? 0}
-                          </td>
-                          <td className="table-cell text-[14px] text-[#556179]">
-                            {formatDate(strategy.last_run)}
-                          </td>
-                          <td
-                            className="table-cell"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <button
-                                type="button"
-                                className="text-[13px] text-[#136D6D] hover:underline disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                                onClick={(e) => handleRun(e, strategy)}
-                                disabled={
-                                  strategy.is_running ||
-                                  startingRunId === strategy.id
-                                }
+                      strategies.map((strategy: Strategy) => {
+                        const hasAutomations =
+                          (strategy.automations?.length ?? 0) > 0;
+                        const isExpanded = expandedStrategyIds.has(strategy.id);
+                        return (
+                          <React.Fragment key={strategy.id}>
+                            <tr
+                              className="table-row group cursor-pointer hover:bg-[#f3f4f6]"
+                              onClick={() =>
+                                navigate(`/strategies/${strategy.id}`)
+                              }
+                            >
+                              <td className="table-cell">
+                                <div className="flex items-center gap-1.5">
+                                  {hasAutomations ? (
+                                    <button
+                                      type="button"
+                                      className="flex items-center justify-center p-0.5 rounded hover:bg-sandstorm-s40 border-0 cursor-pointer"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleExpanded(strategy.id);
+                                      }}
+                                      aria-label={
+                                        isExpanded
+                                          ? "Collapse automations"
+                                          : "Expand automations"
+                                      }
+                                      aria-expanded={isExpanded}
+                                    >
+                                      {isExpanded ? (
+                                        <ChevronDown className="w-4 h-4 text-forest-f30" />
+                                      ) : (
+                                        <ChevronRight className="w-4 h-4 text-forest-f30" />
+                                      )}
+                                    </button>
+                                  ) : (
+                                    <span className="w-4 h-4 shrink-0 block" />
+                                  )}
+                                  <span className="text-[14px] font-medium text-[#313850]">
+                                    {strategy.name || "—"}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="table-cell text-[14px] text-[#556179]">
+                                {strategy.goal || "—"}
+                              </td>
+                              <td className="table-cell">
+                                <span className="text-[14px] text-[#556179]">
+                                  {strategy.is_running
+                                    ? "Running"
+                                    : (strategy.status.toLowerCase() ===
+                                      "enabled"
+                                      ? "Enabled"
+                                      : "Paused")}
+                                </span>
+                              </td>
+                              <td className="table-cell text-[14px] text-[#556179]">
+                                {strategy.platform || "—"}
+                              </td>
+                              <td className="table-cell text-[14px] text-[#556179]">
+                                {strategy.channel_ids?.length ?? 0}
+                              </td>
+                              <td className="table-cell text-[14px] text-[#556179]">
+                                {formatStrategySchedule(strategy)}
+                              </td>
+                              <td className="table-cell text-[14px] text-[#556179]">
+                                {formatDate(strategy.last_run)}
+                              </td>
+                              <td
+                                className="table-cell"
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                {strategy.is_running
-                                  ? "Running…"
-                                  : startingRunId === strategy.id
-                                    ? "Starting…"
-                                    : "Run"}
-                              </button>
-                              <span className="text-[#e8e8e3]">|</span>
-                              <Link
-                                to={`/strategies/${strategy.id}/run-history`}
-                                className="text-[13px] text-[#136D6D] hover:underline"
-                              >
-                                View
-                              </Link>
-                              <span className="text-[#e8e8e3]">|</span>
-                              <Link
-                                to={`/strategies/${strategy.id}`}
-                                className="text-[13px] text-[#136D6D] hover:underline"
-                              >
-                                Edit
-                              </Link>
-                              <span className="text-[#e8e8e3]">|</span>
-                              <button
-                                type="button"
-                                className="text-[13px] text-[#136D6D] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                                onClick={(e) => handleDuplicate(e, strategy)}
-                                disabled={duplicatingId !== null}
-                              >
-                                {duplicatingId === strategy.id
-                                  ? "Duplicating…"
-                                  : "Duplicate"}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <button
+                                    type="button"
+                                    className="text-[13px] text-[#136D6D] hover:underline disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                    onClick={(e) => handleRun(e, strategy)}
+                                    disabled={
+                                      strategy.is_running ||
+                                      startingRunId === strategy.id
+                                    }
+                                  >
+                                    {strategy.is_running
+                                      ? "Running…"
+                                      : startingRunId === strategy.id
+                                        ? "Starting…"
+                                        : "Run"}
+                                  </button>
+                                  <span className="text-[#e8e8e3]">|</span>
+                                  <Link
+                                    to={`/strategies/${strategy.id}/run-history`}
+                                    className="text-[13px] text-[#136D6D] hover:underline"
+                                  >
+                                    View
+                                  </Link>
+                                  <span className="text-[#e8e8e3]">|</span>
+                                  <Link
+                                    to={`/strategies/${strategy.id}`}
+                                    className="text-[13px] text-[#136D6D] hover:underline"
+                                  >
+                                    Edit
+                                  </Link>
+                                  <span className="text-[#e8e8e3]">|</span>
+                                  <button
+                                    type="button"
+                                    className="text-[13px] text-[#136D6D] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={(e) =>
+                                      handleDuplicate(e, strategy)
+                                    }
+                                    disabled={duplicatingId !== null}
+                                  >
+                                    {duplicatingId === strategy.id
+                                      ? "Duplicating…"
+                                      : "Duplicate"}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                            {isExpanded &&
+                              (hasAutomations ? (
+                                <tr
+                                  className="bg-sandstorm-s5 border-l-2 border-sandstorm-s40"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <td
+                                    colSpan={8}
+                                    className="table-cell p-0 align-top"
+                                  >
+                                    <div className="pl-10 py-3 pr-4 min-w-0">
+                                      <table className="w-full border border-sandstorm-s40 rounded-lg overflow-hidden bg-white" style={{ tableLayout: "fixed" }}>
+                                        <colgroup>
+                                          <col style={{ width: "140px" }} />
+                                          <col style={{ width: "160px" }} />
+                                          <col style={{ width: "180px" }} />
+                                          <col style={{ width: "180px" }} />
+                                          <col style={{ width: "72px" }} />
+                                        </colgroup>
+                                        <thead>
+                                          <tr className="bg-sandstorm-s5 border-b border-sandstorm-s40">
+                                            <th className="table-header text-left py-2 px-3 text-[13px]">
+                                              Entity
+                                            </th>
+                                            <th className="table-header text-left py-2 px-3 text-[13px]">
+                                              Action
+                                            </th>
+                                            <th className="table-header text-left py-2 px-3 text-[13px]">
+                                              Filters
+                                            </th>
+                                            <th className="table-header text-left py-2 px-3 text-[13px]">
+                                              Schedule
+                                            </th>
+                                            <th className="table-header text-left py-2 px-3 text-[13px]">
+                                              Actions
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {strategy.automations!.map(
+                                            (automation, idx) => (
+                                              <tr
+                                                key={`${strategy.id}-auto-${automation.id ?? idx}`}
+                                                className="table-row border-b border-sandstorm-s40 last:border-b-0"
+                                              >
+                                                <td className="table-cell py-2 px-3 text-[13px] text-forest-f60 font-medium overflow-hidden">
+                                                  <span className="block truncate" title={formatAutomationSummary(automation)}>
+                                                    {formatAutomationSummary(
+                                                      automation,
+                                                    )}
+                                                  </span>
+                                                </td>
+                                                <td className="table-cell py-2 px-3 text-[13px] text-forest-f30 overflow-hidden">
+                                                  <span className="block truncate" title={formatAutomationAction(automation)}>
+                                                    {formatAutomationAction(
+                                                      automation,
+                                                    )}
+                                                  </span>
+                                                </td>
+                                                <td className="table-cell py-2 px-3 text-[13px] text-forest-f30 relative z-10">
+                                                  <div className="min-w-0 max-w-full">
+                                                    <Tooltip
+                                                      heading="Filters"
+                                                      description={formatAutomationFiltersFull(
+                                                        automation.conditions,
+                                                      )}
+                                                      position="right"
+                                                      portal
+                                                      triggerClassName="block min-w-0 max-w-full"
+                                                      className="[&>div]:max-w-[320px] [&>div]:min-w-[200px]"
+                                                    >
+                                                      <span className="block truncate cursor-help max-w-full" title={formatAutomationFiltersFull(automation.conditions)}>
+                                                        {formatAutomationFilters(
+                                                          automation.conditions,
+                                                        )}
+                                                      </span>
+                                                    </Tooltip>
+                                                  </div>
+                                                </td>
+                                                <td className="table-cell py-2 px-3 text-[13px] text-forest-f30 overflow-hidden">
+                                                  <span className="block truncate" title={formatAutomationSchedule(automation)}>
+                                                    {formatAutomationSchedule(
+                                                      automation,
+                                                    )}
+                                                  </span>
+                                                </td>
+                                                <td className="table-cell py-2 px-3 overflow-hidden">
+                                                  <Link
+                                                    to={`/strategies/${strategy.id}`}
+                                                    state={{
+                                                      automationIndex: idx,
+                                                    }}
+                                                    className="text-[13px] text-forest-f40 hover:underline font-medium whitespace-nowrap"
+                                                    onClick={(e) =>
+                                                      e.stopPropagation()
+                                                    }
+                                                  >
+                                                    Edit
+                                                  </Link>
+                                                </td>
+                                              </tr>
+                                            ),
+                                          )}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ) : (
+                                <tr
+                                  className={cn(
+                                    "table-row bg-sandstorm-s5 border-l-2 border-sandstorm-s40",
+                                  )}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <td
+                                    colSpan={8}
+                                    className="table-cell pl-10 text-[13px] text-forest-f30"
+                                  >
+                                    No automations
+                                  </td>
+                                </tr>
+                              ))}
+                          </React.Fragment>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
