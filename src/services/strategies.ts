@@ -217,10 +217,14 @@ export const strategiesService = {
     return response.data?.results ?? [];
   },
 
-  /** Trigger a strategy run (Run button). Returns 202; run executes async. */
-  runStrategy: async (strategyId: number): Promise<StrategyRunTriggerResponse> => {
+  /** Trigger a strategy run (Run button). Pass automationIds to run only those automations. Returns 202; run executes async. */
+  runStrategy: async (
+    strategyId: number,
+    automationIds?: number[],
+  ): Promise<StrategyRunTriggerResponse> => {
     const response = await api.post<StrategyRunTriggerResponse>(
       `/strategies/${strategyId}/runs/`,
+      automationIds?.length ? { automation_ids: automationIds } : {},
     );
     return response.data;
   },

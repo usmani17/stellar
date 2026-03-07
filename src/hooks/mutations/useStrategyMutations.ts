@@ -41,12 +41,22 @@ export const useUpdateStrategy = (id: number) => {
   });
 };
 
+export type RunStrategyPayload = {
+  strategyId: number;
+  automationIds?: number[];
+};
+
 export const useRunStrategy = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<StrategyRunTriggerResponse, Error, number>({
-    mutationFn: (strategyId) => strategiesService.runStrategy(strategyId),
-    onSuccess: (_, strategyId) => {
+  return useMutation<
+    StrategyRunTriggerResponse,
+    Error,
+    RunStrategyPayload
+  >({
+    mutationFn: ({ strategyId, automationIds }) =>
+      strategiesService.runStrategy(strategyId, automationIds),
+    onSuccess: (_, { strategyId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.strategies.all });
       queryClient.invalidateQueries({
         queryKey: queryKeys.strategies.runs(strategyId),

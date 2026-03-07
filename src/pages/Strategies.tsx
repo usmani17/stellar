@@ -191,7 +191,8 @@ export const Strategies: React.FC = () => {
   const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
   const [runSuccessId, setRunSuccessId] = useState<number | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
-  const [startingRunId, setStartingRunId] = useState<number | null>(null);
+  /** "strategyId-automationId" when that automation's run is starting. */
+  const [startingRunKey, setStartingRunKey] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewStrategyId, setPreviewStrategyId] = useState<number | null>(null);
   const [previewAutomationId, setPreviewAutomationId] = useState<number | null>(null);
@@ -230,29 +231,39 @@ export const Strategies: React.FC = () => {
     }
   };
 
-  const handleRun = (e: React.MouseEvent, strategy: Strategy) => {
+  const handleRunAutomation = (
+    e: React.MouseEvent,
+    strategy: Strategy,
+    automation: { id?: number },
+  ) => {
     e.preventDefault();
     e.stopPropagation();
-    if (strategy.is_running || startingRunId === strategy.id) return;
+    if (automation.id == null) return;
+    if (strategy.is_running) return;
+    const key = `${strategy.id}-${automation.id}`;
+    if (startingRunKey === key) return;
     setRunError(null);
     setRunSuccessId(null);
-    setStartingRunId(strategy.id);
-    runMutation.mutate(strategy.id, {
-      onSuccess: () => {
-        setRunSuccessId(strategy.id);
-        setStartingRunId(null);
-        refetch();
-        setTimeout(() => setRunSuccessId(null), 3000);
+    setStartingRunKey(key);
+    runMutation.mutate(
+      { strategyId: strategy.id, automationIds: [automation.id] },
+      {
+        onSuccess: () => {
+          setRunSuccessId(strategy.id);
+          setStartingRunKey(null);
+          refetch();
+          setTimeout(() => setRunSuccessId(null), 3000);
+        },
+        onError: (err: Error & { response?: { data?: { detail?: string } } }) => {
+          setStartingRunKey(null);
+          const msg =
+            err?.response?.data?.detail ??
+            err?.message ??
+            "Failed to start strategy run.";
+          setRunError(msg);
+        },
       },
-      onError: (err: Error & { response?: { data?: { detail?: string } } }) => {
-        setStartingRunId(null);
-        const msg =
-          err?.response?.data?.detail ??
-          err?.message ??
-          "Failed to start strategy run.";
-        setRunError(msg);
-      },
-    });
+    );
   };
 
   useEffect(() => {
@@ -530,22 +541,6 @@ export const Strategies: React.FC = () => {
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <button
-                                    type="button"
-                                    className="text-[13px] text-[#136D6D] hover:underline disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                                    onClick={(e) => handleRun(e, strategy)}
-                                    disabled={
-                                      strategy.is_running ||
-                                      startingRunId === strategy.id
-                                    }
-                                  >
-                                    {strategy.is_running
-                                      ? "Running…"
-                                      : startingRunId === strategy.id
-                                        ? "Starting…"
-                                        : "Run"}
-                                  </button>
-                                  <span className="text-[#e8e8e3]">|</span>
                                   <Link
                                     to={`/strategies/${strategy.id}/run-history`}
                                     className="text-[13px] text-[#136D6D] hover:underline"
@@ -665,6 +660,23 @@ export const Strategies: React.FC = () => {
                                                   <span className="flex items-center gap-1 flex-wrap">
                                                     {automation.id != null && (
                                                       <>
+                                                        <button
+                                                          type="button"
+                                                          className="text-[13px] text-forest-f40 hover:underline font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                                                          onClick={(e) =>
+                                                            handleRunAutomation(e, strategy, automation)
+                                                          }
+                                                          disabled={
+                                                            strategy.is_running ||
+                                                            startingRunKey === `${strategy.id}-${automation.id}`
+                                                          }
+                                                        >
+                                                          {strategy.is_running ||
+                                                          startingRunKey === `${strategy.id}-${automation.id}`
+                                                            ? "Running…"
+                                                            : "Run"}
+                                                        </button>
+                                                        <span className="text-forest-f30">|</span>
                                                         <button
                                                           type="button"
                                                           className="text-[13px] text-forest-f40 hover:underline font-medium whitespace-nowrap"
