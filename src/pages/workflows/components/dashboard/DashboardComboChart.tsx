@@ -16,6 +16,7 @@ import {
   TOOLTIP_STYLE,
   getChartColors,
 } from "../../../../utils/chartStyles";
+import { formatDashboardValue, formatDashboardTick } from "../../utils/formatDashboardValue";
 import type { DashboardComponent } from "../../types/dashboard";
 
 interface DashboardComboChartProps {
@@ -64,11 +65,7 @@ export const DashboardComboChart: React.FC<DashboardComboChartProps> = ({
   const tooltipText = isDark ? "#e5e7eb" : "#072929";
 
   const formatValue = (v: unknown, name: string) =>
-    typeof v === "number" && /spend|cost|value|micros/i.test(name)
-      ? `$${v.toLocaleString()}`
-      : typeof v === "number"
-        ? v.toLocaleString()
-        : String(v);
+    formatDashboardValue(v, name, component.metric_formats);
 
   return (
     <div className="min-h-[200px] w-full">
@@ -97,9 +94,7 @@ export const DashboardComboChart: React.FC<DashboardComboChartProps> = ({
             tick={{ fontSize: axisStyle.fontSize, fill: axisStyle.fill }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v) =>
-              v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)
-            }
+            tickFormatter={(v) => formatDashboardTick(v, barKey, component.metric_formats)}
           />
           {hasTwoSeries && (
             <YAxis
@@ -109,9 +104,7 @@ export const DashboardComboChart: React.FC<DashboardComboChartProps> = ({
               tick={{ fontSize: axisStyle.fontSize, fill: axisStyle.fill }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(v) =>
-                v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)
-              }
+              tickFormatter={(v) => formatDashboardTick(v, barKey, component.metric_formats)}
             />
           )}
           <Tooltip

@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { AXIS_STYLE, AXIS_STYLE_DARK, TOOLTIP_STYLE, getChartColors } from "../../../../utils/chartStyles";
+import { formatDashboardValue, formatDashboardTick } from "../../utils/formatDashboardValue";
 import type { DashboardComponent } from "../../types/dashboard";
 
 interface DashboardStackedBarChartProps {
@@ -66,7 +67,7 @@ export const DashboardStackedBarChart: React.FC<DashboardStackedBarChartProps> =
             tick={{ fontSize: axisStyle.fontSize, fill: axisStyle.fill }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v))}
+            tickFormatter={(v) => formatDashboardTick(v, seriesKeys[0] ?? "value", component.metric_formats)}
           />
           <Tooltip
             contentStyle={{
@@ -77,8 +78,8 @@ export const DashboardStackedBarChart: React.FC<DashboardStackedBarChartProps> =
             wrapperStyle={{ zIndex: 10 }}
             labelStyle={{ color: tooltipText }}
             itemStyle={{ color: tooltipText }}
-            formatter={(v: unknown) => [
-              typeof v === "number" ? v.toLocaleString() : v,
+            formatter={(v: unknown, name: string) => [
+              formatDashboardValue(v, name, component.metric_formats),
             ]}
           />
           <Legend

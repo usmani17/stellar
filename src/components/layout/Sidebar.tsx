@@ -35,7 +35,7 @@ import UsersIcon from "../../assets/images/users.svg";
 import UsersActiveIcon from "../../assets/images/users-active.svg";
 import WorkspaceIcon from "../../assets/workspace.svg";
 import { CalendarClock, MessageSquare } from "lucide-react";
-import { useChatHistorySidebar } from "../../contexts/ChatHistorySidebarContext";
+import { useChatHistorySidebarOptional } from "../../contexts/ChatHistorySidebarContext";
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
 
 const WORKSPACE_SECTION_STORAGE_KEY = "workspace-section-collapsed";
@@ -201,7 +201,7 @@ export const Sidebar: React.FC = () => {
     setPersistedWorkspaceCollapsed((prev) => !prev);
   };
 
-  const chatHistorySidebar = useChatHistorySidebar();
+  const chatHistorySidebar = useChatHistorySidebarOptional();
 
   const isActive = (path: string) => {
     if (path === "/chat") return location.pathname === "/chat";

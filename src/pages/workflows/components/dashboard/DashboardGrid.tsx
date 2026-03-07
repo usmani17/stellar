@@ -36,6 +36,8 @@ interface DashboardGridProps {
   showQueryDetails?: boolean;
   editable?: boolean;
   onConfigChange?: (config: DashboardConfig) => void;
+  /** When > 0, triggers hard refresh (bypasses backend cache) for all widgets */
+  hardRefreshTrigger?: number;
 }
 
 function SortableWidgetWrapper({
@@ -51,6 +53,7 @@ function SortableWidgetWrapper({
   editable,
   effectiveVisualizationType,
   onVisualizationChange,
+  hardRefreshTrigger,
 }: {
   component: DashboardComponent;
   layoutCols: number;
@@ -64,6 +67,7 @@ function SortableWidgetWrapper({
   editable: boolean;
   effectiveVisualizationType?: VisualizationType;
   onVisualizationChange?: (componentId: string, type: VisualizationType) => void;
+  hardRefreshTrigger?: number;
 }) {
   const {
     attributes,
@@ -123,6 +127,7 @@ function SortableWidgetWrapper({
         dragHandleProps={dragHandleProps}
         effectiveVisualizationType={effectiveVisualizationType}
         onVisualizationChange={onVisualizationChange}
+        hardRefreshTrigger={hardRefreshTrigger}
       />
     </div>
   );
@@ -167,6 +172,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
   showQueryDetails = false,
   editable = false,
   onConfigChange,
+  hardRefreshTrigger,
 }) => {
   const { layout, components } = config;
   const { cols: layoutCols } = layout;
@@ -306,6 +312,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
             editable
             effectiveVisualizationType={visualizationOverrides[String(comp.id)]}
             onVisualizationChange={handleVisualizationChange}
+            hardRefreshTrigger={hardRefreshTrigger}
           />
         ) : (
           <div
@@ -329,6 +336,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
               shareId={shareId}
               staggerDelayMs={i * STAGGER_DELAY_MS}
               showQueryDetails={showQueryDetails}
+              hardRefreshTrigger={hardRefreshTrigger}
             />
           </div>
         )

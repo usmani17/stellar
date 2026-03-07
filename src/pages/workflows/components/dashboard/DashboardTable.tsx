@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import type { DashboardComponent } from "../../types/dashboard";
+import { formatDashboardValue } from "../../utils/formatDashboardValue";
 
 interface DashboardTableProps {
   component: DashboardComponent;
@@ -12,17 +13,6 @@ function inferColumns(data: Record<string, unknown>[]): string[] {
   if (data.length === 0) return [];
   const first = data[0];
   return Object.keys(first as object);
-}
-
-function formatCellValue(val: unknown, col?: string): string {
-  if (val == null) return "—";
-  if (typeof val === "number") {
-    if (col && /cost_micros|micros/i.test(col)) {
-      return `$${(val / 1_000_000).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-    }
-    return val.toLocaleString();
-  }
-  return String(val);
 }
 
 function formatHeader(col: string): string {
@@ -138,7 +128,7 @@ export const DashboardTable: React.FC<DashboardTableProps> = ({ component, data,
                   key={col}
                   className={`py-3 px-4 ${isDark ? "text-neutral-200" : "text-forest-f60"}`}
                 >
-                  {formatCellValue(row[col], col)}
+                  {formatDashboardValue(row[col], col, component.metric_formats)}
                 </td>
               ))}
             </tr>

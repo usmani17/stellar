@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { AXIS_STYLE, AXIS_STYLE_DARK, TOOLTIP_STYLE, getChartColors } from "../../../../utils/chartStyles";
+import { formatDashboardValue, formatDashboardTick } from "../../utils/formatDashboardValue";
 import type { DashboardComponent } from "../../types/dashboard";
 
 interface DashboardHorizontalBarChartProps {
@@ -64,7 +65,7 @@ export const DashboardHorizontalBarChart: React.FC<DashboardHorizontalBarChartPr
             tick={{ fontSize: axisStyle.fontSize, fill: axisStyle.fill }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v))}
+            tickFormatter={(v) => formatDashboardTick(v, valueKey, component.metric_formats)}
           />
           <YAxis
             type="category"
@@ -85,7 +86,7 @@ export const DashboardHorizontalBarChart: React.FC<DashboardHorizontalBarChartPr
             labelStyle={{ color: tooltipText }}
             itemStyle={{ color: tooltipText }}
             formatter={(v: unknown) => [
-              typeof v === "number" ? v.toLocaleString() : v,
+              formatDashboardValue(v, valueKey, component.metric_formats),
               valueKey.replace(/_/g, " "),
             ]}
           />

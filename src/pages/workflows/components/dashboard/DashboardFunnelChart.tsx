@@ -1,5 +1,6 @@
 import React from "react";
 import { getChartColors } from "../../../../utils/chartStyles";
+import { formatDashboardValue } from "../../utils/formatDashboardValue";
 import type { DashboardComponent, FunnelChartDatum } from "../../types/dashboard";
 
 interface DashboardFunnelChartProps {
@@ -61,7 +62,7 @@ export const DashboardFunnelChart: React.FC<DashboardFunnelChartProps> = ({
             >
               <span className="text-xs font-medium text-white truncate">{name}</span>
               <span className="text-xs font-semibold text-white ml-2">
-                {val.toLocaleString()}
+                {formatDashboardValue(val, valueKey, component.metric_formats)}
               </span>
             </div>
           </div>

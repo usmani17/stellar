@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import { AXIS_STYLE, AXIS_STYLE_DARK, TOOLTIP_STYLE, getChartColors } from "../../../../utils/chartStyles";
 import type { DashboardComponent } from "../../types/dashboard";
+import { formatDashboardValue, formatDashboardTick } from "../../utils/formatDashboardValue";
 
 interface DashboardBarChartProps {
   component: DashboardComponent;
@@ -64,7 +65,7 @@ export const DashboardBarChart: React.FC<DashboardBarChartProps> = ({
             tick={{ fontSize: axisStyle.fontSize, fill: axisStyle.fill }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v))}
+            tickFormatter={(v) => formatDashboardTick(v, valueKey, component.metric_formats)}
           />
           <Tooltip
             contentStyle={{
@@ -76,11 +77,7 @@ export const DashboardBarChart: React.FC<DashboardBarChartProps> = ({
             labelStyle={{ color: tooltipText }}
             itemStyle={{ color: tooltipText }}
             formatter={(v: unknown, name: string) => [
-              typeof v === "number" && /spend|cost|value/i.test(name)
-                ? `$${v.toLocaleString()}`
-                : typeof v === "number"
-                  ? v.toLocaleString()
-                  : v,
+              formatDashboardValue(v, name, component.metric_formats),
               valueKey.replace(/_/g, " "),
             ]}
           />

@@ -1,6 +1,7 @@
 import React from "react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { getChartColors, TOOLTIP_STYLE } from "../../../../utils/chartStyles";
+import { formatDashboardValue } from "../../utils/formatDashboardValue";
 import type { DashboardComponent, PieChartDatum } from "../../types/dashboard";
 
 interface DashboardPieChartProps {
@@ -83,13 +84,7 @@ export const DashboardPieChart: React.FC<DashboardPieChartProps> = ({
             itemStyle={{ color: tooltipText }}
             formatter={(v: unknown, _name: unknown, item: { payload?: Record<string, unknown>; name?: string }): [React.ReactNode, string] => {
               const label = item.payload?.[nameKey] ?? item.name ?? "";
-              const formatted =
-                typeof v === "number" && /spend|cost|value|micros/i.test(valueKey)
-                  ? `$${v.toLocaleString()}`
-                  : typeof v === "number"
-                    ? v.toLocaleString()
-                    : String(v);
-              return [formatted, String(label || valueKey.replace(/_/g, " "))];
+              return [formatDashboardValue(v, valueKey, component.metric_formats), String(label || valueKey.replace(/_/g, " "))];
             }}
           />
         </PieChart>

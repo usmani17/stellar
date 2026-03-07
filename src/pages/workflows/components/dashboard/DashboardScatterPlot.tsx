@@ -10,6 +10,7 @@ import {
   ZAxis,
 } from "recharts";
 import { AXIS_STYLE, AXIS_STYLE_DARK, TOOLTIP_STYLE, getChartColors } from "../../../../utils/chartStyles";
+import { formatDashboardValue, formatDashboardTick } from "../../utils/formatDashboardValue";
 import type { DashboardComponent } from "../../types/dashboard";
 
 interface DashboardScatterPlotProps {
@@ -59,7 +60,7 @@ export const DashboardScatterPlot: React.FC<DashboardScatterPlotProps> = ({
             tick={{ fontSize: axisStyle.fontSize, fill: axisStyle.fill }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v))}
+            tickFormatter={(v) => formatDashboardTick(v, xKey, component.metric_formats)}
           />
           <YAxis
             dataKey={yKey}
@@ -69,7 +70,7 @@ export const DashboardScatterPlot: React.FC<DashboardScatterPlotProps> = ({
             tick={{ fontSize: axisStyle.fontSize, fill: axisStyle.fill }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v))}
+            tickFormatter={(v) => formatDashboardTick(v, yKey, component.metric_formats)}
           />
           <ZAxis range={[40, 400]} />
           <Tooltip
@@ -83,7 +84,7 @@ export const DashboardScatterPlot: React.FC<DashboardScatterPlotProps> = ({
             labelStyle={{ color: tooltipText }}
             itemStyle={{ color: tooltipText }}
             formatter={(v: unknown, name: string) => [
-              typeof v === "number" ? v.toLocaleString() : v,
+              formatDashboardValue(v, name, component.metric_formats),
               name.replace(/_/g, " "),
             ]}
           />

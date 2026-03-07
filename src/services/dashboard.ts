@@ -117,6 +117,7 @@ const componentDataCache = new Map<string, Promise<DashboardComponent>>();
 /**
  * Fetch data for a single dashboard component.
  * Deduplicates concurrent identical requests so each widget makes only one API call.
+ * @param hardRefresh - When true, sends refresh=1 to bypass backend cache (hard refresh).
  */
 export async function getDashboardComponentData(
   accountId: number,
@@ -125,9 +126,10 @@ export async function getDashboardComponentData(
   _component: DashboardComponent,
   channelId?: number,
   profileId?: number,
-  refreshTrigger = 0
+  refreshTrigger = 0,
+  hardRefresh = false
 ): Promise<DashboardComponent> {
-  const key = `${accountId}-${dashboardId}-${componentId}-${refreshTrigger}`;
+  const key = `${accountId}-${dashboardId}-${componentId}-${refreshTrigger}-${hardRefresh}`;
   const cached = componentDataCache.get(key);
   if (cached) return cached;
 
@@ -139,6 +141,7 @@ export async function getDashboardComponentData(
           params: {
             channelId,
             profileId,
+            ...(hardRefresh && { refresh: 1 }),
           },
         }
       );

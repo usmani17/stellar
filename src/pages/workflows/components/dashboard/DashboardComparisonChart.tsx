@@ -15,6 +15,7 @@ import {
   TOOLTIP_STYLE,
   getChartColors,
 } from "../../../../utils/chartStyles";
+import { formatDashboardValue, formatDashboardTick } from "../../utils/formatDashboardValue";
 import type { DashboardComponent } from "../../types/dashboard";
 
 interface DashboardComparisonChartProps {
@@ -52,8 +53,8 @@ export const DashboardComparisonChart: React.FC<
   const tooltipBorder = isDark ? "#4b5563" : TOOLTIP_STYLE.border;
   const tooltipText = isDark ? "#e5e7eb" : "#072929";
 
-  const formatValue = (v: unknown) =>
-    typeof v === "number" ? v.toLocaleString() : String(v);
+  const formatValue = (v: unknown, name: string) =>
+    formatDashboardValue(v, name, component.metric_formats);
 
   return (
     <div className="min-h-[200px] w-full">
@@ -82,7 +83,7 @@ export const DashboardComparisonChart: React.FC<
             axisLine={false}
             tickLine={false}
             tickFormatter={(v) =>
-              v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)
+              formatDashboardTick(v, seriesKeys[0] ?? "value", component.metric_formats)
             }
           />
           <Tooltip
@@ -95,7 +96,7 @@ export const DashboardComparisonChart: React.FC<
             labelStyle={{ color: tooltipText }}
             itemStyle={{ color: tooltipText }}
             formatter={(v: unknown, name: string) => [
-              formatValue(v),
+              formatValue(v, name),
               name.replace(/_/g, " "),
             ]}
           />

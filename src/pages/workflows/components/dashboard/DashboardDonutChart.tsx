@@ -1,6 +1,7 @@
 import React from "react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { getChartColors, TOOLTIP_STYLE } from "../../../../utils/chartStyles";
+import { formatDashboardValue, formatDashboardTick } from "../../utils/formatDashboardValue";
 import type { DashboardComponent, PieChartDatum } from "../../types/dashboard";
 
 interface DashboardDonutChartProps {
@@ -61,7 +62,7 @@ export const DashboardDonutChart: React.FC<DashboardDonutChartProps> = ({
             fontSize={16}
             fontWeight={600}
           >
-            {total >= 1000 ? `${(total / 1000).toFixed(1)}K` : total.toLocaleString()}
+            {formatDashboardTick(total, valueKey, component.metric_formats)}
           </text>
           <Legend
             layout="horizontal"
@@ -88,7 +89,7 @@ export const DashboardDonutChart: React.FC<DashboardDonutChartProps> = ({
             labelStyle={{ color: tooltipText }}
             itemStyle={{ color: tooltipText }}
             formatter={(v: unknown) => [
-              typeof v === "number" ? v.toLocaleString() : String(v),
+              formatDashboardValue(v, valueKey, component.metric_formats),
             ]}
           />
         </PieChart>

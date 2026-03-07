@@ -1,47 +1,12 @@
 import React from "react";
 import type { DashboardComponent, SingleMetricDatum } from "../../types/dashboard";
 import { cn } from "../../../../lib/cn";
+import { formatDashboardValue, formatMetricLabel } from "../../utils/formatDashboardValue";
 
 interface DashboardSingleMetricProps {
   component: DashboardComponent;
   data: SingleMetricDatum[];
   isDark?: boolean;
-}
-
-/** Human-readable labels for common metric keys */
-const LABEL_OVERRIDES: Record<string, string> = {
-  cost_micros: "Spend",
-  costmicros: "Spend",
-  impressions: "Impressions",
-  clicks: "Clicks",
-  conversions: "Conversions",
-  roas: "ROAS",
-  ctr_pct: "CTR %",
-};
-
-function formatMetricLabel(key: string): string {
-  const lastPart = key.includes(".") ? key.split(".").pop() ?? key : key;
-  const normalized = lastPart.toLowerCase().replace(/_/g, "");
-  if (LABEL_OVERRIDES[lastPart]) return LABEL_OVERRIDES[lastPart];
-  if (LABEL_OVERRIDES[normalized]) return LABEL_OVERRIDES[normalized];
-  return lastPart.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function formatMetricValue(val: unknown, key: string): string {
-  if (val == null) return "—";
-  if (typeof val === "number") {
-    if (/cost_micros|micros|costmicros/i.test(key)) {
-      return `$${(val / 1_000_000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
-    if (/roas|ctr_pct/i.test(key)) {
-      return val.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-    }
-    if (/spend|cost/i.test(key)) {
-      return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
-    return val.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  }
-  return String(val);
 }
 
 export const DashboardSingleMetric: React.FC<DashboardSingleMetricProps> = ({
@@ -75,7 +40,7 @@ export const DashboardSingleMetric: React.FC<DashboardSingleMetricProps> = ({
       {keys.map((key, i) => {
         const value = row[key];
         const label = formatMetricLabel(key);
-        const displayValue = formatMetricValue(value, key);
+        const displayValue = formatDashboardValue(value, key, component.metric_formats);
         const isLast = i === keys.length - 1;
         return (
           <div

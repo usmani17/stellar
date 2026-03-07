@@ -27,6 +27,10 @@ export const useChatHistorySidebar = (): ChatHistorySidebarContextType => {
   return ctx;
 };
 
+/** Optional version for use in Sidebar; returns undefined when outside provider. */
+export const useChatHistorySidebarOptional = (): ChatHistorySidebarContextType | undefined =>
+  useContext(ChatHistorySidebarContext);
+
 export const ChatHistorySidebarProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {

@@ -65,7 +65,6 @@ export const WorkflowDashboardPage: React.FC = () => {
         config={dashboard?.config}
         accountIdNum={accountIdNum}
         dashboardId={dashboard?.id}
-        onRefresh={() => refetchDashboard()}
         refetchDashboard={refetchDashboard}
       />
     </DashboardThemeProvider>
@@ -81,7 +80,6 @@ function WorkflowDashboardContent({
   config,
   accountIdNum,
   dashboardId,
-  onRefresh,
   refetchDashboard,
 }: {
   workflowsPath: string;
@@ -92,11 +90,11 @@ function WorkflowDashboardContent({
   config: import("./types/dashboard").DashboardConfig | undefined;
   accountIdNum: number | undefined;
   dashboardId: number | undefined;
-  onRefresh: () => void;
   refetchDashboard: () => void;
 }) {
   const { isDark, toggleTheme } = useDashboardTheme();
   const queryClient = useQueryClient();
+  const [hardRefreshTrigger, setHardRefreshTrigger] = React.useState(0);
 
   const updateConfigMutation = useMutation({
     mutationFn: (newConfig: import("./types/dashboard").DashboardConfig) =>
@@ -149,7 +147,10 @@ function WorkflowDashboardContent({
                 <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={onRefresh}
+                  onClick={() => {
+                    setHardRefreshTrigger((prev) => prev + 1);
+                    refetchDashboard();
+                  }}
                   className={`p-2 rounded transition-colors ${isDark
                       ? "text-neutral-400 hover:bg-neutral-700 hover:text-white"
                       : "text-forest-f30 hover:bg-sandstorm-s20 hover:text-forest-f60"
@@ -192,6 +193,7 @@ function WorkflowDashboardContent({
                   showQueryDetails
                   editable
                   onConfigChange={handleConfigChange}
+                  hardRefreshTrigger={hardRefreshTrigger}
                 />
               ) : (
                 <div className={`p-12 text-center rounded-xl border border-dashed ${isDark ? "border-neutral-700 text-neutral-400" : "border-sandstorm-s40 text-forest-f30"}`}>

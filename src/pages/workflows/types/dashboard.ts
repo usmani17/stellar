@@ -141,6 +141,20 @@ export type DashboardPagination =
   | { page: number; page_size: number }
   | null;
 
+/** How the frontend should format a metric value for display */
+export type MetricFormat =
+  | "currency"
+  | "micros_currency"
+  | "percentage"
+  | "number"
+  | "integer"
+  | "ratio"
+  | "text"
+  | "id"
+  | "compact"
+  | "date"
+  | "time";
+
 export type VisualizationType =
   | "table"
   | "bar_chart"
@@ -249,6 +263,10 @@ export interface DashboardComponent {
   data_source: "google_ads" | "internal_db" | "meta_ads";
   query: DashboardQuery;
   data_keys?: DashboardDataKeys;
+  /** Maps column/metric names to display format types so the frontend renders values correctly. */
+  metric_formats?: Record<string, MetricFormat>;
+  /** Agent-suggested compatible chart types the user can switch to via the viz-type dropdown. */
+  suggested_types?: VisualizationType[];
   data: VisualizationDataMap[VisualizationType];
   sort: DashboardSort;
   filters: Record<string, unknown>;

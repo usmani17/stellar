@@ -93,6 +93,8 @@ interface DashboardWidgetProps {
   /** Override chart type (e.g., user switched from line to bar in demo) */
   effectiveVisualizationType?: VisualizationType;
   onVisualizationChange?: (componentId: string, type: VisualizationType) => void;
+  /** When > 0, triggers hard refresh (bypasses backend cache) */
+  hardRefreshTrigger?: number;
 }
 
 type WidgetStatus =
@@ -119,6 +121,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   dragHandleProps,
   effectiveVisualizationType,
   onVisualizationChange,
+  hardRefreshTrigger = 0,
 }) => {
   const vizType = effectiveVisualizationType ?? component.visualization_type;
   const [status, setStatus] = useState<WidgetStatus>("pending");
@@ -129,12 +132,21 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   const lastComponentIdRef = useRef(component.id);
   const isMulti = isMultiGaqlQuery(component.query);
   const steps = isMulti ? MULTI_GAQL_STEPS : SIMPLE_STEPS;
+  const availableVizOptions = component.suggested_types?.length
+    ? VIZ_TYPE_OPTIONS.filter(
+        (opt) => opt.value === component.visualization_type || component.suggested_types!.includes(opt.value)
+      )
+    : VIZ_TYPE_OPTIONS;
 
   const handleRefresh = () => {
     hasFetchedRef.current = false;
     setStatus("pending");
     setRefreshTrigger((prev) => prev + 1);
   };
+
+  useEffect(() => {
+    if (hardRefreshTrigger > 0) hasFetchedRef.current = false;
+  }, [hardRefreshTrigger]);
 
   useEffect(() => {
     if (lastComponentIdRef.current !== component.id) {
@@ -177,7 +189,16 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
 
       let rows: DashboardComponent;
       if (accountId && dashboardId) {
-        rows = await getDashboardComponentData(accountId, dashboardId, component.id, component, refreshTrigger);
+        rows = await getDashboardComponentData(
+          accountId,
+          dashboardId,
+          component.id,
+          component,
+          component.channel_id ?? undefined,
+          component.profile_id ?? undefined,
+          refreshTrigger,
+          hardRefreshTrigger > 0
+        );
       } else if (shareId) {
         // TODO: handle shareId public access
         rows = {data:getMockDataForComponent(componentForMock)} as DashboardComponent;
@@ -191,7 +212,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
     };
     void run();
     return () => { mountedRef.current = false; };
-  }, [component, staggerDelayMs, isMulti, shareId, vizType, accountId, dashboardId, refreshTrigger]);
+  }, [component, staggerDelayMs, isMulti, shareId, vizType, accountId, dashboardId, refreshTrigger, hardRefreshTrigger]);
 
   const statusToStep: Record<WidgetStatus, ProgressStep> = {
     pending: "fetch",
@@ -252,7 +273,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             )}
             {editable && onVisualizationChange && (
               <Dropdown<VisualizationType>
-                options={VIZ_TYPE_OPTIONS}
+                options={availableVizOptions}
                 value={vizType}
                 onChange={(value: VisualizationType) =>
                   onVisualizationChange(component.id, value)

@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import { AXIS_STYLE, AXIS_STYLE_DARK, TOOLTIP_STYLE, getChartColors, getSeriesColor } from "../../../../utils/chartStyles";
 import type { DashboardComponent } from "../../types/dashboard";
+import { formatDashboardValue, formatDashboardTick } from "../../utils/formatDashboardValue";
 
 interface DashboardAreaChartProps {
   component: DashboardComponent;
@@ -36,8 +37,7 @@ function inferChartKeys(data: Record<string, unknown>[]): {
 }
 
 export const DashboardAreaChart: React.FC<DashboardAreaChartProps> = ({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Required by interface for API consistency
-  component: _component,
+  component,
   data,
   isDark = false,
 }) => {
@@ -74,9 +74,7 @@ export const DashboardAreaChart: React.FC<DashboardAreaChartProps> = ({
             tick={{ fontSize: axisStyle.fontSize, fill }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v) =>
-              v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)
-            }
+            tickFormatter={(v) => formatDashboardTick(v, valueKeys[0] ?? "value", component.metric_formats)}
           />
           <Tooltip
             contentStyle={{
@@ -88,11 +86,7 @@ export const DashboardAreaChart: React.FC<DashboardAreaChartProps> = ({
             labelStyle={{ color: tooltipText }}
             itemStyle={{ color: tooltipText }}
             formatter={(v: unknown, name: string): [React.ReactNode, string] => [
-              typeof v === "number" && /spend|cost|value|micros/i.test(name)
-                ? `$${v.toLocaleString()}`
-                : typeof v === "number"
-                  ? v.toLocaleString()
-                  : String(v),
+              formatDashboardValue(v, name, component.metric_formats),
               name.replace(/_/g, " "),
             ]}
           />

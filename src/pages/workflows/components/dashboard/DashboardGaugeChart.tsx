@@ -1,4 +1,5 @@
 import React from "react";
+import { formatDashboardValue } from "../../utils/formatDashboardValue";
 import type { DashboardComponent } from "../../types/dashboard";
 
 interface DashboardGaugeChartProps {
@@ -79,7 +80,7 @@ export const DashboardGaugeChart: React.FC<DashboardGaugeChartProps> = ({
           fontSize={24}
           fontWeight={700}
         >
-          {rawValue % 1 === 0 ? rawValue : rawValue.toFixed(1)}%
+          {formatDashboardValue(rawValue, valueKey, component.metric_formats)}
         </text>
         <text
           x={cx}
