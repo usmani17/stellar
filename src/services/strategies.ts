@@ -98,33 +98,28 @@ export interface StrategiesPaginatedResponse {
   results: Strategy[];
 }
 
-/** One automation execution within a run (from run history API). */
-export interface StrategySummaryRunItem {
-  entity: string;
-  action: string;
-  entity_count: number;
-  total_delta: number | string;
-  total_old_budget?: number | string | null;
-  total_new_budget?: number | string | null;
-  change_percent?: number | string | null;
-  ran_at: string | null;
-}
-
-/** One strategy run with aggregated stats (from run history API). */
-export interface StrategyRunHistoryItem {
+/** One automation run (from run history API). */
+export interface AutomationRunHistoryItem {
   id: number;
-  ran_at: string;
-  status: string;
+  automation_id: number | null;
+  automation_name: string | null;
+  execution_run_at: string | null;
+  number_of_changes: number | null;
+  total_change_amount: number | string | null;
+  total_change_amount_percentage: number | string | null;
+  execution_time_ms: number | null;
+  skipped: number;
+  skipped_reason: string;
+  guardrail_triggered: boolean;
   triggered_by: string;
-  error_message: string;
-  automation_count: number;
-  entity_count: number;
-  total_delta: number | string;
-  summary_runs: StrategySummaryRunItem[];
 }
 
 export interface StrategyRunsResponse {
-  results: StrategyRunHistoryItem[];
+  count: number;
+  total_pages: number;
+  page: number;
+  page_size: number;
+  results: AutomationRunHistoryItem[];
 }
 
 /** Response from POST /strategies/:id/runs/ (trigger run). */
@@ -210,11 +205,29 @@ export const strategiesService = {
 
   getStrategyRuns: async (
     strategyId: number,
-  ): Promise<StrategyRunHistoryItem[]> => {
+    params?: { page?: number; page_size?: number },
+  ): Promise<StrategyRunsResponse> => {
     const response = await api.get<StrategyRunsResponse>(
       `/strategies/${strategyId}/runs/`,
+      { params: params ?? {} },
     );
-    return response.data?.results ?? [];
+    const data = response.data;
+    if (
+      data &&
+      typeof data === "object" &&
+      "results" in data &&
+      "count" in data &&
+      "total_pages" in data
+    ) {
+      return data as StrategyRunsResponse;
+    }
+    return {
+      count: 0,
+      total_pages: 1,
+      page: 1,
+      page_size: params?.page_size ?? 20,
+      results: [],
+    };
   },
 
   /** Trigger a strategy run (Run button). Pass automationIds to run only those automations. Returns 202; run executes async. */
