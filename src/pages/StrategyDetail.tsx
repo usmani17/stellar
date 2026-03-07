@@ -15,7 +15,7 @@ import {
 } from "../hooks/mutations/useStrategyMutations";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
-import { Checkbox, Dropdown, Loader } from "../components/ui";
+import { Banner, Checkbox, Dropdown, Loader } from "../components/ui";
 import {
   StrategyAutomation,
   type FilterValues,
@@ -315,6 +315,7 @@ export const StrategyDetail: React.FC = () => {
   const [previewResults, setPreviewResults] = useState<AutomationPreviewRow[]>([]);
   const [previewSummary, setPreviewSummary] = useState("");
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   /** One automation = one tab; each has its own entity, filters, action state, and schedule. */
   const [automationTabs, setAutomationTabs] = useState<
     {
@@ -903,9 +904,11 @@ export const StrategyDetail: React.FC = () => {
         });
       } else if (id !== undefined && !isCreateMode) {
         await updateStrategyMutation.mutateAsync(payload);
+        setSaveSuccessMessage("Strategy saved successfully.");
         navigate(`/strategies/${id}`, { replace: true });
       }
     } catch (err: any) {
+      setSaveSuccessMessage(null);
       const data = err?.response?.data;
       const next: Record<string, string> = {};
       if (data && typeof data === "object" && !Array.isArray(data)) {
@@ -1286,6 +1289,30 @@ export const StrategyDetail: React.FC = () => {
         )}
         <AccountsHeader />
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white">
+          <div className="space-y-4 mb-6">
+            {saveSuccessMessage && (
+              <Banner
+                type="success"
+                message={saveSuccessMessage}
+                dismissable
+                onDismiss={() => setSaveSuccessMessage(null)}
+              />
+            )}
+            {fieldErrors._form && (
+              <Banner
+                type="error"
+                message={fieldErrors._form}
+                dismissable
+                onDismiss={() =>
+                  setFieldErrors((prev) => {
+                    const next = { ...prev };
+                    delete next._form;
+                    return next;
+                  })
+                }
+              />
+            )}
+          </div>
           <div className="mb-6">
             <h1 className="text-[20px] sm:text-[22px] font-medium text-[#072929] leading-normal">
               {pageTitle}
@@ -1294,9 +1321,6 @@ export const StrategyDetail: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="w-full">
             <div className="bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] p-6 flex flex-col gap-6 w-full">
-              {fieldErrors._form && (
-                <p className="text-[14px] text-red-600">{fieldErrors._form}</p>
-              )}
 
               {/* Optimization Goal (Optional) */}
               <SectionCard
