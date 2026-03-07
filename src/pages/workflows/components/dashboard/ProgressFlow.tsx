@@ -1,17 +1,9 @@
 import React from "react";
 import { Check, Database, LayoutGrid, Save, GitMerge, Filter } from "lucide-react";
 
-import type { ProgressStep } from "./progressFlowConstants";
+import type { ProgressStepDef } from "./progressFlowConstants";
 
-const STEP_LABELS: Record<ProgressStep, string> = {
-  fetch: "Fetch",
-  save: "Save",
-  fetch2: "Fetch 2",
-  join: "Join",
-  analyze: "Analyze",
-  display: "Display",
-};
-const STEP_ICONS: Record<ProgressStep, React.ReactNode> = {
+const STEP_ICONS: Record<string, React.ReactNode> = {
   fetch: <Database className="w-5 h-5" aria-hidden />,
   save: <Save className="w-5 h-5" aria-hidden />,
   fetch2: <Database className="w-5 h-5" aria-hidden />,
@@ -20,19 +12,24 @@ const STEP_ICONS: Record<ProgressStep, React.ReactNode> = {
   display: <LayoutGrid className="w-5 h-5" aria-hidden />,
 };
 
+function getStepIcon(stepId: string): React.ReactNode {
+  return STEP_ICONS[stepId] ?? <Database className="w-5 h-5" aria-hidden />;
+}
+
 interface ProgressFlowProps {
-  activeStep: ProgressStep;
-  steps: ProgressStep[];
+  activeStep: string;
+  steps: ProgressStepDef[];
   isDark?: boolean;
 }
 
 function getStepStatus(
-  step: ProgressStep,
-  activeStep: ProgressStep,
-  steps: ProgressStep[]
+  step: ProgressStepDef,
+  activeStepId: string,
+  steps: ProgressStepDef[]
 ): "pending" | "active" | "done" {
-  const activeIdx = steps.indexOf(activeStep);
-  const stepIdx = steps.indexOf(step);
+  const activeIdx = steps.findIndex((s) => s.id === activeStepId);
+  const stepIdx = steps.findIndex((s) => s.id === step.id);
+  if (activeIdx === -1) return "pending";
   if (stepIdx < activeIdx) return "done";
   if (stepIdx === activeIdx) return "active";
   return "pending";
@@ -64,7 +61,7 @@ export const ProgressFlow: React.FC<ProgressFlowProps> = ({
       const isCompact = steps.length > 4;
       const iconSizeCls = isCompact ? "w-4 h-4" : "w-5 h-5";
       return (
-        <React.Fragment key={step}>
+        <React.Fragment key={step.id}>
           <div className="flex flex-col items-center">
             <div
               className={`
@@ -81,11 +78,11 @@ export const ProgressFlow: React.FC<ProgressFlowProps> = ({
                 <div className="relative flex items-center justify-center w-full h-full">
                   <ActiveNodeSpinner />
                   <span className={`absolute z-[1] ${iconSizeCls} ${isDark ? "text-[#2DD4BF]" : "text-forest-f60/90"}`}>
-                    {STEP_ICONS[step]}
+                    {getStepIcon(step.id)}
                   </span>
                 </div>
               ) : (
-                <span className={`flex items-center justify-center ${iconSizeCls}`}>{STEP_ICONS[step]}</span>
+                <span className={`flex items-center justify-center ${iconSizeCls}`}>{getStepIcon(step.id)}</span>
               )}
             </div>
             <span
@@ -95,7 +92,7 @@ export const ProgressFlow: React.FC<ProgressFlowProps> = ({
                   : isDark ? "text-neutral-200" : "text-forest-f60"
               }`}
             >
-              {STEP_LABELS[step]}
+              {step.label}
             </span>
           </div>
           {!isLast && (

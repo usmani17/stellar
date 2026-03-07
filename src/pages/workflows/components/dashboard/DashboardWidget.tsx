@@ -18,8 +18,7 @@ import {
   ScatterChart,
   Gauge,
 } from "lucide-react";
-import type { ProgressStep } from "./progressFlowConstants";
-import { SIMPLE_STEPS, MULTI_GAQL_STEPS } from "./progressFlowConstants";
+import { getStepsFromQuery } from "./progressFlowConstants";
 import { ProgressFlow } from "./ProgressFlow";
 import { DashboardTable } from "./DashboardTable";
 import { DashboardBarChart } from "./DashboardBarChart";
@@ -38,10 +37,11 @@ import { DashboardHorizontalBarChart } from "./DashboardHorizontalBarChart";
 import { Dropdown } from "../../../../components/ui";
 import type { DropdownOption } from "../../../../components/ui";
 import type { DashboardComponent, LineChartDatum, PieChartDatum, SingleMetricDatum, FunnelChartDatum, VisualizationType } from "../../types/dashboard";
-import { isMultiGaqlQuery } from "../../types/dashboard";
+import { isMultiGaqlQuery, isMultiMetaQuery } from "../../types/dashboard";
 import { getDashboardComponentData } from "../../../../services/dashboard";
 import { getMockDataForComponent } from "../../utils/dashboardMockData";
 import { useDashboardTheme } from "../../contexts/DashboardThemeContext";
+import { cn } from "../../../../lib/cn";
 
 const VIZ_ICON_CLS = "w-4 h-4 shrink-0";
 
@@ -130,8 +130,8 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   const mountedRef = useRef(true);
   const hasFetchedRef = useRef(false);
   const lastComponentIdRef = useRef(component.id);
-  const isMulti = isMultiGaqlQuery(component.query);
-  const steps = isMulti ? MULTI_GAQL_STEPS : SIMPLE_STEPS;
+  const isMulti = isMultiGaqlQuery(component.query) || isMultiMetaQuery(component.query);
+  const steps = getStepsFromQuery(component.query);
   const availableVizOptions = component.suggested_types?.length
     ? VIZ_TYPE_OPTIONS.filter(
         (opt) => opt.value === component.visualization_type || component.suggested_types!.includes(opt.value)
@@ -214,24 +214,37 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
     return () => { mountedRef.current = false; };
   }, [component, staggerDelayMs, isMulti, shareId, vizType, accountId, dashboardId, refreshTrigger, hardRefreshTrigger]);
 
-  const statusToStep: Record<WidgetStatus, ProgressStep> = {
-    pending: "fetch",
-    fetching: "fetch",
-    saving: "save",
-    fetching2: "fetch2",
-    joining: "join",
-    analyzing: "analyze",
-    ready: "display",
-  };
-  const activeStep = statusToStep[status];
+  function getActiveStepId(s: WidgetStatus): string {
+    if (s === "ready") return steps[steps.length - 1]?.id ?? "display";
+    const isMultiFlow = steps.length >= 6;
+    switch (s) {
+      case "pending":
+      case "fetching":
+        return steps[0]?.id ?? "fetch";
+      case "saving":
+        return steps[1]?.id ?? "save";
+      case "fetching2":
+        return steps[2]?.id ?? "fetch2";
+      case "joining":
+        return steps[3]?.id ?? "join";
+      case "analyzing":
+        return isMultiFlow ? (steps[4]?.id ?? "analyze") : (steps[2]?.id ?? "analyze");
+      default:
+        return steps[0]?.id ?? "fetch";
+    }
+  }
+  const activeStep = getActiveStepId(status);
   const { isDark } = useDashboardTheme();
 
   return (
     <div
-      className={`rounded-xl min-h-[280px] flex flex-col overflow-hidden transition-all duration-200 ${isDark
-        ? "border border-neutral-700 bg-neutral-800 shadow-lg hover:shadow-xl"
-        : "border border-sandstorm-s40/80 bg-white shadow-[0_1px_2px_rgba(7,41,41,0.04)] hover:shadow-[0_4px_12px_rgba(7,41,41,0.06)]"
-        }`}
+      className={cn(
+        "rounded-xl flex flex-col overflow-hidden transition-all duration-200",
+        vizType === "single_metric" ? "min-h-[140px]" : "min-h-[280px]",
+        isDark
+          ? "border border-neutral-700 bg-neutral-800 shadow-lg hover:shadow-xl"
+          : "border border-sandstorm-s40/80 bg-white shadow-[0_1px_2px_rgba(7,41,41,0.04)] hover:shadow-[0_4px_12px_rgba(7,41,41,0.06)]"
+      )}
     >
       <div
         className={`flex flex-col border-b flex-shrink-0 ${isDark
@@ -271,7 +284,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
                 {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
             )}
-            {editable && onVisualizationChange && (
+            {editable && onVisualizationChange && vizType !== "single_metric" && (
               <Dropdown<VisualizationType>
                 options={availableVizOptions}
                 value={vizType}
@@ -370,7 +383,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             <DashboardComparisonChart component={component} data={data.data} isDark={isDark} />
           </div>
         ) : vizType === "single_metric" ? (
-          <div className="flex-1 min-h-[200px] flex flex-col">
+          <div className="flex flex-col items-start w-full">
             <DashboardSingleMetric component={component} data={data.data as SingleMetricDatum[]} isDark={isDark} />
           </div>
         ) : vizType === "stacked_bar_chart" ? (

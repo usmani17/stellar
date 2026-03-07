@@ -64,21 +64,24 @@ export const DashboardDonutChart: React.FC<DashboardDonutChartProps> = ({
           >
             {formatDashboardTick(total, valueKey, component.metric_formats)}
           </text>
-          <Legend
-            layout="horizontal"
-            align="center"
-            verticalAlign="bottom"
-            formatter={(value, entry) => {
-              const pct = total > 0
-                ? ((Number((entry.payload as Record<string, unknown>)?.[valueKey] ?? 0) / total) * 100).toFixed(0)
-                : "0";
-              return (
-                <span style={{ color: legendTextColor }}>
-                  {value} {pct}%
-                </span>
+          {data.length <= 5 && (
+            <Legend
+              layout="horizontal"
+              align="center"
+              verticalAlign="bottom"
+              wrapperStyle={{ fontSize: 10 }}
+              formatter={(value, entry) => {
+                const pct = total > 0
+                  ? ((Number((entry.payload as Record<string, unknown>)?.[valueKey] ?? 0) / total) * 100).toFixed(0)
+                  : "0";
+                return (
+                  <span style={{ color: legendTextColor, fontSize: 10 }}>
+                    {value} {pct}%
+                  </span>
               );
             }}
-          />
+            />
+          )}
           <Tooltip
             contentStyle={{
               ...TOOLTIP_STYLE,

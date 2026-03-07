@@ -291,10 +291,12 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     layoutCols === 4 ? "grid-cols-4" :
     "grid-cols-2";
 
+  const gridAutoRows = "minmax(min-content, auto)";
+
   const gridContent = (
     <div
       className={`grid gap-3 ${gridColsClass}`}
-      style={{ gridAutoRows: "minmax(280px, auto)" }}
+      style={{ gridAutoRows, alignItems: "start" }}
     >
       {orderedComponents.map((comp, i) =>
         editable ? (
