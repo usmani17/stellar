@@ -65,8 +65,8 @@ function parseRunDays(value: number[] | string | null | undefined): number[] {
         const parsed = JSON.parse(trimmed) as unknown;
         return Array.isArray(parsed)
           ? (parsed as number[]).filter(
-            (d) => typeof d === "number" && d >= 0 && d <= 6,
-          )
+              (d) => typeof d === "number" && d >= 0 && d <= 6,
+            )
           : [];
       } catch {
         return [];
@@ -312,10 +312,14 @@ export const StrategyDetail: React.FC = () => {
   const [activeAutomationTab, setActiveAutomationTab] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewResults, setPreviewResults] = useState<AutomationPreviewRow[]>([]);
+  const [previewResults, setPreviewResults] = useState<AutomationPreviewRow[]>(
+    [],
+  );
   const [previewSummary, setPreviewSummary] = useState("");
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(
+    null,
+  );
   /** One automation = one tab; each has its own entity, filters, action state, and schedule. */
   const [automationTabs, setAutomationTabs] = useState<
     {
@@ -386,11 +390,7 @@ export const StrategyDetail: React.FC = () => {
     setOptimizationGoal(isCustomGoal ? "Custom Optimization" : goal);
     setCustomOptimizationText(isCustomGoal ? goal : "");
     const statusVal = strategy.status ?? "";
-    setFormState(
-      statusVal.toLowerCase() === "enabled"
-        ? "Enable"
-        : "Pause",
-    );
+    setFormState(statusVal.toLowerCase() === "enabled" ? "Enable" : "Pause");
     setMaxChangePerDay(
       strategy.max_change_per_day != null
         ? String(strategy.max_change_per_day)
@@ -515,8 +515,8 @@ export const StrategyDetail: React.FC = () => {
                 const parsed = JSON.parse(scheduleRunDaysRaw) as unknown;
                 scheduleRunDays = Array.isArray(parsed)
                   ? (parsed as number[]).filter(
-                    (d) => typeof d === "number" && d >= 0 && d <= 6,
-                  )
+                      (d) => typeof d === "number" && d >= 0 && d <= 6,
+                    )
                   : globalRunDays;
               } catch {
                 // keep global
@@ -526,14 +526,14 @@ export const StrategyDetail: React.FC = () => {
 
           const frequency =
             hasOwnSchedule &&
-              a.schedule_frequency != null &&
-              String(a.schedule_frequency).trim() !== ""
+            a.schedule_frequency != null &&
+            String(a.schedule_frequency).trim() !== ""
               ? normalizeFrequencyDisplay(a.schedule_frequency)
               : globalFrequency;
           const runAtNormalized =
             hasOwnSchedule &&
-              a.schedule_run_at != null &&
-              String(a.schedule_run_at).trim() !== ""
+            a.schedule_run_at != null &&
+            String(a.schedule_run_at).trim() !== ""
               ? normalizeTimeForInput(a.schedule_run_at)
               : globalRunAt;
 
@@ -597,14 +597,10 @@ export const StrategyDetail: React.FC = () => {
       ?.automationIndex;
     const fromQuery = searchParams.get("automation");
     const rawIndex =
-      fromState ??
-      (fromQuery != null ? parseInt(fromQuery, 10) - 1 : null);
+      fromState ?? (fromQuery != null ? parseInt(fromQuery, 10) - 1 : null);
     if (rawIndex == null || Number.isNaN(rawIndex)) return;
     appliedInitialAutomationTabRef.current = true;
-    const index = Math.max(
-      0,
-      Math.min(rawIndex, automationTabs.length - 1),
-    );
+    const index = Math.max(0, Math.min(rawIndex, automationTabs.length - 1));
     setActiveAutomationTab(index);
   }, [
     isCreateMode,
@@ -667,8 +663,8 @@ export const StrategyDetail: React.FC = () => {
     const profileIds =
       selectedProfileIds.length > 0
         ? selectedProfileIds
-          .map((id) => parseInt(id, 10))
-          .filter((n) => !Number.isNaN(n))
+            .map((id) => parseInt(id, 10))
+            .filter((n) => !Number.isNaN(n))
         : undefined;
     const goalValue =
       optimizationGoal === "Custom Optimization"
@@ -1051,9 +1047,7 @@ export const StrategyDetail: React.FC = () => {
         : "",
     );
     setFormState(
-      payload.status?.toLowerCase() === "enabled"
-        ? "Enable"
-        : "Pause",
+      payload.status?.toLowerCase() === "enabled" ? "Enable" : "Pause",
     );
     setSelectedProfileIds((payload.profile_ids ?? []).map((id) => String(id)));
     setMaxChangePerDay(payload.max_change_per_day ?? "");
@@ -1110,13 +1104,13 @@ export const StrategyDetail: React.FC = () => {
         ? a.schedule_run_days
         : typeof a.schedule_run_days === "string"
           ? (() => {
-            try {
-              const p = JSON.parse(a.schedule_run_days as string) as unknown;
-              return Array.isArray(p) ? p : [];
-            } catch {
-              return [];
-            }
-          })()
+              try {
+                const p = JSON.parse(a.schedule_run_days as string) as unknown;
+                return Array.isArray(p) ? p : [];
+              } catch {
+                return [];
+              }
+            })()
           : [];
       const scheduleRunAtRaw =
         hasOwnSchedule && a.schedule_run_at != null
@@ -1314,7 +1308,6 @@ export const StrategyDetail: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="w-full">
             <div className="bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] p-6 flex flex-col gap-6 w-full">
-
               {/* Optimization Goal (Optional) */}
               <SectionCard
                 icon={<img src={GoalsIcon} alt="" className="w-6 h-6" />}
@@ -1329,9 +1322,10 @@ export const StrategyDetail: React.FC = () => {
                       className={`
                         flex-1 min-w-[120px] sm:min-w-[140px] h-[62px] px-3 sm:px-4 rounded-[20px] flex items-center justify-between gap-2 sm:gap-4
                         border-2 transition-all
-                        ${optimizationGoal === goal
-                          ? "bg-[#f0f0ed] border-[#136D6D] shadow-[0px_4px_0px_0px_#136D6D]"
-                          : "bg-[#F9F9F6] border-[#E8E8E3] hover:border-[#d0d0cb]"
+                        ${
+                          optimizationGoal === goal
+                            ? "bg-[#f0f0ed] border-[#136D6D] shadow-[0px_4px_0px_0px_#136D6D]"
+                            : "bg-[#F9F9F6] border-[#E8E8E3] hover:border-[#d0d0cb]"
                         }
                       `}
                     >
@@ -1339,10 +1333,11 @@ export const StrategyDetail: React.FC = () => {
                         {goal}
                       </span>
                       <span
-                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${optimizationGoal === goal
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                          optimizationGoal === goal
                             ? "border-[#136D6D] bg-[#136D6D]"
                             : "border-[#E8E8E3]"
-                          }`}
+                        }`}
                       >
                         {optimizationGoal === goal && (
                           <span className="w-2 h-2 rounded-full bg-[#F9F9F6]" />
@@ -1380,7 +1375,10 @@ export const StrategyDetail: React.FC = () => {
                 title="Strategy Details"
               >
                 <div className="flex flex-wrap gap-4 w-full md:flex-nowrap">
-                  <div ref={nameFieldRef} className="flex flex-col gap-1 w-full max-w-[360px] md:flex-1 md:min-w-0">
+                  <div
+                    ref={nameFieldRef}
+                    className="flex flex-col gap-1 w-full max-w-[360px] md:flex-1 md:min-w-0"
+                  >
                     <FormField
                       label="Strategy Name"
                       className="w-full"
@@ -1474,8 +1472,9 @@ export const StrategyDetail: React.FC = () => {
                           )}
                         </div>
                         <ChevronDown
-                          className={`w-5 h-5 text-[#e3e3e3] shrink-0 transition-transform ${profileDropdownOpen ? "rotate-180" : ""
-                            }`}
+                          className={`w-5 h-5 text-[#e3e3e3] shrink-0 transition-transform ${
+                            profileDropdownOpen ? "rotate-180" : ""
+                          }`}
                         />
                       </button>
                       {profileDropdownOpen && (
@@ -1659,7 +1658,10 @@ export const StrategyDetail: React.FC = () => {
                 title="Automation"
                 description="Define the automation."
               >
-                <div ref={automationSectionRef} className="flex flex-col gap-4 w-full">
+                <div
+                  ref={automationSectionRef}
+                  className="flex flex-col gap-4 w-full"
+                >
                   {fieldErrors.automation && (
                     <p className="text-[12px] text-red-600">
                       {fieldErrors.automation}
@@ -1670,7 +1672,8 @@ export const StrategyDetail: React.FC = () => {
                       {automationTabs.map((_, index) => {
                         const automationIdForTab =
                           strategy?.automations?.[index] != null
-                            ? (strategy.automations[index] as { id?: number }).id
+                            ? (strategy.automations[index] as { id?: number })
+                                .id
                             : undefined;
                         const canPreview =
                           !isCreateMode &&
@@ -1679,10 +1682,11 @@ export const StrategyDetail: React.FC = () => {
                         return (
                           <div
                             key={index}
-                            className={`flex items-center gap-1 px-3 py-1 text-[14px] border-l border-[#E8E8E3] first:border-l-0 ${activeAutomationTab === index
+                            className={`flex items-center gap-1 px-3 py-1 text-[14px] border-l border-[#E8E8E3] first:border-l-0 ${
+                              activeAutomationTab === index
                                 ? "bg-[#136D6D] text-[#F9F9F6]"
                                 : "bg-white text-neutral-n300"
-                              }`}
+                            }`}
                           >
                             <button
                               type="button"
@@ -1712,7 +1716,13 @@ export const StrategyDetail: React.FC = () => {
                                     })
                                     .catch((err: unknown) => {
                                       const msg =
-                                        (err as { response?: { data?: { summary?: string } } })?.response?.data?.summary ??
+                                        (
+                                          err as {
+                                            response?: {
+                                              data?: { summary?: string };
+                                            };
+                                          }
+                                        )?.response?.data?.summary ??
                                         (err as Error)?.message ??
                                         "Failed to load preview.";
                                       setPreviewError(msg);
@@ -2159,7 +2169,10 @@ export const StrategyDetail: React.FC = () => {
                                 key={`${row.entity_name}-${i}`}
                                 className="border-b border-gray-200 last:border-b-0"
                               >
-                                <td className="px-4 py-2 text-[10.64px] text-forest-f60 max-w-[200px] truncate" title={row.entity_name}>
+                                <td
+                                  className="px-4 py-2 text-[10.64px] text-forest-f60 max-w-[200px] truncate"
+                                  title={row.entity_name}
+                                >
                                   {row.entity_name}
                                 </td>
                                 <td className="px-4 py-2 text-[10.64px] text-forest-f30">
