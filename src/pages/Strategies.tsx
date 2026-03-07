@@ -396,7 +396,6 @@ export const Strategies: React.FC = () => {
                       <th className="table-header">Goal</th>
                       <th className="table-header">Status</th>
                       <th className="table-header">Platform</th>
-                      <th className="table-header">Channels</th>
                       <th className="table-header">Schedule</th>
                       <th className="table-header">Last run</th>
                       <th className="table-header">Actions</th>
@@ -406,7 +405,7 @@ export const Strategies: React.FC = () => {
                     {isError ? (
                       <tr>
                         <td
-                          colSpan={8}
+                          colSpan={7}
                           className="table-cell text-center py-12"
                         >
                           <p className="text-[14px] text-red-600 mb-2">
@@ -433,9 +432,6 @@ export const Strategies: React.FC = () => {
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-20" />
                           </td>
                           <td className="table-cell">
-                            <div className="h-5 bg-gray-200 rounded animate-pulse w-16" />
-                          </td>
-                          <td className="table-cell">
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-24" />
                           </td>
                           <td className="table-cell">
@@ -449,7 +445,7 @@ export const Strategies: React.FC = () => {
                     ) : strategies.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={8}
+                          colSpan={7}
                           className="table-cell text-center py-12"
                         >
                           <p className="text-[14px] text-[#556179] mb-4">
@@ -476,9 +472,7 @@ export const Strategies: React.FC = () => {
                           <React.Fragment key={strategy.id}>
                             <tr
                               className="table-row group cursor-pointer hover:bg-[#f3f4f6]"
-                              onClick={() =>
-                                navigate(`/strategies/${strategy.id}`)
-                              }
+                              onClick={() => toggleExpanded(strategy.id)}
                             >
                               <td className="table-cell">
                                 <div className="flex items-center gap-1.5">
@@ -528,9 +522,6 @@ export const Strategies: React.FC = () => {
                                 {strategy.platform || "—"}
                               </td>
                               <td className="table-cell text-[14px] text-[#556179]">
-                                {strategy.channel_ids?.length ?? 0}
-                              </td>
-                              <td className="table-cell text-[14px] text-[#556179]">
                                 {formatStrategySchedule(strategy)}
                               </td>
                               <td className="table-cell text-[14px] text-[#556179]">
@@ -577,7 +568,7 @@ export const Strategies: React.FC = () => {
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <td
-                                    colSpan={8}
+                                    colSpan={7}
                                     className="table-cell p-0 align-top"
                                   >
                                     <div className="pl-10 py-3 pr-4 min-w-0">
@@ -709,21 +700,8 @@ export const Strategies: React.FC = () => {
                                                         >
                                                           Preview
                                                         </button>
-                                                        <span className="text-forest-f30">|</span>
                                                       </>
                                                     )}
-                                                    <Link
-                                                      to={`/strategies/${strategy.id}`}
-                                                      state={{
-                                                        automationIndex: idx,
-                                                      }}
-                                                      className="text-[13px] text-forest-f40 hover:underline font-medium whitespace-nowrap"
-                                                      onClick={(e) =>
-                                                        e.stopPropagation()
-                                                      }
-                                                    >
-                                                      Edit
-                                                    </Link>
                                                   </span>
                                                 </td>
                                               </tr>
@@ -742,7 +720,7 @@ export const Strategies: React.FC = () => {
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <td
-                                    colSpan={8}
+                                    colSpan={7}
                                     className="table-cell pl-10 text-[13px] text-forest-f30"
                                   >
                                     No automations
