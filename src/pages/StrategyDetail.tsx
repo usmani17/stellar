@@ -238,7 +238,7 @@ const FormField: React.FC<{
   error?: string;
 }> = ({ label, children, className = "", error }) => (
   <div className={`flex flex-col gap-1 w-full max-w-[360px] ${className}`}>
-    <label className="text-[16px] font-medium text-[#072929]">{label}</label>
+    <label className="text-[14px] text-[#072929]">{label}</label>
     {children}
     {error && <p className="text-[12px] text-red-600 mt-1">{error}</p>}
   </div>
@@ -1319,7 +1319,7 @@ export const StrategyDetail: React.FC = () => {
                         }
                       `}
                     >
-                      <span className="text-[13px] sm:text-[14px] lg:text-[16px] font-medium text-[#072929] min-w-0 text-left leading-tight max-h-[2.5em] overflow-hidden">
+                      <span className="text-[13px] sm:text-[14px] lg:text-[14px] text-[#072929] min-w-0 text-left leading-tight max-h-[2.5em] overflow-hidden">
                         {goal}
                       </span>
                       <span

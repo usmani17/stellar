@@ -209,7 +209,7 @@ export const StrategyAutomation: React.FC<StrategyAutomationProps> = ({
               {!isSetToAction && (
                 <div className="flex flex-col gap-1 min-w-[120px] flex-1 max-w-[180px]">
                   <div className="text-[14px] font-medium text-text-primary">
-                    {isIncreaseAction ? "Max Cap (Optional)" : "Floor (Optional)"}
+                    {isIncreaseAction ? "Upper Limit (Optional)" : "Lower Limit (Optional)"}
                   </div>
                   <input
                     type="number"
