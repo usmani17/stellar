@@ -13,10 +13,13 @@ import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
 import { Banner, Button, Tooltip } from "../components/ui";
 import { cn } from "../lib/cn";
-import type {
-  Strategy,
-  StrategyAutomationPayload,
+import {
+  strategiesService,
+  type Strategy,
+  type StrategyAutomationPayload,
+  type AutomationPreviewRow,
 } from "../services/strategies";
+import { formatCurrency } from "../utils/formatters";
 
 const PAGE_SIZE = 10;
 
@@ -189,6 +192,13 @@ export const Strategies: React.FC = () => {
   const [runSuccessId, setRunSuccessId] = useState<number | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
   const [startingRunId, setStartingRunId] = useState<number | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewStrategyId, setPreviewStrategyId] = useState<number | null>(null);
+  const [previewAutomationId, setPreviewAutomationId] = useState<number | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewResults, setPreviewResults] = useState<AutomationPreviewRow[]>([]);
+  const [previewSummary, setPreviewSummary] = useState("");
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -652,18 +662,57 @@ export const Strategies: React.FC = () => {
                                                   </span>
                                                 </td>
                                                 <td className="table-cell py-2 px-3 overflow-hidden">
-                                                  <Link
-                                                    to={`/strategies/${strategy.id}`}
-                                                    state={{
-                                                      automationIndex: idx,
-                                                    }}
-                                                    className="text-[13px] text-forest-f40 hover:underline font-medium whitespace-nowrap"
-                                                    onClick={(e) =>
-                                                      e.stopPropagation()
-                                                    }
-                                                  >
-                                                    Edit
-                                                  </Link>
+                                                  <span className="flex items-center gap-1 flex-wrap">
+                                                    {automation.id != null && (
+                                                      <>
+                                                        <button
+                                                          type="button"
+                                                          className="text-[13px] text-forest-f40 hover:underline font-medium whitespace-nowrap"
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setPreviewStrategyId(strategy.id);
+                                                            setPreviewAutomationId(automation.id);
+                                                            setPreviewOpen(true);
+                                                            setPreviewLoading(true);
+                                                            setPreviewError(null);
+                                                            setPreviewResults([]);
+                                                            setPreviewSummary("");
+                                                            strategiesService
+                                                              .getAutomationPreview(strategy.id, automation.id)
+                                                              .then((res) => {
+                                                                setPreviewResults(res.results ?? []);
+                                                                setPreviewSummary(res.summary ?? "");
+                                                              })
+                                                              .catch((err: unknown) => {
+                                                                const msg =
+                                                                  (err as { response?: { data?: { summary?: string } } })?.response?.data?.summary ??
+                                                                  (err as Error)?.message ??
+                                                                  "Failed to load preview.";
+                                                                setPreviewError(msg);
+                                                                setPreviewResults([]);
+                                                                setPreviewSummary("");
+                                                              })
+                                                              .finally(() => setPreviewLoading(false));
+                                                          }}
+                                                        >
+                                                          Preview
+                                                        </button>
+                                                        <span className="text-forest-f30">|</span>
+                                                      </>
+                                                    )}
+                                                    <Link
+                                                      to={`/strategies/${strategy.id}`}
+                                                      state={{
+                                                        automationIndex: idx,
+                                                      }}
+                                                      className="text-[13px] text-forest-f40 hover:underline font-medium whitespace-nowrap"
+                                                      onClick={(e) =>
+                                                        e.stopPropagation()
+                                                      }
+                                                    >
+                                                      Edit
+                                                    </Link>
+                                                  </span>
                                                 </td>
                                               </tr>
                                             ),
@@ -766,6 +815,132 @@ export const Strategies: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Preview automation results modal */}
+      {previewOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPreviewOpen(false);
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="preview-automation-title"
+        >
+          <div
+            className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              id="preview-automation-title"
+              className="text-[17.1px] font-semibold text-[#072929] mb-4"
+            >
+              Preview automation results
+            </h3>
+            {previewLoading ? (
+              <div className="mb-6 py-8 text-center text-[12.16px] text-forest-f30">
+                Loading preview...
+              </div>
+            ) : previewError ? (
+              <div className="mb-6 py-4 px-4 bg-red-r0 border border-red-r30 rounded-lg text-[12.16px] text-red-r30">
+                {previewError}
+              </div>
+            ) : (
+              <>
+                <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4 mb-4">
+                  <span className="text-[12.16px] text-forest-f30">
+                    {previewSummary || "No entities would be updated."}
+                  </span>
+                </div>
+                {previewResults.length > 0 ? (
+                  <div className="mb-6">
+                    <div className="mb-2 text-[10.64px] text-forest-f30">
+                      {previewResults.length > 10
+                        ? `Showing 10 of ${previewResults.length} entities`
+                        : `${previewResults.length} entit${previewResults.length !== 1 ? "ies" : "y"} would be updated`}
+                    </div>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="w-full table-fixed">
+                        <thead className="bg-[#f5f5f0]">
+                          <tr>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-forest-f30 uppercase w-[28%] max-w-[200px]">
+                              Entity
+                            </th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-forest-f30 uppercase w-[18%]">
+                              Column
+                            </th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-forest-f30 uppercase w-[27%]">
+                              Old value
+                            </th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-forest-f30 uppercase w-[27%]">
+                              New value
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(previewResults.length > 10
+                            ? previewResults.slice(0, 10)
+                            : previewResults
+                          ).map((row, i) => {
+                            const isBudgetOrBid =
+                              row.column === "Budget" || row.column === "Bid";
+                            const numOld = isBudgetOrBid
+                              ? parseFloat(String(row.old_value))
+                              : NaN;
+                            const numNew = isBudgetOrBid
+                              ? parseFloat(String(row.new_value))
+                              : NaN;
+                            const oldDisplay =
+                              isBudgetOrBid && !Number.isNaN(numOld)
+                                ? formatCurrency(numOld)
+                                : row.old_value;
+                            const newDisplay =
+                              isBudgetOrBid && !Number.isNaN(numNew)
+                                ? formatCurrency(numNew)
+                                : row.new_value;
+                            return (
+                              <tr
+                                key={`${row.entity_name}-${i}`}
+                                className="border-b border-gray-200 last:border-b-0"
+                              >
+                                <td className="px-4 py-2 text-[10.64px] text-forest-f60 max-w-[200px] truncate" title={row.entity_name}>
+                                  {row.entity_name}
+                                </td>
+                                <td className="px-4 py-2 text-[10.64px] text-forest-f30">
+                                  {row.column}
+                                </td>
+                                <td className="px-4 py-2 text-[10.64px] text-forest-f30">
+                                  {oldDisplay}
+                                </td>
+                                <td className="px-4 py-2 text-[10.64px] font-semibold text-forest-f60">
+                                  {newDisplay}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-6 py-4 text-[12.16px] text-forest-f30">
+                    No entities match the automation filters.
+                  </div>
+                )}
+              </>
+            )}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(false)}
+                className="cancel-button"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -134,6 +134,20 @@ export interface StrategyRunTriggerResponse {
   strategy_id: number;
 }
 
+/** One row in automation preview (entity, column, old value, new value). */
+export interface AutomationPreviewRow {
+  entity_name: string;
+  column: string;
+  old_value: string;
+  new_value: string;
+}
+
+/** Response from GET /strategies/:id/automations/:automationId/preview/ */
+export interface AutomationPreviewResponse {
+  results: AutomationPreviewRow[];
+  summary: string;
+}
+
 export const strategiesService = {
   getStrategies: async (): Promise<Strategy[]> => {
     const response = await api.get<Strategy[] | { results: Strategy[] }>(
@@ -180,6 +194,17 @@ export const strategiesService = {
 
   getStrategy: async (id: number): Promise<Strategy> => {
     const response = await api.get<Strategy>(`/strategies/${id}/`);
+    return response.data;
+  },
+
+  /** Preview automation result (no run). Returns entity, column, old/new value rows. */
+  getAutomationPreview: async (
+    strategyId: number,
+    automationId: number,
+  ): Promise<AutomationPreviewResponse> => {
+    const response = await api.get<AutomationPreviewResponse>(
+      `/strategies/${strategyId}/automations/${automationId}/preview/`,
+    );
     return response.data;
   },
 

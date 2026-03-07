@@ -29,7 +29,9 @@ import { ChevronDown, X, Search } from "lucide-react";
 import {
   strategiesService,
   type CreateStrategyData,
+  type AutomationPreviewRow,
 } from "../services/strategies";
+import { formatCurrency } from "../utils/formatters";
 import {
   useAllAccessibleProfiles,
   type AllAccessibleProfile,
@@ -308,6 +310,11 @@ export const StrategyDetail: React.FC = () => {
   ] = useState("25");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [activeAutomationTab, setActiveAutomationTab] = useState(0);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewResults, setPreviewResults] = useState<AutomationPreviewRow[]>([]);
+  const [previewSummary, setPreviewSummary] = useState("");
+  const [previewError, setPreviewError] = useState<string | null>(null);
   /** One automation = one tab; each has its own entity, filters, action state, and schedule. */
   const [automationTabs, setAutomationTabs] = useState<
     {
@@ -354,6 +361,13 @@ export const StrategyDetail: React.FC = () => {
     if (!allProfiles || selectedProfileIds.length === 0) return null;
     return allProfiles.find((p) => selectedProfileIds.includes(p.id)) ?? null;
   }, [allProfiles, selectedProfileIds]);
+
+  const currentAutomationId = useMemo(() => {
+    if (!strategy?.automations?.length || activeAutomationTab >= strategy.automations.length)
+      return undefined;
+    const a = strategy.automations[activeAutomationTab] as { id?: number } | undefined;
+    return a?.id;
+  }, [strategy?.automations, activeAutomationTab]);
 
   useEffect(() => {
     if (isCreateMode) {
@@ -1986,6 +2000,39 @@ export const StrategyDetail: React.FC = () => {
                     </button>
                   </>
                 )}
+                {!isCreateMode &&
+                  strategy?.id != null &&
+                  currentAutomationId != null && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreviewOpen(true);
+                        setPreviewLoading(true);
+                        setPreviewError(null);
+                        setPreviewResults([]);
+                        setPreviewSummary("");
+                        strategiesService
+                          .getAutomationPreview(strategy.id, currentAutomationId)
+                          .then((res) => {
+                            setPreviewResults(res.results ?? []);
+                            setPreviewSummary(res.summary ?? "");
+                          })
+                          .catch((err: unknown) => {
+                            const msg =
+                              (err as { response?: { data?: { summary?: string } } })?.response?.data?.summary ??
+                              (err as Error)?.message ??
+                              "Failed to load preview.";
+                            setPreviewError(msg);
+                            setPreviewResults([]);
+                            setPreviewSummary("");
+                          })
+                          .finally(() => setPreviewLoading(false));
+                      }}
+                      className="cancel-button h-10 px-4 rounded-lg"
+                    >
+                      Preview
+                    </button>
+                  )}
                 <button
                   type="submit"
                   disabled={isPending}
@@ -1998,6 +2045,132 @@ export const StrategyDetail: React.FC = () => {
           </form>
         </div>
       </div>
+
+      {/* Preview automation results modal */}
+      {previewOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPreviewOpen(false);
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="preview-automation-title-detail"
+        >
+          <div
+            className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              id="preview-automation-title-detail"
+              className="text-[17.1px] font-semibold text-[#072929] mb-4"
+            >
+              Preview automation results
+            </h3>
+            {previewLoading ? (
+              <div className="mb-6 py-8 text-center text-[12.16px] text-forest-f30">
+                Loading preview...
+              </div>
+            ) : previewError ? (
+              <div className="mb-6 py-4 px-4 bg-red-r0 border border-red-r30 rounded-lg text-[12.16px] text-red-r30">
+                {previewError}
+              </div>
+            ) : (
+              <>
+                <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4 mb-4">
+                  <span className="text-[12.16px] text-forest-f30">
+                    {previewSummary || "No entities would be updated."}
+                  </span>
+                </div>
+                {previewResults.length > 0 ? (
+                  <div className="mb-6">
+                    <div className="mb-2 text-[10.64px] text-forest-f30">
+                      {previewResults.length > 10
+                        ? `Showing 10 of ${previewResults.length} entities`
+                        : `${previewResults.length} entit${previewResults.length !== 1 ? "ies" : "y"} would be updated`}
+                    </div>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="w-full table-fixed">
+                        <thead className="bg-[#f5f5f0]">
+                          <tr>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-forest-f30 uppercase w-[28%] max-w-[200px]">
+                              Entity
+                            </th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-forest-f30 uppercase w-[18%]">
+                              Column
+                            </th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-forest-f30 uppercase w-[27%]">
+                              Old value
+                            </th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-forest-f30 uppercase w-[27%]">
+                              New value
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(previewResults.length > 10
+                            ? previewResults.slice(0, 10)
+                            : previewResults
+                          ).map((row, i) => {
+                            const isBudgetOrBid =
+                              row.column === "Budget" || row.column === "Bid";
+                            const numOld = isBudgetOrBid
+                              ? parseFloat(String(row.old_value))
+                              : NaN;
+                            const numNew = isBudgetOrBid
+                              ? parseFloat(String(row.new_value))
+                              : NaN;
+                            const oldDisplay =
+                              isBudgetOrBid && !Number.isNaN(numOld)
+                                ? formatCurrency(numOld)
+                                : row.old_value;
+                            const newDisplay =
+                              isBudgetOrBid && !Number.isNaN(numNew)
+                                ? formatCurrency(numNew)
+                                : row.new_value;
+                            return (
+                              <tr
+                                key={`${row.entity_name}-${i}`}
+                                className="border-b border-gray-200 last:border-b-0"
+                              >
+                                <td className="px-4 py-2 text-[10.64px] text-forest-f60 max-w-[200px] truncate" title={row.entity_name}>
+                                  {row.entity_name}
+                                </td>
+                                <td className="px-4 py-2 text-[10.64px] text-forest-f30">
+                                  {row.column}
+                                </td>
+                                <td className="px-4 py-2 text-[10.64px] text-forest-f30">
+                                  {oldDisplay}
+                                </td>
+                                <td className="px-4 py-2 text-[10.64px] font-semibold text-forest-f60">
+                                  {newDisplay}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-6 py-4 text-[12.16px] text-forest-f30">
+                    No entities match the automation filters.
+                  </div>
+                )}
+              </>
+            )}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(false)}
+                className="cancel-button"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
