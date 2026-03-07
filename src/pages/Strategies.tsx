@@ -578,7 +578,7 @@ export const Strategies: React.FC = () => {
                             {isExpanded &&
                               (hasAutomations ? (
                                 <tr
-                                  className="bg-sandstorm-s5 border-l-2 border-sandstorm-s40"
+                                  className="bg-sandstorm-s5 border-l-2 border-[#136D6D]"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <td
@@ -725,7 +725,7 @@ export const Strategies: React.FC = () => {
                               ) : (
                                 <tr
                                   className={cn(
-                                    "table-row bg-sandstorm-s5 border-l-2 border-sandstorm-s40",
+                                    "table-row bg-sandstorm-s5 border-l-2 border-[#136D6D]",
                                   )}
                                   onClick={(e) => e.stopPropagation()}
                                 >

@@ -363,13 +363,6 @@ export const StrategyDetail: React.FC = () => {
     return allProfiles.find((p) => selectedProfileIds.includes(p.id)) ?? null;
   }, [allProfiles, selectedProfileIds]);
 
-  const currentAutomationId = useMemo(() => {
-    if (!strategy?.automations?.length || activeAutomationTab >= strategy.automations.length)
-      return undefined;
-    const a = strategy.automations[activeAutomationTab] as { id?: number } | undefined;
-    return a?.id;
-  }, [strategy?.automations, activeAutomationTab]);
-
   useEffect(() => {
     if (isCreateMode) {
       setPageTitle("Create Strategy");
@@ -1677,48 +1670,94 @@ export const StrategyDetail: React.FC = () => {
                   )}
                   <div className="flex items-center gap-4 border-b border-[#E8E8E3] pb-0">
                     <div className="flex rounded-lg overflow-hidden border border-[#E8E8E3]">
-                      {automationTabs.map((_, index) => (
-                        <div
-                          key={index}
-                          className={`flex items-center gap-1 px-3 py-1 text-[14px] border-l border-[#E8E8E3] first:border-l-0 ${
-                            activeAutomationTab === index
-                              ? "bg-[#136D6D] text-[#F9F9F6]"
-                              : "bg-white text-neutral-n300"
-                          }`}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setActiveAutomationTab(index)}
-                            className="py-0.5"
+                      {automationTabs.map((_, index) => {
+                        const automationIdForTab =
+                          strategy?.automations?.[index] != null
+                            ? (strategy.automations[index] as { id?: number }).id
+                            : undefined;
+                        const canPreview =
+                          !isCreateMode &&
+                          strategy?.id != null &&
+                          automationIdForTab != null;
+                        return (
+                          <div
+                            key={index}
+                            className={`flex items-center gap-1 px-3 py-1 text-[14px] border-l border-[#E8E8E3] first:border-l-0 ${
+                              activeAutomationTab === index
+                                ? "bg-[#136D6D] text-[#F9F9F6]"
+                                : "bg-white text-neutral-n300"
+                            }`}
                           >
-                            Automation {index + 1}
-                          </button>
-                          {automationTabs.length > 1 && (
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setAutomationTabs((prev) => {
-                                  const next = prev.filter(
-                                    (_, i) => i !== index,
-                                  );
-                                  return next;
-                                });
-                                setActiveAutomationTab((prev) => {
-                                  if (prev === index)
-                                    return Math.max(0, index - 1);
-                                  if (prev > index) return prev - 1;
-                                  return prev;
-                                });
-                              }}
-                              className="p-0.5 rounded hover:bg-black/20 focus:outline-none"
-                              aria-label="Close tab"
+                              onClick={() => setActiveAutomationTab(index)}
+                              className="py-0.5"
                             >
-                              <X className="w-3.5 h-3.5" />
+                              Automation {index + 1}
                             </button>
-                          )}
-                        </div>
-                      ))}
+                            {canPreview && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPreviewOpen(true);
+                                  setPreviewLoading(true);
+                                  setPreviewError(null);
+                                  setPreviewResults([]);
+                                  setPreviewSummary("");
+                                  strategiesService
+                                    .getAutomationPreview(
+                                      strategy!.id,
+                                      automationIdForTab!,
+                                    )
+                                    .then((res) => {
+                                      setPreviewResults(res.results ?? []);
+                                      setPreviewSummary(res.summary ?? "");
+                                    })
+                                    .catch((err: unknown) => {
+                                      const msg =
+                                        (err as { response?: { data?: { summary?: string } } })?.response?.data?.summary ??
+                                        (err as Error)?.message ??
+                                        "Failed to load preview.";
+                                      setPreviewError(msg);
+                                      setPreviewResults([]);
+                                      setPreviewSummary("");
+                                    })
+                                    .finally(() => setPreviewLoading(false));
+                                }}
+                                className="py-0.5 px-1 rounded hover:bg-black/20 focus:outline-none text-[12px] underline"
+                                aria-label={`Preview automation ${index + 1}`}
+                              >
+                                Preview
+                              </button>
+                            )}
+                            {automationTabs.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAutomationTabs((prev) => {
+                                    const next = prev.filter(
+                                      (_, i) => i !== index,
+                                    );
+                                    return next;
+                                  });
+                                  setActiveAutomationTab((prev) => {
+                                    if (prev === index)
+                                      return Math.max(0, index - 1);
+                                    if (prev > index) return prev - 1;
+                                    return prev;
+                                  });
+                                }}
+                                className="p-0.5 rounded hover:bg-black/20 focus:outline-none"
+                                aria-label="Close tab"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                     <button
                       type="button"
@@ -2024,39 +2063,6 @@ export const StrategyDetail: React.FC = () => {
                     </button>
                   </>
                 )}
-                {!isCreateMode &&
-                  strategy?.id != null &&
-                  currentAutomationId != null && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPreviewOpen(true);
-                        setPreviewLoading(true);
-                        setPreviewError(null);
-                        setPreviewResults([]);
-                        setPreviewSummary("");
-                        strategiesService
-                          .getAutomationPreview(strategy.id, currentAutomationId)
-                          .then((res) => {
-                            setPreviewResults(res.results ?? []);
-                            setPreviewSummary(res.summary ?? "");
-                          })
-                          .catch((err: unknown) => {
-                            const msg =
-                              (err as { response?: { data?: { summary?: string } } })?.response?.data?.summary ??
-                              (err as Error)?.message ??
-                              "Failed to load preview.";
-                            setPreviewError(msg);
-                            setPreviewResults([]);
-                            setPreviewSummary("");
-                          })
-                          .finally(() => setPreviewLoading(false));
-                      }}
-                      className="cancel-button h-10 px-4 rounded-lg"
-                    >
-                      Preview
-                    </button>
-                  )}
                 <button
                   type="submit"
                   disabled={isPending}
