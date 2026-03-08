@@ -17,7 +17,9 @@ function getStepIcon(stepId: string): React.ReactNode {
 }
 
 interface ProgressFlowProps {
+  /** Current step ID (can be a ProgressStep literal or custom query id like "week3") */
   activeStep: string;
+  /** Step definitions with id and label for display */
   steps: ProgressStepDef[];
   isDark?: boolean;
 }
@@ -44,11 +46,12 @@ function ActiveNodeSpinner() {
   );
 }
 
-export const ProgressFlow: React.FC<ProgressFlowProps> = ({
+export function ProgressFlow({
   activeStep,
   steps,
   isDark = false,
-}) => (
+}: ProgressFlowProps): React.ReactElement {
+  return (
   <div className="flex items-center justify-center gap-0 flex-wrap">
     {steps.map((step, i) => {
       const status = getStepStatus(step, activeStep, steps);
@@ -109,4 +112,5 @@ export const ProgressFlow: React.FC<ProgressFlowProps> = ({
       );
     })}
   </div>
-);
+  );
+}

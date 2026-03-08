@@ -18,7 +18,7 @@ import {
   ScatterChart,
   Gauge,
 } from "lucide-react";
-import { getStepsFromQuery } from "./progressFlowConstants";
+import { getStepsFromQuery, type ProgressStepDef } from "./progressFlowConstants";
 import { ProgressFlow } from "./ProgressFlow";
 import { DashboardTable } from "./DashboardTable";
 import { DashboardBarChart } from "./DashboardBarChart";
@@ -38,7 +38,7 @@ import { Dropdown } from "../../../../components/ui";
 import type { DropdownOption } from "../../../../components/ui";
 import type { DashboardComponent, LineChartDatum, PieChartDatum, SingleMetricDatum, FunnelChartDatum, VisualizationType } from "../../types/dashboard";
 import { isMultiGaqlQuery, isMultiMetaQuery } from "../../types/dashboard";
-import { getDashboardComponentData, getDashboardComponentDataStream } from "../../../../services/dashboard";
+import { getDashboardComponentDataStream } from "../../../../services/dashboard";
 import { getMockDataForComponent } from "../../utils/dashboardMockData";
 import { useDashboardTheme } from "../../contexts/DashboardThemeContext";
 import { cn } from "../../../../lib/cn";
@@ -99,15 +99,9 @@ interface DashboardWidgetProps {
 
 type WidgetStatus =
   | "pending"
-  | "fetching"
-  | "saving"
-  | "fetching2"
-  | "joining"
-  | "analyzing"
-  | "ready";
-
-const STEP_DURATION_MS = 800;
-const FETCH_DURATION_MS = 1200;
+  | "loading"
+  | "ready"
+  | "error";
 
 export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   component,
@@ -130,9 +124,12 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const mountedRef = useRef(true);
   const hasFetchedRef = useRef(false);
+  const inFlightRef = useRef(false);
   const lastComponentIdRef = useRef(component.id);
   const isMulti = isMultiGaqlQuery(component.query) || isMultiMetaQuery(component.query);
-  const steps = getStepsFromQuery(component.query);
+  const steps: ProgressStepDef[] =
+    (component.progress_steps?.length && component.progress_steps) ||
+    getStepsFromQuery(component.query);
   const availableVizOptions = component.suggested_types?.length
     ? VIZ_TYPE_OPTIONS.filter(
         (opt) => opt.value === component.visualization_type || component.suggested_types!.includes(opt.value)
@@ -153,10 +150,12 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
     if (lastComponentIdRef.current !== component.id) {
       lastComponentIdRef.current = component.id;
       hasFetchedRef.current = false;
+      inFlightRef.current = false;
     }
-    if (hasFetchedRef.current) return;
+    if (hasFetchedRef.current || inFlightRef.current) return;
 
     mountedRef.current = true;
+    inFlightRef.current = true;
     const run = async () => {
       if (refreshTrigger === 0 && staggerDelayMs > 0) await new Promise((r) => setTimeout(r, staggerDelayMs));
       if (!mountedRef.current) return;
@@ -167,9 +166,9 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
       };
 
       if (accountId && dashboardId) {
+        setStatus("loading");
+        setStreamActiveStep(null);
         try {
-          setStatus("fetching");
-          setStreamActiveStep(null);
           const result = await getDashboardComponentDataStream(
             accountId,
             dashboardId,
@@ -189,54 +188,25 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             component.profile_id ?? undefined,
             hardRefreshTrigger > 0
           );
-          if (mountedRef.current && status !== "ready") {
+          if (mountedRef.current && !hasFetchedRef.current) {
             setData(result);
             setStatus("ready");
             setStreamActiveStep(null);
           }
           hasFetchedRef.current = true;
           return;
-        } catch (_e) {
+        } catch {
           setStreamActiveStep(null);
-          // Fall back to non-streaming fetch with simulated progress
+          setStatus("error");
+          return;
+        } finally {
+          inFlightRef.current = false;
         }
       }
 
-      setStatus("fetching");
-      await new Promise((r) => setTimeout(r, FETCH_DURATION_MS));
-      if (!mountedRef.current) return;
-
-      setStatus("saving");
-      await new Promise((r) => setTimeout(r, STEP_DURATION_MS));
-      if (!mountedRef.current) return;
-
-      if (isMulti) {
-        setStatus("fetching2");
-        await new Promise((r) => setTimeout(r, FETCH_DURATION_MS));
-        if (!mountedRef.current) return;
-
-        setStatus("joining");
-        await new Promise((r) => setTimeout(r, STEP_DURATION_MS));
-        if (!mountedRef.current) return;
-      }
-
-      setStatus("analyzing");
-      await new Promise((r) => setTimeout(r, STEP_DURATION_MS));
-      if (!mountedRef.current) return;
-
+      setStatus("loading");
       let rows: DashboardComponent;
-      if (accountId && dashboardId) {
-        rows = await getDashboardComponentData(
-          accountId,
-          dashboardId,
-          component.id,
-          component,
-          component.channel_id ?? undefined,
-          component.profile_id ?? undefined,
-          refreshTrigger,
-          hardRefreshTrigger > 0
-        );
-      } else if (shareId) {
+      if (shareId) {
         // TODO: handle shareId public access
         rows = { data: getMockDataForComponent(componentForMock) } as DashboardComponent;
       } else {
@@ -246,31 +216,22 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
       setData(rows);
       setStatus("ready");
       hasFetchedRef.current = true;
+      inFlightRef.current = false;
     };
     void run();
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+      inFlightRef.current = false;
+    };
   }, [component, staggerDelayMs, isMulti, shareId, vizType, accountId, dashboardId, refreshTrigger, hardRefreshTrigger]);
 
   function getActiveStepId(s: WidgetStatus): string {
     if (s === "ready") return steps[steps.length - 1]?.id ?? "display";
-    const isMultiFlow = steps.length >= 6;
-    switch (s) {
-      case "pending":
-      case "fetching":
-        return steps[0]?.id ?? "fetch";
-      case "saving":
-        return steps[1]?.id ?? "save";
-      case "fetching2":
-        return steps[2]?.id ?? "fetch2";
-      case "joining":
-        return steps[3]?.id ?? "join";
-      case "analyzing":
-        return isMultiFlow ? (steps[4]?.id ?? "analyze") : (steps[2]?.id ?? "analyze");
-      default:
-        return steps[0]?.id ?? "fetch";
-    }
+    if (s === "error") return steps[0]?.id ?? "fetch";
+    if (s === "loading") return steps[0]?.id ?? "fetch";
+    return steps[0]?.id ?? "fetch";
   }
-  const activeStep = streamActiveStep ?? getActiveStepId(status);
+  const activeStep: string = streamActiveStep ?? getActiveStepId(status);
   const { isDark } = useDashboardTheme();
 
   return (
@@ -378,7 +339,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             <button
               type="button"
               onClick={handleRefresh}
-              disabled={status !== "ready"}
+              disabled={status !== "ready" && status !== "error"}
               className={`shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${isDark
                   ? "text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   : "text-forest-f30 hover:bg-sandstorm-s20 hover:text-forest-f60 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -391,13 +352,27 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
         </div>
       </div>
       <div className="flex-1 flex flex-col min-h-0">
-        {status !== "ready" ? (
+        {status === "error" ? (
+          <div
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center gap-3 py-8 px-4 text-center",
+              isDark ? "text-neutral-300" : "text-forest-f30"
+            )}
+          >
+            <p className="text-sm font-medium">Failed to load</p>
+            <p className="text-xs">Use the refresh button above to retry.</p>
+          </div>
+        ) : status !== "ready" ? (
           <div className="flex-1 flex items-center justify-center py-8 px-4">
-            <ProgressFlow activeStep={activeStep} steps={steps} isDark={isDark} />
+            <ProgressFlow
+              activeStep={activeStep as React.ComponentProps<typeof ProgressFlow>["activeStep"]}
+              steps={steps as unknown as React.ComponentProps<typeof ProgressFlow>["steps"]}
+              isDark={isDark}
+            />
           </div>
         ) : vizType === "table" ? (
           <div className="flex-1 min-h-0 overflow-auto dashboard-table-wrapper pb-4">
-            <DashboardTable component={component} data={data.data} isDark={isDark} />
+            <DashboardTable key={component.id} component={component} data={data.data} isDark={isDark} />
           </div>
         ) : vizType === "line_chart" ? (
           <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">

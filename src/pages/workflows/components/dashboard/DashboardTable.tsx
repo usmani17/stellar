@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import type { DashboardComponent } from "../../types/dashboard";
 import { formatDashboardValue } from "../../utils/formatDashboardValue";
@@ -34,27 +34,27 @@ function resolveSortField(configField: string | undefined, columns: string[]): s
 }
 
 export const DashboardTable: React.FC<DashboardTableProps> = ({ component, data, isDark = false }) => {
-  const columns = inferColumns(data);
-  const initialSort = resolveSortField(component.sort?.field, columns);
-  const [sortField, setSortField] = useState<string>(initialSort || columns[0] || "");
+  const hasDisplayCols = component.display_columns && component.display_columns.length > 0;
+  const columnKeys = hasDisplayCols
+    ? component.display_columns!.map((dc) => dc.key)
+    : inferColumns(data);
+  const labelMap = hasDisplayCols
+    ? Object.fromEntries(component.display_columns!.map((dc) => [dc.key, dc.label]))
+    : null;
+
+  const initialSort = resolveSortField(component.sort?.field, columnKeys);
+  const [sortField, setSortField] = useState<string>(initialSort || columnKeys[0] || "");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(
     (component.sort?.order as "asc" | "desc") ?? "desc"
   );
 
-  useEffect(() => {
-    const resolved = resolveSortField(component.sort?.field, columns);
-    if (resolved) setSortField(resolved);
-  }, [component.id]);
-
   const sortedData = useMemo(() => {
-    if (!sortField || !columns.includes(sortField) || data.length === 0) return data;
+    if (!sortField || !columnKeys.includes(sortField) || data.length === 0) return data;
     return [...data].sort((a, b) => {
       const av = (a as Record<string, unknown>)[sortField];
       const bv = (b as Record<string, unknown>)[sortField];
-      const aNum = typeof av === "number" ? av : 0;
-      const bNum = typeof bv === "number" ? bv : 0;
       if (typeof av === "number" && typeof bv === "number") {
-        return sortOrder === "asc" ? aNum - bNum : bNum - aNum;
+        return sortOrder === "asc" ? av - bv : bv - av;
       }
       const aStr = String(av ?? "");
       const bStr = String(bv ?? "");
@@ -62,7 +62,7 @@ export const DashboardTable: React.FC<DashboardTableProps> = ({ component, data,
         ? aStr.localeCompare(bStr)
         : bStr.localeCompare(aStr);
     });
-  }, [data, sortField, sortOrder, columns]);
+  }, [data, sortField, sortOrder, columnKeys]);
 
   const handleSort = (col: string) => {
     if (sortField === col) {
@@ -79,7 +79,7 @@ export const DashboardTable: React.FC<DashboardTableProps> = ({ component, data,
         <table className="w-full border-collapse text-[12px]">
           <thead className="sticky top-0 z-10">
             <tr>
-              {columns.map((col) => {
+              {columnKeys.map((col) => {
                 const isSorted = sortField === col;
                 return (
                   <th
@@ -97,7 +97,7 @@ export const DashboardTable: React.FC<DashboardTableProps> = ({ component, data,
                       isDark ? "hover:text-neutral-100" : "hover:text-forest-f60"
                     }`}
                   >
-                    {formatHeader(col)}
+                    {labelMap?.[col] ?? formatHeader(col)}
                     {isSorted ? (
                       sortOrder === "asc" ? (
                         <ChevronUp className="w-3.5 h-3.5 shrink-0" aria-hidden />
@@ -123,7 +123,7 @@ export const DashboardTable: React.FC<DashboardTableProps> = ({ component, data,
                   : "border-sandstorm-s40/50 hover:bg-sandstorm-s10/70"
               }`}
             >
-              {columns.map((col) => (
+              {columnKeys.map((col) => (
                 <td
                   key={col}
                   className={`py-3 px-4 ${isDark ? "text-neutral-200" : "text-forest-f60"}`}

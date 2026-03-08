@@ -183,8 +183,8 @@ export async function getDashboardComponentDataStream(
   const qs = params.toString();
   const url = `${baseURL}${API_BASE}/${accountId}/dashboards/${dashboardId}/components/${componentId}/stream/${qs ? `?${qs}` : ""}`;
   const token = localStorage.getItem("accessToken");
+  // Omit Accept: text/event-stream so DRF doesn't 406 (same as workflows run-stream in workflows.ts).
   const headers: HeadersInit = {
-    Accept: "text/event-stream",
     ...(token && { Authorization: `Bearer ${token}` }),
   };
   const response = await fetch(url, { headers });

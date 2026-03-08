@@ -76,6 +76,20 @@ export function getStepsFromQuery(query: unknown): ProgressStepDef[] {
     return steps;
   }
 
+  if (q.multi_platform && typeof q.multi_platform === "object") {
+    const multi = q.multi_platform as { queries?: Array<{ id?: string }> };
+    const queries = multi.queries ?? [];
+    const steps: ProgressStepDef[] = [];
+    queries.forEach((sub, i) => {
+      const label = humanizeQueryId(String(sub.id ?? "")) || `Platform ${i + 1}`;
+      steps.push({ id: String(sub.id ?? `platform${i + 1}`), label });
+    });
+    steps.push({ id: "join", label: "Combine" });
+    steps.push({ id: "analyze", label: "Analyze" });
+    steps.push({ id: "display", label: "Display" });
+    return steps;
+  }
+
   return [
     { id: "fetch", label: "Fetch" },
     { id: "save", label: "Save" },

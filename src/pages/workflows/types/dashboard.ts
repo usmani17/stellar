@@ -67,13 +67,19 @@ export interface SqlQuery {
   params?: Record<string, string | number>;
 }
 
+/** Time range — supports explicit dates, day offsets, or named macros. Backend resolves at execution time. */
+export type DashboardTimeRange =
+  | { since: string; until: string }
+  | { since_days_ago: number; until_days_ago: number }
+  | { macro: string };
+
 /** Single Meta Insights query */
 export interface MetaInsightsQuery {
   meta_insights: {
     fields: string;
     level: "account" | "campaign" | "adset" | "ad";
     date_preset?: string;
-    time_range?: { since: string; until: string };
+    time_range?: DashboardTimeRange;
     breakdowns?: string;
     time_increment?: string;
     filtering?: Array<{ field: string; operator: string; value: unknown[] }>;
@@ -91,7 +97,7 @@ export interface MultiMetaQueryItem {
   fields: string;
   level?: "account" | "campaign" | "adset" | "ad";
   date_preset?: string;
-  time_range?: { since: string; until: string };
+  time_range?: DashboardTimeRange;
   breakdowns?: string;
   time_increment?: string;
   filtering?: Array<{ field: string; operator: string; value: unknown[] }>;
@@ -110,12 +116,35 @@ export interface MultiMetaQuery {
   aggregation?: MultiGaqlAggregation;
 }
 
+/** Single sub-query within multi_platform */
+export interface MultiPlatformSubQuery {
+  id: string;
+  data_source: "google_ads" | "meta_ads" | "internal_db";
+  channel_id?: number;
+  profile_id?: number;
+  gaql?: string;
+  multi_gaql?: MultiGaqlQuery;
+  meta_insights?: MetaInsightsQuery["meta_insights"];
+  multi_meta?: MultiMetaQuery;
+  sql?: string;
+  params?: Record<string, unknown>;
+}
+
+/** Cross-platform query: runs sub-queries against different platforms, then combines results */
+export interface MultiPlatformQuery {
+  queries: MultiPlatformSubQuery[];
+  combine: "stack" | "join";
+  join?: MultiGaqlJoin;
+  aggregation?: MultiGaqlAggregation;
+}
+
 export type DashboardQuery =
   | GaqlQuery
   | { multi_gaql: MultiGaqlQuery }
   | SqlQuery
   | MetaInsightsQuery
-  | { multi_meta: MultiMetaQuery };
+  | { multi_meta: MultiMetaQuery }
+  | { multi_platform: MultiPlatformQuery };
 
 export function isGaqlQuery(q: DashboardQuery | null | undefined): q is GaqlQuery {
   return q != null && typeof q === "object" && "gaql" in q && typeof (q as GaqlQuery).gaql === "string";
@@ -135,6 +164,10 @@ export function isMetaInsightsQuery(q: DashboardQuery | null | undefined): q is 
 
 export function isMultiMetaQuery(q: DashboardQuery | null | undefined): q is { multi_meta: MultiMetaQuery } {
   return q != null && typeof q === "object" && "multi_meta" in q;
+}
+
+export function isMultiPlatformQuery(q: DashboardQuery | null | undefined): q is { multi_platform: MultiPlatformQuery } {
+  return q != null && typeof q === "object" && "multi_platform" in q;
 }
 
 export type DashboardPagination =
@@ -260,13 +293,15 @@ export interface DashboardComponent {
   id: string;
   title: string;
   visualization_type: VisualizationType;
-  data_source: "google_ads" | "internal_db" | "meta_ads";
+  data_source: "google_ads" | "internal_db" | "meta_ads" | "multi_platform";
   query: DashboardQuery;
   data_keys?: DashboardDataKeys;
   /** Maps column/metric names to display format types so the frontend renders values correctly. */
   metric_formats?: Record<string, MetricFormat>;
   /** Agent-suggested compatible chart types the user can switch to via the viz-type dropdown. */
   suggested_types?: VisualizationType[];
+  /** Column selection and labels for tables — controls which columns are shown and their display names. */
+  display_columns?: Array<{ key: string; label: string }>;
   data: VisualizationDataMap[VisualizationType];
   sort: DashboardSort;
   filters: Record<string, unknown>;
@@ -279,6 +314,8 @@ export interface DashboardComponent {
   /** Grid size for this widget. */
   rows: number;
   cols: number;
+  /** Progress step definitions (from backend when query is stripped). Use when present for progress nodes. */
+  progress_steps?: Array<{ id: string; label: string }>;
 }
 
 export interface DashboardConfig {

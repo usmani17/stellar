@@ -106,6 +106,18 @@ export function formatDashboardValue(
     if (!isNaN(num)) return applyFormat(num, fmt);
   }
 
+  if (Array.isArray(value)) {
+    const first = value[0];
+    if (first && typeof first === "object" && "value" in first) {
+      const raw = Number(first.value);
+      if (!isNaN(raw)) {
+        if (fmt) return applyFormat(raw, fmt);
+        return fallbackHeuristic(raw, key);
+      }
+    }
+    return "\u2014";
+  }
+
   return String(value);
 }
 
