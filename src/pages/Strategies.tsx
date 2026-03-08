@@ -962,9 +962,27 @@ export const Strategies: React.FC = () => {
             ) : (
               <>
                 <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-2 mb-2">
-                  <span className="text-[12.16px] text-forest-f30">
-                    {previewSummary || "No entities would be updated."}
-                  </span>
+                  <div className="text-[12.16px] text-forest-f30">
+                    {(() => {
+                      const summary =
+                        previewSummary || "No entities would be updated.";
+                      const prefix = "No entities would be updated (";
+                      const lines = summary.startsWith(prefix)
+                        ? [
+                            "No entities would be updated",
+                            ...summary
+                              .slice(prefix.length)
+                              .replace(/\)\.?$/, "")
+                              .split("; ")
+                              .map((s) => s.trim())
+                              .filter(Boolean),
+                          ]
+                        : summary.split("; ").map((s) => s.trim());
+                      return lines.map((line, i) => (
+                        <div key={i}>{line}</div>
+                      ));
+                    })()}
+                  </div>
                 </div>
                 {previewResults.length > 0 ? (
                   <div className="mb-2">
