@@ -139,10 +139,20 @@ export interface AutomationPreviewRow {
   new_value: string;
 }
 
+/** Row for entities skipped in preview because old value = new value */
+export interface AutomationPreviewSkippedUnchangedRow {
+  entity_name: string;
+  column: string;
+  old_value: string;
+  new_value: string;
+  reason: string;
+}
+
 /** Response from GET /strategies/:id/automations/:automationId/preview/ */
 export interface AutomationPreviewResponse {
   results: AutomationPreviewRow[];
   summary: string;
+  skipped_unchanged?: AutomationPreviewSkippedUnchangedRow[];
 }
 
 export const strategiesService = {

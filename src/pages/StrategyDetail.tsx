@@ -30,6 +30,7 @@ import {
   strategiesService,
   type CreateStrategyData,
   type AutomationPreviewRow,
+  type AutomationPreviewSkippedUnchangedRow,
 } from "../services/strategies";
 import { formatCurrency } from "../utils/formatters";
 import {
@@ -316,6 +317,9 @@ export const StrategyDetail: React.FC = () => {
     [],
   );
   const [previewSummary, setPreviewSummary] = useState("");
+  const [previewSkippedUnchanged, setPreviewSkippedUnchanged] = useState<
+    AutomationPreviewSkippedUnchangedRow[]
+  >([]);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(
     null,
@@ -1705,6 +1709,7 @@ export const StrategyDetail: React.FC = () => {
                                   setPreviewError(null);
                                   setPreviewResults([]);
                                   setPreviewSummary("");
+                                  setPreviewSkippedUnchanged([]);
                                   strategiesService
                                     .getAutomationPreview(
                                       strategy!.id,
@@ -1713,6 +1718,9 @@ export const StrategyDetail: React.FC = () => {
                                     .then((res) => {
                                       setPreviewResults(res.results ?? []);
                                       setPreviewSummary(res.summary ?? "");
+                                      setPreviewSkippedUnchanged(
+                                        res.skipped_unchanged ?? [],
+                                      );
                                     })
                                     .catch((err: unknown) => {
                                       const msg =
@@ -1728,6 +1736,7 @@ export const StrategyDetail: React.FC = () => {
                                       setPreviewError(msg);
                                       setPreviewResults([]);
                                       setPreviewSummary("");
+                                      setPreviewSkippedUnchanged([]);
                                     })
                                     .finally(() => setPreviewLoading(false));
                                 }}
@@ -2113,14 +2122,14 @@ export const StrategyDetail: React.FC = () => {
               </div>
             ) : (
               <>
-                <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4 mb-4">
+                <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-2 mb-2">
                   <span className="text-[12.16px] text-forest-f30">
                     {previewSummary || "No entities would be updated."}
                   </span>
                 </div>
                 {previewResults.length > 0 ? (
-                  <div className="mb-6">
-                    <div className="mb-2 text-[10.64px] text-forest-f30">
+                  <div className="mb-2">
+                    <div className="mb-1 text-[10.64px] text-forest-f30">
                       {previewResults.length > 10
                         ? `Showing 10 of ${previewResults.length} entities`
                         : `${previewResults.length} entit${previewResults.length !== 1 ? "ies" : "y"} would be updated`}
@@ -2129,16 +2138,16 @@ export const StrategyDetail: React.FC = () => {
                       <table className="w-full table-fixed">
                         <thead className="bg-[#f5f5f0]">
                           <tr>
-                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-forest-f30 uppercase w-[28%] max-w-[200px]">
+                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[28%] max-w-[200px]">
                               Entity
                             </th>
-                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-forest-f30 uppercase w-[18%]">
+                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[18%]">
                               Column
                             </th>
-                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-forest-f30 uppercase w-[27%]">
+                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[27%]">
                               Old value
                             </th>
-                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-forest-f30 uppercase w-[27%]">
+                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[27%]">
                               New value
                             </th>
                           </tr>
@@ -2170,18 +2179,18 @@ export const StrategyDetail: React.FC = () => {
                                 className="border-b border-gray-200 last:border-b-0"
                               >
                                 <td
-                                  className="px-4 py-2 text-[10.64px] text-forest-f60 max-w-[200px] truncate"
+                                  className="px-2 py-1 text-[10.64px] text-forest-f60 max-w-[200px] truncate"
                                   title={row.entity_name}
                                 >
                                   {row.entity_name}
                                 </td>
-                                <td className="px-4 py-2 text-[10.64px] text-forest-f30">
+                                <td className="px-2 py-1 text-[10.64px] text-forest-f30">
                                   {row.column}
                                 </td>
-                                <td className="px-4 py-2 text-[10.64px] text-forest-f30">
+                                <td className="px-2 py-1 text-[10.64px] text-forest-f30">
                                   {oldDisplay}
                                 </td>
-                                <td className="px-4 py-2 text-[10.64px] font-semibold text-forest-f60">
+                                <td className="px-2 py-1 text-[10.64px] font-semibold text-forest-f60">
                                   {newDisplay}
                                 </td>
                               </tr>
@@ -2191,9 +2200,80 @@ export const StrategyDetail: React.FC = () => {
                       </table>
                     </div>
                   </div>
-                ) : (
-                  <div className="mb-6 py-4 text-[12.16px] text-forest-f30">
-                    No entities match the automation filters.
+                ) : null}
+                {previewSkippedUnchanged.length > 0 && (
+                  <div className="mb-2">
+                    <div className="mb-1 text-[10.64px] text-forest-f30 font-medium">
+                      Skipped (no change)
+                    </div>
+                    <div className="border border-sandstorm-s40 rounded-lg overflow-hidden">
+                      <table className="w-full table-fixed">
+                        <thead className="bg-[#f5f5f0]">
+                          <tr>
+                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[28%] max-w-[200px]">
+                              Entity
+                            </th>
+                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[18%]">
+                              Column
+                            </th>
+                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[27%]">
+                              Old value
+                            </th>
+                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[27%]">
+                              New value
+                            </th>
+                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase">
+                              Reason
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {previewSkippedUnchanged.map((row, i) => {
+                            const isBudgetOrBid =
+                              row.column === "Budget" || row.column === "Bid";
+                            const numOld = isBudgetOrBid
+                              ? parseFloat(String(row.old_value))
+                              : NaN;
+                            const numNew = isBudgetOrBid
+                              ? parseFloat(String(row.new_value))
+                              : NaN;
+                            const oldDisplay =
+                              isBudgetOrBid && !Number.isNaN(numOld)
+                                ? formatCurrency(numOld)
+                                : row.old_value;
+                            const newDisplay =
+                              isBudgetOrBid && !Number.isNaN(numNew)
+                                ? formatCurrency(numNew)
+                                : row.new_value;
+                            return (
+                              <tr
+                                key={`skipped-${row.entity_name}-${i}`}
+                                className="border-b border-gray-200 last:border-b-0"
+                              >
+                                <td
+                                  className="px-2 py-1 text-[10.64px] text-forest-f60 max-w-[200px] truncate"
+                                  title={row.entity_name}
+                                >
+                                  {row.entity_name}
+                                </td>
+                                <td className="px-2 py-1 text-[10.64px] text-forest-f30">
+                                  {row.column}
+                                </td>
+                                <td className="px-2 py-1 text-[10.64px] text-forest-f30">
+                                  {oldDisplay}
+                                </td>
+                                <td className="px-2 py-1 text-[10.64px] text-forest-f30">
+                                  {newDisplay}
+                                </td>
+                                <td className="px-2 py-1 text-[10.64px] text-forest-f30">
+                                  {row.reason}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </>
