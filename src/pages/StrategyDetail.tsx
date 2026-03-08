@@ -321,6 +321,12 @@ export const StrategyDetail: React.FC = () => {
     AutomationPreviewSkippedUnchangedRow[]
   >([]);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewTotalNetChange, setPreviewTotalNetChange] = useState<
+    number | null
+  >(null);
+  const [previewTotalNetChangePct, setPreviewTotalNetChangePct] = useState<
+    number | null
+  >(null);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(
     null,
   );
@@ -1674,15 +1680,9 @@ export const StrategyDetail: React.FC = () => {
                   <div className="flex items-center gap-4 border-b border-[#E8E8E3] pb-0">
                     <div className="flex rounded-lg overflow-hidden border border-[#E8E8E3]">
                       {automationTabs.map((_, index) => {
-                        const automationIdForTab =
-                          strategy?.automations?.[index] != null
-                            ? (strategy.automations[index] as { id?: number })
-                                .id
-                            : undefined;
-                        const canPreview =
-                          !isCreateMode &&
-                          strategy?.id != null &&
-                          automationIdForTab != null;
+                        const canPreview = isCreateMode
+                          ? selectedProfileIds.length > 0
+                          : strategy?.id != null;
                         return (
                           <div
                             key={index}
@@ -1710,16 +1710,47 @@ export const StrategyDetail: React.FC = () => {
                                   setPreviewResults([]);
                                   setPreviewSummary("");
                                   setPreviewSkippedUnchanged([]);
-                                  strategiesService
-                                    .getAutomationPreview(
-                                      strategy!.id,
-                                      automationIdForTab!,
-                                    )
+                                  setPreviewTotalNetChange(null);
+                                  setPreviewTotalNetChangePct(null);
+                                  const payload = buildPayload();
+                                  const automationPayload =
+                                    payload.automations?.[index];
+                                  if (!automationPayload) {
+                                    setPreviewError(
+                                      "No automation to preview.",
+                                    );
+                                    setPreviewLoading(false);
+                                    return;
+                                  }
+                                  const strategyPayload = (() => {
+                                    const {
+                                      automations: _a,
+                                      ...rest
+                                    } = payload;
+                                    return rest;
+                                  })();
+                                  const promise = isCreateMode
+                                    ? strategiesService.postStrategyPreview(
+                                        strategyPayload,
+                                        automationPayload,
+                                      )
+                                    : strategiesService.postAutomationPreview(
+                                        strategy!.id,
+                                        automationPayload,
+                                        strategyPayload,
+                                      );
+                                  promise
                                     .then((res) => {
                                       setPreviewResults(res.results ?? []);
                                       setPreviewSummary(res.summary ?? "");
                                       setPreviewSkippedUnchanged(
                                         res.skipped_unchanged ?? [],
+                                      );
+                                      setPreviewTotalNetChange(
+                                        res.total_net_change ?? null,
+                                      );
+                                      setPreviewTotalNetChangePct(
+                                        res.total_net_change_pct ?? null,
                                       );
                                     })
                                     .catch((err: unknown) => {
@@ -1737,6 +1768,8 @@ export const StrategyDetail: React.FC = () => {
                                       setPreviewResults([]);
                                       setPreviewSummary("");
                                       setPreviewSkippedUnchanged([]);
+                                      setPreviewTotalNetChange(null);
+                                      setPreviewTotalNetChangePct(null);
                                     })
                                     .finally(() => setPreviewLoading(false));
                                 }}
@@ -2156,17 +2189,23 @@ export const StrategyDetail: React.FC = () => {
                       <table className="w-full table-fixed">
                         <thead className="bg-[#f5f5f0]">
                           <tr>
-                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[28%] max-w-[200px]">
+                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[22%] max-w-[200px]">
                               Entity
                             </th>
-                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[18%]">
+                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[14%]">
                               Column
                             </th>
-                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[27%]">
+                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[18%]">
                               Old value
                             </th>
-                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[27%]">
+                            <th className="text-left px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[18%]">
                               New value
+                            </th>
+                            <th className="text-right px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[14%]">
+                              Net change
+                            </th>
+                            <th className="text-right px-2 py-1 text-[10.64px] font-semibold text-forest-f30 uppercase w-[14%]">
+                              Net change %
                             </th>
                           </tr>
                         </thead>
@@ -2191,6 +2230,22 @@ export const StrategyDetail: React.FC = () => {
                               isBudgetOrBid && !Number.isNaN(numNew)
                                 ? formatCurrency(numNew)
                                 : row.new_value;
+                            const netChange =
+                              row.net_change != null ? row.net_change : null;
+                            const netChangePct =
+                              row.net_change_pct != null
+                                ? row.net_change_pct
+                                : null;
+                            const netChangeDisplay =
+                              netChange != null && isBudgetOrBid
+                                ? formatCurrency(netChange)
+                                : netChange != null
+                                  ? String(netChange)
+                                  : "—";
+                            const netChangePctDisplay =
+                              netChangePct != null
+                                ? `${netChangePct >= 0 ? "+" : ""}${netChangePct.toFixed(2)}%`
+                                : "—";
                             return (
                               <tr
                                 key={`${row.entity_name}-${i}`}
@@ -2211,9 +2266,43 @@ export const StrategyDetail: React.FC = () => {
                                 <td className="px-2 py-1 text-[10.64px] font-semibold text-forest-f60">
                                   {newDisplay}
                                 </td>
+                                <td className="px-2 py-1 text-[10.64px] text-forest-f30 text-right">
+                                  {netChangeDisplay}
+                                </td>
+                                <td className="px-2 py-1 text-[10.64px] text-forest-f30 text-right">
+                                  {netChangePctDisplay}
+                                </td>
                               </tr>
                             );
                           })}
+                          {previewResults.length > 0 &&
+                            (previewTotalNetChange != null ||
+                              previewTotalNetChangePct != null) && (
+                              <tr className="border-t-2 border-sandstorm-s40 bg-[#f5f5f0] font-medium">
+                                <td
+                                  className="px-2 py-1 text-[10.64px] text-forest-f60"
+                                  colSpan={2}
+                                >
+                                  Total
+                                </td>
+                                <td className="px-2 py-1 text-[10.64px] text-forest-f30">
+                                  —
+                                </td>
+                                <td className="px-2 py-1 text-[10.64px] text-forest-f30">
+                                  —
+                                </td>
+                                <td className="px-2 py-1 text-[10.64px] text-forest-f60 text-right">
+                                  {previewTotalNetChange != null
+                                    ? formatCurrency(previewTotalNetChange)
+                                    : "—"}
+                                </td>
+                                <td className="px-2 py-1 text-[10.64px] text-forest-f60 text-right">
+                                  {previewTotalNetChangePct != null
+                                    ? `${previewTotalNetChangePct >= 0 ? "+" : ""}${previewTotalNetChangePct.toFixed(2)}%`
+                                    : "—"}
+                                </td>
+                              </tr>
+                            )}
                         </tbody>
                       </table>
                     </div>

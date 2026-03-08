@@ -131,12 +131,14 @@ export interface StrategyRunTriggerResponse {
   strategy_id: number;
 }
 
-/** One row in automation preview (entity, column, old value, new value). */
+/** One row in automation preview (entity, column, old value, new value, net change). */
 export interface AutomationPreviewRow {
   entity_name: string;
   column: string;
   old_value: string;
   new_value: string;
+  net_change?: number | null;
+  net_change_pct?: number | null;
 }
 
 /** Row for entities skipped in preview because old value = new value */
@@ -153,6 +155,8 @@ export interface AutomationPreviewResponse {
   results: AutomationPreviewRow[];
   summary: string;
   skipped_unchanged?: AutomationPreviewSkippedUnchangedRow[];
+  total_net_change?: number | null;
+  total_net_change_pct?: number | null;
 }
 
 export const strategiesService = {
@@ -211,6 +215,34 @@ export const strategiesService = {
   ): Promise<AutomationPreviewResponse> => {
     const response = await api.get<AutomationPreviewResponse>(
       `/strategies/${strategyId}/automations/${automationId}/preview/`,
+    );
+    return response.data;
+  },
+
+  /** POST preview with current automation payload (edit mode). Always send payload. Pass strategy to use guardrails from form. */
+  postAutomationPreview: async (
+    strategyId: number,
+    automation: StrategyAutomationPayload,
+    strategy?: Partial<CreateStrategyData>,
+  ): Promise<AutomationPreviewResponse> => {
+    const body = strategy
+      ? { automation, strategy }
+      : { automation };
+    const response = await api.post<AutomationPreviewResponse>(
+      `/strategies/${strategyId}/automations/preview/`,
+      body,
+    );
+    return response.data;
+  },
+
+  /** POST preview for create mode (no strategy id). Sends strategy + automation. */
+  postStrategyPreview: async (
+    strategy: CreateStrategyData,
+    automation: StrategyAutomationPayload,
+  ): Promise<AutomationPreviewResponse> => {
+    const response = await api.post<AutomationPreviewResponse>(
+      "/strategies/preview/",
+      { strategy, automation },
     );
     return response.data;
   },
