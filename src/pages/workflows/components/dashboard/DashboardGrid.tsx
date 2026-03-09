@@ -25,9 +25,9 @@ import type {
   VisualizationType,
 } from "../../types/dashboard";
 
-const STAGGER_DELAY_MS = 500;
+const STAGGER_DELAY_MS = 0;
 
-const CONFIG_DEBOUNCE_MS = 300;
+const CONFIG_DEBOUNCE_MS = 0;
 
 /** Payload for single-component update; backend merges and keeps others as-is */
 export interface DashboardComponentUpdatePayload {

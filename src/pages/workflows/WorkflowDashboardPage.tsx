@@ -119,9 +119,13 @@ function WorkflowDashboardContent({
   const updateConfigMutation = useMutation({
     mutationFn: (newConfig: import("./types/dashboard").DashboardConfig) =>
       updateDashboardConfig(accountIdNum!, dashboardId!, newConfig),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dashboard", accountIdNum, dashboardId] });
-      refetchDashboard();
+    onSuccess: (updatedDashboard) => {
+      if (updatedDashboard && accountIdNum != null && dashboardId != null) {
+        queryClient.setQueryData(
+          ["dashboard", accountIdNum, dashboardId],
+          updatedDashboard
+        );
+      }
     },
     onError: (err) => {
       console.error("Failed to update dashboard config:", err);
@@ -131,9 +135,13 @@ function WorkflowDashboardContent({
   const updateComponentMutation = useMutation({
     mutationFn: (payload: import("../../services/dashboard").DashboardComponentUpdatePayload) =>
       updateDashboardComponent(accountIdNum!, dashboardId!, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dashboard", accountIdNum, dashboardId] });
-      refetchDashboard();
+    onSuccess: (updatedDashboard) => {
+      if (updatedDashboard && accountIdNum != null && dashboardId != null) {
+        queryClient.setQueryData(
+          ["dashboard", accountIdNum, dashboardId],
+          updatedDashboard
+        );
+      }
     },
     onError: (err) => {
       console.error("Failed to update dashboard component:", err);
