@@ -38,12 +38,29 @@ import { Dropdown } from "../../../../components/ui";
 import type { DropdownOption } from "../../../../components/ui";
 import type { DashboardComponent, LineChartDatum, PieChartDatum, SingleMetricDatum, FunnelChartDatum, VisualizationType } from "../../types/dashboard";
 import { isMultiGaqlQuery, isMultiMetaQuery } from "../../types/dashboard";
-import { getDashboardComponentDataStream } from "../../../../services/dashboard";
+import {
+  getDashboardComponentDataStream,
+  getSharedDashboardComponentDataStream,
+} from "../../../../services/dashboard";
 import { getMockDataForComponent } from "../../utils/dashboardMockData";
 import { useDashboardTheme } from "../../contexts/DashboardThemeContext";
 import { cn } from "../../../../lib/cn";
 
 const VIZ_ICON_CLS = "w-4 h-4 shrink-0";
+
+const isLocalEnv = import.meta.env.VITE_ENVIRONMENT === "local";
+
+function getComponentErrorMessage(err: unknown): string {
+  if (err && typeof err === "object") {
+    const ax = err as { response?: { data?: unknown }; message?: string };
+    if (ax.response?.data && typeof ax.response.data === "object" && "error" in ax.response.data) {
+      const msg = (ax.response.data as { error: unknown }).error;
+      return typeof msg === "string" ? msg : String(msg);
+    }
+    if (typeof ax.message === "string") return ax.message;
+  }
+  return typeof err === "string" ? err : "An error occurred";
+}
 
 const VIZ_ICONS: Record<VisualizationType, React.ReactNode> = {
   table: <Table2 className={VIZ_ICON_CLS} aria-hidden />,
@@ -120,6 +137,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   const vizType = effectiveVisualizationType ?? component.visualization_type;
   const [status, setStatus] = useState<WidgetStatus>("pending");
   const [data, setData] = useState<DashboardComponent>({} as DashboardComponent);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [streamActiveStep, setStreamActiveStep] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const mountedRef = useRef(true);
@@ -138,6 +156,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
 
   const handleRefresh = () => {
     hasFetchedRef.current = false;
+    setErrorMessage(null);
     setStatus("pending");
     setRefreshTrigger((prev) => prev + 1);
   };
@@ -165,9 +184,51 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
         visualization_type: vizType,
       };
 
+      if (shareId) {
+        setStatus("loading");
+        setStreamActiveStep(null);
+        setErrorMessage(null);
+        try {
+          const result = await getSharedDashboardComponentDataStream(
+            shareId,
+            component.id,
+            component,
+            (event) => {
+              if (!mountedRef.current) return;
+              setStreamActiveStep(event.stage);
+              if (event.stage === "display" && event.data != null) {
+                setData(event.data as DashboardComponent);
+                setStatus("ready");
+                setStreamActiveStep(null);
+                setErrorMessage(null);
+                hasFetchedRef.current = true;
+              }
+            },
+            component.channel_id ?? undefined,
+            component.profile_id ?? undefined,
+            hardRefreshTrigger > 0
+          );
+          if (mountedRef.current && !hasFetchedRef.current) {
+            setData(result);
+            setStatus("ready");
+            setStreamActiveStep(null);
+            setErrorMessage(null);
+          }
+          hasFetchedRef.current = true;
+        } catch (err) {
+          setStreamActiveStep(null);
+          setErrorMessage(getComponentErrorMessage(err));
+          setStatus("error");
+        } finally {
+          inFlightRef.current = false;
+        }
+        return;
+      }
+
       if (accountId && dashboardId) {
         setStatus("loading");
         setStreamActiveStep(null);
+        setErrorMessage(null);
         try {
           const result = await getDashboardComponentDataStream(
             accountId,
@@ -181,6 +242,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
                 setData(event.data as DashboardComponent);
                 setStatus("ready");
                 setStreamActiveStep(null);
+                setErrorMessage(null);
                 hasFetchedRef.current = true;
               }
             },
@@ -192,11 +254,13 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             setData(result);
             setStatus("ready");
             setStreamActiveStep(null);
+            setErrorMessage(null);
           }
           hasFetchedRef.current = true;
           return;
-        } catch {
+        } catch (err) {
           setStreamActiveStep(null);
+          setErrorMessage(getComponentErrorMessage(err));
           setStatus("error");
           return;
         } finally {
@@ -205,14 +269,9 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
       }
 
       setStatus("loading");
-      let rows: DashboardComponent;
-      if (shareId) {
-        // TODO: handle shareId public access
-        rows = { data: getMockDataForComponent(componentForMock) } as DashboardComponent;
-      } else {
-        rows = { data: getMockDataForComponent(componentForMock) } as DashboardComponent;
-      }
-
+      const rows: DashboardComponent = {
+        data: getMockDataForComponent(componentForMock),
+      } as DashboardComponent;
       setData(rows);
       setStatus("ready");
       hasFetchedRef.current = true;
@@ -360,7 +419,28 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             )}
           >
             <p className="text-sm font-medium">Failed to load</p>
-            <p className="text-xs">Use the refresh button above to retry.</p>
+            {isLocalEnv && errorMessage ? (
+              <p className="text-xs max-w-full break-words">{errorMessage}</p>
+            ) : (
+              <p className="text-xs">Use the refresh button above to retry.</p>
+            )}
+          </div>
+        ) : status === "ready" && data?.error ? (
+          <div
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center gap-3 py-8 px-4 text-center",
+              isDark ? "text-red-300/90" : "text-red-r30"
+            )}
+          >
+            <p className="text-sm font-medium">Query error</p>
+            {isLocalEnv ? (
+              <p className="text-xs max-w-full break-words">{data.error}</p>
+            ) : (
+              <p className="text-xs">An error occurred while loading this component.</p>
+            )}
+            <p className={cn("text-xs", isDark ? "text-neutral-400" : "text-forest-f30")}>
+              Use the refresh button above to retry.
+            </p>
           </div>
         ) : status !== "ready" ? (
           <div className="flex-1 flex items-center justify-center py-8 px-4">

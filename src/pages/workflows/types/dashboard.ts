@@ -316,6 +316,8 @@ export interface DashboardComponent {
   cols: number;
   /** Progress step definitions (from backend when query is stripped). Use when present for progress nodes. */
   progress_steps?: Array<{ id: string; label: string }>;
+  /** Set by backend when component query execution fails (e.g. SQL/GAQL/Meta error). */
+  error?: string;
 }
 
 export interface DashboardConfig {

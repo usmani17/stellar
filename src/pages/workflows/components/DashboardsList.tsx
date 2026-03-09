@@ -3,7 +3,7 @@ import { Plus, Link2, User, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getDashboards, softDeleteDashboard, type DashboardResponse } from "../../../services/dashboard";
-import { ConfirmationModal } from "../../../components/ui";
+import { ConfirmationModal, Loader } from "../../../components/ui";
 import { cn } from "../../../lib/cn";
 
 interface DashboardsListProps {
@@ -15,7 +15,7 @@ export const DashboardsList: React.FC<DashboardsListProps> = ({ accountId }) => 
   const queryClient = useQueryClient();
   const [dashboardToDelete, setDashboardToDelete] = useState<{ id: number; name: string } | null>(null);
 
-  const { data: dashboards = [] } = useQuery({
+  const { data: dashboards = [], isLoading: isLoadingDashboards } = useQuery({
     queryKey: ["dashboards", accountId],
     queryFn: () => getDashboards(accountId!),
     enabled: !!accountId,
@@ -55,7 +55,11 @@ export const DashboardsList: React.FC<DashboardsListProps> = ({ accountId }) => 
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {dashboards.length > 0 ? (
+        {isLoadingDashboards ? (
+          <div className="col-span-full flex flex-col items-center justify-center py-16">
+            <Loader size="lg" message="Loading dashboards..." />
+          </div>
+        ) : dashboards.length > 0 ? (
           dashboards.map((dashboard: DashboardResponse) => (
             <div key={dashboard.id} className="bg-white rounded-lg border border-[#E8E8E3] p-6 hover:shadow-md transition-shadow flex flex-col gap-4">
               <div>

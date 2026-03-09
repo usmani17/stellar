@@ -51,10 +51,9 @@ export async function getDashboardDetail(
 }
 
 /**
- * Legacy: config by share ID.
- * TODO: Backend needs to support shareId specifically if we want public dashboards.
+ * Legacy: config by share ID. public dashboards.
  */
-export async function getDashboardConfig(
+export async function getSharedDashboardConfig(
   shareId: string
 ): Promise<{ config: DashboardConfig; workflowName?: string } | null> {
     const { data } = await api.get<DashboardConfig>(
@@ -122,7 +121,7 @@ export async function softDeleteDashboard(
 const componentDataCache = new Map<string, Promise<DashboardComponent>>();
 
 /**
- * Fetch data for a single dashboard component.
+ * Fetch data for a single dashboard component (authenticated).
  * Deduplicates concurrent identical requests so each widget makes only one API call.
  * @param hardRefresh - When true, sends refresh=1 to bypass backend cache (hard refresh).
  */
@@ -161,6 +160,30 @@ export async function getDashboardComponentData(
   return promise;
 }
 
+/**
+ * Fetch data for a single component on a shared (public) dashboard. No credentials required.
+ */
+export async function getSharedDashboardComponentData(
+  shareId: string,
+  componentId: string,
+  _component: DashboardComponent,
+  channelId?: number,
+  profileId?: number,
+  hardRefresh = false
+): Promise<DashboardComponent> {
+  const { data } = await api.get<DashboardComponent>(
+    `${API_BASE}/dashboards/share/${shareId}/components/${componentId}/`,
+    {
+      params: {
+        channelId,
+        profileId,
+        ...(hardRefresh && { refresh: 1 }),
+      },
+    }
+  );
+  return data ?? _component;
+}
+
 /** SSE progress event: stage id and optional payload (display = full component result). */
 export interface DashboardComponentStreamEvent {
   stage: string;
@@ -190,7 +213,6 @@ export async function getDashboardComponentDataStream(
   const qs = params.toString();
   const url = `${baseURL}${API_BASE}/${accountId}/dashboards/${dashboardId}/components/${componentId}/stream/${qs ? `?${qs}` : ""}`;
   const token = localStorage.getItem("accessToken");
-  // Omit Accept: text/event-stream so DRF doesn't 406 (same as workflows run-stream in workflows.ts).
   const headers: HeadersInit = {
     ...(token && { Authorization: `Bearer ${token}` }),
   };
@@ -198,35 +220,70 @@ export async function getDashboardComponentDataStream(
   if (!response.ok) {
     throw new Error(`Stream failed: ${response.status}`);
   }
+  return readDashboardComponentStream(response, onProgress);
+}
+
+/**
+ * Fetch component data via SSE stream for a shared (public) dashboard. No credentials required.
+ */
+export async function getSharedDashboardComponentDataStream(
+  shareId: string,
+  componentId: string,
+  _component: DashboardComponent,
+  onProgress: (event: DashboardComponentStreamEvent) => void,
+  channelId?: number,
+  profileId?: number,
+  hardRefresh = false
+): Promise<DashboardComponent> {
+  const baseURL = (api.defaults.baseURL || "").replace(/\/$/, "");
+  const params = new URLSearchParams();
+  if (channelId != null) params.set("channelId", String(channelId));
+  if (profileId != null) params.set("profileId", String(profileId));
+  if (hardRefresh) params.set("refresh", "1");
+  const qs = params.toString();
+  const url = `${baseURL}${API_BASE}/dashboards/share/${shareId}/components/${componentId}/stream/${qs ? `?${qs}` : ""}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Stream failed: ${response.status}`);
+  }
+  return readDashboardComponentStream(response, onProgress);
+}
+
+function readDashboardComponentStream(
+  response: Response,
+  onProgress: (event: DashboardComponentStreamEvent) => void
+): Promise<DashboardComponent> {
   const reader = response.body?.getReader();
   if (!reader) {
-    throw new Error("No response body");
+    return Promise.reject(new Error("No response body"));
   }
   const decoder = new TextDecoder();
   let buffer = "";
   let lastData: DashboardComponent | null = null;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n\n");
-    buffer = lines.pop() ?? "";
-    for (const chunk of lines) {
-      const dataLine = chunk.split("\n").find((l) => l.startsWith("data: "));
-      if (!dataLine) continue;
-      try {
-        const payload = JSON.parse(dataLine.slice(6)) as DashboardComponentStreamEvent;
-        onProgress(payload);
-        if (payload.stage === "display" && payload.data != null) {
-          lastData = payload.data as DashboardComponent;
+  return (async () => {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n\n");
+      buffer = lines.pop() ?? "";
+      for (const chunk of lines) {
+        const dataLine = chunk.split("\n").find((l) => l.startsWith("data: "));
+        if (!dataLine) continue;
+        try {
+          const payload = JSON.parse(dataLine.slice(6)) as DashboardComponentStreamEvent;
+          onProgress(payload);
+          if (payload.stage === "display" && payload.data != null) {
+            lastData = payload.data as DashboardComponent;
+          }
+        } catch {
+          // skip malformed
         }
-      } catch {
-        // skip malformed
       }
     }
-  }
-  if (lastData) return lastData;
-  throw new Error("No display event in stream");
+    if (lastData) return lastData;
+    throw new Error("No display event in stream");
+  })();
 }
 
 

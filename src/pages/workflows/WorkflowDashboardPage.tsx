@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Share2, Moon, Sun, RotateCw } from "lucide-react";
+import { ArrowLeft, Share2, Moon, Sun, RotateCw, Copy, X } from "lucide-react";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
@@ -10,11 +10,14 @@ import { DashboardGrid } from "./components/dashboard/DashboardGrid";
 import { getDashboardDetail, updateDashboardConfig, createDashboardShare } from "../../services/dashboard";
 import { DashboardThemeProvider, useDashboardTheme } from "./contexts/DashboardThemeContext";
 import { Assistant } from "../../components/layout/Assistant";
+import { BaseModal, Loader } from "../../components/ui";
 
 export const WorkflowDashboardPage: React.FC = () => {
   const { accountId, dashboardId } = useParams<{ accountId: string; dashboardId: string }>();
   const { sidebarWidth } = useSidebar();
-  const [shareCopied, setShareCopied] = React.useState(false);
+  const [shareModalOpen, setShareModalOpen] = React.useState(false);
+  const [shareLink, setShareLink] = React.useState("");
+  const [shareError, setShareError] = React.useState<string | null>(null);
 
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
   const dashboardIdNum = dashboardId ? parseInt(dashboardId, 10) : undefined;
@@ -31,18 +34,25 @@ export const WorkflowDashboardPage: React.FC = () => {
   }, [dashboard?.name]);
 
   const handleShare = async () => {
-  if (!accountIdNum || !dashboardIdNum) return;
-  
-  try {
-    const share = await createDashboardShare(accountIdNum, dashboardIdNum);
-    const url = `${window.location.origin}/dashboards/share/${share.share_id}`;
-    await navigator.clipboard.writeText(url);
-    setShareCopied(true);
-    setTimeout(() => setShareCopied(false), 2000);
-  } catch (error) {
-    console.error("Failed to create share link:", error);
-  }
-};
+    if (!accountIdNum || !dashboardIdNum) return;
+    setShareError(null);
+    setShareLink("");
+    setShareModalOpen(true);
+    try {
+      const share = await createDashboardShare(accountIdNum, dashboardIdNum);
+      const url = `${window.location.origin}/dashboards/share/${share.share_id}`;
+      setShareLink(url);
+    } catch (error) {
+      console.error("Failed to create share link:", error);
+      setShareError("Failed to create share link. Please try again.");
+    }
+  };
+
+  const onCloseShareModal = () => {
+    setShareModalOpen(false);
+    setShareLink("");
+    setShareError(null);
+  };
 
   const workflowsPath = accountId ? `/brands/${accountId}/workflows?tab=dashboards` : "/brands";
 
@@ -60,12 +70,15 @@ export const WorkflowDashboardPage: React.FC = () => {
         workflowsPath={workflowsPath}
         sidebarWidth={sidebarWidth}
         workflowName={dashboard?.name}
-        shareCopied={shareCopied}
         handleShare={handleShare}
         config={dashboard?.config}
         accountIdNum={accountIdNum}
         dashboardId={dashboard?.id}
         refetchDashboard={refetchDashboard}
+        shareModalOpen={shareModalOpen}
+        shareLink={shareLink}
+        shareError={shareError}
+        onCloseShareModal={onCloseShareModal}
       />
     </DashboardThemeProvider>
   );
@@ -75,24 +88,31 @@ function WorkflowDashboardContent({
   workflowsPath,
   sidebarWidth,
   workflowName,
-  shareCopied,
   handleShare,
   config,
   accountIdNum,
   dashboardId,
   refetchDashboard,
+  shareModalOpen,
+  shareLink,
+  shareError,
+  onCloseShareModal,
 }: {
   workflowsPath: string;
   sidebarWidth: number;
   workflowName?: string;
-  shareCopied: boolean;
   handleShare: () => void;
   config: import("./types/dashboard").DashboardConfig | undefined;
   accountIdNum: number | undefined;
   dashboardId: number | undefined;
   refetchDashboard: () => void;
+  shareModalOpen: boolean;
+  shareLink: string;
+  shareError: string | null;
+  onCloseShareModal: () => void;
 }) {
   const { isDark, toggleTheme } = useDashboardTheme();
+  const [copySuccess, setCopySuccess] = React.useState(false);
   const queryClient = useQueryClient();
   const [hardRefreshTrigger, setHardRefreshTrigger] = React.useState(0);
 
@@ -171,6 +191,7 @@ function WorkflowDashboardContent({
                   {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </button>
                 <button
+                  type="button"
                   onClick={handleShare}
                   disabled={!dashboardId}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-medium border transition-colors ${isDark
@@ -180,10 +201,85 @@ function WorkflowDashboardContent({
                   aria-label="Share dashboard"
                 >
                   <Share2 className="w-3.5 h-3.5" />
-                  {shareCopied ? "Copied" : "Share"}
+                  Share
                 </button>
                 </div>
               </div>
+
+              <BaseModal
+                isOpen={shareModalOpen}
+                onClose={onCloseShareModal}
+                size="lg"
+                maxWidth="max-w-lg"
+              >
+                <div className={isDark ? "text-neutral-100" : "text-forest-f60"}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold">Share dashboard</h2>
+                    <button
+                      type="button"
+                      onClick={onCloseShareModal}
+                      className={`p-1.5 rounded transition-colors ${isDark ? "hover:bg-neutral-700 text-neutral-400" : "hover:bg-sandstorm-s20 text-forest-f30"}`}
+                      aria-label="Close"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  {shareError ? (
+                    <p className="text-red-r30 text-sm mb-3">{shareError}</p>
+                  ) : !shareLink ? (
+                    <div className="flex flex-col items-center justify-center py-8 gap-3">
+                      <Loader
+                        size="md"
+                        variant={isDark ? "white" : "default"}
+                        showMessage={false}
+                      />
+                      <p className={`text-sm ${isDark ? "text-neutral-400" : "text-forest-f30"}`}>
+                        Creating share link...
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className={`text-sm mb-2 ${isDark ? "text-neutral-400" : "text-forest-f30"}`}>
+                        Anyone with this link can view the dashboard.
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={shareLink}
+                          className={`flex-1 min-w-0 px-3 py-2.5 rounded border text-sm font-mono truncate ${
+                            isDark
+                              ? "bg-neutral-800 border-neutral-600 text-neutral-100"
+                              : "bg-sandstorm-s5 border-sandstorm-s40 text-forest-f60"
+                          }`}
+                          aria-label="Share link"
+                        />
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!shareLink) return;
+                            try {
+                              await navigator.clipboard.writeText(shareLink);
+                              setCopySuccess(true);
+                              setTimeout(() => setCopySuccess(false), 2000);
+                            } catch {
+                              setCopySuccess(false);
+                            }
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-2.5 rounded text-sm font-medium border shrink-0 transition-colors ${
+                            isDark
+                              ? "border-neutral-600 bg-neutral-700 text-neutral-100 hover:bg-neutral-600"
+                              : "border-sandstorm-s40 bg-forest-f40 text-white hover:bg-forest-f50"
+                          }`}
+                        >
+                          <Copy className="w-4 h-4" aria-hidden />
+                          {copySuccess ? "Copied" : "Copy"}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </BaseModal>
 
               {config ? (
                 <DashboardGrid

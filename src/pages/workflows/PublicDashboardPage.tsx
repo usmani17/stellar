@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { BarChart3, Moon, Sun, RotateCcw } from "lucide-react";
 import { DashboardGrid } from "./components/dashboard/DashboardGrid";
-import { getDashboardConfig } from "../../services/dashboard";
+import { getSharedDashboardConfig } from "../../services/dashboard";
 import { FULL_TEST_DASHBOARD_CONFIG } from "./constants/fullTestDashboard";
 import { DashboardThemeProvider, useDashboardTheme } from "./contexts/DashboardThemeContext";
 import type { DashboardConfig } from "./types/dashboard";
@@ -149,7 +149,7 @@ export const PublicDashboardPage: React.FC = () => {
       return;
     }
     let cancelled = false;
-    getDashboardConfig(shareId).then((result) => {
+    getSharedDashboardConfig(shareId).then((result) => {
       if (cancelled) return;
       console.log("Shared dashboard result:", result); // Debug log
       if (result) {
