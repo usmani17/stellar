@@ -7,7 +7,7 @@ import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { DashboardGrid } from "./components/dashboard/DashboardGrid";
-import { getDashboardDetail, updateDashboardConfig } from "../../services/dashboard";
+import { getDashboardDetail, updateDashboardConfig, createDashboardShare } from "../../services/dashboard";
 import { DashboardThemeProvider, useDashboardTheme } from "./contexts/DashboardThemeContext";
 import { Assistant } from "../../components/layout/Assistant";
 
@@ -31,18 +31,18 @@ export const WorkflowDashboardPage: React.FC = () => {
   }, [dashboard?.name]);
 
   const handleShare = async () => {
-    if (!accountIdNum || !dashboardIdNum || !dashboard) return;
-    const shareId = crypto.randomUUID();
-    // TODO: implement real sharing via backend
-    const url = `${window.location.origin}/dashboards/share/${shareId}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setShareCopied(true);
-      setTimeout(() => setShareCopied(false), 2000);
-    } catch {
-      window.open(url, "_blank");
-    }
-  };
+  if (!accountIdNum || !dashboardIdNum) return;
+  
+  try {
+    const share = await createDashboardShare(accountIdNum, dashboardIdNum);
+    const url = `${window.location.origin}/dashboards/share/${share.share_id}`;
+    await navigator.clipboard.writeText(url);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
+  } catch (error) {
+    console.error("Failed to create share link:", error);
+  }
+};
 
   const workflowsPath = accountId ? `/brands/${accountId}/workflows?tab=dashboards` : "/brands";
 

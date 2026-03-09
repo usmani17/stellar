@@ -60,7 +60,14 @@ export async function getDashboardConfig(
     const { data } = await api.get<DashboardConfig>(
       `${API_BASE}/dashboards/share/${shareId}/`
     );
-    return { config: data };
+    // Backend returns full dashboard object, extract config and name
+    if (data && typeof data === 'object' && 'config' in data) {
+      return { 
+        config: (data as any).config, 
+        workflowName: (data as any).name 
+      };
+    }
+    return null;
 }
 
 // ── Component data ──────────────────────────────────────────────────────────
@@ -220,4 +227,20 @@ export async function getDashboardComponentDataStream(
   }
   if (lastData) return lastData;
   throw new Error("No display event in stream");
+}
+
+
+/**
+ * Create a share link for a dashboard.
+ */
+export async function createDashboardShare(
+  accountId: number,
+  dashboardId: number,
+  expiresAt?: string
+): Promise<{ share_id: string; id: number }> {
+  const { data } = await api.post(
+    `${API_BASE}/${accountId}/dashboards/${dashboardId}/shares/`,
+    { expires_at: expiresAt }
+  );
+  return data;
 }

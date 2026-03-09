@@ -108,7 +108,7 @@ function PublicDashboardInner({
             key={layoutKey}
             config={config}
             accountId={undefined}
-            workflowId={undefined}
+            dashboardId={undefined}
             shareId={shareId}
             showQueryDetails={showQueryDetails}
             editable={isDemoMode}
@@ -151,7 +151,9 @@ export const PublicDashboardPage: React.FC = () => {
     let cancelled = false;
     getDashboardConfig(shareId).then((result) => {
       if (cancelled) return;
+      console.log("Shared dashboard result:", result); // Debug log
       if (result) {
+        console.log("Shared dashboard config:", result.config); // Debug log
         setConfig(result.config);
         setWorkflowName(result.workflowName);
         setIsDemoMode(false);

@@ -174,6 +174,11 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
   onConfigChange,
   hardRefreshTrigger,
 }) => {
+  if (!config || !config.layout) {
+    console.error("DashboardGrid: Invalid config or layout", config);
+    return <div className="p-4 text-red-500">Invalid dashboard configuration</div>;
+  }
+  
   const { layout, components } = config;
   const { cols: layoutCols } = layout;
 
