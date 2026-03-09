@@ -112,6 +112,8 @@ interface DashboardWidgetProps {
   onVisualizationChange?: (componentId: string, type: VisualizationType) => void;
   /** When > 0, triggers hard refresh (bypasses backend cache) */
   hardRefreshTrigger?: number;
+  /** Called when user renames the widget title (editable mode); parent should persist via update config API */
+  onTitleChange?: (componentId: string, title: string) => void;
 }
 
 type WidgetStatus =
@@ -133,9 +135,13 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   effectiveVisualizationType,
   onVisualizationChange,
   hardRefreshTrigger = 0,
+  onTitleChange,
 }) => {
   const vizType = effectiveVisualizationType ?? component.visualization_type;
   const [status, setStatus] = useState<WidgetStatus>("pending");
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitleValue, setEditTitleValue] = useState(component.title);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState<DashboardComponent>({} as DashboardComponent);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [streamActiveStep, setStreamActiveStep] = useState<string | null>(null);
@@ -159,6 +165,22 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
     setErrorMessage(null);
     setStatus("pending");
     setRefreshTrigger((prev) => prev + 1);
+  };
+
+  useEffect(() => {
+    if (!isEditingTitle) setEditTitleValue(component.title);
+  }, [component.title, isEditingTitle]);
+
+  useEffect(() => {
+    if (isEditingTitle) titleInputRef.current?.focus();
+  }, [isEditingTitle]);
+
+  const saveTitle = () => {
+    const trimmed = editTitleValue.trim();
+    if (trimmed && trimmed !== component.title) {
+      onTitleChange?.(component.id, trimmed);
+    }
+    setIsEditingTitle(false);
   };
 
   useEffect(() => {
@@ -323,12 +345,48 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             className={`w-1 h-6 rounded-full shrink-0 ${isDark ? "bg-[#2DD4BF]/60" : "bg-forest-f40/40"}`}
             aria-hidden
           />
-          <h3
-            className={`text-[12px] font-semibold truncate flex-1 min-w-0 ${isDark ? "text-neutral-100" : "text-forest-f60"
-              }`}
-          >
-            {component.title}
-          </h3>
+          {editable && onTitleChange && isEditingTitle ? (
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={editTitleValue}
+              onChange={(e) => setEditTitleValue(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveTitle();
+                if (e.key === "Escape") {
+                  setEditTitleValue(component.title);
+                  setIsEditingTitle(false);
+                  titleInputRef.current?.blur();
+                }
+              }}
+              className={cn(
+                "text-[12px] font-semibold flex-1 min-w-0 rounded px-1.5 py-0.5 -mx-1.5",
+                isDark
+                  ? "text-neutral-100 bg-neutral-700 border border-neutral-600 focus:border-[#2DD4BF]/60 outline-none"
+                  : "text-forest-f60 bg-sandstorm-s20 border border-sandstorm-s40 focus:border-forest-f40 outline-none"
+              )}
+              aria-label="Widget title"
+            />
+          ) : (
+            <h3
+              role={editable && onTitleChange ? "button" : undefined}
+              tabIndex={editable && onTitleChange ? 0 : undefined}
+              onClick={editable && onTitleChange ? () => { setEditTitleValue(component.title); setIsEditingTitle(true); } : undefined}
+              onKeyDown={
+                editable && onTitleChange
+                  ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditTitleValue(component.title); setIsEditingTitle(true); } }
+                  : undefined
+              }
+              className={cn(
+                "text-[12px] font-semibold truncate flex-1 min-w-0",
+                isDark ? "text-neutral-100" : "text-forest-f60",
+                editable && onTitleChange && "cursor-text hover:underline decoration-dotted"
+              )}
+            >
+              {component.title}
+            </h3>
+          )}
           <div className="flex items-center gap-1 shrink-0">
             {editable && onExpandToggle && (
               <button

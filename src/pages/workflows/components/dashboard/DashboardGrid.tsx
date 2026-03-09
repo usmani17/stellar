@@ -21,12 +21,19 @@ import { useDashboardTheme } from "../../contexts/DashboardThemeContext";
 import type {
   DashboardConfig,
   DashboardComponent,
+  DashboardLayout,
   VisualizationType,
 } from "../../types/dashboard";
 
 const STAGGER_DELAY_MS = 500;
 
 const CONFIG_DEBOUNCE_MS = 300;
+
+/** Payload for single-component update; backend merges and keeps others as-is */
+export interface DashboardComponentUpdatePayload {
+  layout: DashboardLayout;
+  component: Omit<DashboardComponent, "data">;
+}
 
 interface DashboardGridProps {
   config: DashboardConfig;
@@ -36,6 +43,8 @@ interface DashboardGridProps {
   showQueryDetails?: boolean;
   editable?: boolean;
   onConfigChange?: (config: DashboardConfig) => void;
+  /** When set, single-component updates (title, viz, expand) send only this component; backend keeps others as-is */
+  onComponentChange?: (payload: DashboardComponentUpdatePayload) => void;
   /** When > 0, triggers hard refresh (bypasses backend cache) for all widgets */
   hardRefreshTrigger?: number;
 }
@@ -53,6 +62,7 @@ function SortableWidgetWrapper({
   editable,
   effectiveVisualizationType,
   onVisualizationChange,
+  onTitleChange,
   hardRefreshTrigger,
 }: {
   component: DashboardComponent;
@@ -67,6 +77,7 @@ function SortableWidgetWrapper({
   editable: boolean;
   effectiveVisualizationType?: VisualizationType;
   onVisualizationChange?: (componentId: string, type: VisualizationType) => void;
+  onTitleChange?: (componentId: string, title: string) => void;
   hardRefreshTrigger?: number;
 }) {
   const {
@@ -127,6 +138,7 @@ function SortableWidgetWrapper({
         dragHandleProps={dragHandleProps}
         effectiveVisualizationType={effectiveVisualizationType}
         onVisualizationChange={onVisualizationChange}
+        onTitleChange={onTitleChange}
         hardRefreshTrigger={hardRefreshTrigger}
       />
     </div>
@@ -138,7 +150,7 @@ function buildConfigForPersistence(
   config: DashboardConfig,
   orderedIds: string[],
   visualizationOverrides: Record<string, VisualizationType>,
-  _expandedId: string | null,
+  expandedIds: Set<string>,
   layoutCols: number
 ): DashboardConfig {
   const orderedComponents = orderedIds
@@ -149,10 +161,12 @@ function buildConfigForPersistence(
     const { data: _data, ...rest } = comp;
     const compId = String(comp.id);
     const rawCols = comp.cols ?? 1;
-    // Never persist expanded state to cols — expand/minimize is transient UI state.
-    // If rawCols === layoutCols, it was likely persisted from a previous expand; use 1
-    // so minimize works on next load and we don't get stuck in "expanded" state.
-    const cols = rawCols === layoutCols ? 1 : rawCols;
+    // Persist full-width when expanded; otherwise use component cols (normalize saved full-width to 1 when not expanded)
+    const cols = expandedIds.has(compId)
+      ? layoutCols
+      : rawCols === layoutCols
+        ? 1
+        : rawCols;
     return {
       ...rest,
       visualization_type: visualizationOverrides[compId] ?? comp.visualization_type,
@@ -161,7 +175,12 @@ function buildConfigForPersistence(
     };
   });
 
-  return { layout: config.layout, components };
+  return { layout: config.layout, components } as DashboardConfig;
+}
+
+function componentForPayload(comp: DashboardComponent): Omit<DashboardComponent, "data"> {
+  const { data: _d, ...rest } = comp;
+  return rest;
 }
 
 export const DashboardGrid: React.FC<DashboardGridProps> = ({
@@ -172,6 +191,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
   showQueryDetails = false,
   editable = false,
   onConfigChange,
+  onComponentChange,
   hardRefreshTrigger,
 }) => {
   if (!config || !config.layout) {
@@ -186,7 +206,9 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     components.map((c) => String(c.id))
   );
 
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() =>
+    new Set(components.filter((c) => (c.cols ?? 1) === layoutCols).map((c) => String(c.id)))
+  );
 
   const [visualizationOverrides, setVisualizationOverrides] = useState<
     Record<string, VisualizationType>
@@ -209,7 +231,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     (
       newOrderedIds: string[],
       newOverrides: Record<string, VisualizationType>,
-      newExpandedId: string | null
+      newExpandedIds: Set<string>
     ) => {
       if (!onConfigChangeRef.current || !accountId || !dashboardId) return;
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -219,7 +241,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
           config,
           newOrderedIds,
           newOverrides,
-          newExpandedId,
+          newExpandedIds,
           layoutCols
         );
         onConfigChangeRef.current?.(newConfig);
@@ -231,15 +253,44 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
   const handleVisualizationChange = useCallback(
     (componentId: string, type: VisualizationType) => {
       const id = String(componentId);
+      const comp = config.components.find((c) => String(c.id) === id);
+      if (onComponentChange && comp && accountId && dashboardId) {
+        onComponentChange({
+          layout: config.layout,
+          component: { ...componentForPayload(comp), visualization_type: type },
+        });
+      }
       setVisualizationOverrides((prev) => {
         const next = { ...prev, [id]: type };
-        if (editable && onConfigChange) {
-          notifyConfigChange(orderedIds, next, null);
+        if (editable && onConfigChange && !onComponentChange) {
+          notifyConfigChange(orderedIds, next, expandedIds);
         }
         return next;
       });
     },
-    [editable, onConfigChange, orderedIds, notifyConfigChange]
+    [config, editable, onConfigChange, onComponentChange, accountId, dashboardId, orderedIds, expandedIds, notifyConfigChange]
+  );
+
+  const handleTitleChange = useCallback(
+    (componentId: string, title: string) => {
+      if (!config) return;
+      const comp = config.components.find((c) => String(c.id) === componentId);
+      if (!comp) return;
+      if (onComponentChange && accountId && dashboardId) {
+        onComponentChange({
+          layout: config.layout,
+          component: { ...componentForPayload(comp), title },
+        });
+        return;
+      }
+      if (onConfigChange) {
+        const newComponents = config.components.map((c) =>
+          String(c.id) === componentId ? { ...c, title } : c
+        );
+        onConfigChange({ ...config, components: newComponents });
+      }
+    },
+    [config, onConfigChange, onComponentChange, accountId, dashboardId]
   );
 
   const orderedComponents = orderedIds
@@ -258,28 +309,52 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
         if (oldIndex === -1 || newIndex === -1) return prev;
         const next = arrayMove(prev, oldIndex, newIndex);
         if (editable && onConfigChange) {
-          notifyConfigChange(next, visualizationOverrides, null);
+          notifyConfigChange(next, visualizationOverrides, expandedIds);
         }
         return next;
       });
     },
-    [editable, onConfigChange, visualizationOverrides, notifyConfigChange]
+    [editable, onConfigChange, visualizationOverrides, expandedIds, notifyConfigChange]
   );
 
-  const handleExpandToggle = useCallback((compId: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(compId)) {
-        next.delete(compId);
-      } else {
-        next.add(compId);
-      }
-      if (editable && onConfigChange) {
-        notifyConfigChange(orderedIds, visualizationOverrides, null);
-      }
-      return next;
-    });
-  }, [editable, onConfigChange, orderedIds, visualizationOverrides, notifyConfigChange]);
+  const handleExpandToggle = useCallback(
+    (compId: string) => {
+      setExpandedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(compId)) {
+          next.delete(compId);
+        } else {
+          next.add(compId);
+        }
+        const comp = config.components.find((c) => String(c.id) === compId);
+        if (onComponentChange && comp && accountId && dashboardId) {
+          const newCols = next.has(compId)
+            ? layoutCols
+            : (comp.cols === layoutCols ? 1 : comp.cols ?? 1);
+          onComponentChange({
+            layout: config.layout,
+            component: { ...componentForPayload(comp), cols: newCols },
+          });
+        }
+        if (editable && onConfigChange && !onComponentChange) {
+          notifyConfigChange(orderedIds, visualizationOverrides, next);
+        }
+        return next;
+      });
+    },
+    [
+      config,
+      editable,
+      onConfigChange,
+      onComponentChange,
+      accountId,
+      dashboardId,
+      layoutCols,
+      orderedIds,
+      visualizationOverrides,
+      notifyConfigChange,
+    ]
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -319,6 +394,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
             editable
             effectiveVisualizationType={visualizationOverrides[String(comp.id)]}
             onVisualizationChange={handleVisualizationChange}
+            onTitleChange={handleTitleChange}
             hardRefreshTrigger={hardRefreshTrigger}
           />
         ) : (

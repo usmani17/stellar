@@ -107,6 +107,27 @@ export async function updateDashboardConfig(
   return data;
 }
 
+/** Payload for updating a single component; backend merges and keeps others as-is */
+export interface DashboardComponentUpdatePayload {
+  layout: DashboardConfig["layout"];
+  component: Omit<DashboardComponent, "data">;
+}
+
+/**
+ * Update a single dashboard component. Backend merges this component by id and leaves others unchanged.
+ */
+export async function updateDashboardComponent(
+  accountId: number,
+  dashboardId: number,
+  payload: DashboardComponentUpdatePayload
+): Promise<DashboardResponse> {
+  const { data } = await api.patch<DashboardResponse>(
+    `${API_BASE}/${accountId}/dashboards/${dashboardId}/`,
+    { config: { layout: payload.layout, component: payload.component } }
+  );
+  return data;
+}
+
 /**
  * Soft-delete a dashboard (sets deleted_at; it will no longer appear in the list).
  */

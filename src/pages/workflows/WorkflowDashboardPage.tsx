@@ -7,7 +7,7 @@ import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { DashboardGrid } from "./components/dashboard/DashboardGrid";
-import { getDashboardDetail, updateDashboardConfig, createDashboardShare } from "../../services/dashboard";
+import { getDashboardDetail, updateDashboardConfig, updateDashboardComponent, createDashboardShare } from "../../services/dashboard";
 import { DashboardThemeProvider, useDashboardTheme } from "./contexts/DashboardThemeContext";
 import { Assistant } from "../../components/layout/Assistant";
 import { BaseModal, Loader } from "../../components/ui";
@@ -128,9 +128,26 @@ function WorkflowDashboardContent({
     },
   });
 
+  const updateComponentMutation = useMutation({
+    mutationFn: (payload: import("../../services/dashboard").DashboardComponentUpdatePayload) =>
+      updateDashboardComponent(accountIdNum!, dashboardId!, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dashboard", accountIdNum, dashboardId] });
+      refetchDashboard();
+    },
+    onError: (err) => {
+      console.error("Failed to update dashboard component:", err);
+    },
+  });
+
   const handleConfigChange = (newConfig: import("./types/dashboard").DashboardConfig) => {
     if (!accountIdNum || !dashboardId) return;
     updateConfigMutation.mutate(newConfig);
+  };
+
+  const handleComponentChange = (payload: import("../../services/dashboard").DashboardComponentUpdatePayload) => {
+    if (!accountIdNum || !dashboardId) return;
+    updateComponentMutation.mutate(payload);
   };
 
   return (
@@ -289,6 +306,7 @@ function WorkflowDashboardContent({
                   showQueryDetails
                   editable
                   onConfigChange={handleConfigChange}
+                  onComponentChange={handleComponentChange}
                   hardRefreshTrigger={hardRefreshTrigger}
                 />
               ) : (
