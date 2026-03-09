@@ -4,6 +4,19 @@ import { clearAccountIdFromStorage } from "../utils/urlHelpers";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
+/** Clear auth state and redirect to login. Use when token is invalid/expired or refresh fails. */
+function logoutAndRedirectToLogin(): void {
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("user");
+  clearAccountIdFromStorage();
+  const path = window.location.pathname + window.location.search + (window.location.hash || "");
+  if (path && path !== "/login") {
+    sessionStorage.setItem("loginRedirect", path);
+  }
+  window.location.href = "/login";
+}
+
 // Store a reference to the Auth0 getAccessTokenSilently function
 // This will be set by AuthContext
 let auth0GetToken: (() => Promise<string | null>) | null = null;
@@ -93,6 +106,17 @@ api.interceptors.response.use(
                           originalRequest?.url?.includes('/auth/verify-email/');
 
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+      const data = error.response?.data;
+      const isTokenInvalid =
+        data?.code === "token_not_valid" ||
+        (typeof data?.detail === "string" && data.detail.toLowerCase().includes("token not valid"));
+
+      // Backend says token is invalid/expired — don't retry refresh, logout and redirect
+      if (isTokenInvalid) {
+        logoutAndRedirectToLogin();
+        return Promise.reject(error);
+      }
+
       originalRequest._retry = true;
 
       // Check if this is Auth0 authentication (no refresh token in localStorage)
@@ -111,27 +135,16 @@ api.interceptors.response.use(
 
           return api(originalRequest);
         } catch (refreshError) {
-          // Refresh failed, clear everything and redirect to login
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
-          localStorage.removeItem("user");
-          clearAccountIdFromStorage();
-          const path = window.location.pathname + window.location.search + (window.location.hash || "");
-          if (path && path !== "/login") {
-            sessionStorage.setItem("loginRedirect", path);
-          }
-          window.location.href = "/login";
+          logoutAndRedirectToLogin();
           return Promise.reject(refreshError);
         }
       } else {
-        // Auth0 login - token is stored in localStorage by backend callback
-        // Try to refresh using backend endpoint
-        try {
-          const refreshToken = localStorage.getItem("refreshToken");
-          if (refreshToken) {
-            // Try to refresh via backend
+        // Auth0 or no refresh token - try refresh-auth0 if we have a token, otherwise logout
+        const auth0RefreshToken = localStorage.getItem("refreshToken");
+        if (auth0RefreshToken) {
+          try {
             const refreshResponse = await api.post('/users/refresh-auth0/', {
-              refresh_token: refreshToken,
+              refresh_token: auth0RefreshToken,
             });
             const newAccessToken = refreshResponse.data.access_token;
             if (newAccessToken) {
@@ -139,24 +152,13 @@ api.interceptors.response.use(
               originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
               return api(originalRequest);
             }
+          } catch (auth0Error) {
+            console.error("Auth0 token refresh failed:", auth0Error);
           }
-          
-          // If refresh fails, clear everything and redirect to login
-          throw new Error("Token refresh failed");
-        } catch (auth0Error) {
-          // Auth0 refresh failed, clear everything and redirect to login
-          console.error("Auth0 token refresh failed:", auth0Error);
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
-          localStorage.removeItem("user");
-          clearAccountIdFromStorage();
-          const path = window.location.pathname + window.location.search + (window.location.hash || "");
-          if (path && path !== "/login") {
-            sessionStorage.setItem("loginRedirect", path);
-          }
-          window.location.href = "/login";
-          return Promise.reject(auth0Error);
         }
+        // No refresh token or refresh failed — logout and redirect
+        logoutAndRedirectToLogin();
+        return Promise.reject(error);
       }
     }
 
