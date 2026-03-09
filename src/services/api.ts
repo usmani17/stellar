@@ -97,6 +97,17 @@ api.interceptors.response.use(
     });
 
     const originalRequest = error.config;
+    const data = error.response?.data;
+
+    // Whenever backend says token is invalid/expired, logout and redirect (any status code)
+    const isTokenInvalid =
+      data &&
+      (data.code === "token_not_valid" ||
+        (typeof data.detail === "string" && data.detail.toLowerCase().includes("token not valid")));
+    if (isTokenInvalid) {
+      logoutAndRedirectToLogin();
+      return Promise.reject(error);
+    }
 
     // Don't try to refresh token for login/register/auth endpoints - these are authentication attempts
     const isAuthEndpoint = originalRequest?.url?.includes('/auth/login/') || 
@@ -105,17 +116,7 @@ api.interceptors.response.use(
                           originalRequest?.url?.includes('/auth/password-reset-confirm/') ||
                           originalRequest?.url?.includes('/auth/verify-email/');
 
-    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
-      const data = error.response?.data;
-      const isTokenInvalid =
-        data?.code === "token_not_valid" ||
-        (typeof data?.detail === "string" && data.detail.toLowerCase().includes("token not valid"));
-
-      // Backend says token is invalid/expired — don't retry refresh, logout and redirect
-      if (isTokenInvalid) {
-        logoutAndRedirectToLogin();
-        return Promise.reject(error);
-      }
+    if (error.response?.status === 401 && !originalRequest?._retry && !isAuthEndpoint) {
 
       originalRequest._retry = true;
 
