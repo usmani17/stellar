@@ -327,6 +327,18 @@ export const StrategyDetail: React.FC = () => {
   const [previewTotalNetChangePct, setPreviewTotalNetChangePct] = useState<
     number | null
   >(null);
+  const [previewGuardrailsBlocked, setPreviewGuardrailsBlocked] = useState(
+    false,
+  );
+  const [previewValidationReason, setPreviewValidationReason] = useState<
+    string | null
+  >(null);
+  const [previewDailyQuotaResetAt, setPreviewDailyQuotaResetAt] = useState<
+    string | null
+  >(null);
+  const [previewWeeklyQuotaResetAt, setPreviewWeeklyQuotaResetAt] = useState<
+    string | null
+  >(null);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(
     null,
   );
@@ -1712,6 +1724,10 @@ export const StrategyDetail: React.FC = () => {
                                   setPreviewSkippedUnchanged([]);
                                   setPreviewTotalNetChange(null);
                                   setPreviewTotalNetChangePct(null);
+                                  setPreviewGuardrailsBlocked(false);
+                                  setPreviewValidationReason(null);
+                                  setPreviewDailyQuotaResetAt(null);
+                                  setPreviewWeeklyQuotaResetAt(null);
                                   const payload = buildPayload();
                                   const automationPayload =
                                     payload.automations?.[index];
@@ -1752,6 +1768,18 @@ export const StrategyDetail: React.FC = () => {
                                       setPreviewTotalNetChangePct(
                                         res.total_net_change_pct ?? null,
                                       );
+                                      setPreviewGuardrailsBlocked(
+                                        res.guardrails_blocked ?? false,
+                                      );
+                                      setPreviewValidationReason(
+                                        res.validation_failed_reason ?? null,
+                                      );
+                                      setPreviewDailyQuotaResetAt(
+                                        res.daily_quota_reset_at ?? null,
+                                      );
+                                      setPreviewWeeklyQuotaResetAt(
+                                        res.weekly_quota_reset_at ?? null,
+                                      );
                                     })
                                     .catch((err: unknown) => {
                                       const msg =
@@ -1770,6 +1798,10 @@ export const StrategyDetail: React.FC = () => {
                                       setPreviewSkippedUnchanged([]);
                                       setPreviewTotalNetChange(null);
                                       setPreviewTotalNetChangePct(null);
+                                      setPreviewGuardrailsBlocked(false);
+                                      setPreviewValidationReason(null);
+                                      setPreviewDailyQuotaResetAt(null);
+                                      setPreviewWeeklyQuotaResetAt(null);
                                     })
                                     .finally(() => setPreviewLoading(false));
                                 }}
@@ -2172,9 +2204,40 @@ export const StrategyDetail: React.FC = () => {
                               .filter(Boolean),
                           ]
                         : summary.split("; ").map((s) => s.trim());
-                      return lines.map((line, i) => (
-                        <div key={i}>{line}</div>
-                      ));
+                      const showQuotaMessage =
+                        previewGuardrailsBlocked || previewValidationReason;
+                      const formatResetAt = (iso: string) => {
+                        try {
+                          return new Date(iso).toLocaleString();
+                        } catch {
+                          return iso;
+                        }
+                      };
+                      return (
+                        <>
+                          {lines.map((line, i) => (
+                            <div key={i}>{line}</div>
+                          ))}
+                          {showQuotaMessage && (
+                            <div className="mt-1 font-medium text-forest-f60">
+                              These changes will be applied after your quota
+                              resets.
+                            </div>
+                          )}
+                          {previewDailyQuotaResetAt && (
+                            <div className="mt-0.5">
+                              Daily quota resets at{" "}
+                              {formatResetAt(previewDailyQuotaResetAt)}.
+                            </div>
+                          )}
+                          {previewWeeklyQuotaResetAt && (
+                            <div className="mt-0.5">
+                              Weekly quota resets at{" "}
+                              {formatResetAt(previewWeeklyQuotaResetAt)}.
+                            </div>
+                          )}
+                        </>
+                      );
                     })()}
                   </div>
                 </div>
@@ -2183,7 +2246,9 @@ export const StrategyDetail: React.FC = () => {
                     <div className="mb-1 text-[10.64px] text-forest-f30">
                       {previewResults.length > 10
                         ? `Showing 10 of ${previewResults.length} entities`
-                        : `${previewResults.length} entit${previewResults.length !== 1 ? "ies" : "y"} would be updated`}
+                        : previewGuardrailsBlocked
+                          ? `${previewResults.length} entit${previewResults.length !== 1 ? "ies" : "y"} will be updated after quota resets`
+                          : `${previewResults.length} entit${previewResults.length !== 1 ? "ies" : "y"} would be updated`}
                     </div>
                     <div className="border border-gray-200 rounded-lg overflow-hidden">
                       <table className="w-full table-fixed">

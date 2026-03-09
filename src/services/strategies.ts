@@ -157,6 +157,10 @@ export interface AutomationPreviewResponse {
   skipped_unchanged?: AutomationPreviewSkippedUnchangedRow[];
   total_net_change?: number | null;
   total_net_change_pct?: number | null;
+  guardrails_blocked?: boolean;
+  validation_failed_reason?: string | null;
+  daily_quota_reset_at?: string | null;
+  weekly_quota_reset_at?: string | null;
 }
 
 export const strategiesService = {
