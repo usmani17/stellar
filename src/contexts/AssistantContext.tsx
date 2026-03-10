@@ -7,6 +7,7 @@ import React, {
   useRef,
   type ReactNode,
 } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { streamPixisChat, type PixisTimelineItem, type CampaignDraftData } from "../services/ai/pixisChat";
 import {
@@ -90,6 +91,9 @@ interface AssistantContextType {
 
   /** Campaign state from last AI response (e.g. from campaign-setup block) */
   campaignState: CampaignDraftData | undefined;
+
+  /** Manually trigger session list reload (e.g. when chat history sidebar expands) */
+  loadSessions: () => Promise<void>;
 }
 
 const AssistantContext = createContext<AssistantContextType | undefined>(undefined);
@@ -115,6 +119,8 @@ export const AssistantProvider: React.FC<{
   channelId?: string;
 }> = ({ children, accountId: propAccountId, channelId: propChannelId }) => {
   const { user, getAccessToken } = useAuth();
+  const location = useLocation();
+  const isChatPage = location.pathname === "/chat";
 
   const [sessions, setSessions] = useState<SessionWithMessages[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -206,17 +212,14 @@ export const AssistantProvider: React.FC<{
 
   const loadSessions = useCallback(async () => {
     const token = await getAccessToken();
-    if (!token || !effectiveAccountId) return;
-    const accountIdNum = parseInt(effectiveAccountId, 10);
-    if (Number.isNaN(accountIdNum)) return;
+    if (!token) return;
 
     setIsLoadingSessions(true);
     try {
-      const { sessions: list } = await pixisAiSessionsService.list(
-        accountIdNum,
-        token,
-        { limit: 50 }
-      );
+      // Always fetch all user sessions (backend ignores account_id for listing)
+      const { sessions: list } = await pixisAiSessionsService.list(token, {
+        limit: 50,
+      });
       setSessions((prev) => {
         const byId = new Map(prev.map((s) => [s.id, s]));
         const fromApi = list.map((api) => {
@@ -234,13 +237,13 @@ export const AssistantProvider: React.FC<{
     } finally {
       setIsLoadingSessions(false);
     }
-  }, [effectiveAccountId, getAccessToken]);
+  }, [getAccessToken]);
 
   useEffect(() => {
-    if (isOpen && effectiveAccountId && user?.id) {
+    if ((isOpen || isChatPage) && user?.id) {
       loadSessions();
     }
-  }, [isOpen, effectiveAccountId, user?.id, loadSessions]);
+  }, [isOpen, isChatPage, user?.id, loadSessions]);
 
   useEffect(() => {
     if (propAccountId || propChannelId) {
@@ -524,6 +527,7 @@ export const AssistantProvider: React.FC<{
             workspace_id: user?.workspace?.id ?? undefined,
             user_id: user?.id != null ? String(user.id) : undefined,
             platform: effectiveMarketplace ?? undefined,
+            // @ts-ignore - for testing purposes only, to override backend default output format
             ...(OUTPUT_FORMAT_FOR_TESTING && { output_format: OUTPUT_FORMAT_FOR_TESTING }),
           },
           token,
@@ -924,6 +928,7 @@ export const AssistantProvider: React.FC<{
         assistantScope,
         setAssistantScope,
         campaignState,
+        loadSessions,
       }}
     >
       {children}

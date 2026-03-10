@@ -20,6 +20,7 @@ import { NoWorkspace } from "../pages/NoWorkspace";
 import { CompleteSignup } from "../pages/CompleteSignup";
 import { ColorExamples } from "../pages/ColorExamples";
 import { WorkflowsPage } from "../pages/workflows/WorkflowsPage";
+import { WorkflowDashboardPage } from "../pages/workflows/WorkflowDashboardPage";
 
 function ChannelsToIntegrationsRedirect() {
     const { accountId } = useParams<{ accountId: string }>();
@@ -35,7 +36,7 @@ function AccountRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <Layout>
-                                <Navigate to="/brands" replace />
+                                <Navigate to="/chat" replace />
                             </Layout>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
@@ -180,6 +181,22 @@ function AccountRoutes() {
                                 <BrandAccessRoute>
                                     <Layout>
                                         <AccountUsers />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/brands/:accountId/dashboards/:dashboardId"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <WorkflowDashboardPage />
                                     </Layout>
                                 </BrandAccessRoute>
                             </AccountRequiredRoute>

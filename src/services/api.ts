@@ -57,7 +57,7 @@ api.interceptors.request.use(
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log(
+      console.debug(
         `[API] Making ${config.method?.toUpperCase()} request to ${config.url}`,
         {
           hasToken: !!token,
@@ -81,7 +81,7 @@ api.interceptors.request.use(
 // Response interceptor to handle token refresh
 api.interceptors.response.use(
   (response) => {
-    console.log(
+    console.debug(
       `[API] Response from ${response.config.url}:`,
       response.status,
       response.statusText

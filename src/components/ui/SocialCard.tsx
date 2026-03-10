@@ -79,16 +79,10 @@ export const SocialCard: React.FC<SocialCardProps> = ({
 
       {/* Content */}
       <div className="flex flex-[1_0_0] flex-col gap-1 items-start min-h-0 min-w-0 not-italic relative shrink-0">
-        <p
-          className="font-bold leading-[28px] relative shrink-0 text-forest-f60 text-base w-full"
-          className="font-gtAmerica"
-        >
+        <p className="font-gtAmerica font-bold leading-[28px] relative shrink-0 text-forest-f60 text-base w-full">
           {title}
         </p>
-        <p
-          className="font-medium leading-[18px] relative shrink-0 text-neutral-n300 text-xs w-full"
-          className="font-gtAmerica"
-        >
+        <p className="font-gtAmerica font-medium leading-[18px] relative shrink-0 text-neutral-n300 text-xs w-full">
           {description}
         </p>
       </div>
@@ -99,10 +93,7 @@ export const SocialCard: React.FC<SocialCardProps> = ({
         className="bg-forest-f60 flex gap-1 h-9 items-center justify-center min-w-[80px] px-2 py-0 relative rounded-lg shrink-0 hover:opacity-90 transition-opacity cursor-pointer"
       >
         <div className="flex items-center justify-center relative shrink-0">
-          <div
-            className="flex flex-col justify-center leading-[0] not-italic relative shrink-0 text-sm text-center text-white whitespace-nowrap"
-            className="font-inter font-medium"
-          >
+          <div className="font-inter font-medium flex flex-col justify-center leading-[0] not-italic relative shrink-0 text-sm text-center text-white whitespace-nowrap">
             <p className="leading-[20px]">{buttonText}</p>
           </div>
         </div>

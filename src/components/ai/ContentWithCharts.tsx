@@ -1,6 +1,21 @@
 import {
+  LayoutDashboard,
+  BarChart3,
+  BarChartHorizontal,
+  LineChart,
+  PieChart,
+  Table2,
+  TrendingUp,
+  ArrowRight,
+  Filter,
+  ScatterChart,
+  Gauge,
+} from "lucide-react";
+import {
   parseContentWithBlocks,
   type PdfReportData,
+  type DashboardReportData,
+  type DashboardReportComponentSummary,
 } from "../../utils/chartJsonParser";
 import type { CampaignDraftData } from "../../services/ai/pixisChat";
 import { ChartRender } from "./ChartRender";
@@ -88,6 +103,90 @@ function PdfReportBlock({ data }: { data: PdfReportData }) {
   );
 }
 
+const VIZ_ICON_MAP: Record<string, React.ReactNode> = {
+  bar_chart: <BarChart3 className="w-4 h-4" />,
+  line_chart: <LineChart className="w-4 h-4" />,
+  pie_chart: <PieChart className="w-4 h-4" />,
+  area_chart: <TrendingUp className="w-4 h-4" />,
+  combo_chart: <BarChart3 className="w-4 h-4" />,
+  comparison_chart: <BarChart3 className="w-4 h-4" />,
+  table: <Table2 className="w-4 h-4" />,
+  single_metric: <TrendingUp className="w-4 h-4" />,
+  stacked_bar_chart: <BarChart3 className="w-4 h-4" />,
+  donut_chart: <PieChart className="w-4 h-4" />,
+  funnel_chart: <Filter className="w-4 h-4" />,
+  scatter_plot: <ScatterChart className="w-4 h-4" />,
+  gauge_chart: <Gauge className="w-4 h-4" />,
+  horizontal_bar_chart: <BarChartHorizontal className="w-4 h-4" />,
+};
+
+function DashboardWidgetPlaceholder({ component }: { component: DashboardReportComponentSummary }) {
+  const icon = VIZ_ICON_MAP[component.visualization_type] ?? <BarChart3 className="w-4 h-4" />;
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 bg-[#F9F9F6] border border-[#E8E8E3] rounded-lg">
+      <span className="text-[#136D6D] flex-shrink-0">{icon}</span>
+      <span className="text-[12px] text-[#072929] truncate font-medium">{component.title}</span>
+    </div>
+  );
+}
+
+function CustomDashboardBlock({ data }: { data: DashboardReportData }) {
+  const displayedComponents = data.components.slice(0, 6);
+  const remaining = data.components.length - displayedComponents.length;
+
+  return (
+    <div className="my-3">
+      <div className="bg-white border border-[#E8E8E3] border-l-4 border-l-[#136D6D] rounded-xl shadow-sm overflow-hidden">
+        <div className="flex items-center gap-3 p-4 pb-3">
+          <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-[#136D6D]/10 text-[#136D6D]">
+            <LayoutDashboard className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[14px] font-semibold text-[#072929] truncate">
+              {data.name || "Custom Dashboard"}
+            </div>
+            <div className="text-[12px] text-[#556179] mt-0.5">
+              {data.components_count} widget{data.components_count !== 1 ? "s" : ""} &middot; {data.layout.rows}&times;{data.layout.cols} grid
+            </div>
+          </div>
+        </div>
+
+        {displayedComponents.length > 0 && (
+          <div className="px-4 pb-3">
+            <div
+              className="grid gap-2"
+              style={{ gridTemplateColumns: `repeat(${Math.min(data.layout.cols, 3)}, 1fr)` }}
+            >
+              {displayedComponents.map((comp) => (
+                <DashboardWidgetPlaceholder key={comp.id} component={comp} />
+              ))}
+            </div>
+            {remaining > 0 && (
+              <div className="text-[11px] text-[#556179] mt-2 text-center">
+                +{remaining} more widget{remaining !== 1 ? "s" : ""}
+              </div>
+            )}
+          </div>
+        )}
+
+        {data.url && (
+          <div className="px-4 py-3 border-t border-[#E8E8E3] bg-[#FEFEFB]">
+            <a
+              href={data.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-white bg-[#136D6D] hover:bg-[#0E4E4E] rounded-lg transition-colors no-underline"
+            >
+              View Dashboard
+              <ArrowRight className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface ContentWithChartsProps {
   content: string;
   type?: "human" | "ai" | "tool" | "system";
@@ -113,6 +212,8 @@ export function ContentWithCharts({ content, type = "ai" }: ContentWithChartsPro
           <CampaignSetupBlock key={i} data={seg.data} />
         ) : seg.type === "pdf-report" ? (
           <PdfReportBlock key={i} data={seg.data} />
+        ) : seg.type === "custom-dashboard" ? (
+          <CustomDashboardBlock key={i} data={seg.data} />
         ) : null
       )}
     </div>

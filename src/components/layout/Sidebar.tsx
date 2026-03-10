@@ -36,7 +36,8 @@ import UsersActiveIcon from "../../assets/images/users-active.svg";
 import StrategiesIcon from "../../assets/images/strategies.svg";
 import StrategiesActiveIcon from "../../assets/images/strategies-active.svg";
 import WorkspaceIcon from "../../assets/workspace.svg";
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, MessageSquare } from "lucide-react";
+import { useChatHistorySidebarOptional } from "../../contexts/ChatHistorySidebarContext";
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
 
 const WORKSPACE_SECTION_STORAGE_KEY = "workspace-section-collapsed";
@@ -115,7 +116,7 @@ export const Sidebar: React.FC = () => {
     /^\/brands\/\d+\/integrations$/.test(location.pathname) ||
     /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
     /^\/brands\/\d+\/users$/.test(location.pathname) ||
-    /^\/brands\/\d+\/workflows$/.test(location.pathname) ||
+    /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname) ||
     location.pathname === "/workspace/team";
 
   // Derive effective collapsed state from pathname (no setState in effect)
@@ -202,7 +203,10 @@ export const Sidebar: React.FC = () => {
     setPersistedWorkspaceCollapsed((prev) => !prev);
   };
 
+  const chatHistorySidebar = useChatHistorySidebarOptional();
+
   const isActive = (path: string) => {
+    if (path === "/chat") return location.pathname === "/chat";
     if (path === "/brands") return location.pathname === "/brands";
     if (path === "/brands/integrations")
       return /^\/brands\/\d+\/integrations$/.test(location.pathname);
@@ -211,7 +215,7 @@ export const Sidebar: React.FC = () => {
     if (path === "/brands/users" || path === "/workspace/team")
       return location.pathname === "/workspace/team" || /^\/brands\/\d+\/users$/.test(location.pathname);
     if (path === "/brands/workflows")
-      return /^\/brands\/\d+\/workflows$/.test(location.pathname);
+      return /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname);
     if (path === "/campaigns") {
       return (
         location.pathname.includes("/campaigns") &&
@@ -424,6 +428,31 @@ export const Sidebar: React.FC = () => {
             </p>
           </div>
         )}
+
+        {/* Home / Chat - first nav item; hover expands chat history sidebar on /chat */}
+        <div className="mb-6">
+          <Link
+            to="/chat"
+            onMouseEnter={() => {
+              chatHistorySidebar?.cancelCollapse();
+              chatHistorySidebar?.setExpanded(true);
+            }}
+            onMouseLeave={() => chatHistorySidebar?.scheduleCollapse?.()}
+            className={`flex items-center p-2 rounded-xl gap-2 ${
+              isActive("/chat")
+                ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                : "text-black hover:bg-transparent hover:text-[#136D6D]"
+            } ${isCollapsed ? "justify-center" : ""}`}
+            title={isCollapsed ? "Home" : undefined}
+          >
+            <MessageSquare className="w-5 h-5 shrink-0" />
+            {!isCollapsed && (
+              <span className="text-[12.32px] font-normal leading-[16px]">
+                Home
+              </span>
+            )}
+          </Link>
+        </div>
 
         {/* Workspace Section - sub-nav: Brands, Integrations, Profiles, Users (hidden when no workspace) */}
         {hasWorkspace && (

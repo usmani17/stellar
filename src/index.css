@@ -174,6 +174,11 @@
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
+  background-color: var(--color-semantic-background-primary);
+}
+
+html {
+  background-color: var(--color-semantic-background-primary);
 }
 
 body {
@@ -181,6 +186,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   font-family: "GT America Trial", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--color-semantic-background-primary);
 }
 
 * {
@@ -2003,3 +2009,110 @@ body input[type="submit"]:disabled {
   color: var(--color-common-white);
   border-color: var(--color-semantic-status-primary);
 }
+
+/* Dashboard table scrollbar */
+.dashboard-table-wrapper {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-sandstorm-s40) transparent;
+}
+
+.dashboard-table-wrapper::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.dashboard-table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--color-sandstorm-s40);
+  border-radius: 2px;
+}
+
+[data-theme="dark"] .dashboard-table-wrapper::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+/* Progress flow - n8n-style nodes */
+.progress-node-active {
+  animation: progress-node-pulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 0 4px rgba(19, 109, 109, 0.2);
+}
+
+@keyframes progress-node-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(19, 109, 109, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(19, 109, 109, 0.1);
+  }
+}
+
+/* Circular ring spinner inside active node - shows "working" state */
+.progress-node-spinner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.progress-node-spinner-inner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(19, 109, 109, 0.2);
+  border-top-color: var(--color-forest-f40);
+  border-radius: 50%;
+  animation: progress-node-spin 0.8s linear infinite;
+}
+
+@keyframes progress-node-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.progress-node-done {
+  animation: progress-node-complete 0.5s ease-out forwards;
+}
+
+@keyframes progress-node-complete {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.progress-check {
+  animation: progress-check-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
+}
+
+@keyframes progress-check-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.progress-connector-done {
+  animation: progress-connector-fill 0.5s ease-out forwards;
+}
+
+@keyframes progress-connector-fill {
+  0% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+

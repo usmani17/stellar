@@ -161,10 +161,7 @@ export const AutopilotCard: React.FC<AutopilotCardProps> = ({
     >
       {/* Number and Icon */}
       <div className="flex gap-1 items-center relative shrink-0">
-        <p
-          className="font-medium leading-[40px] not-italic relative shrink-0 text-forest-f60 text-[28px] tracking-tight"
-          className="font-gtAmerica"
-        >
+        <p className="font-gtAmerica font-medium leading-[40px] not-italic relative shrink-0 text-forest-f60 text-[28px] tracking-tight">
           {number}
         </p>
         <div className="flex items-center justify-center overflow-hidden p-[6px] relative rounded-[4px] shrink-0 size-[36px]">
@@ -173,10 +170,7 @@ export const AutopilotCard: React.FC<AutopilotCardProps> = ({
       </div>
 
       {/* Description */}
-      <p
-        className="font-normal leading-[28px] not-italic relative shrink-0 text-forest-f60 text-base"
-        className="font-gtAmerica"
-      >
+      <p className="font-gtAmerica font-normal leading-[28px] not-italic relative shrink-0 text-forest-f60 text-base">
         {description}
       </p>
     </div>

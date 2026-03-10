@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import FilePreviewModal from "../charts/FilePreviewModal";
@@ -106,6 +107,20 @@ interface StellarMarkDownProps {
 export const StellarMarkDown: React.FC<StellarMarkDownProps> = ({ content, type }) => {
     const stringContent = typeof content === "string" ? content : String(content);
     const [previewFile, setPreviewFile] = useState<{ url: string; fileName: string } | null>(null);
+    const navigate = useNavigate();
+
+    // Helper to check if a URL is a relative link (no domain/protocol)
+    const isRelativeLink = (href: string | undefined): boolean => {
+        if (!href) return false;
+        try {
+            // If it can be parsed as a full URL with a protocol, it's absolute
+            new URL(href);
+            return false;
+        } catch {
+            // If it fails to parse as a full URL, it's relative
+            return true;
+        }
+    };
 
     return (
         <>
@@ -175,6 +190,24 @@ export const StellarMarkDown: React.FC<StellarMarkDownProps> = ({ content, type 
                                 >
                                     {getFileIcon(fileName)}
                                     {fileName}
+                                </a>
+                            );
+                        }
+
+                        // Handle relative links with navigation
+                        if (isRelativeLink(href)) {
+                            return (
+                                <a
+                                    href={href}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        if (href) navigate(href);
+                                    }}
+                                    className={`${type === "human" ? "text-blue-500 underline" : "text-blue-500"
+                                        } hover:opacity-80 cursor-pointer`}
+                                    role="button"
+                                >
+                                    {children}
                                 </a>
                             );
                         }
