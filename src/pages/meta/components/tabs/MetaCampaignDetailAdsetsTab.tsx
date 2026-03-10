@@ -20,6 +20,8 @@ interface MetaCampaignDetailAdsetsTabProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  createButton?: React.ReactNode;
+  createPanel?: React.ReactNode;
 }
 
 const formatDate = (d: string | undefined) => {
@@ -44,12 +46,25 @@ export const MetaCampaignDetailAdsetsTab: React.FC<MetaCampaignDetailAdsetsTabPr
   currentPage,
   totalPages,
   onPageChange,
+  createButton,
+  createPanel,
 }) => {
   const allSelected = adsets.length > 0 && adsets.every((a) => selectedIds.has(a.adset_id ?? a.id));
   const someSelected = selectedIds.size > 0;
 
   return (
     <div className="relative">
+      {(createButton != null || createPanel != null) && (
+        <>
+          <div className="flex items-center justify-between mb-4">
+            <div />
+            <div className="flex items-center gap-2">
+              {createButton}
+            </div>
+          </div>
+          {createPanel}
+        </>
+      )}
       <div className="overflow-x-auto w-full">
         <table className="min-w-[1000px] w-full">
           <thead>

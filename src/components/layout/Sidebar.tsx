@@ -34,7 +34,7 @@ import ProfilesActiveIcon from "../../assets/images/profiles-active.svg";
 import UsersIcon from "../../assets/images/users.svg";
 import UsersActiveIcon from "../../assets/images/users-active.svg";
 import WorkspaceIcon from "../../assets/workspace.svg";
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, Users } from "lucide-react";
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
 
 const WORKSPACE_SECTION_STORAGE_KEY = "workspace-section-collapsed";
@@ -74,6 +74,10 @@ export const Sidebar: React.FC = () => {
     (location.pathname.includes("/meta/") ? getChannelIdFromUrl(location.pathname) : null) ??
     channels.find((c) => c.channel_type === "meta")?.id ??
     0;
+  const tiktokChannelId =
+    (location.pathname.includes("/tiktok/") ? getChannelIdFromUrl(location.pathname) : null) ??
+    channels.find((c) => c.channel_type === "tiktok")?.id ??
+    0;
 
   const [channelRequiredModal, setChannelRequiredModal] = useState<
     "amazon" | "google" | "tiktok" | "meta" | null
@@ -81,32 +85,33 @@ export const Sidebar: React.FC = () => {
   const [showBrandRequiredModal, setShowBrandRequiredModal] = useState(false);
   const [brandRequiredReturnUrl, setBrandRequiredReturnUrl] = useState<string | undefined>(undefined);
 
-  const [persistedAmazonCollapsed, setPersistedAmazonCollapsed] =
+  const [isAmazonSectionCollapsed, setIsAmazonSectionCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(AMAZON_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
-  const [persistedGoogleCollapsed, setPersistedGoogleCollapsed] =
+  const [isGoogleSectionCollapsed, setIsGoogleSectionCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(GOOGLE_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
-  const [persistedMetaCollapsed, setPersistedMetaCollapsed] =
+  const [isMetaSectionCollapsed, setIsMetaSectionCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(META_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
-  const [persistedTikTokCollapsed, setPersistedTikTokCollapsed] =
+  const [isTikTokSectionCollapsed, setIsTikTokSectionCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(TIKTOK_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
-  const [persistedWorkspaceCollapsed, setPersistedWorkspaceCollapsed] =
+  const [isWorkspaceSectionCollapsed, setIsWorkspaceSectionCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(WORKSPACE_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
 
+  useEffect(() => {
   const marketplace = getMarketplaceFromUrl(location.pathname);
   const isBrandsArea =
     location.pathname === "/brands" ||
@@ -116,88 +121,88 @@ export const Sidebar: React.FC = () => {
     /^\/brands\/\d+\/workflows$/.test(location.pathname) ||
     location.pathname === "/workspace/team";
 
-  // Derive effective collapsed state from pathname (no setState in effect)
-  const isWorkspaceSectionCollapsed = isBrandsArea
-    ? false
-    : persistedWorkspaceCollapsed;
-  const isAmazonSectionCollapsed =
-    location.pathname === "/brands"
-      ? true
-      : marketplace === "amazon"
-        ? false
-        : persistedAmazonCollapsed;
-  const isGoogleSectionCollapsed =
-    location.pathname === "/brands"
-      ? true
-      : marketplace === "google"
-        ? false
-        : persistedGoogleCollapsed;
-  const isMetaSectionCollapsed =
-    location.pathname === "/brands"
-      ? true
-      : marketplace === "meta"
-        ? false
-        : persistedMetaCollapsed;
-  const isTikTokSectionCollapsed =
-    location.pathname === "/brands"
-      ? true
-      : marketplace === "tiktok"
-        ? false
-        : persistedTikTokCollapsed;
+    if (isBrandsArea) {
+      setIsWorkspaceSectionCollapsed(false);
+    }
+    // If on brands page, collapse all marketplace sections
+    if (location.pathname === "/brands") {
+      setIsAmazonSectionCollapsed(true);
+      setIsGoogleSectionCollapsed(true);
+      setIsMetaSectionCollapsed(true);
+    } else {
+      // Auto-expand the relevant marketplace section when on that page
+      if (marketplace === "amazon") {
+        setIsAmazonSectionCollapsed(false);
+      } else if (marketplace === "google") {
+        setIsGoogleSectionCollapsed(false);
+      } else if (marketplace === "meta") {
+        setIsMetaSectionCollapsed(false);
+      } else if (marketplace === "tiktok") {
+        setIsTikTokSectionCollapsed(false);
+      }
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     localStorage.setItem(
       WORKSPACE_SECTION_STORAGE_KEY,
-      String(persistedWorkspaceCollapsed),
+      String(isWorkspaceSectionCollapsed),
     );
-  }, [persistedWorkspaceCollapsed]);
+  }, [isWorkspaceSectionCollapsed]);
 
   useEffect(() => {
     localStorage.setItem(
       AMAZON_SECTION_STORAGE_KEY,
-      String(persistedAmazonCollapsed),
+      String(isAmazonSectionCollapsed),
     );
-  }, [persistedAmazonCollapsed]);
+  }, [isAmazonSectionCollapsed]);
 
   useEffect(() => {
     localStorage.setItem(
       GOOGLE_SECTION_STORAGE_KEY,
-      String(persistedGoogleCollapsed),
+      String(isGoogleSectionCollapsed),
     );
-  }, [persistedGoogleCollapsed]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      TIKTOK_SECTION_STORAGE_KEY,
-      String(persistedTikTokCollapsed),
-    );
-  }, [persistedTikTokCollapsed]);
+  }, [isGoogleSectionCollapsed]);
 
   useEffect(() => {
     localStorage.setItem(
       META_SECTION_STORAGE_KEY,
-      String(persistedMetaCollapsed),
+      String(isMetaSectionCollapsed),
     );
-  }, [persistedMetaCollapsed]);
+  }, [isMetaSectionCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      TIKTOK_SECTION_STORAGE_KEY,
+      String(isTikTokSectionCollapsed),
+    );
+  }, [isTikTokSectionCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      META_SECTION_STORAGE_KEY,
+      String(isMetaSectionCollapsed),
+    );
+  }, [isMetaSectionCollapsed]);
 
   const toggleAmazonSection = () => {
-    setPersistedAmazonCollapsed((prev) => !prev);
+    setIsAmazonSectionCollapsed((prev) => !prev);
   };
 
   const toggleGoogleSection = () => {
-    setPersistedGoogleCollapsed((prev) => !prev);
+    setIsGoogleSectionCollapsed((prev) => !prev);
   };
 
   const toggleMetaSection = () => {
-    setPersistedMetaCollapsed((prev) => !prev);
+    setIsMetaSectionCollapsed((prev) => !prev);
   };
 
   const toggleTikTokSection = () => {
-    setPersistedTikTokCollapsed((prev) => !prev);
+    setIsTikTokSectionCollapsed((prev) => !prev);
   };
 
   const toggleWorkspaceSection = () => {
-    setPersistedWorkspaceCollapsed((prev) => !prev);
+    setIsWorkspaceSectionCollapsed((prev) => !prev);
   };
 
   const isActive = (path: string) => {
@@ -252,10 +257,13 @@ export const Sidebar: React.FC = () => {
       return location.pathname.includes("/meta/adsets");
     }
     if (path === "/meta/ads") {
-      return location.pathname.includes("/meta/ads") && !location.pathname.includes("/meta/adsets") && !location.pathname.includes("/meta/creatives");
+      return location.pathname.includes("/meta/ads") && !location.pathname.includes("/meta/adsets") && !location.pathname.includes("/meta/creatives") && !location.pathname.includes("/meta/audiences");
     }
     if (path === "/meta/creatives") {
       return location.pathname.includes("/meta/creatives");
+    }
+    if (path === "/meta/audiences") {
+      return location.pathname.includes("/meta/audiences");
     }
 
     // Generic paths for Amazon (exclude google and tiktok paths)
@@ -1363,6 +1371,39 @@ export const Sidebar: React.FC = () => {
                     }`}
                   >
                     Creative
+                  </span>
+                )}
+              </Link>
+              <Link
+                to={
+                  accountId
+                    ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "audiences")
+                    : "/brands"
+                }
+                onClick={(e) =>
+                  handleMarketplaceClick("meta", e, () =>
+                    accountId
+                      ? buildMarketplaceRoute(accountId, metaChannelId, "meta", "audiences")
+                      : "/brands/1/meta/audiences",
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/meta/audiences") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/meta/audiences")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "Audiences" : undefined}
+              >
+                <Users className={`w-5 h-5 ${isActive("/meta/audiences") ? "brightness-0 invert" : ""}`} />
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/meta/audiences") ? "!text-white" : ""
+                    }`}
+                  >
+                    Audiences
                   </span>
                 )}
               </Link>

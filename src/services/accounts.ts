@@ -1,4 +1,9 @@
 import api from "./api";
+import type {
+  CustomAudienceCreatePayload,
+  LookalikeAudienceCreatePayload,
+  MetaAudienceCreateResponse,
+} from "../types/meta";
 
 export interface Channel {
   id: number;
@@ -726,6 +731,7 @@ export const accountsService = {
       sales?: number;
       acos?: number;
       roas?: number;
+      profile_id?: number;
     };
     chart_data: Array<{
       date: string;
@@ -794,6 +800,74 @@ export const accountsService = {
     const response = await api.post(
       `/meta/channels/${channelId}/creatives/`,
       params
+    );
+    return response.data;
+  },
+
+  getMetaAudiences: async (
+    channelId: number,
+    params: {
+      profile_id?: number;
+      filters?: Array<{ field: string; operator?: string; value: unknown }>;
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      after?: string;
+    }
+  ): Promise<{
+    audiences: Array<{
+      id?: number;
+      audience_id: string;
+      name: string;
+      subtype?: string;
+      type?: "custom" | "lookalike";
+      description?: string;
+      status?: string;
+      created_time?: string;
+      approximate_count_lower_bound?: number;
+      [key: string]: unknown;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+    next_cursor?: string | null;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/audiences/`,
+      params
+    );
+    return response.data;
+  },
+
+  deleteMetaAudience: async (
+    channelId: number,
+    audienceId: string
+  ): Promise<void> => {
+    await api.delete(
+      `/meta/channels/${channelId}/audiences/${encodeURIComponent(audienceId)}/`
+    );
+  },
+
+  createMetaCustomAudience: async (
+    channelId: number,
+    payload: CustomAudienceCreatePayload
+  ): Promise<MetaAudienceCreateResponse> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/audiences/custom/`,
+      payload
+    );
+    return response.data;
+  },
+
+  createMetaLookalikeAudience: async (
+    channelId: number,
+    payload: LookalikeAudienceCreatePayload
+  ): Promise<MetaAudienceCreateResponse> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/audiences/lookalike/`,
+      payload
     );
     return response.data;
   },

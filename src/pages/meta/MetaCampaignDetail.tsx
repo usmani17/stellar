@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
+import { accountsService } from "../../services/accounts";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
@@ -18,6 +19,12 @@ import { MetaCampaignDetailAdsetsTab } from "./components/tabs/MetaCampaignDetai
 import { MetaCampaignDetailAdsTab } from "./components/tabs/MetaCampaignDetailAdsTab";
 import { MetaCampaignDetailCreativesTab } from "./components/tabs/MetaCampaignDetailCreativesTab";
 import { MetaCampaignDetailLogsTab } from "./components/tabs/MetaCampaignDetailLogsTab";
+import { CreateMetaAdSetSection } from "../../components/meta/CreateMetaAdSetSection";
+import { CreateMetaAdSection } from "../../components/meta/CreateMetaAdSection";
+import { CreateMetaCreativeSection } from "../../components/meta/CreateMetaCreativeSection";
+import { CreateMetaAdSetPanel } from "../../components/meta/CreateMetaAdSetPanel";
+import { CreateMetaAdPanel } from "../../components/meta/CreateMetaAdPanel";
+import { CreateMetaCreativePanel } from "../../components/meta/CreateMetaCreativePanel";
 
 const META_TABS = ["Overview", "Adsets", "Ads", "Creatives", "Logs"];
 
@@ -34,6 +41,10 @@ export function MetaCampaignDetail() {
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate } = useDateRange();
   const [activeTab, setActiveTab] = useState("Overview");
+  const [isCreateAdSetPanelOpen, setIsCreateAdSetPanelOpen] = useState(false);
+  const [isCreateCreativePanelOpen, setIsCreateCreativePanelOpen] = useState(false);
+  const [isCreateAdPanelOpen, setIsCreateAdPanelOpen] = useState(false);
+  const [profileIdFallback, setProfileIdFallback] = useState<number | null>(null);
 
   const {
     campaignDetail,
@@ -78,6 +89,25 @@ export function MetaCampaignDetail() {
     setPageTitle(campaignDetail?.campaign?.campaign_name ?? "Meta Campaign");
     return () => resetPageTitle();
   }, [campaignDetail?.campaign?.campaign_name]);
+
+  // When campaign has no profile_id, fetch Meta profiles and use first as fallback for Create Meta Ad Set.
+  useEffect(() => {
+    if (!channelId || !campaignDetail || campaignDetail.campaign.profile_id != null) {
+      if (campaignDetail?.campaign?.profile_id != null) setProfileIdFallback(null);
+      return;
+    }
+    let cancelled = false;
+    accountsService
+      .fetchMetaProfiles(parseInt(channelId, 10))
+      .then((res) => {
+        if (cancelled) return;
+        const list = (res.profiles || []) as Array<{ id?: number }>;
+        const first = list.find((p) => p.id != null);
+        if (first?.id != null) setProfileIdFallback(first.id);
+      })
+      .catch(() => { if (!cancelled) setProfileIdFallback(null); });
+    return () => { cancelled = true; };
+  }, [channelId, campaignDetail]);
 
   const listPath = `/brands/${accountId}/${channelId}/meta/campaigns`;
   const kpiCards = useMemo(
@@ -129,8 +159,8 @@ export function MetaCampaignDetail() {
                       key={index}
                       label={card.label}
                       value={card.value}
-                      change={card.change}
-                      isPositive={card.isPositive}
+                      change={card.change ?? undefined}
+                      isPositive={card.isPositive ?? undefined}
                       className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
                     />
                   ))}
@@ -174,6 +204,34 @@ export function MetaCampaignDetail() {
                       currentPage={adsetsHook.currentPage}
                       totalPages={adsetsHook.totalPages}
                       onPageChange={adsetsHook.handlePageChange}
+                      createButton={
+                        <CreateMetaAdSetSection
+                          isOpen={isCreateAdSetPanelOpen}
+                          onToggle={() => setIsCreateAdSetPanelOpen((p) => !p)}
+                        />
+                      }
+                      createPanel={
+                        isCreateAdSetPanelOpen &&
+                        channelId &&
+                        campaignId && (
+                          <CreateMetaAdSetPanel
+                            channelId={parseInt(channelId, 10)}
+                            profileId={campaignDetail?.campaign?.profile_id ?? profileIdFallback ?? 0}
+                            campaignId={campaignId}
+                            campaignObjective={campaignDetail?.campaign?.objective}
+                            campaignBudgetSet={
+                              campaignDetail?.campaign?.daily_budget != null &&
+                              String(campaignDetail.campaign.daily_budget).trim() !== ""
+                            }
+                            accountId={accountId}
+                            onSuccess={() => {
+                              adsetsHook.loadAdsets();
+                              setIsCreateAdSetPanelOpen(false);
+                            }}
+                            onClose={() => setIsCreateAdSetPanelOpen(false)}
+                          />
+                        )
+                      }
                     />
                   )}
                   {activeTab === "Ads" && (
@@ -189,6 +247,27 @@ export function MetaCampaignDetail() {
                       currentPage={adsHook.currentPage}
                       totalPages={adsHook.totalPages}
                       onPageChange={adsHook.handlePageChange}
+                      createButton={
+                        <CreateMetaAdSection
+                          isOpen={isCreateAdPanelOpen}
+                          onToggle={() => setIsCreateAdPanelOpen((p) => !p)}
+                        />
+                      }
+                      createPanel={
+                        isCreateAdPanelOpen &&
+                        channelId &&
+                        campaignId && (
+                          <CreateMetaAdPanel
+                            channelId={parseInt(channelId, 10)}
+                            campaignId={campaignId}
+                            onSuccess={() => {
+                              adsHook.loadAds();
+                              setIsCreateAdPanelOpen(false);
+                            }}
+                            onClose={() => setIsCreateAdPanelOpen(false)}
+                          />
+                        )
+                      }
                     />
                   )}
                   {activeTab === "Creatives" && (
@@ -204,6 +283,25 @@ export function MetaCampaignDetail() {
                       currentPage={creativesHook.currentPage}
                       totalPages={creativesHook.totalPages}
                       onPageChange={creativesHook.handlePageChange}
+                      createButton={
+                        <CreateMetaCreativeSection
+                          isOpen={isCreateCreativePanelOpen}
+                          onToggle={() => setIsCreateCreativePanelOpen((p) => !p)}
+                        />
+                      }
+                      createPanel={
+                        isCreateCreativePanelOpen &&
+                        channelId && (
+                          <CreateMetaCreativePanel
+                            channelId={parseInt(channelId, 10)}
+                            onSuccess={() => {
+                              creativesHook.loadCreatives();
+                              setIsCreateCreativePanelOpen(false);
+                            }}
+                            onClose={() => setIsCreateCreativePanelOpen(false)}
+                          />
+                        )
+                      }
                     />
                   )}
                   {activeTab === "Logs" && <MetaCampaignDetailLogsTab />}
