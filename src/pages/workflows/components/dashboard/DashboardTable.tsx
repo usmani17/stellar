@@ -133,6 +133,11 @@ export const DashboardTable = forwardRef<DashboardTableRef, DashboardTableProps>
     });
   }, [dataWithCustomColumns, sortField, sortOrder, columnKeys]);
 
+  // Show all rows with vertical scrolling
+  const limitedData = useMemo(() => {
+    return sortedData;
+  }, [sortedData]);
+
   const handleSort = (col: string) => {
     if (sortField === col) {
       setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
@@ -153,11 +158,10 @@ export const DashboardTable = forwardRef<DashboardTableRef, DashboardTableProps>
     baseKeysFromData.map((k) => ({ key: k, label: formatHeader(k) }));
 
   return (
-    <div className="dashboard-table flex flex-col overflow-hidden">
-      <div
-        className="overflow-auto min-h-0"
-        style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
-      >
+    <div
+      className="overflow-auto max-h-96"
+      style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
+    >
         <table className="w-full border-collapse text-[12px]">
           <thead className="sticky top-0 z-10">
             <tr>
@@ -198,7 +202,7 @@ export const DashboardTable = forwardRef<DashboardTableRef, DashboardTableProps>
             </tr>
           </thead>
           <tbody>
-            {sortedData.map((row, i) => (
+            {limitedData.map((row, i) => (
               <tr
                 key={i}
                 className={`border-b last:border-b-0 transition-colors ${
@@ -219,7 +223,6 @@ export const DashboardTable = forwardRef<DashboardTableRef, DashboardTableProps>
             ))}
           </tbody>
         </table>
-      </div>
       {(onDisplayColumnsChange || onCustomColumnsChange || onManageColumnsApply) && editable && (
         <DashboardTableManageColumnsModal
           isOpen={manageModalOpen}
