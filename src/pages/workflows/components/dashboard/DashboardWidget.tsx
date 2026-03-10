@@ -10,6 +10,7 @@ import {
   BarChart3,
   BarChartHorizontal,
   Table2,
+  Columns2,
   LineChart,
   PieChart,
   TrendingUp,
@@ -19,8 +20,9 @@ import {
   Gauge,
 } from "lucide-react";
 import { getStepsFromQuery, type ProgressStepDef } from "./progressFlowConstants";
+import { DASHBOARD_TABLE_CHART_CONTENT_HEIGHT } from "./dashboardConstants";
 import { ProgressFlow } from "./ProgressFlow";
-import { DashboardTable } from "./DashboardTable";
+import { DashboardTable, type DashboardTableRef } from "./DashboardTable";
 import { DashboardBarChart } from "./DashboardBarChart";
 import { DashboardLineChart } from "./DashboardLineChart";
 import { DashboardPieChart } from "./DashboardPieChart";
@@ -114,6 +116,17 @@ interface DashboardWidgetProps {
   hardRefreshTrigger?: number;
   /** Called when user renames the widget title (editable mode); parent should persist via update config API */
   onTitleChange?: (componentId: string, title: string) => void;
+  /** Called when user changes table column labels; parent persists via update config API */
+  onDisplayColumnsChange?: (componentId: string, displayColumns: Array<{ key: string; label: string }>) => void;
+  /** Called when user adds/edits/removes custom formula columns; parent persists via update config API */
+  onCustomColumnsChange?: (componentId: string, customColumns: Array<{ key: string; label: string; formula: string }>) => void;
+  /** Called when user applies Manage columns (display + custom) in one update */
+  onManageColumnsApply?: (
+    componentId: string,
+    displayColumns: Array<{ key: string; label: string }>,
+    customColumns: Array<{ key: string; label: string; formula: string }>,
+    columnOrder?: string[]
+  ) => void;
 }
 
 type WidgetStatus =
@@ -136,12 +149,16 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   onVisualizationChange,
   hardRefreshTrigger = 0,
   onTitleChange,
+  onDisplayColumnsChange,
+  onCustomColumnsChange,
+  onManageColumnsApply,
 }) => {
   const vizType = effectiveVisualizationType ?? component.visualization_type;
   const [status, setStatus] = useState<WidgetStatus>("pending");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState(component.title);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const tableRef = useRef<DashboardTableRef>(null);
   const [data, setData] = useState<DashboardComponent>({} as DashboardComponent);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [streamActiveStep, setStreamActiveStep] = useState<string | null>(null);
@@ -319,17 +336,25 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
     <div
       className={cn(
         "rounded-xl flex flex-col overflow-hidden transition-all duration-200",
-        vizType === "single_metric" ? "min-h-[140px]" : "min-h-[280px]",
-        isDark
-          ? "border border-neutral-700 bg-neutral-800 shadow-lg hover:shadow-xl"
-          : "border border-sandstorm-s40/80 bg-white shadow-[0_1px_2px_rgba(7,41,41,0.04)] hover:shadow-[0_4px_12px_rgba(7,41,41,0.06)]"
+        vizType === "single_metric" ? "min-h-[140px]" : `min-h-[${DASHBOARD_TABLE_CHART_CONTENT_HEIGHT}px]`,
+        vizType === "single_metric"
+          ? isDark
+            ? "border-0 bg-transparent"
+            : "border-0 bg-transparent"
+          : isDark
+            ? "border border-neutral-700 bg-neutral-800 shadow-lg hover:shadow-xl"
+            : "border border-sandstorm-s40/80 bg-white shadow-[0_1px_2px_rgba(7,41,41,0.04)] hover:shadow-[0_4px_12px_rgba(7,41,41,0.06)]"
       )}
     >
       <div
-        className={`flex flex-col border-b flex-shrink-0 ${isDark
-          ? "border-neutral-700 bg-neutral-800/80"
-          : "border-sandstorm-s40/60 bg-sandstorm-s5/50"
-          }`}
+        className={cn(
+          "flex flex-col flex-shrink-0",
+          vizType === "single_metric"
+            ? "border-0 bg-transparent"
+            : isDark
+              ? "border-b border-neutral-700 bg-neutral-800/80"
+              : "border-b border-sandstorm-s40/60 bg-sandstorm-s5/50"
+        )}
       >
         <div className="flex items-center gap-3 px-4 py-3">
           {editable && dragHandleProps && (
@@ -399,6 +424,25 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
                 {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
             )}
+            {editable && vizType === "table" && (onDisplayColumnsChange || onCustomColumnsChange || onManageColumnsApply) && (() => {
+              const rows = data?.data as Record<string, unknown>[] | undefined;
+              const hasColumns = Array.isArray(rows) && rows.length > 0 && typeof rows[0] === "object" && Object.keys(rows[0] as object).length > 0;
+              return (
+                <button
+                  type="button"
+                  onClick={() => tableRef.current?.openManageColumns()}
+                  disabled={!hasColumns}
+                  className={`shrink-0 inline-flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] font-medium transition-colors ${isDark
+                    ? "text-neutral-300 hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    : "text-forest-f60 hover:bg-sandstorm-s20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  }`}
+                  aria-label="Manage columns"
+                >
+                  <Columns2 className="w-3.5 h-3.5" />
+                  Manage columns
+                </button>
+              );
+            })()}
             {editable && onVisualizationChange && vizType !== "single_metric" && (
               <Dropdown<VisualizationType>
                 options={availableVizOptions}
@@ -509,27 +553,68 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             />
           </div>
         ) : vizType === "table" ? (
-          <div className="flex-1 min-h-0 overflow-auto dashboard-table-wrapper pb-4">
-            <DashboardTable key={component.id} component={component} data={data.data} isDark={isDark} />
+          <div
+            className="flex-1 min-h-0 overflow-auto dashboard-table-wrapper pb-4"
+            style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
+          >
+            <DashboardTable
+              ref={tableRef}
+              key={component.id}
+              component={component}
+              data={data.data}
+              isDark={isDark}
+              editable={editable}
+              onDisplayColumnsChange={
+                onDisplayColumnsChange
+                  ? (cols) => onDisplayColumnsChange(component.id, cols)
+                  : undefined
+              }
+              onCustomColumnsChange={
+                onCustomColumnsChange
+                  ? (cols) => onCustomColumnsChange(component.id, cols)
+                  : undefined
+              }
+              onManageColumnsApply={
+                onManageColumnsApply
+                  ? (displayCols, customCols, colOrder) =>
+                      onManageColumnsApply(component.id, displayCols, customCols, colOrder)
+                  : undefined
+              }
+            />
           </div>
         ) : vizType === "line_chart" ? (
-          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+          <div
+            className="flex-1 flex items-center justify-center px-3 pb-3"
+            style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
+          >
             <DashboardLineChart component={component} data={data.data as LineChartDatum[]} isDark={isDark} />
           </div>
         ) : vizType === "pie_chart" ? (
-          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+          <div
+            className="flex-1 flex items-center justify-center px-3 pb-3"
+            style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
+          >
             <DashboardPieChart component={component} data={data.data as PieChartDatum[]} isDark={isDark} />
           </div>
         ) : vizType === "area_chart" ? (
-          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+          <div
+            className="flex-1 flex items-center justify-center px-3 pb-3"
+            style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
+          >
             <DashboardAreaChart component={component} data={data.data} isDark={isDark} />
           </div>
         ) : vizType === "combo_chart" ? (
-          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+          <div
+            className="flex-1 flex items-center justify-center px-3 pb-3"
+            style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
+          >
             <DashboardComboChart component={component} data={data.data} isDark={isDark} />
           </div>
         ) : vizType === "comparison_chart" ? (
-          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+          <div
+            className="flex-1 flex items-center justify-center px-3 pb-3"
+            style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
+          >
             <DashboardComparisonChart component={component} data={data.data} isDark={isDark} />
           </div>
         ) : vizType === "single_metric" ? (
@@ -537,31 +622,52 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             <DashboardSingleMetric component={component} data={data.data as SingleMetricDatum[]} isDark={isDark} />
           </div>
         ) : vizType === "stacked_bar_chart" ? (
-          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+          <div
+            className="flex-1 flex items-center justify-center px-3 pb-3"
+            style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
+          >
             <DashboardStackedBarChart component={component} data={data.data as Record<string, unknown>[]} isDark={isDark} />
           </div>
         ) : vizType === "donut_chart" ? (
-          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+          <div
+            className="flex-1 flex items-center justify-center px-3 pb-3"
+            style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
+          >
             <DashboardDonutChart component={component} data={data.data as PieChartDatum[]} isDark={isDark} />
           </div>
         ) : vizType === "funnel_chart" ? (
-          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+          <div
+            className="flex-1 flex items-center justify-center px-3 pb-3"
+            style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
+          >
             <DashboardFunnelChart component={component} data={data.data as FunnelChartDatum[]} isDark={isDark} />
           </div>
         ) : vizType === "scatter_plot" ? (
-          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+          <div
+            className="flex-1 flex items-center justify-center px-3 pb-3"
+            style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
+          >
             <DashboardScatterPlot component={component} data={data.data as Record<string, unknown>[]} isDark={isDark} />
           </div>
         ) : vizType === "gauge_chart" ? (
-          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+          <div
+            className="flex-1 flex items-center justify-center px-3 pb-3"
+            style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
+          >
             <DashboardGaugeChart component={component} data={data.data as Record<string, unknown>[]} isDark={isDark} />
           </div>
         ) : vizType === "horizontal_bar_chart" ? (
-          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+          <div
+            className="flex-1 flex items-center justify-center px-3 pb-3"
+            style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
+          >
             <DashboardHorizontalBarChart component={component} data={data.data as Record<string, unknown>[]} isDark={isDark} />
           </div>
         ) : (
-          <div className="flex-1 min-h-[200px] flex items-center justify-center px-3 pb-3">
+          <div
+            className="flex-1 flex items-center justify-center px-3 pb-3"
+            style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}
+          >
             <DashboardBarChart component={component} data={data.data} isDark={isDark} />
           </div>
         )}

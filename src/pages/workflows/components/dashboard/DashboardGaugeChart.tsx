@@ -1,4 +1,5 @@
 import React from "react";
+import { DASHBOARD_TABLE_CHART_CONTENT_HEIGHT } from "./dashboardConstants";
 import { formatDashboardValue } from "../../utils/formatDashboardValue";
 import type { DashboardComponent } from "../../types/dashboard";
 
@@ -53,7 +54,7 @@ export const DashboardGaugeChart: React.FC<DashboardGaugeChartProps> = ({
   const subTextColor = isDark ? "#9ca3af" : "#506766";
 
   return (
-    <div className="min-h-[180px] w-full flex items-center justify-center">
+    <div className="w-full flex items-center justify-center" style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}>
       <svg width={size} height={size * 0.75} viewBox={`0 0 ${size} ${size * 0.85}`}>
         <path
           d={bgPath}

@@ -15,6 +15,7 @@ import {
   TOOLTIP_STYLE,
   getChartColors,
 } from "../../../../utils/chartStyles";
+import { DASHBOARD_TABLE_CHART_CONTENT_HEIGHT } from "./dashboardConstants";
 import { formatDashboardValue, formatDashboardTick } from "../../utils/formatDashboardValue";
 import type { DashboardComponent } from "../../types/dashboard";
 
@@ -57,8 +58,8 @@ export const DashboardComparisonChart: React.FC<
     formatDashboardValue(v, name, component.metric_formats);
 
   return (
-    <div className="min-h-[200px] w-full">
-      <ResponsiveContainer width="100%" height={200}>
+    <div className="w-full" style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}>
+      <ResponsiveContainer width="100%" height={DASHBOARD_TABLE_CHART_CONTENT_HEIGHT}>
         <BarChart
           data={data}
           margin={{ top: 8, right: 16, left: -12, bottom: 4 }}

@@ -1,5 +1,6 @@
 import React from "react";
 import { getChartColors } from "../../../../utils/chartStyles";
+import { DASHBOARD_TABLE_CHART_CONTENT_HEIGHT } from "./dashboardConstants";
 import { formatDashboardValue } from "../../utils/formatDashboardValue";
 import type { DashboardComponent, FunnelChartDatum } from "../../types/dashboard";
 
@@ -36,7 +37,7 @@ export const DashboardFunnelChart: React.FC<DashboardFunnelChartProps> = ({
   const maxVal = Number((sorted[0] as Record<string, unknown>)?.[valueKey] ?? 1);
 
   return (
-    <div className="min-h-[180px] w-full flex flex-col gap-1.5 px-4 py-2">
+    <div className="w-full flex flex-col gap-1.5 px-4 py-2" style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}>
       {sorted.map((item, i) => {
         const val = Number((item as Record<string, unknown>)[valueKey] ?? 0);
         const name = String((item as Record<string, unknown>)[nameKey] ?? "");

@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { flushSync } from "react-dom";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Share2, Moon, Sun, RotateCw, Copy, X } from "lucide-react";
@@ -119,6 +120,23 @@ function WorkflowDashboardContent({
   const updateConfigMutation = useMutation({
     mutationFn: (newConfig: import("./types/dashboard").DashboardConfig) =>
       updateDashboardConfig(accountIdNum!, dashboardId!, newConfig),
+    onMutate: async (newConfig) => {
+      if (!accountIdNum || !dashboardId) return;
+      await queryClient.cancelQueries({ queryKey: ["dashboard", accountIdNum, dashboardId] });
+      const prev = queryClient.getQueryData<import("../../services/dashboard").DashboardResponse>(["dashboard", accountIdNum, dashboardId]);
+      queryClient.setQueryData(
+        ["dashboard", accountIdNum, dashboardId],
+        (old: import("../../services/dashboard").DashboardResponse | undefined) => {
+          if (!old?.config?.components) return old;
+          const merged = newConfig.components.map((nc: { id: string }) => {
+            const ex = old!.config!.components!.find((c) => String(c.id) === String(nc.id));
+            return ex ? { ...ex, ...nc, data: ex.data } : nc;
+          });
+          return { ...old!, config: { ...newConfig, components: merged } };
+        }
+      );
+      return { prev };
+    },
     onSuccess: (updatedDashboard) => {
       if (updatedDashboard && accountIdNum != null && dashboardId != null) {
         queryClient.setQueryData(
@@ -127,24 +145,59 @@ function WorkflowDashboardContent({
         );
       }
     },
-    onError: (err) => {
-      console.error("Failed to update dashboard config:", err);
+    onError: (_err, _newConfig, context) => {
+      if (context?.prev != null && accountIdNum != null && dashboardId != null) {
+        queryClient.setQueryData(["dashboard", accountIdNum, dashboardId], context.prev);
+      }
+      console.error("Failed to update dashboard config:", _err);
     },
   });
 
   const updateComponentMutation = useMutation({
     mutationFn: (payload: import("../../services/dashboard").DashboardComponentUpdatePayload) =>
       updateDashboardComponent(accountIdNum!, dashboardId!, payload),
-    onSuccess: (updatedDashboard) => {
-      if (updatedDashboard && accountIdNum != null && dashboardId != null) {
+    onMutate: async (payload) => {
+      if (!accountIdNum || !dashboardId) return;
+      await queryClient.cancelQueries({ queryKey: ["dashboard", accountIdNum, dashboardId] });
+      const prev = queryClient.getQueryData<import("../../services/dashboard").DashboardResponse>(["dashboard", accountIdNum, dashboardId]);
+      const compId = String(payload.component.id);
+      flushSync(() => {
         queryClient.setQueryData(
           ["dashboard", accountIdNum, dashboardId],
-          updatedDashboard
+          (old: import("../../services/dashboard").DashboardResponse | undefined) => {
+            if (!old?.config?.components) return old;
+            const next = old.config.components.map((c) =>
+              String(c.id) === compId ? { ...c, ...payload.component } : c
+            );
+            return { ...old, config: { ...old.config, components: next } };
+          }
         );
-      }
+      });
+      return { prev };
     },
-    onError: (err) => {
-      console.error("Failed to update dashboard component:", err);
+    onSuccess: (updatedDashboard) => {
+      if (!updatedDashboard || accountIdNum == null || dashboardId == null) return;
+      queryClient.setQueryData(
+        ["dashboard", accountIdNum, dashboardId],
+        (old: import("../../services/dashboard").DashboardResponse | undefined) => {
+          if (!old?.config?.components || !updatedDashboard.config?.components) return updatedDashboard;
+          const oldOrder = old.config.components.map((c: { id: string }) => String(c.id)).join(",");
+          const newOrder = updatedDashboard.config.components.map((c: { id: string }) => String(c.id)).join(",");
+          if (oldOrder === newOrder) return updatedDashboard;
+          const byId = new Map(updatedDashboard.config.components.map((c: { id: string }) => [String(c.id), c]));
+          const merged = old.config.components.map((c: { id: string }) => byId.get(String(c.id)) ?? c);
+          return {
+            ...updatedDashboard,
+            config: { ...updatedDashboard.config, components: merged },
+          };
+        }
+      );
+    },
+    onError: (_err, _payload, context) => {
+      if (context?.prev != null && accountIdNum != null && dashboardId != null) {
+        queryClient.setQueryData(["dashboard", accountIdNum, dashboardId], context.prev);
+      }
+      console.error("Failed to update dashboard component:", _err);
     },
   });
 

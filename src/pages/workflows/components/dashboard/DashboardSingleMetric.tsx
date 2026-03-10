@@ -36,7 +36,7 @@ export const DashboardSingleMetric: React.FC<DashboardSingleMetricProps> = ({
   }
 
   return (
-    <div className="w-full flex flex-wrap items-start content-start gap-3 py-4 px-4">
+    <div className="w-full flex flex-wrap items-stretch gap-3 py-4 px-4">
       {keys.map((key) => {
         const value = row[key];
         const label = formatMetricLabel(key);
@@ -45,10 +45,10 @@ export const DashboardSingleMetric: React.FC<DashboardSingleMetricProps> = ({
           <div
             key={key}
             className={cn(
-              "flex flex-col justify-center gap-0.5 rounded-xl px-4 py-3 min-w-[100px] flex-1 overflow-hidden",
+              "flex flex-col justify-center gap-0.5 min-w-[100px] flex-1 overflow-hidden rounded-lg border px-4 py-3",
               isDark
-                ? "bg-neutral-800 border border-neutral-700 shadow-lg"
-                : "bg-sandstorm-s5 border border-sandstorm-s40/80 shadow-[0_1px_2px_rgba(7,41,41,0.04)]"
+                ? "border-neutral-600/60 bg-neutral-800/40"
+                : "border-sandstorm-s40/80 bg-sandstorm-s5/80"
             )}
           >
             <span
@@ -61,7 +61,7 @@ export const DashboardSingleMetric: React.FC<DashboardSingleMetricProps> = ({
             </span>
             <span
               className={cn(
-                "text-base font-semibold tabular-nums leading-tight break-words",
+                "text-lg font-semibold tabular-nums leading-tight break-words",
                 isDark ? "text-neutral-100" : "text-forest-f60"
               )}
               title={String(displayValue)}

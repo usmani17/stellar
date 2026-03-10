@@ -302,6 +302,10 @@ export interface DashboardComponent {
   suggested_types?: VisualizationType[];
   /** Column selection and labels for tables — controls which columns are shown and their display names. */
   display_columns?: Array<{ key: string; label: string }>;
+  /** Custom formula columns — computed from existing columns using arithmetic. */
+  custom_columns?: Array<{ key: string; label: string; formula: string }>;
+  /** Full column order (base + custom interleaved). When present, overrides display_columns + custom_columns order. */
+  column_order?: string[];
   data: VisualizationDataMap[VisualizationType];
   sort: DashboardSort;
   filters: Record<string, unknown>;

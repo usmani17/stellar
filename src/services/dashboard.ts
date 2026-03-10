@@ -211,10 +211,16 @@ export interface DashboardComponentStreamEvent {
   data: unknown;
 }
 
+/** Deduplicate concurrent stream requests (e.g. React StrictMode double-invokes effects) */
+const componentStreamCache = new Map<string, Promise<DashboardComponent>>();
+/** Keep resolved results briefly so Strict Mode remount can reuse (avoids duplicate API calls) */
+const RESOLVED_STREAM_TTL_MS = 3000;
+const componentStreamResolvedCache = new Map<string, { data: DashboardComponent; expires: number }>();
+
 /**
  * Fetch component data via SSE stream; progress events drive the progress UI.
  * Calls onProgress for each event; when stage === "display", data is the DashboardComponent result.
- * On stream error or non-2xx, rejects so caller can fall back to getDashboardComponentData.
+ * Deduplicates concurrent identical requests and reuses recently resolved results (Strict Mode).
  */
 export async function getDashboardComponentDataStream(
   accountId: number,
@@ -226,26 +232,51 @@ export async function getDashboardComponentDataStream(
   profileId?: number,
   hardRefresh = false
 ): Promise<DashboardComponent> {
-  const baseURL = (api.defaults.baseURL || "").replace(/\/$/, "");
-  const params = new URLSearchParams();
-  if (channelId != null) params.set("channelId", String(channelId));
-  if (profileId != null) params.set("profileId", String(profileId));
-  if (hardRefresh) params.set("refresh", "1");
-  const qs = params.toString();
-  const url = `${baseURL}${API_BASE}/${accountId}/dashboards/${dashboardId}/components/${componentId}/stream/${qs ? `?${qs}` : ""}`;
-  const token = localStorage.getItem("accessToken");
-  const headers: HeadersInit = {
-    ...(token && { Authorization: `Bearer ${token}` }),
-  };
-  const response = await fetch(url, { headers });
-  if (!response.ok) {
-    throw new Error(`Stream failed: ${response.status}`);
+  const key = `stream:${accountId}-${dashboardId}-${componentId}-${channelId ?? ""}-${profileId ?? ""}-${hardRefresh}`;
+  const now = Date.now();
+  const resolvedEntry = componentStreamResolvedCache.get(key);
+  if (resolvedEntry && resolvedEntry.expires > now) return resolvedEntry.data;
+  if (resolvedEntry && resolvedEntry.expires <= now) {
+    componentStreamResolvedCache.delete(key);
   }
-  return readDashboardComponentStream(response, onProgress);
+  const cached = componentStreamCache.get(key);
+  if (cached) return cached;
+
+  const promise = (async () => {
+    try {
+      const baseURL = (api.defaults.baseURL || "").replace(/\/$/, "");
+      const params = new URLSearchParams();
+      if (channelId != null) params.set("channelId", String(channelId));
+      if (profileId != null) params.set("profileId", String(profileId));
+      if (hardRefresh) params.set("refresh", "1");
+      const qs = params.toString();
+      const url = `${baseURL}${API_BASE}/${accountId}/dashboards/${dashboardId}/components/${componentId}/stream/${qs ? `?${qs}` : ""}`;
+      const token = localStorage.getItem("accessToken");
+      const headers: HeadersInit = {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      };
+      const response = await fetch(url, { headers });
+      if (!response.ok) {
+        throw new Error(`Stream failed: ${response.status}`);
+      }
+      const result = await readDashboardComponentStream(response, onProgress);
+      componentStreamResolvedCache.set(key, { data: result, expires: Date.now() + RESOLVED_STREAM_TTL_MS });
+      return result;
+    } finally {
+      componentStreamCache.delete(key);
+    }
+  })();
+  componentStreamCache.set(key, promise);
+  return promise;
 }
+
+/** Deduplicate concurrent shared stream requests */
+const sharedComponentStreamCache = new Map<string, Promise<DashboardComponent>>();
+const sharedComponentStreamResolvedCache = new Map<string, { data: DashboardComponent; expires: number }>();
 
 /**
  * Fetch component data via SSE stream for a shared (public) dashboard. No credentials required.
+ * Deduplicates concurrent identical requests and reuses recently resolved results.
  */
 export async function getSharedDashboardComponentDataStream(
   shareId: string,
@@ -256,18 +287,38 @@ export async function getSharedDashboardComponentDataStream(
   profileId?: number,
   hardRefresh = false
 ): Promise<DashboardComponent> {
-  const baseURL = (api.defaults.baseURL || "").replace(/\/$/, "");
-  const params = new URLSearchParams();
-  if (channelId != null) params.set("channelId", String(channelId));
-  if (profileId != null) params.set("profileId", String(profileId));
-  if (hardRefresh) params.set("refresh", "1");
-  const qs = params.toString();
-  const url = `${baseURL}${API_BASE}/dashboards/share/${shareId}/components/${componentId}/stream/${qs ? `?${qs}` : ""}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Stream failed: ${response.status}`);
+  const key = `shared-stream:${shareId}-${componentId}-${channelId ?? ""}-${profileId ?? ""}-${hardRefresh}`;
+  const now = Date.now();
+  const resolvedEntry = sharedComponentStreamResolvedCache.get(key);
+  if (resolvedEntry && resolvedEntry.expires > now) return resolvedEntry.data;
+  if (resolvedEntry && resolvedEntry.expires <= now) {
+    sharedComponentStreamResolvedCache.delete(key);
   }
-  return readDashboardComponentStream(response, onProgress);
+  const cached = sharedComponentStreamCache.get(key);
+  if (cached) return cached;
+
+  const promise = (async () => {
+    try {
+      const baseURL = (api.defaults.baseURL || "").replace(/\/$/, "");
+      const params = new URLSearchParams();
+      if (channelId != null) params.set("channelId", String(channelId));
+      if (profileId != null) params.set("profileId", String(profileId));
+      if (hardRefresh) params.set("refresh", "1");
+      const qs = params.toString();
+      const url = `${baseURL}${API_BASE}/dashboards/share/${shareId}/components/${componentId}/stream/${qs ? `?${qs}` : ""}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Stream failed: ${response.status}`);
+      }
+      const result = await readDashboardComponentStream(response, onProgress);
+      sharedComponentStreamResolvedCache.set(key, { data: result, expires: Date.now() + RESOLVED_STREAM_TTL_MS });
+      return result;
+    } finally {
+      sharedComponentStreamCache.delete(key);
+    }
+  })();
+  sharedComponentStreamCache.set(key, promise);
+  return promise;
 }
 
 function readDashboardComponentStream(

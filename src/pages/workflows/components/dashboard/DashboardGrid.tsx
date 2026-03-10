@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import {
   DndContext,
-  closestCenter,
+  pointerWithin,
+  closestCorners,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -28,6 +29,12 @@ import type {
 const STAGGER_DELAY_MS = 0;
 
 const CONFIG_DEBOUNCE_MS = 0;
+
+/** Better for variable-sized items (expanded vs collapsed): cursor-first, then proximity fallback */
+function gridCollisionDetection(args: Parameters<typeof pointerWithin>[0]) {
+  const pointerCollisions = pointerWithin(args);
+  return pointerCollisions.length > 0 ? pointerCollisions : closestCorners(args);
+}
 
 /** Payload for single-component update; backend merges and keeps others as-is */
 export interface DashboardComponentUpdatePayload {
@@ -63,6 +70,9 @@ function SortableWidgetWrapper({
   effectiveVisualizationType,
   onVisualizationChange,
   onTitleChange,
+  onDisplayColumnsChange,
+  onCustomColumnsChange,
+  onManageColumnsApply,
   hardRefreshTrigger,
 }: {
   component: DashboardComponent;
@@ -78,6 +88,14 @@ function SortableWidgetWrapper({
   effectiveVisualizationType?: VisualizationType;
   onVisualizationChange?: (componentId: string, type: VisualizationType) => void;
   onTitleChange?: (componentId: string, title: string) => void;
+  onDisplayColumnsChange?: (componentId: string, displayColumns: Array<{ key: string; label: string }>) => void;
+  onCustomColumnsChange?: (componentId: string, customColumns: Array<{ key: string; label: string; formula: string }>) => void;
+  onManageColumnsApply?: (
+    componentId: string,
+    displayColumns: Array<{ key: string; label: string }>,
+    customColumns: Array<{ key: string; label: string; formula: string }>,
+    columnOrder?: string[]
+  ) => void;
   hardRefreshTrigger?: number;
 }) {
   const {
@@ -94,7 +112,7 @@ function SortableWidgetWrapper({
   const isDropTarget = active != null && over != null && over.id === componentIdStr && active.id !== componentIdStr;
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Translate.toString(transform),
     transition,
   };
 
@@ -139,6 +157,9 @@ function SortableWidgetWrapper({
         effectiveVisualizationType={effectiveVisualizationType}
         onVisualizationChange={onVisualizationChange}
         onTitleChange={onTitleChange}
+        onDisplayColumnsChange={onDisplayColumnsChange}
+        onCustomColumnsChange={onCustomColumnsChange}
+        onManageColumnsApply={onManageColumnsApply}
         hardRefreshTrigger={hardRefreshTrigger}
       />
     </div>
@@ -216,7 +237,12 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onConfigChangeRef = useRef(onConfigChange);
+  const expandedIdsRef = useRef(expandedIds);
+  const configRef = useRef(config);
+  const lastExpandSentRef = useRef<{ compId: string; cols: number; ts: number } | null>(null);
   onConfigChangeRef.current = onConfigChange;
+  expandedIdsRef.current = expandedIds;
+  configRef.current = config;
 
   const configComponentIds = useMemo(
     () => components.map((c) => String(c.id)).join(","),
@@ -231,18 +257,22 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     (
       newOrderedIds: string[],
       newOverrides: Record<string, VisualizationType>,
-      newExpandedIds: Set<string>
+      _newExpandedIds: Set<string>
     ) => {
       if (!onConfigChangeRef.current || !accountId || !dashboardId) return;
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
         debounceRef.current = null;
+        // Use refs to get latest state when callback fires (handles expand-then-drag race)
+        const cfg = configRef.current;
+        const cols = cfg?.layout?.cols ?? layoutCols;
+        const expandedToUse = expandedIdsRef.current;
         const newConfig = buildConfigForPersistence(
-          config,
+          cfg,
           newOrderedIds,
           newOverrides,
-          newExpandedIds,
-          layoutCols
+          expandedToUse,
+          cols
         );
         onConfigChangeRef.current?.(newConfig);
       }, CONFIG_DEBOUNCE_MS);
@@ -293,9 +323,62 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     [config, onConfigChange, onComponentChange, accountId, dashboardId]
   );
 
+  const handleDisplayColumnsChange = useCallback(
+    (componentId: string, displayColumns: Array<{ key: string; label: string }>) => {
+      if (!config) return;
+      const comp = config.components.find((c) => String(c.id) === componentId);
+      if (!comp || !onComponentChange || !accountId || !dashboardId) return;
+      onComponentChange({
+        layout: config.layout,
+        component: { ...componentForPayload(comp), display_columns: displayColumns },
+      });
+    },
+    [config, onComponentChange, accountId, dashboardId]
+  );
+
+  const handleCustomColumnsChange = useCallback(
+    (componentId: string, customColumns: Array<{ key: string; label: string; formula: string }>) => {
+      if (!config) return;
+      const comp = config.components.find((c) => String(c.id) === componentId);
+      if (!comp || !onComponentChange || !accountId || !dashboardId) return;
+      onComponentChange({
+        layout: config.layout,
+        component: { ...componentForPayload(comp), custom_columns: customColumns },
+      });
+    },
+    [config, onComponentChange, accountId, dashboardId]
+  );
+
+  const handleManageColumnsApply = useCallback(
+    (
+      componentId: string,
+      displayColumns: Array<{ key: string; label: string }>,
+      customColumns: Array<{ key: string; label: string; formula: string }>,
+      columnOrder?: string[]
+    ) => {
+      if (!config) return;
+      const comp = config.components.find((c) => String(c.id) === componentId);
+      if (!comp || !onComponentChange || !accountId || !dashboardId) return;
+      onComponentChange({
+        layout: config.layout,
+        component: {
+          ...componentForPayload(comp),
+          display_columns: displayColumns,
+          custom_columns: customColumns,
+          ...(columnOrder && columnOrder.length > 0 && { column_order: columnOrder }),
+        },
+      });
+    },
+    [config, onComponentChange, accountId, dashboardId]
+  );
+
   const orderedComponents = orderedIds
     .map((id) => components.find((c) => String(c.id) === id))
     .filter((c): c is DashboardComponent => c != null);
+
+  const kpiComponents = orderedComponents.filter((c) => c.visualization_type === "single_metric");
+  const nonKpiComponents = orderedComponents.filter((c) => c.visualization_type !== "single_metric");
+  const sortableIds = nonKpiComponents.map((c) => String(c.id));
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -309,7 +392,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
         if (oldIndex === -1 || newIndex === -1) return prev;
         const next = arrayMove(prev, oldIndex, newIndex);
         if (editable && onConfigChange) {
-          notifyConfigChange(next, visualizationOverrides, expandedIds);
+          notifyConfigChange(next, visualizationOverrides, expandedIdsRef.current);
         }
         return next;
       });
@@ -321,20 +404,27 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     (compId: string) => {
       setExpandedIds((prev) => {
         const next = new Set(prev);
-        if (next.has(compId)) {
+        const wasExpanded = next.has(compId);
+        if (wasExpanded) {
           next.delete(compId);
         } else {
           next.add(compId);
         }
         const comp = config.components.find((c) => String(c.id) === compId);
+        const newCols = next.has(compId)
+          ? layoutCols
+          : (comp && comp.cols === layoutCols ? 1 : (comp?.cols ?? 1));
         if (onComponentChange && comp && accountId && dashboardId) {
-          const newCols = next.has(compId)
-            ? layoutCols
-            : (comp.cols === layoutCols ? 1 : comp.cols ?? 1);
-          onComponentChange({
-            layout: config.layout,
-            component: { ...componentForPayload(comp), cols: newCols },
-          });
+          const now = Date.now();
+          const last = lastExpandSentRef.current;
+          const isDup = last && last.compId === compId && last.cols === newCols && now - last.ts < 150;
+          if (!isDup) {
+            lastExpandSentRef.current = { compId, cols: newCols, ts: now };
+            onComponentChange({
+              layout: config.layout,
+              component: { ...componentForPayload(comp), cols: newCols },
+            });
+          }
         }
         if (editable && onConfigChange && !onComponentChange) {
           notifyConfigChange(orderedIds, visualizationOverrides, next);
@@ -374,11 +464,30 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
   const gridAutoRows = "minmax(min-content, auto)";
 
   const gridContent = (
-    <div
-      className={`grid gap-3 ${gridColsClass}`}
-      style={{ gridAutoRows, alignItems: "start" }}
-    >
-      {orderedComponents.map((comp, i) =>
+    <div className="flex flex-col gap-3 w-full">
+      {kpiComponents.length > 0 && (
+        <div className="w-full flex flex-wrap gap-3">
+          {kpiComponents.map((comp, i) => (
+            <div key={comp.id} className="flex-1 min-w-[140px]">
+              <DashboardWidget
+                component={comp}
+                accountId={accountId}
+                dashboardId={dashboardId}
+                shareId={shareId}
+                staggerDelayMs={i * STAGGER_DELAY_MS}
+                showQueryDetails={showQueryDetails}
+                editable={false}
+                hardRefreshTrigger={hardRefreshTrigger}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      <div
+        className={`grid gap-3 ${gridColsClass} flex-1`}
+        style={{ gridAutoRows, alignItems: "start" }}
+      >
+      {nonKpiComponents.map((comp, i) =>
         editable ? (
           <SortableWidgetWrapper
             key={comp.id}
@@ -395,6 +504,9 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
             effectiveVisualizationType={visualizationOverrides[String(comp.id)]}
             onVisualizationChange={handleVisualizationChange}
             onTitleChange={handleTitleChange}
+            onDisplayColumnsChange={onComponentChange ? handleDisplayColumnsChange : undefined}
+            onCustomColumnsChange={onComponentChange ? handleCustomColumnsChange : undefined}
+            onManageColumnsApply={onComponentChange ? handleManageColumnsApply : undefined}
             hardRefreshTrigger={hardRefreshTrigger}
           />
         ) : (
@@ -424,6 +536,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
           </div>
         )
       )}
+      </div>
     </div>
   );
 
@@ -431,11 +544,11 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     return (
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={gridCollisionDetection}
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={orderedIds}
+          items={sortableIds}
           strategy={rectSortingStrategy}
         >
           {gridContent}

@@ -151,9 +151,7 @@ export const PublicDashboardPage: React.FC = () => {
     let cancelled = false;
     getSharedDashboardConfig(shareId).then((result) => {
       if (cancelled) return;
-      console.log("Shared dashboard result:", result); // Debug log
       if (result) {
-        console.log("Shared dashboard config:", result.config); // Debug log
         setConfig(result.config);
         setWorkflowName(result.workflowName);
         setIsDemoMode(false);

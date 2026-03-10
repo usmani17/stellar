@@ -1,5 +1,6 @@
 import React from "react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { DASHBOARD_TABLE_CHART_CONTENT_HEIGHT } from "./dashboardConstants";
 import { getChartColors, TOOLTIP_STYLE } from "../../../../utils/chartStyles";
 import { formatDashboardValue } from "../../utils/formatDashboardValue";
 import type { DashboardComponent, PieChartDatum } from "../../types/dashboard";
@@ -43,8 +44,8 @@ export const DashboardPieChart: React.FC<DashboardPieChartProps> = ({
   const total = data.reduce((sum, row) => sum + Number((row as PieChartDatum)[valueKey] ?? 0), 0);
 
   return (
-    <div className="min-h-[200px] w-full">
-      <ResponsiveContainer width="100%" height={200}>
+    <div className="w-full" style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}>
+      <ResponsiveContainer width="100%" height={DASHBOARD_TABLE_CHART_CONTENT_HEIGHT}>
         <PieChart margin={{ top: 8, right: 8, left: 8, bottom: 4 }}>
           <Pie
             data={data}

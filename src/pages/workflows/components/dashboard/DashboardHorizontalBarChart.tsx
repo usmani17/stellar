@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { AXIS_STYLE, AXIS_STYLE_DARK, TOOLTIP_STYLE, getChartColors } from "../../../../utils/chartStyles";
+import { DASHBOARD_TABLE_CHART_CONTENT_HEIGHT } from "./dashboardConstants";
 import { formatDashboardValue, formatDashboardTick } from "../../utils/formatDashboardValue";
 import type { DashboardComponent } from "../../types/dashboard";
 
@@ -44,10 +45,10 @@ export const DashboardHorizontalBarChart: React.FC<DashboardHorizontalBarChartPr
   const tooltipBorder = isDark ? "#4b5563" : TOOLTIP_STYLE.border;
   const tooltipText = isDark ? "#e5e7eb" : "#072929";
 
-  const chartHeight = Math.max(180, data.length * 32);
+  const chartHeight = Math.max(DASHBOARD_TABLE_CHART_CONTENT_HEIGHT, data.length * 32);
 
   return (
-    <div className="min-h-[180px] w-full">
+    <div className="w-full" style={{ minHeight: DASHBOARD_TABLE_CHART_CONTENT_HEIGHT }}>
       <ResponsiveContainer width="100%" height={chartHeight}>
         <BarChart
           data={data}
