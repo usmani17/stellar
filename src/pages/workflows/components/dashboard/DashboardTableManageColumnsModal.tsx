@@ -142,15 +142,17 @@ function SortableManageColumnRow({
       >
         <GripVertical className="w-4 h-4" />
       </div>
-      {!isCustom && (
-        <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+      <div className="flex-shrink-0 w-[18px] flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+        {isCustom ? (
+          <Checkbox checked disabled size="small" />
+        ) : (
           <Checkbox
             checked={isVisible}
             onChange={() => onToggleVisibility(item.key)}
             size="small"
           />
-        </div>
-      )}
+        )}
+      </div>
       <div className="flex-1 min-w-0 flex items-center gap-2">
         {isEditing ? (
           <>

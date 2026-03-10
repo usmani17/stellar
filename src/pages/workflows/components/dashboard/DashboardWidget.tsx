@@ -6,6 +6,7 @@ import {
   Maximize2,
   Minimize2,
   RotateCw,
+  Trash2,
   BarChart2,
   BarChart3,
   BarChartHorizontal,
@@ -36,7 +37,7 @@ import { DashboardFunnelChart } from "./DashboardFunnelChart";
 import { DashboardScatterPlot } from "./DashboardScatterPlot";
 import { DashboardGaugeChart } from "./DashboardGaugeChart";
 import { DashboardHorizontalBarChart } from "./DashboardHorizontalBarChart";
-import { Dropdown } from "../../../../components/ui";
+import { Dropdown, ConfirmationModal } from "../../../../components/ui";
 import type { DropdownOption } from "../../../../components/ui";
 import type { DashboardComponent, LineChartDatum, PieChartDatum, SingleMetricDatum, FunnelChartDatum, VisualizationType } from "../../types/dashboard";
 import { isMultiGaqlQuery, isMultiMetaQuery } from "../../types/dashboard";
@@ -127,6 +128,8 @@ interface DashboardWidgetProps {
     customColumns: Array<{ key: string; label: string; formula: string }>,
     columnOrder?: string[]
   ) => void;
+  /** Called when user deletes the widget (editable mode); parent persists via config update */
+  onWidgetDelete?: (componentId: string) => void;
 }
 
 type WidgetStatus =
@@ -152,6 +155,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   onDisplayColumnsChange,
   onCustomColumnsChange,
   onManageColumnsApply,
+  onWidgetDelete,
 }) => {
   const vizType = effectiveVisualizationType ?? component.visualization_type;
   const [status, setStatus] = useState<WidgetStatus>("pending");
@@ -161,6 +165,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   const tableRef = useRef<DashboardTableRef>(null);
   const [data, setData] = useState<DashboardComponent>({} as DashboardComponent);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [streamActiveStep, setStreamActiveStep] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const mountedRef = useRef(true);
@@ -497,6 +502,19 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
                 )}
               />
             )}
+            {editable && onWidgetDelete && (
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmOpen(true)}
+                className={cn(
+                  "shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors",
+                  isDark ? "text-neutral-400 hover:bg-red-900/30 hover:text-red-400" : "text-forest-f30 hover:bg-red-r0 hover:text-red-r30"
+                )}
+                aria-label="Remove widget from dashboard"
+              >
+                <Trash2 className="w-4 h-4" aria-hidden />
+              </button>
+            )}
             <button
               type="button"
               onClick={handleRefresh}
@@ -512,6 +530,22 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
           </div>
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => {
+          onWidgetDelete?.(component.id);
+          setDeleteConfirmOpen(false);
+        }}
+        title="Remove widget"
+        message={`Are you sure you want to remove "${component.title}" from this dashboard?`}
+        warningText="This will remove the widget from your dashboard. You can add it back later if needed."
+        confirmButtonLabel="Remove"
+        cancelButtonLabel="Cancel"
+        type="danger"
+      />
+
       <div className="flex-1 flex flex-col min-h-0">
         {status === "error" ? (
           <div

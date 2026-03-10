@@ -73,6 +73,7 @@ function SortableWidgetWrapper({
   onDisplayColumnsChange,
   onCustomColumnsChange,
   onManageColumnsApply,
+  onWidgetDelete,
   hardRefreshTrigger,
 }: {
   component: DashboardComponent;
@@ -96,6 +97,7 @@ function SortableWidgetWrapper({
     customColumns: Array<{ key: string; label: string; formula: string }>,
     columnOrder?: string[]
   ) => void;
+  onWidgetDelete?: (componentId: string) => void;
   hardRefreshTrigger?: number;
 }) {
   const {
@@ -160,6 +162,7 @@ function SortableWidgetWrapper({
         onDisplayColumnsChange={onDisplayColumnsChange}
         onCustomColumnsChange={onCustomColumnsChange}
         onManageColumnsApply={onManageColumnsApply}
+        onWidgetDelete={onWidgetDelete}
         hardRefreshTrigger={hardRefreshTrigger}
       />
     </div>
@@ -219,8 +222,12 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     console.error("DashboardGrid: Invalid config or layout", config);
     return <div className="p-4 text-red-500">Invalid dashboard configuration</div>;
   }
-  
-  const { layout, components } = config;
+
+  const components = useMemo(
+    () => (config.components || []).filter((c) => !c.deleted_at),
+    [config.components]
+  );
+  const { layout } = config;
   const { cols: layoutCols } = layout;
 
   const [orderedIds, setOrderedIds] = useState<string[]>(() =>
@@ -372,6 +379,30 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     [config, onComponentChange, accountId, dashboardId]
   );
 
+  const handleWidgetDelete = useCallback(
+    (componentId: string) => {
+      if (!config) return;
+      if (onComponentChange && accountId && dashboardId) {
+        onComponentChange({
+          layout: config.layout,
+          component: {
+            id: componentId,
+            deleted_at: new Date().toISOString(),
+          } as Omit<DashboardComponent, "data">,
+        });
+      } else if (onConfigChange) {
+        const filtered = config.components
+          .filter((c) => String(c.id) !== componentId)
+          .map((c) => componentForPayload(c));
+        onConfigChange({
+          ...config,
+          components: filtered,
+        } as DashboardConfig);
+      }
+    },
+    [config, onConfigChange, onComponentChange, accountId, dashboardId]
+  );
+
   const orderedComponents = orderedIds
     .map((id) => components.find((c) => String(c.id) === id))
     .filter((c): c is DashboardComponent => c != null);
@@ -507,6 +538,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
             onDisplayColumnsChange={onComponentChange ? handleDisplayColumnsChange : undefined}
             onCustomColumnsChange={onComponentChange ? handleCustomColumnsChange : undefined}
             onManageColumnsApply={onComponentChange ? handleManageColumnsApply : undefined}
+            onWidgetDelete={editable && onConfigChange ? handleWidgetDelete : undefined}
             hardRefreshTrigger={hardRefreshTrigger}
           />
         ) : (

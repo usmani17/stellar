@@ -322,6 +322,8 @@ export interface DashboardComponent {
   progress_steps?: Array<{ id: string; label: string }>;
   /** Set by backend when component query execution fails (e.g. SQL/GAQL/Meta error). */
   error?: string;
+  /** Soft-delete: when set, component is hidden from frontend and excluded from API responses. */
+  deleted_at?: string | null;
 }
 
 export interface DashboardConfig {
