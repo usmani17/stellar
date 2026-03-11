@@ -308,15 +308,73 @@ export type ActionType =
   | "change_state"
   | "adjust_budget"
   | "adjust_bid"
-  | "add_negative_keyword";
+  | "add_negative_keyword"
+  | "change_bid_strategy"
+  | "adjust_target"
+  | "add_keyword"
+  | "exclude_placement"
+  | "add_negative_target"
+  | "update_targeting"
+  | "set_ad_schedule"
+  | "adjust_device_bid"
+  | "adjust_demographic_bid";
+
+export type GoogleEntityType =
+  | "campaign" | "adgroup" | "keyword" | "ad" | "asset_group" | "product_group";
+
+export type MetaEntityType =
+  | "campaign" | "adset" | "ad";
+
+export type AmazonEntityType =
+  | "campaign" | "adgroup" | "keyword" | "target" | "product_ad";
+
+export type TikTokEntityType =
+  | "campaign" | "adgroup" | "ad";
 
 export type ActionEntityType =
-  | "campaign"
-  | "adgroup"
-  | "keyword"
-  | "ad"
-  | "asset_group"
-  | "product_group";
+  | GoogleEntityType | MetaEntityType | AmazonEntityType | TikTokEntityType;
+
+export const PLATFORM_ACTION_SUPPORT: Record<ActionPlatform, ActionType[]> = {
+  google: [
+    "change_state", "adjust_budget", "adjust_bid", "add_negative_keyword",
+    "change_bid_strategy", "adjust_target", "add_keyword",
+    "exclude_placement", "update_targeting", "set_ad_schedule",
+    "adjust_device_bid", "adjust_demographic_bid",
+  ],
+  meta: [
+    "change_state", "adjust_budget", "adjust_bid",
+    "change_bid_strategy", "adjust_target",
+    "exclude_placement", "update_targeting", "set_ad_schedule",
+  ],
+  amazon: [
+    "change_state", "adjust_budget", "adjust_bid",
+    "add_negative_keyword", "add_keyword", "add_negative_target",
+    "change_bid_strategy",
+  ],
+  tiktok: [
+    "change_state", "adjust_budget", "adjust_bid",
+    "change_bid_strategy", "adjust_target",
+    "update_targeting", "set_ad_schedule",
+    "adjust_device_bid", "adjust_demographic_bid",
+  ],
+};
+
+export const PLATFORM_ENTITY_TYPES: Record<ActionPlatform, ActionEntityType[]> = {
+  google: ["campaign", "adgroup", "keyword", "ad", "asset_group", "product_group"],
+  meta: ["campaign", "adset", "ad"],
+  amazon: ["campaign", "adgroup", "keyword", "target", "product_ad"],
+  tiktok: ["campaign", "adgroup", "ad"],
+};
+
+export interface ActionSchedule {
+  frequency: "hourly" | "daily" | "weekly";
+  time?: string;
+  day_of_week?: number;
+  timezone: string;
+  auto_execute: boolean;
+  last_run_at?: string;
+  next_run_at?: string;
+}
 
 /** An action rule attached to a dashboard widget. Agent creates these; user reviews and approves. */
 export interface ActionRule {
@@ -330,6 +388,7 @@ export interface ActionRule {
   condition?: ActionCondition | CompoundActionCondition;
   params: Record<string, unknown>;
   description: string;
+  schedule?: ActionSchedule;
 }
 
 export type ActionExecutionStatus =

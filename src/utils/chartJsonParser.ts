@@ -314,7 +314,8 @@ export function parseContentWithBlocks(raw: string): ContentSegment[] {
       if (seg.type === "markdown") {
         return {
           ...seg,
-          content: seg.content.replace(viewDashboardLinkRe, " ").replace(/\s{2,}/g, " ").trim(),
+          // Only collapse horizontal spaces, not newlines — otherwise markdown formatting is destroyed
+          content: seg.content.replace(viewDashboardLinkRe, " ").replace(/[ \t]{2,}/g, " ").trim(),
         };
       }
       return seg;

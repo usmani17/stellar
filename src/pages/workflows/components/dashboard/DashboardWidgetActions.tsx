@@ -25,6 +25,15 @@ const ACTION_TYPE_LABELS: Record<string, string> = {
   adjust_budget: "Adjust budget",
   adjust_bid: "Adjust bid",
   add_negative_keyword: "Add negative keywords",
+  change_bid_strategy: "Change bid strategy",
+  adjust_target: "Adjust target",
+  add_keyword: "Add keywords",
+  exclude_placement: "Exclude placement",
+  add_negative_target: "Add negative target",
+  update_targeting: "Update targeting",
+  set_ad_schedule: "Set ad schedule",
+  adjust_device_bid: "Device bid modifier",
+  adjust_demographic_bid: "Demographic bid modifier",
 };
 
 const ACTION_TYPE_COLORS: Record<string, { bg: string; text: string; darkBg: string; darkText: string }> = {
@@ -32,6 +41,15 @@ const ACTION_TYPE_COLORS: Record<string, { bg: string; text: string; darkBg: str
   adjust_budget: { bg: "bg-emerald-50", text: "text-emerald-700", darkBg: "bg-emerald-900/30", darkText: "text-emerald-300" },
   adjust_bid: { bg: "bg-blue-50", text: "text-blue-700", darkBg: "bg-blue-900/30", darkText: "text-blue-300" },
   add_negative_keyword: { bg: "bg-purple-50", text: "text-purple-700", darkBg: "bg-purple-900/30", darkText: "text-purple-300" },
+  change_bid_strategy: { bg: "bg-indigo-50", text: "text-indigo-700", darkBg: "bg-indigo-900/30", darkText: "text-indigo-300" },
+  adjust_target: { bg: "bg-teal-50", text: "text-teal-700", darkBg: "bg-teal-900/30", darkText: "text-teal-300" },
+  add_keyword: { bg: "bg-cyan-50", text: "text-cyan-700", darkBg: "bg-cyan-900/30", darkText: "text-cyan-300" },
+  exclude_placement: { bg: "bg-rose-50", text: "text-rose-700", darkBg: "bg-rose-900/30", darkText: "text-rose-300" },
+  add_negative_target: { bg: "bg-fuchsia-50", text: "text-fuchsia-700", darkBg: "bg-fuchsia-900/30", darkText: "text-fuchsia-300" },
+  update_targeting: { bg: "bg-orange-50", text: "text-orange-700", darkBg: "bg-orange-900/30", darkText: "text-orange-300" },
+  set_ad_schedule: { bg: "bg-sky-50", text: "text-sky-700", darkBg: "bg-sky-900/30", darkText: "text-sky-300" },
+  adjust_device_bid: { bg: "bg-violet-50", text: "text-violet-700", darkBg: "bg-violet-900/30", darkText: "text-violet-300" },
+  adjust_demographic_bid: { bg: "bg-lime-50", text: "text-lime-700", darkBg: "bg-lime-900/30", darkText: "text-lime-300" },
 };
 
 // ── Inline editor for a single numeric field ───────────────────────────────
@@ -473,6 +491,122 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                             isDark={isDark}
                           />
                           <span className="opacity-60">{(rule.params.unit as string) === "amount" ? "$" : "%"}</span>
+                        </span>
+                      )}
+                      {rule.type === "change_bid_strategy" && (
+                        <span className="flex items-center gap-1">
+                          <span className="opacity-60">Strategy:</span>
+                          <span className="font-mono">{rule.params.strategy as string}</span>
+                          {Boolean(rule.params.target_cpa) && (
+                            <>
+                              <span className="opacity-60">tCPA:</span>
+                              <InlineEdit
+                                value={rule.params.target_cpa as number}
+                                onSave={(v) => updateParamValue(rule.id, "target_cpa", v)}
+                                isDark={isDark}
+                              />
+                            </>
+                          )}
+                          {Boolean(rule.params.target_roas) && (
+                            <>
+                              <span className="opacity-60">tROAS:</span>
+                              <InlineEdit
+                                value={rule.params.target_roas as number}
+                                onSave={(v) => updateParamValue(rule.id, "target_roas", v)}
+                                isDark={isDark}
+                              />
+                            </>
+                          )}
+                        </span>
+                      )}
+                      {rule.type === "adjust_target" && (
+                        <span className="flex items-center gap-1">
+                          <span className="opacity-60">
+                            {(rule.params.target_type as string)?.toUpperCase()} {rule.params.change_type as string}:
+                          </span>
+                          <InlineEdit
+                            value={rule.params.value as number}
+                            onSave={(v) => updateParamValue(rule.id, "value", v)}
+                            isDark={isDark}
+                          />
+                          <span className="opacity-60">{(rule.params.unit as string) === "amount" ? "$" : "%"}</span>
+                        </span>
+                      )}
+                      {(rule.type === "add_keyword" || rule.type === "add_negative_keyword") && (
+                        <span className="flex items-center gap-1">
+                          <span className="opacity-60">
+                            {(rule.params.match_type as string) || "EXACT"} match,{" "}
+                            {(rule.params.keywords as string[])?.length || 0} keywords
+                          </span>
+                        </span>
+                      )}
+                      {rule.type === "adjust_device_bid" && (
+                        <span className="flex items-center gap-1">
+                          <span className="opacity-60">Device:</span>
+                          <span className="font-mono">{(rule.params.device as string) || "—"}</span>
+                          <span className="opacity-60">{rule.params.change_type as string}:</span>
+                          <InlineEdit
+                            value={rule.params.value as number}
+                            onSave={(v) => updateParamValue(rule.id, "value", v)}
+                            isDark={isDark}
+                          />
+                          <span className="opacity-60">%</span>
+                        </span>
+                      )}
+                      {rule.type === "adjust_demographic_bid" && (
+                        <span className="flex items-center gap-1">
+                          <span className="opacity-60">
+                            {(rule.params.demographic_type as string) || "—"}:
+                          </span>
+                          <span className="font-mono">{(rule.params.segment as string) || "—"}</span>
+                          {(rule.params.change_type as string) !== "exclude" ? (
+                            <>
+                              <span className="opacity-60">{rule.params.change_type as string}:</span>
+                              <InlineEdit
+                                value={rule.params.value as number}
+                                onSave={(v) => updateParamValue(rule.id, "value", v)}
+                                isDark={isDark}
+                              />
+                              <span className="opacity-60">%</span>
+                            </>
+                          ) : (
+                            <span className="opacity-60 font-semibold text-red-500">exclude</span>
+                          )}
+                        </span>
+                      )}
+                      {rule.type === "exclude_placement" && (
+                        <span className="flex items-center gap-1">
+                          <span className="opacity-60">
+                            {(rule.params.placement_type as string) || "SITE"},{" "}
+                            {(rule.params.placements as string[])?.length || 0} exclusions
+                          </span>
+                        </span>
+                      )}
+                      {rule.type === "update_targeting" && (
+                        <span className="flex items-center gap-1">
+                          <span className="opacity-60">
+                            {rule.params.action as string} {rule.params.targeting_type as string}:{" "}
+                            {(rule.params.values as string[])?.length || 0} values
+                          </span>
+                        </span>
+                      )}
+                      {rule.type === "set_ad_schedule" && (
+                        <span className="flex items-center gap-1">
+                          <span className="opacity-60">
+                            {((rule.params.schedule as Record<string, unknown>)?.days as string[])
+                              ?.map((d: string) => d.slice(0, 3))
+                              .join(", ") || "—"}{" "}
+                            {String((rule.params.schedule as Record<string, unknown>)?.start_hour ?? 0).padStart(2, "0")}:00–
+                            {String((rule.params.schedule as Record<string, unknown>)?.end_hour ?? 24).padStart(2, "0")}:00
+                          </span>
+                        </span>
+                      )}
+                      {rule.type === "add_negative_target" && (
+                        <span className="flex items-center gap-1">
+                          <span className="opacity-60">
+                            {(rule.params.target_type as string) || "asin"},{" "}
+                            {(rule.params.targets as string[])?.length || 0} negatives
+                          </span>
                         </span>
                       )}
                     </div>
