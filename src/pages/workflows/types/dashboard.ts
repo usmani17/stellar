@@ -289,6 +289,157 @@ export interface DashboardDataKeys {
   series: string[];
 }
 
+/** Single condition that filters which widget data rows an action applies to. */
+export interface ActionCondition {
+  field: string;
+  operator: "lt" | "gt" | "eq" | "lte" | "gte" | "in" | "not_in";
+  value: number | string | number[] | string[];
+}
+
+/** Compound condition combining multiple sub-conditions with AND/OR logic. */
+export interface CompoundActionCondition {
+  logic: "and" | "or";
+  conditions: ActionCondition[];
+}
+
+export type ActionPlatform = "google" | "meta" | "amazon" | "tiktok";
+
+export type ActionType =
+  | "change_state"
+  | "adjust_budget"
+  | "adjust_bid"
+  | "add_negative_keyword"
+  | "change_bid_strategy"
+  | "adjust_target"
+  | "add_keyword"
+  | "exclude_placement"
+  | "add_negative_target"
+  | "update_targeting"
+  | "set_ad_schedule"
+  | "adjust_device_bid"
+  | "adjust_demographic_bid";
+
+export type GoogleEntityType =
+  | "campaign" | "adgroup" | "keyword" | "ad" | "asset_group" | "product_group";
+
+export type MetaEntityType =
+  | "campaign" | "adset" | "ad";
+
+export type AmazonEntityType =
+  | "campaign" | "adgroup" | "keyword" | "target" | "product_ad";
+
+export type TikTokEntityType =
+  | "campaign" | "adgroup" | "ad";
+
+export type ActionEntityType =
+  | GoogleEntityType | MetaEntityType | AmazonEntityType | TikTokEntityType;
+
+export const PLATFORM_ACTION_SUPPORT: Record<ActionPlatform, ActionType[]> = {
+  google: [
+    "change_state", "adjust_budget", "adjust_bid", "add_negative_keyword",
+    "change_bid_strategy", "adjust_target", "add_keyword",
+    "exclude_placement", "update_targeting", "set_ad_schedule",
+    "adjust_device_bid", "adjust_demographic_bid",
+  ],
+  meta: [
+    "change_state", "adjust_budget", "adjust_bid",
+    "change_bid_strategy", "adjust_target",
+    "exclude_placement", "update_targeting", "set_ad_schedule",
+  ],
+  amazon: [
+    "change_state", "adjust_budget", "adjust_bid",
+    "add_negative_keyword", "add_keyword", "add_negative_target",
+    "change_bid_strategy",
+  ],
+  tiktok: [
+    "change_state", "adjust_budget", "adjust_bid",
+    "change_bid_strategy", "adjust_target",
+    "update_targeting", "set_ad_schedule",
+    "adjust_device_bid", "adjust_demographic_bid",
+  ],
+};
+
+export const PLATFORM_ENTITY_TYPES: Record<ActionPlatform, ActionEntityType[]> = {
+  google: ["campaign", "adgroup", "keyword", "ad", "asset_group", "product_group"],
+  meta: ["campaign", "adset", "ad"],
+  amazon: ["campaign", "adgroup", "keyword", "target", "product_ad"],
+  tiktok: ["campaign", "adgroup", "ad"],
+};
+
+export interface ActionSchedule {
+  frequency: "hourly" | "daily" | "weekly";
+  time?: string;
+  day_of_week?: number;
+  timezone: string;
+  auto_execute: boolean;
+  last_run_at?: string;
+  next_run_at?: string;
+}
+
+/** An action rule attached to a dashboard widget. Agent creates these; user reviews and approves. */
+export interface ActionRule {
+  id: string;
+  type: ActionType;
+  platform: ActionPlatform;
+  entity_type: ActionEntityType;
+  entity_id_column: string;
+  entity_name_column?: string;
+  status: "active" | "paused" | "deleted";
+  condition?: ActionCondition | CompoundActionCondition;
+  params: Record<string, unknown>;
+  description: string;
+  schedule?: ActionSchedule;
+}
+
+export type ActionExecutionStatus =
+  | "proposed"
+  | "previewed"
+  | "executing"
+  | "success"
+  | "failed"
+  | "rejected";
+
+/** Before/after diff for a single entity within a proposal. */
+export interface ActionEntityDiff {
+  id: string;
+  name: string;
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
+}
+
+/** A proposal returned by the preview endpoint — one per action rule. */
+export interface ActionProposal {
+  action_rule_id: string;
+  action_rule: ActionRule;
+  description: string;
+  entity_count: number;
+  entities: ActionEntityDiff[];
+  guardrail_warnings: string[];
+  guardrail_blocks: string[];
+}
+
+/** A single execution record from the history endpoint. */
+export interface ActionExecution {
+  id: number;
+  dashboard_id: number;
+  component_id: string;
+  action_rule_id: string;
+  account_id: number;
+  channel_id: number;
+  platform: ActionPlatform;
+  entity_type: ActionEntityType;
+  entity_ids: Array<{ id: string; name: string }>;
+  action_type: ActionType;
+  action_params: Record<string, unknown>;
+  status: ActionExecutionStatus;
+  preview_result: ActionEntityDiff[] | null;
+  proposed_at: string;
+  executed_at: string | null;
+  executed_by: number | null;
+  result: Record<string, unknown> | null;
+  error: string | null;
+}
+
 export interface DashboardComponent {
   id: string;
   title: string;
@@ -306,6 +457,8 @@ export interface DashboardComponent {
   custom_columns?: Array<{ key: string; label: string; formula: string }>;
   /** Full column order (base + custom interleaved). When present, overrides display_columns + custom_columns order. */
   column_order?: string[];
+  /** Action rules attached to this widget. Agent creates these based on analysis context. */
+  actions?: ActionRule[];
   data: VisualizationDataMap[VisualizationType];
   sort: DashboardSort;
   filters: Record<string, unknown>;

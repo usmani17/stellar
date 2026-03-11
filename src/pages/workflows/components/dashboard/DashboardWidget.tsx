@@ -39,15 +39,18 @@ import { DashboardGaugeChart } from "./DashboardGaugeChart";
 import { DashboardHorizontalBarChart } from "./DashboardHorizontalBarChart";
 import { Dropdown, ConfirmationModal } from "../../../../components/ui";
 import type { DropdownOption } from "../../../../components/ui";
-import type { DashboardComponent, LineChartDatum, PieChartDatum, SingleMetricDatum, FunnelChartDatum, VisualizationType } from "../../types/dashboard";
+import type { DashboardComponent, LineChartDatum, PieChartDatum, SingleMetricDatum, FunnelChartDatum, VisualizationType, ActionRule, ActionProposal } from "../../types/dashboard";
 import { isMultiGaqlQuery, isMultiMetaQuery } from "../../types/dashboard";
 import {
   getDashboardComponentDataStream,
   getSharedDashboardComponentDataStream,
 } from "../../../../services/dashboard";
+import { executeActions } from "../../../../services/dashboardActions";
 import { getMockDataForComponent } from "../../utils/dashboardMockData";
 import { useDashboardTheme } from "../../contexts/DashboardThemeContext";
 import { cn } from "../../../../lib/cn";
+import { DashboardWidgetActions } from "./DashboardWidgetActions";
+import { ActionConfirmationModal } from "./ActionConfirmationModal";
 
 const VIZ_ICON_CLS = "w-4 h-4 shrink-0";
 
@@ -130,6 +133,8 @@ interface DashboardWidgetProps {
   ) => void;
   /** Called when user deletes the widget (editable mode); parent persists via config update */
   onWidgetDelete?: (componentId: string) => void;
+  /** Called when action rules are changed (pause, edit, delete) */
+  onActionsChange?: (componentId: string, actions: ActionRule[]) => void;
 }
 
 type WidgetStatus =
@@ -156,6 +161,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   onCustomColumnsChange,
   onManageColumnsApply,
   onWidgetDelete,
+  onActionsChange,
 }) => {
   const vizType = effectiveVisualizationType ?? component.visualization_type;
   const [status, setStatus] = useState<WidgetStatus>("pending");
@@ -168,6 +174,8 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [streamActiveStep, setStreamActiveStep] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [actionProposals, setActionProposals] = useState<ActionProposal[]>([]);
+  const [showActionModal, setShowActionModal] = useState(false);
   const mountedRef = useRef(true);
   const hasFetchedRef = useRef(false);
   const inFlightRef = useRef(false);
@@ -706,6 +714,41 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
           </div>
         )}
       </div>
+
+      {/* Action rules panel */}
+      {editable && component.actions && component.actions.length > 0 && accountId && dashboardId && (
+        <>
+          <DashboardWidgetActions
+            actions={component.actions}
+            accountId={accountId}
+            dashboardId={dashboardId}
+            componentId={component.id}
+            isDark={isDark}
+            onActionsChange={
+              onActionsChange
+                ? (updated) => onActionsChange(component.id, updated)
+                : undefined
+            }
+            onReviewChanges={(proposals) => {
+              setActionProposals(proposals);
+              setShowActionModal(true);
+            }}
+          />
+          <ActionConfirmationModal
+            isOpen={showActionModal}
+            onClose={() => setShowActionModal(false)}
+            proposals={actionProposals}
+            onApply={async (ruleIds) => {
+              if (!accountId || !dashboardId) return;
+              await executeActions(accountId, dashboardId, {
+                component_id: component.id,
+                action_rule_ids: ruleIds,
+              });
+            }}
+            isDark={isDark}
+          />
+        </>
+      )}
     </div>
   );
 };

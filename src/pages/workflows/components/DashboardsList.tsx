@@ -1,8 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Plus, Link2, User, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getDashboards, softDeleteDashboard, type DashboardResponse } from "../../../services/dashboard";
+import {
+  getDashboards,
+  softDeleteDashboard,
+  updateDashboardName,
+  type DashboardResponse,
+} from "../../../services/dashboard";
 import { ConfirmationModal, Loader } from "../../../components/ui";
 import { cn } from "../../../lib/cn";
 
@@ -14,6 +19,9 @@ export const DashboardsList: React.FC<DashboardsListProps> = ({ accountId }) => 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [dashboardToDelete, setDashboardToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editNameValue, setEditNameValue] = useState("");
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   const { data: dashboards = [], isLoading: isLoadingDashboards } = useQuery({
     queryKey: ["dashboards", accountId],
@@ -34,6 +42,31 @@ export const DashboardsList: React.FC<DashboardsListProps> = ({ accountId }) => 
       setDashboardToDelete(null);
     },
   });
+
+  const renameMutation = useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) =>
+      accountId ? updateDashboardName(accountId, id, name) : Promise.reject(new Error("Missing account")),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dashboards", accountId] });
+      setEditingId(null);
+    },
+    onError: () => {
+      setEditingId(null);
+    },
+  });
+
+  useEffect(() => {
+    if (editingId) nameInputRef.current?.focus();
+  }, [editingId]);
+
+  const saveName = (dashboard: DashboardResponse) => {
+    const trimmed = editNameValue.trim();
+    if (trimmed && trimmed !== dashboard.name) {
+      renameMutation.mutate({ id: dashboard.id, name: trimmed });
+    } else {
+      setEditingId(null);
+    }
+  };
 
   return (
     <>
@@ -62,8 +95,45 @@ export const DashboardsList: React.FC<DashboardsListProps> = ({ accountId }) => 
         ) : dashboards.length > 0 ? (
           dashboards.map((dashboard: DashboardResponse) => (
             <div key={dashboard.id} className="bg-white rounded-lg border border-[#E8E8E3] p-6 hover:shadow-md transition-shadow flex flex-col gap-4">
-              <div>
-                <h3 className="text-lg font-medium text-[#072929] mb-2">{dashboard.name}</h3>
+              <div className="mb-2">
+                {editingId === dashboard.id ? (
+                  <input
+                    ref={nameInputRef}
+                    type="text"
+                    value={editNameValue}
+                    onChange={(e) => setEditNameValue(e.target.value)}
+                    onBlur={() => saveName(dashboard)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveName(dashboard);
+                      if (e.key === "Escape") {
+                        setEditNameValue(dashboard.name);
+                        setEditingId(null);
+                        nameInputRef.current?.blur();
+                      }
+                    }}
+                    className="text-lg font-medium text-[#072929] w-full px-2 py-1 -mx-2 -my-1 rounded border border-sandstorm-s40 bg-sandstorm-s5 focus:border-forest-f40 focus:outline-none"
+                    aria-label="Dashboard name"
+                  />
+                ) : (
+                  <h3
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      setEditNameValue(dashboard.name);
+                      setEditingId(dashboard.id);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setEditNameValue(dashboard.name);
+                        setEditingId(dashboard.id);
+                      }
+                    }}
+                    className="text-lg font-medium text-[#072929] cursor-text hover:underline decoration-dotted decoration-forest-f30"
+                  >
+                    {dashboard.name}
+                  </h3>
+                )}
               </div>
 
               {/* Integration and Profile Info */}

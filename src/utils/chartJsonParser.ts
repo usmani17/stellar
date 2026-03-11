@@ -302,6 +302,25 @@ export function parseContentWithBlocks(raw: string): ContentSegment[] {
 
   const remaining = raw.slice(lastIndex);
   if (remaining) segments.push({ type: "markdown", content: remaining });
+
+  // Strip duplicate "View Dashboard" links from markdown when custom-dashboard block is present
+  // (the block renders its own button; markdown would show a blue link duplicate)
+  const hasCustomDashboard = segments.some(
+    (s) => s.type === "custom-dashboard"
+  );
+  if (hasCustomDashboard) {
+    const viewDashboardLinkRe = /\s*\[View Dashboard\]\([^)]+\)\s*/gi;
+    return segments.map((seg) => {
+      if (seg.type === "markdown") {
+        return {
+          ...seg,
+          // Only collapse horizontal spaces, not newlines — otherwise markdown formatting is destroyed
+          content: seg.content.replace(viewDashboardLinkRe, " ").replace(/[ \t]{2,}/g, " ").trim(),
+        };
+      }
+      return seg;
+    });
+  }
   return segments;
 }
 

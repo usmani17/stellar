@@ -9,6 +9,8 @@ interface AssistantActivityBlockProps {
   defaultThoughtsExpanded?: boolean;
   /** Optional placeholder when streaming but no items yet */
   placeholder?: React.ReactNode;
+  /** When true, show "Working on request..." indicator (keepalive received during long tool run) */
+  workingOnRequest?: boolean;
 }
 
 /** Quote-like scrollable block showing all thoughts and ran tools. */
@@ -16,6 +18,7 @@ export const AssistantActivityBlock: React.FC<AssistantActivityBlockProps> = ({
   items,
   defaultThoughtsExpanded = true,
   placeholder,
+  workingOnRequest = false,
 }) => {
   const activityItems = items.filter(
     (i): i is PixisTimelineItem & { type: "thinking" | "tool_call" } =>
@@ -55,6 +58,12 @@ export const AssistantActivityBlock: React.FC<AssistantActivityBlockProps> = ({
               }
               return null;
             })}
+            {workingOnRequest && activityItems.length > 0 && (
+              <div className="assistant-working-indicator text-xs text-forest-f30 mt-1.5 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-forest-f40 rounded-full animate-pulse" aria-hidden />
+                <span>Working on request...</span>
+              </div>
+            )}
           </div>
         )}
       </div>
