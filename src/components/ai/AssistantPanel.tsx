@@ -116,6 +116,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         assistantScope,
         setAssistantScope,
         campaignState,
+        workingOnRequest,
     } = useAssistant();
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1316,6 +1317,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                                     key={`act-${si}`}
                                                                     items={seg.items}
                                                                     defaultThoughtsExpanded
+                                                                    workingOnRequest={workingOnRequest}
                                                                     placeholder={
                                                                         seg.items.length === 0 && timeline.length === 0 && aiStreaming ? (
                                                                             <div className="flex items-center gap-2 text-[#556179]">

@@ -86,6 +86,8 @@ export async function streamPixisChat(
     onCampaignDraft?: (data: CampaignDraftData) => void;
     onResult?: (data: PixisChatStreamEvent) => void;
     onError?: (err: Error) => void;
+    /** Called when keepalive received (connection alive during long tool runs); use to show "Working on request..." */
+    onKeepalive?: () => void;
   },
   options?: { signal?: AbortSignal }
 ): Promise<{ session_id?: string; session_db_id?: string }> {
@@ -148,6 +150,11 @@ export async function streamPixisChat(
           const ev: PixisChatStreamEvent = JSON.parse(data);
           const etype = ev.type ?? "";
           const subtype = ev.subtype ?? "";
+
+          if (etype === "keepalive") {
+            callbacks.onKeepalive?.();
+            continue;
+          }
 
           if (etype === "system" && subtype === "init") {
             sessionId = ev.session_id ?? ev.sessionId;

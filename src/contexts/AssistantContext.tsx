@@ -85,6 +85,8 @@ interface AssistantContextType {
 
   messages: ChatMessage[];
   isStreaming: boolean;
+  /** True when keepalive received during streaming (long tool run); show "Working on request..." */
+  workingOnRequest: boolean;
 
   assistantScope: AssistantScope;
   setAssistantScope: (updates: Partial<AssistantScope>) => void;
@@ -132,6 +134,7 @@ export const AssistantProvider: React.FC<{
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [workingOnRequest, setWorkingOnRequest] = useState(false);
 
   const [assistantScope, setAssistantScopeState] = useState<AssistantScope>({
     accountId: null,
@@ -415,6 +418,7 @@ export const AssistantProvider: React.FC<{
       if (!accountIdNum) return;
 
       setInputValue("");
+      setWorkingOnRequest(false);
       abortControllerRef.current = new AbortController();
       setCampaignState(undefined);
       campaignStateRef.current = undefined;
@@ -581,11 +585,13 @@ export const AssistantProvider: React.FC<{
               }
             },
             onTimelineItem: updateTimeline,
+            onKeepalive: () => setWorkingOnRequest(true),
             onCampaignDraft: (data) => {
               campaignStateRef.current = data;
               setCampaignState(data);
             },
             onResult: (ev) => {
+              setWorkingOnRequest(false);
               console.log("onResult called with:", ev);
               // Handle aborted case (when user clicks stop)
               if (ev.aborted) {
@@ -806,6 +812,7 @@ export const AssistantProvider: React.FC<{
           );
         }
       } finally {
+        setWorkingOnRequest(false);
         setIsLoading(false);
         abortControllerRef.current = null;
         sendingNewSessionRef.current = false;
@@ -826,6 +833,7 @@ export const AssistantProvider: React.FC<{
   );
 
   const cancelRun = useCallback(async () => {
+    setWorkingOnRequest(false);
     console.log("cancelRun called, aborting current request");
     // Capture refs BEFORE abort — the finally block in sendMessage will clear them
     const streamId = streamingSessionIdRef.current;
@@ -925,6 +933,7 @@ export const AssistantProvider: React.FC<{
         suggestedPrompts: CHAT_SUGGESTED_PROMPTS,
         messages,
         isStreaming,
+        workingOnRequest,
         assistantScope,
         setAssistantScope,
         campaignState,
