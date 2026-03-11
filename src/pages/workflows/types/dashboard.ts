@@ -289,6 +289,98 @@ export interface DashboardDataKeys {
   series: string[];
 }
 
+/** Single condition that filters which widget data rows an action applies to. */
+export interface ActionCondition {
+  field: string;
+  operator: "lt" | "gt" | "eq" | "lte" | "gte" | "in" | "not_in";
+  value: number | string | number[] | string[];
+}
+
+/** Compound condition combining multiple sub-conditions with AND/OR logic. */
+export interface CompoundActionCondition {
+  logic: "and" | "or";
+  conditions: ActionCondition[];
+}
+
+export type ActionPlatform = "google" | "meta" | "amazon" | "tiktok";
+
+export type ActionType =
+  | "change_state"
+  | "adjust_budget"
+  | "adjust_bid"
+  | "add_negative_keyword";
+
+export type ActionEntityType =
+  | "campaign"
+  | "adgroup"
+  | "keyword"
+  | "ad"
+  | "asset_group"
+  | "product_group";
+
+/** An action rule attached to a dashboard widget. Agent creates these; user reviews and approves. */
+export interface ActionRule {
+  id: string;
+  type: ActionType;
+  platform: ActionPlatform;
+  entity_type: ActionEntityType;
+  entity_id_column: string;
+  entity_name_column?: string;
+  status: "active" | "paused" | "deleted";
+  condition?: ActionCondition | CompoundActionCondition;
+  params: Record<string, unknown>;
+  description: string;
+}
+
+export type ActionExecutionStatus =
+  | "proposed"
+  | "previewed"
+  | "executing"
+  | "success"
+  | "failed"
+  | "rejected";
+
+/** Before/after diff for a single entity within a proposal. */
+export interface ActionEntityDiff {
+  id: string;
+  name: string;
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
+}
+
+/** A proposal returned by the preview endpoint — one per action rule. */
+export interface ActionProposal {
+  action_rule_id: string;
+  action_rule: ActionRule;
+  description: string;
+  entity_count: number;
+  entities: ActionEntityDiff[];
+  guardrail_warnings: string[];
+  guardrail_blocks: string[];
+}
+
+/** A single execution record from the history endpoint. */
+export interface ActionExecution {
+  id: number;
+  dashboard_id: number;
+  component_id: string;
+  action_rule_id: string;
+  account_id: number;
+  channel_id: number;
+  platform: ActionPlatform;
+  entity_type: ActionEntityType;
+  entity_ids: Array<{ id: string; name: string }>;
+  action_type: ActionType;
+  action_params: Record<string, unknown>;
+  status: ActionExecutionStatus;
+  preview_result: ActionEntityDiff[] | null;
+  proposed_at: string;
+  executed_at: string | null;
+  executed_by: number | null;
+  result: Record<string, unknown> | null;
+  error: string | null;
+}
+
 export interface DashboardComponent {
   id: string;
   title: string;
@@ -306,6 +398,8 @@ export interface DashboardComponent {
   custom_columns?: Array<{ key: string; label: string; formula: string }>;
   /** Full column order (base + custom interleaved). When present, overrides display_columns + custom_columns order. */
   column_order?: string[];
+  /** Action rules attached to this widget. Agent creates these based on analysis context. */
+  actions?: ActionRule[];
   data: VisualizationDataMap[VisualizationType];
   sort: DashboardSort;
   filters: Record<string, unknown>;

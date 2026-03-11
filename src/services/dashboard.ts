@@ -93,6 +93,21 @@ export async function createDashboard(
 }
 
 /**
+ * Update dashboard name (inline rename).
+ */
+export async function updateDashboardName(
+  accountId: number,
+  dashboardId: number,
+  name: string
+): Promise<DashboardResponse> {
+  const { data } = await api.patch<DashboardResponse>(
+    `${API_BASE}/${accountId}/dashboards/${dashboardId}/`,
+    { name }
+  );
+  return data;
+}
+
+/**
  * Update dashboard config (layout, component order, visualization types, etc.).
  */
 export async function updateDashboardConfig(

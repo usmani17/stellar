@@ -131,8 +131,27 @@ function DashboardWidgetPlaceholder({ component }: { component: DashboardReportC
 }
 
 function CustomDashboardBlock({ data }: { data: DashboardReportData }) {
-  const displayedComponents = data.components.slice(0, 6);
-  const remaining = data.components.length - displayedComponents.length;
+  const layoutCols = Math.min(data.layout.cols, 4) || 2;
+  const gridColsClass =
+    layoutCols === 1
+      ? "grid-cols-1"
+      : layoutCols === 2
+        ? "grid-cols-2"
+        : layoutCols === 3
+          ? "grid-cols-3"
+          : "grid-cols-4";
+
+  const kpiComponents = data.components.filter(
+    (c) => c.visualization_type === "single_metric"
+  );
+  const nonKpiComponents = data.components.filter(
+    (c) => c.visualization_type !== "single_metric"
+  );
+  const displayedKpis = kpiComponents.slice(0, 4);
+  const displayedNonKpis = nonKpiComponents.slice(0, 6);
+  const remainingKpis = kpiComponents.length - displayedKpis.length;
+  const remainingNonKpis = nonKpiComponents.length - displayedNonKpis.length;
+  const totalRemaining = remainingKpis + remainingNonKpis;
 
   return (
     <div className="my-3">
@@ -151,19 +170,25 @@ function CustomDashboardBlock({ data }: { data: DashboardReportData }) {
           </div>
         </div>
 
-        {displayedComponents.length > 0 && (
-          <div className="px-4 pb-3">
-            <div
-              className="grid gap-2"
-              style={{ gridTemplateColumns: `repeat(${Math.min(data.layout.cols, 3)}, 1fr)` }}
-            >
-              {displayedComponents.map((comp) => (
-                <DashboardWidgetPlaceholder key={comp.id} component={comp} />
-              ))}
-            </div>
-            {remaining > 0 && (
-              <div className="text-[11px] text-[#556179] mt-2 text-center">
-                +{remaining} more widget{remaining !== 1 ? "s" : ""}
+        {(displayedKpis.length > 0 || displayedNonKpis.length > 0) && (
+          <div className="px-4 pb-3 flex flex-col gap-3">
+            {displayedKpis.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {displayedKpis.map((comp) => (
+                  <DashboardWidgetPlaceholder key={comp.id} component={comp} />
+                ))}
+              </div>
+            )}
+            {displayedNonKpis.length > 0 && (
+              <div className={`grid gap-2 ${gridColsClass}`}>
+                {displayedNonKpis.map((comp) => (
+                  <DashboardWidgetPlaceholder key={comp.id} component={comp} />
+                ))}
+              </div>
+            )}
+            {totalRemaining > 0 && (
+              <div className="text-[11px] text-[#556179] text-center">
+                +{totalRemaining} more widget{totalRemaining !== 1 ? "s" : ""}
               </div>
             )}
           </div>

@@ -58,6 +58,7 @@ const SLASH_COMMANDS = [
   { cmd: "/pdf", label: "Generate PDF report" },
   { cmd: "/docx", label: "Generate Word report" },
   { cmd: "/custom-dashboard", label: "Create custom dashboard" },
+  { cmd: "/dashboard-actions", label: "Create dashboard with optimization actions" },
 ] as const;
 
 /** Profile item from GET /accounts/:accountId/profiles/ (channel_id, channel_name, profile name) */
