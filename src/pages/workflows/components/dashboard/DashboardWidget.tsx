@@ -249,10 +249,16 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
               if (!mountedRef.current) return;
               setStreamActiveStep(event.stage);
               if (event.stage === "display" && event.data != null) {
-                setData(event.data as DashboardComponent);
-                setStatus("ready");
-                setStreamActiveStep(null);
-                setErrorMessage(null);
+                const d = event.data as DashboardComponent & { error?: string };
+                setData(d);
+                if (d.error) {
+                  setErrorMessage(d.error);
+                  setStatus("error");
+                } else {
+                  setStatus("ready");
+                  setStreamActiveStep(null);
+                  setErrorMessage(null);
+                }
                 hasFetchedRef.current = true;
               }
             },
@@ -261,10 +267,16 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             hardRefreshTrigger > 0
           );
           if (mountedRef.current && !hasFetchedRef.current) {
-            setData(result);
-            setStatus("ready");
-            setStreamActiveStep(null);
-            setErrorMessage(null);
+            const d = result as DashboardComponent & { error?: string };
+            setData(d);
+            if (d?.error) {
+              setErrorMessage(d.error);
+              setStatus("error");
+            } else {
+              setStatus("ready");
+              setStreamActiveStep(null);
+              setErrorMessage(null);
+            }
           }
           hasFetchedRef.current = true;
         } catch (err) {
@@ -291,10 +303,16 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
               if (!mountedRef.current) return;
               setStreamActiveStep(event.stage);
               if (event.stage === "display" && event.data != null) {
-                setData(event.data as DashboardComponent);
-                setStatus("ready");
-                setStreamActiveStep(null);
-                setErrorMessage(null);
+                const d = event.data as DashboardComponent & { error?: string };
+                setData(d);
+                if (d.error) {
+                  setErrorMessage(d.error);
+                  setStatus("error");
+                } else {
+                  setStatus("ready");
+                  setStreamActiveStep(null);
+                  setErrorMessage(null);
+                }
                 hasFetchedRef.current = true;
               }
             },
@@ -303,10 +321,16 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             hardRefreshTrigger > 0
           );
           if (mountedRef.current && !hasFetchedRef.current) {
-            setData(result);
-            setStatus("ready");
-            setStreamActiveStep(null);
-            setErrorMessage(null);
+            const d = result as DashboardComponent & { error?: string };
+            setData(d);
+            if (d?.error) {
+              setErrorMessage(d.error);
+              setStatus("error");
+            } else {
+              setStatus("ready");
+              setStreamActiveStep(null);
+              setErrorMessage(null);
+            }
           }
           hasFetchedRef.current = true;
           return;
