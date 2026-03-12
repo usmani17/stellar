@@ -46,8 +46,8 @@ const SLASH_COMMANDS = [
 
 /** Profile item from GET /accounts/:accountId/profiles/ (channel_id, channel_name, profile name) */
 
-/** Group profiles by platform (Google, Meta, Amazon, TikTok) for Prism-style layout */
-const PLATFORM_ORDER = ["google", "meta", "amazon", "tiktok", "other"] as const;
+/** Group profiles by platform (Google, Meta, TikTok). Amazon hidden for now. */
+const PLATFORM_ORDER = ["google", "meta", "tiktok", "other"] as const;
 interface AccountProfileOption {
     channel_id: number;
     channel_name: string;
@@ -756,6 +756,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         const byPlatform: Record<string, typeof flat> = {};
         for (const item of flat) {
             const platform = (item.profile.channel_type ?? "").toLowerCase() || "other";
+            if (platform === "amazon") continue; // Hide Amazon accounts for now
             if (!byPlatform[platform]) byPlatform[platform] = [];
             byPlatform[platform].push(item);
         }
@@ -765,7 +766,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         }));
     }, [allAccountsWithProfiles, profileSearchQuery]);
 
-    const totalProfileCount = allAccountsWithProfiles.reduce((sum, a) => sum + a.profiles.length, 0);
+    const totalProfileCount = profilesByPlatform.reduce((sum, { items }) => sum + items.length, 0);
     const hasMultipleAccounts = allAccountsWithProfiles.length > 1;
 
     const canChat = !!(
@@ -887,7 +888,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                 const PlatformIcon =
                                                     platform === "google" ? () => <img src={GoogleIcon} alt="" className="w-4 h-4 shrink-0" /> :
                                                     platform === "meta" ? () => <img src={MetaIcon} alt="" className="w-4 h-4 shrink-0" /> :
-                                                    platform === "amazon" ? () => <img src={AmazonIcon} alt="" className="w-4 h-4 shrink-0" /> :
                                                     platform === "tiktok" ? () => (
                                                         <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                                                             <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
