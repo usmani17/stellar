@@ -954,25 +954,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 </div>
     );
 
-    const contextSection = (
-        <div className="assistant-setup-card">
-            <p className="assistant-setup-heading">
-                Set up your session
-            </p>
-
-            {/* Single step: Account(s) & profile(s) with checkboxes */}
-            <div className="assistant-setup-step">
-                <label className="assistant-setup-label">
-                    <span className={`assistant-setup-step-num ${selectedProfiles.length > 0 ? "assistant-setup-step-num-active" : ""}`}>
-                        1
-                    </span>
-                    Select account(s) & profile(s)
-                </label>
-                {profileDropdownContent}
-            </div>
-        </div>
-    );
-
     return (
         <div
             className={`flex flex-col h-full bg-[var(--color-semantic-background-primary)] shadow-lg ${className}`}
@@ -1181,21 +1162,15 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         </h3>
 
                         {!canChat ? (
-                            <>
-                                <p className="text-sm text-forest-f30 text-center px-4">
-                                    {accounts.length === 0
-                                        ? "No accounts available."
-                                        : "Select account(s) & profile(s) below to start."}
-                                </p>
-                                {contextSection}
-                            </>
+                            <p className="text-sm text-forest-f30 text-center px-4">
+                                {accounts.length === 0
+                                    ? "No accounts available."
+                                    : "Select account(s) & profile(s) below to start."}
+                            </p>
                         ) : !hasAppliedProfileSelection ? (
-                            <>
-                                <p className="text-sm text-forest-f30 text-center px-4">
-                                    Select one or more profiles below, then click Apply.
-                                </p>
-                                {contextSection}
-                            </>
+                            <p className="text-sm text-forest-f30 text-center px-4">
+                                Select one or more profiles below, then click Apply.
+                            </p>
                         ) : variant === "page" ? (
                             /* Page variant: category filters + insight cards */
                             <div className="w-full max-w-4xl px-4">
