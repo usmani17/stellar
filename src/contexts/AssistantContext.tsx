@@ -236,9 +236,8 @@ export const AssistantProvider: React.FC<{
     setIsLoadingSessions(true);
     try {
       // Always fetch all user sessions (backend ignores account_id for listing)
-      const { sessions: list } = await pixisAiSessionsService.list(token, {
-        limit: 50,
-      });
+      const resp = await pixisAiSessionsService.list(token, { limit: 50 });
+      const list = Array.isArray(resp?.sessions) ? resp.sessions : [];
       setSessions((prev) => {
         const byId = new Map(prev.map((s) => [s.id, s]));
         const fromApi = list.map((api) => {
@@ -280,21 +279,39 @@ export const AssistantProvider: React.FC<{
       setCurrentSessionId(sessionId);
       if (sel) {
         setAssistantScopeState((prev) => {
-          const nextAccountId = sel.account_id?.toString() ?? prev.accountId;
-          const nextChannelId = sel.channel_id?.toString() ?? prev.channelId;
-          const nextProfileId = (sel.profile_id != null ? Number(sel.profile_id) : undefined) ?? prev.profileId;
-          if (prev.accountId === nextAccountId && prev.channelId === nextChannelId && prev.profileId === nextProfileId) {
+          const storedProfiles = sel.profiles_json;
+          let selectedProfiles: Array<{ accountId: string; channelId: string; profileId: number; profileName?: string | null; marketplace?: string | null }>;
+          if (storedProfiles && Array.isArray(storedProfiles) && storedProfiles.length > 0) {
+            const mapped = storedProfiles
+              .filter((p) => p.account_id != null && p.channel_id != null && p.profile_id != null)
+              .map((p) => {
+                const pid = typeof p.profile_id === "string" ? parseInt(p.profile_id, 10) : Number(p.profile_id);
+                return { accountId: String(p.account_id), channelId: String(p.channel_id), profileId: pid, profileName: (p.account_name ?? p.customer_id ?? null) ?? undefined, marketplace: (p.platform ?? null) ?? undefined };
+              })
+              .filter((p) => !Number.isNaN(p.profileId));
+            selectedProfiles = mapped.length > 0 ? mapped : [];
+          }
+          if (!selectedProfiles || selectedProfiles.length === 0) {
+            const nextAccountId = sel.account_id?.toString() ?? prev.accountId;
+            const nextChannelId = sel.channel_id?.toString() ?? prev.channelId;
+            const nextProfileId = (sel.profile_id != null ? Number(sel.profile_id) : undefined) ?? prev.profileId;
+            selectedProfiles = nextAccountId && nextChannelId && nextProfileId != null
+              ? [{ accountId: nextAccountId, channelId: nextChannelId, profileId: nextProfileId, profileName: prev.profileName ?? undefined, marketplace: prev.marketplace ?? undefined }]
+              : [];
+          }
+          const first = selectedProfiles[0];
+          const nextAccountId = first?.accountId ?? sel.account_id?.toString() ?? prev.accountId;
+          const nextChannelId = first?.channelId ?? sel.channel_id?.toString() ?? prev.channelId;
+          const nextProfileId = first?.profileId ?? (sel.profile_id != null ? Number(sel.profile_id) : undefined) ?? prev.profileId;
+          if (prev.accountId === nextAccountId && prev.channelId === nextChannelId && prev.profileId === nextProfileId && prev.selectedProfiles?.length === selectedProfiles.length) {
             return prev;
           }
-          const oneProfile = nextAccountId && nextChannelId && nextProfileId != null
-            ? [{ accountId: nextAccountId, channelId: nextChannelId, profileId: nextProfileId, profileName: prev.profileName ?? undefined, marketplace: prev.marketplace ?? undefined }]
-            : [];
           return {
             ...prev,
             accountId: nextAccountId,
             channelId: nextChannelId,
             profileId: nextProfileId,
-            selectedProfiles: oneProfile,
+            selectedProfiles,
           };
         });
       }

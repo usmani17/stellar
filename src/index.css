@@ -1964,7 +1964,7 @@ body input[type="submit"]:disabled {
   bottom: 100%;
   margin-top: 0;
   margin-bottom: 0.25rem;
-  max-height: min(20rem, 50vh);
+  max-height: min(26rem, 65vh);
 }
 .assistant-dropdown-open-up .assistant-setup-dropdown-panel-overlay-trigger {
   top: auto;

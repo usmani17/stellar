@@ -26,23 +26,6 @@ import {
 /** Set to false to hide the "Fill in the details" schema form (e.g. Logo image URL, Daily budget) in campaign setup. */
 const SHOW_CAMPAIGN_SCHEMA_FORM = true;
 
-// Same as DashboardHeader: color from first letter of account/channel name
-const getInitialColor = (initial: string): string => {
-    const colors = [
-        "#136D6D", "#072929", "#556179", "#8B5CF6", "#EC4899", "#F59E0B",
-        "#10B981", "#3B82F6", "#EF4444", "#06B6D4", "#F97316", "#6366F1",
-        "#14B8A6", "#A855F7", "#E11D48",
-    ];
-    if (!initial) return colors[0];
-    const charCode = initial.charCodeAt(0);
-    let index: number;
-    if (charCode >= 48 && charCode <= 57) index = (charCode - 48) % colors.length;
-    else if (charCode >= 65 && charCode <= 90) index = (charCode - 65) % colors.length;
-    else if (charCode >= 97 && charCode <= 122) index = (charCode - 97) % colors.length;
-    else index = Math.abs(charCode % colors.length);
-    return colors[index];
-};
-
 const ASSISTANT_TEXTAREA_MIN_HEIGHT = 24;
 const ASSISTANT_TEXTAREA_MAX_HEIGHT = 200;
 
@@ -62,6 +45,9 @@ const SLASH_COMMANDS = [
 ] as const;
 
 /** Profile item from GET /accounts/:accountId/profiles/ (channel_id, channel_name, profile name) */
+
+/** Group profiles by platform (Google, Meta, Amazon, TikTok) for Prism-style layout */
+const PLATFORM_ORDER = ["google", "meta", "amazon", "tiktok", "other"] as const;
 interface AccountProfileOption {
     channel_id: number;
     channel_name: string;
@@ -138,10 +124,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     /** When multi-select dropdown is open: all accounts with their profiles (loaded on first open). */
     const [allAccountsWithProfiles, setAllAccountsWithProfiles] = useState<Array<{ accountId: number; accountName: string; profiles: AccountProfileOption[] }>>([]);
     const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
-    const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
+    const [, setIsLoadingProfiles] = useState(false);
     const [isLoadingAllProfiles, setIsLoadingAllProfiles] = useState(false);
-    const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
-    const [accountSearchQuery, setAccountSearchQuery] = useState("");
+    const [, setIsAccountDropdownOpen] = useState(false);
     const [isIntegrationProfileDropdownOpen, setIsIntegrationProfileDropdownOpen] = useState(false);
     /** True after user has clicked Apply (so we show "Would you like to" only after they confirm selection) */
     const [hasAppliedProfileSelection, setHasAppliedProfileSelection] = useState(false);
@@ -161,9 +146,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     // Sync inputValue from context to editableContent and DOM
     useEffect(() => {
         if (inputValue && editableRef.current) {
-            setEditableContent(inputValue);
-            // Update the actual DOM element
             editableRef.current.textContent = inputValue;
+            queueMicrotask(() => setEditableContent(inputValue));
         }
     }, [inputValue, isOpen]);
 
@@ -181,6 +165,14 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             });
         return () => { cancelled = true; };
     }, [isOpen, variant]);
+
+    // When loading a session from history that has selectedProfiles, treat as already applied
+    const selectedProfilesCount = (assistantScope.selectedProfiles ?? []).length;
+    useEffect(() => {
+        if (currentSessionId && selectedProfilesCount > 0) {
+            queueMicrotask(() => setHasAppliedProfileSelection(true));
+        }
+    }, [currentSessionId, selectedProfilesCount]);
 
     // Auto-select first account when only one exists (enables session list API call on /chat)
     useEffect(() => {
@@ -228,7 +220,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         if (!isIntegrationProfileDropdownOpen || accounts.length === 0) return;
         if (allAccountsWithProfiles.length > 0) return; // already loaded
         let cancelled = false;
-        setIsLoadingAllProfiles(true);
+        queueMicrotask(() => setIsLoadingAllProfiles(true));
         Promise.all(
             accounts.map((acc) =>
                 accountsService.getAccountProfiles(acc.id).then((res) => ({
@@ -690,21 +682,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     const hasMessages = messages.length > 0;
 
     const selectedProfiles = assistantScope.selectedProfiles ?? [];
-    const selectedAccount = accounts.find((a) => String(a.id) === assistantScope.accountId);
-    /** Unique account count for multi-account selection header */
-    const selectedUniqueAccountCount = selectedProfiles.length
-        ? new Set(selectedProfiles.map((p) => p.accountId)).size
-        : 0;
-    const selectedAccountNamesForHeader =
-        selectedUniqueAccountCount > 1
-            ? Array.from(
-                new Set(
-                    selectedProfiles
-                        .map((p) => accounts.find((a) => String(a.id) === p.accountId)?.name)
-                        .filter(Boolean)
-                )
-            ) as string[]
-            : [];
     const selectedProfileOption = selectedProfiles.length === 1
         ? (() => {
             const p = selectedProfiles[0];
@@ -764,7 +741,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     };
 
     /** Group profiles by platform (Google, Meta, Amazon, TikTok) for Prism-style layout */
-    const PLATFORM_ORDER = ["google", "meta", "amazon", "tiktok", "other"] as const;
     const profilesByPlatform = React.useMemo(() => {
         const q = profileSearchQuery.trim().toLowerCase();
         const flat: Array<{ profile: AccountProfileOption; accountId: number; accountName: string }> = [];
@@ -807,7 +783,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         onClick={(e) => {
                             if (accounts.length > 0) {
                                 const target = e.target as Element;
-                                const targetIsButton = target.closest?.('button') === e.currentTarget;
                                 const panel = integrationProfileDropdownRef.current?.querySelector('.assistant-setup-dropdown-panel');
                                 const targetInPanel = panel ? panel.contains(target) : false;
                                 // Use ref to avoid stale closure: when dropdown is open, never toggle from button click
@@ -1206,15 +1181,21 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         </h3>
 
                         {!canChat ? (
-                            <p className="text-sm text-forest-f30 text-center px-4">
-                                {accounts.length === 0
-                                    ? "No accounts available."
-                                    : "Select account(s) & profile(s) below to start."}
-                            </p>
+                            <>
+                                <p className="text-sm text-forest-f30 text-center px-4">
+                                    {accounts.length === 0
+                                        ? "No accounts available."
+                                        : "Select account(s) & profile(s) below to start."}
+                                </p>
+                                {contextSection}
+                            </>
                         ) : !hasAppliedProfileSelection ? (
-                            <p className="text-sm text-forest-f30 text-center px-4">
-                                Select one or more profiles below, then click Apply.
-                            </p>
+                            <>
+                                <p className="text-sm text-forest-f30 text-center px-4">
+                                    Select one or more profiles below, then click Apply.
+                                </p>
+                                {contextSection}
+                            </>
                         ) : variant === "page" ? (
                             /* Page variant: category filters + insight cards */
                             <div className="w-full max-w-4xl px-4">
