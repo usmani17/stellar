@@ -40,6 +40,14 @@ export interface AssistantScope {
   profileId: number | null;
   profileName?: string | null;
   marketplace?: string | null;
+  /** Multi-select: one or more profiles for cross-platform analysis. When set, overrides single profileId. */
+  selectedProfiles?: Array<{
+    accountId: string;
+    channelId: string;
+    profileId: number;
+    profileName?: string | null;
+    marketplace?: string | null;
+  }>;
 }
 
 /** Session with runtime state (messages, etc.) */
@@ -142,6 +150,7 @@ export const AssistantProvider: React.FC<{
     profileId: null,
     profileName: null,
     marketplace: null,
+    selectedProfiles: [],
   });
 
   const setAssistantScope = useCallback((updates: Partial<AssistantScope>) => {
@@ -163,14 +172,21 @@ export const AssistantProvider: React.FC<{
       assistantScope.channelId &&
       assistantScope.profileId
     ) {
-      // Ready to chat
+      // Ready to chat (single profile)
     }
-  }, [assistantScope.accountId, assistantScope.channelId, assistantScope.profileId]);
+    if (assistantScope.selectedProfiles && assistantScope.selectedProfiles.length > 0) {
+      // Ready to chat (multi-profile)
+    }
+  }, [assistantScope.accountId, assistantScope.channelId, assistantScope.profileId, assistantScope.selectedProfiles]);
 
   const effectiveAccountId = assistantScope.accountId ?? propAccountId ?? null;
   const effectiveChannelId = assistantScope.channelId ?? propChannelId ?? null;
   const effectiveProfileId = assistantScope.profileId;
   const effectiveMarketplace = assistantScope.marketplace ?? null;
+  /** When set, use for multi-profile analyze; otherwise single profile from effective* fields. */
+  const effectiveSelectedProfiles = assistantScope.selectedProfiles?.length
+    ? assistantScope.selectedProfiles
+    : null;
 
   const currentSession =
     sessions.find((s) => s.id === currentSessionId) ?? null;
@@ -220,9 +236,8 @@ export const AssistantProvider: React.FC<{
     setIsLoadingSessions(true);
     try {
       // Always fetch all user sessions (backend ignores account_id for listing)
-      const { sessions: list } = await pixisAiSessionsService.list(token, {
-        limit: 50,
-      });
+      const resp = await pixisAiSessionsService.list(token, { limit: 50 });
+      const list = Array.isArray(resp?.sessions) ? resp.sessions : [];
       setSessions((prev) => {
         const byId = new Map(prev.map((s) => [s.id, s]));
         const fromApi = list.map((api) => {
@@ -264,10 +279,31 @@ export const AssistantProvider: React.FC<{
       setCurrentSessionId(sessionId);
       if (sel) {
         setAssistantScopeState((prev) => {
-          const nextAccountId = sel.account_id?.toString() ?? prev.accountId;
-          const nextChannelId = sel.channel_id?.toString() ?? prev.channelId;
-          const nextProfileId = (sel.profile_id != null ? Number(sel.profile_id) : undefined) ?? prev.profileId;
-          if (prev.accountId === nextAccountId && prev.channelId === nextChannelId && prev.profileId === nextProfileId) {
+          const storedProfiles = sel.profiles_json;
+          let selectedProfiles: Array<{ accountId: string; channelId: string; profileId: number; profileName?: string | null; marketplace?: string | null }>;
+          if (storedProfiles && Array.isArray(storedProfiles) && storedProfiles.length > 0) {
+            const mapped = storedProfiles
+              .filter((p) => p.account_id != null && p.channel_id != null && p.profile_id != null)
+              .map((p) => {
+                const pid = typeof p.profile_id === "string" ? parseInt(p.profile_id, 10) : Number(p.profile_id);
+                return { accountId: String(p.account_id), channelId: String(p.channel_id), profileId: pid, profileName: (p.account_name ?? p.customer_id ?? null) ?? undefined, marketplace: (p.platform ?? null) ?? undefined };
+              })
+              .filter((p) => !Number.isNaN(p.profileId));
+            selectedProfiles = mapped.length > 0 ? mapped : [];
+          }
+          if (!selectedProfiles || selectedProfiles.length === 0) {
+            const nextAccountId = sel.account_id?.toString() ?? prev.accountId;
+            const nextChannelId = sel.channel_id?.toString() ?? prev.channelId;
+            const nextProfileId = (sel.profile_id != null ? Number(sel.profile_id) : undefined) ?? prev.profileId;
+            selectedProfiles = nextAccountId && nextChannelId && nextProfileId != null
+              ? [{ accountId: nextAccountId, channelId: nextChannelId, profileId: nextProfileId, profileName: prev.profileName ?? undefined, marketplace: prev.marketplace ?? undefined }]
+              : [];
+          }
+          const first = selectedProfiles[0];
+          const nextAccountId = first?.accountId ?? sel.account_id?.toString() ?? prev.accountId;
+          const nextChannelId = first?.channelId ?? sel.channel_id?.toString() ?? prev.channelId;
+          const nextProfileId = first?.profileId ?? (sel.profile_id != null ? Number(sel.profile_id) : undefined) ?? prev.profileId;
+          if (prev.accountId === nextAccountId && prev.channelId === nextChannelId && prev.profileId === nextProfileId && prev.selectedProfiles?.length === selectedProfiles.length) {
             return prev;
           }
           return {
@@ -275,6 +311,7 @@ export const AssistantProvider: React.FC<{
             accountId: nextAccountId,
             channelId: nextChannelId,
             profileId: nextProfileId,
+            selectedProfiles,
           };
         });
       }
@@ -408,14 +445,34 @@ export const AssistantProvider: React.FC<{
       const trimmed = content.trim();
       if (!trimmed) return;
 
-      const accountIdNum = effectiveAccountId
+      let accountIdNum: number | undefined = effectiveAccountId
         ? parseInt(effectiveAccountId, 10)
         : undefined;
-      const channelIdNum = effectiveChannelId
+      let channelIdNum: number | undefined = effectiveChannelId
         ? parseInt(effectiveChannelId, 10)
         : undefined;
+      let profileIdForReq: string | undefined = effectiveProfileId != null ? String(effectiveProfileId) : undefined;
+      let platformForReq: string | undefined = effectiveMarketplace ?? undefined;
+      let platformsForReq: Array<{ platform: string; profile_id: string; channel_id: number; account_id: number }> | undefined;
 
-      if (!accountIdNum) return;
+      if (effectiveSelectedProfiles?.length) {
+        platformsForReq = effectiveSelectedProfiles
+          .map((p) => ({
+            platform: (p.marketplace ?? "google").toLowerCase(),
+            profile_id: String(p.profileId),
+            channel_id: parseInt(p.channelId, 10),
+            account_id: parseInt(p.accountId, 10),
+          }))
+          .filter((p) => !Number.isNaN(p.channel_id) && !Number.isNaN(p.account_id));
+        if (platformsForReq.length === 0) return;
+        const first = platformsForReq[0];
+        accountIdNum = first.account_id;
+        channelIdNum = first.channel_id;
+        profileIdForReq = first.profile_id;
+        platformForReq = first.platform;
+      } else if (!accountIdNum) {
+        return;
+      }
 
       setInputValue("");
       setWorkingOnRequest(false);
@@ -527,11 +584,11 @@ export const AssistantProvider: React.FC<{
               | undefined)?.cursor_session_id ?? currentSessionId ?? undefined,
             account_id: accountIdNum,
             channel_id: channelIdNum,
-            profile_id: effectiveProfileId != null ? String(effectiveProfileId) : undefined,
+            profile_id: profileIdForReq,
             workspace_id: user?.workspace?.id ?? undefined,
             user_id: user?.id != null ? String(user.id) : undefined,
-            platform: effectiveMarketplace ?? undefined,
-            // @ts-ignore - for testing purposes only, to override backend default output format
+            platform: platformForReq,
+            ...(platformsForReq && platformsForReq.length > 0 ? { platforms: platformsForReq } : {}),
             ...(OUTPUT_FORMAT_FOR_TESTING && { output_format: OUTPUT_FORMAT_FOR_TESTING }),
           },
           token,
@@ -672,7 +729,7 @@ export const AssistantProvider: React.FC<{
                     workspace_id: user?.workspace?.id ?? null,
                     account_id: accountIdNum ?? null,
                     channel_id: channelIdNum ?? null,
-                    profile_id: effectiveProfileId != null ? String(effectiveProfileId) : null,
+                    profile_id: profileIdForReq ?? null,
                     created_at: new Date().toISOString(),
                     last_activity_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
@@ -826,6 +883,7 @@ export const AssistantProvider: React.FC<{
       effectiveChannelId,
       effectiveProfileId,
       effectiveMarketplace,
+      effectiveSelectedProfiles,
       currentSessionId,
       sessions,
       getAccessToken,

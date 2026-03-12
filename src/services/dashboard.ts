@@ -275,7 +275,9 @@ export async function getDashboardComponentDataStream(
         throw new Error(`Stream failed: ${response.status}`);
       }
       const result = await readDashboardComponentStream(response, onProgress);
-      componentStreamResolvedCache.set(key, { data: result, expires: Date.now() + RESOLVED_STREAM_TTL_MS });
+      if (!(result && typeof result === "object" && "error" in result && result.error)) {
+        componentStreamResolvedCache.set(key, { data: result, expires: Date.now() + RESOLVED_STREAM_TTL_MS });
+      }
       return result;
     } finally {
       componentStreamCache.delete(key);
@@ -326,7 +328,9 @@ export async function getSharedDashboardComponentDataStream(
         throw new Error(`Stream failed: ${response.status}`);
       }
       const result = await readDashboardComponentStream(response, onProgress);
-      sharedComponentStreamResolvedCache.set(key, { data: result, expires: Date.now() + RESOLVED_STREAM_TTL_MS });
+      if (!(result && typeof result === "object" && "error" in result && result.error)) {
+        sharedComponentStreamResolvedCache.set(key, { data: result, expires: Date.now() + RESOLVED_STREAM_TTL_MS });
+      }
       return result;
     } finally {
       sharedComponentStreamCache.delete(key);

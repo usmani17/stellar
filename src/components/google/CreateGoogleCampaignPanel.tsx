@@ -302,8 +302,20 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       }
       const budgets = await googleAdwordsCampaignsService.getGoogleBudgets(accountIdNum, channelIdNum, selectedProfileId, formData.campaign_type);
       
+      // Performance Max and Demand Gen with conversion-based bidding require non-shared budgets.
+      // Filter out shared budgets (explicitly_shared === true) for these campaign types.
+      const requiresNonSharedBudget =
+        formData.campaign_type === "PERFORMANCE_MAX" ||
+        (formData.campaign_type === "DEMAND_GEN" &&
+          ["MAXIMIZE_CONVERSIONS", "MAXIMIZE_CONVERSION_VALUE"].includes(
+            (formData.bidding_strategy_type || "").toUpperCase()
+          ));
+      const filteredBudgets = requiresNonSharedBudget
+        ? budgets.filter((b: any) => b.explicitly_shared !== true)
+        : budgets;
+
       // Format budgets for dropdown: value=resource_name for linking, name for display
-      const options = budgets.map((budget: any) => ({
+      const options = filteredBudgets.map((budget: any) => ({
         value: budget.resource_name,
         label: `${budget.name} ($${budget.amount_dollars?.toFixed(2) || '0.00'})`,
         name: budget.name,
@@ -321,7 +333,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     } finally {
       setLoadingBudgets(false);
     }
-  }, [accountId, channelId, selectedProfileId, formData.campaign_type]);
+  }, [accountId, channelId, selectedProfileId, formData.campaign_type, formData.bidding_strategy_type]);
 
   // Fetch budgets when account, channel, and profile are available
   useEffect(() => {
@@ -329,6 +341,19 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       fetchBudgets();
     }
   }, [isOpen, accountId, channelId, selectedProfileId, fetchBudgets]);
+
+  // Clear selected budget when it's filtered out (e.g. shared budget not allowed for Performance Max)
+  useEffect(() => {
+    if (
+      selectedBudgetId &&
+      selectedBudgetId !== "__CUSTOM__" &&
+      budgetOptions.length > 0 &&
+      !budgetOptions.some((opt) => opt.value === selectedBudgetId)
+    ) {
+      setSelectedBudgetId("");
+      setFormData((prev) => ({ ...prev, budget_resource_name: undefined }));
+    }
+  }, [budgetOptions, selectedBudgetId]);
 
   // Set selectedProfileId from initialData in edit/create mode when profiles are loaded
   useEffect(() => {

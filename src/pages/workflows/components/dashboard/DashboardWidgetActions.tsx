@@ -19,6 +19,7 @@ import type {
   CompoundActionCondition,
 } from "../../types/dashboard";
 import { previewActions } from "../../../../services/dashboardActions";
+import { formatMetricLabel } from "../../utils/formatDashboardValue";
 
 const ACTION_TYPE_LABELS: Record<string, string> = {
   change_state: "Change status",
@@ -441,7 +442,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                       {rule.condition && !isCompound(rule.condition) && (
                         <span className="flex items-center gap-1">
                           <span className="opacity-60">If</span>
-                          <span className="font-mono">{rule.condition.field}</span>
+                          <span className="font-medium">{formatMetricLabel(rule.condition.field)}</span>
                           <span className="opacity-60">
                             {({lt: "<", gt: ">", eq: "=", lte: "<=", gte: ">=", in: "in", not_in: "not in"} as Record<string, string>)[rule.condition.operator]}
                           </span>
@@ -469,7 +470,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
                                   {(rule.condition as CompoundActionCondition).logic.toUpperCase()}
                                 </span>
                               )}
-                              <span className="font-mono">{sc.field}</span>
+                              <span className="font-medium">{formatMetricLabel(sc.field)}</span>
                               <span className="opacity-60">
                                 {({lt: "<", gt: ">", eq: "=", lte: "<=", gte: ">=", in: "in", not_in: "not in"} as Record<string, string>)[sc.operator]}
                               </span>

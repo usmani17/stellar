@@ -151,9 +151,12 @@ export function formatDashboardTick(
 const LABEL_OVERRIDES: Record<string, string> = {
   cost_micros: "Spend",
   costmicros: "Spend",
+  costMicros: "Spend",
   impressions: "Impressions",
   clicks: "Clicks",
   conversions: "Conversions",
+  conversionsValue: "Conv. Value",
+  conversions_value: "Conv. Value",
   roas: "ROAS",
   ctr_pct: "CTR %",
   ctr: "CTR",
@@ -165,6 +168,12 @@ const LABEL_OVERRIDES: Record<string, string> = {
   wasted_spend: "Wasted Spend",
   total_spend: "Total Spend",
   campaign_count: "Campaigns",
+  amountMicros: "Daily Budget",
+  amountmicros: "Daily Budget",
+  amount_micros: "Daily Budget",
+  status: "Status",
+  name: "Name",
+  id: "ID",
 };
 
 export function formatMetricLabel(key: string): string {
