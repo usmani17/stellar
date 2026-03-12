@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAssistant, type SessionWithMessages } from "../../contexts/AssistantContext";
+import { useAccounts, type AccountProfileOption } from "../../contexts/AccountsContext";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
 import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
@@ -10,7 +11,6 @@ import { MessageContent } from "../ai/MessageContent";
 import { ContentWithCharts } from "../ai/ContentWithCharts";
 import { CampaignDraftPreview } from "../ai/CampaignDraftPreview";
 import { AssistantActivityBlock } from "../ai/AssistantActivityBlock";
-import { accountsService, type Account } from "../../services/accounts";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
@@ -48,19 +48,6 @@ const SLASH_COMMANDS = [
 
 /** Group profiles by platform (Google, Meta, TikTok). Amazon hidden for now. */
 const PLATFORM_ORDER = ["google", "meta", "tiktok", "other"] as const;
-interface AccountProfileOption {
-    channel_id: number;
-    channel_name: string;
-    channel_type: string;
-    id: number;
-    name?: string;
-    profileId?: string;
-    ad_account_id?: string;
-    customer_id?: string;
-    advertiser_id?: string;
-    advertiser_name?: string;
-    account_id?: number;
-}
 
 function profileDisplayName(p: AccountProfileOption): string {
     return p.name ?? p.advertiser_name ?? p.customer_id ?? p.advertiser_id ?? String(p.id);
@@ -106,6 +93,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         workingOnRequest,
     } = useAssistant();
 
+    // Use AccountsContext for accounts and profiles (cached at app level)
+    const {
+        accounts,
+        loading: isLoadingAccounts,
+        getAccountProfiles,
+        getAccountProfilesCached,
+        allAccountsWithProfiles: contextAllAccountsWithProfiles,
+        loadingAllProfiles: contextLoadingAllProfiles,
+        loadAllAccountsProfiles,
+    } = useAccounts();
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesScrollContainerRef = useRef<HTMLDivElement>(null);
     const userScrolledUpRef = useRef(false);
@@ -119,15 +117,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);
     const [sessionToDelete, setSessionToDelete] = useState<{ id: string; title: string; anchorRect: DOMRect; source: "tab" | "history" } | null>(null);
 
-    const [accounts, setAccounts] = useState<Account[]>([]);
+    // Use state only for single account's profiles (when user selects one account)
     const [accountProfiles, setAccountProfiles] = useState<AccountProfileOption[]>([]);
-    /** When multi-select dropdown is open: all accounts with their profiles (loaded on first open). */
-    const [allAccountsWithProfiles, setAllAccountsWithProfiles] = useState<Array<{ accountId: number; accountName: string; profiles: AccountProfileOption[] }>>([]);
-    const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
-    const [, setIsLoadingProfiles] = useState(false);
-    const [isLoadingAllProfiles, setIsLoadingAllProfiles] = useState(false);
-    const [, setIsAccountDropdownOpen] = useState(false);
+    // Use state to track if we're showing the multi-select dropdown with all profiles
     const [isIntegrationProfileDropdownOpen, setIsIntegrationProfileDropdownOpen] = useState(false);
+    const [allAccountsWithProfiles, setAllAccountsWithProfiles] = useState<Array<{ accountId: number; accountName: string; profiles: AccountProfileOption[] }>>([]);
     /** True after user has clicked Apply (so we show "Would you like to" only after they confirm selection) */
     const [hasAppliedProfileSelection, setHasAppliedProfileSelection] = useState(false);
     const isIntegrationProfileDropdownOpenRef = useRef(isIntegrationProfileDropdownOpen);
@@ -150,21 +144,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             queueMicrotask(() => setEditableContent(inputValue));
         }
     }, [inputValue, isOpen]);
-
-    // Load accounts when panel is open or when on chat page (variant=page)
-    useEffect(() => {
-        if (!isOpen && variant !== "page") return;
-        let cancelled = false;
-        queueMicrotask(() => setIsLoadingAccounts(true));
-        accountsService.getAccounts({ all: true })
-            .then((list) => {
-                if (!cancelled) setAccounts(list);
-            })
-            .finally(() => {
-                if (!cancelled) setIsLoadingAccounts(false);
-            });
-        return () => { cancelled = true; };
-    }, [isOpen, variant]);
 
     // When loading a session from history that has selectedProfiles, treat as already applied
     const selectedProfilesCount = (assistantScope.selectedProfiles ?? []).length;
@@ -201,49 +180,44 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         const accountIdNum = parseInt(assistantScope.accountId, 10);
         if (Number.isNaN(accountIdNum)) return;
         let cancelled = false;
-        queueMicrotask(() => setIsLoadingProfiles(true));
-        accountsService.getAccountProfiles(accountIdNum)
-            .then((res) => {
-                if (!cancelled && res?.profiles) setAccountProfiles(res.profiles as AccountProfileOption[]);
+        
+        // Try to get from context cache first
+        const cached = getAccountProfilesCached(accountIdNum);
+        if (cached) {
+            if (!cancelled) setAccountProfiles(cached);
+            return;
+        }
+        
+        // Otherwise fetch
+        getAccountProfiles(accountIdNum)
+            .then((profiles) => {
+                if (!cancelled) setAccountProfiles(profiles);
             })
             .catch(() => {
                 if (!cancelled) setAccountProfiles([]);
-            })
-            .finally(() => {
-                if (!cancelled) setIsLoadingProfiles(false);
             });
         return () => { cancelled = true; };
-    }, [assistantScope.accountId]);
+    }, [assistantScope.accountId, getAccountProfiles, getAccountProfilesCached]);
 
     // When combined "account & profiles" dropdown opens, load profiles for ALL accounts (for multi-select)
     useEffect(() => {
         if (!isIntegrationProfileDropdownOpen || accounts.length === 0) return;
         if (allAccountsWithProfiles.length > 0) return; // already loaded
-        let cancelled = false;
-        queueMicrotask(() => setIsLoadingAllProfiles(true));
-        Promise.all(
-            accounts.map((acc) =>
-                accountsService.getAccountProfiles(acc.id).then((res) => ({
-                    accountId: acc.id,
-                    accountName: acc.name || "",
-                    profiles: ((res?.profiles || []) as AccountProfileOption[]).map((p) => ({
-                        ...p,
-                        account_id: p.account_id ?? acc.id,
-                    })),
-                }))
-            )
-        )
-            .then((list) => {
-                if (!cancelled) setAllAccountsWithProfiles(list);
-            })
-            .catch(() => {
-                if (!cancelled) setAllAccountsWithProfiles([]);
-            })
-            .finally(() => {
-                if (!cancelled) setIsLoadingAllProfiles(false);
+        
+        // If context has already loaded all profiles, use them
+        if (contextAllAccountsWithProfiles && contextAllAccountsWithProfiles.length > 0) {
+            setAllAccountsWithProfiles(contextAllAccountsWithProfiles);
+            return;
+        }
+        
+        // Otherwise load them
+        loadAllAccountsProfiles()
+            .then(() => {
+                if (contextAllAccountsWithProfiles) {
+                    setAllAccountsWithProfiles(contextAllAccountsWithProfiles);
+                }
             });
-        return () => { cancelled = true; };
-    }, [isIntegrationProfileDropdownOpen, accounts, allAccountsWithProfiles.length]);
+    }, [isIntegrationProfileDropdownOpen, accounts, allAccountsWithProfiles.length, contextAllAccountsWithProfiles, loadAllAccountsProfiles]);
 
     // Close dropdown and delete popup when clicking outside
     useEffect(() => {
@@ -628,7 +602,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         isIntegrationProfileDropdownOpenRef.current = false;
         setAssistantScope({ channelId: null, profileId: null, profileName: null, marketplace: null, selectedProfiles: [] });
         setIsSessionDropdownOpen(false);
-        setIsAccountDropdownOpen(false);
         setIsIntegrationProfileDropdownOpen(false);
     };
 
@@ -847,7 +820,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 e.stopPropagation();
                             }}
                         >
-                            {isLoadingAllProfiles ? (
+                            {contextLoadingAllProfiles ? (
                                 <div className="assistant-setup-dropdown-loading">Loading accounts & profiles...</div>
                             ) : allAccountsWithProfiles.length === 0 ? (
                                 <div className="assistant-setup-dropdown-empty">No accounts or profiles.</div>
