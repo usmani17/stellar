@@ -47,7 +47,6 @@ export interface ColumnMapping {
   id?: number;
   column_name: string;
   type: string;
-  role: string;
   ignore: boolean;
   is_key: boolean;
   position: number;

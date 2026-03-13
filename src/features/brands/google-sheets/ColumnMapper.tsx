@@ -19,15 +19,6 @@ const TYPE_OPTIONS = [
   { value: "percentage", label: "Percentage" },
 ];
 
-const ROLE_OPTIONS = [
-  { value: "generic", label: "Generic" },
-  { value: "email", label: "Email" },
-  { value: "name", label: "Name" },
-  { value: "price", label: "Price" },
-  { value: "quantity", label: "Quantity" },
-  { value: "custom", label: "Custom" },
-];
-
 export const ColumnMapper: React.FC<Props> = ({
   mapping,
   previewColumns,
@@ -39,7 +30,6 @@ export const ColumnMapper: React.FC<Props> = ({
     return previewColumns.map((name, idx) => ({
       column_name: name,
       type: "text",
-      role: "generic",
       ignore: false,
       is_key: false,
       position: idx + 1,
@@ -73,9 +63,6 @@ export const ColumnMapper: React.FC<Props> = ({
                 Type
               </th>
               <th className="px-3 py-2 text-[12px] font-medium text-forest-f30 bg-sandstorm-s10">
-                Role
-              </th>
-              <th className="px-3 py-2 text-[12px] font-medium text-forest-f30 bg-sandstorm-s10">
                 Key
               </th>
               <th className="px-3 py-2 text-[12px] font-medium text-forest-f30 bg-sandstorm-s10">
@@ -96,19 +83,6 @@ export const ColumnMapper: React.FC<Props> = ({
                     className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-2 py-1 text-[12px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40"
                   >
                     {TYPE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-3 py-1">
-                  <select
-                    value={col.role}
-                    onChange={(e) => updateField(idx, "role", e.target.value)}
-                    className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-2 py-1 text-[12px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40"
-                  >
-                    {ROLE_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
                       </option>
