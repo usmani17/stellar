@@ -57,13 +57,6 @@ export const WorkflowDashboardPage: React.FC = () => {
 
   const workflowsPath = accountId ? `/brands/${accountId}/workflows?tab=dashboards` : "/brands";
 
-  if (isLoadingDashboard) {
-    return (
-      <div className="min-h-screen bg-sandstorm-s0 flex items-center justify-center">
-        <p className="text-forest-f30 animate-pulse">Loading dashboard...</p>
-      </div>
-    );
-  }
 
   return (
     <DashboardThemeProvider>
@@ -80,6 +73,7 @@ export const WorkflowDashboardPage: React.FC = () => {
         shareLink={shareLink}
         shareError={shareError}
         onCloseShareModal={onCloseShareModal}
+        isLoadingDashboard={isLoadingDashboard}
       />
     </DashboardThemeProvider>
   );
@@ -98,6 +92,7 @@ function WorkflowDashboardContent({
   shareLink,
   shareError,
   onCloseShareModal,
+  isLoadingDashboard,
 }: {
   workflowsPath: string;
   sidebarWidth: number;
@@ -111,6 +106,7 @@ function WorkflowDashboardContent({
   shareLink: string;
   shareError: string | null;
   onCloseShareModal: () => void;
+  isLoadingDashboard?: boolean;
 }) {
   const { isDark, toggleTheme } = useDashboardTheme();
   const [copySuccess, setCopySuccess] = React.useState(false);
@@ -358,7 +354,11 @@ function WorkflowDashboardContent({
                   )}
                 </div>
               </BaseModal>
-
+              {isLoadingDashboard && (
+                <div className="flex items-center justify-center py-20">
+                  <Loader size="lg" variant={isDark ? "white" : "default"} />
+                </div>
+              )}
               {config ? (
                 <DashboardGrid
                   config={config}

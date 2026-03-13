@@ -245,6 +245,21 @@ export const accountsService = {
     return response.data;
   },
 
+  /**
+   * Verify Google Ads API access for a channel (minimal API call).
+   * Use to debug access/permission issues before heavier queries.
+   */
+  verifyGoogleAdsAccess: async (
+    channelId: number
+  ): Promise<{ ok: boolean; accessible_customers: string[] }> => {
+    const response = await api.get<{
+      ok: boolean;
+      accessible_customers: string[];
+      error?: string;
+    }>(`/accounts/channels/${channelId}/google-profiles/verify/`);
+    return response.data;
+  },
+
   // Google Profiles (now using channel_id, similar to Amazon profiles)
   getGoogleProfiles: async (
     channelId: number,
@@ -305,6 +320,19 @@ export const accountsService = {
   },
 
   /**
+   * Fetch all accounts with profiles in a single API call.
+   * For chat/assistant account selector - avoids N+1 calls (one per account).
+   */
+  getAccountsWithProfiles: async (): Promise<
+    Array<{ id: number; name: string; profiles: any[] }>
+  > => {
+    const response = await api.get<{ accounts: Array<{ id: number; name: string; profiles: any[] }> }>(
+      "/accounts/all-profiles/",
+    );
+    return response.data?.accounts ?? [];
+  },
+
+  /**
    * Fetch all profiles the logged-in user can access in one API call.
    * Returns items with camelCase keys for frontend use.
    */
@@ -334,7 +362,7 @@ export const accountsService = {
         label: string;
       }>;
       total: number;
-    }>("/accounts/all-profiles/");
+    }>("/accounts/accessible-profiles/");
     return (response.data.profiles || []).map((p) => ({
       id: String(p.id),
       accountId: p.account_id,

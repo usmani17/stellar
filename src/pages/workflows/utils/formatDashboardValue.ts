@@ -177,6 +177,7 @@ const LABEL_OVERRIDES: Record<string, string> = {
 };
 
 export function formatMetricLabel(key: string): string {
+  if (!key) return "";
   const lastPart = key.includes(".") ? key.split(".").pop() ?? key : key;
   const normalized = lastPart.toLowerCase().replace(/_/g, "");
   if (LABEL_OVERRIDES[lastPart]) return LABEL_OVERRIDES[lastPart];

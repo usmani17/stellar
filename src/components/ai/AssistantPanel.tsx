@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAssistant, type SessionWithMessages } from "../../contexts/AssistantContext";
+import { useAccounts, type AccountProfileOption } from "../../contexts/AccountsContext";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
 import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
@@ -10,7 +11,6 @@ import { MessageContent } from "../ai/MessageContent";
 import { ContentWithCharts } from "../ai/ContentWithCharts";
 import { CampaignDraftPreview } from "../ai/CampaignDraftPreview";
 import { AssistantActivityBlock } from "../ai/AssistantActivityBlock";
-import { accountsService, type Account } from "../../services/accounts";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
@@ -48,19 +48,6 @@ const SLASH_COMMANDS = [
 
 /** Group profiles by platform (Google, Meta, TikTok). Amazon hidden for now. */
 const PLATFORM_ORDER = ["google", "meta", "tiktok", "other"] as const;
-interface AccountProfileOption {
-    channel_id: number;
-    channel_name: string;
-    channel_type: string;
-    id: number;
-    name?: string;
-    profileId?: string;
-    ad_account_id?: string;
-    customer_id?: string;
-    advertiser_id?: string;
-    advertiser_name?: string;
-    account_id?: number;
-}
 
 function profileDisplayName(p: AccountProfileOption): string {
     return p.name ?? p.advertiser_name ?? p.customer_id ?? p.advertiser_id ?? String(p.id);
@@ -106,6 +93,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         workingOnRequest,
     } = useAssistant();
 
+    // Use AccountsContext for accounts and profiles (cached at app level)
+    const {
+        accounts,
+        loading: isLoadingAccounts,
+        getAccountProfiles,
+        getAccountProfilesCached,
+        allAccountsWithProfiles: contextAllAccountsWithProfiles,
+        loadingAllProfiles: contextLoadingAllProfiles,
+        loadAllAccountsProfiles,
+    } = useAccounts();
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesScrollContainerRef = useRef<HTMLDivElement>(null);
     const userScrolledUpRef = useRef(false);
@@ -119,14 +117,12 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);
     const [sessionToDelete, setSessionToDelete] = useState<{ id: string; title: string; anchorRect: DOMRect; source: "tab" | "history" } | null>(null);
 
-    const [accounts, setAccounts] = useState<Account[]>([]);
-    const [accountProfiles, setAccountProfiles] = useState<AccountProfileOption[]>([]);
-    /** When multi-select dropdown is open: all accounts with their profiles (loaded on first open). */
-    const [allAccountsWithProfiles, setAllAccountsWithProfiles] = useState<Array<{ accountId: number; accountName: string; profiles: AccountProfileOption[] }>>([]);
-    const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
-    const [, setIsLoadingProfiles] = useState(false);
-    const [isLoadingAllProfiles, setIsLoadingAllProfiles] = useState(false);
-    const [, setIsAccountDropdownOpen] = useState(false);
+    // Fetch result for single account (keyed by accountId to avoid stale display when switching)
+    const [accountProfilesFetched, setAccountProfilesFetched] = useState<{
+        accountId: number;
+        profiles: AccountProfileOption[];
+    } | null>(null);
+    // Use state to track if we're showing the multi-select dropdown with all profiles
     const [isIntegrationProfileDropdownOpen, setIsIntegrationProfileDropdownOpen] = useState(false);
     /** True after user has clicked Apply (so we show "Would you like to" only after they confirm selection) */
     const [hasAppliedProfileSelection, setHasAppliedProfileSelection] = useState(false);
@@ -150,21 +146,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             queueMicrotask(() => setEditableContent(inputValue));
         }
     }, [inputValue, isOpen]);
-
-    // Load accounts when panel is open or when on chat page (variant=page)
-    useEffect(() => {
-        if (!isOpen && variant !== "page") return;
-        let cancelled = false;
-        queueMicrotask(() => setIsLoadingAccounts(true));
-        accountsService.getAccounts({ all: true })
-            .then((list) => {
-                if (!cancelled) setAccounts(list);
-            })
-            .finally(() => {
-                if (!cancelled) setIsLoadingAccounts(false);
-            });
-        return () => { cancelled = true; };
-    }, [isOpen, variant]);
 
     // When loading a session from history that has selectedProfiles, treat as already applied
     const selectedProfilesCount = (assistantScope.selectedProfiles ?? []).length;
@@ -192,58 +173,48 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         }
     }, [variant, isLoadingAccounts, accounts, assistantScope.accountId, setAssistantScope]);
 
-    // Load profiles when account is selected (single-profile legacy flow)
-    useEffect(() => {
-        if (!assistantScope.accountId) {
-            queueMicrotask(() => setAccountProfiles([]));
-            return;
+    // Derive accountProfiles: use cache when available, otherwise use fetch result (keyed by accountId)
+    const accountProfiles = React.useMemo(() => {
+        if (!assistantScope.accountId) return [];
+        const accountIdNum = parseInt(assistantScope.accountId, 10);
+        if (Number.isNaN(accountIdNum)) return [];
+        const cached = getAccountProfilesCached(accountIdNum);
+        if (cached) return cached;
+        if (accountProfilesFetched && accountProfilesFetched.accountId === accountIdNum) {
+            return accountProfilesFetched.profiles;
         }
+        return [];
+    }, [assistantScope.accountId, getAccountProfilesCached, accountProfilesFetched]);
+
+    // Fetch profiles when account is selected and not in cache
+    useEffect(() => {
+        if (!assistantScope.accountId) return;
         const accountIdNum = parseInt(assistantScope.accountId, 10);
         if (Number.isNaN(accountIdNum)) return;
+        if (getAccountProfilesCached(accountIdNum)) return; // cache hit, useMemo handles it
         let cancelled = false;
-        queueMicrotask(() => setIsLoadingProfiles(true));
-        accountsService.getAccountProfiles(accountIdNum)
-            .then((res) => {
-                if (!cancelled && res?.profiles) setAccountProfiles(res.profiles as AccountProfileOption[]);
+        getAccountProfiles(accountIdNum)
+            .then((profiles) => {
+                if (!cancelled) setAccountProfilesFetched({ accountId: accountIdNum, profiles });
             })
             .catch(() => {
-                if (!cancelled) setAccountProfiles([]);
-            })
-            .finally(() => {
-                if (!cancelled) setIsLoadingProfiles(false);
+                if (!cancelled) setAccountProfilesFetched({ accountId: accountIdNum, profiles: [] });
             });
         return () => { cancelled = true; };
-    }, [assistantScope.accountId]);
+    }, [assistantScope.accountId, getAccountProfiles, getAccountProfilesCached]);
+
+    // Use context's allAccountsWithProfiles when available (stable reference for deps)
+    const allAccountsWithProfiles = React.useMemo(
+        () => contextAllAccountsWithProfiles ?? [],
+        [contextAllAccountsWithProfiles]
+    );
 
     // When combined "account & profiles" dropdown opens, load profiles for ALL accounts (for multi-select)
     useEffect(() => {
         if (!isIntegrationProfileDropdownOpen || accounts.length === 0) return;
-        if (allAccountsWithProfiles.length > 0) return; // already loaded
-        let cancelled = false;
-        queueMicrotask(() => setIsLoadingAllProfiles(true));
-        Promise.all(
-            accounts.map((acc) =>
-                accountsService.getAccountProfiles(acc.id).then((res) => ({
-                    accountId: acc.id,
-                    accountName: acc.name || "",
-                    profiles: ((res?.profiles || []) as AccountProfileOption[]).map((p) => ({
-                        ...p,
-                        account_id: p.account_id ?? acc.id,
-                    })),
-                }))
-            )
-        )
-            .then((list) => {
-                if (!cancelled) setAllAccountsWithProfiles(list);
-            })
-            .catch(() => {
-                if (!cancelled) setAllAccountsWithProfiles([]);
-            })
-            .finally(() => {
-                if (!cancelled) setIsLoadingAllProfiles(false);
-            });
-        return () => { cancelled = true; };
-    }, [isIntegrationProfileDropdownOpen, accounts, allAccountsWithProfiles.length]);
+        if (allAccountsWithProfiles.length > 0) return; // already loaded in context
+        void loadAllAccountsProfiles();
+    }, [isIntegrationProfileDropdownOpen, accounts, allAccountsWithProfiles.length, loadAllAccountsProfiles]);
 
     // Close dropdown and delete popup when clicking outside
     useEffect(() => {
@@ -628,7 +599,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         isIntegrationProfileDropdownOpenRef.current = false;
         setAssistantScope({ channelId: null, profileId: null, profileName: null, marketplace: null, selectedProfiles: [] });
         setIsSessionDropdownOpen(false);
-        setIsAccountDropdownOpen(false);
         setIsIntegrationProfileDropdownOpen(false);
     };
 
@@ -721,6 +691,38 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         });
     };
 
+    /** Toggle all profiles in an account: select all if any unselected, deselect all if all selected */
+    const toggleAccountProfiles = (accountItems: Array<{ profile: AccountProfileOption; accountId: number; accountName: string }>) => {
+        if (accountItems.length === 0) return;
+        const accId = accountItems[0].accountId;
+        const allSelected = accountItems.every(({ profile: p }) => isProfileSelected(accId, p.channel_id, p.id));
+        let next: typeof selectedProfiles;
+        if (allSelected) {
+            next = selectedProfiles.filter(
+                (sp) => !(String(sp.accountId) === String(accId) && accountItems.some((i) => String(i.profile.channel_id) === sp.channelId && i.profile.id === sp.profileId))
+            );
+        } else {
+            const toAdd = accountItems
+                .filter(({ profile: p }) => !isProfileSelected(accId, p.channel_id, p.id))
+                .map(({ profile: p }) => ({
+                    accountId: String(accId),
+                    channelId: String(p.channel_id),
+                    profileId: p.id,
+                    profileName: profileDisplayName(p) ?? undefined,
+                    marketplace: (p.channel_type ?? null) ?? undefined,
+                }));
+            next = [...selectedProfiles.filter((sp) => String(sp.accountId) !== String(accId)), ...toAdd];
+        }
+        setAssistantScope({
+            selectedProfiles: next,
+            accountId: next.length > 0 ? next[0].accountId : null,
+            channelId: next.length > 0 ? next[0].channelId : null,
+            profileId: next.length > 0 ? next[0].profileId : null,
+            profileName: next.length > 0 ? (next[0].profileName ?? null) : null,
+            marketplace: next.length > 0 ? (next[0].marketplace ?? null) : null,
+        });
+    };
+
     const handleClearSelection = () => {
         setHasAppliedProfileSelection(false);
         setAssistantScope({
@@ -740,23 +742,35 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         setProfileSearchQuery("");
     };
 
-    /** Group profiles by platform (Google, Meta, Amazon, TikTok) for Prism-style layout */
-    const profilesByPlatform = React.useMemo(() => {
+    /** Account-grouped list for multi-account layout (select account → see profiles under it) */
+    const accountsWithFilteredProfiles = React.useMemo(() => {
         const q = profileSearchQuery.trim().toLowerCase();
-        const flat: Array<{ profile: AccountProfileOption; accountId: number; accountName: string }> = [];
-        for (const { accountId, accountName, profiles } of allAccountsWithProfiles) {
-            for (const p of profiles) {
-                if (q) {
-                    const label = `${profileDisplayName(p)} ${profileIdForDisplay(p)} ${accountName}`.toLowerCase();
-                    if (!label.includes(q)) continue;
-                }
-                flat.push({ profile: p, accountId, accountName });
-            }
-        }
+        return allAccountsWithProfiles
+            .map(({ accountId, accountName, profiles }) => {
+                const items = profiles
+                    .filter((p) => {
+                        if (q) {
+                            const label = `${profileDisplayName(p)} ${profileIdForDisplay(p)} ${accountName}`.toLowerCase();
+                            if (!label.includes(q)) return false;
+                        }
+                        const platform = (p.channel_type ?? "").toLowerCase() || "other";
+                        if (platform === "amazon") return false; // Hide Amazon for now
+                        return true;
+                    })
+                    .map((profile) => ({ profile, accountId, accountName }));
+                return { accountId, accountName, items };
+            })
+            .filter((a) => a.items.length > 0);
+    }, [allAccountsWithProfiles, profileSearchQuery]);
+
+    /** When multiple accounts: group by account (select account → select all its profiles). Otherwise: by platform. */
+    const showAccountGroupedLayout = allAccountsWithProfiles.length > 1;
+
+    const profilesByPlatform = React.useMemo(() => {
+        const flat = accountsWithFilteredProfiles.flatMap((a) => a.items);
         const byPlatform: Record<string, typeof flat> = {};
         for (const item of flat) {
             const platform = (item.profile.channel_type ?? "").toLowerCase() || "other";
-            if (platform === "amazon") continue; // Hide Amazon accounts for now
             if (!byPlatform[platform]) byPlatform[platform] = [];
             byPlatform[platform].push(item);
         }
@@ -764,9 +778,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             platform,
             items: byPlatform[platform],
         }));
-    }, [allAccountsWithProfiles, profileSearchQuery]);
+    }, [accountsWithFilteredProfiles]);
 
-    const totalProfileCount = profilesByPlatform.reduce((sum, { items }) => sum + items.length, 0);
+    const totalProfileCount = accountsWithFilteredProfiles.reduce((sum, { items }) => sum + items.length, 0);
     const hasMultipleAccounts = allAccountsWithProfiles.length > 1;
 
     const canChat = !!(
@@ -847,7 +861,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 e.stopPropagation();
                             }}
                         >
-                            {isLoadingAllProfiles ? (
+                            {contextLoadingAllProfiles ? (
                                 <div className="assistant-setup-dropdown-loading">Loading accounts & profiles...</div>
                             ) : allAccountsWithProfiles.length === 0 ? (
                                 <div className="assistant-setup-dropdown-empty">No accounts or profiles.</div>
@@ -878,11 +892,55 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                         )}
                                     </div>
                                     <div className="max-h-[240px] overflow-y-auto">
-                                        {profilesByPlatform.length === 0 ? (
+                                        {accountsWithFilteredProfiles.length === 0 ? (
                                             <div className="assistant-setup-dropdown-empty py-6">
                                                 No profiles match your search
                                             </div>
+                                        ) : showAccountGroupedLayout ? (
+                                            /* Group by account: select account → select all its profiles */
+                                            accountsWithFilteredProfiles.map(({ accountId: accId, accountName: accName, items: accItems }) => {
+                                                const allChecked = accItems.every(({ profile: p }) => isProfileSelected(accId, p.channel_id, p.id));
+                                                return (
+                                                    <div key={accId} className="border-b border-[#e8e8e3] last:border-b-0">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => { e.stopPropagation(); toggleAccountProfiles(accItems); }}
+                                                            className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm font-medium text-[#136D6D] hover:bg-[#E6F2F2] bg-[#F5F5F2]"
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={allChecked}
+                                                                readOnly
+                                                                className="rounded border-[#136d6d] text-[#136D6D] focus:ring-[#136d6d] accent-[#136D6D] pointer-events-none"
+                                                            />
+                                                            <span className="truncate">{accName}</span>
+                                                            <span className="text-xs text-[#556179]">({accItems.length})</span>
+                                                        </button>
+                                                        {accItems.map(({ profile: p }) => {
+                                                            const label = `${profileDisplayName(p)} (${profileIdForDisplay(p)})`;
+                                                            const checked = isProfileSelected(accId, p.channel_id, p.id);
+                                                            return (
+                                                                <label
+                                                                    key={`${accId}-${p.channel_id}-${p.id}`}
+                                                                    className={`flex items-center gap-2 px-3 py-2 pl-6 cursor-pointer hover:bg-[#F5F5F2] ${checked ? "bg-[#E6F2F2]" : ""}`}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={checked}
+                                                                        onChange={() => toggleProfile(p, accId)}
+                                                                        className="rounded border-[#136d6d] text-[#136D6D] focus:ring-[#136d6d] accent-[#136D6D]"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    />
+                                                                    <span className="truncate text-sm text-[#072929]" title={label}>{label}</span>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                );
+                                            })
                                         ) : (
+                                            /* Single account: group by platform */
                                             profilesByPlatform.map(({ platform, items }) => {
                                                 const platformLabel = platform.charAt(0).toUpperCase() + platform.slice(1);
                                                 const PlatformIcon =
@@ -899,9 +957,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                             <PlatformIcon />
                                                             <span>{platformLabel}</span>
                                                         </div>
-                                                        {items.map(({ profile: p, accountId: accId, accountName: accName }) => {
+                                                        {items.map(({ profile: p, accountId: accId }) => {
                                                             const label = `${profileDisplayName(p)} (${profileIdForDisplay(p)})`;
-                                                            const labelWithAccount = hasMultipleAccounts ? `${label} · ${accName}` : label;
                                                             const checked = isProfileSelected(accId, p.channel_id, p.id);
                                                             return (
                                                                 <label
@@ -916,7 +973,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                                         className="rounded border-[#136d6d] text-[#136D6D] focus:ring-[#136d6d] accent-[#136D6D]"
                                                                         onClick={(e) => e.stopPropagation()}
                                                                     />
-                                                                    <span className="truncate text-sm text-[#072929]" title={labelWithAccount}>{labelWithAccount}</span>
+                                                                    <span className="truncate text-sm text-[#072929]" title={label}>{label}</span>
                                                                 </label>
                                                             );
                                                         })}
