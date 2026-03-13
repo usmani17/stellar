@@ -162,7 +162,7 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
                             variant="ghost"
                             onClick={() =>
                               navigate(
-                                `/brands/${accountId}/google-sheets/${integration.id}`,
+                                `/brands/${accountId}/google-sheets/view/${integration.id}`,
                               )
                             }
                           >
