@@ -31,6 +31,7 @@ export interface GoogleSheetTab {
 }
 
 export interface SheetPreviewRequest {
+  connection_id?: number;
   spreadsheet_id: string;
   sheet_name: string;
   range: string;
