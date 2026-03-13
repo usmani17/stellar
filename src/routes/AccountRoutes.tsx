@@ -198,7 +198,7 @@ function AccountRoutes() {
                 }
             />
             <Route
-                path="/brands/:accountId/google-sheets/:integration_id/edit"
+                path="/brands/:accountId/google-sheets/edit/:integration_id"
                 element={
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>

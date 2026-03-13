@@ -143,7 +143,7 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
                             ).toLocaleDateString()}
                           </span>
                         </td>
-                        <td className="table-cell">
+                        <td className="table-cell flex gap-2 flex-row">
                           <Button
                             size="sm"
                             variant="ghost"
@@ -154,6 +154,17 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
                             }
                           >
                             View
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              navigate(
+                                `/brands/${accountId}/google-sheets/edit/${integration.id}`,
+                              )
+                            }
+                          >
+                            Edit
                           </Button>
                         </td>
                       </tr>
