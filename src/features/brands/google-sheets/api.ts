@@ -44,6 +44,13 @@ export interface ColumnMapping {
   position: number;
 }
 
+export interface GoogleConnection {
+  id: number;
+  google_user_id: string;
+  email: string;
+  created_at: string;
+}
+
 export async function getGoogleSheetsConnectUrl(accountId: number) {
   const res = await api.get<{ authorization_url: string }>(
     `/brands/${accountId}/google-sheets/connect`,
@@ -82,9 +89,14 @@ export async function createGoogleSheetsIntegration(
   return res.data;
 }
 
-export async function listSpreadsheets(accountId: number) {
+export async function listSpreadsheets(
+  accountId: number,
+  connectionId?: number,
+) {
   const res = await api.get<GoogleSpreadsheet[]>(
-    `/brands/${accountId}/google-sheets/spreadsheets`,
+    `/brands/${accountId}/google-sheets/spreadsheets${
+      connectionId ? `?connection_id=${connectionId}` : ""
+    }`,
   );
   return res.data;
 }
@@ -92,9 +104,12 @@ export async function listSpreadsheets(accountId: number) {
 export async function listSheetTabs(
   accountId: number,
   spreadsheetId: string,
+  connectionId?: number,
 ) {
   const res = await api.get<GoogleSheetTab[]>(
-    `/brands/${accountId}/google-sheets/spreadsheets/${spreadsheetId}/tabs`,
+    `/brands/${accountId}/google-sheets/spreadsheets/${spreadsheetId}/tabs${
+      connectionId ? `?connection_id=${connectionId}` : ""
+    }`,
   );
   return res.data;
 }
@@ -134,6 +149,34 @@ export async function triggerManualSync(integrationId: number) {
     rows_inserted: number;
     rows_updated: number;
   }>(`/google-sheets/integrations/${integrationId}/sync`, {});
+  return res.data;
+}
+
+export async function listGoogleConnections(accountId: number) {
+  const res = await api.get<GoogleConnection[]>(
+    `/brands/${accountId}/google-sheets/connections`,
+  );
+  return res.data;
+}
+
+export async function updateGoogleSheetsIntegration(
+  accountId: number,
+  integrationId: number,
+  payload: Partial<{
+    name: string;
+    connection_id: number;
+    spreadsheet_id: string;
+    spreadsheet_name: string;
+    sheet_name: string;
+    sheet_gid: string;
+    range: string;
+    header_row: number;
+  }>,
+) {
+  const res = await api.patch<GoogleSheetsIntegration>(
+    `/brands/${accountId}/google-sheets/${integrationId}`,
+    payload,
+  );
   return res.data;
 }
 

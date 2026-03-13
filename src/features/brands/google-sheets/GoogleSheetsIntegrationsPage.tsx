@@ -49,17 +49,7 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
 
   const handleConnectGoogle = async () => {
     if (!accountIdNum) return;
-    setError(null);
-    setLoading(true);
-    try {
-      const url = await getGoogleSheetsConnectUrl(accountIdNum);
-      window.location.href = url;
-    } catch (e: any) {
-      setError(
-        e?.response?.data?.detail || "Failed to start Google Sheets connection.",
-      );
-      setLoading(false);
-    }
+    navigate(`/brands/${accountId}/google-sheets/${integrations[0]?.id ?? "1"}/edit`);
   };
 
   return (
