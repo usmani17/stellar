@@ -31,6 +31,7 @@ export type EntitySyncStatusResponseNew = {
   google?: Record<string, Record<string, SyncStatusObj>>;
   amazon?: Record<string, Record<string, SyncStatusObj>>;
   tiktok?: Record<string, Record<string, SyncStatusObj>>;
+  meta?: Record<string, Record<string, SyncStatusObj>>;
 };
 
 /** Combined entity sync status (legacy shape for Profiles page). */
@@ -38,6 +39,7 @@ export type EntitySyncStatusResponse = {
   google?: PlatformSyncStatusResponse;
   amazon?: PlatformSyncStatusResponse;
   tiktok?: PlatformSyncStatusResponse;
+  meta?: PlatformSyncStatusResponse;
 };
 
 const STATUS_PRIORITY: Record<string, number> = {
@@ -57,7 +59,7 @@ function mergeStatus(a: string, b: string): string {
 /** Row shape needed for transform (id + profile identifier). */
 export interface ProfileRowForTransform {
   id: number;
-  platform: "google" | "amazon" | "tiktok";
+  platform: "google" | "amazon" | "tiktok" | "meta";
   profileIdLabel?: string;
   customer_id_raw?: string;
 }
@@ -117,10 +119,11 @@ export function transformEntitySyncStatusToLegacy(
     google: profileRows.filter((r) => r.platform === "google"),
     amazon: profileRows.filter((r) => r.platform === "amazon"),
     tiktok: profileRows.filter((r) => r.platform === "tiktok"),
+    meta: profileRows.filter((r) => r.platform === "meta"),
   };
 
   const buildLegacy = (
-    platform: "google" | "amazon" | "tiktok",
+    platform: "google" | "amazon" | "tiktok" | "meta",
     rows: ProfileRowForTransform[]
   ): PlatformSyncStatusResponse | undefined => {
     const platformData = newFormat[platform];
@@ -257,6 +260,7 @@ export function transformEntitySyncStatusToLegacy(
     google: buildLegacy("google", byPlatform.google) ?? undefined,
     amazon: buildLegacy("amazon", byPlatform.amazon) ?? undefined,
     tiktok: buildLegacy("tiktok", byPlatform.tiktok) ?? undefined,
+    meta: buildLegacy("meta", byPlatform.meta) ?? undefined,
   };
 }
 

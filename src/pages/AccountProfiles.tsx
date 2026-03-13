@@ -551,7 +551,11 @@ export const AccountProfiles: React.FC = () => {
       legacy.tiktok ?? null,
       "tiktok"
     );
-    const metaRows = rows.filter((r) => r.platform === "meta");
+    const metaRows = mergeSyncStatusIntoRows(
+      rows.filter((r) => r.platform === "meta"),
+      legacy.meta ?? null,
+      "meta"
+    );
     return [...googleRows, ...amazonRows, ...tiktokRows, ...metaRows];
   }, [allProfiles, entitySyncData]);
 
@@ -863,9 +867,7 @@ export const AccountProfiles: React.FC = () => {
                           </td>
                           <td className="table-cell min-w-[120px] align-top">
                             <div className="flex flex-col gap-0.5">
-                              {row.platform === "meta" ? (
-                                <span className="table-text leading-[1.26] text-[#556179]">—</span>
-                              ) : syncStatusLoading ? (
+                              {syncStatusLoading ? (
                                 row.platform === "amazon" ? (
                                   <AmazonAdTypeStatus isLoading={true} />
                                 ) : (
@@ -893,9 +895,7 @@ export const AccountProfiles: React.FC = () => {
                           </td>
                           <td className="table-cell min-w-[120px] align-top">
                             <div className="flex flex-col gap-0.5">
-                              {row.platform === "meta" ? (
-                                <span className="table-text leading-[1.26] text-[#556179]">—</span>
-                              ) : syncStatusLoading ? (
+                              {syncStatusLoading ? (
                                 row.platform === "amazon" ? (
                                   <AmazonAdTypeStatus isLoading={true} />
                                 ) : (
@@ -960,15 +960,11 @@ export const AccountProfiles: React.FC = () => {
                             )}
                           </td>
                           <td className="table-cell min-w-[100px] text-left">
-                            {row.platform !== "meta" ? (
-                              <SyncButton
-                                profileId={row.id}
-                                profileType={row.platform}
-                                accountId={accountIdNum!}
-                              />
-                            ) : (
-                              <span className="table-text text-[#556179]">—</span>
-                            )}
+                            <SyncButton
+                              profileId={row.id}
+                              profileType={row.platform}
+                              accountId={accountIdNum!}
+                            />
                           </td>
                         </tr>
                       ))
