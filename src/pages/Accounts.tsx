@@ -673,6 +673,21 @@ export const Accounts: React.FC = () => {
                                       Google
                                     </span>
                                   </button>
+                                  <button
+                                    onClick={() => navigate(`/brands/${account.id}/google-sheets/integrations`)}
+                                    disabled={isConnecting || isDeleting}
+                                    className="flex items-center gap-2 px-3 py-1.5 h-[32px] rounded-lg border border-gray-200 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Google Sheets Integrations"
+                                  >
+                                    <img
+                                      src={GoogleIcon}
+                                      alt="Google"
+                                      className="w-4 h-4"
+                                    />
+                                    <span className="text-[12px] font-medium text-[#072929]">
+                                      Sheets
+                                    </span>
+                                  </button>
                                   {!GOOGLE_ONLY_UI && (
                                   <button
                                     onClick={() => handleConnectTikTok(account.id)}

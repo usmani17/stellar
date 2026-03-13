@@ -143,29 +143,31 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
                             ).toLocaleDateString()}
                           </span>
                         </td>
-                        <td className="table-cell flex gap-2 flex-row">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              navigate(
-                                `/brands/${accountId}/google-sheets/view/${integration.id}`,
-                              )
-                            }
-                          >
-                            View
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              navigate(
-                                `/brands/${accountId}/google-sheets/edit/${integration.id}`,
-                              )
-                            }
-                          >
-                            Edit
-                          </Button>
+                        <td className="table-cell">
+                          <div className="flex flex-row gap-2 items-center">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                navigate(
+                                  `/brands/${accountId}/google-sheets/view/${integration.id}`,
+                                )
+                              }
+                            >
+                              View
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                navigate(
+                                  `/brands/${accountId}/google-sheets/edit/${integration.id}`,
+                                )
+                              }
+                            >
+                              Edit
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
