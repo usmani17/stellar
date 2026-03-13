@@ -362,7 +362,7 @@ export const accountsService = {
         label: string;
       }>;
       total: number;
-    }>("/accounts/all-profiles/");
+    }>("/accounts/accessible-profiles/");
     return (response.data.profiles || []).map((p) => ({
       id: String(p.id),
       accountId: p.account_id,
