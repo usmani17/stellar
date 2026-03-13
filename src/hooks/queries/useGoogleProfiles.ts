@@ -11,6 +11,7 @@ interface GoogleProfile {
   currency_code?: string;
   timezone?: string;
   is_manager?: boolean;
+  direct_manager_customer_id?: string | null;
   manager_customer_id?: string | null;
   status?: string;
   is_selected?: boolean;

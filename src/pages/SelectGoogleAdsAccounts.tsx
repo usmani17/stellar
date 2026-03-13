@@ -18,6 +18,9 @@ interface GoogleAdsAccount {
   currency_code?: string;
   timezone?: string;
   is_manager?: boolean;
+  /** Immediate parent MCC (from fetch or direct_manager_customer_id from DB) */
+  direct_manager_customer_id?: string | null;
+  /** Root MCC for login (DB only); fetch uses manager_customer_id as direct parent */
   manager_customer_id?: string | null;
   status?: string;
   is_selected?: boolean;
@@ -38,6 +41,11 @@ function flattenHierarchy(nodes: GoogleAdsAccountWithChildren[]): GoogleAdsAccou
 /** Normalize customer ID for comparison (backend may send dashed or raw) */
 function normId(id: string | null | undefined): string {
   return (id ?? "").replace(/-/g, "");
+}
+
+/** Direct parent MCC (from fetch: manager_customer_id; from DB: direct_manager_customer_id) */
+function getParentId(p: GoogleAdsAccount): string | null | undefined {
+  return p.direct_manager_customer_id ?? p.manager_customer_id;
 }
 
 /** Keep nodes that are in allowedIds or have a kept descendant. Uses normalized IDs for matching. */
@@ -320,26 +328,32 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
         return;
       }
 
-      // Filter to only selected profiles and their managers (if any)
+      // Filter to selected profiles and their managers (recursively up the hierarchy).
+      // MCC chain must be saved so login_customer_id resolution works (root OAuth level).
       const allProfiles = displayAccounts;
       const selectedProfiles = allProfiles.filter((p) => selectedIds.includes(p.customer_id));
-      
-      // Find manager profiles for selected profiles
       const managerIds = new Set<string>();
-      selectedProfiles.forEach((profile) => {
-        if (profile.manager_customer_id) {
-          managerIds.add(profile.manager_customer_id);
-        }
+      selectedProfiles.forEach((p) => {
+        const parent = getParentId(p);
+        if (parent) managerIds.add(parent);
       });
-      
-      // Include manager profiles if they exist
-      const managerProfiles = allProfiles.filter(
-        (p) => p.is_manager && managerIds.has(p.customer_id)
-      );
-      
-      // Combine selected profiles and their managers
-      const profilesToSave = [...selectedProfiles, ...managerProfiles];
-      
+      // Recursively add parent managers (e.g. 885-839-8631 → 387-913-0186)
+      let added = true;
+      while (added) {
+        added = false;
+        allProfiles.forEach((p) => {
+          const parent = getParentId(p);
+          if (p.is_manager && managerIds.has(p.customer_id) && parent && !managerIds.has(parent)) {
+            managerIds.add(parent);
+            added = true;
+          }
+        });
+      }
+      const managerProfiles = allProfiles.filter((p) => p.is_manager && managerIds.has(p.customer_id));
+      const profilesToSave = [...selectedProfiles, ...managerProfiles].map((p) => ({
+        ...p,
+        manager_customer_id: getParentId(p) ?? undefined,
+      }));
       const response = await accountsService.saveGoogleProfiles(
         parseInt(channelId),
         selectedIds,
@@ -401,7 +415,7 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
 
   const managerAccounts = filteredAccounts.filter((a) => a.is_manager);
   const childAccounts = filteredAccounts.filter((a) => !a.is_manager);
-  const standaloneAccounts = childAccounts.filter((a) => !a.manager_customer_id);
+  const standaloneAccounts = childAccounts.filter((a) => !getParentId(a));
 
   /** Sort by name A–Z (case-insensitive) */
   const sortByName = (a: { name?: string; customer_id?: string }, b: { name?: string; customer_id?: string }) =>
@@ -416,7 +430,7 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
   // ID format doesn't match; then resolve manager from displayAccounts or use a synthetic label.
   const childrenByManagerNorm = childAccountsSorted.reduce(
     (acc, child) => {
-      const norm = normalizeCustomerId(child.manager_customer_id);
+      const norm = normalizeCustomerId(getParentId(child));
       if (!norm) return acc;
       if (!acc[norm]) acc[norm] = [];
       acc[norm].push(child);
@@ -437,7 +451,7 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
   Object.keys(childrenByManagerNorm).forEach((managerIdNorm) => {
     const children = [...(childrenByManagerNorm[managerIdNorm] || [])].sort(sortByName);
     const manager = managerByNormId[managerIdNorm];
-    const labelId = children[0]?.manager_customer_id ?? managerIdNorm;
+    const labelId = getParentId(children[0]) ?? managerIdNorm;
     const resolvedManager: GoogleAdsAccount = manager ?? {
       customer_id: labelId.includes("-") ? labelId : (labelId.length >= 10 ? `${labelId.slice(0, 3)}-${labelId.slice(3, 6)}-${labelId.slice(6)}` : labelId),
       customer_id_raw: managerIdNorm,
