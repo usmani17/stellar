@@ -92,7 +92,7 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
               onClick={handleConnectGoogle}
               disabled={loading}
             >
-              {loading ? "Connecting..." : "Connect Google"}
+              {loading ? "Adding..." : "Add integration"}
             </Button>
           </div>
 
@@ -109,9 +109,6 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
                 <p className="text-[13px] text-forest-f30 mb-4">
                   Connect Google Sheets to create your first integration.
                 </p>
-                <Button onClick={handleConnectGoogle} disabled={loading}>
-                  {loading ? "Connecting..." : "Connect Google"}
-                </Button>
               </div>
             ) : (
               <div className="overflow-x-auto">
