@@ -113,6 +113,22 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
 
   const loading = profilesLoading || optionsLoading;
 
+  const handleFillTest = () => {
+    if (profiles.length > 0 && (profileId === "" || profileId == null)) {
+      setProfileId(profiles[0].id);
+    }
+    if (adsets.length > 0 && !adsetId) {
+      setAdsetId(adsets[0].adset_id);
+    }
+    if (creatives.length > 0 && !creativeId) {
+      setCreativeId(creatives[0].creative_id);
+    }
+    setName((prev) => (prev && prev.trim().length > 0 ? prev : "Test Ad – Creative 1"));
+    if (!status) {
+      setStatus("PAUSED");
+    }
+  };
+
   return (
     <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6] mb-4">
       <form onSubmit={handleSubmit}>
@@ -241,6 +257,13 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
             </div>
 
             <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleFillTest}
+                className="secondary-button font-semibold text-[11.2px]"
+              >
+                Fill test data
+              </button>
               <button type="button" onClick={onClose} className="cancel-button">
                 Cancel
               </button>

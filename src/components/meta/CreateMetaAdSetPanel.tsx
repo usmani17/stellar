@@ -169,6 +169,7 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
   const [campaignsLoading, setCampaignsLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"basics" | "targeting" | "schedule" | "promoted" | "advanced">("basics");
 
   const isCampaignLocked = Boolean(initialCampaignId);
 
@@ -318,7 +319,74 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
     }
   };
 
+  const handleFillTest = () => {
+    if (!campaignId && campaigns.length > 0) {
+      setCampaignId(campaigns[0].campaign_id);
+    }
+    setName((prev) => (prev && prev.trim().length > 0 ? prev : "Test Ad Set – Traffic"));
+    if (!campaignBudgetSet) {
+      setBudgetType("daily");
+      setDailyBudget((prev) => (prev && prev.trim().length > 0 ? prev : "20"));
+      setLifetimeBudget("");
+    }
+    if (!targetingCountries) {
+      setTargetingCountries("US");
+    }
+    setAgeMin("21");
+    setAgeMax("65");
+    if (publisherPlatforms.length === 0) {
+      setPublisherPlatforms(["facebook", "instagram"]);
+    }
+    if (!devicePlatforms) {
+      setDevicePlatforms("mobile");
+    }
+    if (!optimizationGoal) {
+      setOptimizationGoal("LINK_CLICKS");
+      setBillingEvent("LINK_CLICKS");
+    }
+    if (!pacingType) {
+      setPacingType("standard");
+    }
+    if (!startTime) {
+      const now = new Date();
+      const local = now.toISOString().slice(0, 16);
+      setStartTime(local);
+    }
+    if (!endTime) {
+      const later = new Date();
+      later.setDate(later.getDate() + 7);
+      const local = later.toISOString().slice(0, 16);
+      setEndTime(local);
+    }
+    if (!pageId) {
+      setPageId("TEST_PAGE_ID");
+    }
+    if (!pixelId) {
+      setPixelId("TEST_PIXEL_ID");
+    }
+    if (!customEventType) {
+      setCustomEventType("PURCHASE");
+    }
+    if (!applicationId) {
+      setApplicationId("TEST_APP_ID");
+    }
+    if (!objectStoreUrl) {
+      setObjectStoreUrl("https://example.com/app");
+    }
+    if (!eventId) {
+      setEventId("TEST_EVENT_ID");
+    }
+  };
+
   const loading = (campaignsLoading && !isCampaignLocked) || (isCampaignLocked && profileId === 0);
+
+  const TABS: { id: typeof activeTab; label: string }[] = [
+    { id: "basics", label: "Basics" },
+    { id: "targeting", label: "Targeting" },
+    { id: "schedule", label: "Schedule" },
+    { id: "promoted", label: "Promoted object" },
+    { id: "advanced", label: "Pacing" },
+  ];
 
   return (
     <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6] mb-4">
@@ -358,453 +426,547 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
                 </div>
               )}
 
-              <div className="mb-6">
-                <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
-                  Ad set details
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {!isCampaignLocked && (
-                    <div>
-                      <label className="form-label-small">Campaign *</label>
-                      <Dropdown
-                        options={campaigns.map((c) => ({
-                          value: c.campaign_id,
-                          label: c.campaign_name || c.campaign_id,
-                        }))}
-                        value={campaignId}
-                        placeholder="Select campaign"
-                        onChange={(val) => setCampaignId(val)}
-                        buttonClassName={inputClass}
-                      />
+              <div className="tabs-container mt-2">
+                <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
+                  {TABS.map((tab) => {
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setActiveTab(tab.id);
+                        }}
+                        className={`tab-button cursor-pointer ${
+                          isActive ? "tab-button-active" : "tab-button-inactive"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {activeTab === "basics" && (
+                  <div className="p-3">
+                    <div className="mb-6">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
+                        Ad set details
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {!isCampaignLocked && (
+                          <div>
+                            <label className="form-label-small">Campaign *</label>
+                            <Dropdown
+                              options={campaigns.map((c) => ({
+                                value: c.campaign_id,
+                                label: c.campaign_name || c.campaign_id,
+                              }))}
+                              value={campaignId}
+                              placeholder="Select campaign"
+                              onChange={(val) => setCampaignId(val)}
+                              buttonClassName={inputClass}
+                            />
+                          </div>
+                        )}
+                        <div>
+                          <label className="form-label-small">Ad set name *</label>
+                          <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="e.g. US 18-35"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">Status</label>
+                          <Dropdown<MetaAdSetStatus>
+                            options={STATUS_OPTIONS}
+                            value={status}
+                            placeholder="Select status"
+                            onChange={(val) => setStatus(val)}
+                            buttonClassName={inputClass}
+                          />
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  <div>
-                    <label className="form-label-small">Ad set name *</label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. US 18-35"
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label-small">Status</label>
-                    <Dropdown<MetaAdSetStatus>
-                      options={STATUS_OPTIONS}
-                      value={status}
-                      placeholder="Select status"
-                      onChange={(val) => setStatus(val)}
-                      buttonClassName={inputClass}
-                    />
-                  </div>
-                </div>
-              </div>
 
-              <div className="mb-6">
-                <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
-                  Budget and bid
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {!campaignBudgetSet && (
-                    <>
-                      <div>
-                        <label className="form-label-small">Budget type *</label>
-                        <Dropdown<"daily" | "lifetime">
-                          options={BUDGET_TYPE_OPTIONS}
-                          value={budgetType}
-                          placeholder="Select budget type"
-                          onChange={(val) => setBudgetType(val)}
-                          buttonClassName={inputClass}
-                        />
+                    <div className="mb-6">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
+                        Budget and bid
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {!campaignBudgetSet && (
+                          <>
+                            <div>
+                              <label className="form-label-small">Budget type *</label>
+                              <Dropdown<"daily" | "lifetime">
+                                options={BUDGET_TYPE_OPTIONS}
+                                value={budgetType}
+                                placeholder="Select budget type"
+                                onChange={(val) => setBudgetType(val)}
+                                buttonClassName={inputClass}
+                              />
+                            </div>
+                            <div>
+                              <label className="form-label-small">
+                                {budgetType === "daily" ? "Daily budget *" : "Lifetime budget *"}
+                              </label>
+                              <input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={budgetType === "daily" ? dailyBudget : lifetimeBudget}
+                                onChange={(e) =>
+                                  budgetType === "daily"
+                                    ? setDailyBudget(e.target.value)
+                                    : setLifetimeBudget(e.target.value)
+                                }
+                                placeholder="e.g. 20.00"
+                                className={inputClass}
+                              />
+                              <p className="text-[11px] text-[#556179] mt-1">In account currency.</p>
+                            </div>
+                          </>
+                        )}
+                        <div>
+                          <label className="form-label-small">Optimization goal</label>
+                          <Dropdown
+                            options={OPTIMIZATION_GOAL_OPTIONS}
+                            value={optimizationGoal}
+                            placeholder="Select optimization goal"
+                            onChange={(val) => setOptimizationGoal(val)}
+                            buttonClassName={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">Billing event</label>
+                          <Dropdown
+                            options={BILLING_EVENT_OPTIONS}
+                            value={billingEvent}
+                            placeholder="Select billing event"
+                            onChange={(val) => setBillingEvent(val)}
+                            buttonClassName={inputClass}
+                          />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            Align with optimization goal when possible.
+                          </p>
+                        </div>
+                        <div>
+                          <label className="form-label-small">Bid amount (optional)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={bidAmount}
+                            onChange={(e) => setBidAmount(e.target.value)}
+                            placeholder="e.g. 1.50"
+                            className={inputClass}
+                          />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            In dollars; sent as cents.
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <label className="form-label-small">
-                          {budgetType === "daily" ? "Daily budget *" : "Lifetime budget *"}
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          value={budgetType === "daily" ? dailyBudget : lifetimeBudget}
-                          onChange={(e) => (budgetType === "daily" ? setDailyBudget(e.target.value) : setLifetimeBudget(e.target.value))}
-                          placeholder="e.g. 20.00"
-                          className={inputClass}
-                        />
-                        <p className="text-[11px] text-[#556179] mt-1">In account currency.</p>
-                      </div>
-                    </>
-                  )}
-                  <div>
-                    <label className="form-label-small">Optimization goal</label>
-                    <Dropdown
-                      options={OPTIMIZATION_GOAL_OPTIONS}
-                      value={optimizationGoal}
-                      placeholder="Select optimization goal"
-                      onChange={(val) => setOptimizationGoal(val)}
-                      buttonClassName={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label-small">Billing event</label>
-                    <Dropdown
-                      options={BILLING_EVENT_OPTIONS}
-                      value={billingEvent}
-                      placeholder="Select billing event"
-                      onChange={(val) => setBillingEvent(val)}
-                      buttonClassName={inputClass}
-                    />
-                    <p className="text-[11px] text-[#556179] mt-1">Align with optimization goal when possible.</p>
-                  </div>
-                  <div>
-                    <label className="form-label-small">Bid amount (optional)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      value={bidAmount}
-                      onChange={(e) => setBidAmount(e.target.value)}
-                      placeholder="e.g. 1.50"
-                      className={inputClass}
-                    />
-                    <p className="text-[11px] text-[#556179] mt-1">In dollars; sent as cents.</p>
-                  </div>
-                </div>
-              </div>
+                    </div>
 
-              <div className="mb-6">
-                <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
-                  Destination type
-                </h3>
-                <p className="text-[11px] text-[#556179] mb-2">
-                  Destination of ads in this ad set. Options depend on campaign objective{campaignObjective ? ` (${campaignObjective})` : ""}.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="form-label-small">Destination type (optional)</label>
-                    <Dropdown
-                      options={
-                        campaignObjective && OBJECTIVE_DESTINATION_MAP[campaignObjective]
-                          ? DESTINATION_TYPES.filter((d) => OBJECTIVE_DESTINATION_MAP[campaignObjective].includes(d.value))
-                          : DESTINATION_TYPES
-                      }
-                      value={destinationType}
-                      placeholder="Select destination"
-                      onChange={(val) => setDestinationType(val)}
-                      buttonClassName={inputClass}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-6 p-4 rounded-xl border-2 border-[#136D6D]/20 bg-white/50">
-                <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
-                  Targeting
-                </h3>
-                <p className="text-[11px] text-[#556179] mb-4">
-                  Geo, demographics, audiences, and placements. All fields optional.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label className="form-label-small">Countries (comma or space separated, e.g. US, GB)</label>
-                    <input
-                      type="text"
-                      value={targetingCountries}
-                      onChange={(e) => setTargetingCountries(e.target.value)}
-                      placeholder="e.g. US, CA, GB"
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label-small">Age min (optional)</label>
-                    <Dropdown
-                      options={AGE_OPTIONS}
-                      value={ageMin}
-                      placeholder="Minimum age (default 18)"
-                      onChange={(val) => {
-                        setAgeMin(val);
-                        const min = parseInt(val, 10);
-                        if (ageMax !== "" && !Number.isNaN(min)) {
-                          const max = parseInt(ageMax, 10);
-                          if (!Number.isNaN(max) && max < min) setAgeMax("");
-                        }
-                      }}
-                      buttonClassName={inputClass}
-                    />
-                    <p className="text-[11px] text-[#556179] mt-1">Minimum age. Defaults to 18.</p>
-                  </div>
-                  <div>
-                    <label className="form-label-small">Age max (optional)</label>
-                    <Dropdown
-                      options={[
-                        { value: "", label: "No maximum" },
-                        ...AGE_OPTIONS.filter((opt) => {
-                          const minVal = parseInt(ageMin, 10);
-                          const optVal = parseInt(opt.value, 10);
-                          return !Number.isNaN(minVal) && !Number.isNaN(optVal) && optVal >= minVal;
-                        }),
-                      ]}
-                      value={ageMax}
-                      placeholder="Maximum age"
-                      onChange={(val) => setAgeMax(val)}
-                      buttonClassName={inputClass}
-                    />
-                    <p className="text-[11px] text-[#556179] mt-1">Maximum age. If used, must be 65 or lower.</p>
-                  </div>
-                  <div>
-                    <label className="form-label-small">Genders (optional)</label>
-                    <Dropdown
-                      options={TARGETING_GENDER_OPTIONS}
-                      value={targetingGenders}
-                      placeholder="All"
-                      onChange={(val) => setTargetingGenders(val)}
-                      buttonClassName={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label-small">Publisher platforms (optional)</label>
-                    <Dropdown<string>
-                      options={PUBLISHER_PLATFORMS.filter(
-                        (code) => !publisherPlatforms.includes(code)
-                      ).map((code) => ({
-                        value: code,
-                        label: PUBLISHER_PLATFORM_LABELS[code] ?? code,
-                      }))}
-                      value=""
-                      onChange={(value) => {
-                        if (!publisherPlatforms.includes(value)) {
-                          setPublisherPlatforms([...publisherPlatforms, value]);
-                        }
-                      }}
-                      placeholder="Select platforms"
-                      buttonClassName={inputClass}
-                      searchable={true}
-                      searchPlaceholder="Search platforms..."
-                      emptyMessage="No platforms available"
-                    />
-                    {publisherPlatforms.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {publisherPlatforms.map((code) => (
-                          <span
-                            key={code}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-[#136D6D] text-white text-[11px] rounded"
-                          >
-                            {PUBLISHER_PLATFORM_LABELS[code] ?? code}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPublisherPlatforms(publisherPlatforms.filter((c) => c !== code));
-                              }}
-                              className="hover:text-red-200"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {publisherPlatforms.length > 0 && (
-                      <p className="text-[11px] text-[#556179] mt-1">
-                        {publisherPlatforms.length} selected.
+                    <div className="mb-2">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
+                        Destination type
+                      </h3>
+                      <p className="text-[11px] text-[#556179] mb-2">
+                        Destination of ads in this ad set. Options depend on campaign objective
+                        {campaignObjective ? ` (${campaignObjective})` : ""}.
                       </p>
-                    )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="form-label-small">Destination type (optional)</label>
+                          <Dropdown
+                            options={
+                              campaignObjective && OBJECTIVE_DESTINATION_MAP[campaignObjective]
+                                ? DESTINATION_TYPES.filter((d) =>
+                                    OBJECTIVE_DESTINATION_MAP[campaignObjective].includes(d.value),
+                                  )
+                                : DESTINATION_TYPES
+                            }
+                            value={destinationType}
+                            placeholder="Select destination"
+                            onChange={(val) => setDestinationType(val)}
+                            buttonClassName={inputClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="form-label-small">Device platforms (optional)</label>
-                    <Dropdown
-                      options={DEVICE_PLATFORM_OPTIONS}
-                      value={devicePlatforms}
-                      placeholder="All"
-                      onChange={(val) => setDevicePlatforms(val)}
-                      buttonClassName={inputClass}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="form-label-small">Custom audience IDs (comma separated)</label>
-                    <input
-                      type="text"
-                      value={customAudiences}
-                      onChange={(e) => setCustomAudiences(e.target.value)}
-                      placeholder="e.g. 123456, 789012"
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="form-label-small">Excluded custom audience IDs (comma separated)</label>
-                    <input
-                      type="text"
-                      value={excludedCustomAudiences}
-                      onChange={(e) => setExcludedCustomAudiences(e.target.value)}
-                      placeholder="e.g. 123456"
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="form-label-small">Interest IDs (comma separated)</label>
-                    <input
-                      type="text"
-                      value={interestsIds}
-                      onChange={(e) => setInterestsIds(e.target.value)}
-                      placeholder="e.g. 600313926646730"
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="form-label-small">Behavior IDs (comma separated)</label>
-                    <input
-                      type="text"
-                      value={behaviorsIds}
-                      onChange={(e) => setBehaviorsIds(e.target.value)}
-                      placeholder="e.g. 6002714895372"
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-              </div>
+                )}
 
-              <div className="mb-6">
-                <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
-                  Schedule
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="form-label-small">Start time (optional)</label>
-                    <input
-                      type="datetime-local"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className={inputClass}
-                    />
+                {activeTab === "targeting" && (
+                  <div className="p-3">
+                    <div className="mb-6 p-4 rounded-xl border-2 border-[#136D6D]/20 bg-white/50">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
+                        Targeting
+                      </h3>
+                      <p className="text-[11px] text-[#556179] mb-4">
+                        Geo, demographics, audiences, and placements. All fields optional.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                          <label className="form-label-small">
+                            Countries (comma or space separated, e.g. US, GB)
+                          </label>
+                          <input
+                            type="text"
+                            value={targetingCountries}
+                            onChange={(e) => setTargetingCountries(e.target.value)}
+                            placeholder="e.g. US, CA, GB"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">Age min (optional)</label>
+                          <Dropdown
+                            options={AGE_OPTIONS}
+                            value={ageMin}
+                            placeholder="Minimum age (default 18)"
+                            onChange={(val) => {
+                              setAgeMin(val);
+                              const min = parseInt(val, 10);
+                              if (ageMax !== "" && !Number.isNaN(min)) {
+                                const max = parseInt(ageMax, 10);
+                                if (!Number.isNaN(max) && max < min) setAgeMax("");
+                              }
+                            }}
+                            buttonClassName={inputClass}
+                          />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            Minimum age. Defaults to 18.
+                          </p>
+                        </div>
+                        <div>
+                          <label className="form-label-small">Age max (optional)</label>
+                          <Dropdown
+                            options={[
+                              { value: "", label: "No maximum" },
+                              ...AGE_OPTIONS.filter((opt) => {
+                                const minVal = parseInt(ageMin, 10);
+                                const optVal = parseInt(opt.value, 10);
+                                return (
+                                  !Number.isNaN(minVal) &&
+                                  !Number.isNaN(optVal) &&
+                                  optVal >= minVal
+                                );
+                              }),
+                            ]}
+                            value={ageMax}
+                            placeholder="Maximum age"
+                            onChange={(val) => setAgeMax(val)}
+                            buttonClassName={inputClass}
+                          />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            Maximum age. If used, must be 65 or lower.
+                          </p>
+                        </div>
+                        <div>
+                          <label className="form-label-small">Genders (optional)</label>
+                          <Dropdown
+                            options={TARGETING_GENDER_OPTIONS}
+                            value={targetingGenders}
+                            placeholder="All"
+                            onChange={(val) => setTargetingGenders(val)}
+                            buttonClassName={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">
+                            Publisher platforms (optional)
+                          </label>
+                          <Dropdown<string>
+                            options={PUBLISHER_PLATFORMS.filter(
+                              (code) => !publisherPlatforms.includes(code),
+                            ).map((code) => ({
+                              value: code,
+                              label: PUBLISHER_PLATFORM_LABELS[code] ?? code,
+                            }))}
+                            value=""
+                            onChange={(value) => {
+                              if (!publisherPlatforms.includes(value)) {
+                                setPublisherPlatforms([...publisherPlatforms, value]);
+                              }
+                            }}
+                            placeholder="Select platforms"
+                            buttonClassName={inputClass}
+                            searchable={true}
+                            searchPlaceholder="Search platforms..."
+                            emptyMessage="No platforms available"
+                          />
+                          {publisherPlatforms.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {publisherPlatforms.map((code) => (
+                                <span
+                                  key={code}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-[#136D6D] text-white text-[11px] rounded"
+                                >
+                                  {PUBLISHER_PLATFORM_LABELS[code] ?? code}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPublisherPlatforms(
+                                        publisherPlatforms.filter((c) => c !== code),
+                                      );
+                                    }}
+                                    className="hover:text-red-200"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {publisherPlatforms.length > 0 && (
+                            <p className="text-[11px] text-[#556179] mt-1">
+                              {publisherPlatforms.length} selected.
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="form-label-small">Device platforms (optional)</label>
+                          <Dropdown
+                            options={DEVICE_PLATFORM_OPTIONS}
+                            value={devicePlatforms}
+                            placeholder="All"
+                            onChange={(val) => setDevicePlatforms(val)}
+                            buttonClassName={inputClass}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="form-label-small">
+                            Custom audience IDs (comma separated)
+                          </label>
+                          <input
+                            type="text"
+                            value={customAudiences}
+                            onChange={(e) => setCustomAudiences(e.target.value)}
+                            placeholder="e.g. 123456, 789012"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="form-label-small">
+                            Excluded custom audience IDs (comma separated)
+                          </label>
+                          <input
+                            type="text"
+                            value={excludedCustomAudiences}
+                            onChange={(e) => setExcludedCustomAudiences(e.target.value)}
+                            placeholder="e.g. 123456"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="form-label-small">
+                            Interest IDs (comma separated)
+                          </label>
+                          <input
+                            type="text"
+                            value={interestsIds}
+                            onChange={(e) => setInterestsIds(e.target.value)}
+                            placeholder="e.g. 600313926646730"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="form-label-small">
+                            Behavior IDs (comma separated)
+                          </label>
+                          <input
+                            type="text"
+                            value={behaviorsIds}
+                            onChange={(e) => setBehaviorsIds(e.target.value)}
+                            placeholder="e.g. 6002714895372"
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="form-label-small">
-                      End time {budgetType === "lifetime" ? "*" : "(optional)"}
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className={inputClass}
-                    />
-                    {budgetType === "lifetime" && (
-                      <p className="text-[11px] text-[#556179] mt-1">Required when using lifetime budget.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
+                )}
 
-              <div className="mb-6">
-                <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
-                  Promoted object
-                </h3>
-                <p className="text-[11px] text-[#556179] mb-3">
-                  The object this ad set is promoting. Required for some objectives (e.g. page_id for PAGE_LIKES/LEADS, pixel_id for CONVERSIONS, application_id + object_store_url for APP_INSTALLS).
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="form-label-small">Page ID</label>
-                    <input
-                      type="text"
-                      value={pageId}
-                      onChange={(e) => setPageId(e.target.value)}
-                      placeholder="e.g. Meta Page ID"
-                      className={inputClass}
-                    />
+                {activeTab === "schedule" && (
+                  <div className="p-3">
+                    <div className="mb-6">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
+                        Schedule
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="form-label-small">Start time (optional)</label>
+                          <input
+                            type="datetime-local"
+                            value={startTime}
+                            onChange={(e) => setStartTime(e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">
+                            End time {budgetType === "lifetime" ? "*" : "(optional)"}
+                          </label>
+                          <input
+                            type="datetime-local"
+                            value={endTime}
+                            onChange={(e) => setEndTime(e.target.value)}
+                            className={inputClass}
+                          />
+                          {budgetType === "lifetime" && (
+                            <p className="text-[11px] text-[#556179] mt-1">
+                              Required when using lifetime budget.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="form-label-small">Pixel ID</label>
-                    <input
-                      type="text"
-                      value={pixelId}
-                      onChange={(e) => setPixelId(e.target.value)}
-                      placeholder="e.g. Conversion pixel ID"
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label-small">Custom event type</label>
-                    <input
-                      type="text"
-                      value={customEventType}
-                      onChange={(e) => setCustomEventType(e.target.value)}
-                      placeholder="e.g. PURCHASE, LEAD"
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label-small">Application ID</label>
-                    <input
-                      type="text"
-                      value={applicationId}
-                      onChange={(e) => setApplicationId(e.target.value)}
-                      placeholder="e.g. Facebook App ID"
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="form-label-small">Object store URL</label>
-                    <input
-                      type="text"
-                      value={objectStoreUrl}
-                      onChange={(e) => setObjectStoreUrl(e.target.value)}
-                      placeholder="e.g. https://apps.apple.com/..."
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label-small">Event ID</label>
-                    <input
-                      type="text"
-                      value={eventId}
-                      onChange={(e) => setEventId(e.target.value)}
-                      placeholder="e.g. Facebook event ID"
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label-small">Product set ID</label>
-                    <input
-                      type="text"
-                      value={productSetId}
-                      onChange={(e) => setProductSetId(e.target.value)}
-                      placeholder="e.g. for catalog sales"
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label-small">Offline conversion data set ID</label>
-                    <input
-                      type="text"
-                      value={offlineConversionDataSetId}
-                      onChange={(e) => setOfflineConversionDataSetId(e.target.value)}
-                      placeholder="e.g. for offline conversions"
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-              </div>
+                )}
 
-              <div className="mb-6">
-                <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
-                  Pacing
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="form-label-small">Pacing type</label>
-                    <Dropdown
-                      options={PACING_TYPES.map((p) => ({ value: p.value, label: p.label }))}
-                      value={pacingType}
-                      placeholder="Select pacing type"
-                      onChange={(val) => setPacingType(val)}
-                      buttonClassName={inputClass}
-                    />
-                    <p className="text-[11px] text-[#556179] mt-1">Sent as a list, e.g. [&quot;standard&quot;] or [&quot;no_pacing&quot;].</p>
+                {activeTab === "promoted" && (
+                  <div className="p-3">
+                    <div className="mb-6">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
+                        Promoted object
+                      </h3>
+                      <p className="text-[11px] text-[#556179] mb-3">
+                        The object this ad set is promoting. Required for some objectives (e.g.
+                        page_id for PAGE_LIKES/LEADS, pixel_id for CONVERSIONS, application_id +
+                        object_store_url for APP_INSTALLS).
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="form-label-small">Page ID</label>
+                          <input
+                            type="text"
+                            value={pageId}
+                            onChange={(e) => setPageId(e.target.value)}
+                            placeholder="e.g. Meta Page ID"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">Pixel ID</label>
+                          <input
+                            type="text"
+                            value={pixelId}
+                            onChange={(e) => setPixelId(e.target.value)}
+                            placeholder="e.g. Conversion pixel ID"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">Custom event type</label>
+                          <input
+                            type="text"
+                            value={customEventType}
+                            onChange={(e) => setCustomEventType(e.target.value)}
+                            placeholder="e.g. PURCHASE, LEAD"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">Application ID</label>
+                          <input
+                            type="text"
+                            value={applicationId}
+                            onChange={(e) => setApplicationId(e.target.value)}
+                            placeholder="e.g. Facebook App ID"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="form-label-small">Object store URL</label>
+                          <input
+                            type="text"
+                            value={objectStoreUrl}
+                            onChange={(e) => setObjectStoreUrl(e.target.value)}
+                            placeholder="e.g. https://apps.apple.com/..."
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">Event ID</label>
+                          <input
+                            type="text"
+                            value={eventId}
+                            onChange={(e) => setEventId(e.target.value)}
+                            placeholder="e.g. Facebook event ID"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">Product set ID</label>
+                          <input
+                            type="text"
+                            value={productSetId}
+                            onChange={(e) => setProductSetId(e.target.value)}
+                            placeholder="e.g. for catalog sales"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">
+                            Offline conversion data set ID
+                          </label>
+                          <input
+                            type="text"
+                            value={offlineConversionDataSetId}
+                            onChange={(e) => setOfflineConversionDataSetId(e.target.value)}
+                            placeholder="e.g. for offline conversions"
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {activeTab === "advanced" && (
+                  <div className="p-3">
+                    <div className="mb-6">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
+                        Pacing
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="form-label-small">Pacing type</label>
+                          <Dropdown
+                            options={PACING_TYPES.map((p) => ({
+                              value: p.value,
+                              label: p.label,
+                            }))}
+                            value={pacingType}
+                            placeholder="Select pacing type"
+                            onChange={(val) => setPacingType(val)}
+                            buttonClassName={inputClass}
+                          />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            Sent as a list, e.g. [&quot;standard&quot;] or [&quot;no_pacing&quot;].
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleFillTest}
+                className="secondary-button font-semibold text-[11.2px]"
+              >
+                Fill test data
+              </button>
               <button type="button" onClick={onClose} className="cancel-button">
                 Cancel
               </button>

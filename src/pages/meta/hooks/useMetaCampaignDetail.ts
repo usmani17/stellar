@@ -52,9 +52,11 @@ export const useMetaCampaignDetail = ({
   endDate,
 }: UseMetaCampaignDetailParams) => {
   const [loading, setLoading] = useState(true);
-  const [campaignDetail, setCampaignDetail] = useState<MetaCampaignDetailData | null>(null);
+  const [campaignDetail, setCampaignDetail] =
+    useState<MetaCampaignDetailData | null>(null);
   const isLoadingRef = useRef(false);
 
+  console.log(`campaignId ${campaignId}`);
   const [chartToggles, setChartToggles] = useState({
     sales: true,
     spend: true,
@@ -86,7 +88,7 @@ export const useMetaCampaignDetail = ({
         {
           start_date: startDate ? toLocalDateString(startDate) : undefined,
           end_date: endDate ? toLocalDateString(endDate) : undefined,
-        }
+        },
       );
       if (currentCampaignId === campaignId) {
         setCampaignDetail(data);
@@ -110,7 +112,14 @@ export const useMetaCampaignDetail = ({
     } else {
       setLoading(false);
     }
-  }, [accountId, campaignId, channelId, startDateStr, endDateStr, loadCampaignDetail]);
+  }, [
+    accountId,
+    campaignId,
+    channelId,
+    startDateStr,
+    endDateStr,
+    loadCampaignDetail,
+  ]);
 
   const chartData = useMemo(() => {
     if (campaignDetail?.chart_data && campaignDetail.chart_data.length > 0) {
@@ -129,18 +138,18 @@ export const useMetaCampaignDetail = ({
     (metric: "sales" | "spend" | "clicks" | "orders") => {
       setChartToggles((prev) => ({ ...prev, [metric]: !prev[metric] }));
     },
-    []
+    [],
   );
 
   const handleUpdateCampaign = useCallback(
     async (
       _field: "budget" | "status" | "start_date" | "end_date",
-      _newValue: string
+      _newValue: string,
     ) => {
       if (!campaignDetail) return;
       await loadCampaignDetail();
     },
-    [campaignDetail, loadCampaignDetail]
+    [campaignDetail, loadCampaignDetail],
   );
 
   return {
