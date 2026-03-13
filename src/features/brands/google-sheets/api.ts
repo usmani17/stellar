@@ -1,8 +1,16 @@
 import api from "../../../services/api";
 
+export interface GoogleConnection {
+  id: number;
+  google_user_id: string;
+  email: string;
+  created_at: string;
+}
+
 export interface GoogleSheetsIntegration {
   id: number;
   name: string;
+  connection?: GoogleConnection;
   spreadsheet_id: string;
   spreadsheet_name: string;
   sheet_gid: string;
@@ -42,13 +50,6 @@ export interface ColumnMapping {
   ignore: boolean;
   is_key: boolean;
   position: number;
-}
-
-export interface GoogleConnection {
-  id: number;
-  google_user_id: string;
-  email: string;
-  created_at: string;
 }
 
 export async function getGoogleSheetsConnectUrl(accountId: number) {

@@ -8,10 +8,7 @@ import {
 import { Sidebar } from "../../../components/layout/Sidebar";
 import { DashboardHeader } from "../../../components/layout/DashboardHeader";
 import { useSidebar } from "../../../contexts/SidebarContext";
-import {
-  getGoogleSheetsConnectUrl,
-  listGoogleSheetsIntegrations,
-} from "./api";
+import { listGoogleSheetsIntegrations } from "./api";
 import type { GoogleSheetsIntegration } from "./api";
 
 export const GoogleSheetsIntegrationsPage: React.FC = () => {
@@ -47,9 +44,9 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
     load();
   }, [accountIdNum, navigate]);
 
-  const handleConnectGoogle = async () => {
+  const handleConnectGoogle = () => {
     if (!accountIdNum) return;
-    navigate(`/brands/${accountId}/google-sheets/${integrations[0]?.id ?? "1"}/edit`);
+    navigate(`/brands/${accountId}/google-sheets/create`);
   };
 
   return (

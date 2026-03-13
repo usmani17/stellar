@@ -5,6 +5,7 @@ import { DashboardHeader } from "../../../components/layout/DashboardHeader";
 import { useSidebar } from "../../../contexts/SidebarContext";
 import { Button, Loader, Banner } from "../../../components/ui";
 import {
+  createGoogleSheetsIntegration,
   getGoogleSheetsIntegration,
   listGoogleConnections,
   listSpreadsheets,
@@ -21,10 +22,11 @@ import type {
 export const GoogleSheetsIntegrationEditPage: React.FC = () => {
   const { accountId, integration_id } = useParams<{
     accountId: string;
-    integration_id: string;
+    integration_id?: string;
   }>();
   const accountIdNum = accountId ? parseInt(accountId, 10) : NaN;
   const integrationIdNum = integration_id ? parseInt(integration_id, 10) : NaN;
+  const isEditMode = Boolean(integration_id);
   const { sidebarWidth } = useSidebar();
   const navigate = useNavigate();
 
@@ -45,7 +47,7 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
   const [headerRow, setHeaderRow] = useState(1);
 
   useEffect(() => {
-    if (!accountIdNum || !integrationIdNum) {
+    if (!accountIdNum) {
       navigate("/brands");
       return;
     }
@@ -53,43 +55,60 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const [integrationData, connectionsData] = await Promise.all([
-          getGoogleSheetsIntegration(accountIdNum, integrationIdNum),
-          listGoogleConnections(accountIdNum),
-        ]);
-        setIntegration(integrationData);
-        setConnections(connectionsData);
-        setName(integrationData.name);
-        setRange(integrationData.range || "A1:Z1000");
-        setHeaderRow(integrationData.header_row || 1);
-        setSpreadsheetId(integrationData.spreadsheet_id);
-        setSheetName(integrationData.sheet_name);
-        setConnectionId(integrationData.connection?.id ?? "");
-
-        if (integrationData.connection?.id) {
-          const [sheets, sheetTabs] = await Promise.all([
-            listSpreadsheets(accountIdNum, integrationData.connection.id),
-            integrationData.spreadsheet_id
-              ? listSheetTabs(
-                  accountIdNum,
-                  integrationData.spreadsheet_id,
-                  integrationData.connection.id,
-                )
-              : Promise.resolve([]),
+        if (isEditMode) {
+          if (!integrationIdNum) {
+            navigate("/brands");
+            return;
+          }
+          const [integrationData, connectionsData] = await Promise.all([
+            getGoogleSheetsIntegration(accountIdNum, integrationIdNum),
+            listGoogleConnections(accountIdNum),
           ]);
-          setSpreadsheets(sheets);
-          setTabs(sheetTabs as GoogleSheetTab[]);
+          setIntegration(integrationData);
+          setConnections(connectionsData);
+          setName(integrationData.name);
+          setRange(integrationData.range || "A1:Z1000");
+          setHeaderRow(integrationData.header_row || 1);
+          setSpreadsheetId(integrationData.spreadsheet_id);
+          setSheetName(integrationData.sheet_name);
+          // Prefer the nested connection if present, otherwise fall back to 0 (forces user to re-select)
+          const initialConnectionId =
+            (integrationData as any).connection?.id ??
+            (integrationData as any).connection_id ??
+            "";
+          setConnectionId(initialConnectionId);
+
+          if (initialConnectionId) {
+            const [sheets, sheetTabs] = await Promise.all([
+              listSpreadsheets(accountIdNum, initialConnectionId as number),
+              integrationData.spreadsheet_id
+                ? listSheetTabs(
+                    accountIdNum,
+                    integrationData.spreadsheet_id,
+                    initialConnectionId as number,
+                  )
+                : Promise.resolve([]),
+            ]);
+            setSpreadsheets(sheets);
+            setTabs(sheetTabs as GoogleSheetTab[]);
+          }
+        } else {
+          const connectionsData = await listGoogleConnections(accountIdNum);
+          setConnections(connectionsData);
         }
       } catch (e: any) {
         setError(
-          e?.response?.data?.detail || "Failed to load integration for editing.",
+          e?.response?.data?.detail ||
+            (isEditMode
+              ? "Failed to load integration for editing."
+              : "Failed to load Google connections for this brand."),
         );
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [accountIdNum, integrationIdNum, navigate]);
+  }, [accountIdNum, integrationIdNum, isEditMode, navigate]);
 
   const handleConnectionChange = async (
     e: React.ChangeEvent<HTMLSelectElement>,
@@ -144,35 +163,57 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!integration || !connectionId || !spreadsheetId || !sheetName) {
-      setError("Please select connection, spreadsheet and sheet tab before saving.");
+    if (!accountIdNum) {
+      navigate("/brands");
       return;
     }
+
+    if (!name || !connectionId || !spreadsheetId || !sheetName) {
+      setError(
+        "Please provide a name, select a connection, spreadsheet and sheet tab before saving.",
+      );
+      return;
+    }
+
     setSaving(true);
     setError(null);
     const selectedSpreadsheet = spreadsheets.find((s) => s.id === spreadsheetId);
     const selectedTab = tabs.find((t) => t.name === sheetName);
     try {
-      const updated = await updateGoogleSheetsIntegration(
-        accountIdNum,
-        integrationIdNum,
-        {
+      if (isEditMode && integrationIdNum && integration) {
+        const updated = await updateGoogleSheetsIntegration(
+          accountIdNum,
+          integrationIdNum,
+          {
+            name,
+            connection_id: connectionId,
+            spreadsheet_id: spreadsheetId,
+            spreadsheet_name: selectedSpreadsheet?.name ?? "",
+            sheet_name: sheetName,
+            sheet_gid: selectedTab?.gid?.toString() ?? "",
+            range,
+            header_row: headerRow,
+          },
+        );
+        setIntegration(updated);
+        navigate(`/brands/${accountId}/google-sheets/view/${integrationIdNum}`);
+      } else {
+        const created = await createGoogleSheetsIntegration(accountIdNum, {
           name,
-          connection_id: connectionId,
+          connection_id: connectionId as number,
           spreadsheet_id: spreadsheetId,
-          spreadsheet_name: selectedSpreadsheet?.name ?? "",
           sheet_name: sheetName,
-          sheet_gid: selectedTab?.gid?.toString() ?? "",
           range,
           header_row: headerRow,
-        },
-      );
-      setIntegration(updated);
-      navigate(`/brands/${accountId}/google-sheets/view/${integrationIdNum}`);
+        });
+        navigate(`/brands/${accountId}/google-sheets/view/${created.id}`);
+      }
     } catch (err: any) {
       setError(
         err?.response?.data?.detail ||
-          "Failed to save Google Sheets integration.",
+          (isEditMode
+            ? "Failed to save Google Sheets integration."
+            : "Failed to create Google Sheets integration."),
       );
     } finally {
       setSaving(false);
@@ -195,14 +236,19 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
             />
           )}
 
-          {loading || !integration ? (
+          {loading || (isEditMode && !integration) ? (
             <div className="flex items-center justify-center py-16">
-              <Loader size="md" message="Loading integration..." />
+              <Loader
+                size="md"
+                message={isEditMode ? "Loading integration..." : "Loading Google connections..."}
+              />
             </div>
           ) : (
             <div className="max-w-xl space-y-5">
               <h1 className="text-[24px] font-medium text-forest-f60">
-                Edit Google Sheets Integration
+                {isEditMode
+                  ? "Edit Google Sheets Integration"
+                  : "Create Google Sheets Integration"}
               </h1>
 
               <div className="space-y-1">
@@ -296,7 +342,13 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
 
               <div className="pt-2">
                 <Button onClick={handleSave} disabled={saving}>
-                  {saving ? "Saving..." : "Save integration"}
+                  {saving
+                    ? isEditMode
+                      ? "Saving..."
+                      : "Creating..."
+                    : isEditMode
+                    ? "Save integration"
+                    : "Create integration"}
                 </Button>
               </div>
             </div>

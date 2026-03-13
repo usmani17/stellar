@@ -166,6 +166,22 @@ function AccountRoutes() {
                 }
             />
             <Route
+                path="/brands/:accountId/google-sheets/create"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <GoogleSheetsIntegrationEditPage />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
                 path="/brands/:accountId/google-sheets/view/:integration_id"
                 element={
                     <ProtectedRoute>
