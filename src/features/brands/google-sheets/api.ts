@@ -80,7 +80,7 @@ export async function createGoogleSheetsIntegration(
   accountId: number,
   payload: Omit<
     GoogleSheetsIntegration,
-    "id" | "created_at" | "sheet_gid" | "spreadsheet_name"
+    "id" | "created_at"
   > & { connection_id: number },
 ) {
   const res = await api.post<GoogleSheetsIntegration>(

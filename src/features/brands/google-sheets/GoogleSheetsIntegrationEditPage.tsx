@@ -5,6 +5,7 @@ import { DashboardHeader } from "../../../components/layout/DashboardHeader";
 import { useSidebar } from "../../../contexts/SidebarContext";
 import { Button, Loader, Banner } from "../../../components/ui";
 import {
+  getGoogleSheetsConnectUrl,
   createGoogleSheetsIntegration,
   getGoogleSheetsIntegration,
   listGoogleConnections,
@@ -45,6 +46,7 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
   const [sheetName, setSheetName] = useState("");
   const [range, setRange] = useState("A1:Z1000");
   const [headerRow, setHeaderRow] = useState(1);
+  const [addingConnection, setAddingConnection] = useState(false);
 
   useEffect(() => {
     if (!accountIdNum) {
@@ -162,6 +164,22 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
     }
   };
 
+  const handleAddConnection = async () => {
+    if (!accountIdNum || addingConnection) return;
+    setAddingConnection(true);
+    setError(null);
+    try {
+      const url = await getGoogleSheetsConnectUrl(accountIdNum);
+      window.location.href = url;
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.detail ||
+          "Failed to start Google connection authorization.",
+      );
+      setAddingConnection(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!accountIdNum) {
       navigate("/brands");
@@ -202,7 +220,9 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
           name,
           connection_id: connectionId as number,
           spreadsheet_id: spreadsheetId,
+          spreadsheet_name: selectedSpreadsheet?.name ?? "",
           sheet_name: sheetName,
+          sheet_gid: selectedTab?.gid?.toString() ?? "",
           range,
           header_row: headerRow,
         });
@@ -265,18 +285,29 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
                 <label className="text-[13px] text-forest-f30">
                   Google connection
                 </label>
-                <select
-                  value={connectionId ?? ""}
-                  onChange={handleConnectionChange}
-                  className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40"
-                >
-                  <option value="">Select connection</option>
-                  {connections.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.email || c.google_user_id}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={connectionId ?? ""}
+                    onChange={handleConnectionChange}
+                    className="flex-1 rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                  >
+                    <option value="">Select connection</option>
+                    {connections.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.email || c.google_user_id}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="whitespace-nowrap"
+                    onClick={handleAddConnection}
+                    disabled={addingConnection}
+                  >
+                    {addingConnection ? "Opening..." : "Add new connection"}
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-1">
