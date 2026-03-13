@@ -47,6 +47,8 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
   const [range, setRange] = useState("A1:Z1000");
   const [headerRow, setHeaderRow] = useState(1);
   const [addingConnection, setAddingConnection] = useState(false);
+  const [loadingSpreadsheets, setLoadingSpreadsheets] = useState(false);
+  const [loadingTabs, setLoadingTabs] = useState(false);
 
   useEffect(() => {
     if (!accountIdNum) {
@@ -122,6 +124,7 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
       setTabs([]);
       setSpreadsheetId("");
       setSheetName("");
+      setLoadingSpreadsheets(false);
       return;
     }
     const id = Number(value);
@@ -129,7 +132,8 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
     setSpreadsheetId("");
     setSheetName("");
     setTabs([]);
-
+    setLoadingSpreadsheets(true);
+    setError(null);
     try {
       const sheets = await listSpreadsheets(accountIdNum, id);
       setSpreadsheets(sheets);
@@ -138,6 +142,9 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
         err?.response?.data?.detail ||
           "Failed to load spreadsheets for selected connection.",
       );
+      setSpreadsheets([]);
+    } finally {
+      setLoadingSpreadsheets(false);
     }
   };
 
@@ -148,7 +155,12 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
     setSpreadsheetId(value);
     setSheetName("");
     setTabs([]);
-    if (!value || !connectionId || typeof connectionId !== "number") return;
+    if (!value || !connectionId || typeof connectionId !== "number") {
+      setLoadingTabs(false);
+      return;
+    }
+    setLoadingTabs(true);
+    setError(null);
     try {
       const sheetTabs = await listSheetTabs(
         accountIdNum,
@@ -161,6 +173,9 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
         err?.response?.data?.detail ||
           "Failed to load sheet tabs for selected spreadsheet.",
       );
+      setTabs([]);
+    } finally {
+      setLoadingTabs(false);
     }
   };
 
@@ -289,7 +304,8 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
                   <select
                     value={connectionId ?? ""}
                     onChange={handleConnectionChange}
-                    className="flex-1 rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                    disabled={loadingSpreadsheets}
+                    className="flex-1 rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40 disabled:opacity-60"
                   >
                     <option value="">Select connection</option>
                     {connections.map((c) => (
@@ -314,36 +330,72 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
                 <label className="text-[13px] text-forest-f30">
                   Spreadsheet
                 </label>
-                <select
-                  value={spreadsheetId}
-                  onChange={handleSpreadsheetChange}
-                  disabled={!connectionId || spreadsheets.length === 0}
-                  className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40 disabled:opacity-60"
-                >
-                  <option value="">Select spreadsheet</option>
-                  {spreadsheets.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
+                <div className="relative">
+                  <select
+                    value={spreadsheetId}
+                    onChange={handleSpreadsheetChange}
+                    disabled={
+                      !connectionId ||
+                      loadingSpreadsheets ||
+                      (spreadsheets.length === 0 && !loadingSpreadsheets)
+                    }
+                    className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40 disabled:opacity-60"
+                  >
+                    <option value="">
+                      {loadingSpreadsheets
+                        ? "Loading spreadsheets..."
+                        : "Select spreadsheet"}
                     </option>
-                  ))}
-                </select>
+                    {spreadsheets.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  {loadingSpreadsheets && (
+                    <span
+                      className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                      aria-hidden
+                    >
+                      <Loader size="sm" />
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1">
                 <label className="text-[13px] text-forest-f30">Sheet tab</label>
-                <select
-                  value={sheetName}
-                  onChange={(e) => setSheetName(e.target.value)}
-                  disabled={!spreadsheetId || tabs.length === 0}
-                  className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40 disabled:opacity-60"
-                >
-                  <option value="">Select sheet tab</option>
-                  {tabs.map((t) => (
-                    <option key={t.gid} value={t.name}>
-                      {t.name}
+                <div className="relative">
+                  <select
+                    value={sheetName}
+                    onChange={(e) => setSheetName(e.target.value)}
+                    disabled={
+                      !spreadsheetId ||
+                      loadingTabs ||
+                      (tabs.length === 0 && !loadingTabs)
+                    }
+                    className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40 disabled:opacity-60"
+                  >
+                    <option value="">
+                      {loadingTabs
+                        ? "Loading sheet tabs..."
+                        : "Select sheet tab"}
                     </option>
-                  ))}
-                </select>
+                    {tabs.map((t) => (
+                      <option key={t.gid} value={t.name}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  {loadingTabs && (
+                    <span
+                      className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                      aria-hidden
+                    >
+                      <Loader size="sm" />
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
