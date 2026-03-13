@@ -21,6 +21,8 @@ import { CompleteSignup } from "../pages/CompleteSignup";
 import { ColorExamples } from "../pages/ColorExamples";
 import { WorkflowsPage } from "../pages/workflows/WorkflowsPage";
 import { WorkflowDashboardPage } from "../pages/workflows/WorkflowDashboardPage";
+import { GoogleSheetsIntegrationsPage } from "../features/brands/google-sheets/GoogleSheetsIntegrationsPage";
+import { GoogleSheetsIntegrationPage } from "../features/brands/google-sheets/GoogleSheetsIntegrationPage";
 
 function ChannelsToIntegrationsRedirect() {
     const { accountId } = useParams<{ accountId: string }>();
@@ -139,6 +141,38 @@ function AccountRoutes() {
                                 <BrandAccessRoute>
                                     <Layout>
                                         <Channels />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/brands/:accountId/google-sheets/integrations"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <GoogleSheetsIntegrationsPage />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/brands/:accountId/google-sheets/:integration_id"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <GoogleSheetsIntegrationPage />
                                     </Layout>
                                 </BrandAccessRoute>
                             </AccountRequiredRoute>
