@@ -8,10 +8,7 @@ import {
 import { Sidebar } from "../../../components/layout/Sidebar";
 import { DashboardHeader } from "../../../components/layout/DashboardHeader";
 import { useSidebar } from "../../../contexts/SidebarContext";
-import {
-  getGoogleSheetsConnectUrl,
-  listGoogleSheetsIntegrations,
-} from "./api";
+import { listGoogleSheetsIntegrations } from "./api";
 import type { GoogleSheetsIntegration } from "./api";
 
 export const GoogleSheetsIntegrationsPage: React.FC = () => {
@@ -47,9 +44,9 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
     load();
   }, [accountIdNum, navigate]);
 
-  const handleConnectGoogle = async () => {
+  const handleConnectGoogle = () => {
     if (!accountIdNum) return;
-    navigate(`/brands/${accountId}/google-sheets/${integrations[0]?.id ?? "1"}/edit`);
+    navigate(`/brands/${accountId}/google-sheets/create`);
   };
 
   return (
@@ -147,17 +144,30 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="table-cell">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              navigate(
-                                `/brands/${accountId}/google-sheets/view/${integration.id}`,
-                              )
-                            }
-                          >
-                            View
-                          </Button>
+                          <div className="flex flex-row gap-2 items-center">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                navigate(
+                                  `/brands/${accountId}/google-sheets/view/${integration.id}`,
+                                )
+                              }
+                            >
+                              View
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                navigate(
+                                  `/brands/${accountId}/google-sheets/edit/${integration.id}`,
+                                )
+                              }
+                            >
+                              Edit
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}

@@ -56,6 +56,9 @@ export const GoogleSheetsIntegrationPage: React.FC = () => {
         setIntegration(integrationData);
         setMapping(mappingData);
         const previewData = await previewSheet(accountIdNum, {
+          ...(integrationData.connection?.id != null && {
+            connection_id: integrationData.connection.id,
+          }),
           spreadsheet_id: integrationData.spreadsheet_id,
           sheet_name: integrationData.sheet_name,
           range: integrationData.range,

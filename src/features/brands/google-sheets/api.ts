@@ -1,8 +1,16 @@
 import api from "../../../services/api";
 
+export interface GoogleConnection {
+  id: number;
+  google_user_id: string;
+  email: string;
+  created_at: string;
+}
+
 export interface GoogleSheetsIntegration {
   id: number;
   name: string;
+  connection?: GoogleConnection;
   spreadsheet_id: string;
   spreadsheet_name: string;
   sheet_gid: string;
@@ -23,6 +31,7 @@ export interface GoogleSheetTab {
 }
 
 export interface SheetPreviewRequest {
+  connection_id?: number;
   spreadsheet_id: string;
   sheet_name: string;
   range: string;
@@ -38,17 +47,9 @@ export interface ColumnMapping {
   id?: number;
   column_name: string;
   type: string;
-  role: string;
   ignore: boolean;
   is_key: boolean;
   position: number;
-}
-
-export interface GoogleConnection {
-  id: number;
-  google_user_id: string;
-  email: string;
-  created_at: string;
 }
 
 export async function getGoogleSheetsConnectUrl(accountId: number) {
@@ -79,7 +80,7 @@ export async function createGoogleSheetsIntegration(
   accountId: number,
   payload: Omit<
     GoogleSheetsIntegration,
-    "id" | "created_at" | "sheet_gid" | "spreadsheet_name"
+    "id" | "created_at"
   > & { connection_id: number },
 ) {
   const res = await api.post<GoogleSheetsIntegration>(
