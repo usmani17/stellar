@@ -18,6 +18,7 @@ export interface GoogleSheetsIntegration {
   header_row: number;
   range: string;
   created_at: string;
+  last_synced_at: string | null;
 }
 
 export interface GoogleSpreadsheet {
@@ -76,12 +77,29 @@ export async function getGoogleSheetsIntegration(
   return res.data;
 }
 
+/** Response from resolve-sheet: paste URL → get spreadsheet_id, name, and tabs */
+export interface ResolveSheetResponse {
+  spreadsheet_id: string;
+  spreadsheet_name: string;
+  tabs: GoogleSheetTab[];
+}
+
+export async function resolveSheetUrl(accountId: number, sheetUrl: string) {
+  const res = await api.post<ResolveSheetResponse>(
+    `/brands/${accountId}/google-sheets/resolve-sheet`,
+    { sheet_url: sheetUrl },
+  );
+  return res.data;
+}
+
+export type CreateGoogleSheetsIntegrationPayload = Omit<
+  GoogleSheetsIntegration,
+  "id" | "created_at" | "connection"
+> & { connection_id?: number | null };
+
 export async function createGoogleSheetsIntegration(
   accountId: number,
-  payload: Omit<
-    GoogleSheetsIntegration,
-    "id" | "created_at"
-  > & { connection_id: number },
+  payload: CreateGoogleSheetsIntegrationPayload,
 ) {
   const res = await api.post<GoogleSheetsIntegration>(
     `/brands/${accountId}/google-sheets/integrations`,
@@ -179,5 +197,14 @@ export async function updateGoogleSheetsIntegration(
     payload,
   );
   return res.data;
+}
+
+export async function deleteGoogleSheetsIntegration(
+  accountId: number,
+  integrationId: number,
+) {
+  await api.delete(
+    `/brands/${accountId}/google-sheets/${integrationId}`,
+  );
 }
 

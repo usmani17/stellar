@@ -99,6 +99,11 @@ export const GoogleSheetsIntegrationPage: React.FC = () => {
     try {
       const result = await triggerManualSync(integrationIdNum);
       setSyncResult(result);
+      const updated = await getGoogleSheetsIntegration(
+        accountIdNum,
+        integrationIdNum,
+      );
+      setIntegration(updated);
     } catch (e: any) {
       setError(
         e?.response?.data?.detail || "Failed to sync Google Sheet.",
@@ -139,10 +144,29 @@ export const GoogleSheetsIntegrationPage: React.FC = () => {
                     {integration.spreadsheet_name} · {integration.sheet_name} ·{" "}
                     {integration.range}
                   </p>
+                  <p className="text-[13px] text-forest-f30 mt-0.5">
+                    Last synced:{" "}
+                    {integration.last_synced_at
+                      ? new Date(
+                          integration.last_synced_at,
+                        ).toLocaleString()
+                      : "Never"}
+                  </p>
                 </div>
-                <Button onClick={handleSync} disabled={syncing}>
-                  {syncing ? "Syncing..." : "Manual Sync"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(`/brands/${accountId}/google-sheets/integrations`)
+                    }
+                    className="cancel-button"
+                  >
+                    Cancel
+                  </button>
+                  <Button onClick={handleSync} disabled={syncing}>
+                    {syncing ? "Syncing..." : "Manual Sync"}
+                  </Button>
+                </div>
               </div>
 
               {syncResult && (

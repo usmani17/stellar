@@ -24,6 +24,7 @@ import { WorkflowDashboardPage } from "../pages/workflows/WorkflowDashboardPage"
 import { GoogleSheetsIntegrationsPage } from "../features/brands/google-sheets/GoogleSheetsIntegrationsPage";
 import { GoogleSheetsIntegrationPage } from "../features/brands/google-sheets/GoogleSheetsIntegrationPage";
 import { GoogleSheetsIntegrationEditPage } from "../features/brands/google-sheets/GoogleSheetsIntegrationEditPage";
+import { GoogleSheetsIntegrationCreatePage } from "../features/brands/google-sheets/GoogleSheetsIntegrationCreatePage";
 
 function ChannelsToIntegrationsRedirect() {
     const { accountId } = useParams<{ accountId: string }>();
@@ -173,7 +174,7 @@ function AccountRoutes() {
                             <AccountRequiredRoute>
                                 <BrandAccessRoute>
                                     <Layout>
-                                        <GoogleSheetsIntegrationEditPage />
+                                        <GoogleSheetsIntegrationCreatePage />
                                     </Layout>
                                 </BrandAccessRoute>
                             </AccountRequiredRoute>
