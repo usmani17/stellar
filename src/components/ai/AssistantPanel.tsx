@@ -102,6 +102,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         allAccountsWithProfiles: contextAllAccountsWithProfiles,
         loadingAllProfiles: contextLoadingAllProfiles,
         loadAllAccountsProfiles,
+        getAccountGoogleSheetsIntegrationsCached,
     } = useAccounts();
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -597,7 +598,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         startNewSession();
         setHasAppliedProfileSelection(false);
         isIntegrationProfileDropdownOpenRef.current = false;
-        setAssistantScope({ channelId: null, profileId: null, profileName: null, marketplace: null, selectedProfiles: [] });
+        setAssistantScope({ channelId: null, profileId: null, profileName: null, marketplace: null, selectedProfiles: [], selectedGoogleSheetsIntegrations: [] });
         setIsSessionDropdownOpen(false);
         setIsIntegrationProfileDropdownOpen(false);
     };
@@ -665,10 +666,33 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             (p) => String(p.channel_id) === assistantScope.channelId && p.id === assistantScope.profileId
         );
 
+    const selectedGoogleSheetsIntegrations = assistantScope.selectedGoogleSheetsIntegrations ?? [];
+
+    const getSheetDisplayName = (s: { accountId: string; integrationId: number }) => {
+        const accId = parseInt(s.accountId, 10);
+        const integrations = !Number.isNaN(accId) ? (getAccountGoogleSheetsIntegrationsCached(accId) ?? []) : [];
+        const full = integrations.find((g) => g.id === s.integrationId);
+        return full?.name || full?.spreadsheet_name || "Sheet";
+    };
+
     const isProfileSelected = (accId: number, channelId: number, profileId: number) =>
         selectedProfiles.some(
             (sp) => String(sp.accountId) === String(accId) && String(sp.channelId) === String(channelId) && sp.profileId === profileId
         );
+
+    const isSheetSelected = (accId: number, integrationId: number) =>
+        selectedGoogleSheetsIntegrations.some(
+            (s) => String(s.accountId) === String(accId) && s.integrationId === integrationId
+        );
+
+    const toggleSheet = (accId: number, integrationId: number) => {
+        const next = isSheetSelected(accId, integrationId)
+            ? selectedGoogleSheetsIntegrations.filter(
+                (s) => !(String(s.accountId) === String(accId) && s.integrationId === integrationId)
+            )
+            : [...selectedGoogleSheetsIntegrations, { accountId: String(accId), integrationId }];
+        setAssistantScope({ selectedGoogleSheetsIntegrations: next });
+    };
 
     const toggleProfile = (p: AccountProfileOption, accId: number) => {
         const entry = {
@@ -727,6 +751,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         setHasAppliedProfileSelection(false);
         setAssistantScope({
             selectedProfiles: [],
+            selectedGoogleSheetsIntegrations: [],
             accountId: null,
             channelId: null,
             profileId: null,
@@ -736,7 +761,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     };
 
     const handleApplySelection = () => {
-        if (selectedProfiles.length > 0) setHasAppliedProfileSelection(true);
+        if (selectedProfiles.length > 0 || selectedGoogleSheetsIntegrations.length > 0) setHasAppliedProfileSelection(true);
         isIntegrationProfileDropdownOpenRef.current = false;
         setIsIntegrationProfileDropdownOpen(false);
         setProfileSearchQuery("");
@@ -746,21 +771,30 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     const accountsWithFilteredProfiles = React.useMemo(() => {
         const q = profileSearchQuery.trim().toLowerCase();
         return allAccountsWithProfiles
-            .map(({ accountId, accountName, profiles }) => {
+            .map(({ accountId, accountName, profiles, google_sheets_integrations = [] }) => {
+                const sheets = (google_sheets_integrations as Array<{ name?: string; spreadsheet_name?: string }>) ?? [];
+                const integrationSearchText = sheets
+                    .map((g) => (g.name ?? g.spreadsheet_name ?? "").toLowerCase())
+                    .filter(Boolean)
+                    .join(" ");
+                const accountAndSheetsLabel = `${accountName} ${integrationSearchText}`.toLowerCase();
+                const accountOrSheetMatchesSearch = !!q && accountAndSheetsLabel.includes(q);
                 const items = profiles
                     .filter((p) => {
                         if (q) {
-                            const label = `${profileDisplayName(p)} ${profileIdForDisplay(p)} ${accountName}`.toLowerCase();
-                            if (!label.includes(q)) return false;
+                            const label = `${profileDisplayName(p)} ${profileIdForDisplay(p)} ${accountName} ${integrationSearchText}`.toLowerCase();
+                            if (label.includes(q)) return true;
+                            if (accountOrSheetMatchesSearch) return true;
+                            return false;
                         }
                         const platform = (p.channel_type ?? "").toLowerCase() || "other";
                         if (platform === "amazon") return false; // Hide Amazon for now
                         return true;
                     })
                     .map((profile) => ({ profile, accountId, accountName }));
-                return { accountId, accountName, items };
+                return { accountId, accountName, items, google_sheets_integrations: sheets, accountOrSheetMatchesSearch };
             })
-            .filter((a) => a.items.length > 0);
+            .filter((a) => a.items.length > 0 || a.accountOrSheetMatchesSearch);
     }, [allAccountsWithProfiles, profileSearchQuery]);
 
     /** When multiple accounts: group by account (select account → select all its profiles). Otherwise: by platform. */
@@ -787,7 +821,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         (assistantScope.accountId &&
             assistantScope.channelId &&
             assistantScope.profileId) ||
-        (assistantScope.selectedProfiles && assistantScope.selectedProfiles.length >= 1)
+        (assistantScope.selectedProfiles && assistantScope.selectedProfiles.length >= 1) ||
+        (assistantScope.selectedGoogleSheetsIntegrations && assistantScope.selectedGoogleSheetsIntegrations.length >= 1)
     );
 
     /** Profile dropdown trigger + panel (reused in footer chips row) */
@@ -823,6 +858,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 <>
                                     <span className="truncate">
                                         {selectedProfiles.length} profiles selected
+                                        {selectedGoogleSheetsIntegrations.length > 0 && (
+                                            <span className="text-[#556179] font-normal"> · {selectedGoogleSheetsIntegrations.map((s) => getSheetDisplayName(s)).join(", ")}</span>
+                                        )}
                                     </span>
                                 </>
                             ) : selectedProfileOption ? (
@@ -844,11 +882,18 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                     })()}
                                     <span className="truncate">
                                         {profileDisplayName(selectedProfileOption)} ({profileIdForDisplay(selectedProfileOption)})
+                                        {selectedGoogleSheetsIntegrations.length > 0 && (
+                                            <span className="text-[#556179] font-normal"> · {selectedGoogleSheetsIntegrations.map((s) => getSheetDisplayName(s)).join(", ")}</span>
+                                        )}
                                     </span>
                                 </>
                             ) : (
                                 <span className="truncate text-[#556179]">
-                                    {accounts.length === 0 ? "No accounts" : "Select ad accounts..."}
+                                    {accounts.length === 0
+                                        ? "No accounts"
+                                        : selectedGoogleSheetsIntegrations.length > 0
+                                            ? selectedGoogleSheetsIntegrations.map((s) => getSheetDisplayName(s)).join(", ")
+                                            : "Select ad accounts..."}
                                 </span>
                             )}
                         </span>
@@ -898,8 +943,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                             </div>
                                         ) : showAccountGroupedLayout ? (
                                             /* Group by account: select account → select all its profiles */
-                                            accountsWithFilteredProfiles.map(({ accountId: accId, accountName: accName, items: accItems }) => {
+                                            accountsWithFilteredProfiles.map(({ accountId: accId, accountName: accName, items: accItems, google_sheets_integrations: accSheets }) => {
                                                 const allChecked = accItems.every(({ profile: p }) => isProfileSelected(accId, p.channel_id, p.id));
+                                                const sheetsCount = (accSheets as Array<{ name?: string }>)?.length ?? 0;
                                                 return (
                                                     <div key={accId} className="border-b border-[#e8e8e3] last:border-b-0">
                                                         <button
@@ -914,7 +960,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                                 className="rounded border-[#136d6d] text-[#136D6D] focus:ring-[#136d6d] accent-[#136D6D] pointer-events-none"
                                                             />
                                                             <span className="truncate">{accName}</span>
-                                                            <span className="text-xs text-[#556179]">({accItems.length})</span>
+                                                            <span className="text-xs text-[#556179]">({accItems.length}{sheetsCount > 0 ? `, ${sheetsCount} sheet${sheetsCount !== 1 ? "s" : ""}` : ""})</span>
                                                         </button>
                                                         {accItems.map(({ profile: p }) => {
                                                             const label = `${profileDisplayName(p)} (${profileIdForDisplay(p)})`;
@@ -936,6 +982,33 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                                 </label>
                                                             );
                                                         })}
+                                                        {sheetsCount > 0 && (
+                                                            <div className="px-3 py-2 pl-6 border-t border-[#e8e8e3]/60">
+                                                                <p className="text-xs font-medium text-[#556179] mb-1">Google Sheets</p>
+                                                                {(accSheets as Array<{ id?: number; name?: string; spreadsheet_name?: string }>).map((s, idx) => {
+                                                                    const sheetId = s.id ?? idx;
+                                                                    const checked = isSheetSelected(accId, sheetId);
+                                                                    return (
+                                                                        <label
+                                                                            key={sheetId}
+                                                                            className={`flex items-center gap-2 py-1 cursor-pointer hover:bg-[#F5F5F2] rounded px-1 -mx-1 ${checked ? "bg-[#E6F2F2]" : ""}`}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={checked}
+                                                                                onChange={() => toggleSheet(accId, sheetId)}
+                                                                                className="rounded border-[#136d6d] text-[#136D6D] focus:ring-[#136d6d] accent-[#136D6D]"
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                            />
+                                                                            <span className="text-xs text-[#072929] truncate" title={s.name ?? s.spreadsheet_name ?? ""}>
+                                                                                {s.name ?? s.spreadsheet_name ?? "Sheet"}
+                                                                            </span>
+                                                                        </label>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })
@@ -981,10 +1054,44 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                 );
                                             })
                                         )}
+                                        {!showAccountGroupedLayout && allAccountsWithProfiles.length === 1 && (() => {
+                                            const first = allAccountsWithProfiles[0] as { accountId: number; google_sheets_integrations?: Array<{ id?: number; name?: string; spreadsheet_name?: string }> };
+                                            const sheets = first?.google_sheets_integrations ?? [];
+                                            const accId = first?.accountId;
+                                            if (sheets.length === 0 || accId == null) return null;
+                                            return (
+                                                <div className="border-t border-[#e8e8e3] p-3">
+                                                    <p className="text-xs font-medium text-[#556179] mb-2">Google Sheets</p>
+                                                    {sheets.map((s, idx) => {
+                                                        const sheetId = s.id ?? idx;
+                                                        const checked = isSheetSelected(accId, sheetId);
+                                                        return (
+                                                            <label
+                                                                key={sheetId}
+                                                                className={`flex items-center gap-2 py-1 cursor-pointer hover:bg-[#F5F5F2] rounded px-1 -mx-1 ${checked ? "bg-[#E6F2F2]" : ""}`}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={checked}
+                                                                    onChange={() => toggleSheet(accId, sheetId)}
+                                                                    className="rounded border-[#136d6d] text-[#136D6D] focus:ring-[#136d6d] accent-[#136D6D]"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                />
+                                                                <span className="text-xs text-[#072929] truncate block" title={s.name ?? s.spreadsheet_name ?? ""}>
+                                                                    {s.name ?? s.spreadsheet_name ?? "Sheet"}
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                     <div className="flex items-center justify-between px-3 py-2 border-t border-[#e8e8e3] bg-[#F9F9F6]">
                                         <span className="text-xs text-[#556179]">
-                                            {selectedProfiles.length}/{totalProfileCount} selected
+                                            {selectedProfiles.length}/{totalProfileCount} profiles
+                                            {selectedGoogleSheetsIntegrations.length > 0 && ` · ${selectedGoogleSheetsIntegrations.length} sheet${selectedGoogleSheetsIntegrations.length !== 1 ? "s" : ""}`}
                                         </span>
                                         <div className="flex items-center gap-2">
                                             <button
@@ -997,7 +1104,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                             <button
                                                 type="button"
                                                 onClick={(e) => { e.stopPropagation(); handleApplySelection(); }}
-                                                disabled={selectedProfiles.length === 0}
+                                                disabled={selectedProfiles.length === 0 && selectedGoogleSheetsIntegrations.length === 0}
                                                 className="text-xs font-medium px-3 py-1 rounded bg-[#136D6D] text-white hover:bg-[#0f5656] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#136D6D]"
                                             >
                                                 Apply

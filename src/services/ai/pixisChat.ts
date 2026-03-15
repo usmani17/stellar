@@ -49,6 +49,18 @@ export interface PixisChatParams {
   }>;
   /** "stream-json" | "stream-json-partial" | "json" — for testing output formats */
   output_format?: string;
+  /** Selected Google Sheets integrations with full details for agent context */
+  google_sheets_integrations?: Array<{
+    account_id: number;
+    integration_id: number;
+    spreadsheet_id?: string;
+    spreadsheet_name?: string;
+    sheet_name?: string;
+    sheet_gid?: string;
+    header_row?: number;
+    range?: string;
+    column_mapping?: Array<{ column_name: string; type: string; ignore: boolean; is_key: boolean; position: number }>;
+  }>;
 }
 
 /** Timeline item for ordered display: thinking | tool_call | text | campaign-draft */

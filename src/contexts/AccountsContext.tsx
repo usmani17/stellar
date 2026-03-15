@@ -11,6 +11,7 @@ import { useAuth } from "./AuthContext";
 import { useAccounts as useAccountsQuery } from "../hooks/queries/useAccounts";
 import { accountsService, type Account } from "../services/accounts";
 import { getAccountIdFromUrl } from "../utils/urlHelpers";
+import type { GoogleSheetsIntegration } from "../features/brands/google-sheets/api";
 
 export interface AccountProfileOption {
   channel_id: number;
@@ -26,8 +27,13 @@ export interface AccountProfileOption {
   account_id?: number;
 }
 
+interface ProfilesCacheEntry {
+  profiles: AccountProfileOption[];
+  google_sheets_integrations?: GoogleSheetsIntegration[];
+}
+
 interface ProfilesCache {
-  [accountId: number]: AccountProfileOption[];
+  [accountId: number]: ProfilesCacheEntry;
 }
 
 interface AccountsContextType {
@@ -41,7 +47,13 @@ interface AccountsContextType {
   // Profile-related
   getAccountProfiles: (accountId: number) => Promise<AccountProfileOption[]>;
   getAccountProfilesCached: (accountId: number) => AccountProfileOption[] | undefined;
-  allAccountsWithProfiles: Array<{ accountId: number; accountName: string; profiles: AccountProfileOption[] }> | null;
+  getAccountGoogleSheetsIntegrationsCached: (accountId: number) => GoogleSheetsIntegration[] | undefined;
+  allAccountsWithProfiles: Array<{
+    accountId: number;
+    accountName: string;
+    profiles: AccountProfileOption[];
+    google_sheets_integrations?: GoogleSheetsIntegration[];
+  }> | null;
   loadingAllProfiles: boolean;
   loadAllAccountsProfiles: () => Promise<void>;
 }
@@ -54,7 +66,12 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const { user, loading: authLoading } = useAuth();
-  const [allAccountsWithProfiles, setAllAccountsWithProfiles] = useState<Array<{ accountId: number; accountName: string; profiles: AccountProfileOption[] }> | null>(null);
+  const [allAccountsWithProfiles, setAllAccountsWithProfiles] = useState<Array<{
+    accountId: number;
+    accountName: string;
+    profiles: AccountProfileOption[];
+    google_sheets_integrations?: GoogleSheetsIntegration[];
+  }> | null>(null);
   const [loadingAllProfiles, setLoadingAllProfiles] = useState(false);
   const profilesCacheRef = useRef<ProfilesCache>({});
 
@@ -111,7 +128,15 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   // Get profiles from cache (returns undefined if not cached)
   const getAccountProfilesCached = useCallback(
     (accountId: number): AccountProfileOption[] | undefined => {
-      return profilesCacheRef.current[accountId];
+      return profilesCacheRef.current[accountId]?.profiles;
+    },
+    []
+  );
+
+  // Get Google Sheets integrations from cache (returns undefined if not cached)
+  const getAccountGoogleSheetsIntegrationsCached = useCallback(
+    (accountId: number): GoogleSheetsIntegration[] | undefined => {
+      return profilesCacheRef.current[accountId]?.google_sheets_integrations;
     },
     []
   );
@@ -120,15 +145,17 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   const getAccountProfiles = useCallback(
     async (accountId: number): Promise<AccountProfileOption[]> => {
       // Return from cache if available
-      if (profilesCacheRef.current[accountId]) {
-        return profilesCacheRef.current[accountId];
+      const cached = profilesCacheRef.current[accountId];
+      if (cached) {
+        return cached.profiles;
       }
 
       try {
         const res = await accountsService.getAccountProfiles(accountId);
         const profiles = (res?.profiles || []) as AccountProfileOption[];
+        const integrations = res?.google_sheets_integrations ?? [];
         // Update cache
-        profilesCacheRef.current[accountId] = profiles;
+        profilesCacheRef.current[accountId] = { profiles, google_sheets_integrations: integrations };
         return profiles;
       } catch (err) {
         console.error(`Error loading profiles for account ${accountId}:`, err);
@@ -143,21 +170,26 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
     setLoadingAllProfiles(true);
     try {
       const list = await accountsService.getAccountsWithProfiles();
-      const results: Array<{ accountId: number; accountName: string; profiles: AccountProfileOption[] }> = list.map(
-        (a) => {
-          const profiles = ((a.profiles || []) as AccountProfileOption[]).map((p) => ({
-            ...p,
-            account_id: p.account_id ?? a.id,
-          }));
-          // Populate per-account cache for getAccountProfilesCached
-          profilesCacheRef.current[a.id] = profiles;
-          return {
-            accountId: a.id,
-            accountName: a.name || "",
-            profiles,
-          };
-        }
-      );
+      const results: Array<{
+        accountId: number;
+        accountName: string;
+        profiles: AccountProfileOption[];
+        google_sheets_integrations?: GoogleSheetsIntegration[];
+      }> = list.map((a) => {
+        const profiles = ((a.profiles || []) as AccountProfileOption[]).map((p) => ({
+          ...p,
+          account_id: p.account_id ?? a.id,
+        }));
+        const integrations = a.google_sheets_integrations ?? [];
+        // Populate per-account cache for getAccountProfilesCached and getAccountGoogleSheetsIntegrationsCached
+        profilesCacheRef.current[a.id] = { profiles, google_sheets_integrations: integrations };
+        return {
+          accountId: a.id,
+          accountName: a.name || "",
+          profiles,
+          google_sheets_integrations: integrations,
+        };
+      });
       setAllAccountsWithProfiles(results);
     } catch (err) {
       console.error("Error loading all account profiles:", err);
@@ -179,6 +211,7 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
       getCurrentAccount,
       getAccountProfiles,
       getAccountProfilesCached,
+      getAccountGoogleSheetsIntegrationsCached,
       allAccountsWithProfiles,
       loadingAllProfiles,
       loadAllAccountsProfiles,
@@ -193,6 +226,7 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
       getCurrentAccount,
       getAccountProfiles,
       getAccountProfilesCached,
+      getAccountGoogleSheetsIntegrationsCached,
       allAccountsWithProfiles,
       loadingAllProfiles,
       loadAllAccountsProfiles,

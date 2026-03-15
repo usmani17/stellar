@@ -9,7 +9,8 @@ import React, {
 } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
-import { streamPixisChat, type PixisTimelineItem, type CampaignDraftData } from "../services/ai/pixisChat";
+import { useAccounts } from "./AccountsContext";
+import { streamPixisChat, type PixisChatParams, type PixisTimelineItem, type CampaignDraftData } from "../services/ai/pixisChat";
 import {
   pixisAiSessionsService,
   type PixisSession,
@@ -25,6 +26,7 @@ import {
   extractDisplayContentFromEvents,
   eventsToTimeline,
 } from "../utils/chartJsonParser";
+import type { GoogleSheetsIntegration } from "../features/brands/google-sheets/api";
 
 export const ASSISTANT_PANEL_WIDTH = "550px";
 export const ASSISTANT_PANEL_VIEW: "fixed" | "floating" = "floating";
@@ -48,6 +50,8 @@ export interface AssistantScope {
     profileName?: string | null;
     marketplace?: string | null;
   }>;
+  /** Selected Google Sheets integrations: { accountId, integrationId } */
+  selectedGoogleSheetsIntegrations?: Array<{ accountId: string; integrationId: number }>;
 }
 
 /** Session with runtime state (messages, etc.) */
@@ -104,6 +108,9 @@ interface AssistantContextType {
 
   /** Manually trigger session list reload (e.g. when chat history sidebar expands) */
   loadSessions: () => Promise<void>;
+
+  /** Google Sheets integrations for the selected account (from profile cache, same API as profiles) */
+  googleSheetsIntegrations: GoogleSheetsIntegration[];
 }
 
 const AssistantContext = createContext<AssistantContextType | undefined>(undefined);
@@ -129,6 +136,7 @@ export const AssistantProvider: React.FC<{
   channelId?: string;
 }> = ({ children, accountId: propAccountId, channelId: propChannelId }) => {
   const { user, getAccessToken } = useAuth();
+  const { getAccountGoogleSheetsIntegrationsCached } = useAccounts();
   const location = useLocation();
   const isChatPage = location.pathname === "/chat";
 
@@ -151,6 +159,7 @@ export const AssistantProvider: React.FC<{
     profileName: null,
     marketplace: null,
     selectedProfiles: [],
+    selectedGoogleSheetsIntegrations: [],
   });
 
   const setAssistantScope = useCallback((updates: Partial<AssistantScope>) => {
@@ -187,6 +196,19 @@ export const AssistantProvider: React.FC<{
   const effectiveSelectedProfiles = assistantScope.selectedProfiles?.length
     ? assistantScope.selectedProfiles
     : null;
+
+  const effectiveAccountIdNum = effectiveAccountId ? parseInt(effectiveAccountId, 10) : null;
+  const sheetAccountIdNum = !effectiveAccountIdNum
+    ? (() => {
+        const sid = assistantScope.selectedGoogleSheetsIntegrations?.[0]?.accountId;
+        return sid ? parseInt(sid, 10) : null;
+      })()
+    : null;
+  const googleSheetsLookupAccountId = effectiveAccountIdNum ?? sheetAccountIdNum;
+  const googleSheetsIntegrations =
+    googleSheetsLookupAccountId && !Number.isNaN(googleSheetsLookupAccountId)
+      ? (getAccountGoogleSheetsIntegrationsCached(googleSheetsLookupAccountId) ?? [])
+      : [];
 
   const currentSession =
     sessions.find((s) => s.id === currentSessionId) ?? null;
@@ -471,7 +493,13 @@ export const AssistantProvider: React.FC<{
         profileIdForReq = first.profile_id;
         platformForReq = first.platform;
       } else if (!accountIdNum) {
-        return;
+        const sheetAccountId = assistantScope.selectedGoogleSheetsIntegrations?.[0]?.accountId;
+        if (sheetAccountId) {
+          accountIdNum = parseInt(sheetAccountId, 10);
+          platformForReq = "google_sheets";
+        } else {
+          return;
+        }
       }
 
       setInputValue("");
@@ -587,9 +615,34 @@ export const AssistantProvider: React.FC<{
             profile_id: profileIdForReq,
             workspace_id: user?.workspace?.id ?? undefined,
             user_id: user?.id != null ? String(user.id) : undefined,
-            platform: platformForReq,
+            platform: platformForReq as PixisChatParams["platform"],
             ...(platformsForReq && platformsForReq.length > 0 ? { platforms: platformsForReq } : {}),
-            ...(OUTPUT_FORMAT_FOR_TESTING && { output_format: OUTPUT_FORMAT_FOR_TESTING }),
+            ...(OUTPUT_FORMAT_FOR_TESTING ? { output_format: OUTPUT_FORMAT_FOR_TESTING } : {}),
+            ...(assistantScope.selectedGoogleSheetsIntegrations?.length
+              ? {
+                  google_sheets_integrations: assistantScope.selectedGoogleSheetsIntegrations.map((s) => {
+                    const accId = parseInt(s.accountId, 10);
+                    const accIntegrations = !Number.isNaN(accId)
+                      ? (getAccountGoogleSheetsIntegrationsCached(accId) ?? [])
+                      : [];
+                    const full = accIntegrations.find((g) => g.id === s.integrationId);
+                    return {
+                      account_id: parseInt(s.accountId, 10),
+                      integration_id: s.integrationId,
+                      ...(full
+                        ? {
+                            spreadsheet_id: full.spreadsheet_id,
+                            spreadsheet_name: full.spreadsheet_name,
+                            sheet_name: full.sheet_name,
+                            sheet_gid: full.sheet_gid,
+                            header_row: full.header_row,
+                            range: full.range,
+                          }
+                        : {}),
+                    };
+                  }).filter((s) => !Number.isNaN(s.account_id)),
+                }
+              : {}),
           },
           token,
           {
@@ -884,6 +937,7 @@ export const AssistantProvider: React.FC<{
       effectiveProfileId,
       effectiveMarketplace,
       effectiveSelectedProfiles,
+      assistantScope.selectedGoogleSheetsIntegrations,
       currentSessionId,
       sessions,
       getAccessToken,
@@ -996,6 +1050,7 @@ export const AssistantProvider: React.FC<{
         setAssistantScope,
         campaignState,
         loadSessions,
+        googleSheetsIntegrations,
       }}
     >
       {children}

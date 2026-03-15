@@ -1,4 +1,5 @@
 import api from "./api";
+import type { GoogleSheetsIntegration } from "../features/brands/google-sheets/api";
 
 export interface Channel {
   id: number;
@@ -308,13 +309,15 @@ export const accountsService = {
   /**
    * Fetch all profiles for all integrations/channels within this brand (account).
    * Uses account_id (not channel_id). Each profile includes channel_id, channel_name, channel_type.
+   * Also returns google_sheets_integrations for the account.
    */
   getAccountProfiles: async (
     accountId: number,
-  ): Promise<{ profiles: any[]; total: number }> => {
+  ): Promise<{ profiles: any[]; total: number; google_sheets_integrations?: GoogleSheetsIntegration[] }> => {
     const response = await api.get<{
       profiles: any[];
       total: number;
+      google_sheets_integrations?: GoogleSheetsIntegration[];
     }>(`/accounts/${accountId}/profiles/`);
     return response.data;
   },
@@ -322,13 +325,19 @@ export const accountsService = {
   /**
    * Fetch all accounts with profiles in a single API call.
    * For chat/assistant account selector - avoids N+1 calls (one per account).
+   * Each account includes google_sheets_integrations.
    */
   getAccountsWithProfiles: async (): Promise<
-    Array<{ id: number; name: string; profiles: any[] }>
+    Array<{ id: number; name: string; profiles: any[]; google_sheets_integrations?: GoogleSheetsIntegration[] }>
   > => {
-    const response = await api.get<{ accounts: Array<{ id: number; name: string; profiles: any[] }> }>(
-      "/accounts/all-profiles/",
-    );
+    const response = await api.get<{
+      accounts: Array<{
+        id: number;
+        name: string;
+        profiles: any[];
+        google_sheets_integrations?: GoogleSheetsIntegration[];
+      }>;
+    }>("/accounts/all-profiles/");
     return response.data?.accounts ?? [];
   },
 
