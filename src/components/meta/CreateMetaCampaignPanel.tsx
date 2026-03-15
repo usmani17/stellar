@@ -665,6 +665,11 @@ export const CreateMetaCampaignPanel: React.FC<
   const [budgetType, setBudgetType] = useState<"daily" | "lifetime">("daily");
   const [dailyBudget, setDailyBudget] = useState<string>("");
   const [lifetimeBudget, setLifetimeBudget] = useState<string>("");
+  const [budgetMode, setBudgetMode] = useState<"campaign" | "adset">(
+    "campaign",
+  );
+  const [adsetBudgetSharingEnabled, setAdsetBudgetSharingEnabled] =
+    useState<boolean>(true);
   const [specialAdCategories, setSpecialAdCategories] = useState("NONE");
   const [specialAdCategoryCountry, setSpecialAdCategoryCountry] = useState<
     string[]
@@ -723,9 +728,11 @@ export const CreateMetaCampaignPanel: React.FC<
     setStatus("PAUSED");
     setBuyingType("AUCTION");
     setBidStrategy("LOWEST_COST_WITHOUT_CAP");
+    setBudgetMode("campaign");
     setBudgetType("daily");
     setDailyBudget((prev) => (prev && prev.trim().length > 0 ? prev : "20"));
     setLifetimeBudget("");
+    setAdsetBudgetSharingEnabled(true);
     setSpecialAdCategories("NONE");
     setSpecialAdCategoryCountry((prev) => (prev.length > 0 ? prev : ["US"]));
     setError(null);
@@ -829,19 +836,24 @@ export const CreateMetaCampaignPanel: React.FC<
         // We already validated specialAdCategories !== "NONE", so always send a non-empty array.
         special_ad_categories: [specialAdCategories],
       };
-      if (
-        budgetType === "daily" &&
-        dailyBudget !== "" &&
-        !Number.isNaN(Number(dailyBudget))
-      ) {
-        payload.daily_budget = Number(dailyBudget);
-      }
-      if (
-        budgetType === "lifetime" &&
-        lifetimeBudget !== "" &&
-        !Number.isNaN(Number(lifetimeBudget))
-      ) {
-        payload.lifetime_budget = Number(lifetimeBudget);
+      if (budgetMode === "campaign") {
+        if (
+          budgetType === "daily" &&
+          dailyBudget !== "" &&
+          !Number.isNaN(Number(dailyBudget))
+        ) {
+          payload.daily_budget = Number(dailyBudget);
+        }
+        if (
+          budgetType === "lifetime" &&
+          lifetimeBudget !== "" &&
+          !Number.isNaN(Number(lifetimeBudget))
+        ) {
+          payload.lifetime_budget = Number(lifetimeBudget);
+        }
+      } else {
+        // Ad set budget mode: do not send campaign budget, but Meta requires this flag.
+        payload.is_adset_budget_sharing_enabled = adsetBudgetSharingEnabled;
       }
       if (specialAdCategoryCountry.length > 0) {
         payload.special_ad_category_country = specialAdCategoryCountry;
@@ -1014,41 +1026,109 @@ export const CreateMetaCampaignPanel: React.FC<
                     />
                   </div>
 
-                  {/* Budget type */}
-                  <div>
-                    <label className="form-label-small">Budget type</label>
-                    <Dropdown<"daily" | "lifetime">
-                      options={BUDGET_TYPE_OPTIONS}
-                      value={budgetType}
-                      placeholder="Select budget type"
-                      onChange={(val) => setBudgetType(val)}
-                      buttonClassName={inputClass}
-                    />
+                  {/* Budget mode and campaign-level budget */}
+                  <div className="md:col-span-2">
+                    <label className="form-label-small">Budget strategy</label>
+                    <div className="flex flex-col gap-2 text-[12px] text-[#556179]">
+                      <label className="flex items-start gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="meta-budget-mode"
+                          className="mt-[2px]"
+                          checked={budgetMode === "campaign"}
+                          onChange={() => setBudgetMode("campaign")}
+                        />
+                        <span>
+                          <span className="font-semibold">
+                            Use campaign budget
+                          </span>{" "}
+                          (Advantage+ campaign budget / automatic distribution).
+                          Set a single daily or lifetime budget at the campaign
+                          level; Meta will allocate spend across ad sets.
+                        </span>
+                      </label>
+                      <label className="flex items-start gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="meta-budget-mode"
+                          className="mt-[2px]"
+                          checked={budgetMode === "adset"}
+                          onChange={() => setBudgetMode("adset")}
+                        />
+                        <span>
+                          <span className="font-semibold">
+                            Set budgets per ad set
+                          </span>{" "}
+                          (Ad set–level budgets). No campaign budget; each ad
+                          set will have its own daily or lifetime budget, and
+                          you can optionally enable budget sharing.
+                        </span>
+                      </label>
+                    </div>
                   </div>
 
-                  {/* Daily budget */}
-                  <div>
-                    <label className="form-label-small">
-                      {budgetType === "daily"
-                        ? "Daily budget (optional, in account currency)"
-                        : "Lifetime budget (optional, in account currency)"}
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      value={
-                        budgetType === "daily" ? dailyBudget : lifetimeBudget
-                      }
-                      onChange={(e) =>
-                        budgetType === "daily"
-                          ? setDailyBudget(e.target.value)
-                          : setLifetimeBudget(e.target.value)
-                      }
-                      placeholder="e.g. 20.00"
-                      className={inputClass}
-                    />
-                  </div>
+                  {budgetMode === "campaign" && (
+                    <>
+                      <div>
+                        <label className="form-label-small">Budget type</label>
+                        <Dropdown<"daily" | "lifetime">
+                          options={BUDGET_TYPE_OPTIONS}
+                          value={budgetType}
+                          placeholder="Select budget type"
+                          onChange={(val) => setBudgetType(val)}
+                          buttonClassName={inputClass}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="form-label-small">
+                          {budgetType === "daily"
+                            ? "Daily budget (optional, in account currency)"
+                            : "Lifetime budget (optional, in account currency)"}
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={
+                            budgetType === "daily"
+                              ? dailyBudget
+                              : lifetimeBudget
+                          }
+                          onChange={(e) =>
+                            budgetType === "daily"
+                              ? setDailyBudget(e.target.value)
+                              : setLifetimeBudget(e.target.value)
+                          }
+                          placeholder="e.g. 20.00"
+                          className={inputClass}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {budgetMode === "adset" && (
+                    <div>
+                      <label className="form-label-small">
+                        Ad set budget sharing
+                      </label>
+                      <label className="flex items-start gap-2 text-[12px] text-[#556179] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="mt-[2px]"
+                          checked={adsetBudgetSharingEnabled}
+                          onChange={(e) =>
+                            setAdsetBudgetSharingEnabled(e.target.checked)
+                          }
+                        />
+                        <span>
+                          Enable Ad Set Budget Sharing (recommended). Allows
+                          each ad set to share up to 20% of its daily budget
+                          with better-performing ad sets in this campaign.
+                        </span>
+                      </label>
+                    </div>
+                  )}
 
                   {/* Bid strategy */}
                   <div>

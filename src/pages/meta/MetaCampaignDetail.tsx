@@ -42,9 +42,12 @@ export function MetaCampaignDetail() {
   const { startDate, endDate } = useDateRange();
   const [activeTab, setActiveTab] = useState("Overview");
   const [isCreateAdSetPanelOpen, setIsCreateAdSetPanelOpen] = useState(false);
-  const [isCreateCreativePanelOpen, setIsCreateCreativePanelOpen] = useState(false);
+  const [isCreateCreativePanelOpen, setIsCreateCreativePanelOpen] =
+    useState(false);
   const [isCreateAdPanelOpen, setIsCreateAdPanelOpen] = useState(false);
-  const [profileIdFallback, setProfileIdFallback] = useState<number | null>(null);
+  const [profileIdFallback, setProfileIdFallback] = useState<number | null>(
+    null,
+  );
 
   const {
     campaignDetail,
@@ -92,8 +95,13 @@ export function MetaCampaignDetail() {
 
   // When campaign has no profile_id, fetch Meta profiles and use first as fallback for Create Meta Ad Set.
   useEffect(() => {
-    if (!channelId || !campaignDetail || campaignDetail.campaign.profile_id != null) {
-      if (campaignDetail?.campaign?.profile_id != null) setProfileIdFallback(null);
+    if (
+      !channelId ||
+      !campaignDetail ||
+      campaignDetail.campaign.profile_id != null
+    ) {
+      if (campaignDetail?.campaign?.profile_id != null)
+        setProfileIdFallback(null);
       return;
     }
     let cancelled = false;
@@ -105,8 +113,12 @@ export function MetaCampaignDetail() {
         const first = list.find((p) => p.id != null);
         if (first?.id != null) setProfileIdFallback(first.id);
       })
-      .catch(() => { if (!cancelled) setProfileIdFallback(null); });
-    return () => { cancelled = true; };
+      .catch(() => {
+        if (!cancelled) setProfileIdFallback(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [channelId, campaignDetail]);
 
   const listPath = `/brands/${accountId}/${channelId}/meta/campaigns`;
@@ -115,12 +127,32 @@ export function MetaCampaignDetail() {
       campaignDetail?.kpi_cards && campaignDetail.kpi_cards.length > 0
         ? campaignDetail.kpi_cards
         : [
-            { label: "Spend", value: "$0", change: undefined, isPositive: undefined },
-            { label: "Sales", value: "$0", change: undefined, isPositive: undefined },
-            { label: "Impressions", value: "0", change: undefined, isPositive: undefined },
-            { label: "Clicks", value: "0", change: undefined, isPositive: undefined },
+            {
+              label: "Spend",
+              value: "$0",
+              change: undefined,
+              isPositive: undefined,
+            },
+            {
+              label: "Sales",
+              value: "$0",
+              change: undefined,
+              isPositive: undefined,
+            },
+            {
+              label: "Impressions",
+              value: "0",
+              change: undefined,
+              isPositive: undefined,
+            },
+            {
+              label: "Clicks",
+              value: "0",
+              change: undefined,
+              isPositive: undefined,
+            },
           ],
-    [campaignDetail?.kpi_cards]
+    [campaignDetail?.kpi_cards],
   );
 
   return (
@@ -151,7 +183,10 @@ export function MetaCampaignDetail() {
               </div>
             ) : (
               <>
-                <MetaCampaignInformation campaignDetail={campaignDetail} loading={loading} />
+                <MetaCampaignInformation
+                  campaignDetail={campaignDetail}
+                  loading={loading}
+                />
 
                 <div className="flex flex-wrap gap-4 md:gap-7">
                   {kpiCards.map((card, index) => (
@@ -216,12 +251,23 @@ export function MetaCampaignDetail() {
                         campaignId && (
                           <CreateMetaAdSetPanel
                             channelId={parseInt(channelId, 10)}
-                            profileId={campaignDetail?.campaign?.profile_id ?? profileIdFallback ?? 0}
+                            profileId={
+                              campaignDetail?.campaign?.profile_id ??
+                              profileIdFallback ??
+                              0
+                            }
                             campaignId={campaignId}
-                            campaignObjective={campaignDetail?.campaign?.objective}
+                            campaignObjective={
+                              campaignDetail?.campaign?.objective
+                            }
+                            campaignBidStrategy={
+                              campaignDetail?.campaign?.bid_strategy
+                            }
                             campaignBudgetSet={
                               campaignDetail?.campaign?.daily_budget != null &&
-                              String(campaignDetail.campaign.daily_budget).trim() !== ""
+                              String(
+                                campaignDetail.campaign.daily_budget,
+                              ).trim() !== ""
                             }
                             accountId={accountId}
                             onSuccess={() => {
@@ -286,7 +332,9 @@ export function MetaCampaignDetail() {
                       createButton={
                         <CreateMetaCreativeSection
                           isOpen={isCreateCreativePanelOpen}
-                          onToggle={() => setIsCreateCreativePanelOpen((p) => !p)}
+                          onToggle={() =>
+                            setIsCreateCreativePanelOpen((p) => !p)
+                          }
                         />
                       }
                       createPanel={

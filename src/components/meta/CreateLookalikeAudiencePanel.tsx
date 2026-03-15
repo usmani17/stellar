@@ -1,9 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { accountsService } from "../../services/accounts";
+import { Dropdown } from "../ui/Dropdown";
 import { Loader } from "../../components/ui/Loader";
+import { META_COUNTRY_CODES, META_COUNTRY_LABELS } from "./metaCountryCodes";
 import type { LookalikeAudienceCreatePayload } from "../../types/meta";
 
 const inputClass = "campaign-input w-full";
+
+const COUNTRY_OPTIONS = [...META_COUNTRY_CODES].map((code) => ({
+  value: code,
+  label: `${META_COUNTRY_LABELS[code] ?? code} (${code})`,
+}));
 
 const RATIO_OPTIONS = [
   { value: 0.01, label: "1% (Most similar)" },
@@ -32,27 +39,46 @@ export const CreateLookalikeAudiencePanel: React.FC<CreateLookalikeAudiencePanel
 }) => {
   const [name, setName] = useState("");
   const [originAudienceId, setOriginAudienceId] = useState("");
-  const [country, setCountry] = useState("");
+  const [country, setCountry] = useState("US");
   const [ratio, setRatio] = useState<number>(0.01);
+  const [audiences, setAudiences] = useState<Array<{ audience_id: string; name: string }>>([]);
+  const [audiencesLoading, setAudiencesLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAudiencesLoading(true);
+    accountsService
+      .getMetaAudiences(channelId, { page: 1, page_size: 100 })
+      .then((res) => {
+        const list = (res.audiences || []).map((a) => ({
+          audience_id: String(a.audience_id ?? ""),
+          name: a.name || a.audience_id || "",
+        }));
+        setAudiences(list.filter((a) => a.audience_id));
+      })
+      .catch(() => setAudiences([]))
+      .finally(() => setAudiencesLoading(false));
+  }, [channelId]);
+
+  useEffect(() => {
+    if (audiences.length > 0 && !originAudienceId) {
+      setOriginAudienceId(audiences[0].audience_id);
+    }
+  }, [audiences, originAudienceId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!originAudienceId.trim()) {
-      setError("Seed audience ID is required.");
+      setError("Seed audience is required.");
       return;
     }
     if (!country.trim()) {
-      setError("Country code is required (e.g. US).");
+      setError("Country is required.");
       return;
     }
     const countryCode = country.trim().toUpperCase();
-    if (countryCode.length !== 2) {
-      setError("Country must be a 2-letter ISO code (e.g. US).");
-      return;
-    }
     setSubmitLoading(true);
     try {
       const payload: LookalikeAudienceCreatePayload = {
@@ -109,32 +135,43 @@ export const CreateLookalikeAudiencePanel: React.FC<CreateLookalikeAudiencePanel
             </div>
 
             <div>
-              <label className="form-label-small">Seed audience ID *</label>
-              <input
-                type="text"
-                value={originAudienceId}
-                onChange={(e) => setOriginAudienceId(e.target.value)}
-                placeholder="Custom audience ID to base lookalike on"
-                className={inputClass}
-              />
+              <label className="form-label-small">Seed audience *</label>
+              {audiencesLoading ? (
+                <div className="flex items-center gap-2 text-[12px] text-[#556179] py-2">
+                  <Loader size="sm" showMessage={false} /> Loading audiences...
+                </div>
+              ) : (
+                <Dropdown<string>
+                  options={audiences.map((a) => ({
+                    value: a.audience_id,
+                    label: a.name ? `${a.name} (${a.audience_id})` : a.audience_id,
+                  }))}
+                  value={originAudienceId}
+                  placeholder="Select seed audience"
+                  onChange={(val) => setOriginAudienceId(val)}
+                  buttonClassName={inputClass}
+                  searchable
+                  searchPlaceholder="Search audiences..."
+                  emptyMessage="No audiences found. Create a custom audience first."
+                />
+              )}
               <p className="text-[11px] text-[#556179] mt-1">
-                The ID of the Custom Audience to use as the seed.
+                Custom audience to use as the seed for the lookalike.
               </p>
             </div>
 
             <div>
-              <label className="form-label-small">Country code *</label>
-              <input
-                type="text"
+              <label className="form-label-small">Country *</label>
+              <Dropdown<string>
+                options={COUNTRY_OPTIONS}
                 value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                placeholder="e.g. US"
-                maxLength={2}
-                className={inputClass}
+                placeholder="Select country"
+                onChange={(val) => setCountry(val)}
+                buttonClassName={inputClass}
+                searchable
+                searchPlaceholder="Search countries..."
+                emptyMessage="No countries available"
               />
-              <p className="text-[11px] text-[#556179] mt-1">
-                ISO 3166-1 alpha-2 (e.g. US, GB).
-              </p>
             </div>
 
             <div>

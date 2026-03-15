@@ -1,7 +1,17 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { useParams, Link } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
-import { formatCurrency, formatPercentage, formatNumber } from "../../utils/formatters";
+import {
+  formatCurrency,
+  formatPercentage,
+  formatNumber,
+} from "../../utils/formatters";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
@@ -48,13 +58,22 @@ export interface MetaCampaignsSummary {
 }
 
 export const MetaCampaigns: React.FC = () => {
-  const { accountId, channelId } = useParams<{ accountId: string; channelId: string }>();
+  const { accountId, channelId } = useParams<{
+    accountId: string;
+    channelId: string;
+  }>();
   const { sidebarWidth } = useSidebar();
   const { startDateStr, endDateStr } = useDateRange();
 
   const [campaigns, setCampaigns] = useState<MetaCampaignRow[]>([]);
   const [chartDataFromApi, setChartDataFromApi] = useState<
-    Array<{ date: string; spend: number; sales: number; impressions?: number; clicks?: number }>
+    Array<{
+      date: string;
+      spend: number;
+      sales: number;
+      impressions?: number;
+      clicks?: number;
+    }>
   >([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -62,8 +81,10 @@ export const MetaCampaigns: React.FC = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<string>("id");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [selectedCampaigns, setSelectedCampaigns] = useState<Set<string>>(new Set());
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [selectedCampaigns, setSelectedCampaigns] = useState<Set<string>>(
+    new Set(),
+  );
   const [filters, setFilters] = useState<FilterValues>([]);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [chartToggles, setChartToggles] = useState<Record<string, boolean>>({
@@ -76,28 +97,54 @@ export const MetaCampaigns: React.FC = () => {
 
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  const [pendingStatusAction, setPendingStatusAction] = useState<"ACTIVE" | "PAUSED" | "ARCHIVED" | null>(null);
+  const [pendingStatusAction, setPendingStatusAction] = useState<
+    "ACTIVE" | "PAUSED" | "ARCHIVED" | null
+  >(null);
   const [showBudgetPanel, setShowBudgetPanel] = useState(false);
   const [isBudgetChange, setIsBudgetChange] = useState(false);
-  const [budgetAction, setBudgetAction] = useState<"increase" | "decrease" | "set">("set");
+  const [budgetAction, setBudgetAction] = useState<
+    "increase" | "decrease" | "set"
+  >("set");
   const [budgetUnit, setBudgetUnit] = useState<"percent" | "amount">("amount");
   const [budgetValue, setBudgetValue] = useState("");
   const [upperLimit, setUpperLimit] = useState("");
   const [lowerLimit, setLowerLimit] = useState("");
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [selectedCampaignsFetched, setSelectedCampaignsFetched] = useState<MetaCampaignRow[] | null>(null);
-  const [selectedCampaignsFetching, setSelectedCampaignsFetching] = useState(false);
+  const [selectedCampaignsFetched, setSelectedCampaignsFetched] = useState<
+    MetaCampaignRow[] | null
+  >(null);
+  const [selectedCampaignsFetching, setSelectedCampaignsFetching] =
+    useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [inlineBudgetCampaignId, setInlineBudgetCampaignId] = useState<string | null>(null);
+  const [inlineBudgetCampaignId, setInlineBudgetCampaignId] = useState<
+    string | null
+  >(null);
   const [inlineBudgetValue, setInlineBudgetValue] = useState("");
   type InlineConfirm =
-    | { type: "status"; campaignId: string; newStatus: "ACTIVE" | "PAUSED" | "ARCHIVED"; row: MetaCampaignRow }
-    | { type: "budget"; campaignId: string; newBudget: number; row: MetaCampaignRow };
-  const [inlineConfirm, setInlineConfirm] = useState<InlineConfirm | null>(null);
+    | {
+        type: "status";
+        campaignId: string;
+        newStatus: "ACTIVE" | "PAUSED" | "ARCHIVED";
+        row: MetaCampaignRow;
+      }
+    | {
+        type: "budget";
+        campaignId: string;
+        newBudget: number;
+        row: MetaCampaignRow;
+      };
+  const [inlineConfirm, setInlineConfirm] = useState<InlineConfirm | null>(
+    null,
+  );
   const [inlineConfirmLoading, setInlineConfirmLoading] = useState(false);
   const bulkDropdownRef = useRef<HTMLDivElement>(null);
   const [showCreateCampaignPanel, setShowCreateCampaignPanel] = useState(false);
-  type EditingCampaign = { campaignId: string; name: string; status?: string; dailyBudget?: number } | null;
+  type EditingCampaign = {
+    campaignId: string;
+    name: string;
+    status?: string;
+    dailyBudget?: number;
+  } | null;
   const [editingCampaign, setEditingCampaign] = useState<EditingCampaign>(null);
 
   const { showEditSummary, EditSummaryModal } = useEditSummaryModal();
@@ -114,7 +161,11 @@ export const MetaCampaigns: React.FC = () => {
         order: sortOrder,
         start_date: startDateStr,
         end_date: endDateStr,
-        filters: filters.map((f) => ({ field: f.field, operator: f.operator, value: f.value })),
+        filters: filters.map((f) => ({
+          field: f.field,
+          operator: f.operator,
+          value: f.value,
+        })),
       });
       setCampaigns(data.campaigns || []);
       setChartDataFromApi(data.chart_data || []);
@@ -128,7 +179,16 @@ export const MetaCampaigns: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [channelIdNum, currentPage, itemsPerPage, sortBy, sortOrder, startDateStr, endDateStr, filters]);
+  }, [
+    channelIdNum,
+    currentPage,
+    itemsPerPage,
+    sortBy,
+    sortOrder,
+    startDateStr,
+    endDateStr,
+    filters,
+  ]);
 
   useEffect(() => {
     setPageTitle("Meta Campaigns");
@@ -233,14 +293,18 @@ export const MetaCampaigns: React.FC = () => {
     });
   }, [chartDataFromApi]);
 
-  const allSelected = campaigns.length > 0 && selectedCampaigns.size === campaigns.length;
-  const someSelected = selectedCampaigns.size > 0 && selectedCampaigns.size < campaigns.length;
+  const allSelected =
+    campaigns.length > 0 && selectedCampaigns.size === campaigns.length;
+  const someSelected =
+    selectedCampaigns.size > 0 && selectedCampaigns.size < campaigns.length;
 
   const handleSelectAll = () => {
     if (allSelected) {
       setSelectedCampaigns(new Set());
     } else {
-      setSelectedCampaigns(new Set(campaigns.map((c) => String(c.campaign_id ?? c.id))));
+      setSelectedCampaigns(
+        new Set(campaigns.map((c) => String(c.campaign_id ?? c.id))),
+      );
     }
   };
 
@@ -269,16 +333,25 @@ export const MetaCampaigns: React.FC = () => {
 
   // Fetch selected campaigns when confirmation modal opens (cross-page selection)
   useEffect(() => {
-    if (!showConfirmationModal || selectedCampaigns.size === 0 || !channelIdNum) {
+    if (
+      !showConfirmationModal ||
+      selectedCampaigns.size === 0 ||
+      !channelIdNum
+    ) {
       if (!showConfirmationModal) setSelectedCampaignsFetched(null);
       return;
     }
     let cancelled = false;
     setSelectedCampaignsFetching(true);
     accountsService
-      .getMetaCampaignsByIds(channelIdNum, { campaignIds: Array.from(selectedCampaigns) })
+      .getMetaCampaignsByIds(channelIdNum, {
+        campaignIds: Array.from(selectedCampaigns),
+      })
       .then((res) => {
-        if (!cancelled) setSelectedCampaignsFetched((res.campaigns ?? []) as MetaCampaignRow[]);
+        if (!cancelled)
+          setSelectedCampaignsFetched(
+            (res.campaigns ?? []) as MetaCampaignRow[],
+          );
       })
       .catch(() => {
         if (!cancelled) setSelectedCampaignsFetched([]);
@@ -294,14 +367,17 @@ export const MetaCampaigns: React.FC = () => {
   const getSelectedCampaignsData = (): MetaCampaignRow[] => {
     if (selectedCampaignsFetched != null) return selectedCampaignsFetched;
     return campaigns.filter((c) =>
-      selectedCampaigns.has(String(c.campaign_id ?? c.id))
+      selectedCampaigns.has(String(c.campaign_id ?? c.id)),
     );
   };
 
   // Close bulk dropdown when clicking outside
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
-      if (bulkDropdownRef.current && !bulkDropdownRef.current.contains(e.target as Node)) {
+      if (
+        bulkDropdownRef.current &&
+        !bulkDropdownRef.current.contains(e.target as Node)
+      ) {
         setShowBulkActions(false);
       }
     };
@@ -309,7 +385,9 @@ export const MetaCampaigns: React.FC = () => {
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
-  const runBulkStatus = async (statusValue: "ACTIVE" | "PAUSED" | "ARCHIVED") => {
+  const runBulkStatus = async (
+    statusValue: "ACTIVE" | "PAUSED" | "ARCHIVED",
+  ) => {
     if (!channelIdNum || selectedCampaigns.size === 0) return;
     setBulkLoading(true);
     try {
@@ -380,7 +458,9 @@ export const MetaCampaigns: React.FC = () => {
     if (isNaN(valueNum)) return;
     setBulkLoading(true);
     try {
-      const payload: Parameters<typeof accountsService.bulkUpdateMetaCampaigns>[1] = {
+      const payload: Parameters<
+        typeof accountsService.bulkUpdateMetaCampaigns
+      >[1] = {
         campaignIds: Array.from(selectedCampaigns),
       };
       if (budgetAction === "set") {
@@ -398,7 +478,10 @@ export const MetaCampaigns: React.FC = () => {
           if (!isNaN(l)) payload.lower_limit = l;
         }
       }
-      const res = await accountsService.bulkUpdateMetaCampaigns(channelIdNum, payload);
+      const res = await accountsService.bulkUpdateMetaCampaigns(
+        channelIdNum,
+        payload,
+      );
       setSelectedCampaigns(new Set());
       setShowBudgetPanel(false);
       setBudgetValue("");
@@ -467,9 +550,14 @@ export const MetaCampaigns: React.FC = () => {
     }
   };
 
-  const handleInlineStatusChange = (campaignId: string, newStatus: "ACTIVE" | "PAUSED" | "ARCHIVED") => {
+  const handleInlineStatusChange = (
+    campaignId: string,
+    newStatus: "ACTIVE" | "PAUSED" | "ARCHIVED",
+  ) => {
     if (!channelIdNum) return;
-    const row = campaigns.find((c) => String(c.campaign_id ?? c.id) === campaignId);
+    const row = campaigns.find(
+      (c) => String(c.campaign_id ?? c.id) === campaignId,
+    );
     if (!row) return;
     setInlineConfirm({ type: "status", campaignId, newStatus, row });
   };
@@ -479,7 +567,9 @@ export const MetaCampaigns: React.FC = () => {
     setInlineBudgetCampaignId(null);
     const num = parseFloat(value.replace(/,/g, ""));
     if (Number.isNaN(num) || num < 0) return;
-    const row = campaigns.find((c) => String(c.campaign_id ?? c.id) === campaignId);
+    const row = campaigns.find(
+      (c) => String(c.campaign_id ?? c.id) === campaignId,
+    );
     if (!row) return;
     const current = row.daily_budget != null ? Number(row.daily_budget) : null;
     if (current !== null && Math.abs(current - num) < 0.001) return;
@@ -491,10 +581,13 @@ export const MetaCampaigns: React.FC = () => {
     setInlineConfirmLoading(true);
     try {
       if (inlineConfirm.type === "status") {
-        const res = await accountsService.bulkUpdateMetaCampaigns(channelIdNum, {
-          campaignIds: [inlineConfirm.campaignId],
-          status: inlineConfirm.newStatus,
-        });
+        const res = await accountsService.bulkUpdateMetaCampaigns(
+          channelIdNum,
+          {
+            campaignIds: [inlineConfirm.campaignId],
+            status: inlineConfirm.newStatus,
+          },
+        );
         if ((res.updated ?? 0) > 0) {
           showEditSummary({
             entityType: "campaign",
@@ -509,12 +602,18 @@ export const MetaCampaigns: React.FC = () => {
           loadCampaigns();
         }
       } else {
-        const res = await accountsService.bulkUpdateMetaCampaigns(channelIdNum, {
-          campaignIds: [inlineConfirm.campaignId],
-          daily_budget: inlineConfirm.newBudget,
-        });
+        const res = await accountsService.bulkUpdateMetaCampaigns(
+          channelIdNum,
+          {
+            campaignIds: [inlineConfirm.campaignId],
+            daily_budget: inlineConfirm.newBudget,
+          },
+        );
         if ((res.updated ?? 0) > 0) {
-          const current = inlineConfirm.row.daily_budget != null ? Number(inlineConfirm.row.daily_budget) : null;
+          const current =
+            inlineConfirm.row.daily_budget != null
+              ? Number(inlineConfirm.row.daily_budget)
+              : null;
           showEditSummary({
             entityType: "campaign",
             action: "updated",
@@ -536,7 +635,9 @@ export const MetaCampaigns: React.FC = () => {
     }
   };
 
-  const getStatusOption = (status: string | undefined): "ACTIVE" | "PAUSED" | "ARCHIVED" => {
+  const getStatusOption = (
+    status: string | undefined,
+  ): "ACTIVE" | "PAUSED" | "ARCHIVED" => {
     const u = (status ?? "").toUpperCase();
     if (u === "ACTIVE" || u === "ENABLED" || u === "ACTIVED") return "ACTIVE";
     if (u === "PAUSED" || u === "PAUSE") return "PAUSED";
@@ -546,7 +647,8 @@ export const MetaCampaigns: React.FC = () => {
 
   const statusSelectBg = (status: string | undefined) => {
     const s = getStatusOption(status);
-    if (s === "ACTIVE") return "bg-emerald-50 border-emerald-200 text-[#065f46]";
+    if (s === "ACTIVE")
+      return "bg-emerald-50 border-emerald-200 text-[#065f46]";
     if (s === "PAUSED") return "bg-gray-100 border-gray-200 text-[#374151]";
     if (s === "ARCHIVED") return "bg-gray-100 border-gray-200 text-[#6b7280]";
     return "bg-gray-50 border-gray-200 text-[#556179]";
@@ -677,7 +779,10 @@ export const MetaCampaigns: React.FC = () => {
               {/* Bulk Actions and table */}
               <div className="relative">
                 <div className="flex items-center justify-end gap-2 mb-4">
-                  <div className="relative inline-flex justify-end" ref={bulkDropdownRef}>
+                  <div
+                    className="relative inline-flex justify-end"
+                    ref={bulkDropdownRef}
+                  >
                     <button
                       type="button"
                       onClick={(e) => {
@@ -745,7 +850,9 @@ export const MetaCampaigns: React.FC = () => {
                                 setPendingStatusAction(null);
                               } else {
                                 setShowBudgetPanel(false);
-                                setPendingStatusAction(opt.value as "ACTIVE" | "PAUSED" | "ARCHIVED");
+                                setPendingStatusAction(
+                                  opt.value as "ACTIVE" | "PAUSED" | "ARCHIVED",
+                                );
                                 setIsBudgetChange(false);
                                 setShowConfirmationModal(true);
                               }
@@ -775,7 +882,10 @@ export const MetaCampaigns: React.FC = () => {
                           ]}
                           value={budgetAction}
                           onChange={(val) => {
-                            const action = val as "increase" | "decrease" | "set";
+                            const action = val as
+                              | "increase"
+                              | "decrease"
+                              | "set";
                             setBudgetAction(action);
                             if (action === "set") setBudgetUnit("amount");
                           }}
@@ -783,7 +893,8 @@ export const MetaCampaigns: React.FC = () => {
                           width="w-full"
                         />
                       </div>
-                      {(budgetAction === "increase" || budgetAction === "decrease") && (
+                      {(budgetAction === "increase" ||
+                        budgetAction === "decrease") && (
                         <div className="w-[140px]">
                           <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                             Unit
@@ -791,20 +902,22 @@ export const MetaCampaigns: React.FC = () => {
                           <div className="flex gap-2">
                             <button
                               type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${budgetUnit === "percent"
-                                ? "bg-forest-f40 border-forest-f40 text-white"
-                                : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                                }`}
+                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                                budgetUnit === "percent"
+                                  ? "bg-forest-f40 border-forest-f40 text-white"
+                                  : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                              }`}
                               onClick={() => setBudgetUnit("percent")}
                             >
                               %
                             </button>
                             <button
                               type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${budgetUnit === "amount"
-                                ? "bg-forest-f40 border-forest-f40 text-white"
-                                : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                                }`}
+                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                                budgetUnit === "amount"
+                                  ? "bg-forest-f40 border-forest-f40 text-white"
+                                  : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                              }`}
                               onClick={() => setBudgetUnit("amount")}
                             >
                               $
@@ -823,7 +936,11 @@ export const MetaCampaigns: React.FC = () => {
                             step={budgetUnit === "percent" ? 0.1 : 0.01}
                             value={budgetValue}
                             onChange={(e) => setBudgetValue(e.target.value)}
-                            placeholder={budgetUnit === "percent" ? "e.g. 10" : "e.g. 20.00"}
+                            placeholder={
+                              budgetUnit === "percent"
+                                ? "e.g. 10"
+                                : "e.g. 20.00"
+                            }
                             className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                           />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
@@ -909,11 +1026,15 @@ export const MetaCampaigns: React.FC = () => {
                   >
                     <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
                       <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                        {isBudgetChange ? "Confirm Budget Changes" : "Confirm Status Changes"}
+                        {isBudgetChange
+                          ? "Confirm Budget Changes"
+                          : "Confirm Status Changes"}
                       </h3>
                       <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4 mb-4">
                         <span className="text-[12.16px] text-[#556179]">
-                          {selectedCampaigns.size} campaign{selectedCampaigns.size !== 1 ? "s" : ""} will be updated:{" "}
+                          {selectedCampaigns.size} campaign
+                          {selectedCampaigns.size !== 1 ? "s" : ""} will be
+                          updated:{" "}
                         </span>
                         <span className="text-[12.16px] font-semibold text-[#072929]">
                           {isBudgetChange ? "Budget" : "Status"} change
@@ -939,27 +1060,58 @@ export const MetaCampaigns: React.FC = () => {
                                 <table className="w-full table-fixed">
                                   <thead className="bg-[#f5f5f0]">
                                     <tr>
-                                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase w-[40%] max-w-[240px]">Campaign Name</th>
-                                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">Old Value</th>
-                                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">New Value</th>
+                                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase w-[40%] max-w-[240px]">
+                                        Campaign Name
+                                      </th>
+                                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                        Old Value
+                                      </th>
+                                      <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                        New Value
+                                      </th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {preview.map((c) => {
                                       const cid = String(c.campaign_id ?? c.id);
                                       const name = c.campaign_name ?? "—";
-                                      const currentBudget = c.daily_budget != null ? Number(c.daily_budget) : 0;
+                                      const currentBudget =
+                                        c.daily_budget != null
+                                          ? Number(c.daily_budget)
+                                          : 0;
                                       const oldVal = isBudgetChange
-                                        ? (c.daily_budget != null ? formatCurrency(Number(c.daily_budget)) : "—")
+                                        ? c.daily_budget != null
+                                          ? formatCurrency(
+                                              Number(c.daily_budget),
+                                            )
+                                          : "—"
                                         : normalizeStatusDisplay(c.status);
                                       const newVal = isBudgetChange
-                                        ? formatCurrency(calculateNewBudget(currentBudget))
-                                        : pendingStatusAction ? normalizeStatusDisplay(pendingStatusAction) : "—";
+                                        ? formatCurrency(
+                                            calculateNewBudget(currentBudget),
+                                          )
+                                        : pendingStatusAction
+                                          ? normalizeStatusDisplay(
+                                              pendingStatusAction,
+                                            )
+                                          : "—";
                                       return (
-                                        <tr key={cid} className="border-b border-gray-200 last:border-b-0">
-                                          <td className="px-4 py-2 text-[10.64px] text-[#072929] max-w-[240px] truncate" title={name}>{name}</td>
-                                          <td className="px-4 py-2 text-[10.64px] text-[#556179]">{oldVal}</td>
-                                          <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">{newVal}</td>
+                                        <tr
+                                          key={cid}
+                                          className="border-b border-gray-200 last:border-b-0"
+                                        >
+                                          <td
+                                            className="px-4 py-2 text-[10.64px] text-[#072929] max-w-[240px] truncate"
+                                            title={name}
+                                          >
+                                            {name}
+                                          </td>
+                                          <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                            {oldVal}
+                                          </td>
+                                          <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                            {newVal}
+                                          </td>
                                         </tr>
                                       );
                                     })}
@@ -988,7 +1140,8 @@ export const MetaCampaigns: React.FC = () => {
                         <button
                           type="button"
                           onClick={async () => {
-                            if (bulkLoading || selectedCampaignsFetching) return;
+                            if (bulkLoading || selectedCampaignsFetching)
+                              return;
                             try {
                               if (isBudgetChange) {
                                 await runBulkBudget();
@@ -1025,7 +1178,8 @@ export const MetaCampaigns: React.FC = () => {
                   <div
                     className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
                     onClick={(e) => {
-                      if (e.target === e.currentTarget && !bulkLoading) setShowDeleteModal(false);
+                      if (e.target === e.currentTarget && !bulkLoading)
+                        setShowDeleteModal(false);
                     }}
                   >
                     <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
@@ -1033,13 +1187,17 @@ export const MetaCampaigns: React.FC = () => {
                         Delete campaigns?
                       </h3>
                       <p className="text-[12.16px] text-[#556179] mb-4">
-                        You are about to permanently delete {selectedCampaigns.size} selected campaign
-                        {selectedCampaigns.size !== 1 ? "s" : ""}. This action cannot be undone.
+                        You are about to permanently delete{" "}
+                        {selectedCampaigns.size} selected campaign
+                        {selectedCampaigns.size !== 1 ? "s" : ""}. This action
+                        cannot be undone.
                       </p>
                       <div className="flex justify-end gap-3">
                         <button
                           type="button"
-                          onClick={() => !bulkLoading && setShowDeleteModal(false)}
+                          onClick={() =>
+                            !bulkLoading && setShowDeleteModal(false)
+                          }
                           disabled={bulkLoading}
                           className="cancel-button"
                         >
@@ -1057,14 +1215,16 @@ export const MetaCampaigns: React.FC = () => {
                     </div>
                   </div>
                 )}
-
               </div>
 
               {/* Table card - same structure and classes as Google */}
               <div className="relative">
                 <div
                   className="table-container"
-                  style={{ position: "relative", minHeight: loading ? "400px" : "auto" }}
+                  style={{
+                    position: "relative",
+                    minHeight: loading ? "400px" : "auto",
+                  }}
                 >
                   <div className="overflow-x-auto w-full">
                     <table className="min-w-[1200px] w-full">
@@ -1214,7 +1374,10 @@ export const MetaCampaigns: React.FC = () => {
                                         campaignId: cid,
                                         name: row.campaign_name || "",
                                         status: row.status,
-                                        dailyBudget: row.daily_budget != null ? Number(row.daily_budget) : undefined,
+                                        dailyBudget:
+                                          row.daily_budget != null
+                                            ? Number(row.daily_budget)
+                                            : undefined,
                                       });
                                     }}
                                     className="text-[10.64px] text-[#136D6D] hover:underline shrink-0"
@@ -1227,7 +1390,13 @@ export const MetaCampaigns: React.FC = () => {
                                 <select
                                   value={getStatusOption(row.status)}
                                   onChange={(e) =>
-                                    handleInlineStatusChange(cid, e.target.value as "ACTIVE" | "PAUSED" | "ARCHIVED")
+                                    handleInlineStatusChange(
+                                      cid,
+                                      e.target.value as
+                                        | "ACTIVE"
+                                        | "PAUSED"
+                                        | "ARCHIVED",
+                                    )
                                   }
                                   className={`edit-button google-table-dropdown min-w-0 ${statusSelectBg(row.status)}`}
                                   style={{
@@ -1255,11 +1424,14 @@ export const MetaCampaigns: React.FC = () => {
                                   onFocus={() => {
                                     setInlineBudgetCampaignId(cid);
                                     setInlineBudgetValue(
-                                      row.daily_budget != null ? String(row.daily_budget) : ""
+                                      row.daily_budget != null
+                                        ? String(row.daily_budget)
+                                        : "",
                                     );
                                   }}
                                   onChange={(e) => {
-                                    if (inlineBudgetCampaignId === cid) setInlineBudgetValue(e.target.value);
+                                    if (inlineBudgetCampaignId === cid)
+                                      setInlineBudgetValue(e.target.value);
                                   }}
                                   onBlur={(e) => {
                                     handleInlineBudgetBlur(cid, e.target.value);
@@ -1307,17 +1479,23 @@ export const MetaCampaigns: React.FC = () => {
                               </td>
                               <td className="table-cell py-3 px-4">
                                 <span className="table-text leading-[1.26] text-[#072929]">
-                                  {row.clicks != null ? formatNumber(Number(row.clicks)) : "—"}
+                                  {row.clicks != null
+                                    ? formatNumber(Number(row.clicks))
+                                    : "—"}
                                 </span>
                               </td>
                               <td className="table-cell py-3 px-4">
                                 <span className="table-text leading-[1.26] text-[#072929]">
-                                  {row.acos != null ? formatPercentage(Number(row.acos)) : "—"}
+                                  {row.acos != null
+                                    ? formatPercentage(Number(row.acos))
+                                    : "—"}
                                 </span>
                               </td>
                               <td className="table-cell py-3 px-4">
                                 <span className="table-text leading-[1.26] text-[#072929]">
-                                  {row.roas != null ? Number(row.roas).toFixed(2) : "—"}
+                                  {row.roas != null
+                                    ? Number(row.roas).toFixed(2)
+                                    : "—"}
                                 </span>
                               </td>
                             </tr>
@@ -1340,37 +1518,43 @@ export const MetaCampaigns: React.FC = () => {
                   <div className="flex items-center justify-end mt-4">
                     <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                       <button
-                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        onClick={() =>
+                          setCurrentPage((prev) => Math.max(1, prev - 1))
+                        }
                         disabled={currentPage === 1}
                         className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
                       >
                         Previous
                       </button>
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        let pageNum: number;
-                        if (totalPages <= 5) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNum = totalPages - 4 + i;
-                        } else {
-                          pageNum = currentPage - 2 + i;
-                        }
-                        pageNum = Math.max(1, Math.min(pageNum, totalPages));
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => setCurrentPage(pageNum)}
-                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
-                              ? "bg-white text-[#136D6D] font-semibold"
-                              : "text-black hover:bg-gray-50"
+                      {Array.from(
+                        { length: Math.min(5, totalPages) },
+                        (_, i) => {
+                          let pageNum: number;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          pageNum = Math.max(1, Math.min(pageNum, totalPages));
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setCurrentPage(pageNum)}
+                              className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                                currentPage === pageNum
+                                  ? "bg-white text-[#136D6D] font-semibold"
+                                  : "text-black hover:bg-gray-50"
                               }`}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        },
+                      )}
                       {totalPages > 5 && currentPage < totalPages - 2 && (
                         <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
                           ...
@@ -1379,17 +1563,20 @@ export const MetaCampaigns: React.FC = () => {
                       {totalPages > 5 && currentPage < totalPages - 2 && (
                         <button
                           onClick={() => setCurrentPage(totalPages)}
-                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
-                            ? "bg-white text-[#136D6D] font-semibold"
-                            : "text-black hover:bg-gray-50"
-                            }`}
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                            currentPage === totalPages
+                              ? "bg-white text-[#136D6D] font-semibold"
+                              : "text-black hover:bg-gray-50"
+                          }`}
                         >
                           {totalPages}
                         </button>
                       )}
                       <button
                         onClick={() =>
-                          setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                          setCurrentPage((prev) =>
+                            Math.min(totalPages, prev + 1),
+                          )
                         }
                         disabled={currentPage === totalPages}
                         className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
@@ -1406,19 +1593,23 @@ export const MetaCampaigns: React.FC = () => {
               <div
                 className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
                 onClick={(e) => {
-                  if (e.target === e.currentTarget && !inlineConfirmLoading) setInlineConfirm(null);
+                  if (e.target === e.currentTarget && !inlineConfirmLoading)
+                    setInlineConfirm(null);
                 }}
               >
                 <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
                   <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                    {inlineConfirm.type === "status" ? "Confirm Status Changes" : "Confirm Budget Changes"}
+                    {inlineConfirm.type === "status"
+                      ? "Confirm Status Changes"
+                      : "Confirm Budget Changes"}
                   </h3>
                   <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4 mb-4">
                     <span className="text-[12.16px] text-[#556179]">
                       1 campaign will be updated:{" "}
                     </span>
                     <span className="text-[12.16px] font-semibold text-[#072929]">
-                      {inlineConfirm.type === "status" ? "Status" : "Budget"} change
+                      {inlineConfirm.type === "status" ? "Status" : "Budget"}{" "}
+                      change
                     </span>
                   </div>
                   <div className="mb-6">
@@ -1426,22 +1617,43 @@ export const MetaCampaigns: React.FC = () => {
                       <table className="w-full table-fixed">
                         <thead className="bg-[#f5f5f0]">
                           <tr>
-                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase w-[40%] max-w-[240px]">Campaign Name</th>
-                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">Old Value</th>
-                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">New Value</th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase w-[40%] max-w-[240px]">
+                              Campaign Name
+                            </th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                              Old Value
+                            </th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                              New Value
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr className="border-b border-gray-200">
-                            <td className="px-4 py-2 text-[10.64px] text-[#072929] truncate" title={inlineConfirm.row.campaign_name ?? undefined}>{inlineConfirm.row.campaign_name ?? "—"}</td>
+                            <td
+                              className="px-4 py-2 text-[10.64px] text-[#072929] truncate"
+                              title={
+                                inlineConfirm.row.campaign_name ?? undefined
+                              }
+                            >
+                              {inlineConfirm.row.campaign_name ?? "—"}
+                            </td>
                             <td className="px-4 py-2 text-[10.64px] text-[#556179]">
                               {inlineConfirm.type === "status"
-                                ? normalizeStatusDisplay(inlineConfirm.row.status)
-                                : inlineConfirm.row.daily_budget != null ? formatCurrency(Number(inlineConfirm.row.daily_budget)) : "—"}
+                                ? normalizeStatusDisplay(
+                                    inlineConfirm.row.status,
+                                  )
+                                : inlineConfirm.row.daily_budget != null
+                                  ? formatCurrency(
+                                      Number(inlineConfirm.row.daily_budget),
+                                    )
+                                  : "—"}
                             </td>
                             <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
                               {inlineConfirm.type === "status"
-                                ? normalizeStatusDisplay(inlineConfirm.newStatus)
+                                ? normalizeStatusDisplay(
+                                    inlineConfirm.newStatus,
+                                  )
                                 : formatCurrency(inlineConfirm.newBudget)}
                             </td>
                           </tr>
@@ -1452,7 +1664,9 @@ export const MetaCampaigns: React.FC = () => {
                   <div className="flex justify-end gap-3">
                     <button
                       type="button"
-                      onClick={() => !inlineConfirmLoading && setInlineConfirm(null)}
+                      onClick={() =>
+                        !inlineConfirmLoading && setInlineConfirm(null)
+                      }
                       disabled={inlineConfirmLoading}
                       className="cancel-button"
                     >

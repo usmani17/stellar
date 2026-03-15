@@ -841,6 +841,30 @@ export const accountsService = {
     return response.data;
   },
 
+  getMetaPixels: async (
+    channelId: number,
+    profileId?: number | string
+  ): Promise<{ pixels: Array<{ id: string; name: string }> }> => {
+    const params = profileId != null ? { profile_id: profileId } : {};
+    const response = await api.get(
+      `/meta/channels/${channelId}/pixels/`,
+      { params }
+    );
+    return response.data;
+  },
+
+  getMetaOwnedApps: async (
+    channelId: number,
+    profileId?: number | string
+  ): Promise<{ apps: Array<{ id: string; name: string; link?: string }> }> => {
+    const params = profileId != null ? { profile_id: profileId } : {};
+    const response = await api.get(
+      `/meta/channels/${channelId}/apps/`,
+      { params }
+    );
+    return response.data;
+  },
+
   deleteMetaAudience: async (
     channelId: number,
     audienceId: string
@@ -865,9 +889,19 @@ export const accountsService = {
     channelId: number,
     payload: LookalikeAudienceCreatePayload
   ): Promise<MetaAudienceCreateResponse> => {
+    const body: CustomAudienceCreatePayload = {
+      subtype: "LOOKALIKE",
+      name: payload.name || "Lookalike audience",
+      origin_audience_id: payload.origin_audience_id,
+      lookalike_spec: JSON.stringify({
+        type: "similarity",
+        country: payload.lookalike_spec.country,
+        ratio: payload.lookalike_spec.ratio,
+      }),
+    };
     const response = await api.post(
-      `/meta/channels/${channelId}/audiences/lookalike/`,
-      payload
+      `/meta/channels/${channelId}/audiences/custom/`,
+      body
     );
     return response.data;
   },

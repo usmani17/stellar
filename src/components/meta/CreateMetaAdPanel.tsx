@@ -17,8 +17,7 @@ export interface CreateMetaAdPanelProps {
   campaignId?: string;
 }
 
-const inputClass =
-  "campaign-input w-full";
+const inputClass = "campaign-input w-full";
 
 export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
   channelId,
@@ -32,8 +31,12 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
   const [status, setStatus] = useState<MetaAdStatus>("PAUSED");
   const [profileId, setProfileId] = useState<number | "">("");
   const [profiles, setProfiles] = useState<MetaProfileOption[]>([]);
-  const [adsets, setAdsets] = useState<Array<{ adset_id: string; adset_name: string }>>([]);
-  const [creatives, setCreatives] = useState<Array<{ creative_id: string; creative_name: string }>>([]);
+  const [adsets, setAdsets] = useState<
+    Array<{ adset_id: string; adset_name: string }>
+  >([]);
+  const [creatives, setCreatives] = useState<
+    Array<{ creative_id: string; creative_name: string }>
+  >([]);
   const [profilesLoading, setProfilesLoading] = useState(true);
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -46,21 +49,34 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
       .fetchMetaProfiles(channelId)
       .then((res) => {
         if (cancelled) return;
-        const list = (res.profiles || []) as Array<{ id?: number; name?: string }>;
+        const list = (res.profiles || []) as Array<{
+          id?: number;
+          name?: string;
+        }>;
         const withId = list.filter((p) => p.id != null) as MetaProfileOption[];
         setProfiles(withId);
         if (withId.length > 0 && profileId === "") setProfileId(withId[0].id);
       })
-      .catch(() => { if (!cancelled) setProfiles([]); })
-      .finally(() => { if (!cancelled) setProfilesLoading(false); });
-    return () => { cancelled = true; };
+      .catch(() => {
+        if (!cancelled) setProfiles([]);
+      })
+      .finally(() => {
+        if (!cancelled) setProfilesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [channelId]);
 
   useEffect(() => {
     let cancelled = false;
     setOptionsLoading(true);
     const adsetParams = filterCampaignId
-      ? { page: 1, page_size: 200, filters: [{ field: "campaign_id", value: filterCampaignId }] }
+      ? {
+          page: 1,
+          page_size: 200,
+          filters: [{ field: "campaign_id", value: filterCampaignId }],
+        }
       : { page: 1, page_size: 200 };
     Promise.all([
       accountsService.getMetaAdSets(channelId, adsetParams),
@@ -68,27 +84,56 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
     ])
       .then(([adsetRes, creativeRes]) => {
         if (cancelled) return;
-        setAdsets((adsetRes.adsets || []).map((a) => ({
-          adset_id: String(a.adset_id ?? ""),
-          adset_name: a.adset_name ?? "",
-        })).filter((a) => a.adset_id !== ""));
-        setCreatives((creativeRes.creatives || []).map((c) => ({
-          creative_id: String(c.creative_id ?? ""),
-          creative_name: c.creative_name ?? "",
-        })).filter((c) => c.creative_id !== ""));
+        setAdsets(
+          (adsetRes.adsets || [])
+            .map((a) => ({
+              adset_id: String(a.adset_id ?? ""),
+              adset_name: a.adset_name ?? "",
+            }))
+            .filter((a) => a.adset_id !== ""),
+        );
+        setCreatives(
+          (creativeRes.creatives || [])
+            .map((c) => ({
+              creative_id: String(c.creative_id ?? ""),
+              creative_name: c.creative_name ?? "",
+            }))
+            .filter((c) => c.creative_id !== ""),
+        );
       })
-      .catch(() => { if (!cancelled) { setAdsets([]); setCreatives([]); } })
-      .finally(() => { if (!cancelled) setOptionsLoading(false); });
-    return () => { cancelled = true; };
+      .catch(() => {
+        if (!cancelled) {
+          setAdsets([]);
+          setCreatives([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setOptionsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [channelId, filterCampaignId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!name.trim()) { setError("Ad name is required."); return; }
-    if (!adsetId) { setError("Ad set is required."); return; }
-    if (!creativeId) { setError("Creative is required."); return; }
-    if (profileId === "" || profileId == null) { setError("Please select an ad account."); return; }
+    if (!name.trim()) {
+      setError("Ad name is required.");
+      return;
+    }
+    if (!adsetId) {
+      setError("Ad set is required.");
+      return;
+    }
+    if (!creativeId) {
+      setError("Creative is required.");
+      return;
+    }
+    if (profileId === "" || profileId == null) {
+      setError("Please select an ad account.");
+      return;
+    }
     setSubmitLoading(true);
     try {
       const payload: CreateMetaAdPayload = {
@@ -102,9 +147,13 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      const msg = err && typeof err === "object" && "response" in err
-        ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
-        : err instanceof Error ? err.message : "Failed to create ad.";
+      const msg =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data
+              ?.error
+          : err instanceof Error
+            ? err.message
+            : "Failed to create ad.";
       setError(String(msg));
     } finally {
       setSubmitLoading(false);
@@ -123,7 +172,9 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
     if (creatives.length > 0 && !creativeId) {
       setCreativeId(creatives[0].creative_id);
     }
-    setName((prev) => (prev && prev.trim().length > 0 ? prev : "Test Ad – Creative 1"));
+    setName((prev) =>
+      prev && prev.trim().length > 0 ? prev : "Test Ad – Creative 1",
+    );
     if (!status) {
       setStatus("PAUSED");
     }
@@ -144,18 +195,23 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
               <Loader size="md" message="Loading..." />
             </div>
             <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
-              <button type="button" onClick={onClose} className="cancel-button">Cancel</button>
+              <button type="button" onClick={onClose} className="cancel-button">
+                Cancel
+              </button>
             </div>
           </>
         ) : profiles.length === 0 ? (
           <>
             <div className="p-4 border-b border-gray-200">
               <p className="text-[12px] text-[#556179] py-4">
-                No ad accounts found. Save ad accounts in channel settings first.
+                No ad accounts found. Save ad accounts in channel settings
+                first.
               </p>
             </div>
             <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
-              <button type="button" onClick={onClose} className="cancel-button">Cancel</button>
+              <button type="button" onClick={onClose} className="cancel-button">
+                Cancel
+              </button>
             </div>
           </>
         ) : adsets.length === 0 ? (
@@ -166,7 +222,9 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
               </p>
             </div>
             <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
-              <button type="button" onClick={onClose} className="cancel-button">Cancel</button>
+              <button type="button" onClick={onClose} className="cancel-button">
+                Cancel
+              </button>
             </div>
           </>
         ) : creatives.length === 0 ? (
@@ -177,7 +235,9 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
               </p>
             </div>
             <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
-              <button type="button" onClick={onClose} className="cancel-button">Cancel</button>
+              <button type="button" onClick={onClose} className="cancel-button">
+                Cancel
+              </button>
             </div>
           </>
         ) : (
@@ -198,11 +258,17 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
                     <label className="form-label-small">Ad account *</label>
                     <select
                       value={profileId === "" ? "" : profileId}
-                      onChange={(e) => setProfileId(e.target.value === "" ? "" : Number(e.target.value))}
+                      onChange={(e) =>
+                        setProfileId(
+                          e.target.value === "" ? "" : Number(e.target.value),
+                        )
+                      }
                       className={inputClass}
                     >
                       {profiles.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name || `Account ${p.id}`}</option>
+                        <option key={p.id} value={p.id}>
+                          {p.name || `Account ${p.id}`}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -214,7 +280,9 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
                       className={inputClass}
                     >
                       {adsets.map((a) => (
-                        <option key={a.adset_id} value={a.adset_id}>{a.adset_name || a.adset_id}</option>
+                        <option key={a.adset_id} value={a.adset_id}>
+                          {a.adset_name || a.adset_id}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -226,7 +294,9 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
                       className={inputClass}
                     >
                       {creatives.map((c) => (
-                        <option key={c.creative_id} value={c.creative_id}>{c.creative_name || c.creative_id}</option>
+                        <option key={c.creative_id} value={c.creative_id}>
+                          {c.creative_name || c.creative_id}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -244,7 +314,9 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
                     <label className="form-label-small">Status</label>
                     <select
                       value={status}
-                      onChange={(e) => setStatus(e.target.value as MetaAdStatus)}
+                      onChange={(e) =>
+                        setStatus(e.target.value as MetaAdStatus)
+                      }
                       className={inputClass}
                     >
                       <option value="PAUSED">Paused</option>

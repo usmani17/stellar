@@ -32,6 +32,8 @@ export interface CreateMetaCampaignPayload {
   special_ad_category_country?: string[];
   buying_type?: string;
   bid_strategy?: string;
+  /** When not using campaign budget, Meta requires this flag to be explicitly true or false. */
+  is_adset_budget_sharing_enabled?: boolean;
 }
 
 export interface UpdateMetaCampaignPayload {
@@ -94,7 +96,9 @@ export interface CreateMetaAdSetPayload {
   campaign_id: string;
   name: string;
   status?: MetaAdSetStatus;
+  /** In account's smallest currency unit (e.g. cents for USD; 1000 = $10.00). */
   daily_budget?: number;
+  /** In account's smallest currency unit. Required end_time when used. */
   lifetime_budget?: number;
   billing_event?: string;
   optimization_goal?: string;
@@ -105,6 +109,8 @@ export interface CreateMetaAdSetPayload {
   destination_type?: string;
   promoted_object?: MetaPromotedObject;
   pacing_type?: string[];
+  /** e.g. ["validate_only"] to validate without creating. */
+  execution_options?: string[];
 }
 
 export interface UpdateMetaAdSetPayload {
@@ -167,20 +173,27 @@ export interface MetaAdCreateResponse {
   [key: string]: unknown;
 }
 
-/** Custom Audience subtype (Meta API). */
+/** Custom Audience subtype for create. We support only these five; Lookalike uses a dedicated panel. */
 export type MetaCustomAudienceSubtype =
   | "CUSTOM"
   | "WEBSITE"
   | "APP"
-  | "OFFLINE_EVENT"
-  | "LOOKALIKE"
-  | "ENGAGEMENT";
+  | "ENGAGEMENT"
+  | "OFFLINE_CONVERSION";
 
-/** Customer file source (for customer list uploads). */
+/** Customer file source (for CUSTOM subtype when creating customer-file/CRM audiences). Required by Meta in that case. */
 export type MetaCustomerFileSource =
   | "USER_PROVIDED_ONLY"
   | "PARTNER_PROVIDED_ONLY"
   | "BOTH_USER_AND_PARTNER_PROVIDED";
+
+/** Lookalike spec shape (serialized as JSON string for API). */
+export interface LookalikeSpecForCreate {
+  type?: string;
+  country: string;
+  ratio: number;
+  origin_audience_id: string;
+}
 
 export interface CustomAudienceCreatePayload {
   name: string;
@@ -192,6 +205,15 @@ export interface CustomAudienceCreatePayload {
   prefill?: boolean;
   /** Required when subtype is WEBSITE or APP to resolve ad account. */
   profile_id?: number;
+  pixel_id?: string;
+  lookalike_spec?: string;
+  /** Required for LOOKALIKE subtype: seed Custom Audience ID (top-level per Meta API). */
+  origin_audience_id?: string;
+  claim_objective?: string;
+  content_type?: string;
+  opt_out_link?: string;
+  allowed_domains?: string[];
+  rule_aggregation?: string;
 }
 
 export interface LookalikeSpec {
@@ -232,16 +254,33 @@ export interface MetaAudienceCreateResponse {
   [key: string]: unknown;
 }
 
-/** Audience rule structure for Meta Custom Audiences (WEBSITE/APP). */
+/**
+ * Event source types for Meta Custom Audience rules.
+ * Mapped to audience subtypes: WEBSITE=pixel; APP=app; ENGAGEMENT=page,video,lead,...; OFFLINE_CONVERSION=offline_events,store_visits.
+ */
+export type AudienceRuleEventSourceType =
+  | "pixel"
+  | "app"
+  | "page"
+  | "video"
+  | "lead"
+  | "ig_lead_generation"
+  | "canvas"
+  | "shopping_page"
+  | "shopping_ig"
+  | "offline_events"
+  | "store_visits";
+
 export interface AudienceRuleEventSource {
   id: string;
-  type: "pixel" | "app";
+  type: AudienceRuleEventSourceType;
 }
 
 export interface AudienceRuleFilter {
   field: string;
   operator: string;
-  value: string;
+  /** String (event name, etc.), number (e.g. _value, price), or array for is_any/is_not_any. */
+  value: string | number | string[];
 }
 
 export interface AudienceRuleFilterSet {
@@ -258,11 +297,15 @@ export type AudienceRuleAggregationType =
   | "time_spent"
   | "last_event_time_field";
 
+export type AudienceRuleAggregationMethod = "absolute" | "percentile";
+
 export interface AudienceRuleAggregation {
   type: AudienceRuleAggregationType;
   field?: string;
   operator: string;
   value: string | number;
+  /** Optional: absolute vs percentile (Meta API). */
+  method?: AudienceRuleAggregationMethod;
 }
 
 export interface AudienceRuleRule {
@@ -296,4 +339,111 @@ export function getDefaultAudienceRule(): AudienceRule {
 
 export function audienceRuleToJsonString(rule: AudienceRule): string {
   return JSON.stringify(rule);
+}
+
+/** Example rule templates for Meta audience rules (lowercase operators, Meta-valid structure). */
+export type ExampleAudienceRuleTemplate =
+  | "website_pageview_30d"
+  | "website_purchase_60d"
+  | "app_achieve_level"
+  | "app_purchase_30d"
+  | "video_50pct";
+
+const SECONDS_PER_DAY = 86400;
+
+function makeInclusionsRule(rule: AudienceRuleRule): AudienceRuleSet {
+  return { operator: "or", rules: [rule] };
+}
+
+export function getExampleAudienceRule(
+  template: ExampleAudienceRuleTemplate,
+  options?: { pixelId?: string; videoId?: string; appId?: string }
+): AudienceRule {
+  const pixelId = options?.pixelId ?? "<PIXEL_ID>";
+  const videoId = options?.videoId ?? "<VIDEO_ID>";
+  const appId = options?.appId ?? "<APP_ID>";
+  const emptyExclusions: AudienceRuleSet = { operator: "and", rules: [] };
+
+  switch (template) {
+    case "website_pageview_30d": {
+      const rule: AudienceRuleRule = {
+        event_sources: [{ id: pixelId, type: "pixel" }],
+        retention_seconds: 30 * SECONDS_PER_DAY,
+        filter: {
+          operator: "or",
+          filters: [{ field: "event", operator: "=", value: "PageView" }],
+        },
+      };
+      return {
+        inclusions: makeInclusionsRule(rule),
+        exclusions: emptyExclusions,
+      };
+    }
+    case "website_purchase_60d": {
+      const rule: AudienceRuleRule = {
+        event_sources: [{ id: pixelId, type: "pixel" }],
+        retention_seconds: 60 * SECONDS_PER_DAY,
+        filter: {
+          operator: "and",
+          filters: [
+            { field: "event", operator: "=", value: "Purchase" },
+            { field: "price", operator: ">", value: "50" },
+          ],
+        },
+      };
+      return {
+        inclusions: makeInclusionsRule(rule),
+        exclusions: emptyExclusions,
+      };
+    }
+    case "app_achieve_level": {
+      const rule: AudienceRuleRule = {
+        event_sources: [{ id: appId, type: "app" }],
+        retention_seconds: 30 * SECONDS_PER_DAY,
+        filter: {
+          operator: "or",
+          filters: [{ field: "event", operator: "eq", value: "AchieveLevel" }],
+        },
+      };
+      return {
+        inclusions: makeInclusionsRule(rule),
+        exclusions: emptyExclusions,
+      };
+    }
+    case "app_purchase_30d": {
+      const rule: AudienceRuleRule = {
+        event_sources: [{ id: appId, type: "app" }],
+        retention_seconds: 30 * SECONDS_PER_DAY,
+        filter: {
+          operator: "and",
+          filters: [{ field: "event", operator: "eq", value: "fb_mobile_purchase" }],
+        },
+      };
+      return {
+        inclusions: makeInclusionsRule(rule),
+        exclusions: emptyExclusions,
+      };
+    }
+    case "video_50pct": {
+      const rule: AudienceRuleRule = {
+        event_sources: [{ id: videoId, type: "video" }],
+        retention_seconds: 30 * SECONDS_PER_DAY,
+        filter: {
+          operator: "or",
+          filters: [{ field: "view_time", operator: ">", value: "50" }],
+        },
+        aggregation: {
+          type: "count",
+          operator: ">",
+          value: "1",
+        },
+      };
+      return {
+        inclusions: makeInclusionsRule(rule),
+        exclusions: emptyExclusions,
+      };
+    }
+    default:
+      return getDefaultAudienceRule();
+  }
 }
