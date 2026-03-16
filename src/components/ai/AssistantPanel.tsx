@@ -936,16 +936,27 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                             </p>
                                         )}
                                     </div>
-                                    <div className="max-h-[240px] overflow-y-auto">
+                                    <div className="max-h-[400px] overflow-y-auto">
                                         {accountsWithFilteredProfiles.length === 0 ? (
                                             <div className="assistant-setup-dropdown-empty py-6">
                                                 No profiles match your search
                                             </div>
                                         ) : showAccountGroupedLayout ? (
-                                            /* Group by account: select account → select all its profiles */
+                                            /* Group by account, then sub-group by platform within each account */
                                             accountsWithFilteredProfiles.map(({ accountId: accId, accountName: accName, items: accItems, google_sheets_integrations: accSheets }) => {
                                                 const allChecked = accItems.every(({ profile: p }) => isProfileSelected(accId, p.channel_id, p.id));
                                                 const sheetsCount = (accSheets as Array<{ name?: string }>)?.length ?? 0;
+                                                const byPlatform: Record<string, typeof accItems> = {};
+                                                for (const item of accItems) {
+                                                    const plat = (item.profile.channel_type ?? "").toLowerCase() || "other";
+                                                    if (!byPlatform[plat]) byPlatform[plat] = [];
+                                                    byPlatform[plat].push(item);
+                                                }
+                                                const platformGroups = PLATFORM_ORDER.filter((k) => byPlatform[k]?.length).map((plat) => ({
+                                                    platform: plat,
+                                                    items: byPlatform[plat],
+                                                }));
+                                                const hasMixedPlatforms = platformGroups.length > 1;
                                                 return (
                                                     <div key={accId} className="border-b border-[#e8e8e3] last:border-b-0">
                                                         <button
@@ -962,26 +973,66 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                             <span className="truncate">{accName}</span>
                                                             <span className="text-xs text-[#556179]">({accItems.length}{sheetsCount > 0 ? `, ${sheetsCount} sheet${sheetsCount !== 1 ? "s" : ""}` : ""})</span>
                                                         </button>
-                                                        {accItems.map(({ profile: p }) => {
-                                                            const label = `${profileDisplayName(p)} (${profileIdForDisplay(p)})`;
-                                                            const checked = isProfileSelected(accId, p.channel_id, p.id);
-                                                            return (
-                                                                <label
-                                                                    key={`${accId}-${p.channel_id}-${p.id}`}
-                                                                    className={`flex items-center gap-2 px-3 py-2 pl-6 cursor-pointer hover:bg-[#F5F5F2] ${checked ? "bg-[#E6F2F2]" : ""}`}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                >
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={checked}
-                                                                        onChange={() => toggleProfile(p, accId)}
-                                                                        className="rounded border-[#136d6d] text-[#136D6D] focus:ring-[#136d6d] accent-[#136D6D]"
+                                                        {hasMixedPlatforms ? (
+                                                            platformGroups.map(({ platform: plat, items: platItems }) => {
+                                                                const platLabel = plat.charAt(0).toUpperCase() + plat.slice(1);
+                                                                return (
+                                                                    <div key={plat}>
+                                                                        <div className="flex items-center gap-1.5 px-3 pl-6 py-1.5 text-xs font-semibold text-[#556179] bg-[#FAFAF7] border-t border-[#e8e8e3]/60">
+                                                                            {plat === "google" && <img src={GoogleIcon} alt="" className="w-3.5 h-3.5 shrink-0" />}
+                                                                            {plat === "meta" && <img src={MetaIcon} alt="" className="w-3.5 h-3.5 shrink-0" />}
+                                                                            {plat === "tiktok" && (
+                                                                                <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                                                                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                                                                                </svg>
+                                                                            )}
+                                                                            <span>{platLabel}</span>
+                                                                        </div>
+                                                                        {platItems.map(({ profile: p }) => {
+                                                                            const label = `${profileDisplayName(p)} (${profileIdForDisplay(p)})`;
+                                                                            const checked = isProfileSelected(accId, p.channel_id, p.id);
+                                                                            return (
+                                                                                <label
+                                                                                    key={`${accId}-${p.channel_id}-${p.id}`}
+                                                                                    className={`flex items-center gap-2 px-3 py-2 pl-9 cursor-pointer hover:bg-[#F5F5F2] ${checked ? "bg-[#E6F2F2]" : ""}`}
+                                                                                    onClick={(e) => e.stopPropagation()}
+                                                                                >
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={checked}
+                                                                                        onChange={() => toggleProfile(p, accId)}
+                                                                                        className="rounded border-[#136d6d] text-[#136D6D] focus:ring-[#136d6d] accent-[#136D6D]"
+                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                    />
+                                                                                    <span className="truncate text-sm text-[#072929]" title={label}>{label}</span>
+                                                                                </label>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                );
+                                                            })
+                                                        ) : (
+                                                            accItems.map(({ profile: p }) => {
+                                                                const label = `${profileDisplayName(p)} (${profileIdForDisplay(p)})`;
+                                                                const checked = isProfileSelected(accId, p.channel_id, p.id);
+                                                                return (
+                                                                    <label
+                                                                        key={`${accId}-${p.channel_id}-${p.id}`}
+                                                                        className={`flex items-center gap-2 px-3 py-2 pl-6 cursor-pointer hover:bg-[#F5F5F2] ${checked ? "bg-[#E6F2F2]" : ""}`}
                                                                         onClick={(e) => e.stopPropagation()}
-                                                                    />
-                                                                    <span className="truncate text-sm text-[#072929]" title={label}>{label}</span>
-                                                                </label>
-                                                            );
-                                                        })}
+                                                                    >
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={checked}
+                                                                            onChange={() => toggleProfile(p, accId)}
+                                                                            className="rounded border-[#136d6d] text-[#136D6D] focus:ring-[#136d6d] accent-[#136D6D]"
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        />
+                                                                        <span className="truncate text-sm text-[#072929]" title={label}>{label}</span>
+                                                                    </label>
+                                                                );
+                                                            })
+                                                        )}
                                                         {sheetsCount > 0 && (
                                                             <div className="px-3 py-2 pl-6 border-t border-[#e8e8e3]/60">
                                                                 <p className="text-xs font-medium text-[#556179] mb-1">Google Sheets</p>
