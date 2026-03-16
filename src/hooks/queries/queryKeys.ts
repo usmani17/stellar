@@ -22,6 +22,10 @@ export const queryKeys = {
         pageSize ?? 10,
       ] as const,
     detail: (id: number) => [...queryKeys.accounts.all, "detail", id] as const,
+    brandKbList: (brandId?: number) =>
+      [...queryKeys.accounts.all, "brand-kb", ...(brandId != null ? [brandId] : [])] as const,
+    brandKb: (brandId: number, integrationId?: number) =>
+      [...queryKeys.accounts.all, "brand-kb", brandId, ...(integrationId != null ? [integrationId] : [])] as const,
   },
   channels: {
     all: ["channels"] as const,

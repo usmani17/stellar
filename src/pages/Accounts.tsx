@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { useAuth } from "../contexts/AuthContext";
 import { useSidebar } from "../contexts/SidebarContext";
@@ -10,9 +11,10 @@ import {
   useDeleteAccount,
 } from "../hooks/mutations/useAccountMutations";
 import { useAccountsPaginated } from "../hooks/queries/useAccountsPaginated";
+import { queryKeys } from "../hooks/queries/queryKeys";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
-import { Button, Card, DeleteConfirmationModal, Loader } from "../components/ui";
+import { Button, Card, DeleteConfirmationModal, Loader, BaseModal } from "../components/ui";
 import { Banner } from "../components/ui/Banner";
 import { GOOGLE_ONLY_UI } from "../constants/featureFlags";
 import AmazonIcon from "../assets/images/amazon-fill.svg";
@@ -64,6 +66,81 @@ export const Accounts: React.FC = () => {
   } | null>(null);
   const [editedAccountName, setEditedAccountName] = useState<string>("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [kbModal, setKbModal] = useState<{
+    brandId: number;
+    brandName: string;
+    kb: string;
+    loading: boolean;
+    saving: boolean;
+  } | null>(null);
+
+  const queryClient = useQueryClient();
+  const { data: brandKbList = [] } = useQuery({
+    queryKey: queryKeys.accounts.brandKbList(),
+    queryFn: () => accountsService.getBrandKbList(),
+    enabled: !isTeam,
+  });
+  const brandKbByBrandId = React.useMemo(() => {
+    const map: Record<number, string> = {};
+    brandKbList.forEach((item) => {
+      if (item.integration_id == null) map[item.brand_id] = item.kb;
+    });
+    return map;
+  }, [brandKbList]);
+
+  const setBrandKbMutation = useMutation({
+    mutationFn: ({ brandId, kb }: { brandId: number; kb: string }) =>
+      accountsService.setBrandKb(brandId, { kb }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.brandKbList() });
+      setKbModal(null);
+    },
+  });
+
+  useEffect(() => {
+    if (!kbModal?.brandId || !kbModal.loading) return;
+    let cancelled = false;
+    accountsService
+      .getBrandKb(kbModal.brandId)
+      .then((res) => {
+        if (!cancelled && kbModal)
+          setKbModal((prev) => (prev ? { ...prev, kb: res.kb ?? "", loading: false } : null));
+      })
+      .catch(() => {
+        if (!cancelled)
+          setKbModal((prev) => (prev ? { ...prev, kb: "", loading: false } : null));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [kbModal?.brandId, kbModal?.loading]);
+
+  const openKbModal = (account: Account) => {
+    setKbModal({
+      brandId: account.id,
+      brandName: account.name,
+      kb: "",
+      loading: true,
+      saving: false,
+    });
+  };
+
+  const closeKbModal = () => {
+    if (!kbModal?.saving && !setBrandKbMutation.isPending) setKbModal(null);
+  };
+
+  const handleSaveKb = () => {
+    if (!kbModal?.brandId) return;
+    setKbModal((prev) => (prev ? { ...prev, saving: true } : null));
+    setBrandKbMutation.mutate(
+      { brandId: kbModal.brandId, kb: kbModal.kb },
+      {
+        onSettled: () => {
+          setKbModal((prev) => (prev ? { ...prev, saving: false } : null));
+        },
+      },
+    );
+  };
 
   // React Query mutation hooks
   const createAccountMutation = useCreateAccount();
@@ -500,6 +577,7 @@ export const Accounts: React.FC = () => {
                       <th className="table-header">Created</th>
                       <th className="table-header">Created By</th>
                       {!isTeam && <th className="table-header">Integrations</th>}
+                      <th className="table-header">KB</th>
                       <th className="table-header">Actions</th>
                     </tr>
                   </thead>
@@ -523,13 +601,16 @@ export const Accounts: React.FC = () => {
                             </td>
                           )}
                           <td className="table-cell">
+                            <div className="h-9 bg-gray-200 rounded animate-pulse w-20"></div>
+                          </td>
+                          <td className="table-cell">
                             <div className="h-9 bg-gray-200 rounded animate-pulse w-32"></div>
                           </td>
                         </tr>
                       ))
                     ) : filteredAccounts.length === 0 ? (
                       <tr>
-                        <td colSpan={isTeam ? 4 : 5} className="table-cell text-center py-8">
+                        <td colSpan={isTeam ? 5 : 6} className="table-cell text-center py-8">
                           <p className="text-[14px] text-[#556179] mb-4">
                             {searchQuery
                               ? "No brands found"
@@ -730,6 +811,28 @@ export const Accounts: React.FC = () => {
                               </td>
                             )}
                             <td className="table-cell">
+                              {!isTeam && (
+                                <div className="flex items-center gap-2">
+                                  <span className="table-text max-w-[200px] truncate block" title={brandKbByBrandId[account.id] || ""}>
+                                    {brandKbByBrandId[account.id] || "—"}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => openKbModal(account)}
+                                    disabled={isDeleting}
+                                    className="table-edit-icon !opacity-100 pointer-events-auto cursor-pointer p-1.5 rounded hover:bg-gray-100 text-forest-f30 hover:text-forest-f60"
+                                    title="Edit KB"
+                                    aria-label="Edit KB"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              )}
+                              {isTeam && <span className="table-text">—</span>}
+                            </td>
+                            <td className="table-cell">
                               <div className="flex items-center gap-2 justify-end md:justify-start">
                                 {isTeam ? (
                                   // Team: only link to integrations
@@ -883,6 +986,51 @@ export const Accounts: React.FC = () => {
           isLoading={deletingAccountId === deleteModal.id}
         />
       )}
+
+      <BaseModal
+        isOpen={!!kbModal}
+        onClose={closeKbModal}
+        size="xl"
+        maxWidth="max-w-2xl"
+        disableBackdropClick={kbModal?.saving || kbModal?.loading || setBrandKbMutation.isPending}
+      >
+        <div className="space-y-4">
+          <h2 className="text-[18px] font-medium text-forest-f60">
+            Edit KB — {kbModal?.brandName ?? ""}
+          </h2>
+          {kbModal?.loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader size="md" message="Loading KB..." />
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-[13px] text-forest-f30 mb-1">Knowledge base</label>
+                <textarea
+                  value={kbModal?.kb ?? ""}
+                  onChange={(e) =>
+                    setKbModal((prev) => (prev ? { ...prev, kb: e.target.value } : null))
+                  }
+                  rows={8}
+                  className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40 resize-y"
+                  placeholder="Add brand knowledge base content..."
+                />
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <button type="button" onClick={closeKbModal} className="cancel-button">
+                  Cancel
+                </button>
+                <Button
+                  onClick={handleSaveKb}
+                  disabled={kbModal?.saving || setBrandKbMutation.isPending}
+                >
+                  {kbModal?.saving || setBrandKbMutation.isPending ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </BaseModal>
     </div>
   );
 };
