@@ -5,7 +5,8 @@ export interface Channel {
   id: number;
   channel_name: string;
   channel_type: "amazon" | "google" | "walmart" | "tiktok" | "meta";
-  status: "active" | "inactive" | "pending";
+  status: boolean;
+  deleted_at?: string | null;
   account: number;
   account_id?: number;
   account_name?: string;
@@ -44,6 +45,32 @@ export interface AccountsPaginatedResponse {
   next: string | null;
   previous: string | null;
   results: Account[];
+}
+
+export type BrandKbTriggerType = "brand_level" | "integration_level" | "profile_level";
+
+export interface BrandKbEntry {
+  id: number;
+  brand_id: number;
+  name: string;
+  trigger_type: BrandKbTriggerType;
+  kb: string;
+  channel_ids: number[];
+  profile_ids: number[];
+  website_urls: string[];
+  enhance_prompt: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BrandKbEntryCreate {
+  name: string;
+  trigger_type: BrandKbTriggerType;
+  kb: string;
+  channel_ids?: number[];
+  profile_ids?: number[];
+  website_urls?: string[];
+  enhance_prompt?: string;
 }
 
 export const accountsService = {
@@ -112,56 +139,52 @@ export const accountsService = {
     await api.delete(`/accounts/${id}/`);
   },
 
-  // Brand KB (knowledge base)
-  getBrandKbList: async (params?: {
-    brand_id?: number;
-  }): Promise<{ id: number; brand_id: number; integration_id: number | null; kb: string }[]> => {
-    const requestParams: Record<string, string> = { truncate: "true" };
-    if (params?.brand_id != null) requestParams.brand_id = String(params.brand_id);
-    const response = await api.get<
-      { id: number; brand_id: number; integration_id: number | null; kb: string }[]
-    >("/accounts/brands/kb/", { params: requestParams });
+  // Brand KB entries (CRUD)
+  getBrandKbEntries: async (brandId: number): Promise<BrandKbEntry[]> => {
+    const response = await api.get<BrandKbEntry[]>(
+      `/accounts/brands/${brandId}/kb/list/`,
+    );
     return response.data;
   },
 
-  getBrandKb: async (
+  createBrandKbEntry: async (
     brandId: number,
-    options?: { integration_id?: number },
-  ): Promise<{
-    id: number;
-    brand_id: number;
-    integration_id: number | null;
-    kb: string;
-  }> => {
-    const params =
-      options?.integration_id != null
-        ? { integration_id: String(options.integration_id) }
-        : undefined;
-    const response = await api.get<{
-      id: number;
-      brand_id: number;
-      integration_id: number | null;
-      kb: string;
-    }>(`/accounts/brands/${brandId}/kb/`, { params });
+    data: BrandKbEntryCreate,
+  ): Promise<BrandKbEntry> => {
+    const response = await api.post<BrandKbEntry>(
+      `/accounts/brands/${brandId}/kb/create/`,
+      data,
+    );
     return response.data;
   },
 
-  setBrandKb: async (
+  getBrandKbEntry: async (
     brandId: number,
-    data: { kb: string; integration_id?: number },
-  ): Promise<{
-    id: number;
-    brand_id: number;
-    integration_id: number | null;
-    kb: string;
-  }> => {
-    const response = await api.put<{
-      id: number;
-      brand_id: number;
-      integration_id: number | null;
-      kb: string;
-    }>(`/accounts/brands/${brandId}/kb/`, data);
+    kbId: number,
+  ): Promise<BrandKbEntry> => {
+    const response = await api.get<BrandKbEntry>(
+      `/accounts/brands/${brandId}/kb/${kbId}/`,
+    );
     return response.data;
+  },
+
+  updateBrandKbEntry: async (
+    brandId: number,
+    kbId: number,
+    data: Partial<BrandKbEntryCreate>,
+  ): Promise<BrandKbEntry> => {
+    const response = await api.put<BrandKbEntry>(
+      `/accounts/brands/${brandId}/kb/${kbId}/`,
+      data,
+    );
+    return response.data;
+  },
+
+  deleteBrandKbEntry: async (
+    brandId: number,
+    kbId: number,
+  ): Promise<void> => {
+    await api.delete(`/accounts/brands/${brandId}/kb/${kbId}/`);
   },
 
   // Account channels

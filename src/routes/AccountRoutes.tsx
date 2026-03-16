@@ -21,6 +21,7 @@ import { CompleteSignup } from "../pages/CompleteSignup";
 import { ColorExamples } from "../pages/ColorExamples";
 import { WorkflowsPage } from "../pages/workflows/WorkflowsPage";
 import { WorkflowDashboardPage } from "../pages/workflows/WorkflowDashboardPage";
+import { BrandKnowledge } from "../pages/BrandKnowledge";
 import { GoogleSheetsIntegrationsPage } from "../features/brands/google-sheets/GoogleSheetsIntegrationsPage";
 import { GoogleSheetsIntegrationPage } from "../features/brands/google-sheets/GoogleSheetsIntegrationPage";
 import { GoogleSheetsIntegrationEditPage } from "../features/brands/google-sheets/GoogleSheetsIntegrationEditPage";
@@ -143,6 +144,22 @@ function AccountRoutes() {
                                 <BrandAccessRoute>
                                     <Layout>
                                         <Channels />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/brands/:accountId/knowledge"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <BrandKnowledge />
                                     </Layout>
                                 </BrandAccessRoute>
                             </AccountRequiredRoute>

@@ -22,10 +22,10 @@ export const queryKeys = {
         pageSize ?? 10,
       ] as const,
     detail: (id: number) => [...queryKeys.accounts.all, "detail", id] as const,
-    brandKbList: (brandId?: number) =>
-      [...queryKeys.accounts.all, "brand-kb", ...(brandId != null ? [brandId] : [])] as const,
-    brandKb: (brandId: number, integrationId?: number) =>
-      [...queryKeys.accounts.all, "brand-kb", brandId, ...(integrationId != null ? [integrationId] : [])] as const,
+    brandKbEntries: (brandId: number) =>
+      ["accounts", "brand-kb-entries", brandId] as const,
+    brandKbEntry: (brandId: number, kbId: number) =>
+      ["accounts", "brand-kb-entries", brandId, kbId] as const,
   },
   channels: {
     all: ["channels"] as const,
@@ -138,4 +138,4 @@ export const queryKeys = {
     lists: (strategyId: number) =>
       [...queryKeys.automations.all, "list", strategyId] as const,
   },
-} as const;
+};
