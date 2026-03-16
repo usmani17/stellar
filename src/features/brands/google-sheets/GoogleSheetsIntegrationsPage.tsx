@@ -187,7 +187,7 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
                         {paginatedIntegrations.map((integration) => (
                           <tr
                             key={integration.id}
-                            className="table-row border-b border-[#e8e8e3]"
+                            className="group table-row border-b border-[#e8e8e3]"
                           >
                             <td className="table-cell py-3 px-4">
                               <Link
@@ -223,8 +223,8 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
                                 ).toLocaleDateString()}
                               </span>
                             </td>
-                            <td className="table-cell py-3 px-4">
-                              <div className="flex items-center gap-2 justify-end">
+                            <td className="table-cell py-3 px-4 align-middle">
+                              <div className="flex items-center justify-start gap-2 min-h-[32px]">
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -232,12 +232,12 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
                                       `/brands/${accountId}/google-sheets/edit/${integration.id}`,
                                     )
                                   }
-                                  className="table-edit-icon"
-                                  title="Edit"
-                                  aria-label="Edit"
+                                  className="inline-flex items-center justify-center w-8 h-8 rounded-md text-[#556179] hover:bg-gray-100 transition-colors table-edit-icon !opacity-100 pointer-events-auto cursor-pointer shrink-0"
+                                  title="Edit integration"
+                                  aria-label="Edit integration"
                                 >
                                   <svg
-                                    className="w-4 h-4 text-[#556179]"
+                                    className="w-4 h-4"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
@@ -255,6 +255,7 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
                                   variant="outline"
                                   onClick={() => handleSyncClick(integration)}
                                   disabled={syncingIntegrationId === integration.id}
+                                  className="shrink-0 h-8 min-h-8 inline-flex items-center justify-center leading-none"
                                 >
                                   {syncingIntegrationId === integration.id
                                     ? "Syncing..."
@@ -264,7 +265,7 @@ export const GoogleSheetsIntegrationsPage: React.FC = () => {
                                   type="button"
                                   onClick={() => handleDeleteClick(integration)}
                                   disabled={deleteLoading}
-                                  className="p-2 rounded-lg text-[#556179] hover:bg-gray-100 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="inline-flex items-center justify-center w-8 h-8 rounded-md text-[#556179] hover:bg-gray-100 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                                   title="Delete"
                                   aria-label="Delete"
                                 >

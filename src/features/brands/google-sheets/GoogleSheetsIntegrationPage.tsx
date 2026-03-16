@@ -179,6 +179,17 @@ export const GoogleSheetsIntegrationPage: React.FC = () => {
                 />
               )}
 
+              {integration.instructions && (
+                <div className="mb-6 p-4 bg-sandstorm-s5 border border-sandstorm-s40 rounded-[12px]">
+                  <h2 className="text-[16px] font-medium text-forest-f60 mb-2">
+                    Instructions (how to use this sheet)
+                  </h2>
+                  <p className="text-[14px] text-forest-f60 whitespace-pre-wrap">
+                    {integration.instructions}
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-sandstorm-s5 border border-sandstorm-s40 rounded-[12px] p-4">
                   <h2 className="text-[16px] font-medium text-forest-f60 mb-3">

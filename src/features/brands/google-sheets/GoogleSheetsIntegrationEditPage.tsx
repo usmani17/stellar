@@ -5,53 +5,43 @@ import { DashboardHeader } from "../../../components/layout/DashboardHeader";
 import { useSidebar } from "../../../contexts/SidebarContext";
 import { Button, Loader, Banner } from "../../../components/ui";
 import {
-  getGoogleSheetsConnectUrl,
-  createGoogleSheetsIntegration,
   getGoogleSheetsIntegration,
-  listGoogleConnections,
-  listSpreadsheets,
-  listSheetTabs,
+  resolveSheetUrl,
   updateGoogleSheetsIntegration,
 } from "./api";
-import type {
-  GoogleSheetsIntegration,
-  GoogleConnection,
-  GoogleSpreadsheet,
-  GoogleSheetTab,
-} from "./api";
+import type { GoogleSheetsIntegration, GoogleSheetTab } from "./api";
+
+const DEFAULT_SHEET_URL_PLACEHOLDER =
+  "https://docs.google.com/spreadsheets/d/.../edit";
 
 export const GoogleSheetsIntegrationEditPage: React.FC = () => {
   const { accountId, integration_id } = useParams<{
     accountId: string;
-    integration_id?: string;
+    integration_id: string;
   }>();
   const accountIdNum = accountId ? parseInt(accountId, 10) : NaN;
   const integrationIdNum = integration_id ? parseInt(integration_id, 10) : NaN;
-  const isEditMode = Boolean(integration_id);
   const { sidebarWidth } = useSidebar();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
+  const [resolving, setResolving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [integration, setIntegration] = useState<GoogleSheetsIntegration | null>(null);
-  const [connections, setConnections] = useState<GoogleConnection[]>([]);
-  const [spreadsheets, setSpreadsheets] = useState<GoogleSpreadsheet[]>([]);
-  const [tabs, setTabs] = useState<GoogleSheetTab[]>([]);
-
   const [name, setName] = useState("");
-  const [connectionId, setConnectionId] = useState<number | "">("");
+  const [sheetUrl, setSheetUrl] = useState("");
   const [spreadsheetId, setSpreadsheetId] = useState("");
+  const [spreadsheetName, setSpreadsheetName] = useState("");
+  const [tabs, setTabs] = useState<GoogleSheetTab[]>([]);
   const [sheetName, setSheetName] = useState("");
-  const [range, setRange] = useState("A1:Z1000");
-  const [headerRow, setHeaderRow] = useState(1);
-  const [addingConnection, setAddingConnection] = useState(false);
-  const [loadingSpreadsheets, setLoadingSpreadsheets] = useState(false);
-  const [loadingTabs, setLoadingTabs] = useState(false);
+  const [instructions, setInstructions] = useState("");
+
+  const INSTRUCTIONS_MAX_LENGTH = 10000;
 
   useEffect(() => {
-    if (!accountIdNum) {
+    if (!accountIdNum || !integrationIdNum) {
       navigate("/brands");
       return;
     }
@@ -59,201 +49,116 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        if (isEditMode) {
-          if (!integrationIdNum) {
-            navigate("/brands");
-            return;
-          }
-          const [integrationData, connectionsData] = await Promise.all([
-            getGoogleSheetsIntegration(accountIdNum, integrationIdNum),
-            listGoogleConnections(accountIdNum),
-          ]);
-          setIntegration(integrationData);
-          setConnections(connectionsData);
-          setName(integrationData.name);
-          setRange(integrationData.range || "A1:Z1000");
-          setHeaderRow(integrationData.header_row || 1);
-          setSpreadsheetId(integrationData.spreadsheet_id);
-          setSheetName(integrationData.sheet_name);
-          // Prefer the nested connection if present, otherwise fall back to 0 (forces user to re-select)
-          const initialConnectionId =
-            (integrationData as any).connection?.id ??
-            (integrationData as any).connection_id ??
-            "";
-          setConnectionId(initialConnectionId);
+        const integrationData = await getGoogleSheetsIntegration(
+          accountIdNum,
+          integrationIdNum,
+        );
+        setIntegration(integrationData);
+        setName(integrationData.name);
+        setSpreadsheetId(integrationData.spreadsheet_id);
+        setSpreadsheetName(integrationData.spreadsheet_name);
+        setSheetName(integrationData.sheet_name);
+        setInstructions(integrationData.instructions ?? "");
 
-          if (initialConnectionId) {
-            const [sheets, sheetTabs] = await Promise.all([
-              listSpreadsheets(accountIdNum, initialConnectionId as number),
-              integrationData.spreadsheet_id
-                ? listSheetTabs(
-                    accountIdNum,
-                    integrationData.spreadsheet_id,
-                    initialConnectionId as number,
-                  )
-                : Promise.resolve([]),
-            ]);
-            setSpreadsheets(sheets);
-            setTabs(sheetTabs as GoogleSheetTab[]);
-          }
-        } else {
-          const connectionsData = await listGoogleConnections(accountIdNum);
-          setConnections(connectionsData);
-        }
+        const url = `https://docs.google.com/spreadsheets/d/${integrationData.spreadsheet_id}/edit`;
+        setSheetUrl(url);
+
+        const resolved = await resolveSheetUrl(accountIdNum, url);
+        setTabs(resolved.tabs || []);
       } catch (e: any) {
         setError(
           e?.response?.data?.detail ||
-            (isEditMode
-              ? "Failed to load integration for editing."
-              : "Failed to load Google connections for this brand."),
+            "Failed to load integration for editing.",
         );
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [accountIdNum, integrationIdNum, isEditMode, navigate]);
+  }, [accountIdNum, integrationIdNum, navigate]);
 
-  const handleConnectionChange = async (
-    e: React.ChangeEvent<HTMLSelectElement>,
-  ) => {
-    const value = e.target.value;
-    if (!value) {
-      setConnectionId("");
-      setSpreadsheets([]);
-      setTabs([]);
-      setSpreadsheetId("");
-      setSheetName("");
-      setLoadingSpreadsheets(false);
-      return;
-    }
-    const id = Number(value);
-    setConnectionId(id);
+  const handleResolveUrl = async () => {
+    const url = sheetUrl.trim();
+    if (!url || !accountIdNum) return;
+    setResolving(true);
+    setError(null);
     setSpreadsheetId("");
-    setSheetName("");
+    setSpreadsheetName("");
     setTabs([]);
-    setLoadingSpreadsheets(true);
-    setError(null);
-    try {
-      const sheets = await listSpreadsheets(accountIdNum, id);
-      setSpreadsheets(sheets);
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.detail ||
-          "Failed to load spreadsheets for selected connection.",
-      );
-      setSpreadsheets([]);
-    } finally {
-      setLoadingSpreadsheets(false);
-    }
-  };
-
-  const handleSpreadsheetChange = async (
-    e: React.ChangeEvent<HTMLSelectElement>,
-  ) => {
-    const value = e.target.value;
-    setSpreadsheetId(value);
     setSheetName("");
-    setTabs([]);
-    if (!value || !connectionId || typeof connectionId !== "number") {
-      setLoadingTabs(false);
-      return;
-    }
-    setLoadingTabs(true);
-    setError(null);
     try {
-      const sheetTabs = await listSheetTabs(
-        accountIdNum,
-        value,
-        connectionId,
-      );
-      setTabs(sheetTabs);
-    } catch (err: any) {
+      const data = await resolveSheetUrl(accountIdNum, url);
+      setSpreadsheetId(data.spreadsheet_id);
+      setSpreadsheetName(data.spreadsheet_name);
+      setTabs(data.tabs || []);
+      if (data.tabs?.length === 1) {
+        setSheetName(data.tabs[0].name);
+      }
+    } catch (e: unknown) {
+      const detail = (e as { response?: { data?: { detail?: string } } })
+        ?.response?.data?.detail;
       setError(
-        err?.response?.data?.detail ||
-          "Failed to load sheet tabs for selected spreadsheet.",
+        detail ||
+          "Could not load sheet. Share it with the service account and try again.",
       );
-      setTabs([]);
     } finally {
-      setLoadingTabs(false);
-    }
-  };
-
-  const handleAddConnection = async () => {
-    if (!accountIdNum || addingConnection) return;
-    setAddingConnection(true);
-    setError(null);
-    try {
-      const url = await getGoogleSheetsConnectUrl(accountIdNum);
-      window.location.href = url;
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.detail ||
-          "Failed to start Google connection authorization.",
-      );
-      setAddingConnection(false);
+      setResolving(false);
     }
   };
 
   const handleSave = async () => {
-    if (!accountIdNum) {
-      navigate("/brands");
-      return;
-    }
-
-    if (!name || !connectionId || !spreadsheetId || !sheetName) {
-      setError(
-        "Please provide a name, select a connection, spreadsheet and sheet tab before saving.",
-      );
+    if (!accountIdNum || !integrationIdNum || !integration) return;
+    if (!name.trim() || !spreadsheetId || !sheetName.trim()) {
+      setError("Please provide a name, load a sheet URL, and select a sheet tab.");
       return;
     }
 
     setSaving(true);
     setError(null);
-    const selectedSpreadsheet = spreadsheets.find((s) => s.id === spreadsheetId);
     const selectedTab = tabs.find((t) => t.name === sheetName);
     try {
-      if (isEditMode && integrationIdNum && integration) {
-        const updated = await updateGoogleSheetsIntegration(
-          accountIdNum,
-          integrationIdNum,
-          {
-            name,
-            connection_id: connectionId,
-            spreadsheet_id: spreadsheetId,
-            spreadsheet_name: selectedSpreadsheet?.name ?? "",
-            sheet_name: sheetName,
-            sheet_gid: selectedTab?.gid?.toString() ?? "",
-            range,
-            header_row: headerRow,
-          },
-        );
-        setIntegration(updated);
-        navigate(`/brands/${accountId}/google-sheets/view/${integrationIdNum}`);
-      } else {
-        const created = await createGoogleSheetsIntegration(accountIdNum, {
-          name,
-          connection_id: connectionId as number,
+      await updateGoogleSheetsIntegration(
+        accountIdNum,
+        integrationIdNum,
+        {
+          name: name.trim(),
           spreadsheet_id: spreadsheetId,
-          spreadsheet_name: selectedSpreadsheet?.name ?? "",
+          spreadsheet_name: spreadsheetName,
           sheet_name: sheetName,
           sheet_gid: selectedTab?.gid?.toString() ?? "",
-          range,
-          header_row: headerRow,
-        });
-        navigate(`/brands/${accountId}/google-sheets/view/${created.id}`);
-      }
+          range: integration.range || "A:Z",
+          header_row: integration.header_row ?? 1,
+          instructions: instructions.trim(),
+        },
+      );
+      navigate(`/brands/${accountId}/google-sheets/view/${integrationIdNum}`);
     } catch (err: any) {
       setError(
         err?.response?.data?.detail ||
-          (isEditMode
-            ? "Failed to save Google Sheets integration."
-            : "Failed to create Google Sheets integration."),
+          "Failed to save Google Sheets integration.",
       );
     } finally {
       setSaving(false);
     }
   };
+
+  const handleCancel = () => {
+    navigate(`/brands/${accountId}/google-sheets/integrations`);
+  };
+
+  if (loading || !integration) {
+    return (
+      <div className="min-h-screen bg-sandstorm-s0 flex">
+        <Sidebar />
+        <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
+          <DashboardHeader />
+          <div className="flex items-center justify-center py-16">
+            <Loader size="md" message="Loading integration..." />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-sandstorm-s0 flex">
@@ -271,171 +176,108 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
             />
           )}
 
-          {loading || (isEditMode && !integration) ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader
-                size="md"
-                message={isEditMode ? "Loading integration..." : "Loading Google connections..."}
+          <div className="max-w-xl space-y-5">
+            <h1 className="text-[24px] font-medium text-forest-f60">
+              Edit Google Sheets Integration
+            </h1>
+
+            <div className="space-y-1">
+              <label className="text-[13px] text-forest-f30">Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40"
               />
             </div>
-          ) : (
-            <div className="max-w-xl space-y-5">
-              <h1 className="text-[24px] font-medium text-forest-f60">
-                {isEditMode
-                  ? "Edit Google Sheets Integration"
-                  : "Create Google Sheets Integration"}
-              </h1>
 
-              <div className="space-y-1">
-                <label className="text-[13px] text-forest-f30">Name</label>
+            <div className="space-y-1">
+              <label className="text-[13px] text-forest-f30">
+                Google Sheet URL
+              </label>
+              <div className="flex gap-2">
                 <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                  type="url"
+                  value={sheetUrl}
+                  onChange={(e) => setSheetUrl(e.target.value)}
+                  placeholder={DEFAULT_SHEET_URL_PLACEHOLDER}
+                  className="flex-1 rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40"
                 />
+                <Button
+                  type="button"
+                  onClick={handleResolveUrl}
+                  disabled={resolving || !sheetUrl.trim()}
+                >
+                  {resolving ? "Loading..." : "Load sheet"}
+                </Button>
               </div>
+              <p className="text-[12px] text-forest-f30 mt-1">
+                Paste the Google Sheet link. Share the sheet with the service account if you change it.
+              </p>
+            </div>
 
-              <div className="space-y-1">
-                <label className="text-[13px] text-forest-f30">
-                  Google connection
-                </label>
-                <div className="flex gap-2">
-                  <select
-                    value={connectionId ?? ""}
-                    onChange={handleConnectionChange}
-                    disabled={loadingSpreadsheets}
-                    className="flex-1 rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40 disabled:opacity-60"
-                  >
-                    <option value="">Select connection</option>
-                    {connections.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.email || c.google_user_id}
-                      </option>
-                    ))}
-                  </select>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="whitespace-nowrap"
-                    onClick={handleAddConnection}
-                    disabled={addingConnection}
-                  >
-                    {addingConnection ? "Opening..." : "Add new connection"}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[13px] text-forest-f30">
-                  Spreadsheet
-                </label>
-                <div className="relative">
-                  <select
-                    value={spreadsheetId}
-                    onChange={handleSpreadsheetChange}
-                    disabled={
-                      !connectionId ||
-                      loadingSpreadsheets ||
-                      (spreadsheets.length === 0 && !loadingSpreadsheets)
-                    }
-                    className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40 disabled:opacity-60"
-                  >
-                    <option value="">
-                      {loadingSpreadsheets
-                        ? "Loading spreadsheets..."
-                        : "Select spreadsheet"}
-                    </option>
-                    {spreadsheets.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                  {loadingSpreadsheets && (
-                    <span
-                      className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                      aria-hidden
-                    >
-                      <Loader size="sm" />
+            {spreadsheetId && tabs.length > 0 && (
+              <>
+                {spreadsheetName && (
+                  <p className="text-[14px] text-forest-f30">
+                    Spreadsheet:{" "}
+                    <span className="font-medium text-forest-f60">
+                      {spreadsheetName}
                     </span>
-                  )}
-                </div>
-              </div>
+                  </p>
+                )}
 
-              <div className="space-y-1">
-                <label className="text-[13px] text-forest-f30">Sheet tab</label>
-                <div className="relative">
+                <div className="space-y-1">
+                  <label className="text-[13px] text-forest-f30">
+                    Sheet tab
+                  </label>
                   <select
                     value={sheetName}
                     onChange={(e) => setSheetName(e.target.value)}
-                    disabled={
-                      !spreadsheetId ||
-                      loadingTabs ||
-                      (tabs.length === 0 && !loadingTabs)
-                    }
-                    className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40 disabled:opacity-60"
+                    className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40"
                   >
-                    <option value="">
-                      {loadingTabs
-                        ? "Loading sheet tabs..."
-                        : "Select sheet tab"}
-                    </option>
+                    <option value="">Select sheet tab</option>
                     {tabs.map((t) => (
                       <option key={t.gid} value={t.name}>
                         {t.name}
                       </option>
                     ))}
                   </select>
-                  {loadingTabs && (
-                    <span
-                      className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                      aria-hidden
-                    >
-                      <Loader size="sm" />
-                    </span>
-                  )}
                 </div>
-              </div>
+              </>
+            )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[13px] text-forest-f30">Range</label>
-                  <input
-                    type="text"
-                    value={range}
-                    onChange={(e) => setRange(e.target.value)}
-                    placeholder="A1:Z1000"
-                    className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[13px] text-forest-f30">
-                    Header row
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={headerRow}
-                    onChange={(e) => setHeaderRow(Number(e.target.value) || 1)}
-                    className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving
-                    ? isEditMode
-                      ? "Saving..."
-                      : "Creating..."
-                    : isEditMode
-                    ? "Save integration"
-                    : "Create integration"}
-                </Button>
+            <div className="space-y-1">
+              <label className="text-[13px] text-forest-f30">
+                Instructions (brand or account guidelines, constraints, or how to use this sheet)
+              </label>
+              <textarea
+                value={instructions}
+                onChange={(e) =>
+                  setInstructions(e.target.value.slice(0, INSTRUCTIONS_MAX_LENGTH))
+                }
+                placeholder="e.g. Use this sheet for TOF metrics. CPQ = Spends / engaged session."
+                rows={5}
+                className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40 resize-y min-h-[100px]"
+              />
+              <div className="text-right text-[12px] text-forest-f30">
+                {instructions.length}/{INSTRUCTIONS_MAX_LENGTH}
               </div>
             </div>
-          )}
+
+            <div className="pt-2 flex gap-2">
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Saving..." : "Save"}
+              </Button>
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="cancel-button"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -443,4 +285,3 @@ export const GoogleSheetsIntegrationEditPage: React.FC = () => {
 };
 
 export default GoogleSheetsIntegrationEditPage;
-

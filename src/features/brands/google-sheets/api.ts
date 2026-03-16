@@ -19,6 +19,7 @@ export interface GoogleSheetsIntegration {
   range: string;
   created_at: string;
   last_synced_at: string | null;
+  instructions: string;
 }
 
 export interface GoogleSpreadsheet {

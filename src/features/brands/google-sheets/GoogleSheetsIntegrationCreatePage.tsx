@@ -30,6 +30,9 @@ export const GoogleSheetsIntegrationCreatePage: React.FC = () => {
 
   const [name, setName] = useState("");
   const [sheetName, setSheetName] = useState("");
+  const [instructions, setInstructions] = useState("");
+
+  const INSTRUCTIONS_MAX_LENGTH = 10000;
 
   useEffect(() => {
     if (!accountIdNum) {
@@ -83,6 +86,7 @@ export const GoogleSheetsIntegrationCreatePage: React.FC = () => {
         sheet_gid: selectedTab?.gid?.toString() ?? "",
         range: "A:Z",
         header_row: 1,
+        instructions: instructions.trim(),
       });
       navigate(`/brands/${accountId}/google-sheets/view/${created.id}`);
     } catch (e: unknown) {
@@ -185,6 +189,25 @@ export const GoogleSheetsIntegrationCreatePage: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[13px] text-forest-f30">
+                    Instructions (brand or account guidelines, constraints, or how to use this sheet)
+                  </label>
+                  <p className="text-[12px] text-forest-f30 mb-1">
+                    Rules here apply when this sheet is used. Add links to the sheet or describe how Prism should use it.
+                  </p>
+                  <textarea
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value.slice(0, INSTRUCTIONS_MAX_LENGTH))}
+                    placeholder="e.g. Use this sheet for TOF metrics. CPQ = Spends / engaged session (spends from platform, engaged session from backend sheet)."
+                    rows={6}
+                    className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40 resize-y min-h-[120px]"
+                  />
+                  <div className="text-right text-[12px] text-forest-f30">
+                    {instructions.length}/{INSTRUCTIONS_MAX_LENGTH}
+                  </div>
                 </div>
 
                 <div className="pt-2 flex gap-2">
