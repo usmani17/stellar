@@ -36,7 +36,7 @@ import UsersActiveIcon from "../../assets/images/users-active.svg";
 import StrategiesIcon from "../../assets/images/strategies.svg";
 import StrategiesActiveIcon from "../../assets/images/strategies-active.svg";
 import WorkspaceIcon from "../../assets/workspace.svg";
-import { CalendarClock, MessageSquare } from "lucide-react";
+import { CalendarClock, FileSpreadsheet, MessageSquare } from "lucide-react";
 import { useChatHistorySidebarOptional } from "../../contexts/ChatHistorySidebarContext";
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
 
@@ -117,6 +117,7 @@ export const Sidebar: React.FC = () => {
     /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
     /^\/brands\/\d+\/users$/.test(location.pathname) ||
     /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname) ||
+    /^\/brands\/\d+\/google-sheets(\/|$)/.test(location.pathname) ||
     location.pathname === "/workspace/team";
 
   // Derive effective collapsed state from pathname (no setState in effect)
@@ -216,6 +217,8 @@ export const Sidebar: React.FC = () => {
       return location.pathname === "/workspace/team" || /^\/brands\/\d+\/users$/.test(location.pathname);
     if (path === "/brands/workflows")
       return /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname);
+    if (path === "/brands/google-sheets")
+      return /^\/brands\/\d+\/google-sheets(\/|$)/.test(location.pathname);
     if (path === "/campaigns") {
       return (
         location.pathname.includes("/campaigns") &&
@@ -629,6 +632,35 @@ export const Sidebar: React.FC = () => {
                     />
                     <span className="text-[12.32px] font-normal leading-[16px]">
                       Workflows
+                    </span>
+                  </Link>
+                  <Link
+                    to={
+                      accountId
+                        ? buildAccountRoute(accountId, "google-sheets/integrations")
+                        : "/brands"
+                    }
+                    onClick={(e) =>
+                      handleAccountRequiredClick(e, () =>
+                        accountId
+                          ? buildAccountRoute(accountId, "google-sheets/integrations")
+                          : "/brands",
+                      )
+                    }
+                    className={`flex items-center p-2 rounded-xl gap-2 ${
+                      isActive("/brands/google-sheets")
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                    }`}
+                    title="Google Sheets"
+                  >
+                    <FileSpreadsheet
+                      className={`w-5 h-5 shrink-0 ${
+                        isActive("/brands/google-sheets") ? "text-white" : "text-forest-f30"
+                      }`}
+                    />
+                    <span className="text-[12.32px] font-normal leading-[16px]">
+                      Google Sheets
                     </span>
                   </Link>
                 </div>
