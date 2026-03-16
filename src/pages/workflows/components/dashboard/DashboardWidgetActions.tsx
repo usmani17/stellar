@@ -328,6 +328,23 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
     }
   }, [selectedIds, actions, accountId, dashboardId, componentId, onReviewChanges]);
 
+  const selectAllActive = useCallback(() => {
+    const allActiveIds = new Set(activeActions.map((a) => a.id));
+    setSelectedIds(allActiveIds);
+  }, [activeActions]);
+
+  const deselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const allSelectableSelected =
+    activeActions.length > 0 &&
+    activeActions.every((a) => selectedIds.has(a.id));
+  const someSelectableSelected =
+    activeActions.length > 0 &&
+    activeActions.some((a) => selectedIds.has(a.id)) &&
+    !allSelectableSelected;
+
   if (visibleActions.length === 0) return null;
 
   return (
@@ -347,7 +364,29 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
         )}
       >
         <div className="flex items-center gap-2">
-          <Zap className={cn("w-3.5 h-3.5", isDark ? "text-[#2DD4BF]" : "text-forest-f40")} />
+          {/* Select All / Deselect All checkbox */}
+          {isOpen && totalActive > 0 && (
+            <label className="flex items-center ml-2 shrink-0" title={allSelectableSelected ? "Deselect all" : "Select all"}>
+              <input
+                type="checkbox"
+                checked={allSelectableSelected}
+                ref={(input) => {
+                  if (input) input.indeterminate = someSelectableSelected;
+                }}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  allSelectableSelected ? deselectAll() : selectAllActive();
+                }}
+                className={cn(
+                  "w-3.5 h-3.5 rounded border cursor-pointer",
+                  isDark
+                    ? "border-neutral-500 bg-neutral-600 checked:bg-[#2DD4BF] checked:border-[#2DD4BF]"
+                    : "border-sandstorm-s40 bg-white checked:bg-forest-f40 checked:border-forest-f40"
+                )}
+                aria-label="Select all actions"
+              />
+            </label>
+          )}
           <span className={cn("text-xs font-semibold", isDark ? "text-neutral-200" : "text-forest-f60")}>
             Actions
           </span>
