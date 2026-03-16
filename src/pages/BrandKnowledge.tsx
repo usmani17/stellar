@@ -10,9 +10,12 @@ import { queryKeys } from "../hooks/queries/queryKeys";
 import { Sidebar } from "../components/layout/Sidebar";
 import { Button, BaseModal, Loader, DeleteConfirmationModal, Banner } from "../components/ui";
 import { cn } from "../lib/cn";
-import { Plus, Pencil, Trash2, BookOpen, ChevronRight, X, Globe, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, BookOpen, ChevronRight, X, Globe, Sparkles, Eye } from "lucide-react";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { MarkdownPromptEditor } from "./workflows/components/MarkdownPromptEditor";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 
 // ---------------------------------------------------------------------------
 // Template data
@@ -161,6 +164,7 @@ export const BrandKnowledge: React.FC = () => {
   const [editingEntry, setEditingEntry] = useState<BrandKbEntry | null>(null);
   const [deleteEntry, setDeleteEntry] = useState<BrandKbEntry | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [viewEntry, setViewEntry] = useState<BrandKbEntry | null>(null);
 
   // Form state
   const [formName, setFormName] = useState("");
@@ -213,6 +217,16 @@ export const BrandKnowledge: React.FC = () => {
       setFormKb(full.kb);
       setFormEnhancePrompt(full.enhance_prompt || "");
       setEditingEntry(full);
+    } catch {
+      // keep truncated version if detail fetch fails
+    }
+  };
+
+  const openView = async (entry: BrandKbEntry) => {
+    setViewEntry(entry);
+    try {
+      const full = await accountsService.getBrandKbEntry(accountIdNum!, entry.id);
+      setViewEntry(full);
     } catch {
       // keep truncated version if detail fetch fails
     }
@@ -371,6 +385,14 @@ export const BrandKnowledge: React.FC = () => {
                         )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => openView(entry)}
+                          className="p-1.5 rounded-lg hover:bg-sandstorm-s5 text-forest-f30 hover:text-forest-f40"
+                          aria-label="View"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => openEdit(entry)}
@@ -627,6 +649,76 @@ export const BrandKnowledge: React.FC = () => {
         itemType="channel"
         isLoading={deleteMutation.isPending}
       />
+
+      {/* View Modal */}
+      <BaseModal isOpen={!!viewEntry} onClose={() => setViewEntry(null)} size="4xl">
+        {viewEntry && (() => {
+          const badge = TRIGGER_BADGE_MAP[viewEntry.trigger_type] ?? TRIGGER_BADGE_MAP.brand_level;
+          return (
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <h2 className="text-sm font-semibold text-forest-f60 truncate">{viewEntry.name || "Untitled"}</h2>
+                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap", badge.className)}>
+                    {badge.label}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewEntry(null)}
+                  className="p-1 rounded-lg hover:bg-sandstorm-s5 text-forest-f30 hover:text-forest-f60 shrink-0"
+                  aria-label="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-[11px] font-semibold text-forest-f30 uppercase tracking-wide mb-1.5">Instructions</h3>
+                  <div className="prose prose-sm max-w-none text-forest-f60 bg-sandstorm-s5 rounded-lg px-4 py-3 border border-sandstorm-s40 max-h-[60vh] overflow-y-auto">
+                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                      {viewEntry.kb || "*No instructions provided.*"}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+
+                {viewEntry.enhance_prompt && (
+                  <div>
+                    <h3 className="text-[11px] font-semibold text-forest-f30 uppercase tracking-wide mb-1.5">Enhance Prompt</h3>
+                    <div className="prose prose-sm max-w-none text-forest-f60 bg-sandstorm-s5 rounded-lg px-4 py-3 border border-sandstorm-s40 max-h-[30vh] overflow-y-auto">
+                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                        {viewEntry.enhance_prompt}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+
+                {viewEntry.website_urls && viewEntry.website_urls.filter(Boolean).length > 0 && (
+                  <div>
+                    <h3 className="text-[11px] font-semibold text-forest-f30 uppercase tracking-wide mb-1.5">Website URLs</h3>
+                    <ul className="space-y-1">
+                      {viewEntry.website_urls.filter(Boolean).map((url, idx) => (
+                        <li key={idx} className="flex items-center gap-1.5 text-xs">
+                          <Globe className="w-3 h-3 text-forest-f30 shrink-0" />
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-forest-f40 hover:underline truncate"
+                          >
+                            {url}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+      </BaseModal>
     </div>
   );
 };
