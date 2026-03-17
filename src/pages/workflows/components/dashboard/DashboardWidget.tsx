@@ -763,8 +763,9 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
             onClose={() => setShowActionModal(false)}
             proposals={actionProposals}
             onApply={async (ruleIds) => {
-              if (!accountId || !dashboardId) return;
-              await executeActions(accountId, dashboardId, {
+              if (!accountId || !dashboardId)
+                return { results: [] };
+              return executeActions(accountId, dashboardId, {
                 component_id: component.id,
                 action_rule_ids: ruleIds,
               });

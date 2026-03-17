@@ -12,19 +12,21 @@ import {
 } from "lucide-react";
 import { cn } from "../../../../lib/cn";
 import type { ActionProposal, ActionEntityDiff } from "../../types/dashboard";
+import type { ExecuteActionsResponse } from "../../../../services/dashboardActions";
 
 const ACTION_TYPE_LABELS: Record<string, string> = {
   change_state: "Change status",
   adjust_budget: "Adjust budget",
   adjust_bid: "Adjust bid",
   add_negative_keyword: "Add negative keywords",
+  update_device_bid_modifier: "Adjust device bid",
 };
 
 interface ActionConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
   proposals: ActionProposal[];
-  onApply: (ruleIds: string[]) => Promise<void>;
+  onApply: (ruleIds: string[]) => Promise<ExecuteActionsResponse>;
   isDark: boolean;
 }
 
@@ -40,10 +42,13 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
   );
   const [isApplying, setIsApplying] = useState(false);
   const [result, setResult] = useState<"success" | "error" | null>(null);
+  const [executeResponse, setExecuteResponse] = useState<ExecuteActionsResponse | null>(null);
+  const [errorsPanelExpanded, setErrorsPanelExpanded] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setResult(null);
+      setExecuteResponse(null);
     }
   }, [isOpen]);
 
@@ -69,15 +74,31 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
     if (applicableRuleIds.length === 0) return;
     setIsApplying(true);
     setResult(null);
+    setExecuteResponse(null);
     try {
-      await onApply(applicableRuleIds);
-      setResult("success");
+      const response = await onApply(applicableRuleIds);
+      setExecuteResponse(response);
+      const hasFailure = response.results?.some(
+        (r) =>
+          r.status === "failed" ||
+          (r.failed ?? 0) > 0 ||
+          (Array.isArray(r.errors) && r.errors.length > 0)
+      );
+      setResult(hasFailure ? "error" : "success");
     } catch {
       setResult("error");
     } finally {
       setIsApplying(false);
     }
   };
+
+  const hasErrorDetails =
+    result === "error" &&
+    executeResponse?.results?.some(
+      (r) =>
+        (Array.isArray(r.errors) && r.errors.length > 0) ||
+        (typeof r.error === "string" && r.error.length > 0)
+    );
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
@@ -288,6 +309,94 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
               </div>
             );
           })}
+
+          {/* Collapsible error details when apply failed */}
+          {hasErrorDetails && (
+            <div
+              className={cn(
+                "rounded-xl border overflow-hidden",
+                isDark ? "border-red-800/60 bg-red-900/10" : "border-red-200 bg-red-r0/50"
+              )}
+            >
+              <button
+                type="button"
+                onClick={() => setErrorsPanelExpanded((prev) => !prev)}
+                className={cn(
+                  "w-full flex items-center justify-between px-4 py-3 text-left transition-colors",
+                  isDark ? "hover:bg-red-900/20" : "hover:bg-red-50"
+                )}
+              >
+                <div className="flex items-center gap-2 text-xs font-semibold">
+                  <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+                  <span className={isDark ? "text-red-200" : "text-red-r30"}>
+                    Error details
+                  </span>
+                </div>
+                {errorsPanelExpanded ? (
+                  <ChevronUp className={cn("w-4 h-4 shrink-0", isDark ? "text-neutral-500" : "text-forest-f30")} />
+                ) : (
+                  <ChevronDown className={cn("w-4 h-4 shrink-0", isDark ? "text-neutral-500" : "text-forest-f30")} />
+                )}
+              </button>
+              {errorsPanelExpanded && (
+                <div className="px-4 pb-3 space-y-3 max-h-48 overflow-y-auto">
+                  {executeResponse?.results?.map((r) => {
+                    const errs = Array.isArray(r.errors) ? r.errors : [];
+                    const singleError = typeof r.error === "string" && r.error.length > 0 ? r.error : null;
+                    if (errs.length === 0 && !singleError) return null;
+                    const ruleType = proposals.find((p) => p.action_rule_id === r.action_rule_id)?.action_rule?.type ?? "";
+                    const ruleLabel =
+                      ACTION_TYPE_LABELS[ruleType] ??
+                      r.action_rule_id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+                    return (
+                      <div key={r.action_rule_id} className="space-y-1.5">
+                        <p className={cn("text-[11px] font-semibold", isDark ? "text-neutral-300" : "text-forest-f60")}>
+                          {ruleLabel}
+                          {r.updated !== undefined || r.failed !== undefined ? (
+                            <span className={cn("font-normal ml-1", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                              ({r.updated ?? 0} updated, {r.failed ?? 0} failed)
+                            </span>
+                          ) : null}
+                        </p>
+                        <ul className="list-none space-y-1 pl-0">
+                          {singleError && (
+                            <li
+                              className={cn(
+                                "text-[11px]",
+                                isDark ? "text-red-200" : "text-red-r30"
+                              )}
+                            >
+                              {singleError}
+                            </li>
+                          )}
+                          {errs.map((item, idx) => {
+                            const msg = typeof item === "string" ? item : item.error;
+                            const id = typeof item === "string" ? undefined : (item as { campaign_id?: string }).campaign_id;
+                            return (
+                              <li
+                                key={idx}
+                                className={cn(
+                                  "text-[11px] flex flex-wrap gap-x-2 gap-y-0.5",
+                                  isDark ? "text-red-200" : "text-red-r30"
+                                )}
+                              >
+                                {id != null && id !== "" && (
+                                  <span className={cn("shrink-0", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                                    Campaign {id}:
+                                  </span>
+                                )}
+                                <span className="min-w-0 break-words">{msg}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -308,7 +417,9 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
             <div className="flex items-center gap-2 text-xs">
               <XCircle className="w-4 h-4 text-red-500" />
               <span className={cn("font-medium", isDark ? "text-red-300" : "text-red-600")}>
-                Some actions failed. Check the history for details.
+                {hasErrorDetails
+                  ? "Some actions failed. See error details above."
+                  : "Some actions failed. Check the history for details."}
               </span>
             </div>
           ) : (

@@ -44,12 +44,17 @@ export interface ExecuteActionsRequest {
   action_rule_ids: string[];
 }
 
+/** One entry in errors[] can be a string or { campaign_id, error } from the API */
+export type ExecuteActionErrorItem =
+  | string
+  | { campaign_id?: string; error: string };
+
 export interface ExecuteActionResult {
   action_rule_id: string;
   status: "success" | "failed";
   updated?: number;
   failed?: number;
-  errors?: string[];
+  errors?: ExecuteActionErrorItem[];
   error?: string;
   message?: string;
   guardrail_warnings?: string[];
