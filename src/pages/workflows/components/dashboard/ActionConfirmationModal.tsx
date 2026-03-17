@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   AlertTriangle,
@@ -40,6 +40,12 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
   );
   const [isApplying, setIsApplying] = useState(false);
   const [result, setResult] = useState<"success" | "error" | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setResult(null);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
