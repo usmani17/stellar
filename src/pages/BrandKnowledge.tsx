@@ -46,7 +46,7 @@ const KB_TEMPLATES: KbTemplate[] = [
     name: "Brand Response Guidelines",
     trigger_type: "brand_level",
     badge: "BRAND LEVEL",
-    description: "Tone, terminology, and report structure for Prism responses.",
+    description: "Tone, terminology, and report structure for Stellar responses.",
     kb: 'Always present spend in USD. Use "investment" instead of "cost" when discussing budget. When performance is poor, lead with the diagnosis and recommended fix, not just the metric. Avoid phrases like "underperforming badly" or "wasted spend." Use "opportunity to optimize" or "efficiency gap." When asked for a report, structure it as: Key Wins, Areas to Watch, Recommended Actions.',
   },
   {
@@ -93,6 +93,41 @@ const TRIGGER_BADGE_MAP: Record<BrandKbTriggerType, { label: string; className: 
   brand_level: { label: "BRAND LEVEL", className: "bg-forest-f40/10 text-forest-f40" },
   integration_level: { label: "INTEGRATION LEVEL", className: "bg-yellow-y10/10 text-yellow-y10" },
   profile_level: { label: "PROFILE LEVEL", className: "bg-[#4A6CF7]/10 text-[#4A6CF7]" },
+};
+
+const kbMarkdownComponents = {
+  p: ({ children }: { children?: React.ReactNode }) => (
+    <p className="text-[11px] leading-relaxed mb-1.5 last:mb-0">{children}</p>
+  ),
+  h1: ({ children }: { children?: React.ReactNode }) => (
+    <h1 className="text-[13px] font-semibold text-forest-f60 mt-3 mb-1 first:mt-0">{children}</h1>
+  ),
+  h2: ({ children }: { children?: React.ReactNode }) => (
+    <h2 className="text-xs font-semibold text-forest-f60 mt-3 mb-1 first:mt-0">{children}</h2>
+  ),
+  h3: ({ children }: { children?: React.ReactNode }) => (
+    <h3 className="text-[11px] font-semibold text-forest-f60 mt-2 mb-0.5 first:mt-0">{children}</h3>
+  ),
+  ul: ({ children }: { children?: React.ReactNode }) => (
+    <ul className="list-disc list-outside pl-4 mb-1.5 space-y-0.5 text-forest-f60">{children}</ul>
+  ),
+  ol: ({ children }: { children?: React.ReactNode }) => (
+    <ol className="list-decimal list-outside pl-4 mb-1.5 space-y-0.5 text-forest-f60">{children}</ol>
+  ),
+  li: ({ children }: { children?: React.ReactNode }) => (
+    <li className="text-[11px]">{children}</li>
+  ),
+  strong: ({ children }: { children?: React.ReactNode }) => (
+    <strong className="font-semibold text-forest-f60">{children}</strong>
+  ),
+  em: ({ children }: { children?: React.ReactNode }) => <em className="italic">{children}</em>,
+  code: ({ children }: { children?: React.ReactNode }) => (
+    <code className="px-1 py-0.5 rounded bg-sandstorm-s10 text-forest-f60 text-[10px]">{children}</code>
+  ),
+  blockquote: ({ children }: { children?: React.ReactNode }) => (
+    <blockquote className="border-l-2 border-sandstorm-s40 pl-3 my-1.5 text-forest-f30 italic text-[11px]">{children}</blockquote>
+  ),
+  hr: () => <hr className="my-2 border-sandstorm-s40" />,
 };
 
 // ---------------------------------------------------------------------------
@@ -657,12 +692,12 @@ export const BrandKnowledge: React.FC = () => {
                   <Sparkles className="w-4 h-4 text-forest-f40" />
                 </label>
                 <p className="text-xs text-forest-f30 mb-2">
-                  Define how Prism expands prompts when users click Enhance for this brand.
+                  Define how Stellar expands prompts when users click Enhance for this brand.
                 </p>
                 <MarkdownPromptEditor
                   value={formEnhancePrompt}
                   onChange={setFormEnhancePrompt}
-                  placeholder="Describe how Prism should expand prompts for this brand..."
+                  placeholder="Describe how Stellar should expand prompts for this brand..."
                   minHeight="120px"
                 />
                 <p className="text-xs text-forest-f30 text-right mt-0.5">{formEnhancePrompt.length}/5000</p>
@@ -737,8 +772,11 @@ export const BrandKnowledge: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-[11px] font-semibold text-forest-f30 uppercase tracking-wide mb-1.5">Instructions</h3>
-                  <div className="prose prose-sm max-w-none text-forest-f60 bg-sandstorm-s5 rounded-lg px-4 py-3 border border-sandstorm-s40 max-h-[60vh] overflow-y-auto">
-                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                  <div className="bg-sandstorm-s5 rounded-lg px-4 py-3 border border-sandstorm-s40 max-h-[60vh] overflow-y-auto text-[11px] text-forest-f60">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                      components={kbMarkdownComponents}
+                    >
                       {viewEntry.kb || "*No instructions provided.*"}
                     </ReactMarkdown>
                   </div>
@@ -747,8 +785,11 @@ export const BrandKnowledge: React.FC = () => {
                 {viewEntry.enhance_prompt && (
                   <div>
                     <h3 className="text-[11px] font-semibold text-forest-f30 uppercase tracking-wide mb-1.5">Enhance Prompt</h3>
-                    <div className="prose prose-sm max-w-none text-forest-f60 bg-sandstorm-s5 rounded-lg px-4 py-3 border border-sandstorm-s40 max-h-[30vh] overflow-y-auto">
-                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                    <div className="bg-sandstorm-s5 rounded-lg px-4 py-3 border border-sandstorm-s40 max-h-[30vh] overflow-y-auto text-[11px] text-forest-f60">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
+                        components={kbMarkdownComponents}
+                      >
                         {viewEntry.enhance_prompt}
                       </ReactMarkdown>
                     </div>
