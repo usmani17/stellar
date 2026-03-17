@@ -106,6 +106,8 @@ export interface CreateMetaAdSetPayload {
   start_time?: string;
   end_time?: string;
   bid_amount?: number;
+  /** LOWEST_COST_WITHOUT_CAP, LOWEST_COST_WITH_BID_CAP, COST_CAP, LOWEST_COST_WITH_MIN_ROAS. Required bid_amount when LOWEST_COST_WITH_BID_CAP or COST_CAP. */
+  bid_strategy?: string;
   destination_type?: string;
   promoted_object?: MetaPromotedObject;
   pacing_type?: string[];
@@ -115,11 +117,15 @@ export interface CreateMetaAdSetPayload {
 
 export interface UpdateMetaAdSetPayload {
   name?: string;
-  status?: MetaAdSetStatus;
+  status?: MetaAdSetStatus | "DELETED";
   daily_budget?: number;
   lifetime_budget?: number;
   start_time?: string;
   end_time?: string;
+  optimization_goal?: string;
+  billing_event?: string;
+  targeting?: MetaTargetingSpec;
+  bid_amount?: number;
 }
 
 export interface MetaAdSetCreateResponse {

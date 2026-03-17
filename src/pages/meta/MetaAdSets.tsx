@@ -31,6 +31,8 @@ export interface MetaAdsetRow {
   start_date?: string;
   end_date?: string;
   daily_budget?: string;
+  lifetime_budget?: string;
+  bid_amount?: string;
   impressions?: number;
   clicks?: number;
   spends?: number;
@@ -78,7 +80,7 @@ export const MetaAdSets: React.FC = () => {
 
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  const [pendingStatusAction, setPendingStatusAction] = useState<"ACTIVE" | "PAUSED" | "ARCHIVED" | null>(null);
+  const [pendingStatusAction, setPendingStatusAction] = useState<"ACTIVE" | "PAUSED" | "ARCHIVED" | "DELETED" | null>(null);
   const [showBudgetPanel, setShowBudgetPanel] = useState(false);
   const [isBudgetChange, setIsBudgetChange] = useState(false);
   const [budgetAction, setBudgetAction] = useState<"increase" | "decrease" | "set">("set");
@@ -93,7 +95,7 @@ export const MetaAdSets: React.FC = () => {
   const [inlineBudgetAdsetId, setInlineBudgetAdsetId] = useState<string | null>(null);
   const [inlineBudgetValue, setInlineBudgetValue] = useState("");
   type InlineConfirm =
-    | { type: "status"; adsetId: string; newStatus: "ACTIVE" | "PAUSED" | "ARCHIVED"; row: MetaAdsetRow }
+    | { type: "status"; adsetId: string; newStatus: "ACTIVE" | "PAUSED" | "ARCHIVED" | "DELETED"; row: MetaAdsetRow }
     | { type: "budget"; adsetId: string; newBudget: number; row: MetaAdsetRow };
   const [inlineConfirm, setInlineConfirm] = useState<InlineConfirm | null>(null);
   const [inlineConfirmLoading, setInlineConfirmLoading] = useState(false);
@@ -289,7 +291,7 @@ export const MetaAdSets: React.FC = () => {
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
-  const runBulkStatus = async (statusValue: "ACTIVE" | "PAUSED" | "ARCHIVED") => {
+  const runBulkStatus = async (statusValue: "ACTIVE" | "PAUSED" | "ARCHIVED" | "DELETED") => {
     if (!channelIdNum || selectedAdsets.size === 0) return;
     setBulkLoading(true);
     try {
@@ -447,11 +449,23 @@ export const MetaAdSets: React.FC = () => {
     }
   };
 
-  const handleInlineStatusChange = (adsetId: string, newStatus: "ACTIVE" | "PAUSED" | "ARCHIVED") => {
+  const handleInlineStatusChange = (adsetId: string, newStatus: "ACTIVE" | "PAUSED" | "ARCHIVED" | "DELETED") => {
     if (!channelIdNum) return;
     const row = adsets.find((a) => String(a.adset_id ?? a.id) === adsetId);
     if (!row) return;
     setInlineConfirm({ type: "status", adsetId, newStatus, row });
+  };
+
+  const rowUsesDailyBudget = (row: MetaAdsetRow): boolean => {
+    const d = row.daily_budget != null && String(row.daily_budget).trim() !== "" && parseFloat(String(row.daily_budget)) > 0;
+    return d;
+  };
+
+  const getRowBudgetDisplay = (row: MetaAdsetRow): string => {
+    if (rowUsesDailyBudget(row)) return String(row.daily_budget ?? "");
+    if (row.lifetime_budget != null && String(row.lifetime_budget).trim() !== "" && parseFloat(String(row.lifetime_budget)) > 0)
+      return String(row.lifetime_budget ?? "");
+    return "";
   };
 
   const handleInlineBudgetBlur = (adsetId: string, value: string) => {
@@ -461,7 +475,8 @@ export const MetaAdSets: React.FC = () => {
     if (Number.isNaN(num) || num < 0) return;
     const row = adsets.find((a) => String(a.adset_id ?? a.id) === adsetId);
     if (!row) return;
-    const current = row.daily_budget != null && String(row.daily_budget).trim() !== "" ? Number(row.daily_budget) : null;
+    const currentStr = getRowBudgetDisplay(row);
+    const current = currentStr !== "" ? Number(currentStr) : null;
     if (current !== null && Math.abs(current - num) < 0.001) return;
     setInlineConfirm({ type: "budget", adsetId, newBudget: num, row });
   };
@@ -475,60 +490,114 @@ export const MetaAdSets: React.FC = () => {
           adsetIds: [inlineConfirm.adsetId],
           status: inlineConfirm.newStatus,
         });
-        if ((res.updated ?? 0) > 0) {
+        const succeededCount = res.updated ?? 0;
+        const failedCount = res.failed ?? 0;
+        const hasErrors = Array.isArray(res.errors) && res.errors.length > 0;
+        const hasOutcome = succeededCount > 0 || failedCount > 0 || hasErrors;
+
+        if (hasOutcome) {
           showEditSummary({
             entityType: "adSet",
             action: "updated",
             mode: "inline",
-            succeededCount: 1,
+            succeededCount: succeededCount > 0 ? succeededCount : 0,
+            failedCount: failedCount > 0 ? failedCount : undefined,
             entityName: inlineConfirm.row.adset_name ?? "Ad set",
             field: "Status",
             oldValue: normalizeStatusDisplay(inlineConfirm.row.status),
             newValue: normalizeStatusDisplay(inlineConfirm.newStatus),
+            details: (res.errors ?? []).slice(0, 5).map((e) => ({
+              label: `Ad set ${e.adsetId}`,
+              value: e.error,
+            })),
           });
+        }
+
+        if (succeededCount > 0) {
           loadAdsets();
         }
       } else {
-        const res = await accountsService.bulkUpdateMetaAdSets(channelIdNum, {
-          adsetIds: [inlineConfirm.adsetId],
-          daily_budget: inlineConfirm.newBudget,
-        });
-        if ((res.updated ?? 0) > 0) {
-          const current =
-            inlineConfirm.row.daily_budget != null && String(inlineConfirm.row.daily_budget).trim() !== ""
-              ? Number(inlineConfirm.row.daily_budget)
-              : null;
+        const useDaily = rowUsesDailyBudget(inlineConfirm.row);
+        const payload = useDaily
+          ? { adsetIds: [inlineConfirm.adsetId], daily_budget: inlineConfirm.newBudget }
+          : { adsetIds: [inlineConfirm.adsetId], lifetime_budget: inlineConfirm.newBudget };
+        const res = await accountsService.bulkUpdateMetaAdSets(channelIdNum, payload);
+        const succeededCount = res.updated ?? 0;
+        const failedCount = res.failed ?? 0;
+        const hasErrors = Array.isArray(res.errors) && res.errors.length > 0;
+        const hasOutcome = succeededCount > 0 || failedCount > 0 || hasErrors;
+
+        if (hasOutcome) {
+          const currentStr = getRowBudgetDisplay(inlineConfirm.row);
+          const current = currentStr !== "" ? Number(currentStr) : null;
           showEditSummary({
             entityType: "adSet",
             action: "updated",
             mode: "inline",
-            succeededCount: 1,
+            succeededCount: succeededCount > 0 ? succeededCount : 0,
+            failedCount: failedCount > 0 ? failedCount : undefined,
             entityName: inlineConfirm.row.adset_name ?? "Ad set",
             field: "Budget",
             oldValue: current != null ? formatCurrency(current) : "—",
             newValue: formatCurrency(inlineConfirm.newBudget),
+            details: (res.errors ?? []).slice(0, 5).map((e) => ({
+              label: `Ad set ${e.adsetId}`,
+              value: e.error,
+            })),
           });
+        }
+
+        if (succeededCount > 0) {
           loadAdsets();
         }
       }
     } catch (err: unknown) {
       console.error("Meta inline ad set update failed", err);
+      showEditSummary({
+        entityType: "adSet",
+        action: "updated",
+        mode: "inline",
+        succeededCount: 0,
+        failedCount: 1,
+        entityName: inlineConfirm.row.adset_name ?? "Ad set",
+        field: inlineConfirm.type === "status" ? "Status" : "Budget",
+        oldValue:
+          inlineConfirm.type === "status"
+            ? normalizeStatusDisplay(inlineConfirm.row.status)
+            : (() => {
+                const currentStr = getRowBudgetDisplay(inlineConfirm.row);
+                const current = currentStr !== "" ? Number(currentStr) : null;
+                return current != null ? formatCurrency(current) : "—";
+              })(),
+        newValue:
+          inlineConfirm.type === "status"
+            ? normalizeStatusDisplay(inlineConfirm.newStatus)
+            : formatCurrency(inlineConfirm.newBudget),
+        details: [
+          {
+            label: "Error",
+            value: "Something went wrong while applying your inline change. Please try again.",
+          },
+        ],
+      });
     } finally {
       setInlineConfirm(null);
       setInlineConfirmLoading(false);
     }
   };
 
-  const getStatusOption = (status: string | undefined): "ACTIVE" | "PAUSED" | "ARCHIVED" => {
+  const getStatusOption = (status: string | undefined): "ACTIVE" | "PAUSED" | "ARCHIVED" | "DELETED" => {
     const u = (status ?? "").toUpperCase();
     if (u === "ACTIVE") return "ACTIVE";
     if (u === "ARCHIVED") return "ARCHIVED";
+    if (u === "DELETED") return "DELETED";
     return "PAUSED";
   };
 
   const statusSelectBg = (status: string | undefined) => {
     const u = (status ?? "").toUpperCase();
     if (u === "ACTIVE") return "bg-emerald-50";
+    if (u === "DELETED") return "bg-red-50";
     return "bg-gray-100";
   };
 
@@ -904,9 +973,12 @@ export const MetaAdSets: React.FC = () => {
                                     {preview.map((a) => {
                                       const aid = String(a.adset_id ?? a.id);
                                       const name = a.adset_name ?? "—";
-                                      const currentBudget = a.daily_budget != null && String(a.daily_budget).trim() !== "" ? Number(a.daily_budget) : 0;
+                                      const budgetStr = a.daily_budget != null && String(a.daily_budget).trim() !== "" && parseFloat(String(a.daily_budget)) > 0
+                                        ? String(a.daily_budget)
+                                        : (a.lifetime_budget != null && String(a.lifetime_budget).trim() !== "" && parseFloat(String(a.lifetime_budget)) > 0 ? String(a.lifetime_budget) : "");
+                                      const currentBudget = budgetStr !== "" ? Number(budgetStr) : 0;
                                       const oldVal = isBudgetChange
-                                        ? (a.daily_budget != null && String(a.daily_budget).trim() !== "" ? formatCurrency(Number(a.daily_budget)) : "—")
+                                        ? (budgetStr !== "" ? formatCurrency(Number(budgetStr)) : "—")
                                         : normalizeStatusDisplay(a.status);
                                       const newVal = isBudgetChange
                                         ? formatCurrency(calculateNewBudget(currentBudget))
@@ -1070,6 +1142,15 @@ export const MetaAdSets: React.FC = () => {
                             </div>
                           </th>
                           <th
+                            className="table-header py-3 px-4 min-w-[90px] cursor-pointer hover:bg-[#f5f5f0]"
+                            onClick={() => handleSort("bid_amount")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Bid
+                              {getSortIcon("bid_amount")}
+                            </div>
+                          </th>
+                          <th
                             className="table-header text-left py-3 px-4 min-w-[100px] cursor-pointer hover:bg-[#f5f5f0]"
                             onClick={() => handleSort("start_date")}
                           >
@@ -1172,7 +1253,7 @@ export const MetaAdSets: React.FC = () => {
                                 <select
                                   value={getStatusOption(row.status)}
                                   onChange={(e) =>
-                                    handleInlineStatusChange(aid, e.target.value as "ACTIVE" | "PAUSED" | "ARCHIVED")
+                                    handleInlineStatusChange(aid, e.target.value as "ACTIVE" | "PAUSED" | "ARCHIVED" | "DELETED")
                                   }
                                   className={`edit-button google-table-dropdown min-w-0 ${statusSelectBg(row.status)}`}
                                   style={{
@@ -1184,6 +1265,7 @@ export const MetaAdSets: React.FC = () => {
                                   <option value="ACTIVE">Enabled</option>
                                   <option value="PAUSED">Paused</option>
                                   <option value="ARCHIVED">Archived</option>
+                                  <option value="DELETED">Deleted</option>
                                 </select>
                               </td>
                               <td className="table-cell py-3 px-4">
@@ -1193,17 +1275,11 @@ export const MetaAdSets: React.FC = () => {
                                   value={
                                     inlineBudgetAdsetId === aid
                                       ? inlineBudgetValue
-                                      : row.daily_budget != null && String(row.daily_budget).trim() !== ""
-                                        ? String(row.daily_budget)
-                                        : ""
+                                      : getRowBudgetDisplay(row)
                                   }
                                   onFocus={() => {
                                     setInlineBudgetAdsetId(aid);
-                                    setInlineBudgetValue(
-                                      row.daily_budget != null && String(row.daily_budget).trim() !== ""
-                                        ? String(row.daily_budget)
-                                        : ""
-                                    );
+                                    setInlineBudgetValue(getRowBudgetDisplay(row));
                                   }}
                                   onChange={(e) => {
                                     if (inlineBudgetAdsetId === aid) setInlineBudgetValue(e.target.value);
@@ -1220,6 +1296,13 @@ export const MetaAdSets: React.FC = () => {
                                   className="inline-edit-input w-full min-w-[120px]"
                                   aria-label={`Budget for ${row.adset_name || aid}`}
                                 />
+                              </td>
+                              <td className="table-cell py-3 px-4 text-left">
+                                <span className="table-text leading-[1.26] text-[#556179]">
+                                  {row.bid_amount != null && String(row.bid_amount).trim() !== ""
+                                    ? String(row.bid_amount)
+                                    : "—"}
+                                </span>
                               </td>
                               <td className="table-cell py-3 px-4 text-left">
                                 <span className="table-text leading-[1.26] text-[#556179]">
@@ -1382,7 +1465,7 @@ export const MetaAdSets: React.FC = () => {
                               <td className="px-4 py-2 text-[10.64px] text-[#556179]">
                                 {inlineConfirm.type === "status"
                                   ? normalizeStatusDisplay(inlineConfirm.row.status)
-                                  : inlineConfirm.row.daily_budget != null && String(inlineConfirm.row.daily_budget).trim() !== "" ? formatCurrency(Number(inlineConfirm.row.daily_budget)) : "—"}
+                                  : (() => { const s = getRowBudgetDisplay(inlineConfirm.row); return s !== "" ? formatCurrency(Number(s)) : "—"; })()}
                               </td>
                               <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
                                 {inlineConfirm.type === "status"

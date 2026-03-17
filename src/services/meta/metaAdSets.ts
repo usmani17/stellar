@@ -6,9 +6,19 @@ import type {
 } from "../../types/meta";
 
 /**
- * Meta ad set create and update API.
+ * Meta ad set create, update, and get-by-id API.
  */
 export const metaAdSetsService = {
+  getMetaAdSet: async (
+    channelId: number,
+    adsetId: string
+  ): Promise<Record<string, unknown>> => {
+    const response = await api.get<Record<string, unknown>>(
+      `/meta/channels/${channelId}/adsets/${encodeURIComponent(adsetId)}/`
+    );
+    return response.data;
+  },
+
   createMetaAdSet: async (
     channelId: number,
     payload: CreateMetaAdSetPayload

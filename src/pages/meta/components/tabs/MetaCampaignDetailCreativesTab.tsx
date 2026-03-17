@@ -63,7 +63,7 @@ export const MetaCampaignDetailCreativesTab: React.FC<MetaCampaignDetailCreative
                 <Checkbox
                   checked={allSelected}
                   indeterminate={someSelected && !allSelected}
-                  onCheckedChange={onSelectAll}
+                  onChange={onSelectAll}
                 />
               </th>
               <th className="table-header table-sticky-first-column min-w-[200px]">
@@ -103,7 +103,7 @@ export const MetaCampaignDetailCreativesTab: React.FC<MetaCampaignDetailCreative
                     <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                       <Checkbox
                         checked={isSelected}
-                        onCheckedChange={(checked) => onSelectOne(id, !!checked)}
+                        onChange={(checked) => onSelectOne(id, checked)}
                       />
                     </td>
                     <td className="table-cell table-sticky-first-column min-w-[200px] max-w-[400px] group-hover:bg-[#f9f9f6] table-text leading-[1.26]">

@@ -5,6 +5,7 @@ import type {
   CreateMetaAdSetPayload,
   MetaAdSetStatus,
   MetaTargetingSpec,
+  UpdateMetaAdSetPayload,
 } from "../../types/meta";
 import { META_COUNTRY_CODES, META_COUNTRY_LABELS } from "./metaCountryCodes";
 import { Dropdown } from "../ui/Dropdown";
@@ -25,6 +26,12 @@ export interface CreateMetaAdSetPanelProps {
   /** When true, campaign already has a budget set; hide budget fields and do not require/send ad set budget. */
   campaignBudgetSet?: boolean;
   accountId?: string;
+  /** 'edit' to open in edit mode with pre-filled data; requires adsetId and loads via GET or initialData. */
+  mode?: "create" | "edit";
+  /** Ad set ID when mode is 'edit'. */
+  adsetId?: string;
+  /** Pre-filled ad set data when mode is 'edit' (avoids extra fetch if parent already has the row). */
+  initialData?: Record<string, unknown>;
 }
 
 const inputClass = "campaign-input w-full";
@@ -51,38 +58,61 @@ const OPTIMIZATION_GOAL_OPTIONS: { value: string; label: string }[] = [
   { value: "VALUE", label: "Value" },
   { value: "THRUPLAY", label: "ThruPlay" },
   { value: "DERIVED_EVENTS", label: "Derived events" },
-  { value: "APP_INSTALLS_AND_OFFSITE_CONVERSIONS", label: "App installs and offsite conversions" },
+  {
+    value: "APP_INSTALLS_AND_OFFSITE_CONVERSIONS",
+    label: "App installs and offsite conversions",
+  },
   { value: "CONVERSATIONS", label: "Conversations" },
   { value: "IN_APP_VALUE", label: "In-app value" },
-  { value: "MESSAGING_PURCHASE_CONVERSION", label: "Messaging purchase conversion" },
+  {
+    value: "MESSAGING_PURCHASE_CONVERSION",
+    label: "Messaging purchase conversion",
+  },
   { value: "SUBSCRIBERS", label: "Subscribers" },
   { value: "REMINDERS_SET", label: "Reminders set" },
   { value: "MEANINGFUL_CALL_ATTEMPT", label: "Meaningful call attempt" },
   { value: "PROFILE_VISIT", label: "Profile visit" },
-  { value: "PROFILE_AND_PAGE_ENGAGEMENT", label: "Profile and page engagement" },
+  {
+    value: "PROFILE_AND_PAGE_ENGAGEMENT",
+    label: "Profile and page engagement",
+  },
   { value: "ADVERTISER_SILOED_VALUE", label: "Advertiser siloed value" },
   { value: "AUTOMATIC_OBJECTIVE", label: "Automatic objective" },
-  { value: "MESSAGING_APPOINTMENT_CONVERSION", label: "Messaging appointment conversion" },
+  {
+    value: "MESSAGING_APPOINTMENT_CONVERSION",
+    label: "Messaging appointment conversion",
+  },
 ];
 
-const BILLING_EVENTS = ["LINK_CLICKS", "IMPRESSIONS", "REACH"] as const;
-const BILLING_EVENT_OPTIONS = BILLING_EVENTS.map((b) => ({
-  value: b,
-  label: b,
-}));
-const PACING_TYPES = [
-  { value: "standard", label: "Standard" },
-  { value: "no_pacing", label: "No pacing" },
-] as const;
+/** Billing event options per Meta Marketing API. */
+const BILLING_EVENT_OPTIONS: { value: string; label: string }[] = [
+  { value: "LINK_CLICKS", label: "Link clicks – Pay when people click the link" },
+  { value: "IMPRESSIONS", label: "Impressions – Pay when ads are shown" },
+  { value: "THRUPLAY", label: "ThruPlay – Pay when video plays to completion or 15+ seconds" },
+  { value: "APP_INSTALLS", label: "App installs – Pay when people install your app" },
+  { value: "POST_ENGAGEMENT", label: "Post engagement – Pay when people engage with your post" },
+  { value: "PAGE_LIKES", label: "Page likes – Pay when people like your page" },
+  { value: "OFFER_CLAIMS", label: "Offer claims – Pay when people claim the offer" },
+  { value: "PURCHASE", label: "Purchase – Pay per purchase" },
+  { value: "LISTING_INTERACTION", label: "Listing interaction – Pay per listing interaction" },
+  { value: "NONE", label: "None" },
+  { value: "CLICKS", label: "Clicks (deprecated)" },
+];
 
 const BUDGET_TYPE_OPTIONS: { value: "daily" | "lifetime"; label: string }[] = [
   { value: "daily", label: "Daily budget" },
   { value: "lifetime", label: "Lifetime budget" },
 ];
 
-const STATUS_OPTIONS: { value: MetaAdSetStatus; label: string }[] = [
+const STATUS_OPTIONS_CREATE: { value: MetaAdSetStatus; label: string }[] = [
   { value: "PAUSED", label: "Paused" },
   { value: "ACTIVE", label: "Active" },
+];
+const STATUS_OPTIONS_EDIT: { value: MetaAdSetStatus | "DELETED"; label: string }[] = [
+  { value: "PAUSED", label: "Paused" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "ARCHIVED", label: "Archived" },
+  { value: "DELETED", label: "Deleted" },
 ];
 
 const TARGETING_GENDER_OPTIONS = [
@@ -260,10 +290,16 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
   campaignObjective,
   campaignBidStrategy,
   campaignBudgetSet = false,
+  mode = "create",
+  adsetId,
+  initialData,
 }) => {
+  const isEditMode = mode === "edit" && adsetId;
   const [name, setName] = useState("");
   const [campaignId, setCampaignId] = useState(initialCampaignId ?? "");
-  const [status, setStatus] = useState<MetaAdSetStatus>("PAUSED");
+  const [status, setStatus] = useState<MetaAdSetStatus | "DELETED">("PAUSED");
+  const [editLoadError, setEditLoadError] = useState<string | null>(null);
+  const [editDataLoaded, setEditDataLoaded] = useState(!isEditMode);
   const [budgetType, setBudgetType] = useState<"daily" | "lifetime">("daily");
   const [dailyBudget, setDailyBudget] = useState<string>("");
   const [lifetimeBudget, setLifetimeBudget] = useState<string>("");
@@ -283,8 +319,9 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
     useState<string>("");
   const [startTime, setStartTime] = useState<string>("");
   const [endTime, setEndTime] = useState<string>("");
-  const [pacingType, setPacingType] = useState<string>("standard");
-  const [selectedTargetingCountries, setSelectedTargetingCountries] = useState<string[]>([]);
+  const [selectedTargetingCountries, setSelectedTargetingCountries] = useState<
+    string[]
+  >([]);
   const [ageMin, setAgeMin] = useState<string>("18");
   const [ageMax, setAgeMax] = useState<string>("");
   const [targetingGenders, setTargetingGenders] = useState<string>("all");
@@ -304,8 +341,24 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
   const [validateOnlySuccess, setValidateOnlySuccess] = useState(false);
   const [validateOnly, setValidateOnly] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "basics" | "targeting" | "schedule" | "promoted" | "advanced"
+    "basics" | "targeting" | "schedule" | "promoted"
   >("basics");
+
+  // Original values for edit mode, used to send PATCH with only changed fields.
+  const [originalValues, setOriginalValues] = useState<{
+    name?: string;
+    status?: MetaAdSetStatus | "DELETED";
+    optimization_goal?: string;
+    billing_event?: string;
+    start_time?: string;
+    end_time?: string;
+    budgetType?: "daily" | "lifetime";
+    dailyBudget?: string;
+    lifetimeBudget?: string;
+    bidAmount?: string;
+    destination_type?: string;
+    targeting?: MetaTargetingSpec | undefined;
+  } | null>(null);
 
   const isCampaignLocked = Boolean(initialCampaignId);
 
@@ -314,6 +367,99 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
       setCampaignId(initialCampaignId);
     }
   }, [initialCampaignId]);
+
+  useEffect(() => {
+    if (!isEditMode || !adsetId) {
+      setEditDataLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    setEditDataLoaded(false);
+    setEditLoadError(null);
+    const load = async () => {
+      try {
+        const data = initialData ?? (await metaAdSetsService.getMetaAdSet(channelId, adsetId));
+        if (cancelled) return;
+        const d = data as Record<string, unknown>;
+        const initialName = String(d.name ?? d.adset_name ?? "");
+        const initialCampaignId = String(d.campaign_id ?? "");
+        const st = String(d.status ?? "PAUSED").toUpperCase();
+        const initialStatus = (st === "ACTIVE" || st === "PAUSED" || st === "ARCHIVED" || st === "DELETED" ? st : "PAUSED") as MetaAdSetStatus | "DELETED";
+        const initialOptimizationGoal = String(d.optimization_goal ?? "LINK_CLICKS");
+        const initialBillingEvent = String(d.billing_event ?? "LINK_CLICKS");
+        const initialStartTime = d.start_time ? String(d.start_time).slice(0, 16) : "";
+        const initialEndTime = d.end_time ? String(d.end_time).slice(0, 16) : "";
+        const dailyRaw = d.daily_budget;
+        const lifetimeRaw = d.lifetime_budget;
+        const dailyNum = dailyRaw != null && String(dailyRaw).trim() !== "" ? parseFloat(String(dailyRaw)) : NaN;
+        const lifetimeNum = lifetimeRaw != null && String(lifetimeRaw).trim() !== "" ? parseFloat(String(lifetimeRaw)) : NaN;
+        let initialBudgetType: "daily" | "lifetime" = "daily";
+        let initialDailyBudget = "";
+        let initialLifetimeBudget = "";
+        if (Number.isFinite(dailyNum) && dailyNum > 0) {
+          initialBudgetType = "daily";
+          initialDailyBudget = dailyNum >= 100 ? String(dailyNum / 100) : String(dailyNum);
+        } else if (Number.isFinite(lifetimeNum) && lifetimeNum > 0) {
+          initialBudgetType = "lifetime";
+          initialLifetimeBudget = lifetimeNum >= 100 ? String(lifetimeNum / 100) : String(lifetimeNum);
+        }
+        const bidAmt = d.bid_amount;
+        let initialBidAmount = "";
+        if (typeof bidAmt === "number" && bidAmt > 0) initialBidAmount = String(bidAmt / 100);
+        else if (typeof bidAmt === "string" && parseFloat(bidAmt) > 0) initialBidAmount = String(parseFloat(bidAmt) / 100);
+        const initialDestinationType = String(d.destination_type ?? "");
+        const targeting = d.targeting as Record<string, unknown> | undefined;
+        let initialTargeting: MetaTargetingSpec | undefined;
+        if (targeting?.geo_locations && typeof targeting.geo_locations === "object") {
+          const gl = (targeting.geo_locations as Record<string, unknown>).countries;
+          setSelectedTargetingCountries(Array.isArray(gl) ? gl.map((c) => String(c).toUpperCase()) : []);
+        }
+        if (targeting?.age_min != null) setAgeMin(String(targeting.age_min));
+        if (targeting?.age_max != null) setAgeMax(String(targeting.age_max));
+        if (targeting) {
+          initialTargeting = targeting as MetaTargetingSpec;
+        }
+
+        // Apply to form state
+        setName(initialName);
+        setCampaignId(initialCampaignId);
+        setStatus(initialStatus);
+        setOptimizationGoal(initialOptimizationGoal);
+        setBillingEvent(initialBillingEvent);
+        setStartTime(initialStartTime);
+        setEndTime(initialEndTime);
+        setBudgetType(initialBudgetType);
+        setDailyBudget(initialDailyBudget);
+        setLifetimeBudget(initialLifetimeBudget);
+        setBidAmount(initialBidAmount);
+        setDestinationType(initialDestinationType);
+
+        // Store snapshot for diffing on PATCH
+        setOriginalValues({
+          name: initialName,
+          status: initialStatus,
+          optimization_goal: initialOptimizationGoal,
+          billing_event: initialBillingEvent,
+          start_time: initialStartTime,
+          end_time: initialEndTime,
+          budgetType: initialBudgetType,
+          dailyBudget: initialDailyBudget,
+          lifetimeBudget: initialLifetimeBudget,
+          bidAmount: initialBidAmount,
+          destination_type: initialDestinationType,
+          targeting: initialTargeting,
+        });
+        setEditDataLoaded(true);
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setEditLoadError(err instanceof Error ? err.message : "Failed to load ad set.");
+          setEditDataLoaded(true);
+        }
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [isEditMode, adsetId, channelId, initialData]);
 
   useEffect(() => {
     if (isCampaignLocked) {
@@ -354,7 +500,7 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
       setError("Ad set name is required.");
       return;
     }
-    if (!campaignId) {
+    if (!isEditMode && !campaignId) {
       setError("Campaign is required.");
       return;
     }
@@ -404,16 +550,20 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
     }
 
     if (selectedTargetingCountries.length === 0) {
-      setError("At least one targeting country is required. Select from the list in the Targeting tab.");
+      setError(
+        "At least one targeting country is required. Select from the list in the Targeting tab.",
+      );
       return;
     }
 
     const startIsoRequired = formatDateTimeToISO(startTime);
-    if (!startTime.trim() || !startIsoRequired) {
-      setError(
-        "Start time is required (ISO 8601 recommended for ad set schedule).",
-      );
-      return;
+    if (!isEditMode) {
+      if (!startTime.trim() || !startIsoRequired) {
+        setError(
+          "Start time is required (ISO 8601 recommended for ad set schedule).",
+        );
+        return;
+      }
     }
 
     setSubmitLoading(true);
@@ -422,28 +572,41 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
         profile_id: profileId,
         campaign_id: campaignId,
         name: name.trim(),
-        status,
+        status: status as MetaAdSetStatus,
         optimization_goal: optimizationGoal,
         billing_event: billingEvent,
-        pacing_type: [pacingType],
       };
 
+      // CBO: campaign has budget → do NOT send daily_budget/lifetime_budget on ad set (Meta allows only one).
+      // Ad set–level budget: campaign has no budget → send daily_budget or lifetime_budget on ad set.
       if (!campaignBudgetSet) {
         if (budgetType === "daily") {
-          payload.daily_budget = Math.round(parseFloat(dailyBudget) * 100);
+          const dailyCents = Math.round(parseFloat(String(dailyBudget)) * 100);
+          if (Number.isFinite(dailyCents) && dailyCents > 0) {
+            payload.daily_budget = dailyCents;
+          }
+          if (endTime.trim()) {
+            const endIso = formatDateTimeToISO(endTime);
+            if (endIso) payload.end_time = endIso;
+          }
         } else {
-          payload.lifetime_budget = Math.round(
-            parseFloat(lifetimeBudget) * 100,
+          const lifetimeCents = Math.round(
+            parseFloat(String(lifetimeBudget)) * 100,
           );
-          const endIso = formatDateTimeToISO(endTime);
-          if (endIso) payload.end_time = endIso;
-        }
-        if (budgetType === "daily" && endTime.trim()) {
-          const endIso = formatDateTimeToISO(endTime);
-          if (endIso) payload.end_time = endIso;
+          if (Number.isFinite(lifetimeCents) && lifetimeCents > 0) {
+            payload.lifetime_budget = lifetimeCents;
+            const endIso = formatDateTimeToISO(endTime);
+            if (endIso) payload.end_time = endIso;
+          }
         }
       }
-
+      // When CBO, no ad set budget; use LOWEST_COST_WITHOUT_CAP by default so we don't need bid_amount.
+      if (campaignBidStrategy?.trim()) {
+        payload.bid_strategy = campaignBidStrategy.trim().toUpperCase();
+      } else if (campaignBudgetSet) {
+        payload.bid_strategy = "LOWEST_COST_WITHOUT_CAP";
+      }
+      // Include bid_amount whenever the user entered a valid value (needed for CBO campaigns with LOWEST_COST_WITH_BID_CAP, or ad set–level cap strategies).
       if (
         bidAmount !== "" &&
         !Number.isNaN(parseFloat(bidAmount)) &&
@@ -522,8 +685,85 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
       if (Object.keys(targeting).length > 0)
         payload.targeting = targeting as MetaTargetingSpec;
 
-      if (validateOnly) {
-        payload.execution_options = ["validate_only"];
+      if (isEditMode && adsetId) {
+        // Build a PATCH payload that only includes changed fields to avoid Meta validation issues.
+        const updatePayload: UpdateMetaAdSetPayload = {};
+        const orig = originalValues;
+
+        const trimmedName = name.trim();
+        if (!orig || trimmedName !== (orig.name ?? "")) {
+          updatePayload.name = trimmedName;
+        }
+        if (!orig || status !== orig.status) {
+          updatePayload.status = status;
+        }
+
+        const currentEndIso = endTime.trim()
+          ? formatDateTimeToISO(endTime) ?? undefined
+          : undefined;
+        if (!orig || currentEndIso !== (orig.end_time ? formatDateTimeToISO(orig.end_time) : undefined)) {
+          if (currentEndIso) {
+            updatePayload.end_time = currentEndIso;
+          }
+        }
+
+        if (!orig || optimizationGoal !== (orig.optimization_goal ?? "LINK_CLICKS")) {
+          updatePayload.optimization_goal = optimizationGoal;
+        }
+        if (!orig || billingEvent !== (orig.billing_event ?? "LINK_CLICKS")) {
+          updatePayload.billing_event = billingEvent;
+        }
+
+        // Budgets: only when campaign does not own budget and value changed
+        if (!campaignBudgetSet) {
+          const dailyTrim = dailyBudget.trim();
+          const lifetimeTrim = lifetimeBudget.trim();
+          if (
+            !orig ||
+            orig.budgetType !== budgetType ||
+            dailyTrim !== (orig.dailyBudget ?? "") ||
+            lifetimeTrim !== (orig.lifetimeBudget ?? "")
+          ) {
+            if (budgetType === "daily" && dailyTrim && parseFloat(dailyTrim) > 0) {
+              updatePayload.daily_budget = parseFloat(dailyTrim);
+            } else if (budgetType === "lifetime" && lifetimeTrim && parseFloat(lifetimeTrim) > 0) {
+              updatePayload.lifetime_budget = parseFloat(lifetimeTrim);
+            }
+          }
+        }
+
+        // Bid amount
+        const bidTrim = bidAmount.trim();
+        if (!orig || bidTrim !== (orig.bidAmount ?? "")) {
+          if (bidTrim && parseFloat(bidTrim) > 0) {
+            updatePayload.bid_amount = Math.round(parseFloat(bidTrim) * 100);
+          } else {
+            // Explicitly clearing bid not supported here; omit field if empty.
+          }
+        }
+
+        // Targeting: only if changed vs original
+        if (Object.keys(targeting).length > 0) {
+          const currentTargeting = targeting as MetaTargetingSpec;
+          const origTargeting = originalValues?.targeting;
+          const currentJson = JSON.stringify(currentTargeting);
+          const origJson = origTargeting ? JSON.stringify(origTargeting) : undefined;
+          if (!orig || currentJson !== origJson) {
+            updatePayload.targeting = currentTargeting;
+          }
+        }
+
+        // If nothing changed, do not fire PATCH.
+        if (Object.keys(updatePayload).length === 0) {
+          onSuccess();
+          onClose();
+          return;
+        }
+
+        await metaAdSetsService.updateMetaAdSet(channelId, adsetId, updatePayload);
+        onSuccess();
+        onClose();
+        return;
       }
 
       await metaAdSetsService.createMetaAdSet(channelId, payload);
@@ -575,15 +815,15 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
   };
 
   const loading =
-    (campaignsLoading && !isCampaignLocked) ||
-    (isCampaignLocked && profileId === 0);
+    (campaignsLoading && !isCampaignLocked && !isEditMode) ||
+    (isCampaignLocked && profileId === 0 && !isEditMode) ||
+    (isEditMode && !editDataLoaded);
 
   const TABS: { id: typeof activeTab; label: string }[] = [
     { id: "basics", label: "Basics" },
     { id: "targeting", label: "Targeting" },
     { id: "schedule", label: "Schedule" },
     { id: "promoted", label: "Promoted object" },
-    { id: "advanced", label: "Pacing" },
   ];
 
   return (
@@ -591,7 +831,7 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
       <form onSubmit={handleSubmit}>
         <div className="p-4 border-b border-gray-200">
           <h2 className="text-[16px] font-semibold text-[#072929]">
-            Create Ad Set
+            {isEditMode ? "Edit ad set" : "Create Ad Set"}
           </h2>
         </div>
 
@@ -606,8 +846,8 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
               </button>
             </div>
           </>
-        ) : (isCampaignLocked && !campaignId) ||
-          (!isCampaignLocked && campaigns.length === 0) ? (
+        ) : !isEditMode && ((isCampaignLocked && !campaignId) ||
+          (!isCampaignLocked && campaigns.length === 0)) ? (
           <>
             <div className="p-4 border-b border-gray-200">
               <p className="text-[12px] text-[#556179] py-4">
@@ -627,6 +867,11 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
                 <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-[12px] text-green-800">
                   Validation passed. No ad set was created. Uncheck
                   &quot;Validate only&quot; to create.
+                </div>
+              )}
+              {editLoadError && (
+                <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-[12px] text-red-800">
+                  {editLoadError}
                 </div>
               )}
               {error && (
@@ -664,7 +909,14 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
                         Ad set details
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {!isCampaignLocked && (
+                        {(isCampaignLocked || isEditMode) ? (
+                          <div>
+                            <label className="form-label-small">Campaign</label>
+                            <div className={`${inputClass} py-2 px-3 bg-gray-100 text-[#556179] rounded border border-gray-200`}>
+                              {campaignId || "—"}
+                            </div>
+                          </div>
+                        ) : (
                           <div>
                             <label className="form-label-small">
                               Campaign *
@@ -695,8 +947,8 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
                         </div>
                         <div>
                           <label className="form-label-small">Status</label>
-                          <Dropdown<MetaAdSetStatus>
-                            options={STATUS_OPTIONS}
+                          <Dropdown<MetaAdSetStatus | "DELETED">
+                            options={isEditMode ? STATUS_OPTIONS_EDIT : STATUS_OPTIONS_CREATE}
                             value={status}
                             placeholder="Select status"
                             onChange={(val) => setStatus(val)}
@@ -765,7 +1017,7 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
                         )}
                         <div>
                           <label className="form-label-small">
-                            Optimization goal
+                            Optimization goal *
                           </label>
                           <Dropdown
                             options={OPTIMIZATION_GOAL_OPTIONS}
@@ -774,6 +1026,9 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
                             onChange={(val) => setOptimizationGoal(val)}
                             buttonClassName={inputClass}
                           />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            Required by Meta for ad set creation.
+                          </p>
                         </div>
                         <div>
                           <label className="form-label-small">
@@ -810,67 +1065,33 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
                       </div>
                     </div>
 
-                    <div className="mb-2">
-                      <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
-                        Destination type
+                    <div className="mb-6">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-2">
+                        Targeting (required)
                       </h3>
-                      <p className="text-[11px] text-[#556179] mb-2">
-                        Destination of ads in this ad set. Options depend on
-                        campaign objective
-                        {campaignObjective ? ` (${campaignObjective})` : ""}.
+                      <p className="text-[11px] text-[#556179] mb-3">
+                        At least one country is required. Set start time in the
+                        Schedule tab.
                       </p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="form-label-small">
-                            Destination type (optional)
-                          </label>
-                          <Dropdown
-                            options={
-                              campaignObjective &&
-                              OBJECTIVE_DESTINATION_MAP[campaignObjective]
-                                ? DESTINATION_TYPES.filter((d) =>
-                                    OBJECTIVE_DESTINATION_MAP[
-                                      campaignObjective
-                                    ].includes(d.value),
-                                  )
-                                : DESTINATION_TYPES
-                            }
-                            value={destinationType}
-                            placeholder="Select destination"
-                            onChange={(val) => setDestinationType(val)}
-                            buttonClassName={inputClass}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === "targeting" && (
-                  <div className="p-3">
-                    <div className="mb-6 p-4 rounded-xl border-2 border-[#136D6D]/20 bg-white/50">
-                      <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
-                        Targeting
-                      </h3>
-                      <p className="text-[11px] text-[#556179] mb-4">
-                        Geo is required; demographics, audiences, and placements
-                        are optional.
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div className="md:col-span-2">
                           <label className="form-label-small">
                             Countries * (select at least one)
                           </label>
                           <Dropdown<string>
                             options={META_COUNTRY_CODES.filter(
-                              (code) => !selectedTargetingCountries.includes(code),
+                              (code) =>
+                                !selectedTargetingCountries.includes(code),
                             ).map((code) => ({
                               value: code,
                               label: `${META_COUNTRY_LABELS[code] ?? code} (${code})`,
                             }))}
                             value=""
                             onChange={(value) => {
-                              if (value && !selectedTargetingCountries.includes(value)) {
+                              if (
+                                value &&
+                                !selectedTargetingCountries.includes(value)
+                              ) {
                                 setSelectedTargetingCountries([
                                   ...selectedTargetingCountries,
                                   value,
@@ -914,6 +1135,59 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
                             </p>
                           )}
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="mb-2">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
+                        Destination type (optional)
+                      </h3>
+                      <p className="text-[11px] text-[#556179] mb-2">
+                        Destination of ads in this ad set. Options depend on
+                        campaign objective
+                        {campaignObjective ? ` (${campaignObjective})` : ""}.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          {isEditMode ? (
+                            <div className={`${inputClass} py-2 px-3 bg-gray-100 text-[#556179] rounded border border-gray-200`}>
+                              {destinationType || "—"}
+                            </div>
+                          ) : (
+                            <Dropdown
+                              options={
+                                campaignObjective &&
+                                OBJECTIVE_DESTINATION_MAP[campaignObjective]
+                                  ? DESTINATION_TYPES.filter((d) =>
+                                      OBJECTIVE_DESTINATION_MAP[
+                                        campaignObjective
+                                      ].includes(d.value),
+                                    )
+                                  : DESTINATION_TYPES
+                              }
+                              value={destinationType}
+                              placeholder="Select destination"
+                              onChange={(val) => setDestinationType(val)}
+                              buttonClassName={inputClass}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "targeting" && (
+                  <div className="p-3">
+                    <div className="mb-6 p-4 rounded-xl border-2 border-[#136D6D]/20 bg-white/50">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
+                        Optional targeting
+                      </h3>
+                      <p className="text-[11px] text-[#556179] mb-4">
+                        Demographics, audiences, and placements. Countries are
+                        set in the Basics tab.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div>
                           <label className="form-label-small">
                             Age min (optional)
@@ -1072,7 +1346,7 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
                         </div>
                         <div className="md:col-span-2">
                           <label className="form-label-small">
-                            Interest IDs (comma separated)
+                            Interest IDs (optional, comma separated)
                           </label>
                           <input
                             type="text"
@@ -1081,10 +1355,14 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
                             placeholder="e.g. 600313926646730"
                             className={inputClass}
                           />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            May be restricted for Housing, Employment, or Credit
+                            (Special Ad Category) campaigns.
+                          </p>
                         </div>
                         <div className="md:col-span-2">
                           <label className="form-label-small">
-                            Behavior IDs (comma separated)
+                            Behavior IDs (optional, comma separated)
                           </label>
                           <input
                             type="text"
@@ -1093,6 +1371,9 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
                             placeholder="e.g. 6002714895372"
                             className={inputClass}
                           />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            May be restricted for Special Ad Category campaigns.
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -1145,6 +1426,12 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
                       <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
                         Promoted object
                       </h3>
+                      {isEditMode ? (
+                        <p className="text-[11px] text-[#556179]">
+                          Not editable when editing an ad set (read-only per Meta API).
+                        </p>
+                      ) : (
+                        <>
                       <p className="text-[11px] text-[#556179] mb-3">
                         The object this ad set is promoting. Required for some
                         objectives (e.g. page_id for PAGE_LIKES/LEADS, pixel_id
@@ -1245,37 +1532,8 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
                           />
                         </div>
                       </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === "advanced" && (
-                  <div className="p-3">
-                    <div className="mb-6">
-                      <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
-                        Pacing
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="form-label-small">
-                            Pacing type
-                          </label>
-                          <Dropdown
-                            options={PACING_TYPES.map((p) => ({
-                              value: p.value,
-                              label: p.label,
-                            }))}
-                            value={pacingType}
-                            placeholder="Select pacing type"
-                            onChange={(val) => setPacingType(val)}
-                            buttonClassName={inputClass}
-                          />
-                          <p className="text-[11px] text-[#556179] mt-1">
-                            Sent as a list, e.g. [&quot;standard&quot;] or
-                            [&quot;no_pacing&quot;].
-                          </p>
-                        </div>
-                      </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1283,25 +1541,29 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
             </div>
 
             <div className="p-4 border-t border-gray-200 flex flex-wrap items-center justify-end gap-3">
-              <label className="flex items-center gap-2 text-[12px] text-[#556179] cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={validateOnly}
-                  onChange={(e) => {
-                    setValidateOnly(e.target.checked);
-                    if (e.target.checked) setValidateOnlySuccess(false);
-                  }}
-                  className="rounded border-gray-300"
-                />
-                Validate only (no ad set created)
-              </label>
-              <button
-                type="button"
-                onClick={handleFillTest}
-                className="secondary-button font-semibold text-[11.2px]"
-              >
-                Fill test data
-              </button>
+              {!isEditMode && (
+                <label className="flex items-center gap-2 text-[12px] text-[#556179] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={validateOnly}
+                    onChange={(e) => {
+                      setValidateOnly(e.target.checked);
+                      if (e.target.checked) setValidateOnlySuccess(false);
+                    }}
+                    className="rounded border-gray-300"
+                  />
+                  Validate only (no ad set created)
+                </label>
+              )}
+              {!isEditMode && (
+                <button
+                  type="button"
+                  onClick={handleFillTest}
+                  className="secondary-button font-semibold text-[11.2px]"
+                >
+                  Fill test data
+                </button>
+              )}
               <button type="button" onClick={onClose} className="cancel-button">
                 Cancel
               </button>
@@ -1311,12 +1573,8 @@ export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
                 className="create-entity-button font-semibold text-[11.2px] flex items-center gap-2"
               >
                 {submitLoading
-                  ? validateOnly
-                    ? "Validating..."
-                    : "Creating..."
-                  : validateOnly
-                    ? "Validate only"
-                    : "Create ad set"}
+                  ? (isEditMode ? "Updating..." : validateOnly ? "Validating..." : "Creating...")
+                  : (isEditMode ? "Update ad set" : validateOnly ? "Validate only" : "Create ad set")}
               </button>
             </div>
           </>

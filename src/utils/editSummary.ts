@@ -25,6 +25,7 @@ export function isMoneyField(field: string | undefined): boolean {
 }
 
 export type EntityType =
+  | "ad"
   | "campaign"
   | "adGroup"
   | "adSet"
@@ -40,6 +41,7 @@ export type EntityType =
 export type EditAction = "updated" | "created" | "deleted" | "archived";
 
 const ENTITY_LABELS: Record<EntityType, string> = {
+  ad: "Ad",
   campaign: "Campaign",
   adGroup: "Ad group",
   adSet: "Ad set",
@@ -54,6 +56,7 @@ const ENTITY_LABELS: Record<EntityType, string> = {
 };
 
 const ENTITY_LABELS_PLURAL: Record<EntityType, string> = {
+  ad: "Ads",
   campaign: "Campaigns",
   adGroup: "Ad groups",
   adSet: "Ad sets",
@@ -142,7 +145,28 @@ export function buildEditSummary(opts: EditSummaryOptions): EditSummaryResult {
 
   if (mode === "inline") {
     const entityLabel = opts.entityName ?? singular;
-    const base = `${singular} ${action} successfully.`;
+    const hasFailure = failedCount > 0;
+    const allFailed = hasFailure && succeededCount === 0;
+
+    let title: string;
+    let variant: "success" | "partial" | "error";
+    let base: string;
+
+    if (allFailed) {
+      title = "Update failed";
+      variant = "error";
+      const verb = { updated: "update", created: "create", deleted: "delete", archived: "archive" }[action] ?? "update";
+      base = `${singular} failed to ${verb}.`;
+    } else if (hasFailure) {
+      title = "Partial success";
+      variant = "partial";
+      base = `${singular} ${action} with some issues.`;
+    } else {
+      title = "Update complete";
+      variant = "success";
+      base = `${singular} ${action} successfully.`;
+    }
+
     if (opts.field && (opts.oldValue != null || opts.newValue != null)) {
       const field = fieldLabel(opts.field);
       details.unshift({
@@ -152,15 +176,32 @@ export function buildEditSummary(opts: EditSummaryOptions): EditSummaryResult {
         newValue: opts.newValue ?? "—",
       });
     }
+
+    // Inline errors / extra info (e.g. backend error message)
+    if (opts.details?.length) {
+      for (const d of opts.details) {
+        details.push({
+          label: d.label,
+          field: d.field ?? "Error",
+          oldValue: d.oldValue ?? "—",
+          newValue: d.value ?? d.newValue ?? "—",
+        });
+      }
+    }
+
     const summary =
       details.length > 0
-        ? `${base} ${details.map((d) => `${d.field}: ${d.oldValue ?? ""} → ${d.newValue ?? ""}`).join(".")}`
+        ? `${base} ${details
+            .filter((d) => d.field && (d.oldValue != null || d.newValue != null))
+            .map((d) => `${d.field}: ${d.oldValue ?? ""} → ${d.newValue ?? ""}`)
+            .join(".")}`
         : base;
+
     return {
-      title: "Update complete",
+      title,
       summary,
       details,
-      variant: "success",
+      variant,
     };
   }
 

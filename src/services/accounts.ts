@@ -655,6 +655,39 @@ export const accountsService = {
     return response.data;
   },
 
+  updateMetaAd: async (
+    channelId: number,
+    adId: string,
+    payload: { name?: string; status?: string }
+  ): Promise<{
+    updated: number;
+    failed: number;
+    successes: Array<{ adId: string; field: string }>;
+    errors: Array<{ adId: string; error: string }>;
+  }> => {
+    const response = await api.patch(
+      `/meta/channels/${channelId}/ads/${encodeURIComponent(adId)}/update/`,
+      payload
+    );
+    return response.data;
+  },
+
+  bulkUpdateMetaAds: async (
+    channelId: number,
+    payload: { adIds: string[]; name?: string; status?: string }
+  ): Promise<{
+    updated: number;
+    failed: number;
+    successes: Array<{ adId: string; field: string }>;
+    errors: Array<{ adId: string; error: string }>;
+  }> => {
+    const response = await api.post(
+      `/meta/channels/${channelId}/ads/bulk-update/`,
+      payload
+    );
+    return response.data;
+  },
+
   getMetaAds: async (
     channelId: number,
     params: {

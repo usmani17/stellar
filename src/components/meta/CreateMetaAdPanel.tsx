@@ -19,6 +19,15 @@ export interface CreateMetaAdPanelProps {
 
 const inputClass = "campaign-input w-full";
 
+// Simple in-memory cache for meta ad creation options.
+// Lives for the lifetime of the page (cleared on full refresh).
+type AdsetOption = { adset_id: string; adset_name: string };
+type CreativeOption = { creative_id: string; creative_name: string };
+
+const profilesCache = new Map<number, MetaProfileOption[]>(); // key: channelId
+const adsetsCache = new Map<string, AdsetOption[]>(); // key: `${channelId}|${campaignId || ""}`
+const creativesCache = new Map<number, CreativeOption[]>(); // key: channelId
+
 export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
   channelId,
   onSuccess,
@@ -44,6 +53,19 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
 
   useEffect(() => {
     let cancelled = false;
+
+    const cached = profilesCache.get(channelId);
+    if (cached) {
+      setProfiles(cached);
+      if (cached.length > 0 && profileId === "") {
+        setProfileId(cached[0].id);
+      }
+      setProfilesLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     setProfilesLoading(true);
     accountsService
       .fetchMetaProfiles(channelId)
@@ -54,6 +76,7 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
           name?: string;
         }>;
         const withId = list.filter((p) => p.id != null) as MetaProfileOption[];
+        profilesCache.set(channelId, withId);
         setProfiles(withId);
         if (withId.length > 0 && profileId === "") setProfileId(withId[0].id);
       })
@@ -66,16 +89,37 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [channelId]);
+  }, [channelId, profileId]);
 
   useEffect(() => {
     let cancelled = false;
+    const cacheKey = `${channelId}|${filterCampaignId || ""}`;
+
+    const cachedAdsets = adsetsCache.get(cacheKey);
+    const cachedCreatives = creativesCache.get(channelId);
+
+    if (cachedAdsets && cachedCreatives) {
+      setAdsets(cachedAdsets);
+      setCreatives(cachedCreatives);
+      if (!adsetId && cachedAdsets.length > 0) {
+        setAdsetId(cachedAdsets[0].adset_id);
+      }
+      if (!creativeId && cachedCreatives.length > 0) {
+        setCreativeId(cachedCreatives[0].creative_id);
+      }
+      setOptionsLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     setOptionsLoading(true);
     const adsetParams = filterCampaignId
       ? {
           page: 1,
           page_size: 200,
-          filters: [{ field: "campaign_id", value: filterCampaignId }],
+          filters: [{ field: "campaign_id", value: filterCampaignId },
+          ],
         }
       : { page: 1, page_size: 200 };
     Promise.all([
@@ -84,22 +128,30 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
     ])
       .then(([adsetRes, creativeRes]) => {
         if (cancelled) return;
-        setAdsets(
-          (adsetRes.adsets || [])
-            .map((a) => ({
-              adset_id: String(a.adset_id ?? ""),
-              adset_name: a.adset_name ?? "",
-            }))
-            .filter((a) => a.adset_id !== ""),
-        );
-        setCreatives(
-          (creativeRes.creatives || [])
-            .map((c) => ({
-              creative_id: String(c.creative_id ?? ""),
-              creative_name: c.creative_name ?? "",
-            }))
-            .filter((c) => c.creative_id !== ""),
-        );
+        const mappedAdsets: AdsetOption[] = (adsetRes.adsets || [])
+          .map((a: any) => ({
+            adset_id: String(a.adset_id ?? ""),
+            adset_name: a.adset_name ?? "",
+          }))
+          .filter((a: AdsetOption) => a.adset_id !== "");
+        const mappedCreatives: CreativeOption[] = (creativeRes.creatives || [])
+          .map((c: any) => ({
+            creative_id: String(c.creative_id ?? ""),
+            creative_name: c.creative_name ?? "",
+          }))
+          .filter((c: CreativeOption) => c.creative_id !== "");
+
+        adsetsCache.set(cacheKey, mappedAdsets);
+        creativesCache.set(channelId, mappedCreatives);
+
+        setAdsets(mappedAdsets);
+        setCreatives(mappedCreatives);
+        if (!adsetId && mappedAdsets.length > 0) {
+          setAdsetId(mappedAdsets[0].adset_id);
+        }
+        if (!creativeId && mappedCreatives.length > 0) {
+          setCreativeId(mappedCreatives[0].creative_id);
+        }
       })
       .catch(() => {
         if (!cancelled) {
@@ -172,8 +224,9 @@ export const CreateMetaAdPanel: React.FC<CreateMetaAdPanelProps> = ({
     if (creatives.length > 0 && !creativeId) {
       setCreativeId(creatives[0].creative_id);
     }
+    const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
     setName((prev) =>
-      prev && prev.trim().length > 0 ? prev : "Test Ad – Creative 1",
+      prev && prev.trim().length > 0 ? prev : `Test Ad – ${ts}`,
     );
     if (!status) {
       setStatus("PAUSED");

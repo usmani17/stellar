@@ -39,6 +39,8 @@ export const MetaAudiences: React.FC = () => {
   const [lastUsedCursor, setLastUsedCursor] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const createDropdownRef = useRef<HTMLDivElement>(null);
 
   const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
@@ -177,14 +179,22 @@ export const MetaAudiences: React.FC = () => {
     });
   };
 
-  const handleDeleteAudience = useCallback(
-    async (audienceId: string) => {
-      if (!channelIdNum || !window.confirm("Delete this audience? This cannot be undone.")) return;
-      setDeletingId(audienceId);
+  const openDeleteModal = (audienceId: string) => {
+    setPendingDeleteId(audienceId);
+    setShowDeleteModal(true);
+    setDeleteError(null);
+  };
+
+  const handleConfirmDelete = useCallback(
+    async () => {
+      if (!channelIdNum || !pendingDeleteId) return;
+      setDeletingId(pendingDeleteId);
       setDeleteError(null);
       try {
-        await accountsService.deleteMetaAudience(channelIdNum, audienceId);
+        await accountsService.deleteMetaAudience(channelIdNum, pendingDeleteId);
         await loadAudiences();
+        setShowDeleteModal(false);
+        setPendingDeleteId(null);
       } catch (e: unknown) {
         const err = e as { response?: { data?: { error?: string } }; message?: string };
         const message =
@@ -194,7 +204,7 @@ export const MetaAudiences: React.FC = () => {
         setDeletingId(null);
       }
     },
-    [channelIdNum, loadAudiences]
+    [channelIdNum, pendingDeleteId, loadAudiences]
   );
 
   const openCustomPanel = () => {
@@ -336,6 +346,49 @@ export const MetaAudiences: React.FC = () => {
                 </div>
               )}
 
+              {showDeleteModal && pendingDeleteId && (
+                <div
+                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000]"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget && !deletingId) {
+                      setShowDeleteModal(false);
+                      setPendingDeleteId(null);
+                    }
+                  }}
+                >
+                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                      Delete audience?
+                    </h3>
+                    <p className="text-[12.16px] text-[#556179] mb-4">
+                      You are about to permanently delete this audience. This action cannot be undone.
+                    </p>
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (deletingId) return;
+                          setShowDeleteModal(false);
+                          setPendingDeleteId(null);
+                        }}
+                        disabled={!!deletingId}
+                        className="cancel-button"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmDelete}
+                        disabled={!!deletingId}
+                        className="px-4 py-2 bg-red-600 text-white text-[10.64px] rounded-lg hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {deletingId ? "Deleting..." : "Confirm"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="relative">
                 <div
                   className="table-container"
@@ -457,7 +510,7 @@ export const MetaAudiences: React.FC = () => {
                               <td className="table-cell py-3 px-4">
                                 <button
                                   type="button"
-                                  onClick={() => handleDeleteAudience(aid)}
+                                  onClick={() => openDeleteModal(aid)}
                                   disabled={deletingId === aid}
                                   className="p-1.5 rounded hover:bg-red-50 text-[#556179] hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
                                   title="Delete audience"
