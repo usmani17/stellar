@@ -13,6 +13,8 @@ import { cn } from "../lib/cn";
 import { Plus, Pencil, Trash2, BookOpen, ChevronRight, X, Globe, Sparkles, Eye } from "lucide-react";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { MarkdownPromptEditor } from "./workflows/components/MarkdownPromptEditor";
+import { listGoogleSheetsIntegrations } from "../features/brands/google-sheets/api";
+import type { GoogleSheetsIntegration } from "../features/brands/google-sheets/api";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -129,6 +131,13 @@ export const BrandKnowledge: React.FC = () => {
     enabled: !!accountIdNum,
   });
 
+  // Fetch Google Sheets integrations (different table from channels)
+  const { data: googleSheetsIntegrations = [] } = useQuery({
+    queryKey: ["google-sheets-integrations", accountIdNum],
+    queryFn: () => listGoogleSheetsIntegrations(accountIdNum!),
+    enabled: !!accountIdNum,
+  });
+
   // Fetch profiles for profile-level scoping
   const [profiles, setProfiles] = useState<Array<{ id: number; name?: string; channel_type?: string; customer_id?: string }>>([]);
   useEffect(() => {
@@ -171,6 +180,7 @@ export const BrandKnowledge: React.FC = () => {
   const [formTrigger, setFormTrigger] = useState<BrandKbTriggerType>("brand_level");
   const [formChannelIds, setFormChannelIds] = useState<number[]>([]);
   const [formProfileIds, setFormProfileIds] = useState<number[]>([]);
+  const [formGoogleSheetsIntegrationIds, setFormGoogleSheetsIntegrationIds] = useState<number[]>([]);
   const [formKb, setFormKb] = useState("");
   const [formWebsiteUrls, setFormWebsiteUrls] = useState<string[]>([""]);
   const [formEnhancePrompt, setFormEnhancePrompt] = useState("");
@@ -181,6 +191,7 @@ export const BrandKnowledge: React.FC = () => {
     setFormTrigger("brand_level");
     setFormChannelIds([]);
     setFormProfileIds([]);
+    setFormGoogleSheetsIntegrationIds([]);
     setFormKb("");
     setFormWebsiteUrls([""]);
     setFormEnhancePrompt("");
@@ -205,6 +216,7 @@ export const BrandKnowledge: React.FC = () => {
     setFormTrigger(entry.trigger_type);
     setFormChannelIds(entry.channel_ids || []);
     setFormProfileIds(entry.profile_ids || []);
+    setFormGoogleSheetsIntegrationIds(entry.google_sheets_integration_ids || []);
     setFormKb(entry.kb);
     setFormWebsiteUrls(entry.website_urls?.length ? entry.website_urls : [""]);
     setFormEnhancePrompt(entry.enhance_prompt || "");
@@ -236,8 +248,12 @@ export const BrandKnowledge: React.FC = () => {
     const errors: Record<string, string> = {};
     if (!formName.trim()) errors.name = "Name is required";
     if (!formKb.trim()) errors.kb = "Instructions are required";
-    if (formTrigger === "integration_level" && formChannelIds.length === 0) {
-      errors.scope = "Select at least one integration";
+    if (formTrigger === "integration_level") {
+      const hasChannel = formChannelIds.length > 0;
+      const hasSheet = formGoogleSheetsIntegrationIds.length > 0;
+      if (!hasChannel && !hasSheet) {
+        errors.scope = "Select at least one ad integration or Google Sheet integration";
+      }
     }
     if (formTrigger === "profile_level" && formProfileIds.length === 0) {
       errors.scope = "Select at least one profile";
@@ -254,6 +270,8 @@ export const BrandKnowledge: React.FC = () => {
       kb: formKb.trim(),
       channel_ids: formTrigger === "integration_level" ? formChannelIds : [],
       profile_ids: formTrigger === "profile_level" ? formProfileIds : [],
+      google_sheets_integration_ids:
+        formTrigger === "integration_level" ? formGoogleSheetsIntegrationIds : [],
       website_urls: cleanUrls,
       enhance_prompt: formEnhancePrompt.trim(),
     };
@@ -287,6 +305,11 @@ export const BrandKnowledge: React.FC = () => {
   };
   const toggleProfileId = (id: number) => {
     setFormProfileIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+  const toggleGoogleSheetsIntegrationId = (id: number) => {
+    setFormGoogleSheetsIntegrationIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
   };
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -460,6 +483,7 @@ export const BrandKnowledge: React.FC = () => {
                     setFormTrigger(e.target.value as BrandKbTriggerType);
                     setFormChannelIds([]);
                     setFormProfileIds([]);
+                    setFormGoogleSheetsIntegrationIds([]);
                   }}
                   className="w-full px-3 py-2 rounded-lg border border-sandstorm-s40 bg-sandstorm-s5 text-sm text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40"
                 >
@@ -469,33 +493,70 @@ export const BrandKnowledge: React.FC = () => {
                 </select>
               </div>
 
-              {/* Scope selector */}
+              {/* Scope selector — integration_level: channels + Google Sheets */}
               {formTrigger === "integration_level" && (
-                <div>
-                  <label className="block text-sm font-medium text-forest-f60 mb-1">Select Integrations</label>
-                  <div className="border border-sandstorm-s40 rounded-lg max-h-[160px] overflow-y-auto bg-sandstorm-s5">
-                    {channelOptions.length === 0 ? (
-                      <p className="text-xs text-forest-f30 p-3">No active integrations found.</p>
-                    ) : (
-                      channelOptions.map((ch) => (
-                        <label
-                          key={ch.id}
-                          className={cn(
-                            "flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white text-sm",
-                            formChannelIds.includes(ch.id) && "bg-[#E6F2F2]",
-                          )}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={formChannelIds.includes(ch.id)}
-                            onChange={() => toggleChannelId(ch.id)}
-                            className="rounded border-forest-f40 text-forest-f40 focus:ring-forest-f40 accent-forest-f40"
-                          />
-                          <span className="text-forest-f60">{ch.channel_name}</span>
-                          <span className="text-[10px] text-forest-f30 capitalize">({ch.channel_type})</span>
-                        </label>
-                      ))
-                    )}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-forest-f60 mb-1">
+                      Ad Integrations (Meta, Google Ads, etc.)
+                    </label>
+                    <div className="border border-sandstorm-s40 rounded-lg max-h-[140px] overflow-y-auto bg-sandstorm-s5">
+                      {channelOptions.length === 0 ? (
+                        <p className="text-xs text-forest-f30 p-3">No active ad integrations found.</p>
+                      ) : (
+                        channelOptions.map((ch) => (
+                          <label
+                            key={ch.id}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white text-sm",
+                              formChannelIds.includes(ch.id) && "bg-[#E6F2F2]",
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={formChannelIds.includes(ch.id)}
+                              onChange={() => toggleChannelId(ch.id)}
+                              className="rounded border-forest-f40 text-forest-f40 focus:ring-forest-f40 accent-forest-f40"
+                            />
+                            <span className="text-forest-f60">{ch.channel_name}</span>
+                            <span className="text-[10px] text-forest-f30 capitalize">({ch.channel_type})</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-forest-f60 mb-1">
+                      Google Sheets Integrations
+                    </label>
+                    <div className="border border-sandstorm-s40 rounded-lg max-h-[140px] overflow-y-auto bg-sandstorm-s5">
+                      {googleSheetsIntegrations.length === 0 ? (
+                        <p className="text-xs text-forest-f30 p-3">
+                          No Google Sheet integrations. Add them under Google Sheets settings.
+                        </p>
+                      ) : (
+                        (googleSheetsIntegrations as GoogleSheetsIntegration[]).map((int) => (
+                          <label
+                            key={int.id}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white text-sm",
+                              formGoogleSheetsIntegrationIds.includes(int.id) && "bg-[#E6F2F2]",
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={formGoogleSheetsIntegrationIds.includes(int.id)}
+                              onChange={() => toggleGoogleSheetsIntegrationId(int.id)}
+                              className="rounded border-forest-f40 text-forest-f40 focus:ring-forest-f40 accent-forest-f40"
+                            />
+                            <span className="text-forest-f60 truncate">{int.name}</span>
+                            <span className="text-[10px] text-forest-f30 shrink-0">
+                              ({int.sheet_name || "sheet"})
+                            </span>
+                          </label>
+                        ))
+                      )}
+                    </div>
                   </div>
                   {formErrors.scope && <p className="text-xs text-red-r30 mt-1">{formErrors.scope}</p>}
                 </div>

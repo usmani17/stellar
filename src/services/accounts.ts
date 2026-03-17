@@ -57,6 +57,7 @@ export interface BrandKbEntry {
   kb: string;
   channel_ids: number[];
   profile_ids: number[];
+  google_sheets_integration_ids: number[];
   website_urls: string[];
   enhance_prompt: string;
   created_at: string;
@@ -69,6 +70,7 @@ export interface BrandKbEntryCreate {
   kb: string;
   channel_ids?: number[];
   profile_ids?: number[];
+  google_sheets_integration_ids?: number[];
   website_urls?: string[];
   enhance_prompt?: string;
 }
