@@ -812,7 +812,7 @@ function AccountUsersContent({
                     <th className="table-header">Role</th>
                     <th className="table-header">Assigned</th>
                     {isManagerOrOwner && (
-                      <th className="table-header">Actions</th>
+                      <th className="table-header text-right">Actions</th>
                     )}
                   </tr>
                 </thead>
@@ -833,7 +833,38 @@ function AccountUsersContent({
                       <td className="table-cell">
                         <span className="table-text leading-[1.26] text-[#556179]">
                           {u.role === "manager" && (
-                            <>{u.assigned_brands_count ?? 0} brand{(u.assigned_brands_count ?? 0) !== 1 ? "s" : ""}</>
+                            (() => {
+                              const assigned_brand_names = (u.assigned_account_ids ?? [])
+                                .map((id) => accounts.find((a) => a.id === id)?.name)
+                                .filter((name): name is string => Boolean(name));
+
+                              if (assigned_brand_names.length > 0) {
+                                const max_visible = 3;
+                                const visible = assigned_brand_names.slice(0, max_visible);
+                                const remaining = assigned_brand_names.length - visible.length;
+                                const full_label = assigned_brand_names.join(", ");
+
+                                return (
+                                  <div className="flex flex-wrap items-center gap-2 max-w-[420px]" title={full_label}>
+                                    {visible.map((name) => (
+                                      <span
+                                        key={name}
+                                        className="inline-flex items-center px-2 py-1 rounded-full border border-[#e8e8e3] bg-[#F5F5F0] text-[#072929] text-[12px] leading-none"
+                                      >
+                                        {name}
+                                      </span>
+                                    ))}
+                                    {remaining > 0 && (
+                                      <span className="inline-flex items-center px-2 py-1 rounded-full border border-[#e8e8e3] bg-white text-[#556179] text-[12px] leading-none">
+                                        +{remaining}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              }
+
+                              return <>—</>;
+                            })()
                           )}
                           {u.role === "team" && (
                             <>{u.assigned_integrations_count ?? 0} integration{(u.assigned_integrations_count ?? 0) !== 1 ? "s" : ""}</>
@@ -843,7 +874,7 @@ function AccountUsersContent({
                       </td>
                       {isManagerOrOwner && (
                         <td className="table-cell">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-end gap-2">
                             {u.role === "manager" && (
                               <button
                                 type="button"
