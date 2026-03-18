@@ -22,7 +22,8 @@ export type MetaCampaignObjective =
 export type MetaCampaignStatus = "ACTIVE" | "PAUSED" | "ARCHIVED";
 
 export interface CreateMetaCampaignPayload {
-  profile_id: number;
+  /** Meta ad account id (e.g. act_xxx). */
+  profile_id: string | number;
   name: string;
   objective: string;
   status?: MetaCampaignStatus;
@@ -40,6 +41,7 @@ export interface UpdateMetaCampaignPayload {
   name?: string;
   status?: MetaCampaignStatus;
   daily_budget?: number;
+  lifetime_budget?: number;
 }
 
 export interface MetaCampaignCreateResponse {
@@ -148,13 +150,77 @@ export interface MetaObjectStorySpec {
   link_data?: MetaLinkData;
   photo_data?: Record<string, unknown>;
   video_data?: Record<string, unknown>;
+  collection_data?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
-export interface CreateMetaCreativePayload {
-  profile_id: number;
+export type MetaCreativeType = "link_image" | "video" | "carousel" | "collection";
+
+export interface MetaCreativeBaseSpec {
   name: string;
-  object_story_spec: MetaObjectStorySpec;
+  page_id: string;
+  call_to_action_type?: string;
+  [key: string]: unknown;
+}
+
+export interface MetaCreativeLinkSpec extends MetaCreativeBaseSpec {
+  message?: string;
+  body?: string;
+  link: string;
+  image_hash?: string;
+  image_url?: string;
+  title?: string;
+}
+
+export interface MetaCreativeVideoSpec extends MetaCreativeBaseSpec {
+  message?: string;
+  body?: string;
+  video_id: string;
+  title?: string;
+  destination_url?: string;
+  image_hash?: string;
+  image_url?: string;
+}
+
+export interface MetaCreativeCarouselCard {
+  image_hash?: string;
+  picture?: string;
+  video_id?: string;
+  link?: string;
+  name?: string;
+  title?: string;
+  description?: string;
+}
+
+export interface MetaCreativeCarouselSpec extends MetaCreativeBaseSpec {
+  message?: string;
+  link?: string;
+  cards: MetaCreativeCarouselCard[];
+}
+
+export interface MetaCreativeCollectionSpec extends MetaCreativeBaseSpec {
+  product_set_id: string;
+  headline?: string;
+  body?: string;
+  cover_image_hash?: string;
+  cover_image_url?: string;
+  cover_video_id?: string;
+}
+
+export type MetaCreativeSpec =
+  | MetaCreativeLinkSpec
+  | MetaCreativeVideoSpec
+  | MetaCreativeCarouselSpec
+  | MetaCreativeCollectionSpec;
+
+export interface CreateMetaCreativePayload {
+  profile_id: number | string;
+  // Legacy path (kept for backwards compatibility)
+  name?: string;
+  object_story_spec?: MetaObjectStorySpec;
+  // Preferred typed path
+  creative_type?: MetaCreativeType;
+  spec?: MetaCreativeSpec;
 }
 
 export interface MetaCreativeCreateResponse {
@@ -363,7 +429,7 @@ function makeInclusionsRule(rule: AudienceRuleRule): AudienceRuleSet {
 
 export function getExampleAudienceRule(
   template: ExampleAudienceRuleTemplate,
-  options?: { pixelId?: string; videoId?: string; appId?: string }
+  options?: { pixelId?: string; videoId?: string; appId?: string },
 ): AudienceRule {
   const pixelId = options?.pixelId ?? "<PIXEL_ID>";
   const videoId = options?.videoId ?? "<VIDEO_ID>";
@@ -422,7 +488,9 @@ export function getExampleAudienceRule(
         retention_seconds: 30 * SECONDS_PER_DAY,
         filter: {
           operator: "and",
-          filters: [{ field: "event", operator: "eq", value: "fb_mobile_purchase" }],
+          filters: [
+            { field: "event", operator: "eq", value: "fb_mobile_purchase" },
+          ],
         },
       };
       return {

@@ -28,7 +28,6 @@ import {
 import { useEditSummaryModal } from "../../hooks/useEditSummaryModal";
 import { normalizeStatusDisplay } from "../../utils/statusHelpers";
 import { CreateMetaCampaignPanel } from "../../components/meta/CreateMetaCampaignPanel";
-import { EditMetaCampaignPanel } from "../../components/meta/EditMetaCampaignPanel";
 import { Dropdown } from "../../components/ui/Dropdown";
 
 export interface MetaCampaignRow {
@@ -139,13 +138,9 @@ export const MetaCampaigns: React.FC = () => {
   const [inlineConfirmLoading, setInlineConfirmLoading] = useState(false);
   const bulkDropdownRef = useRef<HTMLDivElement>(null);
   const [showCreateCampaignPanel, setShowCreateCampaignPanel] = useState(false);
-  type EditingCampaign = {
-    campaignId: string;
-    name: string;
-    status?: string;
-    dailyBudget?: number;
-  } | null;
-  const [editingCampaign, setEditingCampaign] = useState<EditingCampaign>(null);
+  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(
+    null,
+  );
 
   const { showEditSummary, EditSummaryModal } = useEditSummaryModal();
   const channelIdNum = channelId ? parseInt(channelId, 10) : undefined;
@@ -674,6 +669,7 @@ export const MetaCampaigns: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
+                      setEditingCampaignId(null);
                       setShowCreateCampaignPanel(true);
                       setIsFilterPanelOpen(false);
                     }}
@@ -736,26 +732,19 @@ export const MetaCampaigns: React.FC = () => {
               )}
 
               {/* Create Campaign Panel */}
-              {showCreateCampaignPanel && channelIdNum !== undefined && (
-                <CreateMetaCampaignPanel
-                  channelId={channelIdNum}
-                  onSuccess={loadCampaigns}
-                  onClose={() => setShowCreateCampaignPanel(false)}
-                />
-              )}
-
-              {/* Edit Campaign Panel */}
-              {editingCampaign && channelIdNum !== undefined && (
-                <EditMetaCampaignPanel
-                  channelId={channelIdNum}
-                  campaignId={editingCampaign.campaignId}
-                  initialName={editingCampaign.name}
-                  initialStatus={editingCampaign.status}
-                  initialDailyBudget={editingCampaign.dailyBudget}
-                  onSuccess={loadCampaigns}
-                  onClose={() => setEditingCampaign(null)}
-                />
-              )}
+              {channelIdNum !== undefined &&
+                (showCreateCampaignPanel || editingCampaignId) && (
+                  <CreateMetaCampaignPanel
+                    key={editingCampaignId || "create"}
+                    channelId={channelIdNum}
+                    editCampaignId={editingCampaignId}
+                    onSuccess={loadCampaigns}
+                    onClose={() => {
+                      setShowCreateCampaignPanel(false);
+                      setEditingCampaignId(null);
+                    }}
+                  />
+                )}
 
               {/* Performance Trends Chart - same as Google */}
               <div className="relative">
@@ -1370,19 +1359,27 @@ export const MetaCampaigns: React.FC = () => {
                                     type="button"
                                     onClick={(e) => {
                                       e.preventDefault();
-                                      setEditingCampaign({
-                                        campaignId: cid,
-                                        name: row.campaign_name || "",
-                                        status: row.status,
-                                        dailyBudget:
-                                          row.daily_budget != null
-                                            ? Number(row.daily_budget)
-                                            : undefined,
-                                      });
+                                      setShowCreateCampaignPanel(false);
+                                      setEditingCampaignId(cid);
                                     }}
-                                    className="text-[10.64px] text-[#136D6D] hover:underline shrink-0"
+                                    className="shrink-0 p-1 rounded text-[#136D6D] hover:bg-[#e8f0f0]"
+                                    title="Edit campaign"
+                                    aria-label={`Edit campaign ${row.campaign_name || cid}`}
                                   >
-                                    Edit
+                                    <svg
+                                      className="w-4 h-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                      aria-hidden
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                                      />
+                                    </svg>
                                   </button>
                                 </div>
                               </td>

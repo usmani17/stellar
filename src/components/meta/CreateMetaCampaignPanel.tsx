@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { accountsService } from "../../services/accounts";
 import { metaCampaignsService } from "../../services/meta";
 import type {
   CreateMetaCampaignPayload,
   MetaCampaignStatus,
+  UpdateMetaCampaignPayload,
 } from "../../types/meta";
 import { Dropdown } from "../ui/Dropdown";
 import { Loader } from "../ui/Loader";
@@ -122,6 +123,21 @@ const STATUS_OPTIONS: { value: MetaCampaignStatus; label: string }[] = [
   { value: "ACTIVE", label: "Active" },
   { value: "ARCHIVED", label: "Archived" },
 ];
+
+function normalizeObjectiveForForm(raw: string | undefined): string {
+  const o = (raw || "").trim().toUpperCase();
+  if (META_OBJECTIVES.some((x) => x.value === o)) return o;
+  const legacy: Record<string, string> = {
+    LINK_CLICKS: "OUTCOME_TRAFFIC",
+    CONVERSIONS: "OUTCOME_SALES",
+    BRAND_AWARENESS: "OUTCOME_AWARENESS",
+    REACH: "OUTCOME_AWARENESS",
+    VIDEO_VIEWS: "OUTCOME_ENGAGEMENT",
+    MESSAGES: "OUTCOME_ENGAGEMENT",
+    LEAD_GENERATION: "OUTCOME_LEADS",
+  };
+  return legacy[o] || "OUTCOME_TRAFFIC";
+}
 
 const BUDGET_TYPE_OPTIONS: { value: "daily" | "lifetime"; label: string }[] = [
   { value: "daily", label: "Daily budget" },
@@ -652,13 +668,27 @@ export interface CreateMetaCampaignPanelProps {
   channelId: number;
   onSuccess: () => void;
   onClose: () => void;
+  /** Same form as create; save sends only changed fields (PATCH). */
+  editCampaignId?: string | null;
 }
 
 const inputClass = "campaign-input w-full";
 
+/** Suggested default name (timestamp) — only used when user clicks "Use suggested name", not auto-applied on open or save. */
+function suggestedCreateCampaignName(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  return `Campaign ${y}${m}${d}${hh}${mm}`;
+}
+
 export const CreateMetaCampaignPanel: React.FC<
   CreateMetaCampaignPanelProps
-> = ({ channelId, onSuccess, onClose }) => {
+> = ({ channelId, onSuccess, onClose, editCampaignId = null }) => {
+  const isEditMode = Boolean(editCampaignId && String(editCampaignId).trim());
   const [name, setName] = useState("");
   const [objective, setObjective] = useState("OUTCOME_TRAFFIC");
   const [status, setStatus] = useState<MetaCampaignStatus>("PAUSED");
@@ -681,6 +711,22 @@ export const CreateMetaCampaignPanel: React.FC<
   const [profilesLoading, setProfilesLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editDetailLoading, setEditDetailLoading] = useState(false);
+  const [editDetail, setEditDetail] = useState<{
+    campaign: Record<string, unknown>;
+  } | null>(null);
+  const [editFormReady, setEditFormReady] = useState(false);
+  const [statusEditLocked, setStatusEditLocked] = useState(false);
+  const [deletedStatusLabel, setDeletedStatusLabel] = useState(false);
+  const editBaselineRef = useRef<{
+    name: string;
+    status: MetaCampaignStatus | null;
+    dailyBudget: string;
+    lifetimeBudget: string;
+    budgetMode: "campaign" | "adset";
+    budgetType: "daily" | "lifetime";
+  } | null>(null);
+  const editApplyKeyRef = useRef<string | null>(null);
 
   // Special Ad Category options can be restricted for some objectives (e.g. engagement).
   const specialAdCategoryOptions = useMemo(() => {
@@ -709,20 +755,10 @@ export const CreateMetaCampaignPanel: React.FC<
       setProfileId(profiles[0].id);
     }
     setName((prev) => {
-      const base =
-        prev && prev.trim().length > 0
-          ? prev.trim()
-          : "Test Campaign – Traffic";
-      if (/\d{8,}$/.test(base)) {
-        return base;
+      if (prev && prev.trim().length > 0) {
+        return prev.trim();
       }
-      const now = new Date();
-      const y = now.getFullYear();
-      const m = String(now.getMonth() + 1).padStart(2, "0");
-      const d = String(now.getDate()).padStart(2, "0");
-      const hh = String(now.getHours()).padStart(2, "0");
-      const mm = String(now.getMinutes()).padStart(2, "0");
-      return `${base} ${y}${m}${d}${hh}${mm}`;
+      return suggestedCreateCampaignName();
     });
     setObjective("OUTCOME_TRAFFIC");
     setStatus("PAUSED");
@@ -768,7 +804,7 @@ export const CreateMetaCampaignPanel: React.FC<
           })
           .filter((p): p is MetaProfileOption => p !== null);
         setProfiles(mapped);
-        if (mapped.length > 0 && profileId === "") {
+        if (mapped.length > 0 && profileId === "" && !isEditMode) {
           setProfileId(mapped[0].id);
         }
       })
@@ -781,7 +817,125 @@ export const CreateMetaCampaignPanel: React.FC<
     return () => {
       cancelled = true;
     };
-  }, [channelId]);
+  }, [channelId, isEditMode]);
+
+  useEffect(() => {
+    editApplyKeyRef.current = null;
+    editBaselineRef.current = null;
+    setEditFormReady(false);
+    setStatusEditLocked(false);
+    setDeletedStatusLabel(false);
+  }, [editCampaignId]);
+
+  useEffect(() => {
+    if (!isEditMode || !editCampaignId) {
+      setEditDetail(null);
+      setEditDetailLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setEditDetailLoading(true);
+    setEditDetail(null);
+    accountsService
+      .getMetaCampaignDetail(channelId, editCampaignId)
+      .then((data) => {
+        if (!cancelled)
+          setEditDetail(data as { campaign: Record<string, unknown> });
+      })
+      .catch(() => {
+        if (!cancelled) setEditDetail(null);
+      })
+      .finally(() => {
+        if (!cancelled) setEditDetailLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditMode, editCampaignId, channelId]);
+
+  useEffect(() => {
+    if (!isEditMode || !editDetail?.campaign) return;
+    if (profilesLoading) return;
+    const cid = String(editCampaignId);
+    if (editApplyKeyRef.current === cid) return;
+
+    const c = editDetail.campaign;
+    const st = String(c.status || "PAUSED").toUpperCase();
+    const deleted = st === "DELETED";
+    setDeletedStatusLabel(deleted);
+    setStatusEditLocked(deleted);
+
+    const dd = c.daily_budget_dollars as number | null | undefined;
+    const ld = c.lifetime_budget_dollars as number | null | undefined;
+    const hasDaily = dd != null && dd > 0 && (ld == null || ld <= 0);
+    const hasLife = ld != null && ld > 0;
+    let bm: "campaign" | "adset" = "adset";
+    let bt: "daily" | "lifetime" = "daily";
+    let dbStr = "";
+    let lbStr = "";
+    if (hasDaily) {
+      bm = "campaign";
+      bt = "daily";
+      dbStr = String(dd);
+    } else if (hasLife) {
+      bm = "campaign";
+      bt = "lifetime";
+      lbStr = String(ld);
+    }
+
+    setName(String(c.campaign_name || ""));
+    setObjective(normalizeObjectiveForForm(String(c.objective || "")));
+    const btRaw = String(c.buying_type || "AUCTION").toUpperCase();
+    setBuyingType(btRaw === "RESERVATION" ? "RESERVATION" : "AUCTION");
+    const bid = String(c.bid_strategy || "");
+    setBidStrategy(
+      BID_STRATEGIES.some((b) => b.value === bid)
+        ? bid
+        : "LOWEST_COST_WITHOUT_CAP",
+    );
+    const sacList = (c.special_ad_categories_list as string[]) || [];
+    const firstCat = sacList.find((x) => x && String(x) !== "NONE");
+    setSpecialAdCategories(firstCat ? String(firstCat) : "NONE");
+    setBudgetMode(bm);
+    setBudgetType(bt);
+    setDailyBudget(dbStr);
+    setLifetimeBudget(lbStr);
+    setAdsetBudgetSharingEnabled(true);
+
+    if (!deleted && ["ACTIVE", "PAUSED", "ARCHIVED"].includes(st)) {
+      setStatus(st as MetaCampaignStatus);
+    } else if (!deleted) {
+      setStatus("PAUSED");
+    }
+
+    const actNorm = (s: string) => s.replace(/^act_/i, "").trim();
+    const mid = actNorm(String(c.meta_ad_account_id || ""));
+    const match = profiles.find(
+      (p) =>
+        actNorm(String(p.id)) === mid ||
+        actNorm(String(p.account_id || "")) === mid,
+    );
+    if (match) setProfileId(match.id);
+    else if (mid) setProfileId(mid.startsWith("act_") ? mid : `act_${mid}`);
+    else if (profiles[0]) setProfileId(profiles[0].id);
+
+    const statusBaseline: MetaCampaignStatus | null =
+      !deleted && ["ACTIVE", "PAUSED", "ARCHIVED"].includes(st)
+        ? (st as MetaCampaignStatus)
+        : null;
+    editBaselineRef.current = {
+      name: String(c.campaign_name || "").trim(),
+      status: statusBaseline,
+      dailyBudget: dbStr,
+      lifetimeBudget: lbStr,
+      budgetMode: bm,
+      budgetType: bt,
+    };
+
+    editApplyKeyRef.current = cid;
+    setEditFormReady(true);
+    setError(null);
+  }, [isEditMode, editDetail, profilesLoading, editCampaignId, profiles]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -791,6 +945,60 @@ export const CreateMetaCampaignPanel: React.FC<
       setError("Campaign name is required.");
       return;
     }
+
+    if (isEditMode && editCampaignId) {
+      const b = editBaselineRef.current;
+      if (!b) {
+        setError("Campaign data is not ready yet.");
+        return;
+      }
+      const payload: UpdateMetaCampaignPayload = {};
+      if (trimmedName !== b.name) payload.name = trimmedName;
+      if (!statusEditLocked && b.status !== null && status !== b.status) {
+        payload.status = status;
+      }
+      if (budgetMode === "campaign" && b.budgetMode === "campaign") {
+        if (budgetType === "daily" && b.budgetType === "daily") {
+          const nv = dailyBudget.trim() === "" ? NaN : Number(dailyBudget);
+          const ov = b.dailyBudget.trim() === "" ? NaN : Number(b.dailyBudget);
+          if (!Number.isNaN(nv) && nv !== ov) payload.daily_budget = nv;
+        }
+        if (budgetType === "lifetime" && b.budgetType === "lifetime") {
+          const nv =
+            lifetimeBudget.trim() === "" ? NaN : Number(lifetimeBudget);
+          const ov =
+            b.lifetimeBudget.trim() === "" ? NaN : Number(b.lifetimeBudget);
+          if (!Number.isNaN(nv) && nv !== ov) payload.lifetime_budget = nv;
+        }
+      }
+      if (Object.keys(payload).length === 0) {
+        setError("No changes to save.");
+        return;
+      }
+      setSubmitLoading(true);
+      try {
+        await metaCampaignsService.updateMetaCampaign(
+          channelId,
+          editCampaignId,
+          payload,
+        );
+        onSuccess();
+        onClose();
+      } catch (err: unknown) {
+        const message =
+          err && typeof err === "object" && "response" in err
+            ? (err as { response?: { data?: { error?: string } } }).response
+                ?.data?.error
+            : err instanceof Error
+              ? err.message
+              : "Failed to update campaign.";
+        setError(String(message));
+      } finally {
+        setSubmitLoading(false);
+      }
+      return;
+    }
+
     // Meta now requires special_ad_categories to be provided explicitly.
     // Prevent submits without a selection so we don't hit the API with a missing parameter.
     if (specialAdCategories === "NONE") {
@@ -810,25 +1018,11 @@ export const CreateMetaCampaignPanel: React.FC<
       setError("Please select an ad account.");
       return;
     }
-    // Append timestamp to campaign name (align with Google/Amazon naming)
-    let finalName = trimmedName;
-    if (!/\d{8,}$/.test(finalName)) {
-      const now = new Date();
-      const y = now.getFullYear();
-      const m = String(now.getMonth() + 1).padStart(2, "0");
-      const d = String(now.getDate()).padStart(2, "0");
-      const hh = String(now.getHours()).padStart(2, "0");
-      const mm = String(now.getMinutes()).padStart(2, "0");
-      finalName = `${finalName} ${y}${m}${d}${hh}${mm}`;
-    }
-    if (finalName !== name) {
-      setName(finalName);
-    }
     setSubmitLoading(true);
     try {
       const payload: CreateMetaCampaignPayload = {
         profile_id: resolvedProfileId,
-        name: finalName,
+        name: trimmedName,
         objective,
         status,
         buying_type: buyingType,
@@ -875,16 +1069,57 @@ export const CreateMetaCampaignPanel: React.FC<
     }
   };
 
+  const showMainForm = isEditMode
+    ? Boolean(editDetail && !profilesLoading && editFormReady)
+    : profiles.length > 0 && !profilesLoading;
+
+  const profileDropdownOptions =
+    isEditMode && profiles.length === 0 && profileId
+      ? [
+          {
+            value: profileId,
+            label: String(profileId),
+          },
+        ]
+      : profiles.map((p) => ({
+          value: p.id,
+          label: p.name || p.account_id || `Account ${p.id}`,
+        }));
+
   return (
     <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6] mb-4">
       <form onSubmit={handleSubmit}>
         <div className="p-4 border-b border-gray-200">
           <h2 className="text-[16px] font-semibold text-[#072929]">
-            Create Meta Campaign
+            {isEditMode ? "Edit Meta Campaign" : "Create Meta Campaign"}
           </h2>
         </div>
 
-        {profilesLoading ? (
+        {isEditMode && editDetailLoading ? (
+          <>
+            <div className="p-4 border-b border-gray-200 py-6 flex justify-center">
+              <Loader size="md" message="Loading campaign..." />
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+              <button type="button" onClick={onClose} className="cancel-button">
+                Cancel
+              </button>
+            </div>
+          </>
+        ) : isEditMode && !editDetailLoading && !editDetail ? (
+          <>
+            <div className="p-4 border-b border-gray-200">
+              <p className="text-[12px] text-[#556179] py-4">
+                Campaign not found or could not be loaded.
+              </p>
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+              <button type="button" onClick={onClose} className="cancel-button">
+                Close
+              </button>
+            </div>
+          </>
+        ) : !isEditMode && profilesLoading ? (
           <>
             <div className="p-4 border-b border-gray-200 py-6 flex justify-center">
               <Loader size="md" message="Loading ad accounts..." />
@@ -895,7 +1130,18 @@ export const CreateMetaCampaignPanel: React.FC<
               </button>
             </div>
           </>
-        ) : profiles.length === 0 ? (
+        ) : isEditMode && editDetail && profilesLoading ? (
+          <>
+            <div className="p-4 border-b border-gray-200 py-6 flex justify-center">
+              <Loader size="md" message="Loading ad accounts..." />
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+              <button type="button" onClick={onClose} className="cancel-button">
+                Cancel
+              </button>
+            </div>
+          </>
+        ) : !isEditMode && profiles.length === 0 ? (
           <>
             <div className="p-4 border-b border-gray-200">
               <p className="text-[12px] text-[#556179] py-4">
@@ -909,7 +1155,7 @@ export const CreateMetaCampaignPanel: React.FC<
               </button>
             </div>
           </>
-        ) : (
+        ) : showMainForm ? (
           <>
             <div className="p-4 border-b border-gray-200">
               {error && (
@@ -925,28 +1171,37 @@ export const CreateMetaCampaignPanel: React.FC<
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="form-label-small">Ad account *</label>
-                    <Dropdown<number>
-                      options={profiles.map((p) => ({
-                        value: p.id,
-                        label: p.name || p.account_id || `Account ${p.id}`,
-                      }))}
+                    <Dropdown<string>
+                      options={profileDropdownOptions}
                       value={profileId === "" ? undefined : profileId}
                       placeholder="Select ad account"
                       onChange={(val) => setProfileId(val)}
                       buttonClassName={inputClass}
+                      disabled={isEditMode}
                     />
                   </div>
 
                   {/* Campaign name */}
                   <div>
                     <label className="form-label-small">Campaign name *</label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Summer Sale"
-                      className={inputClass}
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="e.g. Summer Sale"
+                        className={inputClass}
+                      />
+                      {!isEditMode && (
+                        <button
+                          type="button"
+                          onClick={() => setName(suggestedCreateCampaignName())}
+                          className="inline-flex items-center px-3 py-1.5 rounded-md border border-dashed border-forest-f40 text-[11px] text-forest-f40 hover:bg-forest-f10"
+                        >
+                          Use suggested name
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Objective */}
@@ -961,6 +1216,7 @@ export const CreateMetaCampaignPanel: React.FC<
                       placeholder="Select objective"
                       onChange={(val) => setObjective(val)}
                       buttonClassName={inputClass}
+                      disabled={isEditMode}
                     />
                     <p className="text-[11px] text-[#556179] mt-1">
                       {META_OBJECTIVES.find((o) => o.value === objective)
@@ -980,6 +1236,7 @@ export const CreateMetaCampaignPanel: React.FC<
                       placeholder="Select buying type"
                       onChange={(val) => setBuyingType(val)}
                       buttonClassName={inputClass}
+                      disabled={isEditMode}
                     />
                     <p className="text-[11px] text-[#556179] mt-1">
                       {BUYING_TYPES.find((opt) => opt.value === buyingType)
@@ -1001,6 +1258,7 @@ export const CreateMetaCampaignPanel: React.FC<
                       placeholder="Select category"
                       onChange={(val) => setSpecialAdCategories(val)}
                       buttonClassName={inputClass}
+                      disabled={isEditMode}
                     />
                     {(() => {
                       const caption = specialAdCategoryOptions.find(
@@ -1017,13 +1275,20 @@ export const CreateMetaCampaignPanel: React.FC<
                   {/* Status */}
                   <div>
                     <label className="form-label-small">Status</label>
-                    <Dropdown<MetaCampaignStatus>
-                      options={STATUS_OPTIONS}
-                      value={status}
-                      placeholder="Select status"
-                      onChange={(val) => setStatus(val)}
-                      buttonClassName={inputClass}
-                    />
+                    {deletedStatusLabel ? (
+                      <p className="text-[12px] text-[#556179] py-2">
+                        Deleted — status cannot be changed.
+                      </p>
+                    ) : (
+                      <Dropdown<MetaCampaignStatus>
+                        options={STATUS_OPTIONS}
+                        value={status}
+                        placeholder="Select status"
+                        onChange={(val) => setStatus(val)}
+                        buttonClassName={inputClass}
+                        disabled={isEditMode && statusEditLocked}
+                      />
+                    )}
                   </div>
 
                   {/* Budget mode and campaign-level budget */}
@@ -1037,6 +1302,7 @@ export const CreateMetaCampaignPanel: React.FC<
                           className="mt-[2px]"
                           checked={budgetMode === "campaign"}
                           onChange={() => setBudgetMode("campaign")}
+                          disabled={isEditMode}
                         />
                         <span>
                           <span className="font-semibold">
@@ -1054,6 +1320,7 @@ export const CreateMetaCampaignPanel: React.FC<
                           className="mt-[2px]"
                           checked={budgetMode === "adset"}
                           onChange={() => setBudgetMode("adset")}
+                          disabled={isEditMode}
                         />
                         <span>
                           <span className="font-semibold">
@@ -1077,6 +1344,7 @@ export const CreateMetaCampaignPanel: React.FC<
                           placeholder="Select budget type"
                           onChange={(val) => setBudgetType(val)}
                           buttonClassName={inputClass}
+                          disabled={isEditMode}
                         />
                       </div>
 
@@ -1120,6 +1388,7 @@ export const CreateMetaCampaignPanel: React.FC<
                           onChange={(e) =>
                             setAdsetBudgetSharingEnabled(e.target.checked)
                           }
+                          disabled={isEditMode}
                         />
                         <span>
                           Enable Ad Set Budget Sharing (recommended). Allows
@@ -1142,6 +1411,7 @@ export const CreateMetaCampaignPanel: React.FC<
                       placeholder="Select bid strategy"
                       onChange={(val) => setBidStrategy(val)}
                       buttonClassName={inputClass}
+                      disabled={isEditMode}
                     />
                     <p className="text-[11px] text-[#556179] mt-1">
                       {BID_STRATEGIES.find((opt) => opt.value === bidStrategy)
@@ -1175,6 +1445,7 @@ export const CreateMetaCampaignPanel: React.FC<
                       searchable={true}
                       searchPlaceholder="Search countries..."
                       emptyMessage="No countries available"
+                      disabled={isEditMode}
                     />
                     {specialAdCategoryCountry.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -1212,13 +1483,15 @@ export const CreateMetaCampaignPanel: React.FC<
             </div>
 
             <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={handleFillTest}
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-dashed border-forest-f40 text-[11px] text-forest-f40 hover:bg-forest-f10"
-              >
-                Fill test values
-              </button>
+              {!isEditMode && (
+                <button
+                  type="button"
+                  onClick={handleFillTest}
+                  className="inline-flex items-center px-3 py-1.5 rounded-md border border-dashed border-forest-f40 text-[11px] text-forest-f40 hover:bg-forest-f10"
+                >
+                  Fill test values
+                </button>
+              )}
               <button type="button" onClick={onClose} className="cancel-button">
                 Cancel
               </button>
@@ -1227,7 +1500,24 @@ export const CreateMetaCampaignPanel: React.FC<
                 disabled={submitLoading}
                 className="create-entity-button font-semibold text-[11.2px] flex items-center gap-2"
               >
-                {submitLoading ? "Creating..." : "Create campaign"}
+                {submitLoading
+                  ? isEditMode
+                    ? "Saving..."
+                    : "Creating..."
+                  : isEditMode
+                    ? "Save changes"
+                    : "Create campaign"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="p-4 border-b border-gray-200 py-6 flex justify-center">
+              <Loader size="md" message="Preparing form..." />
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+              <button type="button" onClick={onClose} className="cancel-button">
+                Cancel
               </button>
             </div>
           </>

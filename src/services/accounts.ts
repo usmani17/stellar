@@ -52,13 +52,19 @@ export interface AccountsPaginatedResponse {
 
 export const accountsService = {
   // Account methods
-  getAccounts: async (params?: { all?: boolean; include_channels?: boolean }): Promise<Account[]> => {
+  getAccounts: async (params?: {
+    all?: boolean;
+    include_channels?: boolean;
+  }): Promise<Account[]> => {
     const requestParams: Record<string, string> = {};
-    if (params?.all) requestParams.all = 'true';
-    if (params?.include_channels) requestParams.include_channels = 'true';
-    const response = await api.get<Account[] | AccountsPaginatedResponse>("/accounts/", {
-      params: Object.keys(requestParams).length ? requestParams : undefined,
-    });
+    if (params?.all) requestParams.all = "true";
+    if (params?.include_channels) requestParams.include_channels = "true";
+    const response = await api.get<Account[] | AccountsPaginatedResponse>(
+      "/accounts/",
+      {
+        params: Object.keys(requestParams).length ? requestParams : undefined,
+      },
+    );
     // Ensure we always return an array
     const data = response.data;
     if (Array.isArray(data)) {
@@ -95,12 +101,12 @@ export const accountsService = {
   createAccount: async (data: CreateAccountData): Promise<Account[]> => {
     const response = await api.post<Account[]>("/accounts/", data);
     const res = response.data;
-    return Array.isArray(res) ? res : (res as any)?.results ?? [];
+    return Array.isArray(res) ? res : ((res as any)?.results ?? []);
   },
 
   updateAccount: async (
     id: number,
-    data: Partial<CreateAccountData>
+    data: Partial<CreateAccountData>,
   ): Promise<Account> => {
     const response = await api.put<Account>(`/accounts/${id}/`, data);
     return response.data;
@@ -113,7 +119,7 @@ export const accountsService = {
   // Account channels
   getAccountChannels: async (accountId: number): Promise<Channel[]> => {
     const response = await api.get<Channel[]>(
-      `/accounts/${accountId}/channels/`
+      `/accounts/${accountId}/channels/`,
     );
     const data = response.data;
     if (Array.isArray(data)) {
@@ -133,39 +139,42 @@ export const accountsService = {
   updateChannel: async (
     accountId: number,
     channelId: number,
-    data: Partial<{ channel_name: string }>
+    data: Partial<{ channel_name: string }>,
   ): Promise<Channel> => {
     const response = await api.put<Channel>(
       `/accounts/${accountId}/channels/${channelId}/`,
-      data
+      data,
     );
     return response.data;
   },
 
-  deleteChannel: async (accountId: number, channelId: number): Promise<void> => {
+  deleteChannel: async (
+    accountId: number,
+    channelId: number,
+  ): Promise<void> => {
     await api.delete(`/accounts/${accountId}/channels/${channelId}/`);
   },
 
   // Amazon OAuth
   initiateAmazonOAuth: async (
-    accountId: number
+    accountId: number,
   ): Promise<{ auth_url: string }> => {
     const response = await api.get<{ auth_url: string }>(
-      `/accounts/amazon-oauth/initiate/?account_id=${accountId}`
+      `/accounts/amazon-oauth/initiate/?account_id=${accountId}`,
     );
     return response.data;
   },
 
   handleAmazonOAuthCallback: async (
     code: string,
-    state?: string
+    state?: string,
   ): Promise<Channel> => {
     const response = await api.post<Channel>(
       "/accounts/amazon-oauth/callback/",
       {
         code,
         state,
-      }
+      },
     );
     console.log("OAuth callback service response:", response.data);
     return response.data;
@@ -173,17 +182,17 @@ export const accountsService = {
 
   // Google OAuth
   initiateGoogleOAuth: async (
-    accountId: number
+    accountId: number,
   ): Promise<{ auth_url: string }> => {
     const response = await api.get<{ auth_url: string }>(
-      `/accounts/google-oauth/initiate/?account_id=${accountId}`
+      `/accounts/google-oauth/initiate/?account_id=${accountId}`,
     );
     return response.data;
   },
 
   handleGoogleOAuthCallback: async (
     code: string,
-    state?: string
+    state?: string,
   ): Promise<any> => {
     const response = await api.post<any>("/accounts/google-oauth/callback/", {
       code,
@@ -195,41 +204,38 @@ export const accountsService = {
 
   // Meta OAuth
   initiateMetaOAuth: async (
-    accountId: number
+    accountId: number,
   ): Promise<{ auth_url: string }> => {
     const response = await api.get<{ auth_url: string }>(
-      `/meta/oauth/initiate/?account_id=${accountId}`
+      `/meta/oauth/initiate/?account_id=${accountId}`,
     );
     return response.data;
   },
 
   handleMetaOAuthCallback: async (
     code: string,
-    state?: string
+    state?: string,
   ): Promise<Channel> => {
-    const response = await api.post<Channel>(
-      "/meta/oauth/callback/",
-      {
-        code,
-        state,
-      }
-    );
+    const response = await api.post<Channel>("/meta/oauth/callback/", {
+      code,
+      state,
+    });
     return response.data;
   },
 
   // TikTok OAuth
   initiateTikTokOAuth: async (
-    accountId: number
+    accountId: number,
   ): Promise<{ auth_url: string }> => {
     const response = await api.get<{ auth_url: string }>(
-      `/accounts/tiktok-oauth/initiate/?account_id=${accountId}`
+      `/accounts/tiktok-oauth/initiate/?account_id=${accountId}`,
     );
     return response.data;
   },
 
   handleTikTokOAuthCallback: async (
     code: string,
-    state?: string
+    state?: string,
   ): Promise<Channel> => {
     // TikTok sends auth_code, send it as auth_code to backend for clarity
     // Backend accepts both 'code' and 'auth_code' for compatibility
@@ -238,7 +244,7 @@ export const accountsService = {
       {
         auth_code: code, // Send as auth_code since that's what TikTok provides
         state,
-      }
+      },
     );
     console.log("TikTok OAuth callback service response:", response.data);
     return response.data;
@@ -247,9 +253,9 @@ export const accountsService = {
   // Google Profiles (now using channel_id, similar to Amazon profiles)
   getGoogleProfiles: async (
     channelId: number,
-    selectedOnly: boolean = false
+    selectedOnly: boolean = false,
   ): Promise<{ profiles: any[]; total: number; selected: number }> => {
-    const url = selectedOnly 
+    const url = selectedOnly
       ? `/accounts/channels/${channelId}/google-profiles/?selected_only=true`
       : `/accounts/channels/${channelId}/google-profiles/`;
     const response = await api.get<{
@@ -261,10 +267,10 @@ export const accountsService = {
   },
 
   fetchGoogleProfiles: async (
-    channelId: number
+    channelId: number,
   ): Promise<{ profiles: any[]; hierarchy: any[] }> => {
     const response = await api.get<{ profiles: any[]; hierarchy: any[] }>(
-      `/accounts/channels/${channelId}/google-profiles/fetch/`
+      `/accounts/channels/${channelId}/google-profiles/fetch/`,
     );
     const profiles = response.data.profiles || [];
     const hierarchy = response.data.hierarchy || [];
@@ -277,14 +283,14 @@ export const accountsService = {
   saveGoogleProfiles: async (
     channelId: number,
     profileIds: string[],
-    profiles?: any[]
+    profiles?: any[],
   ): Promise<any> => {
     const response = await api.post(
       `/accounts/channels/${channelId}/google-profiles/save/`,
       {
         profile_ids: profileIds,
         profiles: profiles || [],
-      }
+      },
     );
     return response.data;
   },
@@ -294,7 +300,7 @@ export const accountsService = {
    * Uses account_id (not channel_id). Each profile includes channel_id, channel_name, channel_type.
    */
   getAccountProfiles: async (
-    accountId: number
+    accountId: number,
   ): Promise<{ profiles: any[]; total: number }> => {
     const response = await api.get<{
       profiles: any[];
@@ -305,7 +311,7 @@ export const accountsService = {
 
   // Amazon Profiles (per channel; for channel-specific screens)
   getProfiles: async (
-    channelId: number
+    channelId: number,
   ): Promise<{ profiles: any[]; total: number; selected: number }> => {
     const response = await api.get<{
       profiles: any[];
@@ -316,7 +322,7 @@ export const accountsService = {
   },
 
   fetchProfiles: async (channelId: number): Promise<any> => {
-    const response = await api.get<{ 
+    const response = await api.get<{
       profiles: any[];
       excluded_profiles?: Array<{
         profileId: string;
@@ -328,9 +334,7 @@ export const accountsService = {
       total_fetched?: number;
       existing_count?: number;
       available_count?: number;
-    }>(
-      `/accounts/channels/${channelId}/profiles/fetch/`
-    );
+    }>(`/accounts/channels/${channelId}/profiles/fetch/`);
     // Return full response object to access excluded_profiles and other metadata
     return response.data;
   },
@@ -338,21 +342,21 @@ export const accountsService = {
   saveProfiles: async (
     channelId: number,
     profileIds: string[],
-    profiles?: any[]
+    profiles?: any[],
   ): Promise<any> => {
     const response = await api.post(
       `/accounts/channels/${channelId}/profiles/save/`,
       {
         profile_ids: profileIds,
         profiles: profiles || [],
-      }
+      },
     );
     return response.data;
   },
 
   // TikTok Profiles (using channel_id)
   getTikTokProfiles: async (
-    channelId: number
+    channelId: number,
   ): Promise<{ profiles: any[]; total: number; selected: number }> => {
     const response = await api.get<{
       profiles: any[];
@@ -363,7 +367,7 @@ export const accountsService = {
   },
 
   fetchTikTokProfiles: async (channelId: number): Promise<any> => {
-    const response = await api.get<{ 
+    const response = await api.get<{
       profiles: any[];
       excluded_profiles?: Array<{
         advertiser_id: string;
@@ -375,9 +379,7 @@ export const accountsService = {
       total_fetched?: number;
       existing_count?: number;
       available_count?: number;
-    }>(
-      `/accounts/channels/${channelId}/tiktok-profiles/fetch/`
-    );
+    }>(`/accounts/channels/${channelId}/tiktok-profiles/fetch/`);
     // Return full response object to access excluded_profiles and other metadata
     return response.data;
   },
@@ -385,21 +387,21 @@ export const accountsService = {
   saveTikTokProfiles: async (
     channelId: number,
     profileIds: string[],
-    profiles?: any[]
+    profiles?: any[],
   ): Promise<any> => {
     const response = await api.post(
       `/accounts/channels/${channelId}/tiktok-profiles/save/`,
       {
         profile_ids: profileIds,
         profiles: profiles || [],
-      }
+      },
     );
     return response.data;
   },
 
   // Meta profiles
   fetchMetaProfiles: async (
-    channelId: number
+    channelId: number,
   ): Promise<{
     profiles: any[];
     excluded_profiles?: Array<{
@@ -421,14 +423,14 @@ export const accountsService = {
   saveMetaProfiles: async (
     channelId: number,
     profileIds: string[],
-    profiles?: any[]
+    profiles?: any[],
   ): Promise<any> => {
     const response = await api.post(
       `/meta/channels/${channelId}/profiles/save/`,
       {
         profile_ids: profileIds,
         profiles: profiles || [],
-      }
+      },
     );
     return response.data;
   },
@@ -443,7 +445,7 @@ export const accountsService = {
       order?: "asc" | "desc";
       start_date?: string;
       end_date?: string;
-    }
+    },
   ): Promise<{
     campaigns: Array<{
       id: number;
@@ -483,14 +485,14 @@ export const accountsService = {
   }> => {
     const response = await api.post(
       `/meta/channels/${channelId}/campaigns/`,
-      params
+      params,
     );
     return response.data;
   },
 
   getMetaCampaignsByIds: async (
     channelId: number,
-    params: { campaignIds: string[] }
+    params: { campaignIds: string[] },
   ): Promise<{
     campaigns: Array<{
       id?: number;
@@ -504,7 +506,7 @@ export const accountsService = {
   }> => {
     const response = await api.post(
       `/meta/channels/${channelId}/campaigns/by-ids/`,
-      params
+      params,
     );
     return response.data;
   },
@@ -521,7 +523,7 @@ export const accountsService = {
       budget_value?: number;
       upper_limit?: number;
       lower_limit?: number;
-    }
+    },
   ): Promise<{
     updated: number;
     failed: number;
@@ -536,7 +538,7 @@ export const accountsService = {
   }> => {
     const response = await api.post(
       `/meta/channels/${channelId}/campaigns/bulk-update/`,
-      payload
+      payload,
     );
     return response.data;
   },
@@ -551,7 +553,7 @@ export const accountsService = {
       order?: "asc" | "desc";
       start_date?: string;
       end_date?: string;
-    }
+    },
   ): Promise<{
     adsets: Array<{
       id: number;
@@ -593,14 +595,14 @@ export const accountsService = {
   }> => {
     const response = await api.post(
       `/meta/channels/${channelId}/adsets/`,
-      params
+      params,
     );
     return response.data;
   },
 
   getMetaAdSetsByIds: async (
     channelId: number,
-    params: { adsetIds: string[] }
+    params: { adsetIds: string[] },
   ): Promise<{
     adsets: Array<{
       id: number;
@@ -618,7 +620,7 @@ export const accountsService = {
   }> => {
     const response = await api.post(
       `/meta/channels/${channelId}/adsets/by-ids/`,
-      params
+      params,
     );
     return response.data;
   },
@@ -635,7 +637,7 @@ export const accountsService = {
       budget_value?: number;
       upper_limit?: number;
       lower_limit?: number;
-    }
+    },
   ): Promise<{
     updated: number;
     failed: number;
@@ -650,7 +652,7 @@ export const accountsService = {
   }> => {
     const response = await api.post(
       `/meta/channels/${channelId}/adsets/bulk-update/`,
-      payload
+      payload,
     );
     return response.data;
   },
@@ -658,7 +660,7 @@ export const accountsService = {
   updateMetaAd: async (
     channelId: number,
     adId: string,
-    payload: { name?: string; status?: string }
+    payload: { name?: string; status?: string },
   ): Promise<{
     updated: number;
     failed: number;
@@ -667,14 +669,14 @@ export const accountsService = {
   }> => {
     const response = await api.patch(
       `/meta/channels/${channelId}/ads/${encodeURIComponent(adId)}/update/`,
-      payload
+      payload,
     );
     return response.data;
   },
 
   bulkUpdateMetaAds: async (
     channelId: number,
-    payload: { adIds: string[]; name?: string; status?: string }
+    payload: { adIds: string[]; name?: string; status?: string },
   ): Promise<{
     updated: number;
     failed: number;
@@ -683,7 +685,7 @@ export const accountsService = {
   }> => {
     const response = await api.post(
       `/meta/channels/${channelId}/ads/bulk-update/`,
-      payload
+      payload,
     );
     return response.data;
   },
@@ -698,7 +700,7 @@ export const accountsService = {
       order?: "asc" | "desc";
       start_date?: string;
       end_date?: string;
-    }
+    },
   ): Promise<{
     ads: Array<{
       id: number;
@@ -738,17 +740,14 @@ export const accountsService = {
     page_size: number;
     total_pages: number;
   }> => {
-    const response = await api.post(
-      `/meta/channels/${channelId}/ads/`,
-      params
-    );
+    const response = await api.post(`/meta/channels/${channelId}/ads/`, params);
     return response.data;
   },
 
   getMetaCampaignDetail: async (
     channelId: number,
     campaignId: string,
-    params?: { start_date?: string; end_date?: string }
+    params?: { start_date?: string; end_date?: string },
   ): Promise<{
     campaign: {
       id: number;
@@ -782,7 +781,7 @@ export const accountsService = {
   }> => {
     const response = await api.get(
       `/meta/channels/${channelId}/campaigns/${encodeURIComponent(campaignId)}/`,
-      { params: params || {} }
+      { params: params || {} },
     );
     return response.data;
   },
@@ -797,7 +796,7 @@ export const accountsService = {
       order?: "asc" | "desc";
       start_date?: string;
       end_date?: string;
-    }
+    },
   ): Promise<{
     creatives: Array<{
       id: number;
@@ -824,7 +823,13 @@ export const accountsService = {
       avg_acos: number;
       avg_roas: number;
     };
-    chart_data?: Array<{ date: string; spend: number; sales: number; impressions?: number; clicks?: number }>;
+    chart_data?: Array<{
+      date: string;
+      spend: number;
+      sales: number;
+      impressions?: number;
+      clicks?: number;
+    }>;
     total: number;
     page: number;
     page_size: number;
@@ -832,7 +837,7 @@ export const accountsService = {
   }> => {
     const response = await api.post(
       `/meta/channels/${channelId}/creatives/`,
-      params
+      params,
     );
     return response.data;
   },
@@ -847,7 +852,7 @@ export const accountsService = {
       sort_by?: string;
       order?: "asc" | "desc";
       after?: string;
-    }
+    },
   ): Promise<{
     audiences: Array<{
       id?: number;
@@ -869,58 +874,56 @@ export const accountsService = {
   }> => {
     const response = await api.post(
       `/meta/channels/${channelId}/audiences/`,
-      params
+      params,
     );
     return response.data;
   },
 
   getMetaPixels: async (
     channelId: number,
-    profileId?: number | string
+    profileId?: number | string,
   ): Promise<{ pixels: Array<{ id: string; name: string }> }> => {
     const params = profileId != null ? { profile_id: profileId } : {};
-    const response = await api.get(
-      `/meta/channels/${channelId}/pixels/`,
-      { params }
-    );
+    const response = await api.get(`/meta/channels/${channelId}/pixels/`, {
+      params,
+    });
     return response.data;
   },
 
   getMetaOwnedApps: async (
     channelId: number,
-    profileId?: number | string
+    profileId?: number | string,
   ): Promise<{ apps: Array<{ id: string; name: string; link?: string }> }> => {
     const params = profileId != null ? { profile_id: profileId } : {};
-    const response = await api.get(
-      `/meta/channels/${channelId}/apps/`,
-      { params }
-    );
+    const response = await api.get(`/meta/channels/${channelId}/apps/`, {
+      params,
+    });
     return response.data;
   },
 
   deleteMetaAudience: async (
     channelId: number,
-    audienceId: string
+    audienceId: string,
   ): Promise<void> => {
     await api.delete(
-      `/meta/channels/${channelId}/audiences/${encodeURIComponent(audienceId)}/`
+      `/meta/channels/${channelId}/audiences/${encodeURIComponent(audienceId)}/`,
     );
   },
 
   createMetaCustomAudience: async (
     channelId: number,
-    payload: CustomAudienceCreatePayload
+    payload: CustomAudienceCreatePayload,
   ): Promise<MetaAudienceCreateResponse> => {
     const response = await api.post(
       `/meta/channels/${channelId}/audiences/custom/`,
-      payload
+      payload,
     );
     return response.data;
   },
 
   createMetaLookalikeAudience: async (
     channelId: number,
-    payload: LookalikeAudienceCreatePayload
+    payload: LookalikeAudienceCreatePayload,
   ): Promise<MetaAudienceCreateResponse> => {
     const body: CustomAudienceCreatePayload = {
       subtype: "LOOKALIKE",
@@ -934,7 +937,7 @@ export const accountsService = {
     };
     const response = await api.post(
       `/meta/channels/${channelId}/audiences/custom/`,
-      body
+      body,
     );
     return response.data;
   },
@@ -942,7 +945,7 @@ export const accountsService = {
   // Amazon Portfolios (per account, optionally filtered by profileId)
   getPortfolios: async (
     accountId: number,
-    profileId?: string
+    profileId?: string,
   ): Promise<Array<{ id: string; name: string }>> => {
     const params = profileId ? { profileId } : {};
     const response = await api.get<{
@@ -954,7 +957,7 @@ export const accountsService = {
   // Amazon Brand Entities (per account, optionally filtered by profileId)
   getBrandEntities: async (
     accountId: number,
-    profileId?: string
+    profileId?: string,
   ): Promise<Array<{ brandEntityId: string; brandRegistryName: string }>> => {
     const params = profileId ? { profileId } : {};
     const response = await api.get<{
@@ -967,8 +970,16 @@ export const accountsService = {
   },
 
   // AWS Identity (public endpoint)
-  getAWSIdentity: async (): Promise<{ UserId?: string; Account?: string; Arn?: string }> => {
-    const response = await api.get<{ UserId?: string; Account?: string; Arn?: string }>('/accounts/aws-identity/');
+  getAWSIdentity: async (): Promise<{
+    UserId?: string;
+    Account?: string;
+    Arn?: string;
+  }> => {
+    const response = await api.get<{
+      UserId?: string;
+      Account?: string;
+      Arn?: string;
+    }>("/accounts/aws-identity/");
     return response.data;
   },
 };

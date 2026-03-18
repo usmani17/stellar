@@ -14,6 +14,8 @@ interface MetaCampaignDetailCreativesTabProps {
   selectedIds: Set<string | number>;
   onSelectAll: (checked: boolean) => void;
   onSelectOne: (id: string | number, checked: boolean) => void;
+  searchName: string;
+  onSearchNameChange: (value: string) => void;
   sortBy: string;
   sortOrder: "asc" | "desc";
   onSort: (column: string) => void;
@@ -30,6 +32,8 @@ export const MetaCampaignDetailCreativesTab: React.FC<MetaCampaignDetailCreative
   selectedIds,
   onSelectAll,
   onSelectOne,
+  searchName,
+  onSearchNameChange,
   sortBy,
   sortOrder,
   onSort,
@@ -47,7 +51,15 @@ export const MetaCampaignDetailCreativesTab: React.FC<MetaCampaignDetailCreative
       {(createButton != null || createPanel != null) && (
         <>
           <div className="flex items-center justify-between mb-4">
-            <div />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={searchName}
+                onChange={(e) => onSearchNameChange(e.target.value)}
+                placeholder="Search creatives by name..."
+                className="campaign-input w-[320px]"
+              />
+            </div>
             <div className="flex items-center gap-2">
               {createButton}
             </div>

@@ -8,12 +8,13 @@ import { formatCurrency } from "./formatters";
 /** Format old/new value with currency when field is Budget or Bid. */
 export function formatMoneyForEditSummary(
   value: string | number | undefined | null,
-  currency?: string
+  currency?: string,
 ): string {
   if (value == null || value === "" || value === "—") return "—";
-  const num = typeof value === "number"
-    ? value
-    : parseFloat(String(value).replace(/[^0-9.-]/g, ""));
+  const num =
+    typeof value === "number"
+      ? value
+      : parseFloat(String(value).replace(/[^0-9.-]/g, ""));
   if (isNaN(num)) return String(value);
   return formatCurrency(num, currency ?? "USD");
 }
@@ -82,7 +83,10 @@ function fieldLabel(field: string): string {
     endDate: "End date",
     state: "Status",
   };
-  return map[field] ?? field.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
+  return (
+    map[field] ??
+    field.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())
+  );
 }
 
 /**
@@ -155,7 +159,13 @@ export function buildEditSummary(opts: EditSummaryOptions): EditSummaryResult {
     if (allFailed) {
       title = "Update failed";
       variant = "error";
-      const verb = { updated: "update", created: "create", deleted: "delete", archived: "archive" }[action] ?? "update";
+      const verb =
+        {
+          updated: "update",
+          created: "create",
+          deleted: "delete",
+          archived: "archive",
+        }[action] ?? "update";
       base = `${singular} failed to ${verb}.`;
     } else if (hasFailure) {
       title = "Partial success";
@@ -192,7 +202,9 @@ export function buildEditSummary(opts: EditSummaryOptions): EditSummaryResult {
     const summary =
       details.length > 0
         ? `${base} ${details
-            .filter((d) => d.field && (d.oldValue != null || d.newValue != null))
+            .filter(
+              (d) => d.field && (d.oldValue != null || d.newValue != null),
+            )
             .map((d) => `${d.field}: ${d.oldValue ?? ""} → ${d.newValue ?? ""}`)
             .join(".")}`
         : base;
@@ -217,7 +229,13 @@ export function buildEditSummary(opts: EditSummaryOptions): EditSummaryResult {
     if (succeededCount > 0) {
       summary = `${succeededCount} ${plural} ${action} successfully. ${failedCount} failed.`;
     } else {
-      const verb = { updated: "update", created: "create", deleted: "delete", archived: "archive" }[action] ?? action;
+      const verb =
+        {
+          updated: "update",
+          created: "create",
+          deleted: "delete",
+          archived: "archive",
+        }[action] ?? action;
       summary = `All ${failedCount > 1 ? failedCount + " " : ""}${failedCount === 1 ? singular : plural} failed to ${verb}.`;
     }
   }

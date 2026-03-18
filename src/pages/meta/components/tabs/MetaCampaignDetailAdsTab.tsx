@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import { Checkbox } from "../../../../components/ui/Checkbox";
 import { Loader } from "../../../../components/ui/Loader";
-import { formatCurrency2Decimals, getSortIcon } from "../../../google/utils/campaignDetailHelpers";
+import {
+  formatCurrency2Decimals,
+  getSortIcon,
+} from "../../../google/utils/campaignDetailHelpers";
 import { normalizeStatusDisplay } from "../../../../utils/statusHelpers";
 import type { MetaAdRow } from "../../../hooks/useMetaCampaignDetailAds";
 
@@ -24,7 +27,9 @@ interface MetaCampaignDetailAdsTabProps {
   onBulkStatus?: (ids: (string | number)[], status: string) => void;
 }
 
-export const MetaCampaignDetailAdsTab: React.FC<MetaCampaignDetailAdsTabProps> = (props) => {
+export const MetaCampaignDetailAdsTab: React.FC<
+  MetaCampaignDetailAdsTabProps
+> = (props) => {
   const {
     ads,
     loading,
@@ -43,7 +48,8 @@ export const MetaCampaignDetailAdsTab: React.FC<MetaCampaignDetailAdsTabProps> =
     onInlineNameBlur,
     onBulkStatus,
   } = props;
-  const allSelected = ads.length > 0 && ads.every((a) => selectedIds.has(a.ad_id ?? a.id));
+  const allSelected =
+    ads.length > 0 && ads.every((a) => selectedIds.has(a.ad_id ?? a.id));
   const someSelected = selectedIds.size > 0;
 
   const [editingAdId, setEditingAdId] = useState<string | null>(null);
@@ -53,17 +59,18 @@ export const MetaCampaignDetailAdsTab: React.FC<MetaCampaignDetailAdsTabProps> =
 
   const getStatusOption = (status: string | undefined): string => {
     const u = (status ?? "").toUpperCase();
-    if (u === "ACTIVE" || u === "PAUSED" || u === "ARCHIVED" || u === "DELETED") return u;
+    if (u === "ACTIVE" || u === "PAUSED" || u === "ARCHIVED" || u === "DELETED")
+      return u;
     return "PAUSED";
   };
 
-  const getRestrictedStatusOptions = (status: string | undefined): Array<{ value: string; label: string }> => {
+  const getRestrictedStatusOptions = (
+    status: string | undefined,
+  ): Array<{ value: string; label: string }> => {
     const current = (status ?? "").toUpperCase();
     if (current === "DELETED") {
       // Deleted ads: status cannot be changed; handled by disabling dropdown.
-      return [
-        { value: "DELETED", label: "Deleted" },
-      ];
+      return [{ value: "DELETED", label: "Deleted" }];
     }
     if (current === "ARCHIVED") {
       // Archived ads: can only move to DELETED.
@@ -82,7 +89,9 @@ export const MetaCampaignDetailAdsTab: React.FC<MetaCampaignDetailAdsTabProps> =
 
   return (
     <div className="relative">
-      {(createButton != null || createPanel != null || onBulkStatus != null) && (
+      {(createButton != null ||
+        createPanel != null ||
+        onBulkStatus != null) && (
         <>
           <div className="flex items-center justify-end gap-2 mb-4">
             {typeof onBulkStatus === "function" && (
@@ -159,7 +168,11 @@ export const MetaCampaignDetailAdsTab: React.FC<MetaCampaignDetailAdsTabProps> =
                 />
               </th>
               <th className="table-header table-sticky-first-column min-w-[200px]">
-                <button type="button" onClick={() => onSort("ad_name")} className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => onSort("ad_name")}
+                  className="flex items-center gap-1"
+                >
                   Ad name
                   {getSortIcon("ad_name", sortBy, sortOrder)}
                 </button>
@@ -182,7 +195,10 @@ export const MetaCampaignDetailAdsTab: React.FC<MetaCampaignDetailAdsTabProps> =
               </tr>
             ) : ads.length === 0 ? (
               <tr>
-                <td colSpan={7} className="table-cell py-8 text-center text-[#556179]">
+                <td
+                  colSpan={7}
+                  className="table-cell py-8 text-center text-[#556179]"
+                >
                   No ads found for this campaign.
                 </td>
               </tr>
@@ -229,7 +245,10 @@ export const MetaCampaignDetailAdsTab: React.FC<MetaCampaignDetailAdsTabProps> =
                             />
                           ) : (
                             <>
-                              <span className="truncate" title={row.ad_name ?? undefined}>
+                              <span
+                                className="truncate"
+                                title={row.ad_name ?? undefined}
+                              >
                                 {row.ad_name ?? "—"}
                               </span>
                               <button
@@ -260,44 +279,59 @@ export const MetaCampaignDetailAdsTab: React.FC<MetaCampaignDetailAdsTabProps> =
                           )}
                         </div>
                       ) : (
-                        row.ad_name ?? "—"
+                        (row.ad_name ?? "—")
                       )}
                     </td>
-                    <td className="table-cell min-w-[120px] table-text leading-[1.26]">{row.adset_name ?? "—"}</td>
+                    <td className="table-cell min-w-[120px] table-text leading-[1.26]">
+                      {row.adset_name ?? "—"}
+                    </td>
                     <td className="table-cell min-w-[100px] table-text leading-[1.26]">
-                      {onInlineStatusChange ? (
-                        (() => {
-                          const currentStatus = (row.status ?? "").toUpperCase();
-                          const options = getRestrictedStatusOptions(row.status);
-                          const isDeleted = currentStatus === "DELETED";
-                          return (
-                            <select
-                              value={getStatusOption(row.status)}
-                              onChange={(e) => onInlineStatusChange(String(id), e.target.value)}
-                              disabled={isDeleted}
-                              className="text-[12px] border border-[#e8e8e3] rounded px-2 py-1 bg-gray-50 min-w-[90px]"
-                              aria-label={`Status for ${row.ad_name ?? id}`}
-                            >
-                              {options.map((opt) => (
-                                <option key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </option>
-                              ))}
-                            </select>
-                          );
-                        })()
-                      ) : (
-                        normalizeStatusDisplay(row.status)
-                      )}
+                      {onInlineStatusChange
+                        ? (() => {
+                            const currentStatus = (
+                              row.status ?? ""
+                            ).toUpperCase();
+                            const options = getRestrictedStatusOptions(
+                              row.status,
+                            );
+                            const isDeleted = currentStatus === "DELETED";
+                            return (
+                              <select
+                                value={getStatusOption(row.status)}
+                                onChange={(e) =>
+                                  onInlineStatusChange(
+                                    String(id),
+                                    e.target.value,
+                                  )
+                                }
+                                disabled={isDeleted}
+                                className="text-[12px] border border-[#e8e8e3] rounded px-2 py-1 bg-gray-50 min-w-[90px]"
+                                aria-label={`Status for ${row.ad_name ?? id}`}
+                              >
+                                {options.map((opt) => (
+                                  <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
+                            );
+                          })()
+                        : normalizeStatusDisplay(row.status)}
                     </td>
                     <td className="table-cell min-w-[90px] table-text leading-[1.26]">
-                      {row.impressions != null ? Number(row.impressions).toLocaleString() : "—"}
+                      {row.impressions != null
+                        ? Number(row.impressions).toLocaleString()
+                        : "—"}
                     </td>
                     <td className="table-cell min-w-[90px] table-text leading-[1.26]">
-                      {row.clicks != null ? Number(row.clicks).toLocaleString() : "—"}
+                      {row.clicks != null
+                        ? Number(row.clicks).toLocaleString()
+                        : "—"}
                     </td>
                     <td className="table-cell min-w-[90px] table-text leading-[1.26]">
-                      {row.spends != null ? formatCurrency2Decimals(row.spends) : "—"}
+                      {row.spends != null
+                        ? formatCurrency2Decimals(row.spends)
+                        : "—"}
                     </td>
                   </tr>
                 );
