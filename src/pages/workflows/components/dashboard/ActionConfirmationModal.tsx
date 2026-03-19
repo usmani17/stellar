@@ -47,10 +47,44 @@ function ruleHasPersistedKeywordAnalysis(rule: ActionRule): boolean {
   return typeof err === "string" && err.length > 0;
 }
 
+/** Stable order from first appearance; one row per entity id with all diffs stacked. */
+function groupEntityDiffsById(entities: ActionEntityDiff[]): Array<{
+  entityId: string;
+  displayName: string;
+  rows: ActionEntityDiff[];
+}> {
+  const byId = new Map<string, ActionEntityDiff[]>();
+  const order: string[] = [];
+  entities.forEach((ent, idx) => {
+    const raw = String(ent.id ?? "").trim();
+    const key = raw || `__row_${idx}`;
+    if (!byId.has(key)) {
+      order.push(key);
+      byId.set(key, []);
+    }
+    byId.get(key)!.push(ent);
+  });
+  return order.map((entityId) => {
+    const rows = byId.get(entityId)!;
+    const named = rows.find((r) => r.name && String(r.name).trim())?.name;
+    const displayName = named
+      ? String(named)
+      : entityId.startsWith("__row_")
+        ? String(rows[0]?.id ?? "") || "—"
+        : entityId;
+    return { entityId, displayName, rows };
+  });
+}
+
+/** Unique entities in the preview table (matches grouping by `id`). */
+function groupedEntityCount(proposal: ActionProposal): number {
+  return groupEntityDiffsById(proposal.entities).length;
+}
+
 function shouldShowKeywordAnalysisSection(proposal: ActionProposal, rule: ActionRule): boolean {
   if (!isKeywordAnalysisActionType(rule.type)) return false;
   if (proposal.guardrail_blocks.length > 0) return false;
-  if (proposal.entity_count > 0) return true;
+  if (groupedEntityCount(proposal) > 0) return true;
   return ruleHasPersistedKeywordAnalysis(rule);
 }
 
@@ -119,10 +153,12 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
 
   const hasBlocks = proposals.some((p) => p.guardrail_blocks.length > 0);
   const hasWarnings = proposals.some((p) => p.guardrail_warnings.length > 0);
-  const totalEntities = proposals.reduce((sum, p) => sum + p.entity_count, 0);
-  const applicableRuleIds = proposals
-    .filter((p) => p.guardrail_blocks.length === 0 && p.entity_count > 0)
-    .map((p) => p.action_rule_id);
+  const totalEntities = proposals.reduce((sum, p) => sum + groupedEntityCount(p), 0);
+  const applicableProposals = proposals.filter(
+    (p) => p.guardrail_blocks.length === 0 && groupedEntityCount(p) > 0
+  );
+  const applicableRuleIds = applicableProposals.map((p) => p.action_rule_id);
+  const applicableEntityCount = applicableProposals.reduce((sum, p) => sum + groupedEntityCount(p), 0);
 
   const toggleExpand = (id: string) => {
     setExpandedRules((prev) => {
@@ -137,7 +173,7 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
     if (!keywordAnalysisContext) return;
     const id = proposal.action_rule_id;
     if (!isKeywordAnalysisActionType(proposal.action_rule.type)) return;
-    if (proposal.guardrail_blocks.length > 0 || proposal.entity_count === 0) return;
+    if (proposal.guardrail_blocks.length > 0 || groupedEntityCount(proposal) === 0) return;
 
     keywordAbortRef.current.get(id)?.abort();
     const ac = new AbortController();
@@ -309,6 +345,7 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
             const isBlocked = proposal.guardrail_blocks.length > 0;
             const isExpanded = expandedRules.has(proposal.action_rule_id);
             const rule = proposal.action_rule;
+            const nEntities = groupedEntityCount(proposal);
 
             return (
               <div
@@ -339,7 +376,7 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
                       <span className={cn("text-xs font-semibold block truncate", isDark ? "text-neutral-100" : "text-forest-f60")}>
                         {ACTION_TYPE_LABELS[rule.type] || rule.type}
                         <span className={cn("font-normal ml-1.5", isDark ? "text-neutral-400" : "text-forest-f30")}>
-                          {proposal.entity_count} {rule.entity_type}{proposal.entity_count > 1 ? "s" : ""}
+                          {nEntities} {rule.entity_type}{nEntities !== 1 ? "s" : ""}
                         </span>
                       </span>
                       <span className={cn("text-[10px] block truncate mt-0.5", isDark ? "text-neutral-400" : "text-forest-f30")}>
@@ -389,27 +426,66 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
                           </tr>
                         </thead>
                         <tbody>
-                          {proposal.entities.map((ent: ActionEntityDiff, idx: number) => (
+                          {groupEntityDiffsById(proposal.entities).map((group) => (
                             <tr
-                              key={ent.id || idx}
+                              key={group.entityId}
                               className={cn(
-                                "border-t",
+                                "border-t align-top",
                                 isDark ? "border-neutral-600" : "border-sandstorm-s40/40"
                               )}
                             >
                               <td className={cn("px-3 py-2", isDark ? "text-neutral-200" : "text-forest-f60")}>
-                                <span className="block truncate max-w-[200px]" title={ent.name}>
-                                  {ent.name || ent.id}
+                                <span className="block truncate max-w-[200px]" title={group.displayName}>
+                                  {group.displayName}
                                 </span>
+                                {group.rows.length > 1 ? (
+                                  <span
+                                    className={cn(
+                                      "block text-[10px] mt-0.5",
+                                      isDark ? "text-neutral-500" : "text-forest-f30"
+                                    )}
+                                  >
+                                    {group.rows.length} updates
+                                  </span>
+                                ) : null}
                               </td>
                               <td className={cn("px-3 py-2 font-mono", isDark ? "text-neutral-400" : "text-forest-f30")}>
-                                {Object.entries(ent.before || {}).map(([k, v]) => (
-                                  <span key={k} className="block">{k}: {String(v)}</span>
+                                {group.rows.map((ent, i) => (
+                                  <div
+                                    key={i}
+                                    className={cn(
+                                      i > 0 && "mt-2 pt-2 border-t border-dashed",
+                                      i > 0 && (isDark ? "border-neutral-600" : "border-sandstorm-s40/50")
+                                    )}
+                                  >
+                                    {Object.entries(ent.before || {}).map(([k, v]) => (
+                                      <span key={k} className="block">
+                                        {k}: {String(v)}
+                                      </span>
+                                    ))}
+                                  </div>
                                 ))}
                               </td>
-                              <td className={cn("px-3 py-2 font-mono font-medium", isDark ? "text-[#2DD4BF]" : "text-forest-f40")}>
-                                {Object.entries(ent.after || {}).map(([k, v]) => (
-                                  <span key={k} className="block">{k}: {String(v)}</span>
+                              <td
+                                className={cn(
+                                  "px-3 py-2 font-mono font-medium",
+                                  isDark ? "text-[#2DD4BF]" : "text-forest-f40"
+                                )}
+                              >
+                                {group.rows.map((ent, i) => (
+                                  <div
+                                    key={i}
+                                    className={cn(
+                                      i > 0 && "mt-2 pt-2 border-t border-dashed",
+                                      i > 0 && (isDark ? "border-neutral-600" : "border-sandstorm-s40/50")
+                                    )}
+                                  >
+                                    {Object.entries(ent.after || {}).map(([k, v]) => (
+                                      <span key={k} className="block">
+                                        {k}: {String(v)}
+                                      </span>
+                                    ))}
+                                  </div>
                                 ))}
                               </td>
                             </tr>
@@ -441,7 +517,7 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
                       >
                         AI keyword analysis
                       </p>
-                      {keywordAnalysisContext && proposal.entity_count > 0 && (
+                      {keywordAnalysisContext && nEntities > 0 && (
                         <button
                           type="button"
                           onClick={() => handleRunKeywordAnalysis(proposal)}
@@ -657,6 +733,12 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
           ) : (
             <span className={cn("text-xs", isDark ? "text-neutral-400" : "text-forest-f30")}>
               {applicableRuleIds.length} action{applicableRuleIds.length !== 1 ? "s" : ""} ready to apply
+              {applicableEntityCount > 0 ? (
+                <>
+                  {" "}
+                  · {applicableEntityCount} entit{applicableEntityCount === 1 ? "y" : "ies"}
+                </>
+              ) : null}
             </span>
           )}
 
