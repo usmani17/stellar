@@ -379,6 +379,8 @@ export interface ActionSchedule {
 /** An action rule attached to a dashboard widget. Agent creates these; user reviews and approves. */
 export interface ActionRule {
   id: string;
+  /** assistant.actions PK — used for keyword-analysis DB persistence. */
+  action_id?: number;
   type: ActionType;
   platform: ActionPlatform;
   entity_type: ActionEntityType;
@@ -389,6 +391,11 @@ export interface ActionRule {
   params: Record<string, unknown>;
   description: string;
   schedule?: ActionSchedule;
+  /** Persisted keyword / negative-keyword AI analysis (assistant.actions.keyword_analysis). */
+  keyword_analysis?: unknown;
+  keyword_analysis_status?: string | null;
+  keyword_analysis_error?: string | null;
+  keyword_analysis_cur_sessions_id?: string | null;
 }
 
 export type ActionExecutionStatus =

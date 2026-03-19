@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   X,
   AlertTriangle,
@@ -9,18 +9,57 @@ import {
   ChevronUp,
   Loader2,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "../../../../lib/cn";
-import type { ActionProposal, ActionEntityDiff } from "../../types/dashboard";
-import type { ExecuteActionsResponse } from "../../../../services/dashboardActions";
+import type { ActionProposal, ActionEntityDiff, ActionRule, DashboardComponent } from "../../types/dashboard";
+import {
+  KeywordAnalysisResultView,
+  parseKeywordAnalysisPayload,
+  type KeywordAnalysisStoredPayload,
+} from "./KeywordAnalysisResultView";
+import {
+  buildKeywordAnalysisPayloadFromProposal,
+  extractKeywordAnalysisBlock,
+  streamKeywordAnalysis,
+  type ExecuteActionsResponse,
+} from "../../../../services/dashboardActions";
+import { getKeywordAnalysisDateRangeFromComponent } from "../../utils/keywordAnalysisDateRange";
 
 const ACTION_TYPE_LABELS: Record<string, string> = {
   change_state: "Change status",
   adjust_budget: "Adjust budget",
   adjust_bid: "Adjust bid",
+  add_keyword: "Add keywords",
   add_negative_keyword: "Add negative keywords",
   update_device_bid_modifier: "Adjust device bid",
 };
+
+function isKeywordAnalysisActionType(
+  t: string
+): t is "add_keyword" | "add_negative_keyword" {
+  return t === "add_keyword" || t === "add_negative_keyword";
+}
+
+function ruleHasPersistedKeywordAnalysis(rule: ActionRule): boolean {
+  if (rule.keyword_analysis != null) return true;
+  const err = rule.keyword_analysis_error;
+  return typeof err === "string" && err.length > 0;
+}
+
+function shouldShowKeywordAnalysisSection(proposal: ActionProposal, rule: ActionRule): boolean {
+  if (!isKeywordAnalysisActionType(rule.type)) return false;
+  if (proposal.guardrail_blocks.length > 0) return false;
+  if (proposal.entity_count > 0) return true;
+  return ruleHasPersistedKeywordAnalysis(rule);
+}
+
+export interface KeywordAnalysisModalContext {
+  accountId: number;
+  dashboardId: number;
+  componentId: string;
+  component: DashboardComponent;
+}
 
 interface ActionConfirmationModalProps {
   isOpen: boolean;
@@ -28,6 +67,8 @@ interface ActionConfirmationModalProps {
   proposals: ActionProposal[];
   onApply: (ruleIds: string[]) => Promise<ExecuteActionsResponse>;
   isDark: boolean;
+  /** When set, keyword / negative-keyword proposals can run the AI analysis stream (testing). */
+  keywordAnalysisContext?: KeywordAnalysisModalContext;
 }
 
 export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = ({
@@ -36,6 +77,7 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
   proposals,
   onApply,
   isDark,
+  keywordAnalysisContext,
 }) => {
   const [expandedRules, setExpandedRules] = useState<Set<string>>(
     () => new Set(proposals.map((p) => p.action_rule_id))
@@ -44,11 +86,32 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
   const [result, setResult] = useState<"success" | "error" | null>(null);
   const [executeResponse, setExecuteResponse] = useState<ExecuteActionsResponse | null>(null);
   const [errorsPanelExpanded, setErrorsPanelExpanded] = useState(false);
+  const [keywordAnalysisUi, setKeywordAnalysisUi] = useState<
+    Record<
+      string,
+      {
+        loading: boolean;
+        error?: string;
+        /** After a stream finishes; undefined means “use DB on the rule”. */
+        streamedPayload?: KeywordAnalysisStoredPayload | null;
+        streamMessage?: string;
+      }
+    >
+  >({});
+  const keywordAbortRef = useRef<Map<string, AbortController>>(new Map());
 
   useEffect(() => {
     if (isOpen) {
       setResult(null);
       setExecuteResponse(null);
+      setKeywordAnalysisUi({});
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      keywordAbortRef.current.forEach((c) => c.abort());
+      keywordAbortRef.current.clear();
     }
   }, [isOpen]);
 
@@ -68,6 +131,62 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
       else next.add(id);
       return next;
     });
+  };
+
+  const handleRunKeywordAnalysis = async (proposal: ActionProposal) => {
+    if (!keywordAnalysisContext) return;
+    const id = proposal.action_rule_id;
+    if (!isKeywordAnalysisActionType(proposal.action_rule.type)) return;
+    if (proposal.guardrail_blocks.length > 0 || proposal.entity_count === 0) return;
+
+    keywordAbortRef.current.get(id)?.abort();
+    const ac = new AbortController();
+    keywordAbortRef.current.set(id, ac);
+
+    setKeywordAnalysisUi((prev) => ({
+      ...prev,
+      [id]: { loading: true },
+    }));
+
+    try {
+      const { accountId, dashboardId, componentId, component } = keywordAnalysisContext;
+      const dateRange = getKeywordAnalysisDateRangeFromComponent(component);
+      const payload = buildKeywordAnalysisPayloadFromProposal(
+        component,
+        componentId,
+        proposal,
+        dateRange
+      );
+      const { full_message } = await streamKeywordAnalysis(accountId, dashboardId, payload, {
+        signal: ac.signal,
+      });
+      if (ac.signal.aborted) return;
+      const raw = extractKeywordAnalysisBlock(full_message);
+      const streamedPayload = raw != null ? parseKeywordAnalysisPayload(raw) : null;
+      const streamMessage =
+        raw == null
+          ? "No ```keyword-analysis``` JSON block found in the model output."
+          : streamedPayload == null
+            ? "Analysis response could not be parsed."
+            : undefined;
+      setKeywordAnalysisUi((prev) => ({
+        ...prev,
+        [id]: {
+          loading: false,
+          streamedPayload,
+          streamMessage,
+        },
+      }));
+    } catch (e) {
+      if (ac.signal.aborted) return;
+      const msg = e instanceof Error ? e.message : "Analysis failed";
+      setKeywordAnalysisUi((prev) => ({
+        ...prev,
+        [id]: { loading: false, error: msg },
+      }));
+    } finally {
+      keywordAbortRef.current.delete(id);
+    }
   };
 
   const handleApply = async () => {
@@ -306,6 +425,119 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
                     No matching entities found for this action.
                   </p>
                 )}
+
+                {isExpanded && shouldShowKeywordAnalysisSection(proposal, rule) && (
+                    <div
+                      className={cn(
+                        "px-4 pb-3 space-y-2 border-t border-dashed pt-3 mt-1",
+                        isDark ? "border-neutral-600" : "border-sandstorm-s40/50"
+                      )}
+                    >
+                      <p
+                        className={cn(
+                          "text-[10px] font-semibold uppercase tracking-wide",
+                          isDark ? "text-neutral-400" : "text-forest-f30"
+                        )}
+                      >
+                        AI keyword analysis
+                      </p>
+                      {keywordAnalysisContext && proposal.entity_count > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRunKeywordAnalysis(proposal)}
+                          disabled={keywordAnalysisUi[proposal.action_rule_id]?.loading === true}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors",
+                            "disabled:opacity-50 disabled:cursor-not-allowed",
+                            isDark
+                              ? "bg-neutral-700 text-neutral-100 hover:bg-neutral-600 border border-neutral-600"
+                              : "bg-sandstorm-s5 text-forest-f60 hover:bg-sandstorm-s20 border border-sandstorm-s40"
+                          )}
+                          aria-busy={keywordAnalysisUi[proposal.action_rule_id]?.loading === true}
+                        >
+                          {keywordAnalysisUi[proposal.action_rule_id]?.loading ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" aria-hidden />
+                              Running analysis…
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                              Run AI analysis
+                            </>
+                          )}
+                        </button>
+                      )}
+                      {keywordAnalysisUi[proposal.action_rule_id]?.error && (
+                        <p
+                          className={cn(
+                            "text-[11px] rounded-lg px-2 py-1.5",
+                            isDark ? "bg-red-900/25 text-red-200" : "bg-red-r0 text-red-r30"
+                          )}
+                        >
+                          {keywordAnalysisUi[proposal.action_rule_id]?.error}
+                        </p>
+                      )}
+                      {(() => {
+                        const rid = proposal.action_rule_id;
+                        const u = keywordAnalysisUi[rid];
+                        let display: KeywordAnalysisStoredPayload | null = null;
+                        let emptyNote: string | undefined;
+                        let dbError: string | undefined;
+                        if (u?.streamedPayload !== undefined) {
+                          display = u.streamedPayload;
+                          emptyNote = u.streamMessage;
+                        } else {
+                          display = parseKeywordAnalysisPayload(rule.keyword_analysis);
+                          if (
+                            typeof rule.keyword_analysis_error === "string" &&
+                            rule.keyword_analysis_error.length > 0
+                          ) {
+                            dbError = rule.keyword_analysis_error;
+                          }
+                        }
+                        if (display) {
+                          return (
+                            <div
+                              className={cn(
+                                "rounded-xl border p-3 max-h-[min(420px,55vh)] overflow-y-auto",
+                                isDark
+                                  ? "border-neutral-600 bg-neutral-900/30"
+                                  : "border-sandstorm-s40 bg-white"
+                              )}
+                            >
+                              <KeywordAnalysisResultView data={display} isDark={isDark} />
+                            </div>
+                          );
+                        }
+                        if (emptyNote) {
+                          return (
+                            <p
+                              className={cn(
+                                "text-[11px] rounded-lg px-2 py-1.5",
+                                isDark ? "bg-amber-900/20 text-amber-200" : "bg-amber-50 text-amber-900"
+                              )}
+                            >
+                              {emptyNote}
+                            </p>
+                          );
+                        }
+                        if (dbError) {
+                          return (
+                            <p
+                              className={cn(
+                                "text-[11px] rounded-lg px-2 py-1.5",
+                                isDark ? "bg-red-900/25 text-red-200" : "bg-red-r0 text-red-r30"
+                              )}
+                            >
+                              {dbError}
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  )}
               </div>
             );
           })}

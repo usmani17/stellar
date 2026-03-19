@@ -771,6 +771,16 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
               });
             }}
             isDark={isDark}
+            keywordAnalysisContext={
+              accountId != null && dashboardId != null
+                ? {
+                    accountId,
+                    dashboardId,
+                    componentId: component.id,
+                    component,
+                  }
+                : undefined
+            }
           />
         </>
       )}
