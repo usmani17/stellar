@@ -573,8 +573,8 @@ export const Accounts: React.FC = () => {
                 <table className="w-full">
                   <thead>
                     <tr>
-                      <th className="table-header">Brand Name</th>
-                      <th className="table-header">Created</th>
+                      <th className="table-header max-w-[300px]">Brand Name</th>
+                      <th className="table-header">Created At</th>
                       <th className="table-header">Created By</th>
                       {!isTeam && <th className="table-header">Integrations</th>}
                       <th className="table-header">KB</th>
@@ -584,11 +584,11 @@ export const Accounts: React.FC = () => {
                   <tbody>
                     {loading || accountsLoading ? (
                       // Loading skeleton rows
-                      Array.from({ length: 3 }).map((_, index) => (
-                        <tr key={`skeleton-${index}`} className="table-row">
-                          <td className="table-cell">
-                            <div className="h-5 bg-gray-200 rounded animate-pulse w-32"></div>
-                          </td>
+                        Array.from({ length: 3 }).map((_, index) => (
+                          <tr key={`skeleton-${index}`} className="table-row">
+                            <td className="table-cell max-w-[300px]">
+                              <div className="h-5 bg-gray-200 rounded animate-pulse w-32"></div>
+                            </td>
                           <td className="table-cell">
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-20"></div>
                           </td>
@@ -640,7 +640,7 @@ export const Accounts: React.FC = () => {
                             className={`table-row group ${isDeleting ? "opacity-50" : ""
                               }`}
                           >
-                            <td className="table-cell">
+                            <td className="table-cell max-w-[300px]">
                               {!isTeam && editingAccount?.accountId === account.id ? (
                                 <input
                                   type="text"
@@ -671,14 +671,14 @@ export const Accounts: React.FC = () => {
                                   className="w-full px-2 py-1 text-[14px] text-[#0b0f16] border border-[#136d6d] rounded focus:outline-none focus:ring-2 focus:ring-[#136d6d] bg-white"
                                 />
                               ) : (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
                                   <button
                                     onClick={() => {
                                       navigate(
                                         `/brands/${account.id}/integrations`
                                       );
                                     }}
-                                    className="table-edit-link"
+                                    className="table-edit-link min-w-0 truncate"
                                   >
                                     {account.name}
                                   </button>
