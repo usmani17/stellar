@@ -24,24 +24,78 @@ import GoogleIcon from "../assets/images/ri_google-fill.svg";
 // import CriteoIcon from "../assets/images/criteo.svg"; // Add when Criteo icon is available
 
 const BRANDS_PAGE_SIZE = 10;
+/** Large page fetch when searching so client-side filter + pagination match result count */
+const BRANDS_SEARCH_FETCH_SIZE = 5000;
 
 export const Accounts: React.FC = () => {
   const { user } = useAuth();
   const isTeam = user?.role === "team";
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const isSearchActive = searchQuery.trim().length > 0;
+
   const {
     accounts,
     totalPages,
     isLoading: accountsLoading,
     isFetching,
-  } = useAccountsPaginated(currentPage, BRANDS_PAGE_SIZE);
+  } = useAccountsPaginated(currentPage, BRANDS_PAGE_SIZE, {
+    enabled: !isSearchActive,
+  });
+
+  const searchAccountsQuery = useQuery({
+    queryKey: queryKeys.accounts.listPaginated(1, BRANDS_SEARCH_FETCH_SIZE),
+    queryFn: () =>
+      accountsService.getAccountsPaginated({
+        page: 1,
+        page_size: BRANDS_SEARCH_FETCH_SIZE,
+      }),
+    enabled: isSearchActive,
+    staleTime: 60_000,
+  });
+
+  const baseAccounts: Account[] = isSearchActive
+    ? (searchAccountsQuery.data?.results ?? [])
+    : accounts;
+
+  const filteredAccounts = baseAccounts.filter((account) =>
+    (account.name || "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const effectiveTotalPages = isSearchActive
+    ? Math.max(1, Math.ceil(filteredAccounts.length / BRANDS_PAGE_SIZE))
+    : totalPages;
+
+  const displayAccounts = isSearchActive
+    ? filteredAccounts.slice(
+        (currentPage - 1) * BRANDS_PAGE_SIZE,
+        currentPage * BRANDS_PAGE_SIZE
+      )
+    : filteredAccounts;
+
+  const tableLoading =
+    accountsLoading || (isSearchActive && searchAccountsQuery.isLoading);
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(Math.max(1, Math.min(newPage, effectiveTotalPages)));
+  };
+
+  const prevSearchQueryRef = useRef(searchQuery);
+  useEffect(() => {
+    const prev = prevSearchQueryRef.current;
+    prevSearchQueryRef.current = searchQuery;
+    if (prev !== searchQuery) {
+      setCurrentPage(1);
+    } else {
+      setCurrentPage((p) => Math.min(p, effectiveTotalPages));
+    }
+  }, [searchQuery, effectiveTotalPages]);
+
   const { sidebarWidth } = useSidebar();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
 
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(Math.max(1, Math.min(newPage, totalPages)));
-  };
   const [deletingAccountId, setDeletingAccountId] = useState<number | null>(
     null
   );
@@ -52,8 +106,6 @@ export const Accounts: React.FC = () => {
   } | null>(null);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [newAccountName, setNewAccountName] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searching, setSearching] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     type: "account";
@@ -167,8 +219,8 @@ export const Accounts: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    setLoading(accountsLoading);
-  }, [accountsLoading]);
+    setLoading(tableLoading);
+  }, [tableLoading]);
 
   // Check for success messages on mount (channel created or profiles saved)
   useEffect(() => {
@@ -239,7 +291,7 @@ export const Accounts: React.FC = () => {
   }, [showCreateAccount]);
 
   const handleDeleteAccount = async (id: number) => {
-    const account = accounts.find((acc: Account) => acc.id === id);
+    const account = baseAccounts.find((acc: Account) => acc.id === id);
     if (!account) return;
 
     setDeleteModal({
@@ -354,7 +406,7 @@ export const Accounts: React.FC = () => {
       return;
     }
 
-    const account = accounts.find((a) => a.id === editingAccount.accountId);
+    const account = baseAccounts.find((a) => a.id === editingAccount.accountId);
     if (!account || newName.trim() === account.name) {
       cancelEditAccountName();
       return;
@@ -374,11 +426,6 @@ export const Accounts: React.FC = () => {
       alert(error.response?.data?.error || "Failed to update brand name");
     }
   };
-
-  // Filter accounts based on search query
-  const filteredAccounts = accounts.filter((account) =>
-    (account.name || "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   // Menu icons
   const ViewChannelsIcon = () => (
@@ -582,7 +629,7 @@ export const Accounts: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {loading || accountsLoading ? (
+                    {tableLoading ? (
                       // Loading skeleton rows
                         Array.from({ length: 3 }).map((_, index) => (
                           <tr key={`skeleton-${index}`} className="table-row">
@@ -629,7 +676,7 @@ export const Accounts: React.FC = () => {
                         </td>
                       </tr>
                     ) : (
-                      filteredAccounts.map((account) => {
+                      displayAccounts.map((account) => {
                         const isDeleting = deletingAccountId === account.id;
                         const isConnecting =
                           oauthLoading?.accountId === account.id;
@@ -904,7 +951,10 @@ export const Accounts: React.FC = () => {
               {(createAccountMutation.isPending ||
                 updateAccountMutation.isPending ||
                 deleteAccountMutation.isPending ||
-                (isFetching && accounts.length > 0)) && (
+                (isFetching && accounts.length > 0 && !isSearchActive) ||
+                (isSearchActive &&
+                  searchAccountsQuery.isFetching &&
+                  (searchAccountsQuery.data?.results?.length ?? 0) > 0)) && (
                   <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
                     <Loader size="md" message="Loading accounts..." />
                   </div>
@@ -912,7 +962,7 @@ export const Accounts: React.FC = () => {
             </div>
 
             {/* Pagination - outside table container, same as campaigns page */}
-            {!accountsLoading && accounts.length > 0 && (
+            {!tableLoading && filteredAccounts.length > 0 && effectiveTotalPages > 1 && (
               <div className="flex items-center justify-end mt-4">
                 <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                   <button
@@ -922,18 +972,18 @@ export const Accounts: React.FC = () => {
                   >
                     Previous
                   </button>
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  {Array.from({ length: Math.min(5, effectiveTotalPages) }, (_, i) => {
                     let pageNum: number;
-                    if (totalPages <= 5) {
+                    if (effectiveTotalPages <= 5) {
                       pageNum = i + 1;
                     } else if (currentPage <= 3) {
                       pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
+                    } else if (currentPage >= effectiveTotalPages - 2) {
+                      pageNum = effectiveTotalPages - 4 + i;
                     } else {
                       pageNum = currentPage - 2 + i;
                     }
-                    pageNum = Math.max(1, Math.min(pageNum, totalPages));
+                    pageNum = Math.max(1, Math.min(pageNum, effectiveTotalPages));
                     return (
                       <button
                         key={pageNum}
@@ -947,22 +997,22 @@ export const Accounts: React.FC = () => {
                       </button>
                     );
                   })}
-                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                  {effectiveTotalPages > 5 && currentPage < effectiveTotalPages - 2 && (
                     <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
                       ...
                     </span>
                   )}
-                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                  {effectiveTotalPages > 5 && currentPage < effectiveTotalPages - 2 && (
                     <button
-                      onClick={() => handlePageChange(totalPages)}
+                      onClick={() => handlePageChange(effectiveTotalPages)}
                       className="px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer text-black hover:bg-gray-50"
                     >
-                      {totalPages}
+                      {effectiveTotalPages}
                     </button>
                   )}
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
+                    disabled={currentPage === effectiveTotalPages}
                     className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
                   >
                     Next
