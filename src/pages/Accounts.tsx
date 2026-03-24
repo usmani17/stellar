@@ -33,7 +33,8 @@ export const Accounts: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
-  const isSearchActive = searchQuery.trim().length > 0;
+  const normalizedSearchQuery = searchQuery.trim();
+  const isSearchActive = normalizedSearchQuery.length > 0;
 
   const {
     accounts,
@@ -59,9 +60,13 @@ export const Accounts: React.FC = () => {
     ? (searchAccountsQuery.data?.results ?? [])
     : accounts;
 
-  const filteredAccounts = baseAccounts.filter((account) =>
-    (account.name || "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredAccounts = isSearchActive
+    ? baseAccounts.filter((account) =>
+        (account.name || "")
+          .toLowerCase()
+          .includes(normalizedSearchQuery.toLowerCase())
+      )
+    : baseAccounts;
 
   const effectiveTotalPages = isSearchActive
     ? Math.max(1, Math.ceil(filteredAccounts.length / BRANDS_PAGE_SIZE))
@@ -659,11 +664,11 @@ export const Accounts: React.FC = () => {
                       <tr>
                         <td colSpan={isTeam ? 5 : 6} className="table-cell text-center py-8">
                           <p className="text-[14px] text-[#556179] mb-4">
-                            {searchQuery
+                            {isSearchActive
                               ? "No brands found"
                               : "No brands yet"}
                           </p>
-                          {!searchQuery && !isTeam && (
+                          {!isSearchActive && !isTeam && (
                             <div className="flex justify-center">
                               <Button
                                 onClick={() => setShowCreateAccount(true)}
