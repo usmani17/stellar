@@ -89,6 +89,20 @@ function shouldShowKeywordAnalysisSection(proposal: ActionProposal, rule: Action
   return ruleHasPersistedKeywordAnalysis(rule);
 }
 
+/** After execute: distinguish immediate apply vs staggered keyword queue. */
+function executeSuccessFooterMessage(response: ExecuteActionsResponse | null): string {
+  const results = response?.results ?? [];
+  if (results.length === 0) return "Actions applied successfully";
+  const ok = results.filter((r) => r.status !== "failed");
+  if (ok.length === 0) return "Actions applied successfully";
+  const scheduled = ok.filter((r) => r.scheduled === true);
+  if (scheduled.length === 0) return "Actions applied successfully";
+  if (scheduled.length === ok.length) {
+    return "Keywords scheduled — they will apply in the background.";
+  }
+  return "Actions applied — some keywords are scheduled for background apply.";
+}
+
 export interface KeywordAnalysisModalContext {
   accountId: number;
   dashboardId: number;
@@ -745,7 +759,7 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
             <div className="flex items-center gap-2 text-xs">
               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
               <span className={cn("font-medium", isDark ? "text-emerald-300" : "text-emerald-700")}>
-                Actions applied successfully
+                {executeSuccessFooterMessage(executeResponse)}
               </span>
             </div>
           ) : result === "error" ? (

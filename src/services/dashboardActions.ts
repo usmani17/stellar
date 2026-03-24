@@ -59,6 +59,10 @@ export interface ExecuteActionResult {
   errors?: ExecuteActionErrorItem[];
   error?: string;
   message?: string;
+  /** Staggered Google keyword apply queued via Celery (or mock of that path). */
+  scheduled?: boolean;
+  mock?: boolean;
+  total_keywords?: number;
   guardrail_warnings?: string[];
   guardrail_blocks?: string[];
 }
