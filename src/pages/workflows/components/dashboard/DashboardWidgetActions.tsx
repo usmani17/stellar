@@ -64,7 +64,7 @@ interface InlineEditProps {
 
 const InlineEdit: React.FC<InlineEditProps> = ({ value, onSave, isDark, wide }) => {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(String(value));
+  const [draft, setDraft] = useState(value ? String(value) : "");
 
   if (!editing) {
     return (
@@ -80,7 +80,7 @@ const InlineEdit: React.FC<InlineEditProps> = ({ value, onSave, isDark, wide }) 
         )}
         aria-label="Edit value"
       >
-        {String(value)}
+        { !value ? "No condition" : String(value)}
         <Pencil className="w-3 h-3 opacity-50 shrink-0" />
       </button>
     );

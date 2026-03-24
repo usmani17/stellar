@@ -1,6 +1,7 @@
-import React from "react";
-import { Hash, Layers } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Check, Hash, Layers, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { cn } from "../../../../lib/cn";
+import { patchKeywordAnalysis } from "../../../../services/dashboardActions";
 
 /** Shape persisted by the agent / returned in ```keyword-analysis``` blocks. */
 export interface KeywordAnalysisKeywordItem {
@@ -23,6 +24,15 @@ export interface KeywordAnalysisStoredPayload {
   entity_type?: string;
   entities?: KeywordAnalysisEntityItem[];
 }
+
+export interface KeywordAnalysisPersistContext {
+  accountId: number;
+  dashboardId: number;
+  componentId: string;
+  actionId: number;
+}
+
+const MATCH_TYPES = ["EXACT", "PHRASE", "BROAD"] as const;
 
 function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null && !Array.isArray(x);
@@ -69,29 +79,542 @@ export function parseKeywordAnalysisPayload(raw: unknown): KeywordAnalysisStored
   };
 }
 
+export function cloneKeywordAnalysisPayload(d: KeywordAnalysisStoredPayload): KeywordAnalysisStoredPayload {
+  return JSON.parse(JSON.stringify(d)) as KeywordAnalysisStoredPayload;
+}
+
+function normalizeMatchType(mt: string): string {
+  const u = mt.trim().toUpperCase();
+  return MATCH_TYPES.includes(u as (typeof MATCH_TYPES)[number]) ? u : "PHRASE";
+}
+
+// ── Inline text edit (same pattern as DashboardWidgetActions InlineEdit) ───
+
+interface InlineEditTextProps {
+  value: string;
+  onSave: (val: string) => void;
+  isDark: boolean;
+  disabled?: boolean;
+}
+
+const InlineEditText: React.FC<InlineEditTextProps> = ({ value, onSave, isDark, disabled }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [value, editing]);
+
+  if (disabled) {
+    return (
+      <span className={cn("text-[10px] max-w-[180px] truncate", isDark ? "text-neutral-200" : "text-forest-f60")}>
+        {value}
+      </span>
+    );
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(value);
+          setEditing(true);
+        }}
+        className={cn(
+          "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] cursor-pointer transition-colors max-w-[200px]",
+          isDark ? "text-neutral-200 hover:bg-neutral-600/50" : "text-forest-f60 hover:bg-sandstorm-s20"
+        )}
+        aria-label="Edit keyword text"
+      >
+        <span className="truncate">{value}</span>
+        <Pencil className="w-3 h-3 opacity-50 shrink-0" />
+      </button>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 flex-1 min-w-0">
+      <input
+        type="text"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            onSave(draft.trim());
+            setEditing(false);
+          }
+          if (e.key === "Escape") setEditing(false);
+        }}
+        autoFocus
+        className={cn(
+          "px-1.5 py-0.5 rounded text-[10px] border outline-none flex-1 min-w-0",
+          isDark
+            ? "bg-neutral-700 border-neutral-500 text-neutral-100 focus:border-[#2DD4BF]"
+            : "bg-white border-sandstorm-s40 text-forest-f60 focus:border-forest-f40"
+        )}
+      />
+      <button
+        type="button"
+        onClick={() => {
+          onSave(draft.trim());
+          setEditing(false);
+        }}
+        className="p-0.5 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/30 shrink-0"
+        aria-label="Confirm"
+      >
+        <Check className="w-3 h-3 text-emerald-600" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setEditing(false)}
+        className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 shrink-0"
+        aria-label="Cancel"
+      >
+        <X className="w-3 h-3 text-red-500" />
+      </button>
+    </span>
+  );
+};
+
+// ── Match type with confirm ─────────────────────────────────────────────────
+
+interface InlineMatchTypeProps {
+  value: string;
+  onSave: (mt: string) => void;
+  isDark: boolean;
+  disabled?: boolean;
+}
+
+const InlineMatchType: React.FC<InlineMatchTypeProps> = ({ value, onSave, isDark, disabled }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(normalizeMatchType(value));
+
+  useEffect(() => {
+    if (!editing) setDraft(normalizeMatchType(value));
+  }, [value, editing]);
+
+  const v = normalizeMatchType(value);
+
+  if (disabled) {
+    return (
+      <span
+        className={cn(
+          "shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase",
+          isDark ? "bg-neutral-800 text-neutral-400" : "bg-sandstorm-s0 text-forest-f30"
+        )}
+      >
+        {v}
+      </span>
+    );
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(v);
+          setEditing(true);
+        }}
+        className={cn(
+          "shrink-0 inline-flex items-center gap-0.5 rounded px-1 py-px text-[9px] font-semibold uppercase",
+          isDark ? "bg-neutral-800 text-neutral-400 hover:bg-neutral-700" : "bg-sandstorm-s0 text-forest-f30 hover:bg-sandstorm-s20"
+        )}
+        aria-label="Edit match type"
+      >
+        {v}
+        <Pencil className="w-2.5 h-2.5 opacity-60" />
+      </button>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 shrink-0">
+      <select
+        value={draft}
+        onChange={(e) => setDraft(normalizeMatchType(e.target.value))}
+        className={cn(
+          "rounded px-1 py-0.5 text-[9px] font-semibold uppercase border outline-none",
+          isDark
+            ? "bg-neutral-700 border-neutral-500 text-neutral-100"
+            : "bg-white border-sandstorm-s40 text-forest-f60"
+        )}
+        aria-label="Match type"
+      >
+        {MATCH_TYPES.map((mt) => (
+          <option key={mt} value={mt}>
+            {mt}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={() => {
+          onSave(draft);
+          setEditing(false);
+        }}
+        className="p-0.5 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
+        aria-label="Confirm match type"
+      >
+        <Check className="w-3 h-3 text-emerald-600" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setEditing(false)}
+        className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30"
+        aria-label="Cancel"
+      >
+        <X className="w-3 h-3 text-red-500" />
+      </button>
+    </span>
+  );
+};
+
+// ── Delete confirm ─────────────────────────────────────────────────────────
+
+interface InlineConfirmProps {
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isDark: boolean;
+}
+
+const InlineConfirm: React.FC<InlineConfirmProps> = ({ message, onConfirm, onCancel, isDark }) => (
+  <div
+    className={cn(
+      "flex flex-wrap items-center gap-2 px-2 py-1 rounded-lg text-[10px]",
+      isDark ? "bg-neutral-700 border border-neutral-600" : "bg-white border border-sandstorm-s40 shadow-sm"
+    )}
+  >
+    <span className={cn("font-medium", isDark ? "text-neutral-200" : "text-forest-f60")}>{message}</span>
+    <button
+      type="button"
+      onClick={onConfirm}
+      className={cn(
+        "px-2 py-0.5 rounded text-[10px] font-semibold",
+        isDark ? "bg-red-900/50 text-red-300 hover:bg-red-900/70" : "bg-red-50 text-red-600 hover:bg-red-100"
+      )}
+    >
+      Yes
+    </button>
+    <button
+      type="button"
+      onClick={onCancel}
+      className={cn(
+        "px-2 py-0.5 rounded text-[10px] font-medium",
+        isDark ? "text-neutral-400 hover:bg-neutral-600" : "text-forest-f30 hover:bg-sandstorm-s10"
+      )}
+    >
+      No
+    </button>
+  </div>
+);
+
 const KIND_LABELS: Record<string, string> = {
   add_keyword: "Add keywords",
   add_negative_keyword: "Add negative keywords",
 };
 
+type KeywordListKind = "keywords" | "negatives";
+
 interface KeywordAnalysisResultViewProps {
   data: KeywordAnalysisStoredPayload;
   isDark: boolean;
   className?: string;
+  /** When set with a valid action id, keywords can be edited and saved via API. */
+  persistContext?: KeywordAnalysisPersistContext | null;
+  /** Called after a successful PATCH (for parent to merge into UI state). */
+  onPersisted?: (payload: KeywordAnalysisStoredPayload) => void;
 }
 
 export const KeywordAnalysisResultView: React.FC<KeywordAnalysisResultViewProps> = ({
   data,
   isDark,
   className,
+  persistContext,
+  onPersisted,
 }) => {
-  const entities = data.entities ?? [];
+  const editable = Boolean(persistContext?.actionId);
+  const [localData, setLocalData] = useState(() => cloneKeywordAnalysisPayload(data));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    entityId: string;
+    kind: KeywordListKind;
+    index: number;
+  } | null>(null);
+  const [addingFor, setAddingFor] = useState<{
+    entityId: string;
+    kind: KeywordListKind;
+  } | null>(null);
+  const [addDraftText, setAddDraftText] = useState("");
+  const [addDraftMt, setAddDraftMt] = useState<string>("PHRASE");
+  const localRef = useRef(localData);
+  useEffect(() => {
+    localRef.current = localData;
+  }, [localData]);
+
+  const dataKey = JSON.stringify(data);
+  useEffect(() => {
+    if (!editable) return;
+    const next = cloneKeywordAnalysisPayload(data);
+    setLocalData(next);
+    localRef.current = next;
+  }, [dataKey, editable]);
+
+  const view = editable ? localData : data;
+  const entities = view.entities ?? [];
+
+  const persist = useCallback(
+    async (next: KeywordAnalysisStoredPayload) => {
+      if (!persistContext?.actionId) return;
+      setSaving(true);
+      setError(null);
+      try {
+        const res = await patchKeywordAnalysis(persistContext.accountId, persistContext.dashboardId, {
+          component_id: persistContext.componentId,
+          action_id: persistContext.actionId,
+          keyword_analysis: next as unknown as Record<string, unknown>,
+        });
+        const parsed = parseKeywordAnalysisPayload(res.keyword_analysis);
+        const merged = parsed ?? next;
+        setLocalData(merged);
+        localRef.current = merged;
+        onPersisted?.(merged);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Save failed");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [persistContext, onPersisted]
+  );
+
+  const applyUpdate = useCallback(
+    (mutator: (draft: KeywordAnalysisStoredPayload) => void) => {
+      const next = cloneKeywordAnalysisPayload(localRef.current);
+      mutator(next);
+      void persist(next);
+    },
+    [persist]
+  );
+
   const kindLabel =
-    (data.analysis_kind && KIND_LABELS[data.analysis_kind]) || data.analysis_kind || "Keyword analysis";
-  const metaParts = [data.platform, data.entity_type].filter(Boolean).join(" · ");
+    (view.analysis_kind && KIND_LABELS[view.analysis_kind]) || view.analysis_kind || "Keyword analysis";
+  const metaParts = [view.platform, view.entity_type].filter(Boolean).join(" · ");
+
+  const renderKeywordList = (ent: KeywordAnalysisEntityItem, kind: KeywordListKind) => {
+    const list = kind === "keywords" ? ent.keywords ?? [] : ent.negatives ?? [];
+    if (!editable && list.length === 0) return null;
+    const label = kind === "keywords" ? "Keywords" : "Negative keywords";
+    const chipDark =
+      kind === "keywords"
+        ? "bg-forest-f50/25 text-neutral-100 border-forest-f40/35"
+        : "bg-neutral-800/80 text-neutral-200 border-neutral-600";
+    const chipLight =
+      kind === "keywords"
+        ? "bg-forest-f40/10 text-forest-f60 border-forest-f40/25"
+        : "bg-sandstorm-s20 text-forest-f60 border-sandstorm-s40";
+
+    return (
+      <div>
+        <div className="flex flex-wrap items-center gap-2 mb-1.5">
+          <p
+            className={cn(
+              "text-[10px] font-semibold uppercase tracking-wide",
+              isDark ? "text-neutral-400" : "text-forest-f30"
+            )}
+          >
+            {label}
+          </p>
+          {editable && !saving ? (
+            <button
+              type="button"
+              onClick={() => {
+                setAddingFor({ entityId: ent.id, kind });
+                setAddDraftText("");
+                setAddDraftMt("PHRASE");
+              }}
+              className={cn(
+                "inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium",
+                isDark ? "text-[#2DD4BF] hover:bg-neutral-700" : "text-forest-f40 hover:bg-sandstorm-s20"
+              )}
+              aria-label={`Add ${kind === "keywords" ? "keyword" : "negative keyword"}`}
+            >
+              <Plus className="w-3 h-3" />
+              Add
+            </button>
+          ) : null}
+        </div>
+
+        {addingFor?.entityId === ent.id && addingFor.kind === kind ? (
+          <div
+            className={cn(
+              "flex flex-wrap items-center gap-2 mb-2 p-2 rounded-lg border",
+              isDark ? "border-neutral-600 bg-neutral-900/40" : "border-sandstorm-s40 bg-sandstorm-s5"
+            )}
+          >
+            <input
+              type="text"
+              value={addDraftText}
+              onChange={(e) => setAddDraftText(e.target.value)}
+              placeholder="Keyword text"
+              className={cn(
+                "flex-1 min-w-[120px] px-2 py-1 rounded text-[10px] border outline-none",
+                isDark
+                  ? "bg-neutral-700 border-neutral-500 text-neutral-100"
+                  : "bg-white border-sandstorm-s40 text-forest-f60"
+              )}
+            />
+            <select
+              value={addDraftMt}
+              onChange={(e) => setAddDraftMt(normalizeMatchType(e.target.value))}
+              className={cn(
+                "rounded px-1 py-1 text-[9px] font-semibold uppercase border",
+                isDark ? "bg-neutral-700 border-neutral-500 text-neutral-100" : "bg-white border-sandstorm-s40"
+              )}
+            >
+              {MATCH_TYPES.map((mt) => (
+                <option key={mt} value={mt}>
+                  {mt}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                const t = addDraftText.trim();
+                if (!t) return;
+                applyUpdate((d) => {
+                  const e = d.entities?.find((x) => x.id === ent.id);
+                  if (!e) return;
+                  const key = kind === "keywords" ? "keywords" : "negatives";
+                  if (!e[key]) e[key] = [];
+                  e[key]!.push({ keyword: t, match_type: normalizeMatchType(addDraftMt) });
+                });
+                setAddingFor(null);
+              }}
+              className="p-1 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
+              aria-label="Confirm add"
+            >
+              <Check className="w-3.5 h-3.5 text-emerald-600" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setAddingFor(null)}
+              className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30"
+              aria-label="Cancel add"
+            >
+              <X className="w-3.5 h-3.5 text-red-500" />
+            </button>
+          </div>
+        ) : null}
+
+        {list.length === 0 && !addingFor ? (
+          <p className={cn("text-[10px] italic", isDark ? "text-neutral-500" : "text-forest-f30")}>None</p>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {list.map((k, i) => (
+              <div
+                key={`${ent.id}-${kind}-${i}-${k.keyword}`}
+                className={cn(
+                  "inline-flex flex-wrap items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] border max-w-full",
+                  isDark ? chipDark : chipLight
+                )}
+              >
+                <InlineEditText
+                  value={k.keyword}
+                  onSave={(text) => {
+                    if (!text) return;
+                    applyUpdate((d) => {
+                      const e = d.entities?.find((x) => x.id === ent.id);
+                      const arr = kind === "keywords" ? e?.keywords : e?.negatives;
+                      if (arr?.[i]) arr[i] = { ...arr[i], keyword: text };
+                    });
+                  }}
+                  isDark={isDark}
+                  disabled={!editable || saving}
+                />
+                <InlineMatchType
+                  value={k.match_type}
+                  onSave={(mt) => {
+                    applyUpdate((d) => {
+                      const e = d.entities?.find((x) => x.id === ent.id);
+                      const arr = kind === "keywords" ? e?.keywords : e?.negatives;
+                      if (arr?.[i]) arr[i] = { ...arr[i], match_type: normalizeMatchType(mt) };
+                    });
+                  }}
+                  isDark={isDark}
+                  disabled={!editable || saving}
+                />
+                {editable && !saving ? (
+                  confirmDelete?.entityId === ent.id && confirmDelete.kind === kind && confirmDelete.index === i ? (
+                    <InlineConfirm
+                      message="Remove?"
+                      onConfirm={() => {
+                        applyUpdate((d) => {
+                          const e = d.entities?.find((x) => x.id === ent.id);
+                          const arr = kind === "keywords" ? e?.keywords : e?.negatives;
+                          if (arr) arr.splice(i, 1);
+                        });
+                        setConfirmDelete(null);
+                      }}
+                      onCancel={() => setConfirmDelete(null)}
+                      isDark={isDark}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete({ entityId: ent.id, kind, index: i })}
+                      className={cn(
+                        "p-0.5 rounded shrink-0",
+                        isDark ? "hover:bg-red-900/40 text-red-300" : "hover:bg-red-50 text-red-r30"
+                      )}
+                      aria-label="Delete keyword"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div
+      className={cn("relative space-y-3", className)}
+      aria-busy={editable && saving ? true : undefined}
+    >
+      {editable && saving ? (
+        <div
+          className={cn(
+            "absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] min-h-[100px]",
+            isDark ? "bg-neutral-900/55" : "bg-sandstorm-s0/75"
+          )}
+          role="status"
+          aria-live="polite"
+          aria-label="Saving keyword analysis"
+        >
+          <div
+            className={cn(
+              "flex items-center gap-2.5 rounded-xl px-4 py-3 shadow-md border",
+              isDark ? "bg-neutral-800 border-neutral-600 text-neutral-100" : "bg-white border-sandstorm-s40 text-forest-f60"
+            )}
+          >
+            <Loader2
+              className={cn("w-5 h-5 animate-spin shrink-0", isDark ? "text-[#2DD4BF]" : "text-forest-f40")}
+              aria-hidden
+            />
+            <span className="text-xs font-medium">Saving changes…</span>
+          </div>
+        </div>
+      ) : null}
+
       <div
         className={cn(
           "flex flex-wrap items-center gap-2 text-[11px]",
@@ -102,7 +625,18 @@ export const KeywordAnalysisResultView: React.FC<KeywordAnalysisResultViewProps>
         {metaParts ? (
           <span className={cn(isDark ? "text-neutral-500" : "text-forest-f30")}>{metaParts}</span>
         ) : null}
+        {editable ? (
+          <span className={cn("text-[10px]", isDark ? "text-neutral-500" : "text-forest-f30")}>
+            {saving ? "Saving changes…" : "Edits save on confirm"}
+          </span>
+        ) : null}
       </div>
+
+      {error ? (
+        <p className={cn("text-[11px] rounded-lg px-2 py-1.5", isDark ? "bg-red-900/25 text-red-200" : "bg-red-r0 text-red-r30")}>
+          {error}
+        </p>
+      ) : null}
 
       {entities.length === 0 ? (
         <p className={cn("text-xs italic", isDark ? "text-neutral-500" : "text-forest-f30")}>
@@ -157,85 +691,12 @@ export const KeywordAnalysisResultView: React.FC<KeywordAnalysisResultViewProps>
                 </p>
               ) : null}
 
-              {(ent.keywords?.length ?? 0) > 0 ? (
-                <div>
-                  <p
-                    className={cn(
-                      "text-[10px] font-semibold uppercase tracking-wide mb-1.5",
-                      isDark ? "text-neutral-400" : "text-forest-f30"
-                    )}
-                  >
-                    Keywords
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {ent.keywords!.map((k, i) => (
-                      <span
-                        key={`${k.keyword}-${i}`}
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] border",
-                          isDark
-                            ? "bg-forest-f50/25 text-neutral-100 border-forest-f40/35"
-                            : "bg-forest-f40/10 text-forest-f60 border-forest-f40/25"
-                        )}
-                      >
-                        <span className="max-w-[220px] truncate" title={k.keyword}>
-                          {k.keyword}
-                        </span>
-                        <span
-                          className={cn(
-                            "shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase",
-                            isDark ? "bg-neutral-800 text-neutral-400" : "bg-sandstorm-s0 text-forest-f30"
-                          )}
-                        >
-                          {k.match_type}
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {(ent.negatives?.length ?? 0) > 0 ? (
-                <div>
-                  <p
-                    className={cn(
-                      "text-[10px] font-semibold uppercase tracking-wide mb-1.5",
-                      isDark ? "text-neutral-400" : "text-forest-f30"
-                    )}
-                  >
-                    Negative keywords
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {ent.negatives!.map((k, i) => (
-                      <span
-                        key={`n-${k.keyword}-${i}`}
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] border",
-                          isDark
-                            ? "bg-neutral-800/80 text-neutral-200 border-neutral-600"
-                            : "bg-sandstorm-s20 text-forest-f60 border-sandstorm-s40"
-                        )}
-                      >
-                        <span className="max-w-[220px] truncate" title={k.keyword}>
-                          {k.keyword}
-                        </span>
-                        <span
-                          className={cn(
-                            "shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase",
-                            isDark ? "bg-neutral-800 text-neutral-400" : "bg-white/80 text-forest-f30"
-                          )}
-                        >
-                          {k.match_type}
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
+              {renderKeywordList(ent, "keywords")}
+              {renderKeywordList(ent, "negatives")}
             </li>
           ))}
         </ul>
       )}
     </div>
   );
-}
+};

@@ -111,6 +111,32 @@ export async function getActionHistory(
   return data;
 }
 
+export interface PatchKeywordAnalysisRequest {
+  component_id: string;
+  action_id: number;
+  /** Full analysis object; null clears stored analysis. */
+  keyword_analysis: Record<string, unknown> | null;
+}
+
+export interface PatchKeywordAnalysisResponse {
+  keyword_analysis: Record<string, unknown> | null;
+}
+
+/**
+ * Persist user-edited keyword analysis on assistant.actions (separate from AI stream).
+ */
+export async function patchKeywordAnalysis(
+  accountId: number,
+  dashboardId: number,
+  body: PatchKeywordAnalysisRequest
+): Promise<PatchKeywordAnalysisResponse> {
+  const { data } = await api.patch<PatchKeywordAnalysisResponse>(
+    `${API_BASE}/${accountId}/dashboards/${dashboardId}/actions/keyword-analysis/`,
+    body
+  );
+  return data;
+}
+
 // ── Keyword analysis (SSE over POST) ───────────────────────────────────────
 
 const API_BASE_URL =

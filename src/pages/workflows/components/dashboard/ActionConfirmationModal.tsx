@@ -16,6 +16,7 @@ import type { ActionProposal, ActionEntityDiff, ActionRule, DashboardComponent }
 import {
   KeywordAnalysisResultView,
   parseKeywordAnalysisPayload,
+  type KeywordAnalysisPersistContext,
   type KeywordAnalysisStoredPayload,
 } from "./KeywordAnalysisResultView";
 import {
@@ -573,6 +574,19 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
                           }
                         }
                         if (display) {
+                          let persistContext: KeywordAnalysisPersistContext | undefined;
+                          if (
+                            keywordAnalysisContext &&
+                            typeof rule.action_id === "number" &&
+                            rule.action_id > 0
+                          ) {
+                            persistContext = {
+                              accountId: keywordAnalysisContext.accountId,
+                              dashboardId: keywordAnalysisContext.dashboardId,
+                              componentId: keywordAnalysisContext.componentId,
+                              actionId: rule.action_id,
+                            };
+                          }
                           return (
                             <div
                               className={cn(
@@ -582,7 +596,20 @@ export const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = (
                                   : "border-sandstorm-s40 bg-white"
                               )}
                             >
-                              <KeywordAnalysisResultView data={display} isDark={isDark} />
+                              <KeywordAnalysisResultView
+                                data={display}
+                                isDark={isDark}
+                                persistContext={persistContext}
+                                onPersisted={(payload) => {
+                                  setKeywordAnalysisUi((prev) => ({
+                                    ...prev,
+                                    [rid]: {
+                                      ...prev[rid],
+                                      streamedPayload: payload,
+                                    },
+                                  }));
+                                }}
+                              />
                             </div>
                           );
                         }
