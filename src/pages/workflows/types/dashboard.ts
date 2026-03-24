@@ -389,6 +389,8 @@ export interface ActionRule {
   status: "active" | "paused" | "deleted";
   condition?: ActionCondition | CompoundActionCondition;
   params: Record<string, unknown>;
+  /** Sanitized caps merged into keyword-analysis agent prompt on Run AI analysis. */
+  guardrails?: Record<string, unknown>;
   description: string;
   schedule?: ActionSchedule;
   /** Persisted keyword / negative-keyword AI analysis (assistant.actions.keyword_analysis). */

@@ -135,6 +135,8 @@ export interface KeywordAnalysisStreamRequest {
   action_id?: number;
   seed_keywords?: string[];
   constraints?: Record<string, unknown>;
+  /** Passed to Stellar; merged into the Pixis keyword-analysis text prompt (not raw JSON). */
+  guardrails?: Record<string, unknown>;
   prompt?: string;
   customer_id?: string;
   login_customer_id?: string;
@@ -285,7 +287,7 @@ export function buildKeywordAnalysisPayloadFromProposal(
 
   const params = rule.params as { keywords?: string[]; match_type?: string };
   const ruleExt = rule as ActionRule & {
-    guardrails?: { limit?: number; max_keywords_per_action?: number };
+    guardrails?: Record<string, unknown>;
     limit?: number;
   };
   const constraints: Record<string, unknown> = {};
@@ -318,6 +320,10 @@ export function buildKeywordAnalysisPayloadFromProposal(
   }
   if (Object.keys(constraints).length > 0) {
     payload.constraints = constraints;
+  }
+
+  if (ruleExt.guardrails && Object.keys(ruleExt.guardrails).length > 0) {
+    payload.guardrails = { ...ruleExt.guardrails };
   }
 
   return payload;
