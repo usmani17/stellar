@@ -163,7 +163,7 @@ export const Login: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                placeholder="Create password"
+                placeholder="Enter password"
                 containerClassName="flex-1"
                 helperText={
                   <div className="self-stretch text-right">
