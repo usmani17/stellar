@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -39,18 +39,24 @@ import { DashboardGaugeChart } from "./DashboardGaugeChart";
 import { DashboardHorizontalBarChart } from "./DashboardHorizontalBarChart";
 import { Dropdown, ConfirmationModal } from "../../../../components/ui";
 import type { DropdownOption } from "../../../../components/ui";
-import type { DashboardComponent, LineChartDatum, PieChartDatum, SingleMetricDatum, FunnelChartDatum, VisualizationType, ActionRule, ActionProposal } from "../../types/dashboard";
+import type { DashboardComponent, LineChartDatum, PieChartDatum, SingleMetricDatum, FunnelChartDatum, VisualizationType, ActionRule, ActionProposal, ActionExecution } from "../../types/dashboard";
 import { isMultiGaqlQuery, isMultiMetaQuery } from "../../types/dashboard";
 import {
   getDashboardComponentDataStream,
   getSharedDashboardComponentDataStream,
 } from "../../../../services/dashboard";
-import { executeActions } from "../../../../services/dashboardActions";
+import {
+  executeActions,
+  getActionHistory,
+  type ActionHistoryParams,
+  type ActionHistoryResponse,
+} from "../../../../services/dashboardActions";
 import { getMockDataForComponent } from "../../utils/dashboardMockData";
 import { useDashboardTheme } from "../../contexts/DashboardThemeContext";
 import { cn } from "../../../../lib/cn";
 import { DashboardWidgetActions } from "./DashboardWidgetActions";
 import { ActionConfirmationModal } from "./ActionConfirmationModal";
+import { ActionHistoryModal } from "./ActionHistoryModal";
 
 const VIZ_ICON_CLS = "w-4 h-4 shrink-0";
 
@@ -176,6 +182,8 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [actionProposals, setActionProposals] = useState<ActionProposal[]>([]);
   const [showActionModal, setShowActionModal] = useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [executions, setExecutions] = useState<ActionExecution[]>([]);
   const mountedRef = useRef(true);
   const hasFetchedRef = useRef(false);
   const inFlightRef = useRef(false);
@@ -368,6 +376,38 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   }
   const activeStep: string = streamActiveStep ?? getActiveStepId(status);
   const { isDark } = useDashboardTheme();
+
+  const handleShowHistory = (executions: ActionExecution[]) => {
+    setExecutions(executions);
+    setHistoryModalOpen(true);
+  };
+
+  const handleHistoryFilters = useCallback(async (filters: ActionHistoryParams): Promise<ActionHistoryResponse> => {
+    if (!accountId || !dashboardId) {
+      return {
+        executions: [],
+        total: 0,
+        limit: filters.limit ?? 0,
+        offset: filters.offset ?? 0,
+      };
+    }
+    try {
+      const response = await getActionHistory(accountId, dashboardId, {
+        component_id: component.id,
+        ...filters,
+      });
+      setExecutions(response.executions);
+      return response;
+    } catch (err) {
+      console.error("Failed to fetch filtered action history:", err);
+      return {
+        executions: [],
+        total: 0,
+        limit: filters.limit ?? 0,
+        offset: filters.offset ?? 0,
+      };
+    }
+  }, [accountId, dashboardId, component.id]);
 
   return (
     <div
@@ -757,6 +797,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
               setActionProposals(proposals);
               setShowActionModal(true);
             }}
+            onShowHistory={handleShowHistory}
           />
           <ActionConfirmationModal
             isOpen={showActionModal}
@@ -781,6 +822,16 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
                   }
                 : undefined
             }
+          />
+          <ActionHistoryModal
+            isOpen={historyModalOpen}
+            onClose={() => {
+              setHistoryModalOpen(false);
+              setExecutions([]);
+            }}
+            executions={executions}
+            isDark={isDark}
+            onShowHistory={handleHistoryFilters}
           />
         </>
       )}

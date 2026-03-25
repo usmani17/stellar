@@ -92,12 +92,19 @@ export async function executeActions(
 export interface ActionHistoryParams {
   component_id?: string;
   status?: string;
+  action_type?: string;
+  search?: string;
+  date_from?: string;
+  date_to?: string;
   limit?: number;
   offset?: number;
 }
 
 export interface ActionHistoryResponse {
   executions: ActionExecution[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 /**

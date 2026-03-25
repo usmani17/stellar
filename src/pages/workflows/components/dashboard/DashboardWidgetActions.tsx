@@ -6,7 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
-  Zap,
+  History,
   Pencil,
   Check,
   X,
@@ -15,10 +15,11 @@ import { cn } from "../../../../lib/cn";
 import type {
   ActionRule,
   ActionProposal,
+  ActionExecution,
   ActionCondition,
   CompoundActionCondition,
 } from "../../types/dashboard";
-import { previewActions } from "../../../../services/dashboardActions";
+import { previewActions, getActionHistory } from "../../../../services/dashboardActions";
 import { formatMetricLabel } from "../../utils/formatDashboardValue";
 
 const ACTION_TYPE_LABELS: Record<string, string> = {
@@ -178,6 +179,7 @@ interface DashboardWidgetActionsProps {
   isDark: boolean;
   onActionsChange?: (actions: ActionRule[]) => void;
   onReviewChanges?: (proposals: ActionProposal[]) => void;
+  onShowHistory?: (executions: ActionExecution[]) => void;
 }
 
 export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
@@ -188,12 +190,14 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
   isDark,
   onActionsChange,
   onReviewChanges,
+  onShowHistory,
 }) => {
   const [isOpen, setIsOpen] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     () => new Set(actions.filter((a) => a.status === "active").map((a) => a.id))
   );
-  const [isLoading, setIsLoading] = useState(false);
+  const [isReviewLoading, setIsReviewLoading] = useState(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [confirmingPause, setConfirmingPause] = useState<string | null>(null);
 
@@ -314,7 +318,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
     );
     if (selectedRuleIds.length === 0) return;
 
-    setIsLoading(true);
+    setIsReviewLoading(true);
     try {
       const { proposals } = await previewActions(accountId, dashboardId, {
         component_id: componentId,
@@ -324,9 +328,25 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
     } catch (err) {
       console.error("Failed to preview actions:", err);
     } finally {
-      setIsLoading(false);
+      setIsReviewLoading(false);
     }
   }, [selectedIds, actions, accountId, dashboardId, componentId, onReviewChanges]);
+
+  const handleShowHistory = useCallback(async () => {
+    setIsHistoryLoading(true);
+    try {
+      const { executions } = await getActionHistory(accountId, dashboardId, {
+        component_id: componentId,
+        limit: 50,
+      });
+      // Show executions in modal or expandable section
+      onShowHistory?.(executions);
+    } catch (err) {
+      console.error("Failed to fetch action history:", err);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  }, [accountId, dashboardId, componentId, onShowHistory]);
 
   const selectAllActive = useCallback(() => {
     const allActiveIds = new Set(activeActions.map((a) => a.id));
@@ -716,21 +736,38 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
               <span className={cn("text-[10px]", isDark ? "text-neutral-400" : "text-forest-f30")}>
                 {selectedCount} of {totalActive} selected
               </span>
-              <button
-                type="button"
-                onClick={handleReviewChanges}
-                disabled={selectedCount === 0 || isLoading}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
-                  "disabled:opacity-40 disabled:cursor-not-allowed",
-                  isDark
-                    ? "bg-[#2DD4BF]/20 text-[#2DD4BF] hover:bg-[#2DD4BF]/30 border border-[#2DD4BF]/30"
-                    : "bg-forest-f40 text-white hover:bg-forest-f50 shadow-sm"
-                )}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                {isLoading ? "Loading..." : "Review Changes"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleReviewChanges}
+                  disabled={selectedCount === 0 || isReviewLoading}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                    "disabled:opacity-40 disabled:cursor-not-allowed",
+                    isDark
+                      ? "bg-[#2DD4BF]/20 text-[#2DD4BF] hover:bg-[#2DD4BF]/30 border border-[#2DD4BF]/30"
+                      : "bg-forest-f40 text-white hover:bg-forest-f50 shadow-sm"
+                  )}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  {isReviewLoading ? "Loading..." : "Review Changes"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleShowHistory}
+                  disabled={isHistoryLoading}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                    "disabled:opacity-40 disabled:cursor-not-allowed",
+                    isDark
+                      ? "bg-[#2DD4BF]/20 text-[#2DD4BF] hover:bg-[#2DD4BF]/30 border border-[#2DD4BF]/30"
+                      : "bg-forest-f40 text-white hover:bg-forest-f50 shadow-sm"
+                  )}
+                >
+                  <History className="w-3.5 h-3.5" />
+                  {isHistoryLoading ? "Loading..." : "View History"}
+                </button>
+              </div>
             </div>
           )}
         </div>
