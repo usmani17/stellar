@@ -674,17 +674,6 @@ export interface CreateMetaCampaignPanelProps {
 
 const inputClass = "campaign-input w-full";
 
-/** Suggested default name (timestamp) — only used when user clicks "Use suggested name", not auto-applied on open or save. */
-function suggestedCreateCampaignName(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  const hh = String(now.getHours()).padStart(2, "0");
-  const mm = String(now.getMinutes()).padStart(2, "0");
-  return `Campaign ${y}${m}${d}${hh}${mm}`;
-}
-
 export const CreateMetaCampaignPanel: React.FC<
   CreateMetaCampaignPanelProps
 > = ({ channelId, onSuccess, onClose, editCampaignId = null }) => {
@@ -1192,15 +1181,6 @@ export const CreateMetaCampaignPanel: React.FC<
                         placeholder="e.g. Summer Sale"
                         className={inputClass}
                       />
-                      {!isEditMode && (
-                        <button
-                          type="button"
-                          onClick={() => setName(suggestedCreateCampaignName())}
-                          className="inline-flex items-center px-3 py-1.5 rounded-md border border-dashed border-forest-f40 text-[11px] text-forest-f40 hover:bg-forest-f10"
-                        >
-                          Use suggested name
-                        </button>
-                      )}
                     </div>
                   </div>
 
