@@ -19,6 +19,7 @@ import { Banner } from "../components/ui/Banner";
 import { GOOGLE_ONLY_UI } from "../constants/featureFlags";
 import AmazonIcon from "../assets/images/amazon-fill.svg";
 import GoogleIcon from "../assets/images/ri_google-fill.svg";
+import { X } from "lucide-react";
 // import WalmartIcon from "../assets/images/cbi_walmart.svg";
 // import InstacartIcon from "../assets/images/cib_instacart.svg";
 // import CriteoIcon from "../assets/images/criteo.svg"; // Add when Criteo icon is available
@@ -534,9 +535,27 @@ export const Accounts: React.FC = () => {
                         searchTimeoutRef.current = null;
                       }, 300);
                     }}
-                    placeholder="Search..."
+                    placeholder="Search brands..."
                     className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179]"
                   />
+                  {searchQuery.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSearching(false);
+                        if (searchTimeoutRef.current) {
+                          clearTimeout(searchTimeoutRef.current);
+                          searchTimeoutRef.current = null;
+                        }
+                      }}
+                      className="p-0.5 text-[#556179] hover:text-[#072929] transition-colors"
+                      aria-label="Clear search"
+                      title="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   {searching && (
                     <svg
                       className="animate-spin h-4 w-4 text-[#556179]"
