@@ -188,6 +188,22 @@ export const Channels: React.FC = () => {
     }
   }, []);
 
+  // Reset stale connect-loading state when returning to this page.
+  useEffect(() => {
+    const resetOauthLoading = () => {
+      setOauthLoading(null);
+    };
+
+    resetOauthLoading();
+    window.addEventListener("pageshow", resetOauthLoading);
+    window.addEventListener("focus", resetOauthLoading);
+
+    return () => {
+      window.removeEventListener("pageshow", resetOauthLoading);
+      window.removeEventListener("focus", resetOauthLoading);
+    };
+  }, []);
+
   // Set brand  name when accountId or brands change
   useEffect(() => {
     if (!accountIdNum) {

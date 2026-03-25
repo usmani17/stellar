@@ -19,29 +19,89 @@ import { Banner } from "../components/ui/Banner";
 import { GOOGLE_ONLY_UI } from "../constants/featureFlags";
 import AmazonIcon from "../assets/images/amazon-fill.svg";
 import GoogleIcon from "../assets/images/ri_google-fill.svg";
+import { X } from "lucide-react";
 // import WalmartIcon from "../assets/images/cbi_walmart.svg";
 // import InstacartIcon from "../assets/images/cib_instacart.svg";
 // import CriteoIcon from "../assets/images/criteo.svg"; // Add when Criteo icon is available
 
 const BRANDS_PAGE_SIZE = 10;
+/** Large page fetch when searching so client-side filter + pagination match result count */
+const BRANDS_SEARCH_FETCH_SIZE = 5000;
 
 export const Accounts: React.FC = () => {
   const { user } = useAuth();
   const isTeam = user?.role === "team";
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const normalizedSearchQuery = searchQuery.trim();
+  const isSearchActive = normalizedSearchQuery.length > 0;
+
   const {
     accounts,
     totalPages,
     isLoading: accountsLoading,
     isFetching,
-  } = useAccountsPaginated(currentPage, BRANDS_PAGE_SIZE);
+  } = useAccountsPaginated(currentPage, BRANDS_PAGE_SIZE, {
+    enabled: !isSearchActive,
+  });
+
+  const searchAccountsQuery = useQuery({
+    queryKey: queryKeys.accounts.listPaginated(1, BRANDS_SEARCH_FETCH_SIZE),
+    queryFn: () =>
+      accountsService.getAccountsPaginated({
+        page: 1,
+        page_size: BRANDS_SEARCH_FETCH_SIZE,
+      }),
+    enabled: isSearchActive,
+    staleTime: 60_000,
+  });
+
+  const baseAccounts: Account[] = isSearchActive
+    ? (searchAccountsQuery.data?.results ?? [])
+    : accounts;
+
+  const filteredAccounts = isSearchActive
+    ? baseAccounts.filter((account) =>
+        (account.name || "")
+          .toLowerCase()
+          .includes(normalizedSearchQuery.toLowerCase())
+      )
+    : baseAccounts;
+
+  const effectiveTotalPages = isSearchActive
+    ? Math.max(1, Math.ceil(filteredAccounts.length / BRANDS_PAGE_SIZE))
+    : totalPages;
+
+  const displayAccounts = isSearchActive
+    ? filteredAccounts.slice(
+        (currentPage - 1) * BRANDS_PAGE_SIZE,
+        currentPage * BRANDS_PAGE_SIZE
+      )
+    : filteredAccounts;
+
+  const tableLoading =
+    accountsLoading || (isSearchActive && searchAccountsQuery.isLoading);
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(Math.max(1, Math.min(newPage, effectiveTotalPages)));
+  };
+
+  const prevSearchQueryRef = useRef(searchQuery);
+  useEffect(() => {
+    const prev = prevSearchQueryRef.current;
+    prevSearchQueryRef.current = searchQuery;
+    if (prev !== searchQuery) {
+      setCurrentPage(1);
+    } else {
+      setCurrentPage((p) => Math.min(p, effectiveTotalPages));
+    }
+  }, [searchQuery, effectiveTotalPages]);
+
   const { sidebarWidth } = useSidebar();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
 
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(Math.max(1, Math.min(newPage, totalPages)));
-  };
   const [deletingAccountId, setDeletingAccountId] = useState<number | null>(
     null
   );
@@ -52,8 +112,6 @@ export const Accounts: React.FC = () => {
   } | null>(null);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [newAccountName, setNewAccountName] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searching, setSearching] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     type: "account";
@@ -167,8 +225,8 @@ export const Accounts: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    setLoading(accountsLoading);
-  }, [accountsLoading]);
+    setLoading(tableLoading);
+  }, [tableLoading]);
 
   // Check for success messages on mount (channel created or profiles saved)
   useEffect(() => {
@@ -202,6 +260,22 @@ export const Accounts: React.FC = () => {
         localStorage.removeItem('profiles_saved_success');
       }
     }
+  }, []);
+
+  // Reset stale connect-loading state when returning to this page.
+  useEffect(() => {
+    const resetOauthLoading = () => {
+      setOauthLoading(null);
+    };
+
+    resetOauthLoading();
+    window.addEventListener("pageshow", resetOauthLoading);
+    window.addEventListener("focus", resetOauthLoading);
+
+    return () => {
+      window.removeEventListener("pageshow", resetOauthLoading);
+      window.removeEventListener("focus", resetOauthLoading);
+    };
   }, []);
 
   const handleCreateAccount = async () => {
@@ -239,7 +313,7 @@ export const Accounts: React.FC = () => {
   }, [showCreateAccount]);
 
   const handleDeleteAccount = async (id: number) => {
-    const account = accounts.find((acc: Account) => acc.id === id);
+    const account = baseAccounts.find((acc: Account) => acc.id === id);
     if (!account) return;
 
     setDeleteModal({
@@ -354,7 +428,7 @@ export const Accounts: React.FC = () => {
       return;
     }
 
-    const account = accounts.find((a) => a.id === editingAccount.accountId);
+    const account = baseAccounts.find((a) => a.id === editingAccount.accountId);
     if (!account || newName.trim() === account.name) {
       cancelEditAccountName();
       return;
@@ -374,11 +448,6 @@ export const Accounts: React.FC = () => {
       alert(error.response?.data?.error || "Failed to update brand name");
     }
   };
-
-  // Filter accounts based on search query
-  const filteredAccounts = accounts.filter((account) =>
-    (account.name || "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   // Menu icons
   const ViewChannelsIcon = () => (
@@ -466,9 +535,27 @@ export const Accounts: React.FC = () => {
                         searchTimeoutRef.current = null;
                       }, 300);
                     }}
-                    placeholder="Search..."
+                    placeholder="Search brands..."
                     className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179]"
                   />
+                  {searchQuery.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSearching(false);
+                        if (searchTimeoutRef.current) {
+                          clearTimeout(searchTimeoutRef.current);
+                          searchTimeoutRef.current = null;
+                        }
+                      }}
+                      className="p-0.5 text-[#556179] hover:text-[#072929] transition-colors"
+                      aria-label="Clear search"
+                      title="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   {searching && (
                     <svg
                       className="animate-spin h-4 w-4 text-[#556179]"
@@ -573,8 +660,8 @@ export const Accounts: React.FC = () => {
                 <table className="w-full">
                   <thead>
                     <tr>
-                      <th className="table-header">Brand Name</th>
-                      <th className="table-header">Created</th>
+                      <th className="table-header max-w-[300px]">Brand Name</th>
+                      <th className="table-header">Created At</th>
                       <th className="table-header">Created By</th>
                       {!isTeam && <th className="table-header">Integrations</th>}
                       <th className="table-header">KB</th>
@@ -582,13 +669,13 @@ export const Accounts: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {loading || accountsLoading ? (
+                    {tableLoading ? (
                       // Loading skeleton rows
-                      Array.from({ length: 3 }).map((_, index) => (
-                        <tr key={`skeleton-${index}`} className="table-row">
-                          <td className="table-cell">
-                            <div className="h-5 bg-gray-200 rounded animate-pulse w-32"></div>
-                          </td>
+                        Array.from({ length: 3 }).map((_, index) => (
+                          <tr key={`skeleton-${index}`} className="table-row">
+                            <td className="table-cell max-w-[300px]">
+                              <div className="h-5 bg-gray-200 rounded animate-pulse w-32"></div>
+                            </td>
                           <td className="table-cell">
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-20"></div>
                           </td>
@@ -612,11 +699,11 @@ export const Accounts: React.FC = () => {
                       <tr>
                         <td colSpan={isTeam ? 5 : 6} className="table-cell text-center py-8">
                           <p className="text-[14px] text-[#556179] mb-4">
-                            {searchQuery
+                            {isSearchActive
                               ? "No brands found"
                               : "No brands yet"}
                           </p>
-                          {!searchQuery && !isTeam && (
+                          {!isSearchActive && !isTeam && (
                             <div className="flex justify-center">
                               <Button
                                 onClick={() => setShowCreateAccount(true)}
@@ -629,7 +716,7 @@ export const Accounts: React.FC = () => {
                         </td>
                       </tr>
                     ) : (
-                      filteredAccounts.map((account) => {
+                      displayAccounts.map((account) => {
                         const isDeleting = deletingAccountId === account.id;
                         const isConnecting =
                           oauthLoading?.accountId === account.id;
@@ -640,7 +727,7 @@ export const Accounts: React.FC = () => {
                             className={`table-row group ${isDeleting ? "opacity-50" : ""
                               }`}
                           >
-                            <td className="table-cell">
+                            <td className="table-cell max-w-[300px]">
                               {!isTeam && editingAccount?.accountId === account.id ? (
                                 <input
                                   type="text"
@@ -671,14 +758,14 @@ export const Accounts: React.FC = () => {
                                   className="w-full px-2 py-1 text-[14px] text-[#0b0f16] border border-[#136d6d] rounded focus:outline-none focus:ring-2 focus:ring-[#136d6d] bg-white"
                                 />
                               ) : (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
                                   <button
                                     onClick={() => {
                                       navigate(
                                         `/brands/${account.id}/integrations`
                                       );
                                     }}
-                                    className="table-edit-link"
+                                    className="table-edit-link min-w-0 truncate"
                                   >
                                     {account.name}
                                   </button>
@@ -904,7 +991,10 @@ export const Accounts: React.FC = () => {
               {(createAccountMutation.isPending ||
                 updateAccountMutation.isPending ||
                 deleteAccountMutation.isPending ||
-                (isFetching && accounts.length > 0)) && (
+                (isFetching && accounts.length > 0 && !isSearchActive) ||
+                (isSearchActive &&
+                  searchAccountsQuery.isFetching &&
+                  (searchAccountsQuery.data?.results?.length ?? 0) > 0)) && (
                   <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
                     <Loader size="md" message="Loading accounts..." />
                   </div>
@@ -912,7 +1002,7 @@ export const Accounts: React.FC = () => {
             </div>
 
             {/* Pagination - outside table container, same as campaigns page */}
-            {!accountsLoading && accounts.length > 0 && (
+            {!tableLoading && filteredAccounts.length > 0 && effectiveTotalPages > 1 && (
               <div className="flex items-center justify-end mt-4">
                 <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                   <button
@@ -922,18 +1012,18 @@ export const Accounts: React.FC = () => {
                   >
                     Previous
                   </button>
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  {Array.from({ length: Math.min(5, effectiveTotalPages) }, (_, i) => {
                     let pageNum: number;
-                    if (totalPages <= 5) {
+                    if (effectiveTotalPages <= 5) {
                       pageNum = i + 1;
                     } else if (currentPage <= 3) {
                       pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
+                    } else if (currentPage >= effectiveTotalPages - 2) {
+                      pageNum = effectiveTotalPages - 4 + i;
                     } else {
                       pageNum = currentPage - 2 + i;
                     }
-                    pageNum = Math.max(1, Math.min(pageNum, totalPages));
+                    pageNum = Math.max(1, Math.min(pageNum, effectiveTotalPages));
                     return (
                       <button
                         key={pageNum}
@@ -947,22 +1037,22 @@ export const Accounts: React.FC = () => {
                       </button>
                     );
                   })}
-                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                  {effectiveTotalPages > 5 && currentPage < effectiveTotalPages - 2 && (
                     <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
                       ...
                     </span>
                   )}
-                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                  {effectiveTotalPages > 5 && currentPage < effectiveTotalPages - 2 && (
                     <button
-                      onClick={() => handlePageChange(totalPages)}
+                      onClick={() => handlePageChange(effectiveTotalPages)}
                       className="px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer text-black hover:bg-gray-50"
                     >
-                      {totalPages}
+                      {effectiveTotalPages}
                     </button>
                   )}
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
+                    disabled={currentPage === effectiveTotalPages}
                     className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
                   >
                     Next
