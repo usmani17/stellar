@@ -629,19 +629,6 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
                           {execution.error}
                         </div>
                       )}
-
-                      {execution.result != null && (
-                        <details>
-                          <summary className={cn("cursor-pointer text-[11px] font-medium", isDark ? "text-neutral-300" : "text-forest-f50")}>Result payload</summary>
-                          <pre className={cn(
-                            "mt-2 text-[10px] p-2 rounded-lg overflow-auto max-h-40 whitespace-pre-wrap break-words",
-                            isDark ? "bg-neutral-900 text-neutral-300" : "bg-sandstorm-s5 text-forest-f60"
-                          )}>
-                            {formatActionParamValue(resultForDisplay)}
-                          </pre>
-                        </details>
-                      )}
-
                     </div>
                   )}
                 </div>
