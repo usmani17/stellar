@@ -40,7 +40,20 @@ export const useMetaCampaignDetailCreatives = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [sortBy, setSortBy] = useState("id");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  // Default: newest creatives first.
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [hasUserSorted, setHasUserSorted] = useState(false);
+  const [searchName, setSearchName] = useState("");
+  const [debouncedSearchName, setDebouncedSearchName] = useState("");
+
+  // Debounce search so we don't fire a request on every keystroke.
+  useEffect(() => {
+    const q = searchName.trim();
+    const t = setTimeout(() => {
+      setDebouncedSearchName(q);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchName]);
 
   const loadCreatives = useCallback(async () => {
     if (!channelId || !campaignId) return;
@@ -48,12 +61,22 @@ export const useMetaCampaignDetailCreatives = ({
     if (isNaN(channelIdNum)) return;
     try {
       setLoading(true);
+      const filters: Array<{ field: string; operator: string; value: unknown }> = [
+        { field: "campaign_id", operator: "equals", value: campaignId },
+      ];
+      if (debouncedSearchName) {
+        filters.push({
+          field: "creative_name",
+          operator: "contains",
+          value: debouncedSearchName,
+        });
+      }
       const data = await accountsService.getMetaCreatives(channelIdNum, {
-        filters: [{ field: "campaign_id", operator: "equals", value: campaignId }],
+        filters,
         page: currentPage,
         page_size: 10,
         sort_by: sortBy,
-        order: sortOrder,
+        order: hasUserSorted ? sortOrder : "desc",
         start_date: startDate ? toLocalDateString(startDate) : undefined,
         end_date: endDate ? toLocalDateString(endDate) : undefined,
       });
@@ -66,13 +89,18 @@ export const useMetaCampaignDetailCreatives = ({
     } finally {
       setLoading(false);
     }
-  }, [channelId, campaignId, currentPage, sortBy, sortOrder, startDate, endDate]);
+  }, [channelId, campaignId, currentPage, sortBy, sortOrder, startDate, endDate, debouncedSearchName, hasUserSorted]);
 
   useEffect(() => {
     if (activeTab === "Creatives" && channelId && campaignId) {
       loadCreatives();
     }
   }, [activeTab, channelId, campaignId, loadCreatives]);
+
+  // When the debounced search term changes, reset to first page.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchName]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
@@ -92,8 +120,12 @@ export const useMetaCampaignDetailCreatives = ({
   }, []);
 
   const handleSort = useCallback((column: string) => {
+    setHasUserSorted(true);
     setSortBy(column);
-    setSortOrder((prev) => (sortBy === column ? (prev === "asc" ? "desc" : "asc") : "asc"));
+    // Default sort for a new column: newest-first.
+    setSortOrder((prev) =>
+      sortBy === column ? (prev === "asc" ? "desc" : "asc") : "desc",
+    );
   }, [sortBy]);
 
   const handlePageChange = useCallback((page: number) => {
@@ -109,6 +141,8 @@ export const useMetaCampaignDetailCreatives = ({
     totalPages,
     sortBy,
     sortOrder,
+    searchName,
+    setSearchName,
     loadCreatives,
     handleSelectAll,
     handleSelectOne,

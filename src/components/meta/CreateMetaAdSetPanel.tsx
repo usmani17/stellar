@@ -1,0 +1,1585 @@
+import React, { useState, useEffect } from "react";
+import { accountsService } from "../../services/accounts";
+import { metaAdSetsService } from "../../services/meta";
+import type {
+  CreateMetaAdSetPayload,
+  MetaAdSetStatus,
+  MetaTargetingSpec,
+  UpdateMetaAdSetPayload,
+} from "../../types/meta";
+import { META_COUNTRY_CODES, META_COUNTRY_LABELS } from "./metaCountryCodes";
+import { Dropdown } from "../ui/Dropdown";
+import { Loader } from "../ui/Loader";
+
+export interface CreateMetaAdSetPanelProps {
+  channelId: number;
+  onSuccess: () => void;
+  onClose: () => void;
+  /** Ad account (profile) ID from the campaign. Required when creating from campaign context. */
+  profileId: number;
+  /** When provided (e.g. from campaign detail), pre-select this campaign and hide campaign dropdown */
+  campaignId?: string;
+  /** When provided, filters destination_type options by campaign objective (e.g. OUTCOME_TRAFFIC, OUTCOME_LEADS). */
+  campaignObjective?: string;
+  /** Optional Meta campaign bid strategy (e.g. LOWEST_COST_WITH_BID_CAP, COST_CAP, LOWEST_COST_WITH_MIN_ROAS). */
+  campaignBidStrategy?: string;
+  /** When true, campaign already has a budget set; hide budget fields and do not require/send ad set budget. */
+  campaignBudgetSet?: boolean;
+  accountId?: string;
+  /** 'edit' to open in edit mode with pre-filled data; requires adsetId and loads via GET or initialData. */
+  mode?: "create" | "edit";
+  /** Ad set ID when mode is 'edit'. */
+  adsetId?: string;
+  /** Pre-filled ad set data when mode is 'edit' (avoids extra fetch if parent already has the row). */
+  initialData?: Record<string, unknown>;
+}
+
+const inputClass = "campaign-input w-full";
+
+/** Meta optimization_goal enum – all values per Meta Ads API documentation. */
+const OPTIMIZATION_GOAL_OPTIONS: { value: string; label: string }[] = [
+  { value: "NONE", label: "None" },
+  { value: "APP_INSTALLS", label: "App installs" },
+  { value: "AD_RECALL_LIFT", label: "Ad recall lift" },
+  { value: "ENGAGED_USERS", label: "Engaged users" },
+  { value: "EVENT_RESPONSES", label: "Event responses" },
+  { value: "IMPRESSIONS", label: "Impressions" },
+  { value: "LEAD_GENERATION", label: "Lead generation" },
+  { value: "QUALITY_LEAD", label: "Quality lead" },
+  { value: "LINK_CLICKS", label: "Link clicks" },
+  { value: "OFFSITE_CONVERSIONS", label: "Offsite conversions" },
+  { value: "PAGE_LIKES", label: "Page likes" },
+  { value: "POST_ENGAGEMENT", label: "Post engagement" },
+  { value: "QUALITY_CALL", label: "Quality call" },
+  { value: "REACH", label: "Reach" },
+  { value: "LANDING_PAGE_VIEWS", label: "Landing page views" },
+  { value: "VISIT_INSTAGRAM_PROFILE", label: "Visit Instagram profile" },
+  { value: "ENGAGED_PAGE_VIEWS", label: "Engaged page views" },
+  { value: "VALUE", label: "Value" },
+  { value: "THRUPLAY", label: "ThruPlay" },
+  { value: "DERIVED_EVENTS", label: "Derived events" },
+  {
+    value: "APP_INSTALLS_AND_OFFSITE_CONVERSIONS",
+    label: "App installs and offsite conversions",
+  },
+  { value: "CONVERSATIONS", label: "Conversations" },
+  { value: "IN_APP_VALUE", label: "In-app value" },
+  {
+    value: "MESSAGING_PURCHASE_CONVERSION",
+    label: "Messaging purchase conversion",
+  },
+  { value: "SUBSCRIBERS", label: "Subscribers" },
+  { value: "REMINDERS_SET", label: "Reminders set" },
+  { value: "MEANINGFUL_CALL_ATTEMPT", label: "Meaningful call attempt" },
+  { value: "PROFILE_VISIT", label: "Profile visit" },
+  {
+    value: "PROFILE_AND_PAGE_ENGAGEMENT",
+    label: "Profile and page engagement",
+  },
+  { value: "ADVERTISER_SILOED_VALUE", label: "Advertiser siloed value" },
+  { value: "AUTOMATIC_OBJECTIVE", label: "Automatic objective" },
+  {
+    value: "MESSAGING_APPOINTMENT_CONVERSION",
+    label: "Messaging appointment conversion",
+  },
+];
+
+/** Billing event options per Meta Marketing API. */
+const BILLING_EVENT_OPTIONS: { value: string; label: string }[] = [
+  { value: "LINK_CLICKS", label: "Link clicks – Pay when people click the link" },
+  { value: "IMPRESSIONS", label: "Impressions – Pay when ads are shown" },
+  { value: "THRUPLAY", label: "ThruPlay – Pay when video plays to completion or 15+ seconds" },
+  { value: "APP_INSTALLS", label: "App installs – Pay when people install your app" },
+  { value: "POST_ENGAGEMENT", label: "Post engagement – Pay when people engage with your post" },
+  { value: "PAGE_LIKES", label: "Page likes – Pay when people like your page" },
+  { value: "OFFER_CLAIMS", label: "Offer claims – Pay when people claim the offer" },
+  { value: "PURCHASE", label: "Purchase – Pay per purchase" },
+  { value: "LISTING_INTERACTION", label: "Listing interaction – Pay per listing interaction" },
+  { value: "NONE", label: "None" },
+  { value: "CLICKS", label: "Clicks (deprecated)" },
+];
+
+const BUDGET_TYPE_OPTIONS: { value: "daily" | "lifetime"; label: string }[] = [
+  { value: "daily", label: "Daily budget" },
+  { value: "lifetime", label: "Lifetime budget" },
+];
+
+const STATUS_OPTIONS_CREATE: { value: MetaAdSetStatus; label: string }[] = [
+  { value: "PAUSED", label: "Paused" },
+  { value: "ACTIVE", label: "Active" },
+];
+const STATUS_OPTIONS_EDIT: { value: MetaAdSetStatus | "DELETED"; label: string }[] = [
+  { value: "PAUSED", label: "Paused" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "ARCHIVED", label: "Archived" },
+  { value: "DELETED", label: "Deleted" },
+];
+
+const TARGETING_GENDER_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "1", label: "Males" },
+  { value: "2", label: "Females" },
+];
+
+const PUBLISHER_PLATFORMS = [
+  "facebook",
+  "instagram",
+  "messenger",
+  "audience_network",
+] as const;
+const PUBLISHER_PLATFORM_LABELS: Record<string, string> = {
+  facebook: "Facebook",
+  instagram: "Instagram",
+  messenger: "Messenger",
+  audience_network: "Audience Network",
+};
+
+/** Age options 16–65 for targeting (Meta). */
+const AGE_OPTIONS = Array.from({ length: 65 - 16 + 1 }, (_, i) => 16 + i).map(
+  (n) => ({
+    value: String(n),
+    label: String(n),
+  }),
+);
+
+const DEVICE_PLATFORM_OPTIONS = [
+  { value: "", label: "All" },
+  { value: "mobile", label: "Mobile" },
+  { value: "desktop", label: "Desktop" },
+];
+
+/** Destination types for ad set (Meta). Shown filtered by campaign objective when campaignObjective prop is set. */
+const DESTINATION_TYPES: { value: string; label: string }[] = [
+  { value: "WEBSITE", label: "Website" },
+  { value: "APP", label: "App" },
+  { value: "MESSENGER", label: "Messenger" },
+  { value: "WHATSAPP", label: "WhatsApp" },
+  { value: "INSTAGRAM_DIRECT", label: "Instagram Direct" },
+  { value: "APPLINKS_AUTOMATIC", label: "App links (automatic)" },
+  { value: "FACEBOOK", label: "Facebook" },
+  { value: "MESSAGING_MESSENGER_WHATSAPP", label: "Messenger + WhatsApp" },
+  {
+    value: "MESSAGING_INSTAGRAM_DIRECT_MESSENGER",
+    label: "Instagram Direct + Messenger",
+  },
+  {
+    value: "MESSAGING_INSTAGRAM_DIRECT_MESSENGER_WHATSAPP",
+    label: "Instagram Direct + Messenger + WhatsApp",
+  },
+  {
+    value: "MESSAGING_INSTAGRAM_DIRECT_WHATSAPP",
+    label: "Instagram Direct + WhatsApp",
+  },
+  { value: "SHOP_AUTOMATIC", label: "Shop (automatic)" },
+  { value: "ON_AD", label: "On ad (lead)" },
+  { value: "ON_POST", label: "On post" },
+  { value: "ON_EVENT", label: "On event" },
+  { value: "ON_VIDEO", label: "On video" },
+  { value: "ON_PAGE", label: "On page" },
+  { value: "INSTAGRAM_PROFILE", label: "Instagram profile" },
+  { value: "FACEBOOK_PAGE", label: "Facebook page" },
+  {
+    value: "INSTAGRAM_PROFILE_AND_FACEBOOK_PAGE",
+    label: "Instagram profile + Facebook page",
+  },
+  { value: "INSTAGRAM_LIVE", label: "Instagram Live" },
+  { value: "FACEBOOK_LIVE", label: "Facebook Live" },
+  { value: "IMAGINE", label: "Imagine" },
+];
+
+/** Allowed destination types per campaign objective (Meta ODAX). If objective not in map, show all. */
+const OBJECTIVE_DESTINATION_MAP: Record<string, string[]> = {
+  OUTCOME_TRAFFIC: [
+    "WEBSITE",
+    "APP",
+    "MESSENGER",
+    "WHATSAPP",
+    "INSTAGRAM_DIRECT",
+    "APPLINKS_AUTOMATIC",
+    "FACEBOOK",
+    "MESSAGING_MESSENGER_WHATSAPP",
+    "MESSAGING_INSTAGRAM_DIRECT_MESSENGER",
+    "MESSAGING_INSTAGRAM_DIRECT_MESSENGER_WHATSAPP",
+    "MESSAGING_INSTAGRAM_DIRECT_WHATSAPP",
+  ],
+  OUTCOME_LEADS: [
+    "ON_AD",
+    "WEBSITE",
+    "MESSENGER",
+    "WHATSAPP",
+    "INSTAGRAM_DIRECT",
+    "MESSAGING_MESSENGER_WHATSAPP",
+    "MESSAGING_INSTAGRAM_DIRECT_MESSENGER",
+    "MESSAGING_INSTAGRAM_DIRECT_MESSENGER_WHATSAPP",
+    "MESSAGING_INSTAGRAM_DIRECT_WHATSAPP",
+  ],
+  OUTCOME_ENGAGEMENT: [
+    "ON_POST",
+    "ON_PAGE",
+    "ON_VIDEO",
+    "ON_EVENT",
+    "MESSENGER",
+    "INSTAGRAM_PROFILE",
+    "FACEBOOK_PAGE",
+    "INSTAGRAM_PROFILE_AND_FACEBOOK_PAGE",
+    "INSTAGRAM_LIVE",
+    "FACEBOOK_LIVE",
+  ],
+  OUTCOME_SALES: [
+    "WEBSITE",
+    "APP",
+    "SHOP_AUTOMATIC",
+    "MESSENGER",
+    "WHATSAPP",
+    "INSTAGRAM_DIRECT",
+  ],
+  OUTCOME_APP_PROMOTION: ["APP", "APPLINKS_AUTOMATIC"],
+  OUTCOME_AWARENESS: [
+    "WEBSITE",
+    "INSTAGRAM_PROFILE",
+    "FACEBOOK_PAGE",
+    "INSTAGRAM_PROFILE_AND_FACEBOOK_PAGE",
+    "IMAGINE",
+  ],
+  LINK_CLICKS: [
+    "WEBSITE",
+    "APP",
+    "MESSENGER",
+    "WHATSAPP",
+    "INSTAGRAM_DIRECT",
+    "APPLINKS_AUTOMATIC",
+    "FACEBOOK",
+  ],
+  CONVERSIONS: [
+    "WEBSITE",
+    "APP",
+    "MESSENGER",
+    "WHATSAPP",
+    "INSTAGRAM_DIRECT",
+    "SHOP_AUTOMATIC",
+  ],
+  PAGE_LIKES: [
+    "FACEBOOK_PAGE",
+    "INSTAGRAM_PROFILE",
+    "INSTAGRAM_PROFILE_AND_FACEBOOK_PAGE",
+  ],
+  LEAD_GENERATION: ["ON_AD", "WEBSITE", "MESSENGER", "INSTAGRAM_DIRECT"],
+  APP_INSTALLS: ["APP", "APPLINKS_AUTOMATIC"],
+  PRODUCT_CATALOG_SALES: ["WEBSITE", "APP", "SHOP_AUTOMATIC"],
+};
+
+/** Format datetime-local value to ISO 8601 with timezone offset (e.g. 2024-05-20T10:00:00-0700). */
+function formatDateTimeToISO(value: string): string | undefined {
+  if (!value || value.trim() === "") return undefined;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return undefined;
+  const offsetMin = -d.getTimezoneOffset();
+  const offsetHours = Math.floor(offsetMin / 60);
+  const offsetMins = Math.abs(offsetMin % 60);
+  const sign = offsetHours >= 0 ? "+" : "-";
+  const pad = (n: number) => Math.abs(n).toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${sign}${pad(Math.abs(offsetHours))}${pad(offsetMins)}`;
+}
+
+export const CreateMetaAdSetPanel: React.FC<CreateMetaAdSetPanelProps> = ({
+  channelId,
+  onSuccess,
+  onClose,
+  profileId,
+  campaignId: initialCampaignId,
+  campaignObjective,
+  campaignBidStrategy,
+  campaignBudgetSet = false,
+  mode = "create",
+  adsetId,
+  initialData,
+}) => {
+  const isEditMode = mode === "edit" && adsetId;
+  const [name, setName] = useState("");
+  const [campaignId, setCampaignId] = useState(initialCampaignId ?? "");
+  const [status, setStatus] = useState<MetaAdSetStatus | "DELETED">("PAUSED");
+  const [editLoadError, setEditLoadError] = useState<string | null>(null);
+  const [editDataLoaded, setEditDataLoaded] = useState(!isEditMode);
+  const [budgetType, setBudgetType] = useState<"daily" | "lifetime">("daily");
+  const [dailyBudget, setDailyBudget] = useState<string>("");
+  const [lifetimeBudget, setLifetimeBudget] = useState<string>("");
+  const [optimizationGoal, setOptimizationGoal] =
+    useState<string>("LINK_CLICKS");
+  const [billingEvent, setBillingEvent] = useState<string>("LINK_CLICKS");
+  const [bidAmount, setBidAmount] = useState<string>("");
+  const [destinationType, setDestinationType] = useState<string>("");
+  const [pageId, setPageId] = useState<string>("");
+  const [pixelId, setPixelId] = useState<string>("");
+  const [customEventType, setCustomEventType] = useState<string>("");
+  const [applicationId, setApplicationId] = useState<string>("");
+  const [objectStoreUrl, setObjectStoreUrl] = useState<string>("");
+  const [eventId, setEventId] = useState<string>("");
+  const [productSetId, setProductSetId] = useState<string>("");
+  const [offlineConversionDataSetId, setOfflineConversionDataSetId] =
+    useState<string>("");
+  const [startTime, setStartTime] = useState<string>("");
+  const [endTime, setEndTime] = useState<string>("");
+  const [selectedTargetingCountries, setSelectedTargetingCountries] = useState<
+    string[]
+  >([]);
+  const [ageMin, setAgeMin] = useState<string>("18");
+  const [ageMax, setAgeMax] = useState<string>("");
+  const [targetingGenders, setTargetingGenders] = useState<string>("all");
+  const [publisherPlatforms, setPublisherPlatforms] = useState<string[]>([]);
+  const [devicePlatforms, setDevicePlatforms] = useState<string>("");
+  const [customAudiences, setCustomAudiences] = useState<string>("");
+  const [excludedCustomAudiences, setExcludedCustomAudiences] =
+    useState<string>("");
+  const [interestsIds, setInterestsIds] = useState<string>("");
+  const [behaviorsIds, setBehaviorsIds] = useState<string>("");
+  const [campaigns, setCampaigns] = useState<
+    Array<{ campaign_id: string; campaign_name: string }>
+  >([]);
+  const [campaignsLoading, setCampaignsLoading] = useState(true);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [validateOnlySuccess, setValidateOnlySuccess] = useState(false);
+  const [validateOnly, setValidateOnly] = useState(false);
+  const [activeTab, setActiveTab] = useState<
+    "basics" | "targeting" | "schedule" | "promoted"
+  >("basics");
+
+  // Original values for edit mode, used to send PATCH with only changed fields.
+  const [originalValues, setOriginalValues] = useState<{
+    name?: string;
+    status?: MetaAdSetStatus | "DELETED";
+    optimization_goal?: string;
+    billing_event?: string;
+    start_time?: string;
+    end_time?: string;
+    budgetType?: "daily" | "lifetime";
+    dailyBudget?: string;
+    lifetimeBudget?: string;
+    bidAmount?: string;
+    destination_type?: string;
+    targeting?: MetaTargetingSpec | undefined;
+  } | null>(null);
+
+  const isCampaignLocked = Boolean(initialCampaignId);
+
+  useEffect(() => {
+    if (initialCampaignId) {
+      setCampaignId(initialCampaignId);
+    }
+  }, [initialCampaignId]);
+
+  useEffect(() => {
+    if (!isEditMode || !adsetId) {
+      setEditDataLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    setEditDataLoaded(false);
+    setEditLoadError(null);
+    const load = async () => {
+      try {
+        const data = initialData ?? (await metaAdSetsService.getMetaAdSet(channelId, adsetId));
+        if (cancelled) return;
+        const d = data as Record<string, unknown>;
+        const initialName = String(d.name ?? d.adset_name ?? "");
+        const initialCampaignId = String(d.campaign_id ?? "");
+        const st = String(d.status ?? "PAUSED").toUpperCase();
+        const initialStatus = (st === "ACTIVE" || st === "PAUSED" || st === "ARCHIVED" || st === "DELETED" ? st : "PAUSED") as MetaAdSetStatus | "DELETED";
+        const initialOptimizationGoal = String(d.optimization_goal ?? "LINK_CLICKS");
+        const initialBillingEvent = String(d.billing_event ?? "LINK_CLICKS");
+        const initialStartTime = d.start_time ? String(d.start_time).slice(0, 16) : "";
+        const initialEndTime = d.end_time ? String(d.end_time).slice(0, 16) : "";
+        const dailyRaw = d.daily_budget;
+        const lifetimeRaw = d.lifetime_budget;
+        const dailyNum = dailyRaw != null && String(dailyRaw).trim() !== "" ? parseFloat(String(dailyRaw)) : NaN;
+        const lifetimeNum = lifetimeRaw != null && String(lifetimeRaw).trim() !== "" ? parseFloat(String(lifetimeRaw)) : NaN;
+        let initialBudgetType: "daily" | "lifetime" = "daily";
+        let initialDailyBudget = "";
+        let initialLifetimeBudget = "";
+        if (Number.isFinite(dailyNum) && dailyNum > 0) {
+          initialBudgetType = "daily";
+          initialDailyBudget = dailyNum >= 100 ? String(dailyNum / 100) : String(dailyNum);
+        } else if (Number.isFinite(lifetimeNum) && lifetimeNum > 0) {
+          initialBudgetType = "lifetime";
+          initialLifetimeBudget = lifetimeNum >= 100 ? String(lifetimeNum / 100) : String(lifetimeNum);
+        }
+        const bidAmt = d.bid_amount;
+        let initialBidAmount = "";
+        if (typeof bidAmt === "number" && bidAmt > 0) initialBidAmount = String(bidAmt / 100);
+        else if (typeof bidAmt === "string" && parseFloat(bidAmt) > 0) initialBidAmount = String(parseFloat(bidAmt) / 100);
+        const initialDestinationType = String(d.destination_type ?? "");
+        const targeting = d.targeting as Record<string, unknown> | undefined;
+        let initialTargeting: MetaTargetingSpec | undefined;
+        if (targeting?.geo_locations && typeof targeting.geo_locations === "object") {
+          const gl = (targeting.geo_locations as Record<string, unknown>).countries;
+          setSelectedTargetingCountries(Array.isArray(gl) ? gl.map((c) => String(c).toUpperCase()) : []);
+        }
+        if (targeting?.age_min != null) setAgeMin(String(targeting.age_min));
+        if (targeting?.age_max != null) setAgeMax(String(targeting.age_max));
+        if (targeting) {
+          initialTargeting = targeting as MetaTargetingSpec;
+        }
+
+        // Apply to form state
+        setName(initialName);
+        setCampaignId(initialCampaignId);
+        setStatus(initialStatus);
+        setOptimizationGoal(initialOptimizationGoal);
+        setBillingEvent(initialBillingEvent);
+        setStartTime(initialStartTime);
+        setEndTime(initialEndTime);
+        setBudgetType(initialBudgetType);
+        setDailyBudget(initialDailyBudget);
+        setLifetimeBudget(initialLifetimeBudget);
+        setBidAmount(initialBidAmount);
+        setDestinationType(initialDestinationType);
+
+        // Store snapshot for diffing on PATCH
+        setOriginalValues({
+          name: initialName,
+          status: initialStatus,
+          optimization_goal: initialOptimizationGoal,
+          billing_event: initialBillingEvent,
+          start_time: initialStartTime,
+          end_time: initialEndTime,
+          budgetType: initialBudgetType,
+          dailyBudget: initialDailyBudget,
+          lifetimeBudget: initialLifetimeBudget,
+          bidAmount: initialBidAmount,
+          destination_type: initialDestinationType,
+          targeting: initialTargeting,
+        });
+        setEditDataLoaded(true);
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setEditLoadError(err instanceof Error ? err.message : "Failed to load ad set.");
+          setEditDataLoaded(true);
+        }
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [isEditMode, adsetId, channelId, initialData]);
+
+  useEffect(() => {
+    if (isCampaignLocked) {
+      setCampaignsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setCampaignsLoading(true);
+    accountsService
+      .getMetaCampaigns(channelId, { page: 1, page_size: 200 })
+      .then((res) => {
+        if (cancelled) return;
+        const list = (res.campaigns || [])
+          .map((c: { campaign_id?: string; campaign_name?: string }) => ({
+            campaign_id: String(c.campaign_id ?? ""),
+            campaign_name: c.campaign_name ?? "",
+          }))
+          .filter((c: { campaign_id: string }) => c.campaign_id);
+        setCampaigns(list);
+        if (list.length > 0 && !campaignId) setCampaignId(list[0].campaign_id);
+      })
+      .catch(() => {
+        if (!cancelled) setCampaigns([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCampaignsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [channelId, isCampaignLocked, campaignId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setValidateOnlySuccess(false);
+    if (!name.trim()) {
+      setError("Ad set name is required.");
+      return;
+    }
+    if (!isEditMode && !campaignId) {
+      setError("Campaign is required.");
+      return;
+    }
+    if (profileId === 0) {
+      setError("Ad account is still loading.");
+      return;
+    }
+
+    if (!campaignBudgetSet) {
+      const budgetVal = budgetType === "daily" ? dailyBudget : lifetimeBudget;
+      if (
+        budgetVal === "" ||
+        Number.isNaN(parseFloat(budgetVal)) ||
+        parseFloat(budgetVal) <= 0
+      ) {
+        setError(
+          budgetType === "daily"
+            ? "Daily budget is required and must be greater than 0."
+            : "Lifetime budget is required and must be greater than 0.",
+        );
+        return;
+      }
+      if (budgetType === "lifetime") {
+        const endIso = formatDateTimeToISO(endTime);
+        if (!endTime.trim() || !endIso) {
+          setError("End time is required when using lifetime budget.");
+          return;
+        }
+      }
+    }
+
+    const campaignBidStrategyUpper = (campaignBidStrategy || "").toUpperCase();
+    const requiresBidAmount =
+      campaignBidStrategyUpper === "LOWEST_COST_WITH_BID_CAP" ||
+      campaignBidStrategyUpper === "COST_CAP" ||
+      campaignBidStrategyUpper === "LOWEST_COST_WITH_MIN_ROAS";
+    if (requiresBidAmount) {
+      const bid = bidAmount.trim() === "" ? NaN : parseFloat(bidAmount);
+      if (Number.isNaN(bid) || bid <= 0) {
+        setError(
+          campaignBidStrategyUpper === "LOWEST_COST_WITH_MIN_ROAS"
+            ? "Bid amount is required for this campaign's ROAS bid strategy. Please enter a positive bid amount."
+            : "Bid amount is required for this campaign's bid strategy. Please enter a positive bid amount.",
+        );
+        return;
+      }
+    }
+
+    if (selectedTargetingCountries.length === 0) {
+      setError(
+        "At least one targeting country is required. Select from the list in the Targeting tab.",
+      );
+      return;
+    }
+
+    const startIsoRequired = formatDateTimeToISO(startTime);
+    if (!isEditMode) {
+      if (!startTime.trim() || !startIsoRequired) {
+        setError(
+          "Start time is required (ISO 8601 recommended for ad set schedule).",
+        );
+        return;
+      }
+    }
+
+    setSubmitLoading(true);
+    try {
+      const payload: CreateMetaAdSetPayload = {
+        profile_id: profileId,
+        campaign_id: campaignId,
+        name: name.trim(),
+        status: status as MetaAdSetStatus,
+        optimization_goal: optimizationGoal,
+        billing_event: billingEvent,
+      };
+
+      // CBO: campaign has budget → do NOT send daily_budget/lifetime_budget on ad set (Meta allows only one).
+      // Ad set–level budget: campaign has no budget → send daily_budget or lifetime_budget on ad set.
+      if (!campaignBudgetSet) {
+        if (budgetType === "daily") {
+          const dailyCents = Math.round(parseFloat(String(dailyBudget)) * 100);
+          if (Number.isFinite(dailyCents) && dailyCents > 0) {
+            payload.daily_budget = dailyCents;
+          }
+          if (endTime.trim()) {
+            const endIso = formatDateTimeToISO(endTime);
+            if (endIso) payload.end_time = endIso;
+          }
+        } else {
+          const lifetimeCents = Math.round(
+            parseFloat(String(lifetimeBudget)) * 100,
+          );
+          if (Number.isFinite(lifetimeCents) && lifetimeCents > 0) {
+            payload.lifetime_budget = lifetimeCents;
+            const endIso = formatDateTimeToISO(endTime);
+            if (endIso) payload.end_time = endIso;
+          }
+        }
+      }
+      // When CBO, no ad set budget; use LOWEST_COST_WITHOUT_CAP by default so we don't need bid_amount.
+      if (campaignBidStrategy?.trim()) {
+        payload.bid_strategy = campaignBidStrategy.trim().toUpperCase();
+      } else if (campaignBudgetSet) {
+        payload.bid_strategy = "LOWEST_COST_WITHOUT_CAP";
+      }
+      // Include bid_amount whenever the user entered a valid value (needed for CBO campaigns with LOWEST_COST_WITH_BID_CAP, or ad set–level cap strategies).
+      if (
+        bidAmount !== "" &&
+        !Number.isNaN(parseFloat(bidAmount)) &&
+        parseFloat(bidAmount) > 0
+      ) {
+        payload.bid_amount = Math.round(parseFloat(bidAmount) * 100);
+      }
+      if (destinationType) payload.destination_type = destinationType;
+      const startIso = formatDateTimeToISO(startTime);
+      if (startIso) payload.start_time = startIso;
+      const po: Record<string, unknown> = {};
+      if (pageId.trim()) po.page_id = pageId.trim();
+      if (pixelId.trim()) po.pixel_id = pixelId.trim();
+      if (customEventType.trim()) po.custom_event_type = customEventType.trim();
+      if (applicationId.trim()) po.application_id = applicationId.trim();
+      if (objectStoreUrl.trim()) po.object_store_url = objectStoreUrl.trim();
+      if (eventId.trim()) po.event_id = eventId.trim();
+      if (productSetId.trim()) po.product_set_id = productSetId.trim();
+      if (offlineConversionDataSetId.trim())
+        po.offline_conversion_data_set_id = offlineConversionDataSetId.trim();
+      if (Object.keys(po).length > 0) payload.promoted_object = po;
+
+      const targeting: Record<string, unknown> = {};
+      if (selectedTargetingCountries.length > 0) {
+        targeting.geo_locations = {
+          countries: selectedTargetingCountries.map((c) => c.toUpperCase()),
+        };
+      }
+      const aMin = ageMin.trim() ? parseInt(ageMin, 10) : undefined;
+      const aMax = ageMax.trim() ? parseInt(ageMax, 10) : undefined;
+      if (aMin != null && !Number.isNaN(aMin)) targeting.age_min = aMin;
+      if (aMax != null && !Number.isNaN(aMax) && (aMin == null || aMax >= aMin))
+        targeting.age_max = aMax;
+      if (targetingGenders && targetingGenders !== "all") {
+        const g = targetingGenders.trim();
+        if (g === "1") targeting.genders = [1];
+        else if (g === "2") targeting.genders = [2];
+        else if (g === "all") targeting.genders = [1, 2];
+      }
+      if (publisherPlatforms.length > 0) {
+        targeting.publisher_platforms = [...publisherPlatforms];
+      }
+      if (devicePlatforms.trim()) {
+        targeting.device_platforms = [devicePlatforms.trim().toLowerCase()];
+      }
+      if (customAudiences.trim()) {
+        const ids = customAudiences
+          .split(/[\s,]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (ids.length > 0)
+          targeting.custom_audiences = ids.map((id) => ({ id }));
+      }
+      if (excludedCustomAudiences.trim()) {
+        const ids = excludedCustomAudiences
+          .split(/[\s,]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (ids.length > 0)
+          targeting.excluded_custom_audiences = ids.map((id) => ({ id }));
+      }
+      if (interestsIds.trim()) {
+        const ids = interestsIds
+          .split(/[\s,]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (ids.length > 0) targeting.interests = ids.map((id) => ({ id }));
+      }
+      if (behaviorsIds.trim()) {
+        const ids = behaviorsIds
+          .split(/[\s,]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (ids.length > 0) targeting.behaviors = ids.map((id) => ({ id }));
+      }
+      if (Object.keys(targeting).length > 0)
+        payload.targeting = targeting as MetaTargetingSpec;
+
+      if (isEditMode && adsetId) {
+        // Build a PATCH payload that only includes changed fields to avoid Meta validation issues.
+        const updatePayload: UpdateMetaAdSetPayload = {};
+        const orig = originalValues;
+
+        const trimmedName = name.trim();
+        if (!orig || trimmedName !== (orig.name ?? "")) {
+          updatePayload.name = trimmedName;
+        }
+        if (!orig || status !== orig.status) {
+          updatePayload.status = status;
+        }
+
+        const currentEndIso = endTime.trim()
+          ? formatDateTimeToISO(endTime) ?? undefined
+          : undefined;
+        if (!orig || currentEndIso !== (orig.end_time ? formatDateTimeToISO(orig.end_time) : undefined)) {
+          if (currentEndIso) {
+            updatePayload.end_time = currentEndIso;
+          }
+        }
+
+        if (!orig || optimizationGoal !== (orig.optimization_goal ?? "LINK_CLICKS")) {
+          updatePayload.optimization_goal = optimizationGoal;
+        }
+        if (!orig || billingEvent !== (orig.billing_event ?? "LINK_CLICKS")) {
+          updatePayload.billing_event = billingEvent;
+        }
+
+        // Budgets: only when campaign does not own budget and value changed
+        if (!campaignBudgetSet) {
+          const dailyTrim = dailyBudget.trim();
+          const lifetimeTrim = lifetimeBudget.trim();
+          if (
+            !orig ||
+            orig.budgetType !== budgetType ||
+            dailyTrim !== (orig.dailyBudget ?? "") ||
+            lifetimeTrim !== (orig.lifetimeBudget ?? "")
+          ) {
+            if (budgetType === "daily" && dailyTrim && parseFloat(dailyTrim) > 0) {
+              updatePayload.daily_budget = parseFloat(dailyTrim);
+            } else if (budgetType === "lifetime" && lifetimeTrim && parseFloat(lifetimeTrim) > 0) {
+              updatePayload.lifetime_budget = parseFloat(lifetimeTrim);
+            }
+          }
+        }
+
+        // Bid amount
+        const bidTrim = bidAmount.trim();
+        if (!orig || bidTrim !== (orig.bidAmount ?? "")) {
+          if (bidTrim && parseFloat(bidTrim) > 0) {
+            updatePayload.bid_amount = Math.round(parseFloat(bidTrim) * 100);
+          } else {
+            // Explicitly clearing bid not supported here; omit field if empty.
+          }
+        }
+
+        // Targeting: only if changed vs original
+        if (Object.keys(targeting).length > 0) {
+          const currentTargeting = targeting as MetaTargetingSpec;
+          const origTargeting = originalValues?.targeting;
+          const currentJson = JSON.stringify(currentTargeting);
+          const origJson = origTargeting ? JSON.stringify(origTargeting) : undefined;
+          if (!orig || currentJson !== origJson) {
+            updatePayload.targeting = currentTargeting;
+          }
+        }
+
+        // If nothing changed, do not fire PATCH.
+        if (Object.keys(updatePayload).length === 0) {
+          onSuccess();
+          onClose();
+          return;
+        }
+
+        await metaAdSetsService.updateMetaAdSet(channelId, adsetId, updatePayload);
+        onSuccess();
+        onClose();
+        return;
+      }
+
+      await metaAdSetsService.createMetaAdSet(channelId, payload);
+      if (validateOnly) {
+        setError(null);
+        setValidateOnlySuccess(true);
+        return;
+      }
+      onSuccess();
+      onClose();
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data
+              ?.error
+          : err instanceof Error
+            ? err.message
+            : "Failed to create ad set.";
+      setError(String(msg));
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const handleFillTest = () => {
+    if (!campaignId && campaigns.length > 0) {
+      setCampaignId(campaigns[0].campaign_id);
+    }
+    setName((prev) =>
+      prev && prev.trim().length > 0 ? prev : "Test Ad Set – Traffic",
+    );
+    if (!campaignBudgetSet) {
+      setBudgetType("daily");
+      setDailyBudget((prev) => (prev && prev.trim().length > 0 ? prev : "20"));
+      setLifetimeBudget("");
+    }
+    if (selectedTargetingCountries.length === 0) {
+      setSelectedTargetingCountries(["US"]);
+    }
+    if (!optimizationGoal) {
+      setOptimizationGoal("LINK_CLICKS");
+      setBillingEvent("LINK_CLICKS");
+    }
+    if (!startTime) {
+      const now = new Date();
+      const local = now.toISOString().slice(0, 16);
+      setStartTime(local);
+    }
+  };
+
+  const loading =
+    (campaignsLoading && !isCampaignLocked && !isEditMode) ||
+    (isCampaignLocked && profileId === 0 && !isEditMode) ||
+    (isEditMode && !editDataLoaded);
+
+  const TABS: { id: typeof activeTab; label: string }[] = [
+    { id: "basics", label: "Basics" },
+    { id: "targeting", label: "Targeting" },
+    { id: "schedule", label: "Schedule" },
+    { id: "promoted", label: "Promoted object" },
+  ];
+
+  return (
+    <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6] mb-4">
+      <form onSubmit={handleSubmit}>
+        <div className="p-4 border-b border-gray-200">
+          <h2 className="text-[16px] font-semibold text-[#072929]">
+            {isEditMode ? "Edit ad set" : "Create Ad Set"}
+          </h2>
+        </div>
+
+        {loading ? (
+          <>
+            <div className="p-4 border-b border-gray-200 py-6 flex justify-center">
+              <Loader size="md" message="Loading..." />
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+              <button type="button" onClick={onClose} className="cancel-button">
+                Cancel
+              </button>
+            </div>
+          </>
+        ) : !isEditMode && ((isCampaignLocked && !campaignId) ||
+          (!isCampaignLocked && campaigns.length === 0)) ? (
+          <>
+            <div className="p-4 border-b border-gray-200">
+              <p className="text-[12px] text-[#556179] py-4">
+                No campaigns found. Create a campaign first.
+              </p>
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+              <button type="button" onClick={onClose} className="cancel-button">
+                Cancel
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="p-4 border-b border-gray-200">
+              {validateOnlySuccess && (
+                <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-[12px] text-green-800">
+                  Validation passed. No ad set was created. Uncheck
+                  &quot;Validate only&quot; to create.
+                </div>
+              )}
+              {editLoadError && (
+                <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-[12px] text-red-800">
+                  {editLoadError}
+                </div>
+              )}
+              {error && (
+                <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-[12px] text-red-800">
+                  {error}
+                </div>
+              )}
+
+              <div className="tabs-container mt-2">
+                <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
+                  {TABS.map((tab) => {
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setActiveTab(tab.id);
+                        }}
+                        className={`tab-button cursor-pointer ${
+                          isActive ? "tab-button-active" : "tab-button-inactive"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {activeTab === "basics" && (
+                  <div className="p-3">
+                    <div className="mb-6">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
+                        Ad set details
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {(isCampaignLocked || isEditMode) ? (
+                          <div>
+                            <label className="form-label-small">Campaign</label>
+                            <div className={`${inputClass} py-2 px-3 bg-gray-100 text-[#556179] rounded border border-gray-200`}>
+                              {campaignId || "—"}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <label className="form-label-small">
+                              Campaign *
+                            </label>
+                            <Dropdown
+                              options={campaigns.map((c) => ({
+                                value: c.campaign_id,
+                                label: c.campaign_name || c.campaign_id,
+                              }))}
+                              value={campaignId}
+                              placeholder="Select campaign"
+                              onChange={(val) => setCampaignId(val)}
+                              buttonClassName={inputClass}
+                            />
+                          </div>
+                        )}
+                        <div>
+                          <label className="form-label-small">
+                            Ad set name *
+                          </label>
+                          <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="e.g. US 18-35"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">Status</label>
+                          <Dropdown<MetaAdSetStatus | "DELETED">
+                            options={isEditMode ? STATUS_OPTIONS_EDIT : STATUS_OPTIONS_CREATE}
+                            value={status}
+                            placeholder="Select status"
+                            onChange={(val) => setStatus(val)}
+                            buttonClassName={inputClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mb-6">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-1">
+                        Budget and bid
+                      </h3>
+                      <p className="text-[11px] text-[#556179] mb-3">
+                        Either <strong>daily budget</strong> or{" "}
+                        <strong>lifetime budget</strong> is required and must be
+                        greater than 0 (shown here in account currency; sent to
+                        Meta in the account&apos;s smallest unit, e.g. cents).{" "}
+                        For lifetime budget you must also set an end time; for
+                        daily budget you can make the ad set ongoing by leaving
+                        end time empty.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {!campaignBudgetSet && (
+                          <>
+                            <div>
+                              <label className="form-label-small">
+                                Budget type *
+                              </label>
+                              <Dropdown<"daily" | "lifetime">
+                                options={BUDGET_TYPE_OPTIONS}
+                                value={budgetType}
+                                placeholder="Select budget type"
+                                onChange={(val) => setBudgetType(val)}
+                                buttonClassName={inputClass}
+                              />
+                            </div>
+                            <div>
+                              <label className="form-label-small">
+                                {budgetType === "daily"
+                                  ? "Daily budget *"
+                                  : "Lifetime budget *"}
+                              </label>
+                              <input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={
+                                  budgetType === "daily"
+                                    ? dailyBudget
+                                    : lifetimeBudget
+                                }
+                                onChange={(e) =>
+                                  budgetType === "daily"
+                                    ? setDailyBudget(e.target.value)
+                                    : setLifetimeBudget(e.target.value)
+                                }
+                                placeholder="e.g. 20.00"
+                                className={inputClass}
+                              />
+                              <p className="text-[11px] text-[#556179] mt-1">
+                                In account currency.
+                              </p>
+                            </div>
+                          </>
+                        )}
+                        <div>
+                          <label className="form-label-small">
+                            Optimization goal *
+                          </label>
+                          <Dropdown
+                            options={OPTIMIZATION_GOAL_OPTIONS}
+                            value={optimizationGoal}
+                            placeholder="Select optimization goal"
+                            onChange={(val) => setOptimizationGoal(val)}
+                            buttonClassName={inputClass}
+                          />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            Required by Meta for ad set creation.
+                          </p>
+                        </div>
+                        <div>
+                          <label className="form-label-small">
+                            Billing event
+                          </label>
+                          <Dropdown
+                            options={BILLING_EVENT_OPTIONS}
+                            value={billingEvent}
+                            placeholder="Select billing event"
+                            onChange={(val) => setBillingEvent(val)}
+                            buttonClassName={inputClass}
+                          />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            Align with optimization goal when possible.
+                          </p>
+                        </div>
+                        <div>
+                          <label className="form-label-small">
+                            Bid amount (optional)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={bidAmount}
+                            onChange={(e) => setBidAmount(e.target.value)}
+                            placeholder="e.g. 1.50"
+                            className={inputClass}
+                          />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            In dollars; sent as cents.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mb-6">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-2">
+                        Targeting (required)
+                      </h3>
+                      <p className="text-[11px] text-[#556179] mb-3">
+                        At least one country is required. Set start time in the
+                        Schedule tab.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="form-label-small">
+                            Countries * (select at least one)
+                          </label>
+                          <Dropdown<string>
+                            options={META_COUNTRY_CODES.filter(
+                              (code) =>
+                                !selectedTargetingCountries.includes(code),
+                            ).map((code) => ({
+                              value: code,
+                              label: `${META_COUNTRY_LABELS[code] ?? code} (${code})`,
+                            }))}
+                            value=""
+                            onChange={(value) => {
+                              if (
+                                value &&
+                                !selectedTargetingCountries.includes(value)
+                              ) {
+                                setSelectedTargetingCountries([
+                                  ...selectedTargetingCountries,
+                                  value,
+                                ]);
+                              }
+                            }}
+                            placeholder="Select countries"
+                            buttonClassName={inputClass}
+                            searchable={true}
+                            searchPlaceholder="Search countries..."
+                            emptyMessage="No countries available"
+                          />
+                          {selectedTargetingCountries.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {selectedTargetingCountries.map((code) => (
+                                <span
+                                  key={code}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-[#136D6D] text-white text-[11px] rounded"
+                                >
+                                  {META_COUNTRY_LABELS[code] ?? code}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedTargetingCountries(
+                                        selectedTargetingCountries.filter(
+                                          (c) => c !== code,
+                                        ),
+                                      );
+                                    }}
+                                    className="hover:text-red-200"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {selectedTargetingCountries.length > 0 && (
+                            <p className="text-[11px] text-[#556179] mt-1">
+                              {selectedTargetingCountries.length} selected.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mb-2">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
+                        Destination type (optional)
+                      </h3>
+                      <p className="text-[11px] text-[#556179] mb-2">
+                        Destination of ads in this ad set. Options depend on
+                        campaign objective
+                        {campaignObjective ? ` (${campaignObjective})` : ""}.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          {isEditMode ? (
+                            <div className={`${inputClass} py-2 px-3 bg-gray-100 text-[#556179] rounded border border-gray-200`}>
+                              {destinationType || "—"}
+                            </div>
+                          ) : (
+                            <Dropdown
+                              options={
+                                campaignObjective &&
+                                OBJECTIVE_DESTINATION_MAP[campaignObjective]
+                                  ? DESTINATION_TYPES.filter((d) =>
+                                      OBJECTIVE_DESTINATION_MAP[
+                                        campaignObjective
+                                      ].includes(d.value),
+                                    )
+                                  : DESTINATION_TYPES
+                              }
+                              value={destinationType}
+                              placeholder="Select destination"
+                              onChange={(val) => setDestinationType(val)}
+                              buttonClassName={inputClass}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "targeting" && (
+                  <div className="p-3">
+                    <div className="mb-6 p-4 rounded-xl border-2 border-[#136D6D]/20 bg-white/50">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-3">
+                        Optional targeting
+                      </h3>
+                      <p className="text-[11px] text-[#556179] mb-4">
+                        Demographics, audiences, and placements. Countries are
+                        set in the Basics tab.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                          <label className="form-label-small">
+                            Age min (optional)
+                          </label>
+                          <Dropdown
+                            options={AGE_OPTIONS}
+                            value={ageMin}
+                            placeholder="Minimum age (default 18)"
+                            onChange={(val) => {
+                              setAgeMin(val);
+                              const min = parseInt(val, 10);
+                              if (ageMax !== "" && !Number.isNaN(min)) {
+                                const max = parseInt(ageMax, 10);
+                                if (!Number.isNaN(max) && max < min)
+                                  setAgeMax("");
+                              }
+                            }}
+                            buttonClassName={inputClass}
+                          />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            Minimum age. Defaults to 18.
+                          </p>
+                        </div>
+                        <div>
+                          <label className="form-label-small">
+                            Age max (optional)
+                          </label>
+                          <Dropdown
+                            options={[
+                              { value: "", label: "No maximum" },
+                              ...AGE_OPTIONS.filter((opt) => {
+                                const minVal = parseInt(ageMin, 10);
+                                const optVal = parseInt(opt.value, 10);
+                                return (
+                                  !Number.isNaN(minVal) &&
+                                  !Number.isNaN(optVal) &&
+                                  optVal >= minVal
+                                );
+                              }),
+                            ]}
+                            value={ageMax}
+                            placeholder="Maximum age"
+                            onChange={(val) => setAgeMax(val)}
+                            buttonClassName={inputClass}
+                          />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            Maximum age. If used, must be 65 or lower.
+                          </p>
+                        </div>
+                        <div>
+                          <label className="form-label-small">
+                            Genders (optional)
+                          </label>
+                          <Dropdown
+                            options={TARGETING_GENDER_OPTIONS}
+                            value={targetingGenders}
+                            placeholder="All"
+                            onChange={(val) => setTargetingGenders(val)}
+                            buttonClassName={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">
+                            Publisher platforms (optional)
+                          </label>
+                          <Dropdown<string>
+                            options={PUBLISHER_PLATFORMS.filter(
+                              (code) => !publisherPlatforms.includes(code),
+                            ).map((code) => ({
+                              value: code,
+                              label: PUBLISHER_PLATFORM_LABELS[code] ?? code,
+                            }))}
+                            value=""
+                            onChange={(value) => {
+                              if (!publisherPlatforms.includes(value)) {
+                                setPublisherPlatforms([
+                                  ...publisherPlatforms,
+                                  value,
+                                ]);
+                              }
+                            }}
+                            placeholder="Select platforms"
+                            buttonClassName={inputClass}
+                            searchable={true}
+                            searchPlaceholder="Search platforms..."
+                            emptyMessage="No platforms available"
+                          />
+                          {publisherPlatforms.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {publisherPlatforms.map((code) => (
+                                <span
+                                  key={code}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-[#136D6D] text-white text-[11px] rounded"
+                                >
+                                  {PUBLISHER_PLATFORM_LABELS[code] ?? code}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPublisherPlatforms(
+                                        publisherPlatforms.filter(
+                                          (c) => c !== code,
+                                        ),
+                                      );
+                                    }}
+                                    className="hover:text-red-200"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {publisherPlatforms.length > 0 && (
+                            <p className="text-[11px] text-[#556179] mt-1">
+                              {publisherPlatforms.length} selected.
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="form-label-small">
+                            Device platforms (optional)
+                          </label>
+                          <Dropdown
+                            options={DEVICE_PLATFORM_OPTIONS}
+                            value={devicePlatforms}
+                            placeholder="All"
+                            onChange={(val) => setDevicePlatforms(val)}
+                            buttonClassName={inputClass}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="form-label-small">
+                            Custom audience IDs (comma separated)
+                          </label>
+                          <input
+                            type="text"
+                            value={customAudiences}
+                            onChange={(e) => setCustomAudiences(e.target.value)}
+                            placeholder="e.g. 123456, 789012"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="form-label-small">
+                            Excluded custom audience IDs (comma separated)
+                          </label>
+                          <input
+                            type="text"
+                            value={excludedCustomAudiences}
+                            onChange={(e) =>
+                              setExcludedCustomAudiences(e.target.value)
+                            }
+                            placeholder="e.g. 123456"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="form-label-small">
+                            Interest IDs (optional, comma separated)
+                          </label>
+                          <input
+                            type="text"
+                            value={interestsIds}
+                            onChange={(e) => setInterestsIds(e.target.value)}
+                            placeholder="e.g. 600313926646730"
+                            className={inputClass}
+                          />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            May be restricted for Housing, Employment, or Credit
+                            (Special Ad Category) campaigns.
+                          </p>
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="form-label-small">
+                            Behavior IDs (optional, comma separated)
+                          </label>
+                          <input
+                            type="text"
+                            value={behaviorsIds}
+                            onChange={(e) => setBehaviorsIds(e.target.value)}
+                            placeholder="e.g. 6002714895372"
+                            className={inputClass}
+                          />
+                          <p className="text-[11px] text-[#556179] mt-1">
+                            May be restricted for Special Ad Category campaigns.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "schedule" && (
+                  <div className="p-3">
+                    <div className="mb-6">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
+                        Schedule
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="form-label-small">
+                            Start time *
+                          </label>
+                          <input
+                            type="datetime-local"
+                            value={startTime}
+                            onChange={(e) => setStartTime(e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">
+                            End time{" "}
+                            {budgetType === "lifetime" ? "*" : "(optional)"}
+                          </label>
+                          <input
+                            type="datetime-local"
+                            value={endTime}
+                            onChange={(e) => setEndTime(e.target.value)}
+                            className={inputClass}
+                          />
+                          {budgetType === "lifetime" && (
+                            <p className="text-[11px] text-[#556179] mt-1">
+                              Required when using lifetime budget.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "promoted" && (
+                  <div className="p-3">
+                    <div className="mb-6">
+                      <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
+                        Promoted object
+                      </h3>
+                      {isEditMode ? (
+                        <p className="text-[11px] text-[#556179]">
+                          Not editable when editing an ad set (read-only per Meta API).
+                        </p>
+                      ) : (
+                        <>
+                      <p className="text-[11px] text-[#556179] mb-3">
+                        The object this ad set is promoting. Required for some
+                        objectives (e.g. page_id for PAGE_LIKES/LEADS, pixel_id
+                        for CONVERSIONS, application_id + object_store_url for
+                        APP_INSTALLS).
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="form-label-small">Page ID</label>
+                          <input
+                            type="text"
+                            value={pageId}
+                            onChange={(e) => setPageId(e.target.value)}
+                            placeholder="e.g. Meta Page ID"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">Pixel ID</label>
+                          <input
+                            type="text"
+                            value={pixelId}
+                            onChange={(e) => setPixelId(e.target.value)}
+                            placeholder="e.g. Conversion pixel ID"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">
+                            Custom event type
+                          </label>
+                          <input
+                            type="text"
+                            value={customEventType}
+                            onChange={(e) => setCustomEventType(e.target.value)}
+                            placeholder="e.g. PURCHASE, LEAD"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">
+                            Application ID
+                          </label>
+                          <input
+                            type="text"
+                            value={applicationId}
+                            onChange={(e) => setApplicationId(e.target.value)}
+                            placeholder="e.g. Facebook App ID"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="form-label-small">
+                            Object store URL
+                          </label>
+                          <input
+                            type="text"
+                            value={objectStoreUrl}
+                            onChange={(e) => setObjectStoreUrl(e.target.value)}
+                            placeholder="e.g. https://apps.apple.com/..."
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">Event ID</label>
+                          <input
+                            type="text"
+                            value={eventId}
+                            onChange={(e) => setEventId(e.target.value)}
+                            placeholder="e.g. Facebook event ID"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">
+                            Product set ID
+                          </label>
+                          <input
+                            type="text"
+                            value={productSetId}
+                            onChange={(e) => setProductSetId(e.target.value)}
+                            placeholder="e.g. for catalog sales"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label-small">
+                            Offline conversion data set ID
+                          </label>
+                          <input
+                            type="text"
+                            value={offlineConversionDataSetId}
+                            onChange={(e) =>
+                              setOfflineConversionDataSetId(e.target.value)
+                            }
+                            placeholder="e.g. for offline conversions"
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-200 flex flex-wrap items-center justify-end gap-3">
+              {!isEditMode && (
+                <label className="flex items-center gap-2 text-[12px] text-[#556179] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={validateOnly}
+                    onChange={(e) => {
+                      setValidateOnly(e.target.checked);
+                      if (e.target.checked) setValidateOnlySuccess(false);
+                    }}
+                    className="rounded border-gray-300"
+                  />
+                  Validate only (no ad set created)
+                </label>
+              )}
+              {!isEditMode && (
+                <button
+                  type="button"
+                  onClick={handleFillTest}
+                  className="secondary-button font-semibold text-[11.2px]"
+                >
+                  Fill test data
+                </button>
+              )}
+              <button type="button" onClick={onClose} className="cancel-button">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitLoading}
+                className="create-entity-button font-semibold text-[11.2px] flex items-center gap-2"
+              >
+                {submitLoading
+                  ? (isEditMode ? "Updating..." : validateOnly ? "Validating..." : "Creating...")
+                  : (isEditMode ? "Update ad set" : validateOnly ? "Validate only" : "Create ad set")}
+              </button>
+            </div>
+          </>
+        )}
+      </form>
+    </div>
+  );
+};

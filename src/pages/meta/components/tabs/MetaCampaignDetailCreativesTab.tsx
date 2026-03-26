@@ -14,12 +14,16 @@ interface MetaCampaignDetailCreativesTabProps {
   selectedIds: Set<string | number>;
   onSelectAll: (checked: boolean) => void;
   onSelectOne: (id: string | number, checked: boolean) => void;
+  searchName: string;
+  onSearchNameChange: (value: string) => void;
   sortBy: string;
   sortOrder: "asc" | "desc";
   onSort: (column: string) => void;
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  createButton?: React.ReactNode;
+  createPanel?: React.ReactNode;
 }
 
 export const MetaCampaignDetailCreativesTab: React.FC<MetaCampaignDetailCreativesTabProps> = ({
@@ -28,18 +32,41 @@ export const MetaCampaignDetailCreativesTab: React.FC<MetaCampaignDetailCreative
   selectedIds,
   onSelectAll,
   onSelectOne,
+  searchName,
+  onSearchNameChange,
   sortBy,
   sortOrder,
   onSort,
   currentPage,
   totalPages,
   onPageChange,
+  createButton,
+  createPanel,
 }) => {
   const allSelected = creatives.length > 0 && creatives.every((c) => selectedIds.has(c.creative_id ?? c.id));
   const someSelected = selectedIds.size > 0;
 
   return (
     <div className="relative">
+      {(createButton != null || createPanel != null) && (
+        <>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={searchName}
+                onChange={(e) => onSearchNameChange(e.target.value)}
+                placeholder="Search creatives by name..."
+                className="campaign-input w-[320px]"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              {createButton}
+            </div>
+          </div>
+          {createPanel}
+        </>
+      )}
       <div className="overflow-x-auto w-full">
         <table className="min-w-[1000px] w-full">
           <thead>
@@ -48,7 +75,7 @@ export const MetaCampaignDetailCreativesTab: React.FC<MetaCampaignDetailCreative
                 <Checkbox
                   checked={allSelected}
                   indeterminate={someSelected && !allSelected}
-                  onCheckedChange={onSelectAll}
+                  onChange={onSelectAll}
                 />
               </th>
               <th className="table-header table-sticky-first-column min-w-[200px]">
@@ -88,7 +115,7 @@ export const MetaCampaignDetailCreativesTab: React.FC<MetaCampaignDetailCreative
                     <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                       <Checkbox
                         checked={isSelected}
-                        onCheckedChange={(checked) => onSelectOne(id, !!checked)}
+                        onChange={(checked) => onSelectOne(id, checked)}
                       />
                     </td>
                     <td className="table-cell table-sticky-first-column min-w-[200px] max-w-[400px] group-hover:bg-[#f9f9f6] table-text leading-[1.26]">
