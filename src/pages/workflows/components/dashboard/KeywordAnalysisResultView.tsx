@@ -2,11 +2,13 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Hash, Layers, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { cn } from "../../../../lib/cn";
 import { patchKeywordAnalysis } from "../../../../services/dashboardActions";
+import { Dropdown } from "../../../../components/ui";
 
 /** Shape persisted by the agent / returned in ```keyword-analysis``` blocks. */
 export interface KeywordAnalysisKeywordItem {
   keyword: string;
   match_type: string;
+  stagger_interval_seconds?: number | string;
 }
 
 export interface KeywordAnalysisEntityItem {
@@ -33,6 +35,15 @@ export interface KeywordAnalysisPersistContext {
 }
 
 const MATCH_TYPES = ["EXACT", "PHRASE", "BROAD"] as const;
+const STAGGER_INTERVAL_OPTIONS = [
+  { value: "3600", label: "1 hour" },
+  { value: "7200", label: "2 hours" },
+  { value: "14400", label: "4 hours" },
+  { value: "28800", label: "8 hours" },
+  { value: "86400", label: "1 day" },
+  { value: "172800", label: "2 days" },
+  { value: "259200", label: "3 days" },
+];
 
 function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null && !Array.isArray(x);
@@ -52,7 +63,15 @@ export function parseKeywordAnalysisPayload(raw: unknown): KeywordAnalysisStored
             isRecord(k) &&
             typeof k.keyword === "string" &&
             typeof k.match_type === "string"
-        )
+        ).map((k) => ({
+          keyword: k.keyword,
+          match_type: k.match_type,
+          stagger_interval_seconds:
+            typeof k.stagger_interval_seconds === "number" ||
+            typeof k.stagger_interval_seconds === "string"
+              ? k.stagger_interval_seconds
+              : undefined,
+        }))
       : [];
     const negatives = Array.isArray(ent.negatives)
       ? ent.negatives.filter(
@@ -60,7 +79,15 @@ export function parseKeywordAnalysisPayload(raw: unknown): KeywordAnalysisStored
             isRecord(k) &&
             typeof k.keyword === "string" &&
             typeof k.match_type === "string"
-        )
+        ).map((k) => ({
+          keyword: k.keyword,
+          match_type: k.match_type,
+          stagger_interval_seconds:
+            typeof k.stagger_interval_seconds === "number" ||
+            typeof k.stagger_interval_seconds === "string"
+              ? k.stagger_interval_seconds
+              : undefined,
+        }))
       : [];
     entities.push({
       id: ent.id,
@@ -83,9 +110,33 @@ export function cloneKeywordAnalysisPayload(d: KeywordAnalysisStoredPayload): Ke
   return JSON.parse(JSON.stringify(d)) as KeywordAnalysisStoredPayload;
 }
 
+function withDefaultStaggerIntervals(payload: KeywordAnalysisStoredPayload): KeywordAnalysisStoredPayload {
+  const cloned = cloneKeywordAnalysisPayload(payload);
+  cloned.entities = cloned.entities?.map((entity) => ({
+    ...entity,
+    keywords: entity.keywords?.map((kw) => ({
+      ...kw,
+      stagger_interval_seconds: kw.stagger_interval_seconds || "86400",
+    })),
+    negatives: entity.negatives?.map((neg) => ({
+      ...neg,
+      stagger_interval_seconds: neg.stagger_interval_seconds || "86400",
+    })),
+  }));
+  return cloned;
+}
+
 function normalizeMatchType(mt: string): string {
   const u = mt.trim().toUpperCase();
   return MATCH_TYPES.includes(u as (typeof MATCH_TYPES)[number]) ? u : "PHRASE";
+}
+
+function getStaggerIntervalValue(entity: KeywordAnalysisEntityItem): string {
+  const firstKw = entity.keywords?.[0];
+  const raw = firstKw?.stagger_interval_seconds;
+  const parsed = typeof raw === "number" ? raw : parseInt(String(raw ?? ""), 10);
+  const normalized = Number.isFinite(parsed) && parsed > 0 ? String(parsed) : "86400";
+  return STAGGER_INTERVAL_OPTIONS.some((o) => o.value === normalized) ? normalized : "86400";
 }
 
 // ── Inline text edit (same pattern as DashboardWidgetActions InlineEdit) ───
@@ -336,7 +387,7 @@ export const KeywordAnalysisResultView: React.FC<KeywordAnalysisResultViewProps>
   onPersisted,
 }) => {
   const editable = Boolean(persistContext?.actionId);
-  const [localData, setLocalData] = useState(() => cloneKeywordAnalysisPayload(data));
+  const [localData, setLocalData] = useState(() => withDefaultStaggerIntervals(data));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
@@ -366,8 +417,8 @@ export const KeywordAnalysisResultView: React.FC<KeywordAnalysisResultViewProps>
   const view = editable ? localData : data;
   const entities = view.entities ?? [];
 
-  const persist = useCallback(
-    async (next: KeywordAnalysisStoredPayload) => {
+  const persistAnalysis = useCallback(
+    async (analysisWithInterval: KeywordAnalysisStoredPayload) => {
       if (!persistContext?.actionId) return;
       setSaving(true);
       setError(null);
@@ -375,10 +426,10 @@ export const KeywordAnalysisResultView: React.FC<KeywordAnalysisResultViewProps>
         const res = await patchKeywordAnalysis(persistContext.accountId, persistContext.dashboardId, {
           component_id: persistContext.componentId,
           action_id: persistContext.actionId,
-          keyword_analysis: next as unknown as Record<string, unknown>,
+          keyword_analysis: analysisWithInterval as unknown as Record<string, unknown>,
         });
         const parsed = parseKeywordAnalysisPayload(res.keyword_analysis);
-        const merged = parsed ?? next;
+        const merged = parsed ?? analysisWithInterval;
         setLocalData(merged);
         localRef.current = merged;
         onPersisted?.(merged);
@@ -395,9 +446,11 @@ export const KeywordAnalysisResultView: React.FC<KeywordAnalysisResultViewProps>
     (mutator: (draft: KeywordAnalysisStoredPayload) => void) => {
       const next = cloneKeywordAnalysisPayload(localRef.current);
       mutator(next);
-      void persist(next);
+      setLocalData(next);
+      localRef.current = next;
+      void persistAnalysis(next);
     },
-    [persist]
+    [persistAnalysis]
   );
 
   const kindLabel =
@@ -491,7 +544,11 @@ export const KeywordAnalysisResultView: React.FC<KeywordAnalysisResultViewProps>
                   if (!e) return;
                   const key = kind === "keywords" ? "keywords" : "negatives";
                   if (!e[key]) e[key] = [];
-                  e[key]!.push({ keyword: t, match_type: normalizeMatchType(addDraftMt) });
+                  e[key]!.push({
+                    keyword: t,
+                    match_type: normalizeMatchType(addDraftMt),
+                    stagger_interval_seconds: getStaggerIntervalValue(e),
+                  });
                 });
                 setAddingFor(null);
               }}
@@ -680,6 +737,60 @@ export const KeywordAnalysisResultView: React.FC<KeywordAnalysisResultViewProps>
                 </div>
               </div>
 
+              {editable ? (
+                <div className="mt-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={cn("text-xs opacity-60", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                      Execution Interval:
+                    </span>
+                    <div className="min-w-[50px]">
+                      <Dropdown
+                        options={STAGGER_INTERVAL_OPTIONS}
+                        value={getStaggerIntervalValue(ent)}
+                        onChange={(value) => {
+                          const parsed = parseInt(String(value), 10);
+                          if (!Number.isFinite(parsed)) return;
+                          applyUpdate((d) => {
+                            const e = d.entities?.find((x) => x.id === ent.id);
+                            if (!e) return;
+                            const normalized = String(parsed);
+                            const applyTo = (items?: KeywordAnalysisKeywordItem[]) => {
+                              if (!items) return;
+                              for (let i = 0; i < items.length; i += 1) {
+                                items[i] = {
+                                  ...items[i],
+                                  stagger_interval_seconds: normalized,
+                                };
+                              }
+                            };
+                            applyTo(e.keywords);
+                            applyTo(e.negatives);
+                          });
+                        }}
+                        buttonClassName={cn(
+                          "h-1.5 min-h-3.5 px-0.5 py-0 text-xs rounded",
+                          isDark
+                            ? "bg-neutral-700 border border-neutral-600 text-neutral-200"
+                            : "bg-white border border-sandstorm-s40 text-forest-f60"
+                        )}
+                        menuClassName={cn(
+                          "text-[20px]",
+                          isDark ? "bg-neutral-800 border-neutral-700" : "bg-white border-sandstorm-s40"
+                        )}
+                        optionClassName={cn(
+                          "text-[12px] py-0.5",
+                          isDark ? "text-neutral-200 hover:bg-neutral-700" : "text-forest-f60 hover:bg-sandstorm-s10"
+                        )}
+                        align="left"
+                      />
+                    </div>
+                  </div>
+                  <p className={cn("text-[8px] opacity-80", isDark ? "text-neutral-400" : "text-forest-f30")}>
+                    Delay between keyword additions
+                  </p>
+                </div>
+              ) : null}
+
               {ent.rationale ? (
                 <p
                   className={cn(
@@ -697,6 +808,7 @@ export const KeywordAnalysisResultView: React.FC<KeywordAnalysisResultViewProps>
           ))}
         </ul>
       )}
+
     </div>
   );
 };
