@@ -10,8 +10,16 @@ import {
 } from "lucide-react";
 import { cn } from "../../../../lib/cn";
 import { Dropdown } from "../../../../components/ui";
-import type { ActionExecution } from "../../types/dashboard";
 import type { ActionHistoryParams, ActionHistoryResponse } from "../../../../services/dashboardActions";
+import type { ActionExecution, ActionType } from "../../types/dashboard";
+import { ACTION_TYPE_COLORS, ACTION_TYPE_LABELS } from "./actionTypeDisplay";
+
+const ACTION_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "All Actions" },
+  ...(Object.entries(ACTION_TYPE_LABELS) as [ActionType, string][])
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label)),
+];
 
 interface ActionHistoryModalProps {
   isOpen: boolean;
@@ -21,7 +29,10 @@ interface ActionHistoryModalProps {
   onShowHistory?: (filters: ActionHistoryParams) => ActionHistoryResponse | Promise<ActionHistoryResponse>;
 }
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
+
+/** Uniform height for filter bar controls (36px including border). */
+const FILTER_CTRL_H = "h-9 min-h-9 box-border";
 
 const STATUS_STYLES: Record<string, { dot: string; text: string; Icon: React.ComponentType<{ className?: string }> }> = {
   success: { dot: "bg-emerald-500", text: "text-emerald-500", Icon: CheckCircle2 },
@@ -52,50 +63,164 @@ function parseActionParams(raw: unknown): Record<string, unknown> {
   return typeof raw === "object" ? (raw as Record<string, unknown>) : {};
 }
 
-function parseEntityIds(raw: unknown): Array<{ id: string; name: string }> {
-  const normalize = (value: unknown): Array<{ id: string; name: string }> => {
-    if (!Array.isArray(value)) return [];
-    return value
-      .filter((item): item is Record<string, unknown> => item != null && typeof item === "object")
-      .map((item) => ({
-        id: String(item.id ?? ""),
-        name: String(item.name ?? ""),
-      }))
-      .filter((item) => item.id.length > 0 || item.name.length > 0);
-  };
+/** History API may return `result` as an object or a JSON string (e.g. staggered keyword Celery steps). */
+function parseExecutionResultPayload(raw: unknown): unknown {
+  if (raw == null) return raw;
+  if (typeof raw !== "string") return raw;
+  const t = raw.trim();
+  if (!t) return raw;
+  try {
+    return JSON.parse(t) as unknown;
+  } catch {
+    return raw;
+  }
+}
 
+/** Internal Celery stagger metadata (e.g. `_keyword_stagger`); hide from history UI. */
+function isStaggerMetaParamKey(key: string): boolean {
+  if (key === "_keyword_stagger") return true;
+  return key.startsWith("_") && key.toLowerCase().includes("stagger");
+}
+
+function formatActionParamValue(value: unknown): string {
+  if (value === null) return "null";
+  if (value === undefined) return "—";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function renderActionParamsDetail(
+  params: Record<string, unknown>,
+  isDark: boolean,
+  omitKeys?: string[]
+): React.ReactNode {
+  const omit = new Set(omitKeys ?? []);
+  const entries = Object.keys(params)
+    .filter((k) => !isStaggerMetaParamKey(k) && !omit.has(k))
+    .sort((a, b) => a.localeCompare(b))
+    .map((key) => ({ key, display: formatActionParamValue(params[key]) }));
+
+  if (entries.length === 0) return null;
+
+  const textClass = isDark ? "text-neutral-300" : "text-forest-f50";
+  const labelClass = isDark ? "text-neutral-200" : "text-forest-f60";
+
+  return (
+    <div className="text-[11px] space-y-1.5">
+      {entries.map(({ key, display }) => (
+        <div
+          key={key}
+          className="flex flex-wrap items-baseline gap-x-1 font-mono text-[10px] leading-snug"
+        >
+          <span className={cn("font-medium shrink-0", labelClass)}>{key}</span>
+          <span className={cn("shrink-0", textClass)}> : </span>
+          <span className={cn("min-w-0 break-words", textClass)}>{display}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Map one `entity_ids[]` / preview row to display id + label.
+ * - Legacy API shape: `{ id, name }`
+ * - Google staggered keyword apply (`enqueue_google_staggered_keyword_execution_rows`): rich snapshot with
+ *   `keyword` { text, match_type }, `ent_row_id`, `entity_name`, `ad_group_id`, and for negative campaign-level
+ *   also `level`, `campaign_id` (see `google_action_executor.entity_snapshot`).
+ */
+function mapExecutionEntityItem(raw: unknown): { id: string; name: string } | null {
+  if (raw == null) return null;
   if (typeof raw === "string") {
-    try {
-      return normalize(JSON.parse(raw) as unknown);
-    } catch {
-      return [];
-    }
+    const s = raw.trim();
+    return s ? { id: s, name: s } : null;
+  }
+  if (typeof raw !== "object" || Array.isArray(raw)) return null;
+  const item = raw as Record<string, unknown>;
+
+  const legacyId = item.id != null ? String(item.id) : "";
+  const legacyName = item.name != null ? String(item.name) : "";
+  if (legacyId || legacyName) {
+    return {
+      id: legacyId || legacyName,
+      name: legacyName || legacyId || "—",
+    };
   }
 
-  return normalize(raw);
+  const kwRaw = item.keyword;
+  if (kwRaw != null && typeof kwRaw === "object" && !Array.isArray(kwRaw)) {
+    const kw = kwRaw as Record<string, unknown>;
+    const text =
+      (typeof kw.text === "string" && kw.text) ||
+      (typeof kw.keyword === "string" && kw.keyword) ||
+      (typeof kw.term === "string" && kw.term) ||
+      "";
+    const matchType = typeof kw.match_type === "string" ? kw.match_type : "";
+    const entityName = typeof item.entity_name === "string" ? item.entity_name : "";
+    const level = typeof item.level === "string" ? item.level : "";
+
+    const nameParts: string[] = [];
+    if (text) {
+      nameParts.push(matchType ? `"${text}" [${matchType}]` : `"${text}"`);
+    }
+    if (entityName) nameParts.push(entityName);
+    else if (level) nameParts.push(level);
+
+    const name = nameParts.length > 0 ? nameParts.join(" · ") : "—";
+
+    const entRowId = item.ent_row_id != null ? String(item.ent_row_id) : "";
+    const adGroupId = item.ad_group_id != null ? String(item.ad_group_id) : "";
+    const campaignId = item.campaign_id != null ? String(item.campaign_id) : "";
+    const id = entRowId || adGroupId || campaignId;
+
+    if (!id && name === "—") return null;
+    return {
+      id: id || `kw:${text || entityName || "entity"}`,
+      name,
+    };
+  }
+
+  const entRowId = item.ent_row_id != null ? String(item.ent_row_id) : "";
+  const entityName = typeof item.entity_name === "string" ? item.entity_name : "";
+  const adGroupId = item.ad_group_id != null ? String(item.ad_group_id) : "";
+  const campaignId = item.campaign_id != null ? String(item.campaign_id) : "";
+  const id = entRowId || adGroupId || campaignId;
+  if (id || entityName) {
+    return { id: id || entityName, name: entityName || id || "—" };
+  }
+
+  return null;
+}
+
+function parseExecutionEntityList(raw: unknown): Array<{ id: string; name: string }> {
+  let arr: unknown[] = [];
+  if (raw == null) {
+    arr = [];
+  } else if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      arr = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      arr = [];
+    }
+  } else if (Array.isArray(raw)) {
+    arr = raw;
+  }
+
+  return arr.map(mapExecutionEntityItem).filter((e): e is { id: string; name: string } => e != null);
+}
+
+function parseEntityIds(raw: unknown): Array<{ id: string; name: string }> {
+  return parseExecutionEntityList(raw);
 }
 
 function parsePreviewEntities(raw: unknown): Array<{ id: string; name: string }> {
-  const normalize = (value: unknown): Array<{ id: string; name: string }> => {
-    if (!Array.isArray(value)) return [];
-    return value
-      .filter((item): item is Record<string, unknown> => item != null && typeof item === "object")
-      .map((item) => ({
-        id: String(item.id ?? ""),
-        name: String(item.name ?? ""),
-      }))
-      .filter((item) => item.id.length > 0 || item.name.length > 0);
-  };
-
-  if (typeof raw === "string") {
-    try {
-      return normalize(JSON.parse(raw) as unknown);
-    } catch {
-      return [];
-    }
-  }
-
-  return normalize(raw);
+  return parseExecutionEntityList(raw);
 }
 
 function getDisplayEntities(execution: ActionExecution): Array<{ id: string; name: string }> {
@@ -104,8 +229,7 @@ function getDisplayEntities(execution: ActionExecution): Array<{ id: string; nam
   const merged = [...fromEntityIds, ...fromPreview];
   const unique = new Map<string, { id: string; name: string }>();
   for (const entity of merged) {
-    const key = entity.id || entity.name;
-    if (!key) continue;
+    const key = `${entity.id}\u0001${entity.name}`;
     if (!unique.has(key)) unique.set(key, entity);
   }
   return Array.from(unique.values());
@@ -125,7 +249,7 @@ function renderActionParams(
       : [];
     const matchType = typeof params.match_type === "string" ? params.match_type : "—";
     return (
-      <div className={cn("mt-3 text-[11px] space-y-1", textClass)}>
+      <div className={cn("text-[11px] space-y-1", textClass)}>
         <p><span className={cn("font-semibold", labelClass)}>Keywords:</span> {keywords.length ? keywords.join(", ") : "—"}</p>
         <p><span className={cn("font-semibold", labelClass)}>Match Type:</span> {matchType}</p>
       </div>
@@ -133,12 +257,7 @@ function renderActionParams(
   }
 
   if (actionType === "change_state") {
-    const state = typeof params.state === "string" ? params.state : "—";
-    return (
-      <div className={cn("mt-3 text-[11px]", textClass)}>
-        <p><span className={cn("font-semibold", labelClass)}>New State:</span> {state}</p>
-      </div>
-    );
+    return null;
   }
 
   if (actionType === "adjust_budget") {
@@ -150,7 +269,7 @@ function renderActionParams(
       (typeof params.amount === "number" || typeof params.amount === "string" ? String(params.amount) : "") ||
       (typeof params.value === "number" || typeof params.value === "string" ? String(params.value) : "—");
     return (
-      <div className={cn("mt-3 text-[11px]", textClass)}>
+      <div className={cn("text-[11px]", textClass)}>
         <p><span className={cn("font-semibold", labelClass)}>Budget Change:</span> {adjustmentType} {amount}</p>
       </div>
     );
@@ -166,9 +285,7 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
   isDark,
   onShowHistory,
 }) => {
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(
-    () => new Set(executions.map((e) => e.id))
-  );
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(() => new Set());
   const [filters, setFilters] = useState<ActionHistoryParams>({
     status: "",
     action_type: "",
@@ -178,13 +295,6 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-
-  const actionTypeOptions = [
-    { value: "", label: "All Actions" },
-    { value: "add_negative_keyword", label: "Add Negative Keyword" },
-    { value: "change_state", label: "Change State" },
-    { value: "adjust_budget", label: "Adjust Budget" },
-  ];
 
   const statusOptions = [
     { value: "", label: "All Status" },
@@ -221,13 +331,9 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setCurrentPage(1);
+      setExpandedRows(new Set());
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setExpandedRows(new Set(executions.map((e) => e.id)));
-  }, [executions, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -251,7 +357,7 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
 
       <div
         className={cn(
-          "relative w-full max-w-3xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col",
+          "relative w-full max-w-[calc(100vw-2rem)] sm:max-w-5xl xl:max-w-6xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col",
           isDark ? "bg-neutral-800 border border-neutral-700" : "bg-white border border-sandstorm-s40"
         )}
       >
@@ -293,19 +399,23 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-          <div className={cn(
-            "flex flex-wrap items-center gap-2 p-4 border-b",
-            isDark ? "border-neutral-700" : "border-sandstorm-s40/60"
-          )}>
+          <div
+            className={cn(
+              "flex flex-col gap-2 p-4 border-b sm:flex-row sm:flex-wrap sm:items-center sm:gap-2",
+              "lg:flex-nowrap lg:items-center lg:gap-3",
+              isDark ? "border-neutral-700" : "border-sandstorm-s40/60"
+            )}
+          >
             <Dropdown
               options={statusOptions}
               value={filters.status ?? ""}
               onChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
               placeholder="All Status"
               closeOnSelect
-              className="w-full min-w-[150px]"
+              className="w-full min-w-0 sm:min-w-[140px] sm:max-w-[220px] lg:w-40 lg:max-w-none lg:flex-shrink-0"
               buttonClassName={cn(
-                "w-full px-2 py-1.5 border rounded text-[12px] focus:outline-none",
+                FILTER_CTRL_H,
+                "w-full px-2 py-0 border rounded text-[12px] focus:outline-none inline-flex items-center justify-between gap-2",
                 isDark
                   ? "border-neutral-600 bg-neutral-800 text-neutral-200"
                   : "border-gray-300 bg-[#FEFEFB] text-forest-f60"
@@ -316,14 +426,15 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
             />
 
             <Dropdown
-              options={actionTypeOptions}
+              options={ACTION_TYPE_OPTIONS}
               value={filters.action_type ?? ""}
               onChange={(value) => setFilters((prev) => ({ ...prev, action_type: value }))}
               placeholder="All Actions"
               closeOnSelect
-              className="w-full min-w-[150px]"
+              className="w-full min-w-0 sm:min-w-[160px] sm:max-w-[260px] lg:w-52 lg:max-w-none lg:flex-shrink-0"
               buttonClassName={cn(
-                "w-full px-2 py-1.5 border rounded text-[12px] focus:outline-none",
+                FILTER_CTRL_H,
+                "w-full px-2 py-0 border rounded text-[12px] focus:outline-none inline-flex items-center justify-between gap-2",
                 isDark
                   ? "border-neutral-600 bg-neutral-800 text-neutral-200"
                   : "border-gray-300 bg-[#FEFEFB] text-forest-f60"
@@ -339,7 +450,8 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
               value={filters.search ?? ""}
               onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
               className={cn(
-                "px-2 py-1 text-xs border rounded min-w-[180px]",
+                FILTER_CTRL_H,
+                "px-2 py-0 text-xs border rounded min-w-0 w-full leading-normal sm:min-w-[160px] lg:flex-1 lg:min-w-[12rem]",
                 isDark ? "bg-neutral-800 border-neutral-600 text-neutral-200 placeholder:text-neutral-500" : "bg-white border-sandstorm-s40 text-forest-f60"
               )}
             />
@@ -349,7 +461,8 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
               value={filters.date_from ?? ""}
               onChange={(e) => setFilters((prev) => ({ ...prev, date_from: e.target.value }))}
               className={cn(
-                "px-2 py-1 text-xs border rounded",
+                FILTER_CTRL_H,
+                "px-2 py-0 text-xs border rounded w-full sm:w-auto lg:w-[9.5rem] lg:flex-shrink-0 leading-normal",
                 isDark ? "bg-neutral-800 border-neutral-600 text-neutral-200" : "bg-white border-sandstorm-s40 text-forest-f60"
               )}
             />
@@ -359,7 +472,8 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
               value={filters.date_to ?? ""}
               onChange={(e) => setFilters((prev) => ({ ...prev, date_to: e.target.value }))}
               className={cn(
-                "px-2 py-1 text-xs border rounded",
+                FILTER_CTRL_H,
+                "px-2 py-0 text-xs border rounded w-full sm:w-auto lg:w-[9.5rem] lg:flex-shrink-0 leading-normal",
                 isDark ? "bg-neutral-800 border-neutral-600 text-neutral-200" : "bg-white border-sandstorm-s40 text-forest-f60"
               )}
             />
@@ -374,7 +488,8 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
                 }
               }}
               className={cn(
-                "px-3 py-1 text-xs rounded-lg transition-all",
+                FILTER_CTRL_H,
+                "px-3 py-0 text-xs rounded-lg transition-all whitespace-nowrap w-full sm:w-auto lg:flex-shrink-0 inline-flex items-center justify-center",
                 isDark
                   ? "bg-[#2DD4BF]/20 text-[#2DD4BF] hover:bg-[#2DD4BF]/30 border border-[#2DD4BF]/30"
                   : "bg-forest-f40 text-white hover:bg-forest-f50 shadow-sm"
@@ -400,6 +515,10 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
               const entityIds = getDisplayEntities(execution);
               const entityCount = entityIds.length;
               const params = parseActionParams(execution.action_params);
+              const resultForDisplay = parseExecutionResultPayload(execution.result);
+              const actionTypeColors =
+                ACTION_TYPE_COLORS[execution.action_type] || ACTION_TYPE_COLORS.change_state;
+              const actionSummary = renderActionParams(execution.action_type, params, isDark);
 
               return (
                 <div
@@ -422,7 +541,16 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
                         <span className={cn("w-2 h-2 rounded-full", style.dot)} />
                         <style.Icon className={cn("w-3.5 h-3.5", style.text)} />
                         <span className={cn("text-xs font-semibold uppercase", style.text)}>{execution.status}</span>
-                        <span className={cn("text-xs", isDark ? "text-neutral-300" : "text-forest-f50")}>{execution.action_type}</span>
+                        <span
+                          className={cn(
+                            "text-[10px] font-semibold px-1.5 py-0.5 rounded-md uppercase tracking-wide",
+                            isDark
+                              ? actionTypeColors.darkBg + " " + actionTypeColors.darkText
+                              : actionTypeColors.bg + " " + actionTypeColors.text
+                          )}
+                        >
+                          {ACTION_TYPE_LABELS[execution.action_type] || execution.action_type}
+                        </span>
                         <span className={cn("text-[11px]", isDark ? "text-neutral-400" : "text-forest-f30")}>
                           • {entityCount} entit{entityCount === 1 ? "y" : "ies"}
                         </span>
@@ -442,15 +570,8 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
                   {isExpanded && (
                     <div className={cn("px-4 py-3 border-t space-y-3", isDark ? "border-neutral-700" : "border-sandstorm-s40/60")}>
                       <div className="text-[11px]">
-                        <p className={cn("font-semibold mb-1", isDark ? "text-neutral-200" : "text-forest-f60")}>Rule</p>
-                        <p className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>ID: {execution.action_rule_id}</p>
-                        <p className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>Entity type: {execution.entity_type}</p>
-                        <p className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>Platform: {execution.platform}</p>
-                      </div>
-
-                      <div className="text-[11px]">
                         <p className={cn("font-semibold mb-1", isDark ? "text-neutral-200" : "text-forest-f60")}>
-                          Entity Names:
+                          Entities:
                         </p>
                         {entityIds.length > 0 ? (
                           <ul className={cn("ml-4 list-disc space-y-0.5", isDark ? "text-neutral-300" : "text-forest-f50")}>
@@ -465,7 +586,40 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
                         )}
                       </div>
 
-                      {renderActionParams(execution.action_type, params, isDark)}
+                      {execution.action_type === "change_state" ? (
+                        <div className="text-[11px]">
+                          <p className={cn("font-semibold mb-1", isDark ? "text-neutral-200" : "text-forest-f60")}>
+                            New State:
+                          </p>
+                        </div>
+                      ) : actionSummary ? (
+                        <div className="text-[11px]">
+                          <p className={cn("font-semibold mb-1", isDark ? "text-neutral-200" : "text-forest-f60")}>
+                            Action:
+                          </p>
+                          {actionSummary}
+                        </div>
+                      ) : 
+                      <div className="text-[11px]">
+                        <p className={cn("font-semibold mb-1", isDark ? "text-neutral-200" : "text-forest-f60")}>
+                          New Values:
+                        </p>
+                      </div>
+                    }
+
+                      {renderActionParamsDetail(
+                        params,
+                        isDark,
+                        execution.action_type === "change_state" ? ["state"] : undefined
+                      )}
+
+
+                      <div className="text-[11px]">
+                        <p className={cn("font-semibold mb-1", isDark ? "text-neutral-200" : "text-forest-f60")}>Rule:</p>
+                        <p className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>ID: {execution.action_rule_id}</p>
+                        <p className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>Entity type: {execution.entity_type}</p>
+                        <p className={cn(isDark ? "text-neutral-400" : "text-forest-f30")}>Platform: {execution.platform}</p>
+                      </div>
 
                       {execution.error && (
                         <div className={cn(
@@ -476,17 +630,18 @@ export const ActionHistoryModal: React.FC<ActionHistoryModalProps> = ({
                         </div>
                       )}
 
-                      {execution.result && (
+                      {execution.result != null && (
                         <details>
                           <summary className={cn("cursor-pointer text-[11px] font-medium", isDark ? "text-neutral-300" : "text-forest-f50")}>Result payload</summary>
                           <pre className={cn(
-                            "mt-2 text-[10px] p-2 rounded-lg overflow-auto max-h-40",
+                            "mt-2 text-[10px] p-2 rounded-lg overflow-auto max-h-40 whitespace-pre-wrap break-words",
                             isDark ? "bg-neutral-900 text-neutral-300" : "bg-sandstorm-s5 text-forest-f60"
                           )}>
-                            {JSON.stringify(execution.result, null, 2)}
+                            {formatActionParamValue(resultForDisplay)}
                           </pre>
                         </details>
                       )}
+
                     </div>
                   )}
                 </div>

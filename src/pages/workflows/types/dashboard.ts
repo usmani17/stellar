@@ -445,7 +445,8 @@ export interface ActionExecution {
   proposed_at: string;
   executed_at: string | null;
   executed_by: number | null;
-  result: Record<string, unknown> | null;
+  /** Object or JSON string from API (e.g. staggered keyword worker persists a string). */
+  result: Record<string, unknown> | string | null;
   error: string | null;
 }
 
