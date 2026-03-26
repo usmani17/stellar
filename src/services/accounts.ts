@@ -116,6 +116,58 @@ export const accountsService = {
     await api.delete(`/accounts/${id}/`);
   },
 
+  // Brand KB (knowledge base)
+  getBrandKbList: async (params?: {
+    brand_id?: number;
+  }): Promise<{ id: number; brand_id: number; integration_id: number | null; kb: string }[]> => {
+    const requestParams: Record<string, string> = { truncate: "true" };
+    if (params?.brand_id != null) requestParams.brand_id = String(params.brand_id);
+    const response = await api.get<
+      { id: number; brand_id: number; integration_id: number | null; kb: string }[]
+    >("/accounts/brands/kb/", { params: requestParams });
+    return response.data;
+  },
+
+  getBrandKb: async (
+    brandId: number,
+    options?: { integration_id?: number },
+  ): Promise<{
+    id: number;
+    brand_id: number;
+    integration_id: number | null;
+    kb: string;
+  }> => {
+    const params =
+      options?.integration_id != null
+        ? { integration_id: String(options.integration_id) }
+        : undefined;
+    const response = await api.get<{
+      id: number;
+      brand_id: number;
+      integration_id: number | null;
+      kb: string;
+    }>(`/accounts/brands/${brandId}/kb/`, { params });
+    return response.data;
+  },
+
+  setBrandKb: async (
+    brandId: number,
+    data: { kb: string; integration_id?: number },
+  ): Promise<{
+    id: number;
+    brand_id: number;
+    integration_id: number | null;
+    kb: string;
+  }> => {
+    const response = await api.put<{
+      id: number;
+      brand_id: number;
+      integration_id: number | null;
+      kb: string;
+    }>(`/accounts/brands/${brandId}/kb/`, data);
+    return response.data;
+  },
+
   // Account channels
   getAccountChannels: async (accountId: number): Promise<Channel[]> => {
     const response = await api.get<Channel[]>(
@@ -307,6 +359,50 @@ export const accountsService = {
       total: number;
     }>(`/accounts/${accountId}/profiles/`);
     return response.data;
+  },
+
+  /**
+   * Fetch all profiles the logged-in user can access in one API call.
+   * Returns items with camelCase keys for frontend use.
+   */
+  getAllAccessibleProfiles: async (): Promise<
+    Array<{
+      id: string;
+      accountId: number;
+      accountName: string;
+      channelId: number;
+      channelName: string;
+      channelType: string;
+      profileId: number;
+      profileName: string;
+      label: string;
+    }>
+  > => {
+    const response = await api.get<{
+      profiles: Array<{
+        id: string;
+        account_id: number;
+        account_name: string;
+        channel_id: number;
+        channel_name: string;
+        channel_type: string;
+        profile_id: number;
+        profile_name: string;
+        label: string;
+      }>;
+      total: number;
+    }>("/accounts/all-profiles/");
+    return (response.data.profiles || []).map((p) => ({
+      id: String(p.id),
+      accountId: p.account_id,
+      accountName: p.account_name,
+      channelId: p.channel_id,
+      channelName: p.channel_name,
+      channelType: p.channel_type,
+      profileId: p.profile_id,
+      profileName: p.profile_name,
+      label: p.label,
+    }));
   },
 
   // Amazon Profiles (per channel; for channel-specific screens)

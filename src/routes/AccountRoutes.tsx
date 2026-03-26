@@ -13,10 +13,18 @@ import { Dashboards } from "../pages/Dashboards";
 import { LogHistory } from "../pages/LogHistory";
 import { Profile } from "../pages/Profile";
 import { WorkspaceSettings } from "../pages/WorkspaceSettings";
+import { Strategies } from "../pages/Strategies";
+import { StrategyDetail } from "../pages/StrategyDetail";
+import { StrategyRunHistory } from "../pages/StrategyRunHistory";
 import { NoWorkspace } from "../pages/NoWorkspace";
 import { CompleteSignup } from "../pages/CompleteSignup";
 import { ColorExamples } from "../pages/ColorExamples";
 import { WorkflowsPage } from "../pages/workflows/WorkflowsPage";
+import { WorkflowDashboardPage } from "../pages/workflows/WorkflowDashboardPage";
+import { GoogleSheetsIntegrationsPage } from "../features/brands/google-sheets/GoogleSheetsIntegrationsPage";
+import { GoogleSheetsIntegrationPage } from "../features/brands/google-sheets/GoogleSheetsIntegrationPage";
+import { GoogleSheetsIntegrationEditPage } from "../features/brands/google-sheets/GoogleSheetsIntegrationEditPage";
+import { GoogleSheetsIntegrationCreatePage } from "../features/brands/google-sheets/GoogleSheetsIntegrationCreatePage";
 
 function ChannelsToIntegrationsRedirect() {
     const { accountId } = useParams<{ accountId: string }>();
@@ -32,7 +40,7 @@ function AccountRoutes() {
                     <ProtectedRoute>
                         <WorkspaceRequiredRoute>
                             <Layout>
-                                <Navigate to="/brands" replace />
+                                <Navigate to="/chat" replace />
                             </Layout>
                         </WorkspaceRequiredRoute>
                     </ProtectedRoute>
@@ -75,6 +83,42 @@ function AccountRoutes() {
                 }
             />
             <Route
+                path="/strategies"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <Strategies />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/strategies/:strategyId/run-history"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <StrategyRunHistory />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/strategies/:strategyId"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <Layout>
+                                <StrategyDetail />
+                            </Layout>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
                 path="/drafts"
                 element={<Navigate to="/brands" replace />}
             />
@@ -99,6 +143,70 @@ function AccountRoutes() {
                                 <BrandAccessRoute>
                                     <Layout>
                                         <Channels />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/brands/:accountId/google-sheets/integrations"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <GoogleSheetsIntegrationsPage />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/brands/:accountId/google-sheets/create"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <GoogleSheetsIntegrationCreatePage />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/brands/:accountId/google-sheets/view/:integration_id"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <GoogleSheetsIntegrationPage />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/brands/:accountId/google-sheets/edit/:integration_id"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <GoogleSheetsIntegrationEditPage />
                                     </Layout>
                                 </BrandAccessRoute>
                             </AccountRequiredRoute>
@@ -141,6 +249,22 @@ function AccountRoutes() {
                                 <BrandAccessRoute>
                                     <Layout>
                                         <AccountUsers />
+                                    </Layout>
+                                </BrandAccessRoute>
+                            </AccountRequiredRoute>
+                        </WorkspaceRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/brands/:accountId/dashboards/:dashboardId"
+                element={
+                    <ProtectedRoute>
+                        <WorkspaceRequiredRoute>
+                            <AccountRequiredRoute>
+                                <BrandAccessRoute>
+                                    <Layout>
+                                        <WorkflowDashboardPage />
                                     </Layout>
                                 </BrandAccessRoute>
                             </AccountRequiredRoute>

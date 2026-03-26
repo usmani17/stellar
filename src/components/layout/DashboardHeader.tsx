@@ -295,8 +295,9 @@ export const DashboardHeader: React.FC = () => {
     );
   const isDraftsPage = /^\/brands\/\d+\/\d+\/google\/drafts(\/|$)/.test(location.pathname);
   const isWorkflowsPage = /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname);
+  const isDashboardsPage = /^\/brands\/\d+\/dashboards(\/|$)/.test(location.pathname);
   const shouldHideDatePicker =
-    isProfilePage || isAccountSelectionPage || isDraftsPage || isWorkflowsPage;
+    isProfilePage || isAccountSelectionPage || isDraftsPage || isWorkflowsPage || isDashboardsPage;
 
   // Use channels from accounts data if available, otherwise fall back to API call
   // This avoids unnecessary API calls when channels are already included in accounts response
@@ -666,7 +667,7 @@ export const DashboardHeader: React.FC = () => {
             </div>
           </>
         )}
-        {params.accountId && params.channelId && <AssistantTrigger />}
+        {params.accountId && (params.channelId || isWorkflowsPage || isDashboardsPage) && <AssistantTrigger />}
       </div>
 
       {/* User Settings - Bottom Left (Fixed Position) */}

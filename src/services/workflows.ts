@@ -169,6 +169,11 @@ export const workflowsService = {
     return data;
   },
 
+  getWorkflow: async (accountId: number, id: number): Promise<Workflow> => {
+    const { data } = await api.get<Workflow>(`${workflowsPath(accountId)}/${id}/`);
+    return data;
+  },
+
   createWorkflow: async (payload: CreateWorkflowPayload): Promise<Workflow> => {
     const accountId = payload.accountId;
     const { data } = await api.post<Workflow>(

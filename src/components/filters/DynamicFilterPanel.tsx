@@ -1,9 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
+import { cn } from "../../lib/cn";
 import { Dropdown } from "../ui/Dropdown";
 import { Chip } from "../ui/Chip";
 import { Checkbox } from "../ui/Checkbox";
-import { getFilterFields, getFilterOptions, type FilterField, type FilterOption } from "../../services/dynamicFiltersService";
+import { Trash2 } from "lucide-react";
+import {
+  getFilterFields,
+  getFilterOptions,
+  type FilterField,
+  type FilterOption,
+} from "../../services/dynamicFiltersService";
+import PlusIcon from "../../assets/images/strategy/plus.svg";
 
 export interface FilterItem {
   id: string;
@@ -22,6 +30,12 @@ interface DynamicFilterPanelProps {
   accountId: string;
   marketplace: string; // e.g., "google_adwords", "amazon", "tiktok"
   entityType?: string; // e.g., "campaigns", "adgroups", "ads", "keywords"
+  /** When not from route (e.g. StrategyDetail), pass channelId so Google AdWords filter API is called with it */
+  channelId?: string | number;
+  /** Optional class for root element (e.g. for strategy page inline styling) */
+  className?: string;
+  /** 'rows' = one row per filter with Add Condition; 'builder' = single form + chips */
+  variant?: "builder" | "rows";
 }
 
 const STRING_OPERATORS = [
@@ -49,9 +63,8 @@ const generateTestFilters = (filterFields: FilterField[]): FilterValues => {
 
   filterFields.forEach((field) => {
     // Get available operators for this field
-    const operators = field.operators && field.operators.length > 0 
-      ? field.operators 
-      : [];
+    const operators =
+      field.operators && field.operators.length > 0 ? field.operators : [];
 
     // If no operators defined, skip this field
     if (operators.length === 0) {
@@ -62,7 +75,10 @@ const generateTestFilters = (filterFields: FilterField[]): FilterValues => {
       let testValue: string | number | string[] | { min: number; max: number };
 
       // Handle different field types and operators
-      if (operator === "between" && (field.type === "number" || field.type === "string")) {
+      if (
+        operator === "between" &&
+        (field.type === "number" || field.type === "string")
+      ) {
         // Between operator needs min/max object
         testValue = { min: 50, max: 200 };
       } else if (field.type === "number") {
@@ -108,6 +124,11 @@ const generateTestFilters = (filterFields: FilterField[]): FilterValues => {
   return testFilters;
 };
 
+function ensureFilterArray(value: unknown): FilterValues {
+  if (Array.isArray(value)) return value;
+  return [];
+}
+
 export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   isOpen,
   onClose,
@@ -116,12 +137,17 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   accountId,
   marketplace,
   entityType,
+  channelId: channelIdProp,
+  className: classNameProp,
+  variant = "builder",
 }) => {
-  // Get channelId from URL params for Google AdWords
+  // Get channelId from URL params for Google AdWords, or from props when not on a channel route
   const params = useParams<{ channelId?: string }>();
-  const channelId = params.channelId;
-  
-  const [activeFilters, setActiveFilters] = useState<FilterValues>(initialFilters);
+  const channelId = channelIdProp ?? params.channelId;
+
+  const safeInitialFilters = ensureFilterArray(initialFilters);
+  const [activeFilters, setActiveFilters] =
+    useState<FilterValues>(safeInitialFilters);
   const [filterFields, setFilterFields] = useState<FilterField[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
   const [selectedField, setSelectedField] = useState<string>("");
@@ -134,11 +160,16 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [editingFilterId, setEditingFilterId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [dynamicOptionsByField, setDynamicOptionsByField] = useState<
+    Record<string, FilterOption[]>
+  >({});
   const panelRef = useRef<HTMLDivElement>(null);
   const loadingFieldsRef = useRef(false);
   const fieldsLoadedRef = useRef<string>(""); // Track which accountId+marketplace combo we've loaded
   const isInitialMountRef = useRef(true); // Track if this is the initial mount
-  const autoApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   // Load filter fields from backend on mount
   useEffect(() => {
@@ -155,8 +186,8 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
     }
 
     // Create a unique key for this accountId+marketplace+entityType+channelId combination
-    const cacheKey = `${accountId}-${marketplace}-${entityType || 'default'}-${channelId || 'no-channel'}`;
-    
+    const cacheKey = `${accountId}-${marketplace}-${entityType || "default"}-${channelId || "no-channel"}`;
+
     // Skip if already loading or already loaded for this combination
     if (loadingFieldsRef.current || fieldsLoadedRef.current === cacheKey) {
       return;
@@ -164,7 +195,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
 
     loadingFieldsRef.current = true;
     setLoadingFields(true);
-    
+
     getFilterFields(accountId, marketplace, entityType, channelId)
       .then((fields) => {
         // Double-check we're still supposed to be loading (prevent race conditions)
@@ -189,7 +220,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
         setLoadingFields(false);
         loadingFieldsRef.current = false;
       });
-  }, [isOpen, accountId, marketplace]);
+  }, [isOpen, accountId, marketplace, entityType, channelId]);
 
   // Load dynamic options when field is selected
   useEffect(() => {
@@ -214,10 +245,41 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
     }
   }, [selectedField, accountId, marketplace, filterFields]);
 
+  // Load dynamic options for all dynamic_dropdown fields in activeFilters (rows variant)
+  useEffect(() => {
+    if (
+      variant !== "rows" ||
+      !accountId ||
+      !marketplace ||
+      filterFields.length === 0
+    )
+      return;
+    const dynamicFields = filterFields.filter(
+      (f) => f.type === "dynamic_dropdown",
+    );
+    const fieldNames = [...new Set(activeFilters.map((f) => f.field))].filter(
+      (name) => dynamicFields.some((df) => df.field_name === name),
+    );
+    fieldNames.forEach((fieldName) => {
+      if (dynamicOptionsByField[fieldName]) return;
+      getFilterOptions(accountId, marketplace, fieldName)
+        .then((options) => {
+          setDynamicOptionsByField((prev) => ({
+            ...prev,
+            [fieldName]: options,
+          }));
+        })
+        .catch(() => {
+          setDynamicOptionsByField((prev) => ({ ...prev, [fieldName]: [] }));
+        });
+    });
+  }, [variant, accountId, marketplace, filterFields, activeFilters]);
+
   // Sync active filters with initialFilters on mount
   useEffect(() => {
-    if (initialFilters.length > 0 && activeFilters.length === 0) {
-      setActiveFilters(initialFilters);
+    const safe = ensureFilterArray(initialFilters);
+    if (safe.length > 0 && activeFilters.length === 0) {
+      setActiveFilters(safe);
       isInitialMountRef.current = true;
     }
   }, [initialFilters]);
@@ -264,7 +326,9 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
 
   const isDropdown = (): boolean => {
     const field = getCurrentField();
-    return field?.type === "static_dropdown" || field?.type === "dynamic_dropdown";
+    return (
+      field?.type === "static_dropdown" || field?.type === "dynamic_dropdown"
+    );
   };
 
   const resetForm = () => {
@@ -288,7 +352,13 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
     setSelectedOperator(filter.operator || "");
 
     // Handle different value types
-    if (filter.operator === "between" && typeof filter.value === "object" && !Array.isArray(filter.value) && "min" in filter.value && "max" in filter.value) {
+    if (
+      filter.operator === "between" &&
+      typeof filter.value === "object" &&
+      !Array.isArray(filter.value) &&
+      "min" in filter.value &&
+      "max" in filter.value
+    ) {
       // Between operator - populate min and max
       setFilterValueMin(String(filter.value.min));
       setFilterValueMax(String(filter.value.max));
@@ -384,7 +454,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
     if (editingFilterId) {
       // Replace existing filter
       updatedFilters = activeFilters.map((f) =>
-        f.id === editingFilterId ? filterToAdd : f
+        f.id === editingFilterId ? filterToAdd : f,
       );
       setActiveFilters(updatedFilters);
     } else {
@@ -431,7 +501,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
 
   const handleTestAllOperators = () => {
     if (!ENABLE_TEST_FILTER_BUTTON) return;
-    
+
     const testFilters = generateTestFilters(filterFields);
     setActiveFilters(testFilters);
     onApply(testFilters);
@@ -451,7 +521,13 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
     if (Array.isArray(filter.value)) {
       return filter.value.join(", ");
     }
-    if (filter.operator === "between" && typeof filter.value === "object" && !Array.isArray(filter.value) && "min" in filter.value && "max" in filter.value) {
+    if (
+      filter.operator === "between" &&
+      typeof filter.value === "object" &&
+      !Array.isArray(filter.value) &&
+      "min" in filter.value &&
+      "max" in filter.value
+    ) {
       return `Between ${filter.value.min} and ${filter.value.max}`;
     }
     if (filter.operator) {
@@ -474,7 +550,9 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
         if (f.type === "multi_select") return true;
         // If we're editing a filter, allow the field being edited
         if (editingFilterId) {
-          const editingFilter = activeFilters.find((f) => f.id === editingFilterId);
+          const editingFilter = activeFilters.find(
+            (f) => f.id === editingFilterId,
+          );
           if (editingFilter && editingFilter.field === f.field_name) {
             return true;
           }
@@ -490,13 +568,13 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   const getOperatorsForField = () => {
     const field = getCurrentField();
     if (!field) return [];
-    
+
     // If field has operators defined, use those (respects backend configuration)
     if (field.operators && field.operators.length > 0) {
       const allOperators = [...STRING_OPERATORS, ...NUMERIC_OPERATORS];
       return allOperators.filter((op) => field.operators.includes(op.value));
     }
-    
+
     // Fallback to type-based operators if no operators specified
     const isStringField = field.type === "string" || field.type === "text";
     return isStringField ? STRING_OPERATORS : NUMERIC_OPERATORS;
@@ -505,7 +583,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   const getOptionsForField = (): FilterOption[] => {
     const field = getCurrentField();
     if (!field) return [];
-    
+
     if (field.type === "static_dropdown" && field.options) {
       return field.options;
     }
@@ -515,6 +593,108 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
     return [];
   };
 
+  const getFieldByName = (fieldName: string): FilterField | undefined =>
+    filterFields.find((f) => f.field_name === fieldName);
+
+  const getOperatorsForFieldName = (fieldName: string) => {
+    const field = getFieldByName(fieldName);
+    if (!field?.operators?.length) return [];
+    const all = [...STRING_OPERATORS, ...NUMERIC_OPERATORS];
+    return all.filter((op) => field.operators.includes(op.value));
+  };
+
+  const getOptionsForFieldName = (fieldName: string): FilterOption[] => {
+    const field = getFieldByName(fieldName);
+    if (!field) return [];
+    if (field.type === "static_dropdown" && field.options) return field.options;
+    if (field.type === "dynamic_dropdown")
+      return dynamicOptionsByField[fieldName] ?? [];
+    return [];
+  };
+
+  const updateFilterInList = (
+    filterId: string,
+    update: Partial<FilterItem>,
+  ) => {
+    const next = activeFilters.map((f) =>
+      f.id === filterId ? { ...f, ...update } : f,
+    );
+    setActiveFilters(next);
+    onApply(next);
+  };
+
+  const createDefaultFilter = (): FilterItem | null => {
+    const first = filterFields[0];
+    if (!first) return null;
+    const isDropdown =
+      first.type === "static_dropdown" || first.type === "dynamic_dropdown";
+    const op = isDropdown
+      ? "eq"
+      : first.default_operator || (first.operators?.[0] ?? "eq");
+    let value: string | number | object | string[] =
+      first.type === "number" ? 0 : "";
+    if (isDropdown && first.type === "static_dropdown" && first.options?.length) {
+      value = first.options[0].value;
+    }
+    return {
+      id: `filter-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      field: first.field_name,
+      operator: op,
+      value,
+    };
+  };
+
+  const handleAddCondition = () => {
+    const newFilter = createDefaultFilter();
+    if (!newFilter) return;
+    const next = [...activeFilters, newFilter];
+    setActiveFilters(next);
+    onApply(next);
+  };
+
+  // Rows variant: ensure at least one filter row when fields have loaded
+  useEffect(() => {
+    if (
+      variant !== "rows" ||
+      activeFilters.length > 0 ||
+      filterFields.length === 0
+    )
+      return;
+    const defaultFilter = createDefaultFilter();
+    if (defaultFilter) {
+      setActiveFilters([defaultFilter]);
+      onApply([defaultFilter]);
+    }
+  }, [variant, activeFilters.length, filterFields.length]);
+
+  // Rows variant: for dropdown fields (e.g. Status) set operator to "eq" and default value to first option
+  useEffect(() => {
+    if (variant !== "rows" || activeFilters.length === 0) return;
+    let hasChange = false;
+    const next = activeFilters.map((f) => {
+      const field = getFieldByName(f.field);
+      const isDrop =
+        field?.type === "static_dropdown" ||
+        field?.type === "dynamic_dropdown";
+      if (!isDrop) return f;
+      const options = getOptionsForFieldName(f.field);
+      const needOperator = !f.operator || f.operator === "";
+      const needValue =
+        (f.value === "" || f.value == null) && options.length > 0;
+      if (!needOperator && !needValue) return f;
+      hasChange = true;
+      return {
+        ...f,
+        operator: needOperator ? "eq" : f.operator,
+        value: needValue ? options[0].value : f.value,
+      };
+    });
+    if (hasChange) {
+      setActiveFilters(next);
+      onApply(next);
+    }
+  }, [variant, activeFilters, filterFields, dynamicOptionsByField]);
+
   if (!isOpen) return null;
 
   const currentField = getCurrentField();
@@ -522,21 +702,259 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   const fieldIsMultiSelect = isMultiSelect();
   const fieldIsDropdown = isDropdown();
 
+  const rowInputClass =
+    "campaign-input h-12 px-3 py-2 bg-background-field rounded-xl border border-border-default text-sm text-text-primary outline-none focus:border-status-primary transition-colors w-full min-w-0";
+
+  if (variant === "rows") {
+    const fieldOptions = filterFields.map((f) => ({
+      value: f.field_name,
+      label: f.label,
+    }));
+    return (
+      <div
+        ref={panelRef}
+        className={cn("w-full flex flex-col gap-4", classNameProp)}
+      >
+        <div
+          className={
+            variant === "rows"
+              ? "text-[16px] font-medium text-text-primary"
+              : "text-base font-medium text-text-primary font-sans"
+          }
+        >
+          Filters
+        </div>
+        <div className="flex flex-col gap-3">
+          {activeFilters.map((filter, index) => {
+            const field = getFieldByName(filter.field);
+            const operators = getOperatorsForFieldName(filter.field);
+            const options = getOptionsForFieldName(filter.field);
+            const isNum = field?.type === "number";
+            const isBetween = filter.operator === "between";
+            const isDropdownField =
+              field?.type === "static_dropdown" ||
+              field?.type === "dynamic_dropdown";
+            const val = filter.value;
+            const displayVal = Array.isArray(val)
+              ? ""
+              : typeof val === "object" &&
+                  val !== null &&
+                  "min" in val &&
+                  "max" in val
+                ? `${(val as { min: number; max: number }).min}–${(val as { min: number; max: number }).max}`
+                : String(val ?? "");
+
+            return (
+              <div
+                key={filter.id}
+                className="flex flex-wrap items-center gap-4"
+              >
+                <div className="w-44 min-w-[176px] shrink-0">
+                  <Dropdown<string>
+                    options={fieldOptions}
+                    value={filter.field}
+                    onChange={(value) => {
+                      const nextField = getFieldByName(value);
+                      const isDropdown =
+                        nextField?.type === "static_dropdown" ||
+                        nextField?.type === "dynamic_dropdown";
+                      const operator = isDropdown
+                        ? "eq"
+                        : nextField?.default_operator ?? "";
+                      let nextVal: string | number | object | string[] =
+                        nextField?.type === "number" ? 0 : "";
+                      if (isDropdown && nextField?.type === "static_dropdown" && nextField.options?.length) {
+                        nextVal = nextField.options[0].value;
+                      }
+                      updateFilterInList(filter.id, {
+                        field: value,
+                        operator,
+                        value: nextVal,
+                      });
+                    }}
+                    placeholder="Field"
+                    buttonClassName={cn(
+                      rowInputClass,
+                      "inline-flex justify-between items-center gap-2",
+                    )}
+                    width="w-full"
+                    showCheckmark={false}
+                    closeOnSelect={true}
+                  />
+                </div>
+                {!isDropdownField && (
+                  <div className="w-20 min-w-[150px] shrink-0">
+                    <Dropdown<string>
+                      options={operators.map((o) => ({
+                        value: o.value,
+                        label: o.label,
+                      }))}
+                      value={filter.operator}
+                      onChange={(value) =>
+                        updateFilterInList(filter.id, {
+                          operator: value,
+                          value:
+                            isNum && value === "between"
+                              ? { min: 0, max: 100 }
+                              : "",
+                        })
+                      }
+                      placeholder="Op"
+                      buttonClassName={cn(
+                        rowInputClass,
+                        "inline-flex justify-between items-center gap-2",
+                      )}
+                      width="w-full"
+                      showCheckmark={false}
+                      closeOnSelect={true}
+                    />
+                  </div>
+                )}
+                <div className="w-44 min-w-[176px] shrink-0">
+                  {isDropdownField ? (
+                    <Dropdown<string>
+                      options={options.map((o) => ({
+                        value: o.value,
+                        label: o.label,
+                      }))}
+                      value={typeof val === "string" ? val : ""}
+                      onChange={(value) =>
+                        updateFilterInList(filter.id, { value })
+                      }
+                      placeholder="Value"
+                      buttonClassName={cn(
+                        rowInputClass,
+                        "inline-flex justify-between items-center gap-2",
+                      )}
+                      width="w-full"
+                      showCheckmark={false}
+                      closeOnSelect={true}
+                    />
+                  ) : isNum && isBetween ? (
+                    <div className="flex gap-1">
+                      <input
+                        type="number"
+                        className={rowInputClass}
+                        value={
+                          typeof val === "object" &&
+                          val !== null &&
+                          "min" in val
+                            ? (val as { min: number }).min
+                            : ""
+                        }
+                        onChange={(e) => {
+                          const min = parseFloat(e.target.value);
+                          const max =
+                            typeof val === "object" &&
+                            val !== null &&
+                            "max" in val
+                              ? (val as { max: number }).max
+                              : 0;
+                          updateFilterInList(filter.id, {
+                            value: { min: isNaN(min) ? 0 : min, max },
+                          });
+                        }}
+                        placeholder="Min"
+                      />
+                      <input
+                        type="number"
+                        className={rowInputClass}
+                        value={
+                          typeof val === "object" &&
+                          val !== null &&
+                          "max" in val
+                            ? (val as { max: number }).max
+                            : ""
+                        }
+                        onChange={(e) => {
+                          const max = parseFloat(e.target.value);
+                          const min =
+                            typeof val === "object" &&
+                            val !== null &&
+                            "min" in val
+                              ? (val as { min: number }).min
+                              : 0;
+                          updateFilterInList(filter.id, {
+                            value: { min, max: isNaN(max) ? 0 : max },
+                          });
+                        }}
+                        placeholder="Max"
+                      />
+                    </div>
+                  ) : (
+                    <input
+                      type={isNum ? "number" : "text"}
+                      className={rowInputClass}
+                      value={displayVal}
+                      onChange={(e) =>
+                        updateFilterInList(filter.id, {
+                          value: isNum
+                            ? parseFloat(e.target.value) || 0
+                            : e.target.value,
+                        })
+                      }
+                      placeholder="Value"
+                    />
+                  )}
+                </div>
+                {activeFilters.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFilter(filter.id)}
+                    className="flex items-center justify-center w-8 h-9 rounded bg-red-r0 text-red-r30 hover:opacity-90 transition-opacity"
+                    aria-label="Remove filter"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                )}
+                {index === activeFilters.length - 1 && (
+                  <button
+                    type="button"
+                    onClick={handleAddCondition}
+                    className="flex items-center gap-2 text-sm font-medium text-status-primary hover:underline focus:outline-none"
+                  >
+                    <img src={PlusIcon} alt="" className="w-5 h-5" />
+                    Add Condition
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {activeFilters.length === 0 && (
+            <div className="flex flex-wrap items-center gap-4">
+              <button
+                type="button"
+                onClick={handleAddCondition}
+                className="flex items-center gap-2 text-sm font-medium text-status-primary hover:underline focus:outline-none"
+              >
+                <img src={PlusIcon} alt="" className="w-5 h-5" />
+                Add Condition
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={panelRef}
-      className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]"
+      className={cn(
+        "border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]",
+        classNameProp,
+      )}
     >
       {/* Filter Builder */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-start gap-2">
           {/* Field Dropdown */}
           <div className="w-[200px]">
-            <label className="form-label-small">
-              Filter
-            </label>
+            <label className="form-label-small">Filter</label>
             {loadingFields ? (
-              <div className="text-[11.2px] text-[#556179] py-2">Loading...</div>
+              <div className="text-[11.2px] text-[#556179] py-2">
+                Loading...
+              </div>
             ) : (
               <Dropdown<string>
                 options={getAvailableFields()}
@@ -550,8 +968,10 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                   setSelectedMultiValues([]);
                   setDynamicOptions([]);
                   setEditingFilterId(null);
-                  
-                  const field = filterFields.find((f) => f.field_name === value);
+
+                  const field = filterFields.find(
+                    (f) => f.field_name === value,
+                  );
                   if (field?.default_operator) {
                     setSelectedOperator(field.default_operator);
                   } else {
@@ -566,9 +986,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
           {/* Operator Dropdown */}
           {selectedField && (fieldNeedsOperator || selectedOperator) && (
             <div className="w-[150px]">
-              <label className="form-label-small">
-                Operator
-              </label>
+              <label className="form-label-small">Operator</label>
               <Dropdown<string>
                 options={getOperatorsForField().map((op) => ({
                   value: op.value,
@@ -591,10 +1009,15 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
 
           {/* Value Input */}
           {selectedField && (
-            <div className={selectedOperator === "between" && currentField?.type === "number" ? "w-[300px]" : "w-[150px]"}>
-              <label className="form-label-small">
-                Value
-              </label>
+            <div
+              className={
+                selectedOperator === "between" &&
+                currentField?.type === "number"
+                  ? "w-[300px]"
+                  : "w-[150px]"
+              }
+            >
+              <label className="form-label-small">Value</label>
               {fieldIsMultiSelect ? (
                 <div className="max-h-[200px] overflow-y-auto border border-gray-200 rounded-lg bg-[#FEFEFB] p-2">
                   {currentField?.options?.map((opt) => (
@@ -612,10 +1035,13 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                         }
                         if (selectedMultiValues.includes(opt.value)) {
                           setSelectedMultiValues(
-                            selectedMultiValues.filter((v) => v !== opt.value)
+                            selectedMultiValues.filter((v) => v !== opt.value),
                           );
                         } else {
-                          setSelectedMultiValues([...selectedMultiValues, opt.value]);
+                          setSelectedMultiValues([
+                            ...selectedMultiValues,
+                            opt.value,
+                          ]);
                         }
                       }}
                     >
@@ -623,10 +1049,15 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                         checked={selectedMultiValues.includes(opt.value)}
                         onChange={(checked) => {
                           if (checked) {
-                            setSelectedMultiValues([...selectedMultiValues, opt.value]);
+                            setSelectedMultiValues([
+                              ...selectedMultiValues,
+                              opt.value,
+                            ]);
                           } else {
                             setSelectedMultiValues(
-                              selectedMultiValues.filter((v) => v !== opt.value)
+                              selectedMultiValues.filter(
+                                (v) => v !== opt.value,
+                              ),
                             );
                           }
                         }}
@@ -653,7 +1084,8 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                   buttonClassName="edit-button w-full"
                   disabled={loadingOptions}
                 />
-              ) : selectedOperator === "between" && currentField?.type === "number" ? (
+              ) : selectedOperator === "between" &&
+                currentField?.type === "number" ? (
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
                     <div className="flex-1">
@@ -666,7 +1098,9 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                         }}
                         placeholder="Min"
                         className={`campaign-input w-full ${
-                          validationError ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""
+                          validationError
+                            ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                            : ""
                         }`}
                       />
                     </div>
@@ -680,7 +1114,9 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                         }}
                         placeholder="Max"
                         className={`campaign-input w-full ${
-                          validationError ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""
+                          validationError
+                            ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                            : ""
                         }`}
                       />
                     </div>
@@ -713,9 +1149,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
 
           {/* Add Filter Button */}
           <div className="flex flex-col">
-            <div className="form-label-small invisible">
-              &nbsp;
-            </div>
+            <div className="form-label-small invisible">&nbsp;</div>
             {editingFilterId ? (
               <div className="flex gap-2">
                 <button
@@ -725,8 +1159,8 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                     (selectedOperator === "between"
                       ? !filterValueMin || !filterValueMax
                       : fieldIsMultiSelect
-                      ? selectedMultiValues.length === 0
-                      : !filterValue) ||
+                        ? selectedMultiValues.length === 0
+                        : !filterValue) ||
                     (fieldNeedsOperator && !selectedOperator)
                   }
                   className="apply-button-add flex-1"
@@ -749,8 +1183,8 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                   (selectedOperator === "between"
                     ? !filterValueMin || !filterValueMax
                     : fieldIsMultiSelect
-                    ? selectedMultiValues.length === 0
-                    : !filterValue) ||
+                      ? selectedMultiValues.length === 0
+                      : !filterValue) ||
                   (fieldNeedsOperator && !selectedOperator)
                 }
                 className="apply-button-add"
@@ -772,7 +1206,11 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                 onClose={() => handleRemoveFilter(filter.id)}
                 onClick={() => handleEditFilter(filter.id)}
                 editable={true}
-                className={editingFilterId === filter.id ? "ring-2 ring-[#136D6D] ring-offset-1" : ""}
+                className={
+                  editingFilterId === filter.id
+                    ? "ring-2 ring-[#136D6D] ring-offset-1"
+                    : ""
+                }
               >
                 {getFieldLabel(filter.field)}: {getFilterDisplayValue(filter)}
               </Chip>
@@ -784,8 +1222,8 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
       {/* Footer Actions */}
       <div className="p-4 flex items-center justify-end gap-3">
         {ENABLE_TEST_FILTER_BUTTON && (
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={handleTestAllOperators}
             className="px-4 py-2 bg-yellow-500 text-white text-[10.64px] rounded-lg hover:bg-yellow-600 transition-colors"
             disabled={filterFields.length === 0}

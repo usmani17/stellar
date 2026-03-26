@@ -4,6 +4,17 @@
  * Uses VITE_AI_AGENT_BASE_URL.
  */
 
+/** Profile context from session (for single or multi-profile restore). */
+export interface PixisSessionProfile {
+  account_id?: number | null;
+  channel_id?: number | null;
+  profile_id?: string | number | null;
+  platform?: string | null;
+  account_name?: string | null;
+  customer_id?: string | null;
+  [key: string]: unknown;
+}
+
 export interface PixisSession {
   id: string;
   user_id?: string | null;
@@ -18,6 +29,8 @@ export interface PixisSession {
   created_at?: string;
   last_activity_at?: string;
   updated_at?: string;
+  /** Multi-profile context stored when session used multiple profiles. */
+  profiles_json?: PixisSessionProfile[] | null;
 }
 
 export interface PixisEvent {
@@ -57,13 +70,12 @@ export function getPixisAiBaseUrl(): string | null {
 
 export const pixisAiSessionsService = {
   list: async (
-    accountId: number,
     accessToken: string,
-    options?: { limit?: number; offset?: number }
+    options?: { accountId?: number; limit?: number; offset?: number }
   ): Promise<{ sessions: PixisSession[] }> => {
     const baseUrl = getBaseUrl();
     const params = new URLSearchParams();
-    params.set("account_id", String(accountId));
+    if (options?.accountId != null) params.set("account_id", String(options.accountId));
     if (options?.limit) params.set("limit", String(options.limit));
     if (options?.offset) params.set("offset", String(options.offset));
 

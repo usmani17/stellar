@@ -174,6 +174,11 @@
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
+  background-color: var(--color-semantic-background-primary);
+}
+
+html {
+  background-color: var(--color-semantic-background-primary);
 }
 
 body {
@@ -181,6 +186,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   font-family: "GT America Trial", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--color-semantic-background-primary);
 }
 
 * {
@@ -641,7 +647,9 @@ body input[type="submit"]:disabled {
 .btn {
   display: flex;
   align-items: center;
+  font-size: 14px;
   font-weight: 500;
+  line-height: 20px;
   transition: background-color 0.2s, border-color 0.2s, color 0.2s;
   outline: none;
   cursor: pointer;
@@ -732,6 +740,16 @@ body input[type="submit"]:disabled {
   font-size: 18px;
 }
 
+/* Normalize legacy one-off inline button text utilities app-wide */
+button.text-\[10\.64px\],
+button .text-\[10\.64px\],
+button.text-\[12px\],
+button .text-\[12px\] {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 20px !important;
+}
+
 /* Create entity button - used for "Create Campaign", "Create Target", "Create Keyword", etc. */
 .create-entity-button {
   display: flex;
@@ -739,6 +757,9 @@ body input[type="submit"]:disabled {
   gap: 8px;
   height: 40px;
   padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
   background-color: #136D6D;
   color: #ffffff;
   border: 1px solid #136D6D;
@@ -783,7 +804,9 @@ body input[type="submit"]:disabled {
   background-color: #FEFEFB;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  font-size: 11.2px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
   transition: background-color 0.2s, border-color 0.2s;
   cursor: pointer;
   height: 40px;
@@ -808,7 +831,9 @@ body input[type="submit"]:disabled {
   color: #ffffff;
   border: none;
   border-radius: 8px;
-  font-size: 11.2px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
   transition: background-color 0.2s;
   cursor: pointer;
 }
@@ -830,7 +855,9 @@ body input[type="submit"]:disabled {
   color: #ffffff;
   border: none;
   border-radius: 8px;
-  font-size: 11.2px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
   transition: background-color 0.2s;
   cursor: pointer;
   white-space: nowrap;
@@ -850,7 +877,9 @@ body input[type="submit"]:disabled {
 /* Button size modifier - small override for create-entity-button */
 .create-entity-button.btn-sm {
   padding: 0.5rem 1rem !important;
-  font-size: 10.64px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 20px !important;
   height: auto !important;
 }
 
@@ -1121,7 +1150,9 @@ body input[type="submit"]:disabled {
   color: #ffffff;
   border: 1px solid #136D6D;
   border-radius: 0.5rem;
-  font-size: 11.2px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
   white-space: nowrap;
   transition: color 0.2s, background-color 0.2s, border-color 0.2s;
   cursor: pointer;
@@ -1325,6 +1356,23 @@ body input[type="submit"]:disabled {
   background-color: var(--color-semantic-background-primary);
   z-index: 20;
   box-shadow: 0 8px 12px -6px rgba(0, 0, 0, 0.3);
+}
+
+.assistant-account-row-compact {
+  min-height: 32px;
+  padding: 0.375rem 1rem;
+}
+
+/* Footer profile chips (trigger in input area) */
+.assistant-footer-chips .assistant-setup-dropdown-trigger {
+  max-width: 100%;
+  padding: 0.375rem 0.5rem;
+  font-size: 12px;
+  min-height: 28px;
+}
+.assistant-footer-chips .assistant-setup-dropdown-chevron {
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 .assistant-account-row-inner {
@@ -1928,6 +1976,28 @@ body input[type="submit"]:disabled {
   padding: 0.25rem 0;
 }
 
+/* When open: overlay the trigger so the button cannot receive clicks */
+.assistant-setup-dropdown-panel-overlay-trigger {
+  top: 0;
+  margin-top: 0;
+  max-height: min(20rem, 60vh);
+}
+
+/* Footer: dropdown opens upward (above the input area) */
+.assistant-dropdown-open-up .assistant-setup-dropdown-panel {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+  max-height: min(26rem, 65vh);
+}
+.assistant-dropdown-open-up .assistant-setup-dropdown-panel-overlay-trigger {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+}
+
 .assistant-setup-dropdown-item {
   width: 100%;
   display: flex;
@@ -2003,3 +2073,110 @@ body input[type="submit"]:disabled {
   color: var(--color-common-white);
   border-color: var(--color-semantic-status-primary);
 }
+
+/* Dashboard table scrollbar */
+.dashboard-table-wrapper {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-sandstorm-s40) transparent;
+}
+
+.dashboard-table-wrapper::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.dashboard-table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--color-sandstorm-s40);
+  border-radius: 2px;
+}
+
+[data-theme="dark"] .dashboard-table-wrapper::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+/* Progress flow - n8n-style nodes */
+.progress-node-active {
+  animation: progress-node-pulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 0 4px rgba(19, 109, 109, 0.2);
+}
+
+@keyframes progress-node-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(19, 109, 109, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(19, 109, 109, 0.1);
+  }
+}
+
+/* Circular ring spinner inside active node - shows "working" state */
+.progress-node-spinner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.progress-node-spinner-inner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(19, 109, 109, 0.2);
+  border-top-color: var(--color-forest-f40);
+  border-radius: 50%;
+  animation: progress-node-spin 0.8s linear infinite;
+}
+
+@keyframes progress-node-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.progress-node-done {
+  animation: progress-node-complete 0.5s ease-out forwards;
+}
+
+@keyframes progress-node-complete {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.progress-check {
+  animation: progress-check-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
+}
+
+@keyframes progress-check-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.progress-connector-done {
+  animation: progress-connector-fill 0.5s ease-out forwards;
+}
+
+@keyframes progress-connector-fill {
+  0% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+

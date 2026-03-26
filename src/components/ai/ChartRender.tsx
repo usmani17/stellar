@@ -1,3 +1,4 @@
+import React from "react";
 import {
   BarChart,
   Bar,
@@ -16,46 +17,7 @@ import {
   Cell,
 } from "recharts";
 import type { ChartConfig } from "../../utils/chartJsonParser";
-
-/* Theme colors from design system (forest, semantic) */
-const CHART_COLORS = [
-  "#136D6D", /* --color-semantic-status-primary, forest-f40 */
-  "#0E4E4E", /* forest-f50 darker teal */
-  "#506766", /* --color-semantic-text-secondary, forest-f30 */
-  "#9BB1B0", /* forest-f20 lighter teal */
-  "#169aa3", /* cyan accent */
-  "#059669", /* --color-semantic-status-success */
-];
-
-const METRIC_COLOR_MAP: Record<string, string> = {
-  sales: CHART_COLORS[0],
-  spend: CHART_COLORS[1],
-  roas: CHART_COLORS[0],
-  impressions: CHART_COLORS[2],
-  clicks: CHART_COLORS[4],
-  acos: CHART_COLORS[5],
-};
-
-function getSeriesColor(seriesKey: string, index: number): string {
-  const key = String(seriesKey).toLowerCase();
-  return METRIC_COLOR_MAP[key] ?? CHART_COLORS[index % CHART_COLORS.length];
-}
-
-const AXIS_STYLE = {
-  stroke: "#556179",
-  fontSize: 9.6,
-  fill: "#556179",
-  axisLine: false,
-  tickLine: false,
-};
-
-const TOOLTIP_STYLE = {
-  backgroundColor: "#fff",
-  border: "1px solid #E5E7EB",
-  borderRadius: 8,
-  fontSize: "9.6px",
-  boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
-};
+import { CHART_COLORS, AXIS_STYLE, TOOLTIP_STYLE, getSeriesColor } from "../../utils/chartStyles";
 
 export function ChartRender({ config }: { config: ChartConfig }) {
   const { type, title, data, dataKeys } = config;
@@ -71,7 +33,7 @@ export function ChartRender({ config }: { config: ChartConfig }) {
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(85,97,121,0.15)" vertical={false} />
           <XAxis dataKey={xKey} stroke={AXIS_STYLE.stroke} tick={{ fontSize: AXIS_STYLE.fontSize, fill: AXIS_STYLE.fill }} axisLine={false} tickLine={false} />
           <YAxis stroke={AXIS_STYLE.stroke} tick={{ fontSize: AXIS_STYLE.fontSize, fill: AXIS_STYLE.fill }} axisLine={false} tickLine={false} tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v))} />
-          <Tooltip contentStyle={TOOLTIP_STYLE} wrapperStyle={{ zIndex: 10 }} labelStyle={{ color: "#072929" }} itemStyle={{ color: "#072929" }} formatter={(v: unknown, name: string) => [typeof v === "number" && /sales|spend/i.test(name) ? `$${v.toLocaleString()}` : typeof v === "number" ? v.toLocaleString() : v, name]} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} wrapperStyle={{ zIndex: 10 }} labelStyle={{ color: "#072929" }} itemStyle={{ color: "#072929" }} formatter={(v: unknown, name: string): [React.ReactNode, string] => [typeof v === "number" && /sales|spend/i.test(name) ? `$${v.toLocaleString()}` : typeof v === "number" ? v.toLocaleString() : String(v), name]} />
           <Legend />
           {series.map((key, i) => (
             <Bar
@@ -97,7 +59,7 @@ export function ChartRender({ config }: { config: ChartConfig }) {
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(85,97,121,0.15)" vertical={false} />
           <XAxis dataKey={xKey} stroke={AXIS_STYLE.stroke} tick={{ fontSize: AXIS_STYLE.fontSize, fill: AXIS_STYLE.fill }} axisLine={false} tickLine={false} />
           <YAxis stroke={AXIS_STYLE.stroke} tick={{ fontSize: AXIS_STYLE.fontSize, fill: AXIS_STYLE.fill }} axisLine={false} tickLine={false} tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v))} />
-          <Tooltip contentStyle={TOOLTIP_STYLE} wrapperStyle={{ zIndex: 10 }} labelStyle={{ color: "#072929" }} itemStyle={{ color: "#072929" }} formatter={(v: unknown, name: string) => [typeof v === "number" && /sales|spend/i.test(name) ? `$${v.toLocaleString()}` : typeof v === "number" ? v.toLocaleString() : v, name]} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} wrapperStyle={{ zIndex: 10 }} labelStyle={{ color: "#072929" }} itemStyle={{ color: "#072929" }} formatter={(v: unknown, name: string): [React.ReactNode, string] => [typeof v === "number" && /sales|spend/i.test(name) ? `$${v.toLocaleString()}` : typeof v === "number" ? v.toLocaleString() : String(v), name]} />
           <Legend />
           {series.map((key, i) => (
             <Line
@@ -134,7 +96,7 @@ export function ChartRender({ config }: { config: ChartConfig }) {
             ))}
           </Pie>
           <Legend layout="horizontal" align="center" verticalAlign="bottom" />
-          <Tooltip contentStyle={TOOLTIP_STYLE} wrapperStyle={{ zIndex: 10 }} labelStyle={{ color: "#072929" }} itemStyle={{ color: "#072929" }} formatter={(v: unknown) => [typeof v === "number" ? v.toLocaleString() : v]} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} wrapperStyle={{ zIndex: 10 }} labelStyle={{ color: "#072929" }} itemStyle={{ color: "#072929" }} formatter={(v: unknown): [React.ReactNode, string] => [typeof v === "number" ? v.toLocaleString() : String(v), ""]} />
         </PieChart>
       </ResponsiveContainer>
     ) : type === "area" ? (
@@ -146,7 +108,7 @@ export function ChartRender({ config }: { config: ChartConfig }) {
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(85,97,121,0.15)" vertical={false} />
           <XAxis dataKey={xKey} stroke={AXIS_STYLE.stroke} tick={{ fontSize: AXIS_STYLE.fontSize, fill: AXIS_STYLE.fill }} axisLine={false} tickLine={false} />
           <YAxis stroke={AXIS_STYLE.stroke} tick={{ fontSize: AXIS_STYLE.fontSize, fill: AXIS_STYLE.fill }} axisLine={false} tickLine={false} tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v))} />
-          <Tooltip contentStyle={TOOLTIP_STYLE} wrapperStyle={{ zIndex: 10 }} labelStyle={{ color: "#072929" }} itemStyle={{ color: "#072929" }} formatter={(v: unknown, name: string) => [typeof v === "number" && /sales|spend/i.test(name) ? `$${v.toLocaleString()}` : typeof v === "number" ? v.toLocaleString() : v, name]} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} wrapperStyle={{ zIndex: 10 }} labelStyle={{ color: "#072929" }} itemStyle={{ color: "#072929" }} formatter={(v: unknown, name: string): [React.ReactNode, string] => [typeof v === "number" && /sales|spend/i.test(name) ? `$${v.toLocaleString()}` : typeof v === "number" ? v.toLocaleString() : String(v), name]} />
           <Legend />
           {series.map((key, i) => (
             <Area

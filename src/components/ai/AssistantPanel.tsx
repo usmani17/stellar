@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAssistant, type SessionWithMessages } from "../../contexts/AssistantContext";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
-import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus } from "lucide-react";
+import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
 import { MessageContent } from "../ai/MessageContent";
@@ -16,65 +16,38 @@ import AmazonIcon from "../../assets/images/amazon-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
 import { CampaignFormForChat, type CampaignFormForChatHandle } from "../ai/CampaignFormForChat";
 import { deriveCampaignStateFromContent } from "../../utils/chartJsonParser";
-
-// Helper function to group sessions by date, ordered by latest first
-const groupSessionsByDate = (sessions: SessionWithMessages[]): Record<string, SessionWithMessages[]> => {
-    const groups: Record<string, SessionWithMessages[]> = {};
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const sorted = [...sessions]
-      .filter((s) => s.id !== "__pending__")
-      .sort((a, b) =>
-        new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime()
-      );
-
-    sorted.forEach((session) => {
-        const d = new Date(session.updated_at ?? session.created_at ?? 0);
-        const ds = d.toDateString();
-        const todayStr = today.toDateString();
-        const yesterdayStr = yesterday.toDateString();
-        let groupKey: string;
-        if (ds === todayStr) groupKey = "Today";
-        else if (ds === yesterdayStr) groupKey = "Yesterday";
-        else groupKey = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-        if (!groups[groupKey]) groups[groupKey] = [];
-        groups[groupKey].push(session);
-    });
-    return groups;
-};
+import { groupSessionsByDate } from "../../utils/assistantSessionUtils";
+import {
+    INSIGHT_CARDS,
+    INSIGHT_CATEGORIES,
+    type InsightCategory,
+} from "./insightCardsConfig";
 
 /** Set to false to hide the "Fill in the details" schema form (e.g. Logo image URL, Daily budget) in campaign setup. */
 const SHOW_CAMPAIGN_SCHEMA_FORM = true;
 
-// Same as DashboardHeader: color from first letter of account/channel name
-const getInitialColor = (initial: string): string => {
-    const colors = [
-        "#136D6D", "#072929", "#556179", "#8B5CF6", "#EC4899", "#F59E0B",
-        "#10B981", "#3B82F6", "#EF4444", "#06B6D4", "#F97316", "#6366F1",
-        "#14B8A6", "#A855F7", "#E11D48",
-    ];
-    if (!initial) return colors[0];
-    const charCode = initial.charCodeAt(0);
-    let index: number;
-    if (charCode >= 48 && charCode <= 57) index = (charCode - 48) % colors.length;
-    else if (charCode >= 65 && charCode <= 90) index = (charCode - 65) % colors.length;
-    else if (charCode >= 97 && charCode <= 122) index = (charCode - 97) % colors.length;
-    else index = Math.abs(charCode % colors.length);
-    return colors[index];
-};
-
 const ASSISTANT_TEXTAREA_MIN_HEIGHT = 24;
 const ASSISTANT_TEXTAREA_MAX_HEIGHT = 200;
+
+const INSIGHT_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+    Users,
+    ClipboardList,
+    BarChart3,
+    Sparkles,
+};
 
 /** Slash commands — sent as-is to backend (no expansion) */
 const SLASH_COMMANDS = [
   { cmd: "/pdf", label: "Generate PDF report" },
   { cmd: "/docx", label: "Generate Word report" },
+  { cmd: "/custom-dashboard", label: "Create custom dashboard" },
+  { cmd: "/dashboard-actions", label: "Create dashboard with optimization actions" },
 ] as const;
 
 /** Profile item from GET /accounts/:accountId/profiles/ (channel_id, channel_name, profile name) */
+
+/** Group profiles by platform (Google, Meta, TikTok). Amazon hidden for now. */
+const PLATFORM_ORDER = ["google", "meta", "tiktok", "other"] as const;
 interface AccountProfileOption {
     channel_id: number;
     channel_name: string;
@@ -86,6 +59,7 @@ interface AccountProfileOption {
     customer_id?: string;
     advertiser_id?: string;
     advertiser_name?: string;
+    account_id?: number;
 }
 
 function profileDisplayName(p: AccountProfileOption): string {
@@ -96,17 +70,23 @@ function profileIdForDisplay(p: AccountProfileOption): string {
     return p.customer_id ?? p.advertiser_id ?? p.ad_account_id ?? p.profileId ?? String(p.id);
 }
 
+export type AssistantPanelVariant = "panel" | "page";
+
 interface AssistantPanelProps {
     className?: string;
+    /** "panel" = slide-over (close button, history dropdown); "page" = full page (no close, no history dropdown) */
+    variant?: AssistantPanelVariant;
 }
 
 export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     className = "",
+    variant = "panel",
 }) => {
     const {
         isOpen,
         messages,
         isLoading,
+        inputValue,
         setInputValue,
         sendMessage,
         suggestedPrompts,
@@ -123,6 +103,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         assistantScope,
         setAssistantScope,
         campaignState,
+        workingOnRequest,
     } = useAssistant();
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -140,23 +121,39 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [accountProfiles, setAccountProfiles] = useState<AccountProfileOption[]>([]);
+    /** When multi-select dropdown is open: all accounts with their profiles (loaded on first open). */
+    const [allAccountsWithProfiles, setAllAccountsWithProfiles] = useState<Array<{ accountId: number; accountName: string; profiles: AccountProfileOption[] }>>([]);
     const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
-    const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
-    const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
-    const [accountSearchQuery, setAccountSearchQuery] = useState("");
+    const [, setIsLoadingProfiles] = useState(false);
+    const [isLoadingAllProfiles, setIsLoadingAllProfiles] = useState(false);
+    const [, setIsAccountDropdownOpen] = useState(false);
     const [isIntegrationProfileDropdownOpen, setIsIntegrationProfileDropdownOpen] = useState(false);
+    /** True after user has clicked Apply (so we show "Would you like to" only after they confirm selection) */
+    const [hasAppliedProfileSelection, setHasAppliedProfileSelection] = useState(false);
+    const isIntegrationProfileDropdownOpenRef = useRef(isIntegrationProfileDropdownOpen);
+    useEffect(() => {
+        isIntegrationProfileDropdownOpenRef.current = isIntegrationProfileDropdownOpen;
+    }, [isIntegrationProfileDropdownOpen]);
     const [profileSearchQuery, setProfileSearchQuery] = useState("");
     const [isSlashDropdownOpen, setIsSlashDropdownOpen] = useState(false);
     const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
     const [editableContent, setEditableContent] = useState(""); // for slash trigger; actual DOM is source of truth
+    const [insightCategory, setInsightCategory] = useState<InsightCategory>("all");
     const editableSyncRafRef = useRef<number | null>(null);
-    const accountDropdownRef = useRef<HTMLDivElement>(null);
     const integrationProfileDropdownRef = useRef<HTMLDivElement>(null);
     const slashDropdownRef = useRef<HTMLDivElement>(null);
 
-    // Load accounts when panel is open
+    // Sync inputValue from context to editableContent and DOM
     useEffect(() => {
-        if (!isOpen) return;
+        if (inputValue && editableRef.current) {
+            editableRef.current.textContent = inputValue;
+            queueMicrotask(() => setEditableContent(inputValue));
+        }
+    }, [inputValue, isOpen]);
+
+    // Load accounts when panel is open or when on chat page (variant=page)
+    useEffect(() => {
+        if (!isOpen && variant !== "page") return;
         let cancelled = false;
         queueMicrotask(() => setIsLoadingAccounts(true));
         accountsService.getAccounts({ all: true })
@@ -167,9 +164,35 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 if (!cancelled) setIsLoadingAccounts(false);
             });
         return () => { cancelled = true; };
-    }, [isOpen]);
+    }, [isOpen, variant]);
 
-    // Load profiles when account is selected
+    // When loading a session from history that has selectedProfiles, treat as already applied
+    const selectedProfilesCount = (assistantScope.selectedProfiles ?? []).length;
+    useEffect(() => {
+        if (currentSessionId && selectedProfilesCount > 0) {
+            queueMicrotask(() => setHasAppliedProfileSelection(true));
+        }
+    }, [currentSessionId, selectedProfilesCount]);
+
+    // Auto-select first account when only one exists (enables session list API call on /chat)
+    useEffect(() => {
+        if (
+            variant === "page" &&
+            !isLoadingAccounts &&
+            accounts.length === 1 &&
+            !assistantScope.accountId
+        ) {
+            setAssistantScope({
+                accountId: String(accounts[0].id),
+                channelId: null,
+                profileId: null,
+                profileName: null,
+                marketplace: null,
+            });
+        }
+    }, [variant, isLoadingAccounts, accounts, assistantScope.accountId, setAssistantScope]);
+
+    // Load profiles when account is selected (single-profile legacy flow)
     useEffect(() => {
         if (!assistantScope.accountId) {
             queueMicrotask(() => setAccountProfiles([]));
@@ -192,6 +215,36 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         return () => { cancelled = true; };
     }, [assistantScope.accountId]);
 
+    // When combined "account & profiles" dropdown opens, load profiles for ALL accounts (for multi-select)
+    useEffect(() => {
+        if (!isIntegrationProfileDropdownOpen || accounts.length === 0) return;
+        if (allAccountsWithProfiles.length > 0) return; // already loaded
+        let cancelled = false;
+        queueMicrotask(() => setIsLoadingAllProfiles(true));
+        Promise.all(
+            accounts.map((acc) =>
+                accountsService.getAccountProfiles(acc.id).then((res) => ({
+                    accountId: acc.id,
+                    accountName: acc.name || "",
+                    profiles: ((res?.profiles || []) as AccountProfileOption[]).map((p) => ({
+                        ...p,
+                        account_id: p.account_id ?? acc.id,
+                    })),
+                }))
+            )
+        )
+            .then((list) => {
+                if (!cancelled) setAllAccountsWithProfiles(list);
+            })
+            .catch(() => {
+                if (!cancelled) setAllAccountsWithProfiles([]);
+            })
+            .finally(() => {
+                if (!cancelled) setIsLoadingAllProfiles(false);
+            });
+        return () => { cancelled = true; };
+    }, [isIntegrationProfileDropdownOpen, accounts, allAccountsWithProfiles.length]);
+
     // Close dropdown and delete popup when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -202,11 +255,10 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             if (historyDropdownRef.current && !historyDropdownRef.current.contains(target) && !isInPopup) {
                 setIsSessionDropdownOpen(false);
             }
-            if (accountDropdownRef.current && !accountDropdownRef.current.contains(target)) {
-                setIsAccountDropdownOpen(false);
-                setAccountSearchQuery("");
-            }
-            if (integrationProfileDropdownRef.current && !integrationProfileDropdownRef.current.contains(target)) {
+            const ref = integrationProfileDropdownRef.current;
+            const containsTarget = ref ? ref.contains(target) : false;
+            if (ref && !containsTarget) {
+                isIntegrationProfileDropdownOpenRef.current = false;
                 setIsIntegrationProfileDropdownOpen(false);
                 setProfileSearchQuery("");
             }
@@ -572,8 +624,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
     const handleNewSession = () => {
         startNewSession();
-        // Clear profile so user must select it again (account can remain selected from previous session)
-        setAssistantScope({ channelId: null, profileId: null, profileName: null, marketplace: null });
+        setHasAppliedProfileSelection(false);
+        isIntegrationProfileDropdownOpenRef.current = false;
+        setAssistantScope({ channelId: null, profileId: null, profileName: null, marketplace: null, selectedProfiles: [] });
         setIsSessionDropdownOpen(false);
         setIsAccountDropdownOpen(false);
         setIsIntegrationProfileDropdownOpen(false);
@@ -628,262 +681,285 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     const groupedSessions = groupSessionsByDate(sessions);
     const hasMessages = messages.length > 0;
 
-    const selectedAccount = accounts.find((a) => String(a.id) === assistantScope.accountId);
-    const selectedProfileOption = accountProfiles.find(
-        (p) => String(p.channel_id) === assistantScope.channelId && p.id === assistantScope.profileId
-    );
+    const selectedProfiles = assistantScope.selectedProfiles ?? [];
+    const selectedProfileOption = selectedProfiles.length === 1
+        ? (() => {
+            const p = selectedProfiles[0];
+            return accountProfiles.find(
+                (ap) => String(ap.channel_id) === p.channelId && ap.id === p.profileId
+            ) ?? allAccountsWithProfiles.flatMap((a) => a.profiles).find(
+                (ap) => String(ap.account_id) === p.accountId && String(ap.channel_id) === p.channelId && ap.id === p.profileId
+            );
+        })()
+        : accountProfiles.find(
+            (p) => String(p.channel_id) === assistantScope.channelId && p.id === assistantScope.profileId
+        );
+
+    const isProfileSelected = (accId: number, channelId: number, profileId: number) =>
+        selectedProfiles.some(
+            (sp) => String(sp.accountId) === String(accId) && String(sp.channelId) === String(channelId) && sp.profileId === profileId
+        );
+
+    const toggleProfile = (p: AccountProfileOption, accId: number) => {
+        const entry = {
+            accountId: String(accId),
+            channelId: String(p.channel_id),
+            profileId: p.id,
+            profileName: profileDisplayName(p) ?? undefined,
+            marketplace: (p.channel_type ?? null) ?? undefined,
+        };
+        const next = isProfileSelected(accId, p.channel_id, p.id)
+            ? selectedProfiles.filter((sp) => !(String(sp.accountId) === String(accId) && String(sp.channelId) === String(p.channel_id) && sp.profileId === p.id))
+            : [...selectedProfiles, entry];
+        setAssistantScope({
+            selectedProfiles: next,
+            accountId: next.length > 0 ? next[0].accountId : null,
+            channelId: next.length > 0 ? next[0].channelId : null,
+            profileId: next.length > 0 ? next[0].profileId : null,
+            profileName: next.length > 0 ? (next[0].profileName ?? null) : null,
+            marketplace: next.length > 0 ? (next[0].marketplace ?? null) : null,
+        });
+    };
+
+    const handleClearSelection = () => {
+        setHasAppliedProfileSelection(false);
+        setAssistantScope({
+            selectedProfiles: [],
+            accountId: null,
+            channelId: null,
+            profileId: null,
+            profileName: null,
+            marketplace: null,
+        });
+    };
+
+    const handleApplySelection = () => {
+        if (selectedProfiles.length > 0) setHasAppliedProfileSelection(true);
+        isIntegrationProfileDropdownOpenRef.current = false;
+        setIsIntegrationProfileDropdownOpen(false);
+        setProfileSearchQuery("");
+    };
+
+    /** Group profiles by platform (Google, Meta, Amazon, TikTok) for Prism-style layout */
+    const profilesByPlatform = React.useMemo(() => {
+        const q = profileSearchQuery.trim().toLowerCase();
+        const flat: Array<{ profile: AccountProfileOption; accountId: number; accountName: string }> = [];
+        for (const { accountId, accountName, profiles } of allAccountsWithProfiles) {
+            for (const p of profiles) {
+                if (q) {
+                    const label = `${profileDisplayName(p)} ${profileIdForDisplay(p)} ${accountName}`.toLowerCase();
+                    if (!label.includes(q)) continue;
+                }
+                flat.push({ profile: p, accountId, accountName });
+            }
+        }
+        const byPlatform: Record<string, typeof flat> = {};
+        for (const item of flat) {
+            const platform = (item.profile.channel_type ?? "").toLowerCase() || "other";
+            if (platform === "amazon") continue; // Hide Amazon accounts for now
+            if (!byPlatform[platform]) byPlatform[platform] = [];
+            byPlatform[platform].push(item);
+        }
+        return PLATFORM_ORDER.filter((k) => byPlatform[k]?.length).map((platform) => ({
+            platform,
+            items: byPlatform[platform],
+        }));
+    }, [allAccountsWithProfiles, profileSearchQuery]);
+
+    const totalProfileCount = profilesByPlatform.reduce((sum, { items }) => sum + items.length, 0);
+    const hasMultipleAccounts = allAccountsWithProfiles.length > 1;
 
     const canChat = !!(
-        assistantScope.accountId &&
-        assistantScope.channelId &&
-        assistantScope.profileId
+        (assistantScope.accountId &&
+            assistantScope.channelId &&
+            assistantScope.profileId) ||
+        (assistantScope.selectedProfiles && assistantScope.selectedProfiles.length >= 1)
     );
 
-    const contextSection = (
-        <div className="assistant-setup-card">
-            <p className="assistant-setup-heading">
-                Set up your session in 2 steps
-            </p>
-
-            {/* Step 1: Account */}
-            <div className="assistant-setup-step">
-                <label className="assistant-setup-label">
-                    <span className={`assistant-setup-step-num ${assistantScope.accountId ? "assistant-setup-step-num-active" : ""}`}>
-                        1
-                    </span>
-                    Select account
-                </label>
-                <div className="relative" ref={accountDropdownRef}>
-                    <button
+    /** Profile dropdown trigger + panel (reused in footer chips row) */
+    const profileDropdownContent = (
+        <div className="relative" ref={integrationProfileDropdownRef}>
+                        <button
                         type="button"
-                        onClick={() => setIsAccountDropdownOpen((v) => !v)}
-                        className="assistant-setup-dropdown-trigger"
-                        aria-haspopup="listbox"
-                        aria-expanded={isAccountDropdownOpen}
-                        aria-label="Select account"
-                    >
-                        <span className="assistant-setup-dropdown-trigger-inner">
-                            {selectedAccount && (
-                                <div
-                                    className="assistant-setup-account-initial"
-                                    style={{
-                                        backgroundColor: getInitialColor(selectedAccount.name?.[0]?.toUpperCase() || "A"),
-                                    }}
-                                >
-                                    {selectedAccount.name?.[0]?.toUpperCase() || "A"}
-                                </div>
-                            )}
-                            <span className="truncate">
-                                {selectedAccount ? selectedAccount.name : "Choose an account"}
-                            </span>
-                        </span>
-                        <ChevronDown className="assistant-setup-dropdown-chevron" />
-                    </button>
-                    {isAccountDropdownOpen && (
-                        <div className="assistant-setup-dropdown-panel">
-                            {isLoadingAccounts ? (
-                                <div className="assistant-setup-dropdown-loading">Loading...</div>
-                            ) : accounts.length === 0 ? (
-                                <div className="assistant-setup-dropdown-empty">No accounts</div>
-                            ) : (
-                                <>
-                                    <div className="p-2 border-b border-[#e8e8e3]">
-                                        <input
-                                            type="text"
-                                            value={accountSearchQuery}
-                                            onChange={(e) => setAccountSearchQuery(e.target.value)}
-                                            placeholder="Search brands..."
-                                            className="w-full px-3 py-2 text-sm border border-[#e8e8e3] rounded-lg bg-white text-[#072929] placeholder:text-[#556179] focus:outline-none focus:ring-2 focus:ring-[#136d6d] focus:border-transparent"
-                                            onClick={(e) => e.stopPropagation()}
-                                            aria-label="Search brands"
-                                        />
-                                    </div>
-                                    <div className="max-h-[240px] overflow-y-auto">
-                                        {(() => {
-                                            const q = accountSearchQuery.trim().toLowerCase();
-                                            const filtered = q
-                                                ? accounts.filter((acc) =>
-                                                    (acc.name ?? "").toLowerCase().includes(q)
-                                                )
-                                                : accounts;
-                                            if (filtered.length === 0) {
-                                                return (
-                                                    <div className="assistant-setup-dropdown-empty py-4">
-                                                        {q ? "No brands match your search" : "No accounts"}
-                                                    </div>
-                                                );
-                                            }
-                                            return filtered.map((acc) => {
-                                                const initial = acc.name?.[0]?.toUpperCase() || "A";
-                                                const bgColor = getInitialColor(initial);
-                                                return (
-                                                    <button
-                                                        key={acc.id}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setAssistantScope({ accountId: String(acc.id), channelId: null, profileId: null, profileName: null, marketplace: null });
-                                                            setIsAccountDropdownOpen(false);
-                                                            setAccountSearchQuery("");
-                                                        }}
-                                                        className={`assistant-setup-dropdown-item ${assistantScope.accountId === String(acc.id) ? "assistant-setup-dropdown-item-active" : ""}`}
-                                                    >
-                                                        <div
-                                                            className="assistant-setup-account-initial"
-                                                            style={{ backgroundColor: bgColor }}
-                                                        >
-                                                            {initial}
-                                                        </div>
-                                                        <span className="truncate">{acc.name}</span>
-                                                    </button>
-                                                );
-                                            });
-                                        })()}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Step 2: Integration & profile */}
-            <div className="assistant-setup-step">
-                <label className="assistant-setup-label">
-                    <span className={`assistant-setup-step-num ${assistantScope.accountId ? "assistant-setup-step-num-active" : ""}`}>
-                        2
-                    </span>
-                    Select integration & profile
-                </label>
-                <div className="relative" ref={integrationProfileDropdownRef}>
-                    <button
-                        type="button"
-                        onClick={() => assistantScope.accountId && setIsIntegrationProfileDropdownOpen((v) => !v)}
-                        disabled={!assistantScope.accountId}
-                        className="assistant-setup-dropdown-trigger"
+                        onClick={(e) => {
+                            if (accounts.length > 0) {
+                                const target = e.target as Element;
+                                const panel = integrationProfileDropdownRef.current?.querySelector('.assistant-setup-dropdown-panel');
+                                const targetInPanel = panel ? panel.contains(target) : false;
+                                // Use ref to avoid stale closure: when dropdown is open, never toggle from button click
+                                const isOpen = isIntegrationProfileDropdownOpenRef.current;
+                                if (isOpen) {
+                                    return;
+                                }
+                                if (panel && targetInPanel) return;
+                                const next = !isIntegrationProfileDropdownOpenRef.current;
+                                isIntegrationProfileDropdownOpenRef.current = next;
+                                setIsIntegrationProfileDropdownOpen(next);
+                            }
+                        }}
+                        disabled={accounts.length === 0}
+                        className={`assistant-setup-dropdown-trigger ${isIntegrationProfileDropdownOpen ? "pointer-events-none" : ""}`}
+                        style={isIntegrationProfileDropdownOpen ? { pointerEvents: 'none' } : undefined}
                         aria-haspopup="listbox"
                         aria-expanded={isIntegrationProfileDropdownOpen}
-                        aria-label="Select integration and profile"
+                        aria-label="Select account(s) and profile(s)"
                     >
                         <span className="assistant-setup-dropdown-trigger-inner">
-                            {selectedProfileOption && (() => {
-                                const ct = (selectedProfileOption.channel_type ?? assistantScope.marketplace ?? "").toLowerCase();
-                                return (
-                                    <>
-                                        {ct === "amazon" && (
-                                            <img src={AmazonIcon} alt="Amazon" className="w-4 h-4 shrink-0" />
-                                        )}
-                                        {ct === "google" && (
-                                            <img src={GoogleIcon} alt="Google" className="w-4 h-4 shrink-0" />
-                                        )}
-                                        {ct === "meta" && (
-                                            <img src={MetaIcon} alt="Meta" className="w-4 h-4 shrink-0" />
-                                        )}
-                                        {ct === "tiktok" && (
-                                            <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                                <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-                                            </svg>
-                                        )}
-                                    </>
-                                );
-                            })()}
-                            <span className="truncate">
-                                {selectedProfileOption
-                                    ? `${profileDisplayName(selectedProfileOption)} (${profileIdForDisplay(selectedProfileOption)})`
-                                    : assistantScope.accountId
-                                        ? "Choose integration & profile"
-                                        : "Select an account first"}
-                            </span>
+                            {selectedProfiles.length > 1 ? (
+                                <>
+                                    <span className="truncate">
+                                        {selectedProfiles.length} profiles selected
+                                    </span>
+                                </>
+                            ) : selectedProfileOption ? (
+                                <>
+                                    {(() => {
+                                        const ct = (selectedProfileOption.channel_type ?? assistantScope.marketplace ?? "").toLowerCase();
+                                        return (
+                                            <>
+                                                {ct === "amazon" && <img src={AmazonIcon} alt="Amazon" className="w-4 h-4 shrink-0" />}
+                                                {ct === "google" && <img src={GoogleIcon} alt="Google" className="w-4 h-4 shrink-0" />}
+                                                {ct === "meta" && <img src={MetaIcon} alt="Meta" className="w-4 h-4 shrink-0" />}
+                                                {ct === "tiktok" && (
+                                                    <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                                        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                                                    </svg>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+                                    <span className="truncate">
+                                        {profileDisplayName(selectedProfileOption)} ({profileIdForDisplay(selectedProfileOption)})
+                                    </span>
+                                </>
+                            ) : (
+                                <span className="truncate text-[#556179]">
+                                    {accounts.length === 0 ? "No accounts" : "Select ad accounts..."}
+                                </span>
+                            )}
                         </span>
                         <ChevronDown className="assistant-setup-dropdown-chevron" />
                     </button>
                     {isIntegrationProfileDropdownOpen && (
-                        <div className="assistant-setup-dropdown-panel">
-                            {isLoadingProfiles ? (
-                                <div className="assistant-setup-dropdown-loading">Loading...</div>
-                            ) : accountProfiles.length === 0 ? (
-                                <div className="assistant-setup-dropdown-empty">No profiles. Select an account first.</div>
+                        <div
+                            className="assistant-setup-dropdown-panel assistant-setup-dropdown-panel-overlay-trigger min-w-[280px]"
+                            onMouseDown={(e) => {
+                                e.stopPropagation();
+                            }}
+                        >
+                            {isLoadingAllProfiles ? (
+                                <div className="assistant-setup-dropdown-loading">Loading accounts & profiles...</div>
+                            ) : allAccountsWithProfiles.length === 0 ? (
+                                <div className="assistant-setup-dropdown-empty">No accounts or profiles.</div>
                             ) : (
                                 <>
-                                    {accountProfiles.length > 5 && (
-                                        <div className="p-2 border-b border-[#e8e8e3]">
+                                    <div className="p-2 border-b border-[#e8e8e3]">
+                                        <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-[#F5F5F2] border border-[#e8e8e3] focus-within:ring-2 focus-within:ring-[#136d6d] focus-within:border-transparent">
+                                            <Search className="w-4 h-4 text-[#556179] shrink-0" aria-hidden />
                                             <input
                                                 type="text"
                                                 value={profileSearchQuery}
                                                 onChange={(e) => setProfileSearchQuery(e.target.value)}
-                                                placeholder="Search integration & profile..."
-                                                className="w-full px-3 py-2 text-sm border border-[#e8e8e3] rounded-lg bg-white text-[#072929] placeholder:text-[#556179] focus:outline-none focus:ring-2 focus:ring-[#136d6d] focus:border-transparent"
+                                                placeholder="Search ad accounts..."
+                                                className="flex-1 bg-transparent text-sm text-[#072929] placeholder:text-[#556179] focus:outline-none"
                                                 onClick={(e) => e.stopPropagation()}
-                                                aria-label="Search integration and profile"
+                                                aria-label="Search ad accounts"
                                             />
                                         </div>
-                                    )}
-                                    <div className={accountProfiles.length > 5 ? "max-h-[240px] overflow-y-auto" : ""}>
-                                        {(() => {
-                                            const showSearch = accountProfiles.length > 5;
-                                            const q = showSearch ? profileSearchQuery.trim().toLowerCase() : "";
-                                            const filtered = showSearch && q
-                                                ? accountProfiles.filter((p) => {
-                                                    const label = `${profileDisplayName(p)} (${profileIdForDisplay(p)})`;
-                                                    return label.toLowerCase().includes(q);
-                                                })
-                                                : accountProfiles;
-                                            if (filtered.length === 0) {
+                                        {hasMultipleAccounts && (
+                                            <p className="text-xs text-[#556179] mt-1.5 px-1">
+                                                Select one or more profiles from any account, then click Apply.
+                                            </p>
+                                        )}
+                                        {!hasMultipleAccounts && totalProfileCount > 1 && (
+                                            <p className="text-xs text-[#556179] mt-1.5 px-1">
+                                                Select one or more profiles, then click Apply.
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="max-h-[240px] overflow-y-auto">
+                                        {profilesByPlatform.length === 0 ? (
+                                            <div className="assistant-setup-dropdown-empty py-6">
+                                                No profiles match your search
+                                            </div>
+                                        ) : (
+                                            profilesByPlatform.map(({ platform, items }) => {
+                                                const platformLabel = platform.charAt(0).toUpperCase() + platform.slice(1);
+                                                const PlatformIcon =
+                                                    platform === "google" ? () => <img src={GoogleIcon} alt="" className="w-4 h-4 shrink-0" /> :
+                                                    platform === "meta" ? () => <img src={MetaIcon} alt="" className="w-4 h-4 shrink-0" /> :
+                                                    platform === "tiktok" ? () => (
+                                                        <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                                                        </svg>
+                                                    ) : () => null;
                                                 return (
-                                                    <div className="assistant-setup-dropdown-empty py-4">
-                                                        {showSearch && q ? "No profiles match your search" : "No profiles. Select an account first."}
+                                                    <div key={platform} className="border-b border-[#e8e8e3] last:border-b-0">
+                                                        <div className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-[#072929] bg-[#F9F9F6] sticky top-0 z-10">
+                                                            <PlatformIcon />
+                                                            <span>{platformLabel}</span>
+                                                        </div>
+                                                        {items.map(({ profile: p, accountId: accId, accountName: accName }) => {
+                                                            const label = `${profileDisplayName(p)} (${profileIdForDisplay(p)})`;
+                                                            const labelWithAccount = hasMultipleAccounts ? `${label} · ${accName}` : label;
+                                                            const checked = isProfileSelected(accId, p.channel_id, p.id);
+                                                            return (
+                                                                <label
+                                                                    key={`${accId}-${p.channel_id}-${p.id}`}
+                                                                    className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-[#F5F5F2] ${checked ? "bg-[#E6F2F2]" : ""}`}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={checked}
+                                                                        onChange={() => toggleProfile(p, accId)}
+                                                                        className="rounded border-[#136d6d] text-[#136D6D] focus:ring-[#136d6d] accent-[#136D6D]"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    />
+                                                                    <span className="truncate text-sm text-[#072929]" title={labelWithAccount}>{labelWithAccount}</span>
+                                                                </label>
+                                                            );
+                                                        })}
                                                     </div>
                                                 );
-                                            }
-                                            return filtered.map((p) => {
-                                                const label = `${profileDisplayName(p)} (${profileIdForDisplay(p)})`;
-                                                const isSelected =
-                                                    assistantScope.channelId === String(p.channel_id) && assistantScope.profileId === p.id;
-                                                const channelType = (p.channel_type ?? "").toLowerCase();
-                                                return (
-                                                    <button
-                                                        key={`${p.channel_id}-${p.id}`}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setAssistantScope({
-                                                                channelId: String(p.channel_id),
-                                                                profileId: p.id,
-                                                                profileName: profileDisplayName(p),
-                                                                marketplace: p.channel_type ?? null,
-                                                            });
-                                                            setIsIntegrationProfileDropdownOpen(false);
-                                                            setProfileSearchQuery("");
-                                                        }}
-                                                        className={`assistant-setup-dropdown-item ${isSelected ? "assistant-setup-dropdown-item-active" : ""}`}
-                                                    >
-                                                        {channelType === "amazon" && <img src={AmazonIcon} alt="Amazon" className="w-4 h-4 shrink-0" />}
-                                                        {channelType === "google" && <img src={GoogleIcon} alt="Google" className="w-4 h-4 shrink-0" />}
-                                                        {channelType === "meta" && <img src={MetaIcon} alt="Meta" className="w-4 h-4 shrink-0" />}
-                                                        {channelType === "tiktok" && (
-                                                            <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                                                <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-                                                            </svg>
-                                                        )}
-                                                        <span className="truncate">{label}</span>
-                                                    </button>
-                                                );
-                                            });
-                                        })()}
+                                            })
+                                        )}
+                                    </div>
+                                    <div className="flex items-center justify-between px-3 py-2 border-t border-[#e8e8e3] bg-[#F9F9F6]">
+                                        <span className="text-xs text-[#556179]">
+                                            {selectedProfiles.length}/{totalProfileCount} selected
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); handleClearSelection(); }}
+                                                className="text-xs text-[#556179] hover:text-[#072929] font-medium px-2 py-1"
+                                            >
+                                                Clear
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); handleApplySelection(); }}
+                                                disabled={selectedProfiles.length === 0}
+                                                className="text-xs font-medium px-3 py-1 rounded bg-[#136D6D] text-white hover:bg-[#0f5656] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#136D6D]"
+                                            >
+                                                Apply
+                                            </button>
+                                        </div>
                                     </div>
                                 </>
                             )}
                         </div>
                     )}
                 </div>
-            </div>
-
-        </div>
     );
 
     return (
         <div
             className={`flex flex-col h-full bg-[var(--color-semantic-background-primary)] shadow-lg ${className}`}
         >
-            {/* Top row: chat tabs (left) + New Chat & Close (right) */}
+            {/* Top row: chat tabs (left) + New Chat & Close (right) — hidden when variant=page (history in sidebar) */}
+            {variant === "panel" ? (
             <div className="assistant-top-row">
                 <div className="assistant-top-row-inner">
                     <div className="assistant-tabs-scroll interactive-scrollbar">
@@ -935,6 +1011,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         ) : null}
                     </div>
                     <div className="assistant-top-row-actions">
+                        {variant === "panel" && (
                         <div ref={historyDropdownRef} className="relative">
                             <button
                                 type="button"
@@ -1020,6 +1097,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 </div>
                             )}
                         </div>
+                        )}
                         <button
                             type="button"
                             onClick={handleNewSession}
@@ -1029,6 +1107,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         >
                             <Plus className="w-5 h-5" strokeWidth={2.5} />
                         </button>
+                        {variant === "panel" && (
                         <button
                             type="button"
                             onClick={(e) => {
@@ -1042,67 +1121,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         >
                             <X className="w-5 h-5" />
                         </button>
+                        )}
                     </div>
                 </div>
             </div>
-            {/* Second row: account/channel (left only) */}
-            <div className="assistant-account-row">
-                <div className="assistant-account-row-inner">
-                    {selectedAccount && (
-                        <div className="flex items-center gap-1.5 min-w-0 max-w-full">
-                            <div
-                                className="w-5 h-5 rounded flex-shrink-0 text-white text-[10px] flex items-center justify-center font-semibold"
-                                style={{
-                                    backgroundColor: getInitialColor(selectedAccount.name?.[0]?.toUpperCase() || "A"),
-                                }}
-                            >
-                                {selectedAccount.name?.[0]?.toUpperCase() || "A"}
-                            </div>
-                            <span className="assistant-account-label" title={selectedAccount.name}>
-                                {selectedAccount.name}
-                            </span>
-                        </div>
-                    )}
-                    {selectedProfileOption && (
-                        <>
-                            {selectedAccount && (
-                                <span className="assistant-channel-label shrink-0" aria-hidden>•</span>
-                            )}
-                            <div className="flex items-center gap-1.5 min-w-0 max-w-full">
-                                {assistantScope.marketplace === "amazon" && (
-                                    <img src={AmazonIcon} alt="Amazon" className="w-4 h-4 flex-shrink-0" />
-                                )}
-                                {assistantScope.marketplace === "google" && (
-                                    <img src={GoogleIcon} alt="Google" className="w-4 h-4 flex-shrink-0" />
-                                )}
-                                {assistantScope.marketplace === "meta" && (
-                                    <img src={MetaIcon} alt="Meta" className="w-4 h-4 flex-shrink-0" />
-                                )}
-                                {assistantScope.marketplace === "tiktok" && (
-                                    <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-                                    </svg>
-                                )}
-                                <span
-                                    className="assistant-channel-label truncate"
-                                    title={`${profileDisplayName(selectedProfileOption)} (${profileIdForDisplay(selectedProfileOption)})`}
-                                >
-                                    {profileDisplayName(selectedProfileOption)} ({profileIdForDisplay(selectedProfileOption)})
-                                </span>
-                            </div>
-                        </>
-                    )}
-                    {campaignState && (
-                        <CampaignDraftPreview
-                            campaignState={campaignState}
-                            visible
-                            accountId={assistantScope.accountId ?? undefined}
-                            channelId={assistantScope.channelId ?? undefined}
-                            className="shrink-0 ml-auto"
-                        />
-                    )}
-                </div>
-            </div>
+            ) : null}
             {/* Messages Area - min-h-0 allows flex child to shrink so overflow only when content exceeds available space */}
             <div
                 ref={messagesScrollContainerRef}
@@ -1129,30 +1152,79 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         </div>
                     </div>
                 ) : !hasMessages ? (
-                    /* Empty State: show 3-step setup until user selects Analyze or Create Campaign; then hide setup and show prompts only */
+                    /* Empty State: logo, hint text, and prompts (setup card is above in its own section) */
                     <div className="flex flex-col items-center justify-center h-full gap-6">
-                        {/* Assistant logo and title at top, above setup */}
                         <div className="mb-0">
                             <img src={StellarLogo} alt="Assistant" className="h-16 w-16" />
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900">
+                        <h3 className="text-lg font-medium text-forest-f60">
                             Assistant
                         </h3>
 
-                        {/* Set up your session - hidden once user has full scope */}
-                        {!canChat && contextSection}
-
                         {!canChat ? (
-                            <p className="text-sm text-gray-600 text-center px-4">
-                                {!assistantScope.accountId
-                                    ? "Select an account above to start."
-                                    : !assistantScope.channelId || !assistantScope.profileId
-                                        ? "Select an integration–profile above to start."
-                                        : "Start typing to begin."}
+                            <p className="text-sm text-forest-f30 text-center px-4">
+                                {accounts.length === 0
+                                    ? "No accounts available."
+                                    : "Select account(s) & profile(s) below to start."}
                             </p>
+                        ) : !hasAppliedProfileSelection ? (
+                            <p className="text-sm text-forest-f30 text-center px-4">
+                                Select one or more profiles below, then click Apply.
+                            </p>
+                        ) : variant === "page" ? (
+                            /* Page variant: category filters + insight cards */
+                            <div className="w-full max-w-4xl px-4">
+                                <div className="flex flex-wrap gap-2 mb-6 justify-center">
+                                    {INSIGHT_CATEGORIES.map((cat) => (
+                                        <button
+                                            key={cat.id}
+                                            type="button"
+                                            onClick={() => setInsightCategory(cat.id)}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                insightCategory === cat.id
+                                                    ? "bg-forest-f40 text-white"
+                                                    : "bg-sandstorm-s40 text-forest-f60 hover:bg-sandstorm-s40/80"
+                                            }`}
+                                        >
+                                            {cat.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {(insightCategory === "all"
+                                        ? INSIGHT_CARDS
+                                        : INSIGHT_CARDS.filter((c) => c.category === insightCategory)
+                                    ).map((card) => {
+                                        const Icon = INSIGHT_ICON_MAP[card.iconName] ?? BarChart3;
+                                        return (
+                                            <button
+                                                key={card.id}
+                                                type="button"
+                                                onClick={() => handlePromptClick(card.prompt)}
+                                                className="flex flex-col items-start p-4 rounded-xl border border-sandstorm-s40 bg-sandstorm-s5 hover:border-forest-f40/40 hover:bg-forest-f40/5 transition-colors text-left"
+                                            >
+                                                <Icon className="w-5 h-5 text-forest-f40 mb-2" />
+                                                <span className="text-xs font-medium text-forest-f30 uppercase tracking-wide mb-1">
+                                                    {INSIGHT_CATEGORIES.find((c) => c.id === card.category)?.label ?? card.category}
+                                                </span>
+                                                <h4 className="text-sm font-medium text-forest-f60 mb-1">
+                                                    {card.title}
+                                                </h4>
+                                                <p className="text-xs text-forest-f30 line-clamp-2 mb-3">
+                                                    {card.description}
+                                                </p>
+                                                <span className="text-xs font-medium text-forest-f40 flex items-center gap-1">
+                                                    Get Started
+                                                    <ArrowUp className="w-3 h-3 rotate-90" strokeWidth={2.5} />
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         ) : (
                             <div className="w-full max-w-sm">
-                                <p className="text-sm text-gray-600 mb-3">Would you like to:</p>
+                                <p className="text-sm text-forest-f30 mb-3">Would you like to:</p>
                                 <div className="flex flex-col gap-2">
                                     {suggestedPrompts.map((prompt) => (
                                         <button
@@ -1238,6 +1310,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                                     key={`act-${si}`}
                                                                     items={seg.items}
                                                                     defaultThoughtsExpanded
+                                                                    workingOnRequest={workingOnRequest}
                                                                     placeholder={
                                                                         seg.items.length === 0 && timeline.length === 0 && aiStreaming ? (
                                                                             <div className="flex items-center gap-2 text-[#556179]">
@@ -1360,11 +1433,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 )}
             </div>
 
-            {/* Input Area - Cursor-style: upper row = description/input, lower row = agent + send; no plus icon */}
+            {/* Input Area - profile chips at bottom of input, dropdown opens upward */}
             <div className="px-4 py-3 border-t border-gray-100 relative" ref={slashDropdownRef}>
                 <form onSubmit={handleSubmit} className="relative">
                     <div className="assistant-input-container rounded-[12px] p-3 flex flex-col gap-3">
-                        {/* Upper row: contenteditable with inline chips (tags) */}
+                        {/* Top: contenteditable */}
                         <div className="relative min-h-[24px] w-full">
                             {!editableContent && (
                                 <span
@@ -1374,7 +1447,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                     {isStreaming
                                         ? "Generating response..."
                                         : !canChat
-                                            ? "Select account and profile above to enable chat"
+                                            ? "Select account(s) & profile(s) below to enable chat"
                                             : "Ask me anything... Type / for commands (Shift+Enter for new line)"}
                                 </span>
                             )}
@@ -1394,8 +1467,20 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                 style={{ fontFamily: "'GT America Trial', sans-serif", minHeight: ASSISTANT_TEXTAREA_MIN_HEIGHT, maxHeight: ASSISTANT_TEXTAREA_MAX_HEIGHT }}
                             />
                         </div>
-                        {/* Lower row: send/stop only (agent selection is in setup card Step 3) */}
-                        <div className="flex items-center justify-end gap-2">
+                        {/* Bottom of text area: chips (left) + send (right); dropdown opens upward */}
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                            <div className="assistant-footer-chips assistant-dropdown-open-up min-h-[28px] flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                                {profileDropdownContent}
+                            </div>
+                            {campaignState && (
+                                <CampaignDraftPreview
+                                    campaignState={campaignState}
+                                    visible
+                                    accountId={assistantScope.accountId ?? undefined}
+                                    channelId={assistantScope.channelId ?? undefined}
+                                    className="shrink-0"
+                                />
+                            )}
                             {isStreaming ? (
                                 <button
                                     type="button"

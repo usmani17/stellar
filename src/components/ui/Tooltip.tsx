@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export type TooltipPosition = 
   | 'left' 
@@ -27,6 +28,8 @@ interface TooltipProps {
   className?: string;
   /** Additional CSS classes for trigger */
   triggerClassName?: string;
+  /** Render tooltip in a portal to document.body so it appears above overflow/stacking (e.g. tables) */
+  portal?: boolean;
 }
 
 // Arrow component for different positions
@@ -82,6 +85,39 @@ const TooltipArrow: React.FC<{ position: TooltipPosition }> = ({ position }) => 
   );
 };
 
+const GAP_PX = 7;
+
+function getPortalStyle(
+  position: TooltipPosition,
+  rect: DOMRect,
+): React.CSSProperties {
+  const { left, top, right, bottom, width, height } = rect;
+  const base: React.CSSProperties = {
+    position: 'fixed',
+    zIndex: 9999,
+  };
+  switch (position) {
+    case 'right':
+      return { ...base, left: right + GAP_PX, top };
+    case 'left':
+      return { ...base, left: left - GAP_PX, top, transform: 'translateX(-100%)' };
+    case 'topLeft':
+      return { ...base, left, top: top - GAP_PX, transform: 'translateY(-100%)' };
+    case 'topRight':
+      return { ...base, left: right, top: top - GAP_PX, transform: 'translate(-100%, -100%)' };
+    case 'bottomLeft':
+      return { ...base, left, top: bottom + GAP_PX };
+    case 'bottomRight':
+      return { ...base, left: right, top: bottom + GAP_PX, transform: 'translateX(-100%)' };
+    case 'topMiddle':
+      return { ...base, left: left + width / 2, top: top - GAP_PX, transform: 'translate(-50%, -100%)' };
+    case 'bottomMiddle':
+      return { ...base, left: left + width / 2, top: bottom + GAP_PX, transform: 'translateX(-50%)' };
+    default:
+      return { ...base, left: right + GAP_PX, top };
+  }
+}
+
 export const Tooltip: React.FC<TooltipProps> = ({
   children,
   heading = 'Heading',
@@ -91,13 +127,36 @@ export const Tooltip: React.FC<TooltipProps> = ({
   onVisibleChange,
   className = '',
   triggerClassName = '',
+  portal = false,
 }) => {
   const [internalVisible, setInternalVisible] = useState(false);
+  const [triggerRect, setTriggerRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   const isControlled = controlledVisible !== undefined;
   const visible = isControlled ? controlledVisible : internalVisible;
+
+  const updateRect = () => {
+    if (triggerRef.current) {
+      setTriggerRect(triggerRef.current.getBoundingClientRect());
+    }
+  };
+
+  useEffect(() => {
+    if (visible && portal) {
+      updateRect();
+      window.addEventListener('scroll', updateRect, true);
+      window.addEventListener('resize', updateRect);
+      return () => {
+        window.removeEventListener('scroll', updateRect, true);
+        window.removeEventListener('resize', updateRect);
+      };
+    }
+    if (!visible && portal) {
+      setTriggerRect(null);
+    }
+  }, [visible, portal]);
 
   const handleMouseEnter = () => {
     if (!isControlled) {
@@ -130,6 +189,75 @@ export const Tooltip: React.FC<TooltipProps> = ({
   // Determine tooltip width based on position
   const tooltipWidth = position === 'topLeft' ? 'w-full' : 'w-[212px]';
 
+  const tooltipContent = (
+    <div
+      ref={tooltipRef}
+      className={`
+        z-[9999]
+        ${!portal ? 'absolute' : ''}
+        ${!portal && position === 'left' ? 'right-full mr-[7px]' : ''}
+        ${!portal && position === 'right' ? 'left-full ml-[7px]' : ''}
+        ${!portal && position === 'topLeft' ? 'bottom-full mb-[7px] left-0' : ''}
+        ${!portal && position === 'topRight' ? 'bottom-full mb-[7px] right-0' : ''}
+        ${!portal && position === 'bottomLeft' ? 'top-full mt-[7px] left-0' : ''}
+        ${!portal && position === 'bottomRight' ? 'top-full mt-[7px] right-0' : ''}
+        ${!portal && position === 'topMiddle' ? 'bottom-full mb-[7px] left-1/2 -translate-x-1/2' : ''}
+        ${!portal && position === 'bottomMiddle' ? 'top-full mt-[7px] left-1/2 -translate-x-1/2' : ''}
+        ${className}
+      `}
+      style={portal && triggerRect ? getPortalStyle(position, triggerRect) : undefined}
+    >
+      <div
+        className={`
+          bg-[#072929]
+          flex
+          items-start
+          overflow-clip
+          px-[12px]
+          py-[10px]
+          relative
+          rounded-[4px]
+          shrink-0
+          ${tooltipWidth}
+        `}
+      >
+        <div
+          className={`
+            flex
+            flex-[1_0_0]
+            flex-col
+            gap-[2px]
+            items-start
+            leading-[18px]
+            min-h-px
+            min-w-px
+            relative
+            shrink-0
+            text-[12px]
+            text-white
+            whitespace-pre-wrap
+          `}
+        >
+          {heading && (
+            <p
+              className="font-gtAmerica font-medium relative shrink-0 w-full"
+            >
+              {heading}
+            </p>
+          )}
+          {description && (
+            <p
+              className="font-gtAmerica font-normal relative shrink-0 w-full"
+            >
+              {description}
+            </p>
+          )}
+        </div>
+        <TooltipArrow position={position} />
+      </div>
+    </div>
+  );
+
   return (
     <div
       ref={triggerRef}
@@ -140,74 +268,12 @@ export const Tooltip: React.FC<TooltipProps> = ({
       onBlur={handleBlur}
     >
       {children}
-      
-      {visible && (
-        <div
-          ref={tooltipRef}
-          className={`
-            absolute
-            z-50
-            ${position === 'left' ? 'right-full mr-[7px]' : ''}
-            ${position === 'right' ? 'left-full ml-[7px]' : ''}
-            ${position === 'topLeft' ? 'bottom-full mb-[7px] left-0' : ''}
-            ${position === 'topRight' ? 'bottom-full mb-[7px] right-0' : ''}
-            ${position === 'bottomLeft' ? 'top-full mt-[7px] left-0' : ''}
-            ${position === 'bottomRight' ? 'top-full mt-[7px] right-0' : ''}
-            ${position === 'topMiddle' ? 'bottom-full mb-[7px] left-1/2 -translate-x-1/2' : ''}
-            ${position === 'bottomMiddle' ? 'top-full mt-[7px] left-1/2 -translate-x-1/2' : ''}
-            ${className}
-          `}
-        >
-          <div
-            className={`
-              bg-[#072929]
-              flex
-              items-start
-              overflow-clip
-              px-[12px]
-              py-[10px]
-              relative
-              rounded-[4px]
-              shrink-0
-              ${tooltipWidth}
-            `}
-          >
-            <div
-              className={`
-                flex
-                flex-[1_0_0]
-                flex-col
-                gap-[2px]
-                items-start
-                leading-[18px]
-                min-h-px
-                min-w-px
-                relative
-                shrink-0
-                text-[12px]
-                text-white
-                whitespace-pre-wrap
-              `}
-            >
-              {heading && (
-                <p
-                  className="font-gtAmerica font-medium relative shrink-0 w-full"
-                >
-                  {heading}
-                </p>
-              )}
-              {description && (
-                <p
-                  className="font-gtAmerica font-normal relative shrink-0 w-full"
-                >
-                  {description}
-                </p>
-              )}
-            </div>
-            <TooltipArrow position={position} />
-          </div>
-        </div>
-      )}
+      {visible &&
+        (portal && triggerRect && typeof document !== 'undefined' && document.body
+          ? createPortal(tooltipContent, document.body)
+          : !portal
+            ? tooltipContent
+            : null)}
     </div>
   );
 };

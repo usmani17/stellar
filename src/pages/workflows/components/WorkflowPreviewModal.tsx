@@ -35,7 +35,7 @@ function getToolCallLabel(ev: Record<string, unknown>): string {
     readToolCall?: { args?: { path?: string } };
     writeToolCall?: { args?: { path?: string } };
   } | undefined;
-  if (typeof ev.label === "string") return ev.label;
+  if (typeof ev.label === "string" && ev.label.trim()) return ev.label;
   if (typeof tc?.name === "string") return tc.name;
   if (tc?.shellToolCall) return "Querying datasource...";
   if (tc?.readToolCall) {
@@ -103,10 +103,11 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
           return [...prev, { type: "thinking", content: text }];
         });
     } else if (ev.type === "tool_call") {
-      const label = getToolCallLabel(ev);
+      const label = getToolCallLabel(ev) || "Processing...";
+      if (!label.trim()) return;
       setTimeline((prev) => [...prev, { type: "tool_call", label }]);
     } else if (ev.type === "assistant") {
-      const text = extractAssistantText(ev);
+      const text = extractAssistantText(ev)?.trim() ?? "";
       if (text)
         setTimeline((prev) => {
           const last = prev[prev.length - 1];
@@ -234,22 +235,65 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
             </div>
           )}
 
-          {/* Run completed message */}
-          {isRunMode && runCompleted && (
-            <div className="flex items-center gap-3 py-4 px-4 rounded-xl border border-forest-f40 bg-forest-f40/5">
-              <CheckCircle className="w-6 h-6 text-forest-f40 shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-forest-f60">
-                  Workflow run completed
-                </p>
-                <p className="text-xs text-forest-f30 mt-0.5">
-                  Check Run History for results.
-                </p>
+          {/* Preview result — show generated file with download link */}
+          {!isRunMode && result && (
+            <div className="flex flex-col gap-3 py-4 px-4 rounded-xl border border-forest-f40 bg-forest-f40/5">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-6 h-6 text-forest-f40 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-forest-f60">
+                    Preview report generated
+                  </p>
+                  <p className="text-xs text-forest-f30 mt-0.5">
+                    {result.title || `${format.toUpperCase()} report`}
+                  </p>
+                </div>
               </div>
+              {result.url && (
+                <a
+                  href={result.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-forest-f40 text-white text-sm font-medium hover:bg-forest-f50 transition-colors w-fit"
+                >
+                  <FileText className="w-4 h-4" />
+                  Download {format.toUpperCase()}
+                </a>
+              )}
             </div>
           )}
 
-          {/* Assistant messages — scrollable, appends as they arrive */}
+          {/* Run completed — show download when file is ready, else Run History hint */}
+          {isRunMode && runCompleted && (
+            <div className="flex flex-col gap-3 py-4 px-4 rounded-xl border border-forest-f40 bg-forest-f40/5">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-6 h-6 text-forest-f40 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-forest-f60">
+                    Workflow run completed
+                  </p>
+                  <p className="text-xs text-forest-f30 mt-0.5">
+                    {result?.url
+                      ? result.title || `${format.toUpperCase()} report`
+                      : "Check Run History for results."}
+                  </p>
+                </div>
+              </div>
+              {result?.url && (
+                <a
+                  href={result.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-forest-f40 text-white text-sm font-medium hover:bg-forest-f50 transition-colors w-fit"
+                >
+                  <FileText className="w-4 h-4" />
+                  Download {format.toUpperCase()}
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Assistant messages — only visible while executing; hidden when done */}
           {isExecuting && (
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -262,27 +306,34 @@ export const WorkflowPreviewModal: React.FC<WorkflowPreviewModalProps> = ({
                 ref={scrollRef}
                 className="max-h-[280px] overflow-y-auto rounded-xl border border-sandstorm-s40 bg-sandstorm-s5 p-4 space-y-3 shadow-sm"
               >
-                {timeline.map((item, i) => (
-                  <div key={i} className="flex justify-start">
-                    {item.type === "thinking" && (
-                      <div className="max-w-full rounded-lg px-3 py-2 text-xs text-forest-f30 bg-sandstorm-s10 border border-sandstorm-s30 italic">
-                        {item.content}
-                      </div>
-                    )}
-                    {item.type === "tool_call" && (
-                      <div className="rounded-lg px-3 py-2 text-sm text-forest-f60 bg-sandstorm-s10 border border-sandstorm-s30">
-                        {item.label}
-                      </div>
-                    )}
-                    {item.type === "assistant" && (
-                      <div className="max-w-full rounded-lg px-4 py-2.5 text-sm bg-white border border-sandstorm-s40 text-forest-f60">
-                        <div className="[&_p]:mb-1 [&_p:last-child]:mb-0">
-                          <ContentWithCharts content={item.content} type="ai" />
+                {timeline
+                  .filter(
+                    (item) =>
+                      (item.type === "thinking" && !!item.content.trim()) ||
+                      (item.type === "tool_call" && !!item.label.trim()) ||
+                      (item.type === "assistant" && !!item.content.trim())
+                  )
+                  .map((item, i) => (
+                    <div key={i} className="flex justify-start">
+                      {item.type === "thinking" && (
+                        <div className="max-w-full rounded-lg px-3 py-2 text-xs text-forest-f30 bg-sandstorm-s10 border border-sandstorm-s30 italic">
+                          {item.content}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      )}
+                      {item.type === "tool_call" && (
+                        <div className="rounded-lg px-3 py-2 text-sm text-forest-f60 bg-sandstorm-s10 border border-sandstorm-s30">
+                          {item.label}
+                        </div>
+                      )}
+                      {item.type === "assistant" && (
+                        <div className="max-w-full rounded-lg px-4 py-2.5 text-sm bg-white border border-sandstorm-s40 text-forest-f60">
+                          <div className="[&_p]:mb-1 [&_p:last-child]:mb-0">
+                            <ContentWithCharts content={item.content} type="ai" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 {/* Single loading indicator at bottom while streaming */}
                 <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-forest-f30">
                   <Loader2 className="w-4 h-4 animate-spin shrink-0" />

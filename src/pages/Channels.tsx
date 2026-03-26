@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { accountsService } from "../services/accounts";
 import type { Channel } from "../services/accounts";
 import { useAuth } from "../contexts/AuthContext";
 import { useAccounts } from "../contexts/AccountsContext";
 import { useChannelsHelpers } from "../contexts/GlobalStateContext";
 import { useChannels } from "../hooks/queries/useChannels";
+import { queryKeys } from "../hooks/queries/queryKeys";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
-import { Button, Menu, DeleteConfirmationModal, Loader } from "../components/ui";
+import { Button, Menu, DeleteConfirmationModal, Loader, BaseModal } from "../components/ui";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { GOOGLE_ONLY_UI } from "../constants/featureFlags";
 import AmazonIcon from "../assets/images/amazon-fill.svg";
@@ -52,9 +54,108 @@ export const Channels: React.FC = () => {
     null
   );
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [kbModal, setKbModal] = useState<{
+    brandId: number;
+    integrationId: number | null;
+    kb: string;
+    loading: boolean;
+    saving: boolean;
+  } | null>(null);
 
-  // Get account ID number
+  // Get account ID number (needed for KB and channels)
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
+
+  const queryClient = useQueryClient();
+  const { data: brandKbListForBrand = [] } = useQuery({
+    queryKey: queryKeys.accounts.brandKbList(accountIdNum ?? 0),
+    queryFn: () =>
+      accountIdNum != null
+        ? accountsService.getBrandKbList({ brand_id: accountIdNum })
+        : Promise.resolve([]),
+    enabled: !!accountIdNum,
+  });
+
+  const kbByIntegrationId = React.useMemo(() => {
+    const map: Record<number, string> = {};
+    const list = Array.isArray(brandKbListForBrand) ? brandKbListForBrand : [];
+    list.forEach((item) => {
+      if (item.integration_id != null) map[item.integration_id] = item.kb;
+    });
+    return map;
+  }, [brandKbListForBrand]);
+
+  const setBrandKbMutation = useMutation({
+    mutationFn: ({
+      brandId,
+      integrationId,
+      kb,
+    }: {
+      brandId: number;
+      integrationId: number | null;
+      kb: string;
+    }) =>
+      accountsService.setBrandKb(brandId, {
+        kb,
+        ...(integrationId != null ? { integration_id: integrationId } : {}),
+      }),
+    onSuccess: (_, { brandId, integrationId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.brandKb(brandId, integrationId ?? undefined) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.brandKbList() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.brandKbList(brandId) });
+      setKbModal(null);
+    },
+  });
+
+  useEffect(() => {
+    if (!kbModal || !kbModal.loading) return;
+    let cancelled = false;
+    const { brandId, integrationId } = kbModal;
+    accountsService
+      .getBrandKb(brandId, integrationId != null ? { integration_id: integrationId } : undefined)
+      .then((res) => {
+        if (!cancelled)
+          setKbModal((prev) => (prev ? { ...prev, kb: res.kb ?? "", loading: false } : null));
+      })
+      .catch(() => {
+        if (!cancelled)
+          setKbModal((prev) => (prev ? { ...prev, kb: "", loading: false } : null));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [kbModal?.loading, kbModal?.brandId, kbModal?.integrationId]);
+
+  const openKbModal = (integrationId?: number) => {
+    if (accountIdNum == null) return;
+    setKbModal({
+      brandId: accountIdNum,
+      integrationId: integrationId ?? null,
+      kb: "",
+      loading: true,
+      saving: false,
+    });
+  };
+
+  const closeKbModal = () => {
+    if (!kbModal?.saving && !setBrandKbMutation.isPending) setKbModal(null);
+  };
+
+  const handleSaveKb = () => {
+    if (!kbModal) return;
+    setKbModal((prev) => (prev ? { ...prev, saving: true } : null));
+    setBrandKbMutation.mutate(
+      {
+        brandId: kbModal.brandId,
+        integrationId: kbModal.integrationId,
+        kb: kbModal.kb,
+      },
+      {
+        onSettled: () => {
+          setKbModal((prev) => (prev ? { ...prev, saving: false } : null));
+        },
+      },
+    );
+  };
 
   // Use React Query hook for channels
   const { data: channels = [], isLoading: loading } = useChannels(accountIdNum);
@@ -85,6 +186,22 @@ export const Channels: React.FC = () => {
         localStorage.removeItem('profiles_saved_success');
       }
     }
+  }, []);
+
+  // Reset stale connect-loading state when returning to this page.
+  useEffect(() => {
+    const resetOauthLoading = () => {
+      setOauthLoading(null);
+    };
+
+    resetOauthLoading();
+    window.addEventListener("pageshow", resetOauthLoading);
+    window.addEventListener("focus", resetOauthLoading);
+
+    return () => {
+      window.removeEventListener("pageshow", resetOauthLoading);
+      window.removeEventListener("focus", resetOauthLoading);
+    };
   }, []);
 
   // Set brand  name when accountId or brands change
@@ -456,6 +573,7 @@ export const Channels: React.FC = () => {
                     <tr>
                       <th className="table-header">Name</th>
                       <th className="table-header">Type</th>
+                      <th className="table-header">KB</th>
                       <th className="table-header">Created At</th>
                       <th className="table-header">Connected Profiles Count</th>
                       <th className="table-header">Actions</th>
@@ -464,7 +582,7 @@ export const Channels: React.FC = () => {
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={5} className="table-cell align-middle">
+                        <td colSpan={6} className="table-cell align-middle">
                           <div className="flex items-center justify-center py-16 min-h-[200px]">
                             <Loader size="md" message="Loading integrations..." />
                           </div>
@@ -472,7 +590,7 @@ export const Channels: React.FC = () => {
                       </tr>
                     ) : filteredChannels.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="table-cell text-center py-8">
+                        <td colSpan={6} className="table-cell text-center py-8">
                           <p className="text-[14px] text-[#556179] mb-4">
                             {searchQuery
                               ? "No integrations found"
@@ -603,6 +721,29 @@ export const Channels: React.FC = () => {
                               </span>
                             </td>
                             <td className="table-cell">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="table-text max-w-[200px] truncate block"
+                                  title={kbByIntegrationId[channel.id] ?? ""}
+                                >
+                                  {kbByIntegrationId[channel.id] ?? "—"}
+                                </span>
+                                {!isTeam && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openKbModal(channel.id)}
+                                    className="table-edit-icon"
+                                    title="Edit KB"
+                                    aria-label="Edit KB"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                            <td className="table-cell">
                               <span className="table-text whitespace-nowrap">
                                 {formatDate(channel.created_at)}
                               </span>
@@ -713,6 +854,52 @@ export const Channels: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit KB Modal */}
+      <BaseModal
+        isOpen={!!kbModal}
+        onClose={closeKbModal}
+        size="xl"
+        maxWidth="max-w-2xl"
+        disableBackdropClick={kbModal?.saving || kbModal?.loading || setBrandKbMutation.isPending}
+      >
+        <div className="space-y-4">
+          <h2 className="text-[18px] font-medium text-forest-f60">
+            Edit KB — {account?.name ?? ""}
+          </h2>
+          {kbModal?.loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader size="md" message="Loading KB..." />
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-[13px] text-forest-f30 mb-1">Knowledge base</label>
+                <textarea
+                  value={kbModal?.kb ?? ""}
+                  onChange={(e) =>
+                    setKbModal((prev) => (prev ? { ...prev, kb: e.target.value } : null))
+                  }
+                  rows={8}
+                  className="w-full rounded-md border border-sandstorm-s40 bg-sandstorm-s5 px-3 py-2 text-[14px] text-forest-f60 focus:outline-none focus:ring-2 focus:ring-forest-f40 resize-y"
+                  placeholder="Add brand knowledge base content..."
+                />
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <button type="button" onClick={closeKbModal} className="cancel-button">
+                  Cancel
+                </button>
+                <Button
+                  onClick={handleSaveKb}
+                  disabled={kbModal?.saving || setBrandKbMutation.isPending}
+                >
+                  {kbModal?.saving || setBrandKbMutation.isPending ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </BaseModal>
 
       {/* Delete Confirmation Modal */}
       {deleteModal && (

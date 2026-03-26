@@ -40,6 +40,13 @@ export interface PixisChatParams {
   workspace_id?: number;
   user_id?: string;
   platform?: Platform;
+  /** Multi-profile analysis: list of { platform, profile_id, channel_id, account_id }. When set, overrides single profile_id. */
+  platforms?: Array<{
+    platform: string;
+    profile_id: string;
+    channel_id: number;
+    account_id: number;
+  }>;
   /** "stream-json" | "stream-json-partial" | "json" — for testing output formats */
   output_format?: string;
 }
@@ -86,6 +93,8 @@ export async function streamPixisChat(
     onCampaignDraft?: (data: CampaignDraftData) => void;
     onResult?: (data: PixisChatStreamEvent) => void;
     onError?: (err: Error) => void;
+    /** Called when keepalive received (connection alive during long tool runs); use to show "Working on request..." */
+    onKeepalive?: () => void;
   },
   options?: { signal?: AbortSignal }
 ): Promise<{ session_id?: string; session_db_id?: string }> {
@@ -148,6 +157,11 @@ export async function streamPixisChat(
           const ev: PixisChatStreamEvent = JSON.parse(data);
           const etype = ev.type ?? "";
           const subtype = ev.subtype ?? "";
+
+          if (etype === "keepalive") {
+            callbacks.onKeepalive?.();
+            continue;
+          }
 
           if (etype === "system" && subtype === "init") {
             sessionId = ev.session_id ?? ev.sessionId;
