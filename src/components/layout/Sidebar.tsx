@@ -36,7 +36,7 @@ import UsersActiveIcon from "../../assets/images/users-active.svg";
 import StrategiesIcon from "../../assets/images/strategies.svg";
 import StrategiesActiveIcon from "../../assets/images/strategies-active.svg";
 import WorkspaceIcon from "../../assets/workspace.svg";
-import { CalendarClock, FileSpreadsheet, MessageSquare } from "lucide-react";
+import { BookOpen, CalendarClock, FileSpreadsheet, MessageSquare } from "lucide-react";
 import { useChatHistorySidebarOptional } from "../../contexts/ChatHistorySidebarContext";
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
 
@@ -117,6 +117,7 @@ export const Sidebar: React.FC = () => {
     /^\/brands\/\d+\/profiles$/.test(location.pathname) ||
     /^\/brands\/\d+\/users$/.test(location.pathname) ||
     /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname) ||
+    /^\/brands\/\d+\/knowledge(\/|$)/.test(location.pathname) ||
     /^\/brands\/\d+\/google-sheets(\/|$)/.test(location.pathname) ||
     location.pathname === "/workspace/team";
 
@@ -217,6 +218,8 @@ export const Sidebar: React.FC = () => {
       return location.pathname === "/workspace/team" || /^\/brands\/\d+\/users$/.test(location.pathname);
     if (path === "/brands/workflows")
       return /^\/brands\/\d+\/workflows(\/|$)/.test(location.pathname);
+    if (path === "/brands/knowledge")
+      return /^\/brands\/\d+\/knowledge(\/|$)/.test(location.pathname);
     if (path === "/brands/google-sheets")
       return /^\/brands\/\d+\/google-sheets(\/|$)/.test(location.pathname);
     if (path === "/campaigns") {
@@ -661,6 +664,35 @@ export const Sidebar: React.FC = () => {
                     />
                     <span className="text-[12.32px] font-normal leading-[16px]">
                       Google Sheets
+                    </span>
+                  </Link>
+                  <Link
+                    to={
+                      accountId
+                        ? buildAccountRoute(accountId, "knowledge")
+                        : "/brands"
+                    }
+                    onClick={(e) =>
+                      handleAccountRequiredClick(e, () =>
+                        accountId
+                          ? buildAccountRoute(accountId, "knowledge")
+                          : "/brands",
+                      )
+                    }
+                    className={`flex items-center p-2 rounded-xl gap-2 ${
+                      isActive("/brands/knowledge")
+                        ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                        : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                    }`}
+                    title="Knowledge"
+                  >
+                    <BookOpen
+                      className={`w-5 h-5 shrink-0 ${
+                        isActive("/brands/knowledge") ? "text-white" : "text-forest-f30"
+                      }`}
+                    />
+                    <span className="text-[12.32px] font-normal leading-[16px]">
+                      Knowledge
                     </span>
                   </Link>
                 </div>

@@ -7,6 +7,7 @@ import { ResetPassword } from "../pages/ResetPassword";
 import { VerifyEmail } from "../pages/VerifyEmail";
 import { PublicRoute } from "../components/auth/PublicRoute";
 import { Route } from "react-router-dom";
+import { PublicChatPage } from "../pages/PublicChatPage";
 
 function PublicRoutes() {
     return (
@@ -65,6 +66,7 @@ function PublicRoutes() {
             />
             <Route path="/dashboards/share/:shareId" element={<PublicDashboardPage />} />
             <Route path="/dashboards/demo" element={<PublicDashboardPage />} />
+            <Route path="/chat/share/:token" element={<PublicChatPage />} />
         </>
     );
 }

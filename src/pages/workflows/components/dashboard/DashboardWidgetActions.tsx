@@ -6,7 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
-  Zap,
+  History,
   Pencil,
   Check,
   X,
@@ -15,43 +15,13 @@ import { cn } from "../../../../lib/cn";
 import type {
   ActionRule,
   ActionProposal,
+  ActionExecution,
   ActionCondition,
   CompoundActionCondition,
 } from "../../types/dashboard";
-import { previewActions } from "../../../../services/dashboardActions";
+import { previewActions, getActionHistory } from "../../../../services/dashboardActions";
 import { formatMetricLabel } from "../../utils/formatDashboardValue";
-
-const ACTION_TYPE_LABELS: Record<string, string> = {
-  change_state: "Change status",
-  adjust_budget: "Adjust budget",
-  adjust_bid: "Adjust bid",
-  add_negative_keyword: "Add negative keywords",
-  change_bid_strategy: "Change bid strategy",
-  adjust_target: "Adjust target",
-  add_keyword: "Add keywords",
-  exclude_placement: "Exclude placement",
-  add_negative_target: "Add negative target",
-  update_targeting: "Update targeting",
-  set_ad_schedule: "Set ad schedule",
-  adjust_device_bid: "Device bid modifier",
-  adjust_demographic_bid: "Demographic bid modifier",
-};
-
-const ACTION_TYPE_COLORS: Record<string, { bg: string; text: string; darkBg: string; darkText: string }> = {
-  change_state: { bg: "bg-amber-50", text: "text-amber-700", darkBg: "bg-amber-900/30", darkText: "text-amber-300" },
-  adjust_budget: { bg: "bg-emerald-50", text: "text-emerald-700", darkBg: "bg-emerald-900/30", darkText: "text-emerald-300" },
-  adjust_bid: { bg: "bg-blue-50", text: "text-blue-700", darkBg: "bg-blue-900/30", darkText: "text-blue-300" },
-  add_negative_keyword: { bg: "bg-purple-50", text: "text-purple-700", darkBg: "bg-purple-900/30", darkText: "text-purple-300" },
-  change_bid_strategy: { bg: "bg-indigo-50", text: "text-indigo-700", darkBg: "bg-indigo-900/30", darkText: "text-indigo-300" },
-  adjust_target: { bg: "bg-teal-50", text: "text-teal-700", darkBg: "bg-teal-900/30", darkText: "text-teal-300" },
-  add_keyword: { bg: "bg-cyan-50", text: "text-cyan-700", darkBg: "bg-cyan-900/30", darkText: "text-cyan-300" },
-  exclude_placement: { bg: "bg-rose-50", text: "text-rose-700", darkBg: "bg-rose-900/30", darkText: "text-rose-300" },
-  add_negative_target: { bg: "bg-fuchsia-50", text: "text-fuchsia-700", darkBg: "bg-fuchsia-900/30", darkText: "text-fuchsia-300" },
-  update_targeting: { bg: "bg-orange-50", text: "text-orange-700", darkBg: "bg-orange-900/30", darkText: "text-orange-300" },
-  set_ad_schedule: { bg: "bg-sky-50", text: "text-sky-700", darkBg: "bg-sky-900/30", darkText: "text-sky-300" },
-  adjust_device_bid: { bg: "bg-violet-50", text: "text-violet-700", darkBg: "bg-violet-900/30", darkText: "text-violet-300" },
-  adjust_demographic_bid: { bg: "bg-lime-50", text: "text-lime-700", darkBg: "bg-lime-900/30", darkText: "text-lime-300" },
-};
+import { ACTION_TYPE_COLORS, ACTION_TYPE_LABELS } from "./actionTypeDisplay";
 
 // ── Inline editor for a single numeric field ───────────────────────────────
 
@@ -64,7 +34,7 @@ interface InlineEditProps {
 
 const InlineEdit: React.FC<InlineEditProps> = ({ value, onSave, isDark, wide }) => {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(String(value));
+  const [draft, setDraft] = useState(value ? String(value) : "");
 
   if (!editing) {
     return (
@@ -80,7 +50,7 @@ const InlineEdit: React.FC<InlineEditProps> = ({ value, onSave, isDark, wide }) 
         )}
         aria-label="Edit value"
       >
-        {String(value)}
+        { !value ? "No condition" : String(value)}
         <Pencil className="w-3 h-3 opacity-50 shrink-0" />
       </button>
     );
@@ -178,6 +148,7 @@ interface DashboardWidgetActionsProps {
   isDark: boolean;
   onActionsChange?: (actions: ActionRule[]) => void;
   onReviewChanges?: (proposals: ActionProposal[]) => void;
+  onShowHistory?: (executions: ActionExecution[]) => void;
 }
 
 export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
@@ -188,12 +159,14 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
   isDark,
   onActionsChange,
   onReviewChanges,
+  onShowHistory,
 }) => {
   const [isOpen, setIsOpen] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     () => new Set(actions.filter((a) => a.status === "active").map((a) => a.id))
   );
-  const [isLoading, setIsLoading] = useState(false);
+  const [isReviewLoading, setIsReviewLoading] = useState(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [confirmingPause, setConfirmingPause] = useState<string | null>(null);
 
@@ -314,7 +287,7 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
     );
     if (selectedRuleIds.length === 0) return;
 
-    setIsLoading(true);
+    setIsReviewLoading(true);
     try {
       const { proposals } = await previewActions(accountId, dashboardId, {
         component_id: componentId,
@@ -324,9 +297,42 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
     } catch (err) {
       console.error("Failed to preview actions:", err);
     } finally {
-      setIsLoading(false);
+      setIsReviewLoading(false);
     }
   }, [selectedIds, actions, accountId, dashboardId, componentId, onReviewChanges]);
+
+  const handleShowHistory = useCallback(async () => {
+    setIsHistoryLoading(true);
+    try {
+      const { executions } = await getActionHistory(accountId, dashboardId, {
+        component_id: componentId,
+        limit: 50,
+      });
+      // Show executions in modal or expandable section
+      onShowHistory?.(executions);
+    } catch (err) {
+      console.error("Failed to fetch action history:", err);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  }, [accountId, dashboardId, componentId, onShowHistory]);
+
+  const selectAllActive = useCallback(() => {
+    const allActiveIds = new Set(activeActions.map((a) => a.id));
+    setSelectedIds(allActiveIds);
+  }, [activeActions]);
+
+  const deselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const allSelectableSelected =
+    activeActions.length > 0 &&
+    activeActions.every((a) => selectedIds.has(a.id));
+  const someSelectableSelected =
+    activeActions.length > 0 &&
+    activeActions.some((a) => selectedIds.has(a.id)) &&
+    !allSelectableSelected;
 
   if (visibleActions.length === 0) return null;
 
@@ -338,34 +344,68 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
       )}
     >
       {/* Header */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
+      <div
         className={cn(
-          "w-full flex items-center justify-between px-4 py-2.5 transition-colors",
+          "w-full flex items-center justify-between gap-3 px-4 py-2.5 transition-colors",
           isDark ? "hover:bg-neutral-700/50" : "hover:bg-sandstorm-s10/50"
         )}
       >
-        <div className="flex items-center gap-2">
-          <Zap className={cn("w-3.5 h-3.5", isDark ? "text-[#2DD4BF]" : "text-forest-f40")} />
-          <span className={cn("text-xs font-semibold", isDark ? "text-neutral-200" : "text-forest-f60")}>
-            Actions
-          </span>
-          <span
-            className={cn(
-              "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
-              isDark ? "bg-neutral-600 text-neutral-300" : "bg-sandstorm-s20 text-forest-f30"
-            )}
-          >
-            {totalActive} active
-          </span>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {/* Select All / Deselect All checkbox */}
+          {isOpen && totalActive > 0 && (
+            <label className="flex items-center ml-2 shrink-0" title={allSelectableSelected ? "Deselect all" : "Select all"}>
+              <input
+                type="checkbox"
+                checked={allSelectableSelected}
+                ref={(input) => {
+                  if (input) input.indeterminate = someSelectableSelected;
+                }}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  allSelectableSelected ? deselectAll() : selectAllActive();
+                }}
+                className={cn(
+                  "w-3.5 h-3.5 rounded border cursor-pointer",
+                  isDark
+                    ? "border-neutral-500 bg-neutral-600 checked:bg-[#2DD4BF] checked:border-[#2DD4BF]"
+                    : "border-sandstorm-s40 bg-white checked:bg-forest-f40 checked:border-forest-f40"
+                )}
+                aria-label="Select all actions"
+              />
+            </label>
+          )}
+
+          <div className="flex items-center gap-2">
+            <span className={cn("text-xs font-semibold", isDark ? "text-neutral-200" : "text-forest-f60")}>
+              Actions
+            </span>
+            <span
+              className={cn(
+                "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                isDark ? "bg-neutral-600 text-neutral-300" : "bg-sandstorm-s20 text-forest-f30"
+              )}
+            >
+              {totalActive} active
+            </span>
+          </div>
         </div>
-        {isOpen ? (
-          <ChevronUp className={cn("w-4 h-4", isDark ? "text-neutral-400" : "text-forest-f30")} />
-        ) : (
-          <ChevronDown className={cn("w-4 h-4", isDark ? "text-neutral-400" : "text-forest-f30")} />
-        )}
-      </button>
+
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            "p-1.5 rounded transition-colors",
+            isDark ? "hover:bg-neutral-700" : "hover:bg-sandstorm-s20"
+          )}
+          aria-label={isOpen ? "Collapse actions" : "Expand actions"}
+        >
+          {isOpen ? (
+            <ChevronUp className={cn("w-4 h-4", isDark ? "text-neutral-400" : "text-forest-f30")} />
+          ) : (
+            <ChevronDown className={cn("w-4 h-4", isDark ? "text-neutral-400" : "text-forest-f30")} />
+          )}
+        </button>
+      </div>
 
       {/* Body */}
       {isOpen && (
@@ -677,21 +717,38 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
               <span className={cn("text-[10px]", isDark ? "text-neutral-400" : "text-forest-f30")}>
                 {selectedCount} of {totalActive} selected
               </span>
-              <button
-                type="button"
-                onClick={handleReviewChanges}
-                disabled={selectedCount === 0 || isLoading}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
-                  "disabled:opacity-40 disabled:cursor-not-allowed",
-                  isDark
-                    ? "bg-[#2DD4BF]/20 text-[#2DD4BF] hover:bg-[#2DD4BF]/30 border border-[#2DD4BF]/30"
-                    : "bg-forest-f40 text-white hover:bg-forest-f50 shadow-sm"
-                )}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                {isLoading ? "Loading..." : "Review Changes"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleReviewChanges}
+                  disabled={selectedCount === 0 || isReviewLoading}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                    "disabled:opacity-40 disabled:cursor-not-allowed",
+                    isDark
+                      ? "bg-[#2DD4BF]/20 text-[#2DD4BF] hover:bg-[#2DD4BF]/30 border border-[#2DD4BF]/30"
+                      : "bg-forest-f40 text-white hover:bg-forest-f50 shadow-sm"
+                  )}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  {isReviewLoading ? "Loading..." : "Review Changes"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleShowHistory}
+                  disabled={isHistoryLoading}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                    "disabled:opacity-40 disabled:cursor-not-allowed",
+                    isDark
+                      ? "bg-[#2DD4BF]/20 text-[#2DD4BF] hover:bg-[#2DD4BF]/30 border border-[#2DD4BF]/30"
+                      : "bg-forest-f40 text-white hover:bg-forest-f50 shadow-sm"
+                  )}
+                >
+                  <History className="w-3.5 h-3.5" />
+                  {isHistoryLoading ? "Loading..." : "View History"}
+                </button>
+              </div>
             </div>
           )}
         </div>

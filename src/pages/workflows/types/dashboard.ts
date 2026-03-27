@@ -379,6 +379,8 @@ export interface ActionSchedule {
 /** An action rule attached to a dashboard widget. Agent creates these; user reviews and approves. */
 export interface ActionRule {
   id: string;
+  /** assistant.actions PK — used for keyword-analysis DB persistence. */
+  action_id?: number;
   type: ActionType;
   platform: ActionPlatform;
   entity_type: ActionEntityType;
@@ -386,9 +388,21 @@ export interface ActionRule {
   entity_name_column?: string;
   status: "active" | "paused" | "deleted";
   condition?: ActionCondition | CompoundActionCondition;
-  params: Record<string, unknown>;
+  params: ActionRuleParams;
+  /** Sanitized caps merged into keyword-analysis agent prompt on Run AI analysis. */
+  guardrails?: Record<string, unknown>;
   description: string;
   schedule?: ActionSchedule;
+  /** Persisted keyword / negative-keyword AI analysis (assistant.actions.keyword_analysis). */
+  keyword_analysis?: unknown;
+  keyword_analysis_status?: string | null;
+  keyword_analysis_error?: string | null;
+  keyword_analysis_cur_sessions_id?: string | null;
+}
+
+export interface ActionRuleParams extends Record<string, unknown> {
+  /** Per-keyword apply delay for staggered keyword actions (seconds). */
+  stagger_interval_seconds?: number;
 }
 
 export type ActionExecutionStatus =
@@ -430,13 +444,14 @@ export interface ActionExecution {
   entity_type: ActionEntityType;
   entity_ids: Array<{ id: string; name: string }>;
   action_type: ActionType;
-  action_params: Record<string, unknown>;
+  action_params: ActionRuleParams;
   status: ActionExecutionStatus;
   preview_result: ActionEntityDiff[] | null;
   proposed_at: string;
   executed_at: string | null;
   executed_by: number | null;
-  result: Record<string, unknown> | null;
+  /** Object or JSON string from API (e.g. staggered keyword worker persists a string). */
+  result: Record<string, unknown> | string | null;
   error: string | null;
 }
 

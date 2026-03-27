@@ -302,16 +302,21 @@ export const AssistantProvider: React.FC<{
       if (sel) {
         setAssistantScopeState((prev) => {
           const storedProfiles = sel.profiles_json;
-          let selectedProfiles: Array<{ accountId: string; channelId: string; profileId: number; profileName?: string | null; marketplace?: string | null }>;
+          let selectedProfiles: Array<{ accountId: string; channelId: string; profileId: number; profileName?: string | null; marketplace?: string | null }> = [];
+          let restoredSheets: Array<{ accountId: string; integrationId: number }> = [];
           if (storedProfiles && Array.isArray(storedProfiles) && storedProfiles.length > 0) {
             const mapped = storedProfiles
-              .filter((p) => p.account_id != null && p.channel_id != null && p.profile_id != null)
+              .filter((p) => p.account_id != null && p.channel_id != null && p.profile_id != null && p.platform !== "google_sheets")
               .map((p) => {
                 const pid = typeof p.profile_id === "string" ? parseInt(p.profile_id, 10) : Number(p.profile_id);
                 return { accountId: String(p.account_id), channelId: String(p.channel_id), profileId: pid, profileName: (p.account_name ?? p.customer_id ?? null) ?? undefined, marketplace: (p.platform ?? null) ?? undefined };
               })
               .filter((p) => !Number.isNaN(p.profileId));
             selectedProfiles = mapped.length > 0 ? mapped : [];
+
+            restoredSheets = storedProfiles
+              .filter((p) => p.platform === "google_sheets" && p.integration_id != null)
+              .map((p) => ({ accountId: String(p.account_id), integrationId: Number(p.integration_id) }));
           }
           if (!selectedProfiles || selectedProfiles.length === 0) {
             const nextAccountId = sel.account_id?.toString() ?? prev.accountId;
@@ -325,7 +330,8 @@ export const AssistantProvider: React.FC<{
           const nextAccountId = first?.accountId ?? sel.account_id?.toString() ?? prev.accountId;
           const nextChannelId = first?.channelId ?? sel.channel_id?.toString() ?? prev.channelId;
           const nextProfileId = first?.profileId ?? (sel.profile_id != null ? Number(sel.profile_id) : undefined) ?? prev.profileId;
-          if (prev.accountId === nextAccountId && prev.channelId === nextChannelId && prev.profileId === nextProfileId && prev.selectedProfiles?.length === selectedProfiles.length) {
+          const sheetsChanged = JSON.stringify(prev.selectedGoogleSheetsIntegrations ?? []) !== JSON.stringify(restoredSheets);
+          if (prev.accountId === nextAccountId && prev.channelId === nextChannelId && prev.profileId === nextProfileId && prev.selectedProfiles?.length === selectedProfiles.length && !sheetsChanged) {
             return prev;
           }
           return {
@@ -334,6 +340,7 @@ export const AssistantProvider: React.FC<{
             channelId: nextChannelId,
             profileId: nextProfileId,
             selectedProfiles,
+            selectedGoogleSheetsIntegrations: restoredSheets.length > 0 ? restoredSheets : prev.selectedGoogleSheetsIntegrations,
           };
         });
       }
