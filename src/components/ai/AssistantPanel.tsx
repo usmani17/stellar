@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useAssistant, type SessionWithMessages } from "../../contexts/AssistantContext";
 import { useAccounts, type AccountProfileOption } from "../../contexts/AccountsContext";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
-import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search } from "lucide-react";
+import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search, Share2, Copy, Check } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
 import { MessageContent } from "../ai/MessageContent";
@@ -22,6 +22,7 @@ import {
     INSIGHT_CATEGORIES,
     type InsightCategory,
 } from "./insightCardsConfig";
+import { createSessionShare, createThreadShare } from "../../services/ai/chatShare";
 
 /** Set to false to hide the "Fill in the details" schema form (e.g. Logo image URL, Daily budget) in campaign setup. */
 const SHOW_CAMPAIGN_SCHEMA_FORM = true;
@@ -139,6 +140,67 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     const editableSyncRafRef = useRef<number | null>(null);
     const integrationProfileDropdownRef = useRef<HTMLDivElement>(null);
     const slashDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Share modal state
+    const [shareModalOpen, setShareModalOpen] = useState(false);
+    const [shareLink, setShareLink] = useState("");
+    const [shareError, setShareError] = useState<string | null>(null);
+    const [shareCopied, setShareCopied] = useState(false);
+    const [shareThreadId, setShareThreadId] = useState<string | null>(null);
+    // Cache share links so clicking Share again shows the same link instantly (key = sessionId or sessionId:threadId)
+    const shareLinkCache = useRef<Record<string, string>>({});
+
+    const _openShareModal = async (cacheKey: string, threadId: string | null, fetchFn: () => Promise<string>) => {
+        setShareError(null);
+        setShareThreadId(threadId);
+        setShareModalOpen(true);
+        const cached = shareLinkCache.current[cacheKey];
+        if (cached) {
+            setShareLink(cached);
+            return;
+        }
+        setShareLink("");
+        try {
+            const link = await fetchFn();
+            shareLinkCache.current[cacheKey] = link;
+            setShareLink(link);
+        } catch {
+            setShareError("Failed to create share link. Please try again.");
+        }
+    };
+
+    const handleShareSession = () => {
+        if (!currentSessionId || !assistantScope.accountId) return;
+        const cacheKey = currentSessionId;
+        _openShareModal(cacheKey, null, async () => {
+            const share = await createSessionShare(Number(assistantScope.accountId), currentSessionId);
+            return `${window.location.origin}/chat/share/${share.share_token}`;
+        });
+    };
+
+    const handleShareThread = (threadId: string) => {
+        if (!currentSessionId || !assistantScope.accountId) return;
+        const cacheKey = `${currentSessionId}:${threadId}`;
+        _openShareModal(cacheKey, threadId, async () => {
+            const share = await createThreadShare(Number(assistantScope.accountId), currentSessionId, threadId);
+            return `${window.location.origin}/chat/share/${share.share_token}`;
+        });
+    };
+
+    const handleCopyShareLink = () => {
+        if (!shareLink) return;
+        navigator.clipboard.writeText(shareLink).then(() => {
+            setShareCopied(true);
+            setTimeout(() => setShareCopied(false), 2000);
+        });
+    };
+
+    const handleCloseShareModal = () => {
+        setShareModalOpen(false);
+        // Keep shareLink in state (not cleared) so reopening is instant
+        setShareError(null);
+        setShareCopied(false);
+    };
 
     // Sync inputValue from context to editableContent and DOM
     useEffect(() => {
@@ -1313,6 +1375,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             )}
                         </div>
                         )}
+                        {currentSessionId && (
+                        <button
+                            type="button"
+                            onClick={handleShareSession}
+                            className="assistant-header-icon-btn"
+                            title="Share conversation"
+                            aria-label="Share conversation"
+                        >
+                            <Share2 className="w-4 h-4" />
+                        </button>
+                        )}
                         <button
                             type="button"
                             onClick={handleNewSession}
@@ -1341,6 +1414,21 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 </div>
             </div>
             ) : null}
+            {/* Page variant: share button shown in a small toolbar above messages when there's an active session */}
+            {variant === "page" && currentSessionId && hasMessages && (
+                <div className="px-4 py-2 border-b border-[#E8E8E3] flex items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={handleShareSession}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-medium border border-sandstorm-s40 bg-white text-forest-f30 hover:text-forest-f40 hover:border-forest-f40/40 transition-colors"
+                        aria-label="Share conversation"
+                    >
+                        <Share2 className="w-3.5 h-3.5" />
+                        Share conversation
+                    </button>
+                </div>
+            )}
+
             {/* Messages Area - min-h-0 allows flex child to shrink so overflow only when content exceeds available space */}
             <div
                 ref={messagesScrollContainerRef}
@@ -1481,6 +1569,24 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                     <div key={message.id} className="flex justify-start ai">
                                         <div className="min-w-0 flex flex-col items-start p-4 gap-3 w-full max-w-full bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm">
                                             {error && <div className="text-sm text-red-600">{error}</div>}
+                                            {/* Thread ID badge */}
+                                            <div className="flex items-center justify-between w-full mb-1">
+                                                <span className="text-[10px] text-forest-f30 font-mono select-all" title={`Thread: ${message.id}`}>
+                                                    Thread: {message.id}
+                                                </span>
+                                                {!aiStreaming && currentSessionId && assistantScope.accountId && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleShareThread(message.id)}
+                                                    className="flex items-center gap-1 text-[10px] text-forest-f30 hover:text-forest-f40 transition-colors shrink-0"
+                                                    title="Share this response"
+                                                    aria-label="Share this response"
+                                                >
+                                                    <Share2 className="w-3 h-3" />
+                                                    Share
+                                                </button>
+                                                )}
+                                            </div>
                                             <div className="flex flex-col gap-3 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
                                                 {(() => {
                                                     type Segment = { type: "activity"; items: PixisTimelineItem[] } | { type: "text"; content: string; idx: number };
@@ -1743,6 +1849,79 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     )}
                 </form>
             </div>
+
+            {/* Share modal */}
+            {shareModalOpen && createPortal(
+                <div
+                    className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+                    onClick={handleCloseShareModal}
+                >
+                    <div
+                        className="bg-white rounded-xl shadow-xl border border-[#E8E8E3] w-full max-w-md mx-4 p-6"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-start justify-between mb-4">
+                            <div>
+                                <h2 className="text-base font-semibold text-forest-f60">Share conversation</h2>
+                                {currentSessionId && (
+                                    <div className="mt-1 flex flex-col gap-0.5">
+                                        <p className="text-[11px] text-forest-f30 font-mono select-all break-all">
+                                            Session: {currentSessionId}
+                                        </p>
+                                        {shareThreadId && (
+                                            <p className="text-[11px] text-forest-f30 font-mono select-all break-all">
+                                                Thread: {shareThreadId}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleCloseShareModal}
+                                className="text-forest-f30 hover:text-forest-f60 ml-4 shrink-0"
+                                aria-label="Close"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {shareError ? (
+                            <p className="text-sm text-red-r30 py-4">{shareError}</p>
+                        ) : !shareLink ? (
+                            <div className="flex items-center gap-3 py-4">
+                                <div className="w-4 h-4 border-2 border-forest-f40 border-t-transparent rounded-full animate-spin shrink-0" />
+                                <span className="text-sm text-forest-f30">Creating share link…</span>
+                            </div>
+                        ) : (
+                            <>
+                                <p className="text-sm text-forest-f30 mb-3">
+                                    Anyone with this link can view {shareThreadId ? "this response" : "the full conversation"} without logging in.
+                                </p>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        value={shareLink}
+                                        className="flex-1 min-w-0 px-3 py-2 text-xs bg-sandstorm-s0 border border-sandstorm-s40 rounded-lg text-forest-f60 font-mono select-all"
+                                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyShareLink}
+                                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-forest-f40 hover:bg-forest-f50 text-white transition-colors shrink-0"
+                                        aria-label="Copy link"
+                                    >
+                                        {shareCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                                        {shareCopied ? "Copied!" : "Copy"}
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>,
+                document.body
+            )}
 
             {sessionToDelete && deletingSessionId !== sessionToDelete.id && createPortal(
                 <div
