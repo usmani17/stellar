@@ -344,15 +344,13 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
       )}
     >
       {/* Header */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
+      <div
         className={cn(
-          "w-full flex items-center justify-between px-4 py-2.5 transition-colors",
+          "w-full flex items-center justify-between gap-3 px-4 py-2.5 transition-colors",
           isDark ? "hover:bg-neutral-700/50" : "hover:bg-sandstorm-s10/50"
         )}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           {/* Select All / Deselect All checkbox */}
           {isOpen && totalActive > 0 && (
             <label className="flex items-center ml-2 shrink-0" title={allSelectableSelected ? "Deselect all" : "Select all"}>
@@ -376,24 +374,38 @@ export const DashboardWidgetActions: React.FC<DashboardWidgetActionsProps> = ({
               />
             </label>
           )}
-          <span className={cn("text-xs font-semibold", isDark ? "text-neutral-200" : "text-forest-f60")}>
-            Actions
-          </span>
-          <span
-            className={cn(
-              "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
-              isDark ? "bg-neutral-600 text-neutral-300" : "bg-sandstorm-s20 text-forest-f30"
-            )}
-          >
-            {totalActive} active
-          </span>
+
+          <div className="flex items-center gap-2">
+            <span className={cn("text-xs font-semibold", isDark ? "text-neutral-200" : "text-forest-f60")}>
+              Actions
+            </span>
+            <span
+              className={cn(
+                "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                isDark ? "bg-neutral-600 text-neutral-300" : "bg-sandstorm-s20 text-forest-f30"
+              )}
+            >
+              {totalActive} active
+            </span>
+          </div>
         </div>
-        {isOpen ? (
-          <ChevronUp className={cn("w-4 h-4", isDark ? "text-neutral-400" : "text-forest-f30")} />
-        ) : (
-          <ChevronDown className={cn("w-4 h-4", isDark ? "text-neutral-400" : "text-forest-f30")} />
-        )}
-      </button>
+
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            "p-1.5 rounded transition-colors",
+            isDark ? "hover:bg-neutral-700" : "hover:bg-sandstorm-s20"
+          )}
+          aria-label={isOpen ? "Collapse actions" : "Expand actions"}
+        >
+          {isOpen ? (
+            <ChevronUp className={cn("w-4 h-4", isDark ? "text-neutral-400" : "text-forest-f30")} />
+          ) : (
+            <ChevronDown className={cn("w-4 h-4", isDark ? "text-neutral-400" : "text-forest-f30")} />
+          )}
+        </button>
+      </div>
 
       {/* Body */}
       {isOpen && (
