@@ -74,17 +74,6 @@ export const DashboardsList: React.FC<DashboardsListProps> = ({ accountId }) => 
         <h1 className="text-h1100 font-agrandir text-forest-f60">
           Dashboards
         </h1>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {/* TODO: Implement create dashboard */}}
-            className="create-entity-button"
-          >
-            <Plus className="w-5 h-5 text-white" />
-            <span className="text-[10.64px] text-white font-normal">
-              Create Dashboard
-            </span>
-          </button>
-        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -199,15 +188,13 @@ export const DashboardsList: React.FC<DashboardsListProps> = ({ accountId }) => 
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M34 40h10v-4a6 6 0 00-10.712-3.714M34 40H14m20 0v-4a9.971 9.971 0 00-.712-3.714M14 40H4v-4a6 6 0 0110.713-3.714M14 40v-4c0-1.313.253-2.566.713-3.714m0 0A9.971 9.971 0 0124 24c4.21 0 7.954 2.648 9.287 6.286" />
               </svg>
             </div>
-            <h3 className="text-sm font-medium text-[#072929] mb-1">No custom dashboards yet</h3>
-            <p className="text-sm text-[#556179] mb-4">Create your first dashboard to visualize your data</p>
-            <button 
-              onClick={() => {/* TODO: Implement create dashboard */}}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-forest-f60 text-white rounded-lg hover:bg-[#0e5a5a] transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Create Dashboard
-            </button>
+            <h3 className="text-sm font-medium text-[#072929] mb-1">No dashboards yet</h3>
+            <p className="text-sm text-[#556179] mb-1">
+              Dashboards are created from the AI assistant.
+            </p>
+            <p className="text-sm text-[#556179]">
+              Open Chat and run <span className="font-mono text-[13px] text-forest-f60">/dashboard</span> to create one for this brand.
+            </p>
           </div>
         )}
       </div>
