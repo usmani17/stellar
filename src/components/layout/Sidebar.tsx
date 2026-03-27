@@ -37,9 +37,7 @@ import StrategiesIcon from "../../assets/images/strategies.svg";
 import StrategiesActiveIcon from "../../assets/images/strategies-active.svg";
 import WorkspaceIcon from "../../assets/workspace.svg";
 
-import { CalendarClock, Users } from "lucide-react";
-
-import { CalendarClock, FileSpreadsheet, MessageSquare } from "lucide-react";
+import { CalendarClock, FileSpreadsheet, MessageSquare, Users } from "lucide-react";
 import { useChatHistorySidebarOptional } from "../../contexts/ChatHistorySidebarContext";
 
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
