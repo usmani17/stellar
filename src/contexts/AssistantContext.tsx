@@ -80,10 +80,13 @@ interface AssistantContextType {
   sessions: SessionWithMessages[];
   currentSession: SessionWithMessages | null;
   currentSessionId: string | null;
+  /** session_db_id received from the SSE init event — set immediately when a new session's first
+   *  stream starts, before onResult fires and currentSessionId is set. Cleared on onResult / startNewSession. */
+  streamingNewSessionId: string | null;
 
   sendMessage: (content: string) => Promise<void>;
   cancelRun: () => Promise<void>;
-  selectSession: (sessionId: string) => Promise<void>;
+  selectSession: (sessionId: string, options?: { forceReload?: boolean }) => Promise<void>;
   startNewSession: () => void;
   deleteSession: (sessionId: string) => Promise<void>;
   updateSessionTitle: (sessionId: string, title: string) => void;
@@ -142,6 +145,7 @@ export const AssistantProvider: React.FC<{
 
   const [sessions, setSessions] = useState<SessionWithMessages[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [streamingNewSessionId, setStreamingNewSessionId] = useState<string | null>(null);
   const [pendingConversation, setPendingConversation] = useState<{
     messages: ChatMessage[];
   } | null>(null);
@@ -296,7 +300,7 @@ export const AssistantProvider: React.FC<{
   }, [propAccountId, propChannelId]);
 
   const selectSession = useCallback(
-    async (sessionId: string) => {
+    async (sessionId: string, options?: { forceReload?: boolean }) => {
       const sel = sessionsRef.current.find((s) => s.id === sessionId);
       setCurrentSessionId(sessionId);
       if (sel) {
@@ -345,7 +349,7 @@ export const AssistantProvider: React.FC<{
         });
       }
       const existing = sessionsRef.current.find((s) => s.id === sessionId);
-      const needsHistory = !existing?.messages?.length;
+      const needsHistory = !existing?.messages?.length || (options?.forceReload === true);
 
       if (!needsHistory) {
         const synced = extractCampaignStateFromMessages(
@@ -418,6 +422,7 @@ export const AssistantProvider: React.FC<{
 
   const startNewSession = useCallback(() => {
     setCurrentSessionId(null);
+    setStreamingNewSessionId(null);
     setPendingConversation(null);
     setCampaignState(undefined);
     campaignStateRef.current = undefined;
@@ -662,6 +667,8 @@ export const AssistantProvider: React.FC<{
                 const id = dbId ?? cursorSid;
                 pendingNewSessionRef.current = { id, cursor_session_id: cursorSid };
                 sendingNewSessionRef.current = false;
+                // Expose session_db_id immediately so the share button can appear during streaming
+                setStreamingNewSessionId(id);
               }
             },
             onMessage: (text) => {
@@ -802,6 +809,7 @@ export const AssistantProvider: React.FC<{
                     return [...withoutDup, newSession];
                   });
                   setCurrentSessionId(realId ?? newSession.id);
+                  setStreamingNewSessionId(null);
                   sendingNewSessionRef.current = false;
                   isNewSessionFlowRef.current = false;
                   pendingNewSessionRef.current = null;
@@ -998,6 +1006,7 @@ export const AssistantProvider: React.FC<{
             return [...withoutDup, newSession];
           });
           setCurrentSessionId(pendingSession.id);
+          setStreamingNewSessionId(null);
         }
         return null; // clear pending
       });
@@ -1038,6 +1047,7 @@ export const AssistantProvider: React.FC<{
         sessions,
         currentSession,
         currentSessionId,
+        streamingNewSessionId,
         sendMessage,
         cancelRun,
         selectSession,

@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useAssistant, type SessionWithMessages } from "../../contexts/AssistantContext";
 import { useAccounts, type AccountProfileOption } from "../../contexts/AccountsContext";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
-import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search, Share2, Copy, Check } from "lucide-react";
+import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search, Share2, Copy, Check, RefreshCw } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
 import { MessageContent } from "../ai/MessageContent";
@@ -81,6 +81,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         isStreaming,
         sessions,
         currentSessionId,
+        streamingNewSessionId,
         isLoadingSessions,
         selectSession,
         startNewSession,
@@ -93,6 +94,10 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         campaignState,
         workingOnRequest,
     } = useAssistant();
+
+    // Effective session ID: set immediately from SSE init event for new sessions,
+    // falls back to currentSessionId once onResult has committed the session.
+    const effectiveSessionId = currentSessionId ?? streamingNewSessionId;
 
     // Use AccountsContext for accounts and profiles (cached at app level)
     const {
@@ -170,19 +175,25 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     };
 
     const handleShareSession = () => {
-        if (!currentSessionId || !assistantScope.accountId) return;
-        const cacheKey = currentSessionId;
+        if (!effectiveSessionId || !assistantScope.accountId) return;
+        const cacheKey = effectiveSessionId;
         _openShareModal(cacheKey, null, async () => {
-            const share = await createSessionShare(Number(assistantScope.accountId), currentSessionId);
+            const share = await createSessionShare(Number(assistantScope.accountId), effectiveSessionId);
             return `${window.location.origin}/chat/share/${share.share_token}`;
         });
     };
 
     const handleShareThread = (threadId: string) => {
-        if (!currentSessionId || !assistantScope.accountId) return;
-        const cacheKey = `${currentSessionId}:${threadId}`;
+        if (!effectiveSessionId || !assistantScope.accountId) return;
+        // msg-* IDs are temporary frontend IDs assigned during streaming — they have no match
+        // in the DB (cur_session_threads.id uses real UUIDs). Fall back to a full session share.
+        if (threadId.startsWith("msg-")) {
+            handleShareSession();
+            return;
+        }
+        const cacheKey = `${effectiveSessionId}:${threadId}`;
         _openShareModal(cacheKey, threadId, async () => {
-            const share = await createThreadShare(Number(assistantScope.accountId), currentSessionId, threadId);
+            const share = await createThreadShare(Number(assistantScope.accountId), effectiveSessionId, threadId);
             return `${window.location.origin}/chat/share/${share.share_token}`;
         });
     };
@@ -1375,7 +1386,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             )}
                         </div>
                         )}
-                        {currentSessionId && (
+                        {effectiveSessionId && hasMessages && (
                         <button
                             type="button"
                             onClick={handleShareSession}
@@ -1414,9 +1425,20 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 </div>
             </div>
             ) : null}
-            {/* Page variant: share button shown in a small toolbar above messages when there's an active session */}
-            {variant === "page" && currentSessionId && hasMessages && (
+            {/* Page variant: share + refresh toolbar above messages */}
+            {variant === "page" && effectiveSessionId && hasMessages && (
                 <div className="px-4 py-2 border-b border-[#E8E8E3] flex items-center justify-end gap-2">
+                    {/* Refresh: force-reload current session history from the API */}
+                    <button
+                        type="button"
+                        onClick={() => effectiveSessionId && selectSession(effectiveSessionId, { forceReload: true })}
+                        disabled={isLoading || isStreaming}
+                        className="flex items-center justify-center w-7 h-7 rounded text-forest-f30 hover:text-forest-f40 hover:bg-sandstorm-s40/60 transition-colors disabled:opacity-40"
+                        aria-label="Refresh conversation"
+                        title="Refresh"
+                    >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+                    </button>
                     <button
                         type="button"
                         onClick={handleShareSession}
@@ -1574,7 +1596,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                 <span className="text-[10px] text-forest-f30 font-mono select-all" title={`Thread: ${message.id}`}>
                                                     Thread: {message.id}
                                                 </span>
-                                                {!aiStreaming && currentSessionId && assistantScope.accountId && (
+                                                {!aiStreaming && !isStreaming && effectiveSessionId && assistantScope.accountId && (
                                                 <button
                                                     type="button"
                                                     onClick={() => handleShareThread(message.id)}
@@ -1863,10 +1885,10 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         <div className="flex items-start justify-between mb-4">
                             <div>
                                 <h2 className="text-base font-semibold text-forest-f60">Share conversation</h2>
-                                {currentSessionId && (
+                                {effectiveSessionId && (
                                     <div className="mt-1 flex flex-col gap-0.5">
                                         <p className="text-[11px] text-forest-f30 font-mono select-all break-all">
-                                            Session: {currentSessionId}
+                                            Session: {effectiveSessionId}
                                         </p>
                                         {shareThreadId && (
                                             <p className="text-[11px] text-forest-f30 font-mono select-all break-all">

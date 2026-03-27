@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { AlertCircle, ChevronDown, Wrench, Clock, MessageCircle, Copy, Check } from "lucide-react";
-import { getSharedChat, type SharedChatResponse, type SharedThreadTurn } from "../services/ai/chatShare";
+import { getSharedChat, type SharedChatResponse, type SharedThreadTurn, type SharedSessionProfile } from "../services/ai/chatShare";
 import { ContentWithCharts } from "../components/ai/ContentWithCharts";
 import { MessageContent } from "../components/ai/MessageContent";
+import { isEventStream, extractDisplayContentFromEvents, eventsToTimeline } from "../utils/chartJsonParser";
 import StellarLogo from "../assets/images/steller-logo-mini.svg";
 
 type LoadState = "loading" | "error" | "ready";
@@ -58,8 +59,51 @@ function ToolsUsed({ tools }: { tools: string[] }) {
     );
 }
 
+const PLATFORM_LABELS: Record<string, string> = {
+    google: "Google",
+    meta: "Meta",
+    google_sheets: "Sheets",
+    amazon: "Amazon",
+};
+
+function AccountChips({ profiles }: { profiles: SharedSessionProfile[] }) {
+    return (
+        <div className="flex flex-wrap gap-1.5">
+            {profiles.map((p, i) => (
+                <span
+                    key={i}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-sandstorm-s40 text-[11px] text-forest-f60 font-medium shadow-sm"
+                >
+                    {p.platform && (
+                        <span className="text-[9px] uppercase tracking-wide text-forest-f30 font-semibold">
+                            {PLATFORM_LABELS[p.platform] ?? p.platform}
+                        </span>
+                    )}
+                    {p.platform && <span className="text-sandstorm-s40">·</span>}
+                    {p.account_name}
+                </span>
+            ))}
+        </div>
+    );
+}
+
 function ThreadTurn({ turn }: { turn: SharedThreadTurn }) {
     const durationSec = turn.duration_ms != null ? (turn.duration_ms / 1000).toFixed(1) : null;
+
+    // Parse final_message using the same logic as AssistantContext.tsx selectSession:
+    // isEventStream → extractDisplayContentFromEvents + eventsToTimeline
+    const fm = turn.final_message ?? "";
+    let displayContent = "";
+    let toolLabels: string[] = [];
+    if (fm && isEventStream(fm)) {
+        const events = JSON.parse(fm) as unknown[];
+        displayContent = extractDisplayContentFromEvents(events);
+        toolLabels = eventsToTimeline(events)
+            .filter((item): item is { type: "tool_call"; label: string } => item.type === "tool_call")
+            .map((item) => item.label);
+    } else {
+        displayContent = fm;
+    }
 
     return (
         <div className="flex flex-col gap-4">
@@ -75,13 +119,13 @@ function ThreadTurn({ turn }: { turn: SharedThreadTurn }) {
             {/* Assistant response */}
             <div className="flex justify-start">
                 <div className="min-w-0 w-full flex flex-col gap-3 px-4 py-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-xl shadow-sm">
-                    {/* Tools used (collapsible) */}
-                    <ToolsUsed tools={turn.tools} />
+                    {/* Tools used (collapsible) — same labels as live chat */}
+                    <ToolsUsed tools={toolLabels} />
 
-                    {/* Final answer */}
-                    {turn.final_text ? (
+                    {/* Final answer rendered identically to AssistantContext history display */}
+                    {displayContent ? (
                         <div className="assistant-message-content w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
-                            <ContentWithCharts content={turn.final_text} type="ai" />
+                            <ContentWithCharts content={displayContent} type="ai" />
                         </div>
                     ) : (
                         <p className="text-sm text-forest-f30 italic">No response recorded.</p>
@@ -183,9 +227,17 @@ export function PublicChatPage() {
                 {loadState === "ready" && data && (
                     <>
                         {/* Session metadata bar */}
-                        {data.session && data.session.created_at && (
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-6 text-[11px] text-forest-f30">
-                                <span>Started: <span className="font-medium text-forest-f60">{new Date(data.session.created_at).toLocaleString()}</span></span>
+                        {data.session && (data.session.created_at || (data.session.profiles && data.session.profiles.length > 0)) && (
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-6">
+                                {/* Account chips */}
+                                {data.session.profiles && data.session.profiles.length > 0 && (
+                                    <AccountChips profiles={data.session.profiles} />
+                                )}
+                                {data.session.created_at && (
+                                    <span className="text-[11px] text-forest-f30">
+                                        Started: <span className="font-medium text-forest-f60">{new Date(data.session.created_at).toLocaleString()}</span>
+                                    </span>
+                                )}
                             </div>
                         )}
 

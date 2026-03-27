@@ -13,24 +13,34 @@ export interface ChatShareRecord {
   id: number;
 }
 
-/** A single parsed thread turn as returned by the public share endpoint. */
+/** A single thread turn as returned by the public share endpoint.
+ *  final_message is the raw JSON event-stream string stored in the DB —
+ *  parse it with isEventStream / extractDisplayContentFromEvents / eventsToTimeline
+ *  (same functions used in AssistantContext.tsx) for rendering. */
 export interface SharedThreadTurn {
   id: string;
   user_query: string;
-  /** Extracted final answer text (plain text or markdown). */
-  final_text: string;
-  /** Ordered list of tool labels used during this turn. */
-  tools: string[];
+  /** Raw JSON event-stream string from cur_session_threads.final_message. */
+  final_message: string | null;
   duration_ms: number | null;
   turn_index: number;
   created_at: string | null;
   model: string | null;
 }
 
+export interface SharedSessionProfile {
+  account_name: string;
+  platform: string;
+}
+
 export interface SharedChatResponse {
   session_id: string;
   thread_id: string | null;
-  session: Pick<PixisSession, "id" | "title" | "model"> & { created_at?: string | null } | null;
+  session: Pick<PixisSession, "id" | "title"> & {
+    created_at?: string | null;
+    account_id?: number | null;
+    profiles?: SharedSessionProfile[];
+  } | null;
   history: SharedThreadTurn[];
   share_type: "public" | "internal" | "workspace";
 }

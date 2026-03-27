@@ -5,7 +5,7 @@ import {
   type ChatHistorySidebarContextType,
 } from "../../contexts/ChatHistorySidebarContext";
 import { groupSessionsByDate } from "../../utils/assistantSessionUtils";
-import { Plus, Search, BarChart3 } from "lucide-react";
+import { Plus, Search, BarChart3, RefreshCw } from "lucide-react";
 import { cn } from "../../lib/cn";
 
 const CHAT_HISTORY_SIDEBAR_WIDTH = 260;
@@ -21,6 +21,7 @@ export const ChatHistorySidebar: React.FC = () => {
     startNewSession,
     isLoadingSessions,
     setAssistantScope,
+    loadSessions,
   } = useAssistant();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -86,19 +87,31 @@ export const ChatHistorySidebar: React.FC = () => {
       </div>
 
       <div className="p-2 border-b border-sandstorm-s40">
-        <div className="relative">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-forest-f30"
-            aria-hidden
-          />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search chats"
-            className="w-full pl-9 pr-3 py-2 text-sm border border-sandstorm-s40 rounded-lg bg-white text-forest-f60 placeholder:text-forest-f30 focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-transparent"
-            aria-label="Search chats"
-          />
+        <div className="flex items-center gap-1.5">
+          <div className="relative flex-1">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-forest-f30"
+              aria-hidden
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search chats"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-sandstorm-s40 rounded-lg bg-white text-forest-f60 placeholder:text-forest-f30 focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-transparent"
+              aria-label="Search chats"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => loadSessions()}
+            disabled={isLoadingSessions}
+            className="flex items-center justify-center w-7 h-7 rounded-md text-forest-f30 hover:text-forest-f40 hover:bg-sandstorm-s40/60 transition-colors disabled:opacity-40 shrink-0"
+            aria-label="Refresh chat history"
+            title="Refresh"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingSessions ? "animate-spin" : ""}`} />
+          </button>
         </div>
       </div>
 
