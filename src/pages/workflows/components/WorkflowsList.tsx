@@ -18,12 +18,10 @@ import {
   ChevronRight,
   Zap,
   BarChart2,
-  LayoutGrid,
 } from "lucide-react";
 import { ConfirmationModal, Tooltip, Loader } from "../../../components/ui";
 import { WorkflowRunHistoryModal } from "./WorkflowRunHistoryModal";
 import { WorkflowPreviewModal } from "./WorkflowPreviewModal";
-import { CreateDashboardModal } from "./CreateDashboardModal";
 import { cn } from "../../../lib/cn";
 import type { Workflow } from "../../../services/workflows";
 import { formatSchedule, computeNextRuns } from "../utils/scheduleUtils";
@@ -65,7 +63,6 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
   const [historyWorkflow, setHistoryWorkflow] = useState<Workflow | null>(null);
   const [previewWorkflow, setPreviewWorkflow] = useState<Workflow | null>(null);
   const [runWorkflow, setRunWorkflow] = useState<Workflow | null>(null);
-  const [createDashboardWorkflow, setCreateDashboardWorkflow] = useState<Workflow | null>(null);
   const [page, setPage] = useState(1);
 
   const { data: dashboards = [] } = useQuery({
@@ -300,15 +297,6 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
                     <History className="w-4 h-4" />
                     History
                   </button>
-                  <button
-                    onClick={() => setCreateDashboardWorkflow(wf)}
-                    className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] text-forest-f60 hover:bg-sandstorm-s20 transition-colors"
-                    title={dashboards.some((d) => d.workflowId === wf.id) ? "Update Dashboard" : "Create Dashboard"}
-                    aria-label={dashboards.some((d) => d.workflowId === wf.id) ? "Update Dashboard" : "Create Dashboard"}
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                    {dashboards.some((d) => d.workflowId === wf.id) ? "Update Dashboard" : "Create Dashboard"}
-                  </button>
                   {dashboards.some((d) => d.workflowId === wf.id) && (
                     <button
                       onClick={() => navigate(buildAccountRoute(accountId, `dashboards/${dashboards.find((d) => d.workflowId === wf.id)?.id}`))}
@@ -433,29 +421,22 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
         executePayload={
           previewWorkflow
             ? {
-              accountId: previewWorkflow.accountId,
-              channelId: previewWorkflow.channelId ?? undefined,
-              profileId: previewWorkflow.profileId ?? undefined,
-              accountName: previewWorkflow.accountName,
-              channelName: previewWorkflow.channelName,
-              profileName: previewWorkflow.profileName,
-              prompt: previewWorkflow.prompt,
-              format: previewWorkflow.format,
-              workflowId: previewWorkflow.id,
-              workflowName: previewWorkflow.name,
-              logoUrl: brandSettings?.logoUrl || undefined,
-              primaryColor: brandSettings?.primaryColor || undefined,
-            }
+                accountId: previewWorkflow.accountId,
+                channelId: previewWorkflow.channelId ?? undefined,
+                profileId: previewWorkflow.profileId ?? undefined,
+                accountName: previewWorkflow.accountName,
+                channelName: previewWorkflow.channelName,
+                profileName: previewWorkflow.profileName,
+                prompt: previewWorkflow.prompt,
+                format: previewWorkflow.format,
+                workflowId: previewWorkflow.id,
+                workflowName: previewWorkflow.name,
+                logoUrl: brandSettings?.logoUrl || undefined,
+                primaryColor: brandSettings?.primaryColor || undefined,
+              }
             : undefined
         }
         workflowId={previewWorkflow?.id ?? undefined}
-      />
-
-      <CreateDashboardModal
-        isOpen={!!createDashboardWorkflow}
-        onClose={() => setCreateDashboardWorkflow(null)}
-        workflow={createDashboardWorkflow as any}
-        accountId={accountId}
       />
 
       <WorkflowPreviewModal
@@ -470,19 +451,19 @@ export const WorkflowsList: React.FC<WorkflowsListProps> = ({
         executePayload={
           runWorkflow
             ? {
-              accountId: runWorkflow.accountId,
-              channelId: runWorkflow.channelId ?? undefined,
-              profileId: runWorkflow.profileId ?? undefined,
-              accountName: runWorkflow.accountName,
-              channelName: runWorkflow.channelName,
-              profileName: runWorkflow.profileName,
-              prompt: runWorkflow.prompt,
-              format: runWorkflow.format,
-              workflowId: runWorkflow.id,
-              workflowName: runWorkflow.name,
-              logoUrl: brandSettings?.logoUrl || undefined,
-              primaryColor: brandSettings?.primaryColor || undefined,
-            }
+                accountId: runWorkflow.accountId,
+                channelId: runWorkflow.channelId ?? undefined,
+                profileId: runWorkflow.profileId ?? undefined,
+                accountName: runWorkflow.accountName,
+                channelName: runWorkflow.channelName,
+                profileName: runWorkflow.profileName,
+                prompt: runWorkflow.prompt,
+                format: runWorkflow.format,
+                workflowId: runWorkflow.id,
+                workflowName: runWorkflow.name,
+                logoUrl: brandSettings?.logoUrl || undefined,
+                primaryColor: brandSettings?.primaryColor || undefined,
+              }
             : undefined
         }
         workflowId={runWorkflow?.id ?? undefined}
