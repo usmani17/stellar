@@ -5,13 +5,14 @@ import { useAssistant, type SessionWithMessages } from "../../contexts/Assistant
 import { useAccounts, type AccountProfileOption } from "../../contexts/AccountsContext";
 import { useAuth } from "../../contexts/AuthContext";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
-import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search, Share2, Copy, Check, RefreshCw, FlaskConical, Clipboard } from "lucide-react";
+import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search, Share2, Copy, Check, RefreshCw, FlaskConical, Clipboard, Loader2 } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
 import { MessageContent } from "../ai/MessageContent";
 import { ContentWithCharts } from "../ai/ContentWithCharts";
 import { CampaignDraftPreview } from "../ai/CampaignDraftPreview";
 import { AssistantActivityBlock } from "../ai/AssistantActivityBlock";
+import { SubagentPanel } from "../ai/SubagentPanel";
 import { TodoPanel } from "../ai/TodoPanel";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
@@ -96,6 +97,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         campaignState,
         workingOnRequest,
         runTestSse,
+        todoList,
     } = useAssistant();
 
     const { user } = useAuth();
@@ -1465,7 +1467,21 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             ) : null}
             {/* Page variant: toolbar above messages */}
             {variant === "page" && (
-                <div className="px-4 py-2 border-b border-[#E8E8E3] flex items-center justify-end gap-2">
+                <div className="px-4 py-2 border-b border-[#E8E8E3] flex items-center gap-2">
+                    {/* Todo progress in header — only while streaming with incomplete todos */}
+                    {(() => {
+                        if (!isStreaming || !todoList || todoList.length === 0) return <div className="flex-1" />;
+                        const done = todoList.filter((t) => t.status === "TODO_STATUS_COMPLETE" || t.status === "TODO_STATUS_COMPLETED").length;
+                        if (done === todoList.length) return <div className="flex-1" />;
+                        const active = todoList.find((t) => t.status === "TODO_STATUS_IN_PROGRESS");
+                        return (
+                            <div className="todo-header-progress flex-1">
+                                <Loader2 className="w-3 h-3 animate-spin text-forest-f40 shrink-0" />
+                                <span className="todo-header-progress-count">{done}/{todoList.length}</span>
+                                {active && <span className="todo-header-progress-label">{active.content}</span>}
+                            </div>
+                        );
+                    })()}
                     {/* Hidden: Test SSE button (kept for future testing)
                     {runTestSse && (
                     <button
@@ -1658,7 +1674,6 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             if (message.type === "ai") {
                                 const { content, timeline, isStreaming: aiStreaming, error } = message;
                                 const lastText = [...timeline].reverse().find((i): i is Extract<PixisTimelineItem, { type: "text" }> => i.type === "text" && !!i.content);
-                                const ACTIVITY_SET = new Set(["thinking", "tool_call", "subagent"]);
                                 const todoItem = timeline.find((t): t is Extract<PixisTimelineItem, { type: "todo_update" }> => t.type === "todo_update");
                                 const timelineWithoutTodo = timeline.filter((t) => t.type !== "todo_update");
                                 const responseText = lastText?.content || content || "";
@@ -1706,18 +1721,26 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                             )}
                                             <div className="flex flex-col gap-3 w-full mt-2" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
                                                 {(() => {
-                                                    type Segment = { type: "activity"; items: PixisTimelineItem[] } | { type: "text"; content: string; idx: number };
-                                                    const isActivity = (i: PixisTimelineItem) => {
+                                                    type Segment =
+                                                        | { type: "activity"; items: PixisTimelineItem[] }
+                                                        | { type: "subagent"; item: Extract<PixisTimelineItem, { type: "subagent" }> }
+                                                        | { type: "text"; content: string; idx: number };
+                                                    const isToolActivity = (i: PixisTimelineItem) => {
                                                         if (i.type === "thinking") return !!i.content?.trim();
-                                                        return ACTIVITY_SET.has(i.type);
+                                                        return i.type === "tool_call";
                                                     };
                                                     const segments: Segment[] = [];
                                                     let i = 0;
                                                     while (i < timelineWithoutTodo.length) {
                                                         const item = timelineWithoutTodo[i];
-                                                        if (isActivity(item)) {
+                                                        if (item.type === "subagent") {
+                                                            segments.push({ type: "subagent", item: item as Extract<PixisTimelineItem, { type: "subagent" }> });
+                                                            i++;
+                                                            continue;
+                                                        }
+                                                        if (isToolActivity(item)) {
                                                             const run: PixisTimelineItem[] = [];
-                                                            while (i < timelineWithoutTodo.length && isActivity(timelineWithoutTodo[i])) {
+                                                            while (i < timelineWithoutTodo.length && isToolActivity(timelineWithoutTodo[i])) {
                                                                 run.push(timelineWithoutTodo[i]);
                                                                 i++;
                                                             }
@@ -1734,6 +1757,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                     if (timeline.length === 0 && aiStreaming) {
                                                         segments.unshift({ type: "activity", items: [] });
                                                     }
+                                                    const lastActivityIdx = segments.reduce((acc, s, i) => s.type === "activity" ? i : acc, -1);
                                                     return segments.map((seg, si) => {
                                                         if (seg.type === "activity") {
                                                             const showBlock = seg.items.length > 0 || (timeline.length === 0 && aiStreaming);
@@ -1743,7 +1767,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                                     key={`act-${si}`}
                                                                     items={seg.items}
                                                                     defaultThoughtsExpanded
-                                                                    workingOnRequest={workingOnRequest}
+                                                                    workingOnRequest={si === lastActivityIdx && workingOnRequest}
                                                                     placeholder={
                                                                         seg.items.length === 0 && timeline.length === 0 && aiStreaming ? (
                                                                             <div className="flex items-center gap-2 text-forest-f30">
@@ -1752,6 +1776,20 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                                             </div>
                                                                         ) : undefined
                                                                     }
+                                                                />
+                                                            );
+                                                        }
+                                                        if (seg.type === "subagent") {
+                                                            return (
+                                                                <SubagentPanel
+                                                                    key={seg.item.call_id ?? `sa-${si}`}
+                                                                    callId={seg.item.call_id}
+                                                                    description={seg.item.description}
+                                                                    subagentType={seg.item.subagentType}
+                                                                    status={seg.item.status}
+                                                                    steps={seg.item.steps}
+                                                                    durationMs={seg.item.durationMs}
+                                                                    startedAtMs={seg.item.timestamp_ms}
                                                                 />
                                                             );
                                                         }

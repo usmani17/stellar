@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { ChevronDown, Circle, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import type { TodoItem, TodoStatus } from "../../services/ai/pixisChat";
 
@@ -30,6 +30,29 @@ export const TodoPanel: React.FC<TodoPanelProps> = ({
   const [expanded, setExpanded] = useState(defaultExpanded);
   const completedCount = todos.filter((t) => isComplete(t.status)).length;
 
+  const prevIdsRef = useRef<Set<string>>(new Set());
+  const prevStatusRef = useRef<Map<string, TodoStatus>>(new Map());
+  const newIdsRef = useRef<Set<string>>(new Set());
+  const changedIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const prevIds = prevIdsRef.current;
+    const prevStatuses = prevStatusRef.current;
+    const freshNew = new Set<string>();
+    const freshChanged = new Set<string>();
+
+    for (const t of todos) {
+      if (!prevIds.has(t.id)) freshNew.add(t.id);
+      else if (prevStatuses.get(t.id) !== t.status) freshChanged.add(t.id);
+    }
+
+    newIdsRef.current = freshNew;
+    changedIdsRef.current = freshChanged;
+
+    prevIdsRef.current = new Set(todos.map((t) => t.id));
+    prevStatusRef.current = new Map(todos.map((t) => [t.id, t.status]));
+  }, [todos]);
+
   if (todos.length === 0) return null;
 
   return (
@@ -54,21 +77,26 @@ export const TodoPanel: React.FC<TodoPanelProps> = ({
       </button>
       {expanded && (
         <div className="todo-panel-list">
-          {todos.map((todo) => (
-            <div
-              key={todo.id}
-              className={`todo-row ${
-                isComplete(todo.status) || isCancelled(todo.status)
-                  ? "todo-row-done"
-                  : todo.status === "TODO_STATUS_IN_PROGRESS"
-                  ? "todo-row-active"
-                  : ""
-              }`}
-            >
-              {STATUS_ICON[todo.status]}
-              <span className="todo-row-text">{todo.content}</span>
-            </div>
-          ))}
+          {todos.map((todo, idx) => {
+            const isNew = newIdsRef.current.has(todo.id);
+            const isChanged = changedIdsRef.current.has(todo.id);
+            return (
+              <div
+                key={todo.id}
+                className={`todo-row ${
+                  isComplete(todo.status) || isCancelled(todo.status)
+                    ? "todo-row-done"
+                    : todo.status === "TODO_STATUS_IN_PROGRESS"
+                    ? "todo-row-active"
+                    : ""
+                } ${isNew ? "todo-row-enter" : ""} ${isChanged ? "todo-row-flash" : ""}`}
+                style={isNew ? { animationDelay: `${idx * 60}ms` } : undefined}
+              >
+                {STATUS_ICON[todo.status]}
+                <span className="todo-row-text">{todo.content}</span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

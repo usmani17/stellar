@@ -68,6 +68,7 @@ export async function replayNdjson(
   let accumulated = "";
   let segmentText = "";
   let lastTs = 0;
+  const runningSubagents = new Map<string, { description: string; subagentType: string; started_ms: number }>();
 
   for (const line of lines) {
     if (signal?.aborted) break;
@@ -90,7 +91,18 @@ export async function replayNdjson(
     const subtype = ev.subtype ?? "";
 
     if (etype === "keepalive") {
-      callbacks.onKeepalive?.();
+      if (runningSubagents.size > 0) {
+        const nowMs = ts || Date.now();
+        const rs = Array.from(runningSubagents.entries()).map(([cid, info]) => ({
+          call_id: cid,
+          description: info.description,
+          subagentType: info.subagentType,
+          elapsed_ms: nowMs - info.started_ms,
+        }));
+        callbacks.onKeepalive?.(rs);
+      } else {
+        callbacks.onKeepalive?.();
+      }
       continue;
     }
 
@@ -149,6 +161,11 @@ export async function replayNdjson(
         const model = inner?.args?.model;
 
         if (subtype === "started" && callId) {
+          runningSubagents.set(callId, {
+            description: desc,
+            subagentType: satName ?? "",
+            started_ms: ev.timestamp_ms ?? Date.now(),
+          });
           callbacks.onTimelineItem?.({
             type: "subagent",
             call_id: callId,
@@ -159,6 +176,7 @@ export async function replayNdjson(
             timestamp_ms: ev.timestamp_ms,
           });
         } else if (subtype === "completed" && callId) {
+          runningSubagents.delete(callId);
           const result = inner?.result?.success;
           callbacks.onTimelineItem?.({
             type: "subagent",
