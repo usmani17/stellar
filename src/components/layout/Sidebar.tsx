@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   getCurrentAccountId,
@@ -6,6 +6,7 @@ import {
   buildMarketplaceRoute,
   buildAccountRoute,
   getMarketplaceFromUrl,
+  clearAccountIdFromStorage,
 } from "../../utils/urlHelpers";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../../contexts/SidebarContext";
@@ -36,9 +37,18 @@ import UsersActiveIcon from "../../assets/images/users-active.svg";
 import StrategiesIcon from "../../assets/images/strategies.svg";
 import StrategiesActiveIcon from "../../assets/images/strategies-active.svg";
 import WorkspaceIcon from "../../assets/workspace.svg";
-import { BookOpen, CalendarClock, FileSpreadsheet, MessageSquare } from "lucide-react";
+import {
+  BookOpen,
+  CalendarClock,
+  ChevronDown,
+  FileSpreadsheet,
+  MessageSquare,
+} from "lucide-react";
 import { useChatHistorySidebarOptional } from "../../contexts/ChatHistorySidebarContext";
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
+import { getActiveWorkspaceLabel } from "../../lib/workspace";
+import { getAvatarInitials, getInitialColor } from "../../lib/initials";
+import type { WorkspaceMembershipSummary } from "../../services/auth";
 
 const WORKSPACE_SECTION_STORAGE_KEY = "workspace-section-collapsed";
 const AMAZON_SECTION_STORAGE_KEY = "amazon-section-collapsed";
@@ -49,9 +59,15 @@ const TIKTOK_SECTION_STORAGE_KEY = "tiktok-section-collapsed";
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const hasWorkspace = !!user?.workspace;
-  const hasUsersAccess = user?.role !== "team"; // Owner and Manager can see Users tab
+  const { user, activeWorkspaceId, setActiveWorkspaceId } = useAuth();
+  const hasWorkspace =
+    (!!user?.workspaces && user.workspaces.length > 0) || !!user?.workspace;
+  const workspaceLabel = getActiveWorkspaceLabel(user);
+  const activeMembershipRole = user?.workspaces?.find(
+    (w) => w.id === activeWorkspaceId
+  )?.role;
+  const hasUsersAccess =
+    (activeMembershipRole ?? user?.role) !== "team"; // Owner and Manager can see Users tab
   const accountId = getCurrentAccountId(location.pathname);
   const { isCollapsed, toggleSidebar, sidebarWidth } = useSidebar();
   const { accounts, getAccountById } = useAccounts();
@@ -78,11 +94,32 @@ export const Sidebar: React.FC = () => {
     channels.find((c) => c.channel_type === "meta")?.id ??
     0;
 
+  const workspaceList: WorkspaceMembershipSummary[] =
+    user?.workspaces && user.workspaces.length > 0
+      ? user.workspaces
+      : user?.workspace
+        ? [
+            {
+              id: user.workspace.id,
+              name: user.workspace.name,
+              role: user.role ?? "member",
+            },
+          ]
+        : [];
+
+  const activeWorkspaceRow =
+    workspaceList.find((w) => w.id === activeWorkspaceId) ??
+    workspaceList[0] ??
+    null;
+
   const [channelRequiredModal, setChannelRequiredModal] = useState<
     "amazon" | "google" | "tiktok" | "meta" | null
   >(null);
   const [showBrandRequiredModal, setShowBrandRequiredModal] = useState(false);
   const [brandRequiredReturnUrl, setBrandRequiredReturnUrl] = useState<string | undefined>(undefined);
+  const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
+  const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState("");
+  const workspaceDropdownRef = useRef<HTMLDivElement>(null);
 
   const [persistedAmazonCollapsed, setPersistedAmazonCollapsed] =
     useState<boolean>(() => {
@@ -184,6 +221,27 @@ export const Sidebar: React.FC = () => {
       String(persistedMetaCollapsed),
     );
   }, [persistedMetaCollapsed]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (
+        workspaceDropdownRef.current &&
+        !workspaceDropdownRef.current.contains(t)
+      ) {
+        setIsWorkspaceDropdownOpen(false);
+        setWorkspaceSearchQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filteredWorkspaces = workspaceSearchQuery.trim()
+    ? workspaceList.filter((w) =>
+        w.name.toLowerCase().includes(workspaceSearchQuery.toLowerCase()),
+      )
+    : workspaceList;
 
   const toggleAmazonSection = () => {
     setPersistedAmazonCollapsed((prev) => !prev);
@@ -423,15 +481,152 @@ export const Sidebar: React.FC = () => {
           </button>
         </div>
 
-        {/* Workspace name - top left when sidebar expanded */}
-        {hasWorkspace && user?.workspace?.name && !isCollapsed && (
-          <div className="mb-6 px-1">
-            <p
-              className="text-[11px] font-medium text-[rgba(0,0,0,0.5)] truncate"
-              title={user.workspace.name}
-            >
-              {user.workspace.name}
-            </p>
+        {/* Workspace switcher — matches brand dropdown (initials + panel) */}
+        {hasWorkspace && workspaceLabel && !isCollapsed && activeWorkspaceRow && (
+          <div className="mb-6 px-1 relative" ref={workspaceDropdownRef}>
+            {workspaceList.length > 1 ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const open = !isWorkspaceDropdownOpen;
+                    setIsWorkspaceDropdownOpen(open);
+                    if (!open) setWorkspaceSearchQuery("");
+                  }}
+                  className="account-dropdown-button w-full min-w-0 justify-between px-3"
+                  aria-label="Switch workspace"
+                  aria-expanded={isWorkspaceDropdownOpen}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div
+                      className="w-6 h-6 rounded text-white text-[9px] flex items-center justify-center font-semibold shrink-0 leading-none"
+                      style={{
+                        backgroundColor: getInitialColor(
+                          getAvatarInitials(activeWorkspaceRow.name)[0] ?? "?",
+                        ),
+                      }}
+                    >
+                      {getAvatarInitials(activeWorkspaceRow.name)}
+                    </div>
+                    <span className="text-[13.2px] text-[#072929] truncate min-w-0 text-left">
+                      {activeWorkspaceRow.name}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    className={`w-4 h-4 text-[#072929] shrink-0 transition-transform ${
+                      isWorkspaceDropdownOpen ? "rotate-180" : ""
+                    }`}
+                    aria-hidden
+                  />
+                </button>
+
+                {isWorkspaceDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-[#FEFEFB] border border-[#e8e8e3] rounded-[10px] shadow-lg overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#e8e8e3]">
+                      <h3 className="text-[13.2px] font-semibold text-[#072929]">
+                        Switch workspace
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsWorkspaceDropdownOpen(false);
+                          setWorkspaceSearchQuery("");
+                        }}
+                        className="w-5 h-5 flex items-center justify-center text-[#556179] hover:text-[#072929] transition-colors"
+                        aria-label="Close"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="px-3 py-2 border-b border-[#e8e8e3]">
+                      <input
+                        type="text"
+                        placeholder="Search workspaces..."
+                        value={workspaceSearchQuery}
+                        onChange={(e) => setWorkspaceSearchQuery(e.target.value)}
+                        className="w-full px-3 py-2 text-[12.32px] bg-white border border-[#e8e8e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-f60/20 focus:border-forest-f60"
+                      />
+                    </div>
+                    <div className="max-h-[280px] overflow-y-auto">
+                      <ul>
+                        {filteredWorkspaces.length === 0 && workspaceSearchQuery ? (
+                          <li className="px-3 py-4 text-center text-[12.32px] text-[#556179]">
+                            No workspaces match &quot;{workspaceSearchQuery}&quot;
+                          </li>
+                        ) : (
+                          filteredWorkspaces.map((w) => {
+                            const ini = getAvatarInitials(w.name);
+                            return (
+                              <li key={w.id}>
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => {
+                                    clearAccountIdFromStorage();
+                                    setActiveWorkspaceId(w.id);
+                                    navigate("/brands", { replace: true });
+                                    setIsWorkspaceDropdownOpen(false);
+                                    setWorkspaceSearchQuery("");
+                                  }}
+                                  className={`w-full flex items-center gap-2 px-3 py-2 text-[12.32px] text-left hover:bg-gray-50 transition-colors ${
+                                    w.id === activeWorkspaceId ? "bg-gray-50" : ""
+                                  }`}
+                                >
+                                  <div
+                                    className="w-6 h-6 rounded text-white text-[9px] flex items-center justify-center font-semibold shrink-0 leading-none"
+                                    style={{
+                                      backgroundColor: getInitialColor(ini[0] ?? "?"),
+                                    }}
+                                  >
+                                    {ini}
+                                  </div>
+                                  <span className="flex-1 text-left truncate text-[#072929]">
+                                    {w.name}
+                                  </span>
+                                </button>
+                              </li>
+                            );
+                          })
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div
+                className="account-dropdown-button w-full min-w-0 cursor-default px-3"
+                title={activeWorkspaceRow.name}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div
+                    className="w-6 h-6 rounded text-white text-[9px] flex items-center justify-center font-semibold shrink-0 leading-none"
+                    style={{
+                      backgroundColor: getInitialColor(
+                        getAvatarInitials(activeWorkspaceRow.name)[0] ?? "?",
+                      ),
+                    }}
+                  >
+                    {getAvatarInitials(activeWorkspaceRow.name)}
+                  </div>
+                  <span className="text-[13.2px] text-[#072929] truncate min-w-0">
+                    {activeWorkspaceRow.name}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

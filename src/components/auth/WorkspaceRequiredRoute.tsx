@@ -27,7 +27,9 @@ export const WorkspaceRequiredRoute: React.FC<WorkspaceRequiredRouteProps> = ({
     return <Navigate to="/login" replace />;
   }
 
-  if (!user.workspace) {
+  const hasMembership =
+    (user.workspaces && user.workspaces.length > 0) || !!user.workspace;
+  if (!hasMembership) {
     return <Navigate to="/no-workspace" replace />;
   }
 

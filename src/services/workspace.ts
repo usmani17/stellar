@@ -73,6 +73,18 @@ export const workspaceService = {
     return response.data;
   },
 
+  /** For create-user form: whether the email is already registered / already in this workspace. */
+  checkCreateUserEmail: async (
+    workspaceId: number,
+    email: string
+  ): Promise<{ exists: boolean; in_workspace: boolean }> => {
+    const response = await api.get<{ exists: boolean; in_workspace: boolean }>(
+      `/workspaces/${workspaceId}/users/check-email/`,
+      { params: { email: email.trim().toLowerCase() } }
+    );
+    return response.data;
+  },
+
   createUser: async (
     workspaceId: number,
     data: {
@@ -80,13 +92,23 @@ export const workspaceService = {
       first_name: string;
       last_name: string;
       role: 'manager' | 'team';
-      password: string;
-      password2: string;
+      password?: string;
+      password2?: string;
     }
   ): Promise<{ message: string; user: { id: number } }> => {
+    const body: Record<string, unknown> = {
+      email: data.email,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      role: data.role,
+    };
+    if (data.password != null && data.password2 != null) {
+      body.password = data.password;
+      body.password2 = data.password2;
+    }
     const response = await api.post<{ message: string; user: { id: number } }>(
       `/workspaces/${workspaceId}/users/`,
-      data
+      body
     );
     return response.data;
   },

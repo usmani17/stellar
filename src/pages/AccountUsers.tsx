@@ -157,11 +157,20 @@ const ROLE_LABELS: Record<string, string> = {
 
 const PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 350;
+const CREATE_EMAIL_CHECK_DEBOUNCE_MS = 400;
+/** Loose syntax check before calling check-email API */
+const EMAIL_SYNTAX_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type CreateEmailLookup =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "ready"; exists: boolean; inWorkspace: boolean }
+  | { status: "error" };
 
 export const AccountUsers: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, activeWorkspaceId } = useAuth();
   const { accounts } = useAccounts();
   const { sidebarWidth } = useSidebar();
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
@@ -180,13 +189,16 @@ export const AccountUsers: React.FC = () => {
     }
   }, [accountIdNum, navigate]);
 
+  const activeRole =
+    user?.workspaces?.find((w) => w.id === activeWorkspaceId)?.role ?? user?.role;
+
   useEffect(() => {
-    if (user?.role === "team") {
+    if (activeRole === "team") {
       navigate("/brands", { replace: true });
     }
-  }, [user?.role, navigate]);
+  }, [activeRole, navigate]);
 
-  if (user?.role === "team") {
+  if (activeRole === "team") {
     return null;
   }
 
@@ -199,7 +211,7 @@ export const AccountUsers: React.FC = () => {
           <AccountUsersContent
             accountIdNum={accountIdNum ?? 0}
             account={account ?? null}
-            workspaceId={user?.workspace?.id}
+            workspaceId={activeWorkspaceId ?? user?.workspace?.id}
           />
         </div>
       </div>
@@ -216,8 +228,10 @@ function AccountUsersContent({
   account: { id: number; name: string; channels?: Channel[] } | null;
   workspaceId?: number;
 }) {
-  const { user } = useAuth();
+  const { user, activeWorkspaceId } = useAuth();
   const { accounts } = useAccounts();
+  const activeRole =
+    user?.workspaces?.find((w) => w.id === activeWorkspaceId)?.role ?? user?.role;
 
   const [users, setUsers] = useState<WorkspaceUser[]>([]);
   const [workspaceName, setWorkspaceName] = useState("");
@@ -241,6 +255,8 @@ function AccountUsersContent({
   const [createChannelIds, setCreateChannelIds] = useState<number[]>([]);
   const [createPanelOpen, setCreatePanelOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
+  const [createEmailLookup, setCreateEmailLookup] = useState<CreateEmailLookup>({ status: "idle" });
+  const createEmailCheckSeq = useRef(0);
 
   const [assignManagerId, setAssignManagerId] = useState<number | null>(null);
   const [assignTeamId, setAssignTeamId] = useState<number | null>(null);
@@ -301,10 +317,52 @@ function AccountUsersContent({
     }
   }, [createPanelOpen, createRole, accountIdNum, accounts]);
 
+  useEffect(() => {
+    if (createPanelOpen) {
+      setCreateEmailLookup({ status: "idle" });
+      setCreatePassword("");
+      setCreatePassword2("");
+    }
+  }, [createPanelOpen]);
+
+  useEffect(() => {
+    if (!createPanelOpen || !workspaceId) {
+      return;
+    }
+    const email = createEmail.trim().toLowerCase();
+    if (!EMAIL_SYNTAX_RE.test(email)) {
+      createEmailCheckSeq.current += 1;
+      setCreateEmailLookup({ status: "idle" });
+      return;
+    }
+    const t = window.setTimeout(() => {
+      const seq = ++createEmailCheckSeq.current;
+      setCreateEmailLookup({ status: "loading" });
+      workspaceService
+        .checkCreateUserEmail(workspaceId, email)
+        .then((data) => {
+          if (seq !== createEmailCheckSeq.current) return;
+          setCreateEmailLookup({
+            status: "ready",
+            exists: data.exists,
+            inWorkspace: data.in_workspace,
+          });
+        })
+        .catch(() => {
+          if (seq !== createEmailCheckSeq.current) return;
+          setCreateEmailLookup({ status: "error" });
+        });
+    }, CREATE_EMAIL_CHECK_DEBOUNCE_MS);
+    return () => {
+      clearTimeout(t);
+      createEmailCheckSeq.current += 1;
+    };
+  }, [createEmail, createPanelOpen, workspaceId]);
+
   const isManagerOrOwner =
-    (user?.role as string) === "admin" || user?.role === "owner" ||
-    user?.role === "manager" ||
-    (user?.role !== "team" && !!user?.workspace?.id);
+    (activeRole as string) === "admin" || activeRole === "owner" ||
+    activeRole === "manager" ||
+    (activeRole !== "team" && !!workspaceId);
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const allChannels: Array<Channel & { account_name?: string }> = [];
@@ -314,24 +372,62 @@ function AccountUsersContent({
     });
   });
 
+  const emailTrimForUi = createEmail.trim().toLowerCase();
+  const emailLooksValid = EMAIL_SYNTAX_RE.test(emailTrimForUi);
+  const hidePasswordFields =
+    createEmailLookup.status === "ready" &&
+    createEmailLookup.exists &&
+    !createEmailLookup.inWorkspace;
+  const createSubmitBlockedByEmailLookup =
+    emailLooksValid &&
+    (createEmailLookup.status === "idle" ||
+      createEmailLookup.status === "loading" ||
+      (createEmailLookup.status === "ready" && createEmailLookup.inWorkspace));
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!workspaceId) return;
-    if (createPassword !== createPassword2) {
-      setError("Passwords do not match");
+
+    const emailTrim = createEmail.trim().toLowerCase();
+    const lookup = createEmailLookup;
+    const isAddExisting =
+      lookup.status === "ready" && lookup.exists && !lookup.inWorkspace;
+
+    if (lookup.status === "ready" && lookup.inWorkspace) {
+      setError("This user is already in this workspace");
       return;
     }
+    if (emailLooksValid && lookup.status === "idle") {
+      setError("Wait a moment for the email check to finish.");
+      return;
+    }
+    if (emailLooksValid && lookup.status === "loading") {
+      setError("Checking email… try again in a moment.");
+      return;
+    }
+
+    if (!isAddExisting) {
+      if (createPassword !== createPassword2) {
+        setError("Passwords do not match");
+        return;
+      }
+      if (!createPassword) {
+        setError("Password is required for new users");
+        return;
+      }
+    }
+
     setCreateLoading(true);
     setError("");
     setMessage("");
+    const wasAddExisting = isAddExisting;
     try {
       const { user: newUser } = await workspaceService.createUser(workspaceId, {
-        email: createEmail.trim().toLowerCase(),
+        email: emailTrim,
         first_name: createFirstName,
         last_name: createLastName,
         role: createRole,
-        password: createPassword,
-        password2: createPassword2,
+        ...(isAddExisting ? {} : { password: createPassword, password2: createPassword2 }),
       });
       if (createRole === "manager" && createAccountIds.length > 0) {
         await workspaceService.assignAccountsToManager(workspaceId, newUser.id, createAccountIds);
@@ -344,7 +440,7 @@ function AccountUsersContent({
       } catch {
         // Non-blocking: user was created; welcome email failure is logged server-side
       }
-      const displayName = [createFirstName, createLastName].filter(Boolean).join(" ") || createEmail.trim();
+      const displayName = [createFirstName, createLastName].filter(Boolean).join(" ") || emailTrim;
       const roleLabel = ROLE_LABELS[createRole] ?? createRole;
       const assignedBrands =
         createRole === "manager" && createAccountIds.length > 0
@@ -371,8 +467,11 @@ function AccountUsersContent({
         createRole === "team"
           ? `Assigned integrations: ${assignedIntegrations && assignedIntegrations.length > 0 ? assignedIntegrations : "None"}`
           : "";
+      const headline = wasAddExisting
+        ? "User added to this workspace. They will receive an email that they have been added."
+        : "User created successfully.";
       const parts = [
-        "User created successfully.",
+        headline,
         `Name: ${displayName}.`,
         `Role: ${roleLabel}.`,
         brandLine,
@@ -386,6 +485,7 @@ function AccountUsersContent({
       setCreatePassword2("");
       setCreateAccountIds([]);
       setCreateChannelIds([]);
+      setCreateEmailLookup({ status: "idle" });
       setCreatePanelOpen(false);
       fetchUsers();
     } catch (err: unknown) {
@@ -569,7 +669,7 @@ function AccountUsersContent({
                     </svg>
                   </button>
                 </div>
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div className="grid grid-cols-4 gap-6">
                     <div>
                       <label className="form-label">First name</label>
@@ -592,17 +692,53 @@ function AccountUsersContent({
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-4 gap-6">
-                    <div>
+                  <div className="grid grid-cols-4 gap-6 items-start">
+                    <div className="col-span-2">
                       <label className="form-label">Email <span>*</span></label>
                       <input
                         type="email"
                         value={createEmail}
                         onChange={(e) => setCreateEmail(e.target.value)}
                         required
+                        autoComplete="off"
                         className="campaign-input w-full"
                         placeholder="user@example.com"
+                        aria-describedby={
+                          createEmailLookup.status === "loading" ||
+                          createEmailLookup.status === "error" ||
+                          (createEmailLookup.status === "ready" &&
+                            (createEmailLookup.inWorkspace ||
+                              (createEmailLookup.exists && !createEmailLookup.inWorkspace)))
+                            ? "create-user-email-hint"
+                            : undefined
+                        }
                       />
+                      {(createEmailLookup.status === "loading" && emailLooksValid) ||
+                      (createEmailLookup.status === "ready" &&
+                        createEmailLookup.exists &&
+                        !createEmailLookup.inWorkspace) ||
+                      (createEmailLookup.status === "ready" && createEmailLookup.inWorkspace) ||
+                      (createEmailLookup.status === "error" && emailLooksValid) ? (
+                        <p id="create-user-email-hint" className="mt-1.5 text-[11.2px] text-[#556179]">
+                          {createEmailLookup.status === "loading" && emailLooksValid && (
+                            <span>Checking email…</span>
+                          )}
+                          {createEmailLookup.status === "ready" &&
+                            createEmailLookup.exists &&
+                            !createEmailLookup.inWorkspace && (
+                            <span className="text-forest-f60">
+                              This email already has an account. Password is not required — they will receive an email
+                              that they have been added to this workspace.
+                            </span>
+                          )}
+                          {createEmailLookup.status === "ready" && createEmailLookup.inWorkspace && (
+                            <span className="text-red-r30">This user is already a member of this workspace.</span>
+                          )}
+                          {createEmailLookup.status === "error" && emailLooksValid && (
+                            <span>Could not verify email. You can still try to submit — the server will validate.</span>
+                          )}
+                        </p>
+                      ) : null}
                     </div>
                     <div>
                       <label className="form-label">Role</label>
@@ -615,30 +751,34 @@ function AccountUsersContent({
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-4 gap-6">
-                    <div>
-                      <label className="form-label">Password <span>*</span></label>
-                      <input
-                        type="password"
-                        value={createPassword}
-                        onChange={(e) => setCreatePassword(e.target.value)}
-                        required
-                        className="campaign-input w-full"
-                        placeholder="Password"
-                      />
+                  {!hidePasswordFields && (
+                    <div className="grid grid-cols-4 gap-6">
+                      <div>
+                        <label className="form-label">Password <span>*</span></label>
+                        <input
+                          type="password"
+                          value={createPassword}
+                          onChange={(e) => setCreatePassword(e.target.value)}
+                          required
+                          className="campaign-input w-full"
+                          placeholder="Password"
+                          autoComplete="new-password"
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label">Confirm password <span>*</span></label>
+                        <input
+                          type="password"
+                          value={createPassword2}
+                          onChange={(e) => setCreatePassword2(e.target.value)}
+                          required
+                          className="campaign-input w-full"
+                          placeholder="Confirm password"
+                          autoComplete="new-password"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="form-label">Confirm password <span>*</span></label>
-                      <input
-                        type="password"
-                        value={createPassword2}
-                        onChange={(e) => setCreatePassword2(e.target.value)}
-                        required
-                        className="campaign-input w-full"
-                        placeholder="Confirm password"
-                      />
-                    </div>
-                  </div>
+                  )}
                   {createRole === "manager" && (
                     <div>
                       <MultiSelectWithSearch
@@ -674,8 +814,23 @@ function AccountUsersContent({
                 <button type="button" onClick={() => setCreatePanelOpen(false)} className="cancel-button">
                   Cancel
                 </button>
-                <button type="submit" disabled={createLoading} className="apply-button">
-                  {createLoading ? "Creating..." : "Create user"}
+                <button
+                  type="submit"
+                  disabled={createLoading || createSubmitBlockedByEmailLookup}
+                  title={
+                    createSubmitBlockedByEmailLookup
+                      ? "Wait for email check or resolve duplicate workspace member"
+                      : undefined
+                  }
+                  className="apply-button"
+                >
+                  {createLoading
+                    ? hidePasswordFields
+                      ? "Adding..."
+                      : "Creating..."
+                    : hidePasswordFields
+                      ? "Add Workspace"
+                      : "Create user"}
                 </button>
               </div>
             </form>
@@ -742,7 +897,7 @@ function AccountUsersContent({
                       <label className="form-label">Role</label>
                       <Dropdown<string>
                         options={
-                          (user?.role as string) === "admin" || user?.role === "owner"
+                          (activeRole as string) === "admin" || activeRole === "owner"
                             ? [
                                 { value: "admin", label: "Admin" },
                                 ...ROLE_OPTIONS,

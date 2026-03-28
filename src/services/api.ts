@@ -1,5 +1,6 @@
 import axios from "axios";
 import { clearAccountIdFromStorage } from "../utils/urlHelpers";
+import { getCurrentWorkspaceId } from "../lib/workspace";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
@@ -9,6 +10,7 @@ function logoutAndRedirectToLogin(): void {
   localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("user");
+  localStorage.removeItem("currentWorkspaceId");
   clearAccountIdFromStorage();
   const path = window.location.pathname + window.location.search + (window.location.hash || "");
   if (path && path !== "/login") {
@@ -57,6 +59,10 @@ api.interceptors.request.use(
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      const wsId = getCurrentWorkspaceId();
+      if (wsId != null) {
+        config.headers["X-Workspace-Id"] = String(wsId);
+      }
       console.debug(
         `[API] Making ${config.method?.toUpperCase()} request to ${config.url}`,
         {
