@@ -10,7 +10,7 @@ import React, {
 import { useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { useAccounts } from "./AccountsContext";
-import { streamPixisChat, type PixisChatParams, type PixisTimelineItem, type CampaignDraftData } from "../services/ai/pixisChat";
+import { streamPixisChat, type PixisChatParams, type PixisTimelineItem, type CampaignDraftData, type TodoItem } from "../services/ai/pixisChat";
 import {
   pixisAiSessionsService,
   type PixisSession,
@@ -80,10 +80,13 @@ interface AssistantContextType {
   sessions: SessionWithMessages[];
   currentSession: SessionWithMessages | null;
   currentSessionId: string | null;
+  /** session_db_id received from the SSE init event — set immediately when a new session's first
+   *  stream starts, before onResult fires and currentSessionId is set. Cleared on onResult / startNewSession. */
+  streamingNewSessionId: string | null;
 
   sendMessage: (content: string) => Promise<void>;
   cancelRun: () => Promise<void>;
-  selectSession: (sessionId: string) => Promise<void>;
+  selectSession: (sessionId: string, options?: { forceReload?: boolean }) => Promise<void>;
   startNewSession: () => void;
   deleteSession: (sessionId: string) => Promise<void>;
   updateSessionTitle: (sessionId: string, title: string) => void;
@@ -105,6 +108,12 @@ interface AssistantContextType {
 
   /** Campaign state from last AI response (e.g. from campaign-setup block) */
   campaignState: CampaignDraftData | undefined;
+
+  /** Consolidated todo list built from updateTodosToolCall events */
+  todoList: TodoItem[];
+
+  /** Dev-only: replay a NDJSON test file through the chat pipeline */
+  runTestSse?: () => Promise<void>;
 
   /** Manually trigger session list reload (e.g. when chat history sidebar expands) */
   loadSessions: () => Promise<void>;
@@ -142,6 +151,7 @@ export const AssistantProvider: React.FC<{
 
   const [sessions, setSessions] = useState<SessionWithMessages[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [streamingNewSessionId, setStreamingNewSessionId] = useState<string | null>(null);
   const [pendingConversation, setPendingConversation] = useState<{
     messages: ChatMessage[];
   } | null>(null);
@@ -174,6 +184,8 @@ export const AssistantProvider: React.FC<{
   const sessionsRef = useRef<SessionWithMessages[]>([]);
   sessionsRef.current = sessions;
   const campaignStateRef = useRef<CampaignDraftData | undefined>(undefined);
+  const [todoList, setTodoList] = useState<TodoItem[]>([]);
+  const todoListRef = useRef<TodoItem[]>([]);
 
   useEffect(() => {
     if (
@@ -296,7 +308,7 @@ export const AssistantProvider: React.FC<{
   }, [propAccountId, propChannelId]);
 
   const selectSession = useCallback(
-    async (sessionId: string) => {
+    async (sessionId: string, options?: { forceReload?: boolean }) => {
       const sel = sessionsRef.current.find((s) => s.id === sessionId);
       setCurrentSessionId(sessionId);
       if (sel) {
@@ -345,7 +357,7 @@ export const AssistantProvider: React.FC<{
         });
       }
       const existing = sessionsRef.current.find((s) => s.id === sessionId);
-      const needsHistory = !existing?.messages?.length;
+      const needsHistory = !existing?.messages?.length || (options?.forceReload === true);
 
       if (!needsHistory) {
         const synced = extractCampaignStateFromMessages(
@@ -418,9 +430,12 @@ export const AssistantProvider: React.FC<{
 
   const startNewSession = useCallback(() => {
     setCurrentSessionId(null);
+    setStreamingNewSessionId(null);
     setPendingConversation(null);
     setCampaignState(undefined);
     campaignStateRef.current = undefined;
+    setTodoList([]);
+    todoListRef.current = [];
   }, []);
 
   const deleteSession = useCallback(
@@ -551,6 +566,9 @@ export const AssistantProvider: React.FC<{
 
       setIsLoading(true);
 
+      todoListRef.current = [];
+      setTodoList([]);
+
       const timelineRef = { current: [...aiMsg.timeline] };
       const updateTimeline = (item: PixisTimelineItem) => {
         if (item.type === "text") {
@@ -558,9 +576,8 @@ export const AssistantProvider: React.FC<{
           const lastIdx = arr.length - 1;
           const last = arr[lastIdx];
           if (last?.type === "text") {
-            arr[lastIdx] = item; // same message growing — update in place
+            arr[lastIdx] = item;
           } else {
-            // Last is tool_call/thinking: append new text block to preserve server order (text → tool → text → tool)
             timelineRef.current = [...arr, item] as typeof timelineRef.current;
           }
         } else if (item.type === "thinking" && item.content !== undefined) {
@@ -569,6 +586,40 @@ export const AssistantProvider: React.FC<{
             timelineRef.current[timelineRef.current.length - 1] = item;
           } else {
             timelineRef.current.push(item);
+          }
+        } else if (item.type === "tool_call" && item.call_id) {
+          const idx = timelineRef.current.findIndex(
+            (t) => t.type === "tool_call" && t.call_id === item.call_id
+          );
+          if (idx >= 0) {
+            timelineRef.current[idx] = item;
+          } else {
+            timelineRef.current.push(item);
+          }
+        } else if (item.type === "subagent" && item.call_id) {
+          const idx = timelineRef.current.findIndex(
+            (t) => t.type === "subagent" && t.call_id === item.call_id
+          );
+          if (idx >= 0) {
+            timelineRef.current[idx] = item;
+          } else {
+            timelineRef.current.push(item);
+          }
+        } else if (item.type === "todo_update") {
+          if (item.merge) {
+            const byId = new Map(todoListRef.current.map((t) => [t.id, t]));
+            for (const todo of item.todos) byId.set(todo.id, todo);
+            todoListRef.current = Array.from(byId.values());
+          } else {
+            todoListRef.current = [...item.todos];
+          }
+          setTodoList([...todoListRef.current]);
+          const existingIdx = timelineRef.current.findIndex((t) => t.type === "todo_update");
+          const updatedItem = { ...item, todos: [...todoListRef.current] };
+          if (existingIdx >= 0) {
+            timelineRef.current[existingIdx] = updatedItem;
+          } else {
+            timelineRef.current.push(updatedItem);
           }
         } else {
           timelineRef.current.push(item);
@@ -662,6 +713,8 @@ export const AssistantProvider: React.FC<{
                 const id = dbId ?? cursorSid;
                 pendingNewSessionRef.current = { id, cursor_session_id: cursorSid };
                 sendingNewSessionRef.current = false;
+                // Expose session_db_id immediately so the share button can appear during streaming
+                setStreamingNewSessionId(id);
               }
             },
             onMessage: (text) => {
@@ -802,6 +855,7 @@ export const AssistantProvider: React.FC<{
                     return [...withoutDup, newSession];
                   });
                   setCurrentSessionId(realId ?? newSession.id);
+                  setStreamingNewSessionId(null);
                   sendingNewSessionRef.current = false;
                   isNewSessionFlowRef.current = false;
                   pendingNewSessionRef.current = null;
@@ -999,6 +1053,7 @@ export const AssistantProvider: React.FC<{
             return [...withoutDup, newSession];
           });
           setCurrentSessionId(pendingSession.id);
+          setStreamingNewSessionId(null);
         }
         return null; // clear pending
       });
@@ -1029,6 +1084,82 @@ export const AssistantProvider: React.FC<{
   const openAssistant = useCallback(() => setIsOpen(true), []);
   const closeAssistant = useCallback(() => setIsOpen(false), []);
 
+  const runTestSse = useCallback(async () => {
+    const { replayNdjson } = await import("../utils/mockSseReplay");
+    const sessionId = `test-${Date.now()}`;
+    const humanMsg: ChatMessage = { type: "human", id: `h-${sessionId}`, content: "use multi subagent to find top 10 campaigns in last 2 weeks" };
+    const aiMsg: Extract<ChatMessage, { type: "ai" }> = { type: "ai", id: `a-${sessionId}`, content: "", timeline: [], isStreaming: true };
+
+    todoListRef.current = [];
+    setTodoList([]);
+    const tlRef = { current: [] as PixisTimelineItem[] };
+
+    const newSession: SessionWithMessages = {
+      id: sessionId, cursor_session_id: null, user_id: null, workspace_id: null,
+      account_id: null, channel_id: null, profile_id: null,
+      created_at: new Date().toISOString(), last_activity_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(), title: "Test SSE Replay",
+      messages: [humanMsg, { ...aiMsg }],
+    };
+    setSessions((prev) => [...prev.filter((s) => s.id !== sessionId), newSession]);
+    setCurrentSessionId(sessionId);
+
+    const pushTimeline = () => {
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId
+            ? { ...s, messages: [humanMsg, { ...aiMsg, timeline: [...tlRef.current], isStreaming: true }] }
+            : s
+        )
+      );
+    };
+
+    const onTimelineItem = (item: PixisTimelineItem) => {
+      if (item.type === "text") {
+        const lastIdx = tlRef.current.length - 1;
+        if (lastIdx >= 0 && tlRef.current[lastIdx]?.type === "text") tlRef.current[lastIdx] = item;
+        else tlRef.current.push(item);
+      } else if (item.type === "tool_call" && item.call_id) {
+        const idx = tlRef.current.findIndex((t) => t.type === "tool_call" && t.call_id === item.call_id);
+        if (idx >= 0) tlRef.current[idx] = item; else tlRef.current.push(item);
+      } else if (item.type === "subagent" && item.call_id) {
+        const idx = tlRef.current.findIndex((t) => t.type === "subagent" && t.call_id === item.call_id);
+        if (idx >= 0) tlRef.current[idx] = item; else tlRef.current.push(item);
+      } else if (item.type === "todo_update") {
+        if (item.merge) {
+          const byId = new Map(todoListRef.current.map((t) => [t.id, t]));
+          for (const todo of item.todos) byId.set(todo.id, todo);
+          todoListRef.current = Array.from(byId.values());
+        } else {
+          todoListRef.current = [...item.todos];
+        }
+        setTodoList([...todoListRef.current]);
+        const existingIdx = tlRef.current.findIndex((t) => t.type === "todo_update");
+        const updated = { ...item, todos: [...todoListRef.current] };
+        if (existingIdx >= 0) tlRef.current[existingIdx] = updated; else tlRef.current.push(updated);
+      } else {
+        tlRef.current.push(item);
+      }
+      pushTimeline();
+    };
+
+    await replayNdjson({
+      onInit: () => {},
+      onMessage: (text: string) => { aiMsg.content = text; },
+      onTimelineItem,
+      onResult: () => {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === sessionId
+              ? { ...s, messages: [humanMsg, { ...aiMsg, timeline: [...tlRef.current], isStreaming: false }] }
+              : s
+          )
+        );
+      },
+      onKeepalive: () => {},
+    }, { speedMultiplier: 20 });
+  }, []);
+
   return (
     <AssistantContext.Provider
       value={{
@@ -1039,6 +1170,7 @@ export const AssistantProvider: React.FC<{
         sessions,
         currentSession,
         currentSessionId,
+        streamingNewSessionId,
         sendMessage,
         cancelRun,
         selectSession,
@@ -1057,6 +1189,8 @@ export const AssistantProvider: React.FC<{
         assistantScope,
         setAssistantScope,
         campaignState,
+        todoList,
+        runTestSse: import.meta.env.DEV ? runTestSse : undefined,
         loadSessions,
         googleSheetsIntegrations,
       }}

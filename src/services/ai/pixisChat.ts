@@ -63,12 +63,62 @@ export interface PixisChatParams {
   }>;
 }
 
-/** Timeline item for ordered display: thinking | tool_call | text | campaign-draft */
+/** Todo status values from updateTodosToolCall */
+export type TodoStatus =
+  | "TODO_STATUS_PENDING"
+  | "TODO_STATUS_IN_PROGRESS"
+  | "TODO_STATUS_COMPLETE"
+  | "TODO_STATUS_COMPLETED"
+  | "TODO_STATUS_CANCELLED";
+
+export interface TodoItem {
+  id: string;
+  content: string;
+  status: TodoStatus;
+}
+
+/** A single step inside a subagent's conversationSteps trace */
+export interface SubagentStep {
+  toolCall?: {
+    toolName: string;
+    label: string;
+    args?: Record<string, unknown>;
+    result?: unknown;
+  };
+  assistantMessage?: { text: string };
+}
+
+/** Timeline item for ordered display */
 export type PixisTimelineItem =
   | { type: "thinking"; content?: string; timestamp_ms?: number }
-  | { type: "tool_call"; label: string; status?: "running" | "completed"; timestamp_ms?: number }
+  | {
+      type: "tool_call";
+      call_id?: string;
+      label: string;
+      status: "running" | "completed";
+      args?: unknown;
+      result?: unknown;
+      timestamp_ms?: number;
+    }
   | { type: "text"; content: string; timestamp_ms?: number }
-  | { type: "campaign-draft"; data: CampaignDraftData; timestamp_ms?: number };
+  | { type: "campaign-draft"; data: CampaignDraftData; timestamp_ms?: number }
+  | {
+      type: "todo_update";
+      todos: TodoItem[];
+      merge: boolean;
+      timestamp_ms?: number;
+    }
+  | {
+      type: "subagent";
+      call_id: string;
+      description: string;
+      subagentType?: string;
+      model?: string;
+      status: "running" | "completed";
+      steps?: SubagentStep[];
+      durationMs?: number;
+      timestamp_ms?: number;
+    };
 
 /** Campaign draft data from AI agent */
 export interface CampaignDraftData {
@@ -93,21 +143,81 @@ const is_env_local = (): boolean => {
   return env === "local";
 }
 
+function extractToolLabel(tc: Record<string, unknown>, toolKey?: string): string {
+  if (!toolKey) return "Processing...";
+  const inner = tc[toolKey] as { args?: Record<string, unknown>; description?: string } | undefined;
+  const desc = inner?.description;
+  if (typeof desc === "string" && desc.trim()) return desc;
+
+  switch (toolKey) {
+    case "shellToolCall":
+      return "Processing...";
+    case "readToolCall": {
+      const p = (inner?.args?.path as string) ?? "";
+      return `Reading ${p.split("/").pop() ?? "file"}`;
+    }
+    case "writeToolCall": {
+      const p = (inner?.args?.path as string) ?? "";
+      return `Writing ${p.split("/").pop() ?? "file"}`;
+    }
+    case "editToolCall": {
+      const p = (inner?.args?.path as string) ?? "";
+      return `Editing ${p.split("/").pop() ?? "file"}`;
+    }
+    case "globToolCall": {
+      const pat = (inner?.args?.globPattern as string) ?? (inner?.args?.glob_pattern as string) ?? "";
+      return pat ? `Searching files: ${pat}` : "Searching files...";
+    }
+    case "grepToolCall": {
+      const pat = (inner?.args?.pattern as string) ?? "";
+      return pat ? `Searching code: ${pat.slice(0, 40)}` : "Searching code...";
+    }
+    default:
+      return "Processing...";
+  }
+}
+
+function parseSubagentSteps(rawSteps?: unknown[]): SubagentStep[] {
+  if (!Array.isArray(rawSteps)) return [];
+  return rawSteps.map((step) => {
+    const s = step as Record<string, unknown>;
+    if (s.toolCall) {
+      const tc = s.toolCall as Record<string, unknown>;
+      const toolKey = Object.keys(tc).find((k) => k.endsWith("ToolCall"));
+      const label = toolKey ? extractToolLabel(tc, toolKey) : "Tool call";
+      const inner = toolKey ? (tc[toolKey] as Record<string, unknown>) : {};
+      return {
+        toolCall: {
+          toolName: toolKey?.replace("ToolCall", "") ?? "unknown",
+          label,
+          args: inner?.args as Record<string, unknown> | undefined,
+          result: inner?.result,
+        },
+      };
+    }
+    if (s.assistantMessage) {
+      const am = s.assistantMessage as { text?: string };
+      return { assistantMessage: { text: am.text ?? "" } };
+    }
+    return { assistantMessage: { text: "" } };
+  });
+}
+
+export type StreamPixisChatCallbacks = {
+  onInit?: (data: { session_id?: string; session_db_id?: string }) => void;
+  onMessage?: (text: string) => void;
+  onToolCall?: (label: string) => void;
+  onTimelineItem?: (item: PixisTimelineItem) => void;
+  onCampaignDraft?: (data: CampaignDraftData) => void;
+  onResult?: (data: PixisChatStreamEvent) => void;
+  onError?: (err: Error) => void;
+  onKeepalive?: () => void;
+};
+
 export async function streamPixisChat(
   params: PixisChatParams,
   accessToken: string,
-  callbacks: {
-    onInit?: (data: { session_id?: string; session_db_id?: string }) => void;
-    onMessage?: (text: string) => void;
-    onToolCall?: (label: string) => void;
-    /** Called for each timeline item in order: tool_call or text (consumer updates last text item when same type) */
-    onTimelineItem?: (item: PixisTimelineItem) => void;
-    onCampaignDraft?: (data: CampaignDraftData) => void;
-    onResult?: (data: PixisChatStreamEvent) => void;
-    onError?: (err: Error) => void;
-    /** Called when keepalive received (connection alive during long tool runs); use to show "Working on request..." */
-    onKeepalive?: () => void;
-  },
+  callbacks: StreamPixisChatCallbacks,
   options?: { signal?: AbortSignal }
 ): Promise<{ session_id?: string; session_db_id?: string }> {
   const baseUrl = getBaseUrl();
@@ -134,6 +244,7 @@ export async function streamPixisChat(
   let sessionId: string | undefined;
   let sessionDbId: string | undefined;
   let accumulated = "";
+  let segmentText = "";
   let thinkingAccumulated = "";
 
   // Add abort signal listener
@@ -198,34 +309,88 @@ export async function streamPixisChat(
             const text = ev.message?.content?.[0]?.text ?? "";
             if (text) {
               accumulated = text.startsWith(accumulated) ? text : accumulated + text;
+              segmentText = text.startsWith(segmentText) ? text : segmentText + text;
               callbacks.onMessage?.(accumulated);
-              callbacks.onTimelineItem?.({ type: "text", content: accumulated, timestamp_ms: ev.timestamp_ms });
+              callbacks.onTimelineItem?.({ type: "text", content: segmentText, timestamp_ms: ev.timestamp_ms });
             }
           }
 
-        if (etype === "tool_call" && subtype === "started") {
-          const tc = ev.tool_call as { name?: string; shellToolCall?: unknown; readToolCall?: { args?: { path?: string } }; writeToolCall?: { args?: { path?: string } } } | undefined;
-          let label: string;
-          if (is_env_local()) {
-            label = `Tool call: ${JSON.stringify(ev.tool_call)}`;
-          } else {
-            if (typeof tc?.name === "string") {
-              label = tc.name;
-            } else if (tc?.shellToolCall) {
-              label = "Querying datasource...";
-            } else if (tc?.readToolCall) {
-              const p = tc.readToolCall?.args?.path ?? "";
-              label = `Reading: ${p.split("/").pop() ?? "file"}`;
-            } else if (tc?.writeToolCall) {
-              const p = tc.writeToolCall?.args?.path ?? "";
-              label = `Writing: ${p.split("/").pop() ?? "file"}`;
-            } else {
-              label = "Processing...";
+          if (etype === "tool_call") {
+            segmentText = "";
+            const callId = (ev as Record<string, unknown>).call_id as string | undefined;
+            const tc = ev.tool_call as Record<string, unknown> | undefined;
+            if (!tc) continue;
+
+            const toolKey = Object.keys(tc).find((k) => k.endsWith("ToolCall"));
+
+            if (toolKey === "updateTodosToolCall") {
+              const inner = tc[toolKey] as { args?: { todos?: TodoItem[]; merge?: boolean }; result?: unknown };
+              const todos = inner?.args?.todos ?? [];
+              const merge = inner?.args?.merge ?? false;
+              if (subtype === "completed" || subtype === "started") {
+                callbacks.onTimelineItem?.({ type: "todo_update", todos, merge, timestamp_ms: ev.timestamp_ms });
+              }
+              continue;
+            }
+
+            if (toolKey === "taskToolCall") {
+              const inner = tc[toolKey] as {
+                args?: { description?: string; subagentType?: { custom?: { name?: string } }; model?: string };
+                result?: { success?: { conversationSteps?: unknown[]; durationMs?: number } };
+              };
+              const args = inner?.args;
+              const desc = args?.description ?? "Subagent";
+              const satName = args?.subagentType?.custom?.name;
+              const model = args?.model;
+
+              if (subtype === "started" && callId) {
+                callbacks.onTimelineItem?.({
+                  type: "subagent",
+                  call_id: callId,
+                  description: desc,
+                  subagentType: satName,
+                  model,
+                  status: "running",
+                  timestamp_ms: ev.timestamp_ms,
+                });
+              } else if (subtype === "completed" && callId) {
+                const result = inner?.result?.success;
+                const steps = parseSubagentSteps(result?.conversationSteps);
+                callbacks.onTimelineItem?.({
+                  type: "subagent",
+                  call_id: callId,
+                  description: desc,
+                  subagentType: satName,
+                  model,
+                  status: "completed",
+                  steps,
+                  durationMs: result?.durationMs,
+                  timestamp_ms: ev.timestamp_ms,
+                });
+              }
+              continue;
+            }
+
+            const label = extractToolLabel(tc, toolKey);
+            if (subtype === "started") {
+              callbacks.onToolCall?.(label);
+              callbacks.onTimelineItem?.({
+                type: "tool_call",
+                call_id: callId,
+                label,
+                status: "running",
+                timestamp_ms: ev.timestamp_ms,
+              });
+            } else if (subtype === "completed") {
+              callbacks.onTimelineItem?.({
+                type: "tool_call",
+                call_id: callId,
+                label,
+                status: "completed",
+                timestamp_ms: ev.timestamp_ms,
+              });
             }
           }
-          callbacks.onToolCall?.(label);
-          callbacks.onTimelineItem?.({ type: "tool_call", label, timestamp_ms: ev.timestamp_ms });
-        }
 
           if (etype === "campaign-draft") {
             callbacks.onCampaignDraft?.({

@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Clipboard, Check, Download } from "lucide-react";
 import FilePreviewModal from "../charts/FilePreviewModal";
 
 // Custom: Detect and render [export_report](url) links from backend as downloadable report button.
@@ -97,6 +98,81 @@ function getFileIcon(fileName: string): React.ReactNode {
                 </svg>
             );
     }
+}
+
+function TableWrapper({ children }: { children: React.ReactNode }) {
+    const tableRef = useRef<HTMLDivElement>(null);
+    const [copied, setCopied] = useState(false);
+
+    const extractTableText = useCallback(() => {
+        const table = tableRef.current?.querySelector("table");
+        if (!table) return "";
+        const rows = Array.from(table.querySelectorAll("tr"));
+        return rows.map(row => {
+            const cells = Array.from(row.querySelectorAll("th, td"));
+            return cells.map(c => c.textContent?.trim() ?? "").join("\t");
+        }).join("\n");
+    }, []);
+
+    const handleCopy = useCallback(() => {
+        const text = extractTableText();
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    }, [extractTableText]);
+
+    const handleDownloadCsv = useCallback(() => {
+        const table = tableRef.current?.querySelector("table");
+        if (!table) return;
+        const rows = Array.from(table.querySelectorAll("tr"));
+        const csvContent = rows.map(row => {
+            const cells = Array.from(row.querySelectorAll("th, td"));
+            return cells.map(c => {
+                const val = c.textContent?.trim() ?? "";
+                return val.includes(",") || val.includes('"') || val.includes("\n")
+                    ? `"${val.replace(/"/g, '""')}"` : val;
+            }).join(",");
+        }).join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "table-data.csv";
+        a.click();
+        URL.revokeObjectURL(url);
+    }, []);
+
+    return (
+        <div ref={tableRef} className="assistant-table-outer">
+            <div className="assistant-table-actions">
+                <button
+                    type="button"
+                    className="assistant-table-action-btn"
+                    onClick={handleCopy}
+                    title={copied ? "Copied!" : "Copy table"}
+                    aria-label="Copy table"
+                >
+                    {copied ? <Check className="w-3.5 h-3.5" /> : <Clipboard className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                    type="button"
+                    className="assistant-table-action-btn"
+                    onClick={handleDownloadCsv}
+                    title="Download CSV"
+                    aria-label="Download CSV"
+                >
+                    <Download className="w-3.5 h-3.5" />
+                </button>
+            </div>
+            <div className="assistant-table-wrapper">
+                <div className="overflow-x-auto w-full max-w-full">
+                    {children}
+                </div>
+            </div>
+        </div>
+    );
 }
 
 interface StellarMarkDownProps {
@@ -250,11 +326,11 @@ export const StellarMarkDown: React.FC<StellarMarkDownProps> = ({ content, type 
                         <del className="line-through">{children}</del>
                     ),
                     table: ({ children }) => (
-                        <div className="overflow-x-auto w-full max-w-full my-3 rounded-lg border border-[#E8E8E3] shadow-sm">
-                            <table className="assistant-table w-full min-w-full border-collapse text-[14px]">
+                        <TableWrapper>
+                            <table className="assistant-table w-full min-w-full border-collapse text-[13px]">
                                 {children}
                             </table>
-                        </div>
+                        </TableWrapper>
                     ),
                     th: ({ children }) => (
                         <th className="assistant-table-th">

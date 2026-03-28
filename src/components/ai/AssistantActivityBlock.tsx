@@ -1,29 +1,29 @@
 import React from "react";
-import { Lightbulb, ChevronDown, Check } from "lucide-react";
+import { Lightbulb, ChevronDown } from "lucide-react";
 import StellarMarkDown from "./StellarMarkDown";
+import { ToolCallRow } from "./ToolCallRow";
+import { SubagentPanel } from "./SubagentPanel";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
 
 interface AssistantActivityBlockProps {
-  /** Timeline items: thinking and tool_call only. Preserves order. */
   items: PixisTimelineItem[];
   defaultThoughtsExpanded?: boolean;
-  /** Optional placeholder when streaming but no items yet */
   placeholder?: React.ReactNode;
-  /** When true, show "Working on request..." indicator (keepalive received during long tool run) */
   workingOnRequest?: boolean;
 }
 
-/** Quote-like scrollable block showing all thoughts and ran tools. */
+const ACTIVITY_TYPES = new Set(["thinking", "tool_call", "subagent"]);
+
 export const AssistantActivityBlock: React.FC<AssistantActivityBlockProps> = ({
   items,
   defaultThoughtsExpanded = true,
   placeholder,
   workingOnRequest = false,
 }) => {
-  const activityItems = items.filter(
-    (i): i is PixisTimelineItem & { type: "thinking" | "tool_call" } =>
-      i.type === "thinking" || i.type === "tool_call"
-  );
+  const activityItems = items.filter((i) => {
+    if (i.type === "thinking") return !!i.content?.trim();
+    return ACTIVITY_TYPES.has(i.type);
+  });
 
   if (activityItems.length === 0 && !placeholder) return null;
 
@@ -46,20 +46,30 @@ export const AssistantActivityBlock: React.FC<AssistantActivityBlockProps> = ({
               }
               if (item.type === "tool_call") {
                 return (
-                  <div key={`tc-${idx}`} className="assistant-ran-tool-badge">
-                    <span className="assistant-ran-tool-check" aria-hidden>
-                      <Check className="w-2.5 h-2.5" strokeWidth={3} />
-                    </span>
-                    <span className="assistant-ran-tool-label">
-                      Ran &quot;{item.label}&quot;
-                    </span>
-                  </div>
+                  <ToolCallRow
+                    key={item.call_id ?? `tc-${idx}`}
+                    label={item.label}
+                    status={item.status}
+                  />
+                );
+              }
+              if (item.type === "subagent") {
+                return (
+                  <SubagentPanel
+                    key={item.call_id}
+                    callId={item.call_id}
+                    description={item.description}
+                    subagentType={item.subagentType}
+                    status={item.status}
+                    steps={item.steps}
+                    durationMs={item.durationMs}
+                  />
                 );
               }
               return null;
             })}
             {workingOnRequest && activityItems.length > 0 && (
-              <div className="assistant-working-indicator text-xs text-forest-f30 mt-1.5 flex items-center gap-1.5">
+              <div className="assistant-working-indicator text-[11px] text-forest-f30 mt-1 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 bg-forest-f40 rounded-full animate-pulse" aria-hidden />
                 <span>Working on request...</span>
               </div>
@@ -95,9 +105,9 @@ const ThoughtsRow: React.FC<ThoughtsRowProps> = ({
         aria-controls="assistant-thoughts-body"
       >
         <span className="assistant-thoughts-header-icon" aria-hidden>
-          <Lightbulb className="w-4 h-4" />
+          <Lightbulb className="w-3.5 h-3.5" />
         </span>
-        <span className="assistant-thoughts-header-title">Thoughts</span>
+        <span className="assistant-thoughts-header-title text-[11px]">Thoughts</span>
         <ChevronDown className="assistant-thoughts-header-chevron" aria-hidden />
       </button>
       <div
@@ -106,7 +116,7 @@ const ThoughtsRow: React.FC<ThoughtsRowProps> = ({
         role="region"
         aria-label="AI reasoning"
       >
-        <div className="assistant-thoughts-content">
+        <div className="assistant-thoughts-content text-[11px]">
           <StellarMarkDown content={content} type="ai" />
         </div>
       </div>
