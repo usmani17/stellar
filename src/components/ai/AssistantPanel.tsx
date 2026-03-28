@@ -3,14 +3,16 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAssistant, type SessionWithMessages } from "../../contexts/AssistantContext";
 import { useAccounts, type AccountProfileOption } from "../../contexts/AccountsContext";
+import { useAuth } from "../../contexts/AuthContext";
 import type { PixisTimelineItem } from "../../services/ai/pixisChat";
-import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search, Share2, Copy, Check, RefreshCw } from "lucide-react";
+import { Square, X, ChevronDown, BarChart3, ArrowUp, Plus, Users, ClipboardList, Sparkles, Search, Share2, Copy, Check, RefreshCw, FlaskConical, Clipboard } from "lucide-react";
 import StellarLogo from "../../assets/images/steller-logo-mini.svg";
 import { ASSISTANT_ICONS } from "../../assets/icons/assistant-icons";
 import { MessageContent } from "../ai/MessageContent";
 import { ContentWithCharts } from "../ai/ContentWithCharts";
 import { CampaignDraftPreview } from "../ai/CampaignDraftPreview";
 import { AssistantActivityBlock } from "../ai/AssistantActivityBlock";
+import { TodoPanel } from "../ai/TodoPanel";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
@@ -93,11 +95,24 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         setAssistantScope,
         campaignState,
         workingOnRequest,
+        runTestSse,
     } = useAssistant();
 
-    // Effective session ID: set immediately from SSE init event for new sessions,
-    // falls back to currentSessionId once onResult has committed the session.
+    const { user } = useAuth();
+    const userInitials = user
+        ? `${(user.first_name?.[0] ?? "").toUpperCase()}${(user.last_name?.[0] ?? "").toUpperCase()}` || "U"
+        : "U";
+
     const effectiveSessionId = currentSessionId ?? streamingNewSessionId;
+
+    // Copy AI response text to clipboard
+    const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+    const handleCopyResponse = useCallback((messageId: string, text: string) => {
+        navigator.clipboard.writeText(text).then(() => {
+            setCopiedMessageId(messageId);
+            setTimeout(() => setCopiedMessageId(null), 2000);
+        });
+    }, []);
 
     // Use AccountsContext for accounts and profiles (cached at app level)
     const {
@@ -114,9 +129,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesScrollContainerRef = useRef<HTMLDivElement>(null);
     const userScrolledUpRef = useRef(false);
+    const programmaticScrollUntilRef = useRef(0);
     const lastAutoScrollTimeRef = useRef(0);
-    const scrollThrottleMs = 80;
-    const nearBottomThreshold = 120;
+    const scrollThrottleMs = 300;
+    const nearBottomThreshold = 80;
+    const [showScrollToBottom, setShowScrollToBottom] = useState(false);
     const editableRef = useRef<HTMLDivElement>(null);
     const historyDropdownRef = useRef<HTMLDivElement>(null);
     const schemaFormRef = useRef<CampaignFormForChatHandle | null>(null);
@@ -325,7 +342,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         userScrolledUpRef.current = false;
     }, [currentSessionId]);
 
-    // Auto-scroll to bottom when new messages arrive — smooth, throttled, and respect user scroll-up
+    // Auto-scroll to bottom when new messages arrive — instant, throttled, and respect user scroll-up
     useEffect(() => {
         if (userScrolledUpRef.current) return;
         const container = messagesScrollContainerRef.current;
@@ -333,12 +350,20 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         const now = Date.now();
         if (now - lastAutoScrollTimeRef.current < scrollThrottleMs) return;
         lastAutoScrollTimeRef.current = now;
+        programmaticScrollUntilRef.current = Date.now() + 150;
         requestAnimationFrame(() => {
             const target = container.scrollHeight - container.clientHeight;
             if (target <= 0) return;
-            container.scrollTo({ top: target, behavior: "smooth" });
+            container.scrollTo({ top: target, behavior: "instant" });
         });
     }, [messages]);
+
+    useEffect(() => {
+        if (!isStreaming) {
+            setShowScrollToBottom(false);
+            userScrolledUpRef.current = false;
+        }
+    }, [isStreaming]);
 
     // Show slash dropdown when user types "/" (hide when input exactly matches a full command)
     const filteredSlashCommands = SLASH_COMMANDS.filter((c) => {
@@ -1397,6 +1422,19 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             <Share2 className="w-4 h-4" />
                         </button>
                         )}
+                        {/* Hidden: Test SSE button (kept for future testing)
+                        {runTestSse && (
+                        <button
+                            type="button"
+                            onClick={runTestSse}
+                            className="assistant-header-icon-btn text-yellow-y10"
+                            title="Test SSE replay (dev only)"
+                            aria-label="Test SSE replay"
+                        >
+                            <FlaskConical className="w-4 h-4" />
+                        </button>
+                        )}
+                        */}
                         <button
                             type="button"
                             onClick={handleNewSession}
@@ -1425,10 +1463,25 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 </div>
             </div>
             ) : null}
-            {/* Page variant: share + refresh toolbar above messages */}
-            {variant === "page" && effectiveSessionId && hasMessages && (
+            {/* Page variant: toolbar above messages */}
+            {variant === "page" && (
                 <div className="px-4 py-2 border-b border-[#E8E8E3] flex items-center justify-end gap-2">
-                    {/* Refresh: force-reload current session history from the API */}
+                    {/* Hidden: Test SSE button (kept for future testing)
+                    {runTestSse && (
+                    <button
+                        type="button"
+                        onClick={runTestSse}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-medium border border-yellow-y10/40 bg-yellow-y10/10 text-yellow-y10 hover:bg-yellow-y10/20 transition-colors"
+                        aria-label="Test SSE replay"
+                        title="Test SSE replay (dev only)"
+                    >
+                        <FlaskConical className="w-3.5 h-3.5" />
+                        Test SSE
+                    </button>
+                    )}
+                    */}
+                    {effectiveSessionId && hasMessages && (
+                    <>
                     <button
                         type="button"
                         onClick={() => effectiveSessionId && selectSession(effectiveSessionId, { forceReload: true })}
@@ -1448,20 +1501,34 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         <Share2 className="w-3.5 h-3.5" />
                         Share conversation
                     </button>
+                    </>
+                    )}
                 </div>
             )}
 
             {/* Messages Area - min-h-0 allows flex child to shrink so overflow only when content exceeds available space */}
+            <div className="flex-1 min-h-0 relative">
             <div
                 ref={messagesScrollContainerRef}
-                className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden interactive-scrollbar px-4 py-4"
-                style={{ scrollBehavior: "smooth" }}
+                className="h-full overflow-y-auto overflow-x-hidden interactive-scrollbar px-4 py-4"
+                onWheel={(e) => {
+                    if (e.deltaY < 0 && isStreaming && !userScrolledUpRef.current) {
+                        userScrolledUpRef.current = true;
+                        setShowScrollToBottom(true);
+                    }
+                }}
                 onScroll={() => {
+                    if (Date.now() < programmaticScrollUntilRef.current) return;
                     const el = messagesScrollContainerRef.current;
                     if (!el) return;
                     const { scrollTop, scrollHeight, clientHeight } = el;
                     const distFromBottom = scrollHeight - scrollTop - clientHeight;
-                    userScrolledUpRef.current = distFromBottom > nearBottomThreshold;
+                    const isUp = distFromBottom > nearBottomThreshold;
+                    const wasUp = userScrolledUpRef.current;
+                    if (isUp && !wasUp) {
+                        userScrolledUpRef.current = true;
+                        setShowScrollToBottom(isStreaming);
+                    }
                 }}
             >
                 {isLoading && currentSessionId && !hasMessages ? (
@@ -1566,62 +1633,92 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     </div>
                 ) : (
                     /* Messages List */
-                    <div className="flex flex-col gap-4">
-                        {messages.map((message) => {
+                    <div className="flex flex-col max-w-[1280px] mx-auto w-full">
+                        {messages.map((message, mi) => {
                             if (message.type === "human") {
                                 return (
-                                    <div key={message.id} className="flex justify-end human">
-                                        <div className="min-w-0 flex flex-col justify-between items-end p-3 gap-1 h-auto bg-[#e8e8e3] rounded-[12px] shadow-sm overflow-x-auto">
-                                            <div className="text-[14px] font-normal leading-[20px] tracking-[0.1px] text-[#072929] min-w-0 max-w-full overflow-x-auto" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
-                                                <MessageContent content={message.content} />
+                                    <React.Fragment key={message.id}>
+                                        {mi > 0 && <div className="chat-turn-divider" />}
+                                        <div className={`chat-message-row ${mi === 0 ? "pt-2" : ""}`}>
+                                            <div className="chat-avatar chat-user-avatar">{userInitials}</div>
+                                            <div className="chat-message-content">
+                                                <div className="chat-message-header">
+                                                    <span className="chat-message-header-label">You</span>
+                                                </div>
+                                                <div className="chat-user-card">
+                                                    <h2 className="text-lg font-bold text-forest-f60 leading-snug font-agrandir">
+                                                        <MessageContent content={message.content} />
+                                                    </h2>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    </React.Fragment>
                                 );
                             }
                             if (message.type === "ai") {
                                 const { content, timeline, isStreaming: aiStreaming, error } = message;
-                                const sortedTimeline = [...timeline].sort((a, b) => {
-                                  const tsA = "timestamp_ms" in a && typeof a.timestamp_ms === "number" ? a.timestamp_ms : Number.MAX_SAFE_INTEGER;
-                                  const tsB = "timestamp_ms" in b && typeof b.timestamp_ms === "number" ? b.timestamp_ms : Number.MAX_SAFE_INTEGER;
-                                  return tsA - tsB;
-                                });
-                                const lastText = [...sortedTimeline].reverse().find((i): i is Extract<PixisTimelineItem, { type: "text" }> => i.type === "text" && !!i.content);
+                                const lastText = [...timeline].reverse().find((i): i is Extract<PixisTimelineItem, { type: "text" }> => i.type === "text" && !!i.content);
+                                const ACTIVITY_SET = new Set(["thinking", "tool_call", "subagent"]);
+                                const todoItem = timeline.find((t): t is Extract<PixisTimelineItem, { type: "todo_update" }> => t.type === "todo_update");
+                                const timelineWithoutTodo = timeline.filter((t) => t.type !== "todo_update");
+                                const responseText = lastText?.content || content || "";
+                                const isCopied = copiedMessageId === message.id;
                                 return (
-                                    <div key={message.id} className="flex justify-start ai">
-                                        <div className="min-w-0 flex flex-col items-start p-4 gap-3 w-full max-w-full bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] shadow-sm">
-                                            {error && <div className="text-sm text-red-600">{error}</div>}
-                                            {/* Thread ID badge */}
-                                            <div className="flex items-center justify-between w-full mb-1">
-                                                <span className="text-[10px] text-forest-f30 font-mono select-all" title={`Thread: ${message.id}`}>
-                                                    Thread: {message.id}
-                                                </span>
-                                                {!aiStreaming && !isStreaming && effectiveSessionId && assistantScope.accountId && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleShareThread(message.id)}
-                                                    className="flex items-center gap-1 text-[10px] text-forest-f30 hover:text-forest-f40 transition-colors shrink-0"
-                                                    title="Share this response"
-                                                    aria-label="Share this response"
-                                                >
-                                                    <Share2 className="w-3 h-3" />
-                                                    Share
-                                                </button>
+                                    <div key={message.id} className="chat-message-row mt-6">
+                                        <div className="chat-avatar chat-ai-avatar">
+                                            <img src={StellarLogo} alt="Stellar" />
+                                        </div>
+                                        <div className="chat-message-content">
+                                            <div className="chat-message-header">
+                                                <span className="chat-message-header-label">Stellar</span>
+                                                {!aiStreaming && !isStreaming && (
+                                                    <div className="chat-message-actions">
+                                                        {responseText && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleCopyResponse(message.id, responseText)}
+                                                                className="chat-action-btn"
+                                                                title={isCopied ? "Copied!" : "Copy response"}
+                                                                aria-label="Copy response"
+                                                            >
+                                                                {isCopied ? <Check className="w-3.5 h-3.5 text-forest-f40" /> : <Clipboard className="w-3.5 h-3.5" />}
+                                                            </button>
+                                                        )}
+                                                        {effectiveSessionId && assistantScope.accountId && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleShareThread(message.id)}
+                                                                className="chat-action-btn"
+                                                                title="Share this response"
+                                                                aria-label="Share this response"
+                                                            >
+                                                                <Share2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
-                                            <div className="flex flex-col gap-3 w-full" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
+                                            {error && <div className="text-sm text-red-r30 mt-1">{error}</div>}
+                                            {todoItem && todoItem.todos.length > 0 && (
+                                                <div className="mt-2">
+                                                    <TodoPanel todos={todoItem.todos} defaultExpanded />
+                                                </div>
+                                            )}
+                                            <div className="flex flex-col gap-3 w-full mt-2" style={{ fontFamily: "'GT America Trial', sans-serif" }}>
                                                 {(() => {
                                                     type Segment = { type: "activity"; items: PixisTimelineItem[] } | { type: "text"; content: string; idx: number };
-                                                    const isActivity = (i: PixisTimelineItem) =>
-                                                        (i.type === "thinking" && !!i.content?.trim()) || i.type === "tool_call";
+                                                    const isActivity = (i: PixisTimelineItem) => {
+                                                        if (i.type === "thinking") return !!i.content?.trim();
+                                                        return ACTIVITY_SET.has(i.type);
+                                                    };
                                                     const segments: Segment[] = [];
                                                     let i = 0;
-                                                    while (i < sortedTimeline.length) {
-                                                        const item = sortedTimeline[i];
+                                                    while (i < timelineWithoutTodo.length) {
+                                                        const item = timelineWithoutTodo[i];
                                                         if (isActivity(item)) {
                                                             const run: PixisTimelineItem[] = [];
-                                                            while (i < sortedTimeline.length && isActivity(sortedTimeline[i])) {
-                                                                run.push(sortedTimeline[i]);
+                                                            while (i < timelineWithoutTodo.length && isActivity(timelineWithoutTodo[i])) {
+                                                                run.push(timelineWithoutTodo[i]);
                                                                 i++;
                                                             }
                                                             segments.push({ type: "activity", items: run });
@@ -1637,14 +1734,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                     if (timeline.length === 0 && aiStreaming) {
                                                         segments.unshift({ type: "activity", items: [] });
                                                     }
-                                                    // Only show the last text segment — earlier ones are superseded by streaming
-                                                    // (tool_call interleaving causes multiple text blocks with overlapping content)
-                                                    const textSegs = segments.filter((s): s is Extract<typeof s, { type: "text" }> => s.type === "text");
-                                                    const lastTextIdx = textSegs.length > 1 ? segments.lastIndexOf(textSegs[textSegs.length - 1]) : -1;
-                                                    const segmentsToRender = lastTextIdx >= 0 && textSegs.length > 1
-                                                        ? segments.filter((s, i) => s.type !== "text" || i === lastTextIdx)
-                                                        : segments;
-                                                    return segmentsToRender.map((seg, si) => {
+                                                    return segments.map((seg, si) => {
                                                         if (seg.type === "activity") {
                                                             const showBlock = seg.items.length > 0 || (timeline.length === 0 && aiStreaming);
                                                             if (!showBlock) return null;
@@ -1656,13 +1746,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                                     workingOnRequest={workingOnRequest}
                                                                     placeholder={
                                                                         seg.items.length === 0 && timeline.length === 0 && aiStreaming ? (
-                                                                            <div className="flex items-center gap-2 text-[#556179]">
-                                                                                <span className="text-xs font-medium">Thinking</span>
-                                                                                <div className="flex gap-1">
-                                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
-                                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-                                                                                    <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-                                                                                </div>
+                                                                            <div className="flex items-center gap-2 text-forest-f30">
+                                                                                <span className="w-1.5 h-1.5 bg-forest-f40 rounded-full animate-pulse" />
+                                                                                <span className="text-[11px] font-medium">Thinking...</span>
                                                                             </div>
                                                                         ) : undefined
                                                                     }
@@ -1670,25 +1756,21 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                                                             );
                                                         }
                                                         return (
-                                                            <div key={`txt-${seg.idx}`} className="assistant-message-content w-full">
+                                                            <div key={`txt-${seg.idx}`} className="assistant-message-content w-full text-[14px] leading-relaxed">
                                                                 <ContentWithCharts content={seg.content} type="ai" />
                                                             </div>
                                                         );
                                                     });
                                                 })()}
                                                 {timeline.length === 0 && content && (
-                                                    <div className="assistant-message-content w-full">
+                                                    <div className="assistant-message-content w-full text-[14px] leading-relaxed">
                                                         <ContentWithCharts content={content} type="ai" />
                                                     </div>
                                                 )}
                                                 {aiStreaming && timeline.length > 0 && !lastText?.content && (
-                                                    <div className="flex items-center gap-2 text-[#556179]">
-                                                        <span className="text-xs font-medium">Thinking</span>
-                                                        <div className="flex gap-1">
-                                                            <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
-                                                            <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-                                                            <span className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-                                                        </div>
+                                                    <div className="flex items-center gap-2 text-forest-f30">
+                                                        <span className="w-1.5 h-1.5 bg-forest-f40 rounded-full animate-pulse" />
+                                                        <span className="text-[11px] font-medium">Thinking...</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -1701,14 +1783,17 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
                         {/* Waiting for first token */}
                         {isStreaming && (messages.length === 0 || messages[messages.length - 1]?.type !== "ai") && (
-                            <div className="flex justify-start">
-                                <div className="p-4 bg-[#F9F9F6] border border-[#E8E8E3] rounded-[12px] flex items-center gap-2 text-[#556179]">
-                                    <img src={StellarLogo} alt="" className="h-4 w-4 opacity-80" />
-                                    <span className="text-xs font-medium">Thinking</span>
-                                    <div className="flex gap-1 ml-1">
-                                        <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" />
-                                        <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-                                        <div className="w-1.5 h-1.5 bg-[#136D6D]/60 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                            <div className="chat-message-row mt-6">
+                                <div className="chat-avatar chat-ai-avatar">
+                                    <img src={StellarLogo} alt="Stellar" />
+                                </div>
+                                <div className="chat-message-content">
+                                    <div className="chat-message-header">
+                                        <span className="chat-message-header-label">Stellar</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-forest-f30 mt-2">
+                                        <span className="w-1.5 h-1.5 bg-forest-f40 rounded-full animate-pulse" />
+                                        <span className="text-[11px] font-medium">Thinking...</span>
                                     </div>
                                 </div>
                             </div>
@@ -1771,9 +1856,29 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         )}
                         </div>
 
-                        <div ref={messagesEndRef} />
+                        <div ref={messagesEndRef} className="h-12 shrink-0" />
                     </div>
                 )}
+            </div>
+            {showScrollToBottom && (
+                <button
+                    type="button"
+                    className="scroll-to-bottom-btn"
+                    onClick={() => {
+                        userScrolledUpRef.current = false;
+                        setShowScrollToBottom(false);
+                        programmaticScrollUntilRef.current = Date.now() + 600;
+                        messagesScrollContainerRef.current?.scrollTo({
+                            top: messagesScrollContainerRef.current.scrollHeight,
+                            behavior: "smooth",
+                        });
+                    }}
+                    aria-label="Scroll to bottom"
+                >
+                    <ChevronDown className="w-4 h-4" />
+                    <span>Follow</span>
+                </button>
+            )}
             </div>
 
             {/* Input Area - profile chips at bottom of input, dropdown opens upward */}

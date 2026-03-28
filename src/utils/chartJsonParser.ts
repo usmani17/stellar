@@ -3,7 +3,7 @@
  * Same schema as Pixis-Ai-Agent chat-ui.
  */
 
-import type { CampaignDraftData } from "../services/ai/pixisChat";
+import type { CampaignDraftData, TodoItem, SubagentStep } from "../services/ai/pixisChat";
 
 export type ChartType = "bar" | "line" | "pie" | "area";
 
@@ -213,18 +213,59 @@ export function isEventStream(value: string): boolean {
 /** Timeline item shape for building display from stored events (matches PixisTimelineItem) */
 export type EventStreamTimelineItem =
   | { type: "thinking"; content: string }
-  | { type: "tool_call"; label: string }
-  | { type: "text"; content: string };
+  | { type: "tool_call"; call_id?: string; label: string; status: "running" | "completed" }
+  | { type: "text"; content: string }
+  | { type: "todo_update"; todos: TodoItem[]; merge: boolean }
+  | { type: "subagent"; call_id: string; description: string; subagentType?: string; model?: string; status: "running" | "completed"; steps?: SubagentStep[]; durationMs?: number };
+
+function extractToolLabelFromEvent(tc: Record<string, unknown>): string {
+  const toolKey = Object.keys(tc).find((k) => k.endsWith("ToolCall"));
+  if (!toolKey) return "Processing...";
+  const inner = tc[toolKey] as Record<string, unknown> | undefined;
+  const desc = inner?.description;
+  if (typeof desc === "string" && desc.trim()) return desc;
+  const args = inner?.args as Record<string, unknown> | undefined;
+  switch (toolKey) {
+    case "shellToolCall": return "Processing...";
+    case "readToolCall": { const p = (args?.path as string) ?? ""; return `Reading ${p.split("/").pop() ?? "file"}`; }
+    case "writeToolCall": { const p = (args?.path as string) ?? ""; return `Writing ${p.split("/").pop() ?? "file"}`; }
+    case "editToolCall": { const p = (args?.path as string) ?? ""; return `Editing ${p.split("/").pop() ?? "file"}`; }
+    case "globToolCall": return "Searching files...";
+    case "grepToolCall": return "Searching code...";
+    default: return "Processing...";
+  }
+}
+
+function parseSubagentStepsFromHistory(rawSteps?: unknown[]): SubagentStep[] {
+  if (!Array.isArray(rawSteps)) return [];
+  return rawSteps.map((step) => {
+    const s = step as Record<string, unknown>;
+    if (s.toolCall) {
+      const tc = s.toolCall as Record<string, unknown>;
+      const toolKey = Object.keys(tc).find((k) => k.endsWith("ToolCall"));
+      const label = toolKey ? extractToolLabelFromEvent(tc) : "Tool call";
+      const inner = toolKey ? (tc[toolKey] as Record<string, unknown>) : {};
+      return { toolCall: { toolName: toolKey?.replace("ToolCall", "") ?? "unknown", label, args: inner?.args as Record<string, unknown> | undefined, result: inner?.result } };
+    }
+    if (s.assistantMessage) {
+      const am = s.assistantMessage as { text?: string };
+      return { assistantMessage: { text: am.text ?? "" } };
+    }
+    return { assistantMessage: { text: "" } };
+  });
+}
 
 /**
  * Build timeline items from stored event stream for history display.
- * Enables Thoughts + Ran tools to render the same as live streaming.
- * Preserves chronological order: thinking, tool_call, then text at end.
+ * Handles all event types: thinking, tool_call (with call_id), todo_update, subagent, text.
  */
 export function eventsToTimeline(events: unknown[]): EventStreamTimelineItem[] {
   if (!Array.isArray(events)) return [];
   const out: EventStreamTimelineItem[] = [];
   const evArr = events as Array<Record<string, unknown>>;
+  const toolCallMap = new Map<string, number>();
+  const subagentMap = new Map<string, number>();
+  let todoList: TodoItem[] = [];
 
   for (const ev of evArr) {
     if (ev.type === "thinking") {
@@ -232,8 +273,78 @@ export function eventsToTimeline(events: unknown[]): EventStreamTimelineItem[] {
       if (typeof content === "string" && content.trim()) {
         out.push({ type: "thinking", content });
       }
-    } else if (ev.type === "tool_call" && typeof ev.label === "string") {
-      out.push({ type: "tool_call", label: ev.label });
+      continue;
+    }
+
+    if (ev.type === "tool_call") {
+      const tc = ev.tool_call as Record<string, unknown> | undefined;
+      if (!tc) continue;
+      const callId = ev.call_id as string | undefined;
+      const toolKey = Object.keys(tc).find((k) => k.endsWith("ToolCall"));
+
+      if (toolKey === "updateTodosToolCall" && ev.subtype === "completed") {
+        const inner = tc[toolKey] as { args?: { todos?: TodoItem[]; merge?: boolean } };
+        const todos = inner?.args?.todos ?? [];
+        const merge = inner?.args?.merge ?? false;
+        if (merge) {
+          const byId = new Map(todoList.map((t) => [t.id, t]));
+          for (const todo of todos) byId.set(todo.id, todo);
+          todoList = Array.from(byId.values());
+        } else {
+          todoList = [...todos];
+        }
+        const existingIdx = out.findIndex((o) => o.type === "todo_update");
+        const item: EventStreamTimelineItem = { type: "todo_update", todos: [...todoList], merge };
+        if (existingIdx >= 0) {
+          out[existingIdx] = item;
+        } else {
+          out.push(item);
+        }
+        continue;
+      }
+
+      if (toolKey === "taskToolCall") {
+        const inner = tc[toolKey] as { args?: { description?: string; subagentType?: { custom?: { name?: string } }; model?: string }; result?: { success?: { conversationSteps?: unknown[]; durationMs?: number } } };
+        const desc = inner?.args?.description ?? "Subagent";
+        const satName = inner?.args?.subagentType?.custom?.name;
+        const model = inner?.args?.model;
+
+        if (ev.subtype === "completed" && callId) {
+          const result = inner?.result?.success;
+          const steps = parseSubagentStepsFromHistory(result?.conversationSteps);
+          const item: EventStreamTimelineItem = { type: "subagent", call_id: callId, description: desc, subagentType: satName, model, status: "completed", steps, durationMs: result?.durationMs };
+          const existingIdx = subagentMap.get(callId);
+          if (existingIdx != null) {
+            out[existingIdx] = item;
+          } else {
+            subagentMap.set(callId, out.length);
+            out.push(item);
+          }
+        } else if (ev.subtype === "started" && callId) {
+          subagentMap.set(callId, out.length);
+          out.push({ type: "subagent", call_id: callId, description: desc, subagentType: satName, model, status: "completed" });
+        }
+        continue;
+      }
+
+      if (ev.subtype === "completed" && callId) {
+        const label = extractToolLabelFromEvent(tc);
+        const existingIdx = toolCallMap.get(callId);
+        const item: EventStreamTimelineItem = { type: "tool_call", call_id: callId, label, status: "completed" };
+        if (existingIdx != null) {
+          out[existingIdx] = item;
+        } else {
+          toolCallMap.set(callId, out.length);
+          out.push(item);
+        }
+      } else if (ev.subtype === "started" && callId) {
+        const label = extractToolLabelFromEvent(tc);
+        toolCallMap.set(callId, out.length);
+        out.push({ type: "tool_call", call_id: callId, label, status: "completed" });
+      } else if (typeof ev.label === "string") {
+        out.push({ type: "tool_call", label: ev.label, status: "completed" });
+      }
+      continue;
     }
   }
 
