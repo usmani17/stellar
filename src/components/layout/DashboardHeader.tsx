@@ -19,45 +19,7 @@ import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import AmazonIcon from "../../assets/images/amazon-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
 import { AssistantTrigger } from "../ai/AssistantTrigger";
-
-// Generate a color based on the first character of the brand name (letters, digits, or fallback)
-const getInitialColor = (initial: string): string => {
-  const colors = [
-    "#136D6D", // Teal
-    "#072929", // Dark teal
-    "#556179", // Slate
-    "#8B5CF6", // Purple
-    "#EC4899", // Pink
-    "#F59E0B", // Amber
-    "#10B981", // Green
-    "#3B82F6", // Blue
-    "#EF4444", // Red
-    "#06B6D4", // Cyan
-    "#F97316", // Orange
-    "#6366F1", // Indigo
-    "#14B8A6", // Teal variant
-    "#A855F7", // Purple variant
-    "#E11D48", // Rose
-  ];
-
-  if (!initial) return colors[0];
-  const charCode = initial.charCodeAt(0);
-  let index: number;
-  if (charCode >= 48 && charCode <= 57) {
-    // 0-9: map to colors 0-9
-    index = (charCode - 48) % colors.length;
-  } else if (charCode >= 65 && charCode <= 90) {
-    // A-Z
-    index = (charCode - 65) % colors.length;
-  } else if (charCode >= 97 && charCode <= 122) {
-    // a-z
-    index = (charCode - 97) % colors.length;
-  } else {
-    // Other chars (e.g. !, #): use a stable hash
-    index = Math.abs(charCode % colors.length);
-  }
-  return colors[index];
-};
+import { getInitialColor } from "../../lib/initials";
 
 // Component to render channels list for an account (uses channels from accounts data)
 const AccountChannelsList: React.FC<{
