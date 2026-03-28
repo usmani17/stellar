@@ -11,17 +11,19 @@ const DEFAULT_PAGE_SIZE = 10;
 /**
  * Hook to fetch accounts with page-based pagination (brands page).
  * Same pattern as campaigns: single page per request, number-based pagination.
+ * `workspaceId` must be included in the query key so switching workspaces refetches (API is scoped via X-Workspace-Id).
  */
 export const useAccountsPaginated = (
   page: number = 1,
   pageSize: number = DEFAULT_PAGE_SIZE,
-  options?: { enabled?: boolean }
+  options?: { enabled?: boolean; workspaceId?: number | null }
 ) => {
+  const workspaceId = options?.workspaceId;
   const query = useQuery<AccountsPaginatedResponse, Error>({
-    queryKey: queryKeys.accounts.listPaginated(page, pageSize),
+    queryKey: queryKeys.accounts.listPaginated(workspaceId, page, pageSize),
     queryFn: () =>
       accountsService.getAccountsPaginated({ page, page_size: pageSize }),
-    enabled: options?.enabled ?? true,
+    enabled: (options?.enabled ?? true) && workspaceId != null,
     retry: (failureCount, error: any) => {
       if (error?.response?.status === 401 || error?.response?.status === 403) {
         return false;

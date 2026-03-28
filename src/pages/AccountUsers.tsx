@@ -161,7 +161,7 @@ const SEARCH_DEBOUNCE_MS = 350;
 export const AccountUsers: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, activeWorkspaceId } = useAuth();
   const { accounts } = useAccounts();
   const { sidebarWidth } = useSidebar();
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
@@ -180,13 +180,16 @@ export const AccountUsers: React.FC = () => {
     }
   }, [accountIdNum, navigate]);
 
+  const activeRole =
+    user?.workspaces?.find((w) => w.id === activeWorkspaceId)?.role ?? user?.role;
+
   useEffect(() => {
-    if (user?.role === "team") {
+    if (activeRole === "team") {
       navigate("/brands", { replace: true });
     }
-  }, [user?.role, navigate]);
+  }, [activeRole, navigate]);
 
-  if (user?.role === "team") {
+  if (activeRole === "team") {
     return null;
   }
 
@@ -199,7 +202,7 @@ export const AccountUsers: React.FC = () => {
           <AccountUsersContent
             accountIdNum={accountIdNum ?? 0}
             account={account ?? null}
-            workspaceId={user?.workspace?.id}
+            workspaceId={activeWorkspaceId ?? user?.workspace?.id}
           />
         </div>
       </div>
@@ -216,8 +219,10 @@ function AccountUsersContent({
   account: { id: number; name: string; channels?: Channel[] } | null;
   workspaceId?: number;
 }) {
-  const { user } = useAuth();
+  const { user, activeWorkspaceId } = useAuth();
   const { accounts } = useAccounts();
+  const activeRole =
+    user?.workspaces?.find((w) => w.id === activeWorkspaceId)?.role ?? user?.role;
 
   const [users, setUsers] = useState<WorkspaceUser[]>([]);
   const [workspaceName, setWorkspaceName] = useState("");
@@ -302,9 +307,9 @@ function AccountUsersContent({
   }, [createPanelOpen, createRole, accountIdNum, accounts]);
 
   const isManagerOrOwner =
-    (user?.role as string) === "admin" || user?.role === "owner" ||
-    user?.role === "manager" ||
-    (user?.role !== "team" && !!user?.workspace?.id);
+    (activeRole as string) === "admin" || activeRole === "owner" ||
+    activeRole === "manager" ||
+    (activeRole !== "team" && !!workspaceId);
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const allChannels: Array<Channel & { account_name?: string }> = [];
@@ -742,7 +747,7 @@ function AccountUsersContent({
                       <label className="form-label">Role</label>
                       <Dropdown<string>
                         options={
-                          (user?.role as string) === "admin" || user?.role === "owner"
+                          (activeRole as string) === "admin" || activeRole === "owner"
                             ? [
                                 { value: "admin", label: "Admin" },
                                 ...ROLE_OPTIONS,

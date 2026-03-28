@@ -13,10 +13,18 @@ import {
   type RegisterData,
 } from "../services/auth";
 import { clearAccountIdFromStorage } from "../utils/urlHelpers";
+import {
+  getCurrentWorkspaceId,
+  setCurrentWorkspaceId,
+  syncWorkspaceSelectionFromUser,
+} from "../lib/workspace";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  /** Resolved active workspace id for API (localStorage + profile sync). */
+  activeWorkspaceId: number | null;
+  setActiveWorkspaceId: (id: number) => void;
   login: (credentials: LoginCredentials) => Promise<void>;
   loginWithAuth0: () => Promise<void>;
   loginWithGoogle: () => Promise<void>;
@@ -35,7 +43,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<number | null>(
+    () => getCurrentWorkspaceId()
+  );
   const initRef = useRef(false); // Prevent duplicate calls in StrictMode
+
+  const setActiveWorkspaceId = (id: number) => {
+    setCurrentWorkspaceId(id);
+    setActiveWorkspaceIdState(id);
+  };
+
+  const applyUserAndWorkspace = (u: User) => {
+    syncWorkspaceSelectionFromUser(u);
+    setActiveWorkspaceIdState(getCurrentWorkspaceId());
+    setUser(u);
+  };
 
   // Initialize user from localStorage on mount
   useEffect(() => {
@@ -52,12 +74,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       if (storedUser && accessToken) {
         try {
           const userData = JSON.parse(storedUser);
-          setUser(userData);
+          applyUserAndWorkspace(userData);
 
           // Verify token is still valid by fetching profile (only when server is reachable)
           try {
             const backendUser = await authService.getProfile();
-            setUser(backendUser);
+            applyUserAndWorkspace(backendUser);
             localStorage.setItem("user", JSON.stringify(backendUser));
           } catch (error: unknown) {
             const status = (error as { response?: { status?: number } })?.response?.status;
@@ -67,11 +89,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
               localStorage.removeItem("user");
               localStorage.removeItem("accessToken");
               localStorage.removeItem("refreshToken");
+              localStorage.removeItem("currentWorkspaceId");
               setUser(null);
+              setActiveWorkspaceIdState(null);
             } else {
               // Server unreachable, network error, etc. – keep user from localStorage so session persists
               console.warn("Could not reach server to verify token, keeping existing session");
-              setUser(userData);
+              applyUserAndWorkspace(userData);
             }
           }
         } catch (error) {
@@ -79,7 +103,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           localStorage.removeItem("user");
           localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
+          localStorage.removeItem("currentWorkspaceId");
           setUser(null);
+          setActiveWorkspaceIdState(null);
         }
       }
       setLoading(false);
@@ -95,7 +121,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       localStorage.setItem("refreshToken", response.tokens.refresh);
       localStorage.setItem("user", JSON.stringify(response.user));
       clearAccountIdFromStorage();
-      setUser(response.user);
+      applyUserAndWorkspace(response.user);
     } catch (error) {
       // Re-throw the error so it can be handled by the Login component
       throw error;
@@ -137,7 +163,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     localStorage.setItem("refreshToken", response.tokens.refresh);
     localStorage.setItem("user", JSON.stringify(response.user));
     clearAccountIdFromStorage();
-    setUser(response.user);
+    applyUserAndWorkspace(response.user);
   };
 
   const registerWithAuth0 = async () => {
@@ -181,8 +207,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
+          localStorage.removeItem("currentWorkspaceId");
           clearAccountIdFromStorage();
           setUser(null);
+          setActiveWorkspaceIdState(null);
           // Redirect to Auth0 logout
           window.location.href = logout_url;
           return;
@@ -199,14 +227,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
+    localStorage.removeItem("currentWorkspaceId");
     clearAccountIdFromStorage();
     setUser(null);
+    setActiveWorkspaceIdState(null);
     window.location.href = "/login";
   };
 
   const updateUser = (updatedUser: User) => {
     localStorage.setItem("user", JSON.stringify(updatedUser));
-    setUser(updatedUser);
+    applyUserAndWorkspace(updatedUser);
   };
 
   const getAccessToken = async (): Promise<string | null> => {
@@ -220,6 +250,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       value={{
         user,
         loading,
+        activeWorkspaceId,
+        setActiveWorkspaceId,
         login,
         loginWithAuth0,
         loginWithGoogle,

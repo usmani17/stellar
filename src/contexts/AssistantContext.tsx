@@ -135,7 +135,7 @@ export const AssistantProvider: React.FC<{
   accountId?: string;
   channelId?: string;
 }> = ({ children, accountId: propAccountId, channelId: propChannelId }) => {
-  const { user, getAccessToken } = useAuth();
+  const { user, getAccessToken, activeWorkspaceId } = useAuth();
   const { getAccountGoogleSheetsIntegrationsCached } = useAccounts();
   const location = useLocation();
   const isChatPage = location.pathname === "/chat";
@@ -786,7 +786,7 @@ export const AssistantProvider: React.FC<{
                     id: realId ?? `new-${Date.now()}`,
                     cursor_session_id: pending?.cursor_session_id ?? null,
                     user_id: user?.id?.toString() ?? null,
-                    workspace_id: user?.workspace?.id ?? null,
+                    workspace_id: activeWorkspaceId ?? user?.workspace?.id ?? null,
                     account_id: accountIdNum ?? null,
                     channel_id: channelIdNum ?? null,
                     profile_id: profileIdForReq ?? null,
@@ -938,6 +938,7 @@ export const AssistantProvider: React.FC<{
     },
     [
       user?.id,
+      activeWorkspaceId,
       user?.workspace?.id,
       effectiveAccountId,
       effectiveChannelId,

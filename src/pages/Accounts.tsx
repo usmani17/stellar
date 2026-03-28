@@ -29,7 +29,7 @@ const BRANDS_PAGE_SIZE = 10;
 const BRANDS_SEARCH_FETCH_SIZE = 5000;
 
 export const Accounts: React.FC = () => {
-  const { user } = useAuth();
+  const { user, activeWorkspaceId } = useAuth();
   const isTeam = user?.role === "team";
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -43,19 +43,28 @@ export const Accounts: React.FC = () => {
     isLoading: accountsLoading,
     isFetching,
   } = useAccountsPaginated(currentPage, BRANDS_PAGE_SIZE, {
-    enabled: !isSearchActive,
+    enabled: !isSearchActive && activeWorkspaceId != null,
+    workspaceId: activeWorkspaceId,
   });
 
   const searchAccountsQuery = useQuery({
-    queryKey: queryKeys.accounts.listPaginated(1, BRANDS_SEARCH_FETCH_SIZE),
+    queryKey: queryKeys.accounts.listPaginated(
+      activeWorkspaceId,
+      1,
+      BRANDS_SEARCH_FETCH_SIZE
+    ),
     queryFn: () =>
       accountsService.getAccountsPaginated({
         page: 1,
         page_size: BRANDS_SEARCH_FETCH_SIZE,
       }),
-    enabled: isSearchActive,
+    enabled: isSearchActive && activeWorkspaceId != null,
     staleTime: 60_000,
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeWorkspaceId]);
 
   const baseAccounts: Account[] = isSearchActive
     ? (searchAccountsQuery.data?.results ?? [])

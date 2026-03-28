@@ -21,10 +21,18 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export const WorkspaceSettings: React.FC = () => {
-  const { user } = useAuth();
+  const { user, activeWorkspaceId } = useAuth();
   const { accounts } = useAccounts();
   const { sidebarWidth } = useSidebar();
-  const workspace = user?.workspace;
+  const activeWs = user?.workspaces?.find((w) => w.id === activeWorkspaceId);
+  const workspaceId = activeWorkspaceId ?? user?.workspace?.id;
+  const workspace =
+    workspaceId != null
+      ? {
+          id: workspaceId,
+          name: activeWs?.name ?? user?.workspace?.name ?? "",
+        }
+      : undefined;
 
   const [users, setUsers] = useState<WorkspaceUser[]>([]);
   const [workspaceName, setWorkspaceName] = useState("");
@@ -191,7 +199,7 @@ export const WorkspaceSettings: React.FC = () => {
     });
   });
 
-  if (!workspace) {
+  if (!workspace?.id) {
     return (
       <div className="min-h-screen bg-white flex">
         <Sidebar />

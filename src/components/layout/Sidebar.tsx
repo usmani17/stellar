@@ -6,6 +6,7 @@ import {
   buildMarketplaceRoute,
   buildAccountRoute,
   getMarketplaceFromUrl,
+  clearAccountIdFromStorage,
 } from "../../utils/urlHelpers";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../../contexts/SidebarContext";
@@ -39,6 +40,7 @@ import WorkspaceIcon from "../../assets/workspace.svg";
 import { BookOpen, CalendarClock, FileSpreadsheet, MessageSquare } from "lucide-react";
 import { useChatHistorySidebarOptional } from "../../contexts/ChatHistorySidebarContext";
 import { GOOGLE_ONLY_UI } from "../../constants/featureFlags";
+import { getActiveWorkspaceLabel } from "../../lib/workspace";
 
 const WORKSPACE_SECTION_STORAGE_KEY = "workspace-section-collapsed";
 const AMAZON_SECTION_STORAGE_KEY = "amazon-section-collapsed";
@@ -49,9 +51,15 @@ const TIKTOK_SECTION_STORAGE_KEY = "tiktok-section-collapsed";
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const hasWorkspace = !!user?.workspace;
-  const hasUsersAccess = user?.role !== "team"; // Owner and Manager can see Users tab
+  const { user, activeWorkspaceId, setActiveWorkspaceId } = useAuth();
+  const hasWorkspace =
+    (!!user?.workspaces && user.workspaces.length > 0) || !!user?.workspace;
+  const workspaceLabel = getActiveWorkspaceLabel(user);
+  const activeMembershipRole = user?.workspaces?.find(
+    (w) => w.id === activeWorkspaceId
+  )?.role;
+  const hasUsersAccess =
+    (activeMembershipRole ?? user?.role) !== "team"; // Owner and Manager can see Users tab
   const accountId = getCurrentAccountId(location.pathname);
   const { isCollapsed, toggleSidebar, sidebarWidth } = useSidebar();
   const { accounts, getAccountById } = useAccounts();
@@ -424,14 +432,35 @@ export const Sidebar: React.FC = () => {
         </div>
 
         {/* Workspace name - top left when sidebar expanded */}
-        {hasWorkspace && user?.workspace?.name && !isCollapsed && (
+        {hasWorkspace && workspaceLabel && !isCollapsed && (
           <div className="mb-6 px-1">
-            <p
-              className="text-[11px] font-medium text-[rgba(0,0,0,0.5)] truncate"
-              title={user.workspace.name}
-            >
-              {user.workspace.name}
-            </p>
+            {user?.workspaces && user.workspaces.length > 1 ? (
+              <select
+                className="w-full max-w-full text-[11px] font-medium text-forest-f60 border border-sandstorm-s40 rounded px-2 py-1.5 bg-sandstorm-s5"
+                aria-label="Switch workspace"
+                value={String(activeWorkspaceId ?? user.workspaces[0]?.id ?? "")}
+                onChange={(e) => {
+                  const id = parseInt(e.target.value, 10);
+                  if (Number.isNaN(id)) return;
+                  clearAccountIdFromStorage();
+                  setActiveWorkspaceId(id);
+                  navigate("/brands", { replace: true });
+                }}
+              >
+                {user.workspaces.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p
+                className="text-[11px] font-medium text-[rgba(0,0,0,0.5)] truncate"
+                title={workspaceLabel}
+              >
+                {workspaceLabel}
+              </p>
+            )}
           </div>
         )}
 

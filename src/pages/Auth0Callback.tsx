@@ -54,7 +54,10 @@ export const Auth0Callback: React.FC = () => {
             navigate(redirectTo, { replace: true });
             return;
           }
-          if (!userData.workspace) {
+          const hasNoWorkspace =
+            (!userData.workspaces || userData.workspaces.length === 0) &&
+            !userData.workspace;
+          if (hasNoWorkspace) {
             navigate('/signup/complete', { replace: true });
             return;
           }
@@ -85,7 +88,10 @@ export const Auth0Callback: React.FC = () => {
                   navigate(redirectTo, { replace: true });
                   return;
                 }
-                if (!userData.workspace) {
+                const hasNoWorkspaceRetry =
+                  (!userData.workspaces || userData.workspaces.length === 0) &&
+                  !userData.workspace;
+                if (hasNoWorkspaceRetry) {
                   navigate('/signup/complete', { replace: true });
                   return;
                 }

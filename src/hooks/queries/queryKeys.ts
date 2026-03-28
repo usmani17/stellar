@@ -10,14 +10,16 @@ export const queryKeys = {
   accounts: {
     all: ["accounts"] as const,
     lists: () => [...queryKeys.accounts.all, "list"] as const,
-    listAll: () => [...queryKeys.accounts.all, "list", "all"] as const,
+    listAll: (workspaceId?: number | null) =>
+      [...queryKeys.accounts.all, "list", "all", workspaceId ?? "none"] as const,
     allAccessibleProfiles: () =>
       [...queryKeys.accounts.all, "all-accessible-profiles"] as const,
-    listPaginated: (page?: number, pageSize?: number) =>
+    listPaginated: (workspaceId?: number | null, page?: number, pageSize?: number) =>
       [
         ...queryKeys.accounts.all,
         "list",
         "paginated",
+        workspaceId ?? "none",
         page ?? 1,
         pageSize ?? 10,
       ] as const,

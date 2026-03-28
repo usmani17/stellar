@@ -65,7 +65,7 @@ const AccountsContext = createContext<AccountsContextType | undefined>(
 export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, activeWorkspaceId } = useAuth();
   const [allAccountsWithProfiles, setAllAccountsWithProfiles] = useState<Array<{
     accountId: number;
     accountName: string;
@@ -93,7 +93,11 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
     isLoading: loading,
     error,
     refetch,
-  } = useAccountsQuery({ enabled: isAuthenticated, all: true });
+  } = useAccountsQuery({
+    enabled: isAuthenticated,
+    all: true,
+    workspaceId: activeWorkspaceId,
+  });
 
   // loadAccounts is kept for backward compatibility but uses React Query's refetch
   const loadAccounts = useCallback(async () => {

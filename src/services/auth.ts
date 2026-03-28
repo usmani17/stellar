@@ -9,6 +9,14 @@ export interface Workspace {
   updated_at: string;
 }
 
+/** Per-workspace membership from profile (authoritative for multi-workspace). */
+export interface WorkspaceMembershipSummary {
+  id: number;
+  name: string;
+  role: string;
+  email_verified_at?: string | null;
+}
+
 export type UserRole = 'owner' | 'admin' | 'manager' | 'team';
 
 export interface User {
@@ -17,6 +25,8 @@ export interface User {
   first_name: string;
   last_name: string;
   workspace?: Workspace | null;
+  /** All workspaces the user belongs to (backend profile). */
+  workspaces?: WorkspaceMembershipSummary[];
   role?: UserRole;
   created_at: string;
   has_unusable_password?: boolean;
