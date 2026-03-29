@@ -13,6 +13,7 @@ import {
   type RegisterData,
 } from "../services/auth";
 import { clearAccountIdFromStorage } from "../utils/urlHelpers";
+import { clearAccountsQueryCache } from "../lib/queryClient";
 
 interface AuthContextType {
   user: User | null;
@@ -91,6 +92,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const login = async (credentials: LoginCredentials) => {
     try {
       const response = await authService.login(credentials);
+      clearAccountsQueryCache();
       localStorage.setItem("accessToken", response.tokens.access);
       localStorage.setItem("refreshToken", response.tokens.refresh);
       localStorage.setItem("user", JSON.stringify(response.user));
@@ -133,6 +135,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const register = async (data: RegisterData) => {
     const response = await authService.register(data);
+    clearAccountsQueryCache();
     localStorage.setItem("accessToken", response.tokens.access);
     localStorage.setItem("refreshToken", response.tokens.refresh);
     localStorage.setItem("user", JSON.stringify(response.user));
@@ -182,6 +185,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
           clearAccountIdFromStorage();
+          clearAccountsQueryCache();
           setUser(null);
           // Redirect to Auth0 logout
           window.location.href = logout_url;
@@ -200,6 +204,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
     clearAccountIdFromStorage();
+    clearAccountsQueryCache();
     setUser(null);
     window.location.href = "/login";
   };

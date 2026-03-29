@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import { clearAccountIdFromStorage } from '../utils/urlHelpers';
+import { clearAccountsQueryCache } from '../lib/queryClient';
 
 export const Auth0Callback: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -45,6 +46,7 @@ export const Auth0Callback: React.FC = () => {
           const backendUser = await api.get('/users/profile/');
           const userData = backendUser.data;
           clearAccountIdFromStorage();
+          clearAccountsQueryCache();
           localStorage.setItem('user', JSON.stringify(userData));
           updateUser(userData);
           
@@ -77,6 +79,7 @@ export const Auth0Callback: React.FC = () => {
                 const backendUser = await api.get('/users/profile/');
                 const userData = backendUser.data;
                 clearAccountIdFromStorage();
+                clearAccountsQueryCache();
                 localStorage.setItem('user', JSON.stringify(userData));
                 updateUser(userData);
                 const redirectTo = sessionStorage.getItem('loginRedirect');
