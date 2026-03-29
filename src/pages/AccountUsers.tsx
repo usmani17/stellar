@@ -157,6 +157,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 const PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 350;
+const SUCCESS_ALERT_AUTO_DISMISS_MS = 5000;
 
 export const AccountUsers: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
@@ -260,6 +261,21 @@ function AccountUsersContent({
     const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [searchInput]);
+
+  useEffect(() => {
+    if (!message) return;
+    const id = window.setTimeout(() => setMessage(""), SUCCESS_ALERT_AUTO_DISMISS_MS);
+    return () => clearTimeout(id);
+  }, [message]);
+
+  useEffect(() => {
+    if (userCreateSuccessMessage == null) return;
+    const id = window.setTimeout(
+      () => setUserCreateSuccessMessage(null),
+      SUCCESS_ALERT_AUTO_DISMISS_MS,
+    );
+    return () => clearTimeout(id);
+  }, [userCreateSuccessMessage]);
 
   const fetchUsers = useCallback(() => {
     if (!workspaceId) return;
